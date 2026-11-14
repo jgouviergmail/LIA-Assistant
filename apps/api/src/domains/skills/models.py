@@ -7,14 +7,25 @@ Table ``user_skill_states`` stores per-user activation state.
 Disk remains the source of truth for skill content (instructions, scripts,
 resources, technical metadata). The DB is the source of truth for display
 metadata (description, descriptions), admin visibility (admin_enabled),
-and per-user activation (is_active).
+per-user activation (is_active) and per-user use (use_count, last_used_at,
+counted since usage_counted_since).
 """
 
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Final
 from uuid import UUID
 
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, String
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -224,6 +235,36 @@ class UserSkillState(BaseModel):
         default=True,
         server_default="true",
         doc="True = skill is active for this user",
+    )
+    # Lot 14 (skills/usage.py). The comments are the migration's, word for word.
+    use_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+        comment="Runs in which this skill was used for this user, one per run.",
+    )
+    last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When a run last used this skill for this user; NULL = never.",
+    )
+    last_used_run_id: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="The run last counted, so one run counts once.",
+    )
+    usage_counted_since: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        server_default=func.now(),
+        comment="When counting began: this migration for an existing state, creation after.",
+    )
+    dormancy_kept_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When the person last kept this skill after the unused-skill proposal.",
     )
 
     # Relationships

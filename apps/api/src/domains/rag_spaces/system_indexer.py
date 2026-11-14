@@ -563,7 +563,9 @@ class SystemSpaceIndexer:
 
         Since ADR-254 this is the OUTER of two layers, and they have different
         jobs. The embedding client retries fast (a second or so) to absorb a
-        blip inside one call; this loop is the patient one, backing off
+        blip inside one call — except a quota refusal naming a longer delay,
+        which it no longer retries and hands to this loop at once (ADR-254
+        amendment 2026-11-10); this loop is the patient one, backing off
         exponentially against a shared deadline so a long indexation survives a
         provider that is busy for minutes. Attempts therefore multiply, bounded
         by ``deadline`` — the resource that actually matters here is wall-clock,

@@ -28,6 +28,8 @@ BUNDLE_FILES: tuple[str, ...] = (
     "docker-compose.skill-sandbox.yml",
     "infrastructure/caddy/Caddyfile.template",
     "infrastructure/docker/postgres-init.sql",
+    # The optional `searxng` service mounts it (lot 18, profile `searxng`).
+    "infrastructure/searxng/settings.yml",
     "LICENSE",
 )
 

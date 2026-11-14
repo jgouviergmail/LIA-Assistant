@@ -9,7 +9,7 @@ JSON document from stdin:
 
 where the required ``provider_keys`` set is DERIVED at runtime by
 ``required_current_core_provider_ids()`` (post-seed effective core,
-B10-bis — currently openai + deepseek), an OPTIONAL key of
+B10-bis — currently anthropic + deepseek), an OPTIONAL key of
 ``OPTIONAL_INSTALL_PROVIDER_IDS`` (Gemini) may join it, and, in ONE database
 transaction: creates/promotes the admin (through the strict backend password
 policy) and upserts every provider key received (encrypted rows — B10-bis

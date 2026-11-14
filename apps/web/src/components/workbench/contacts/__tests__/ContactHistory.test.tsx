@@ -156,6 +156,26 @@ describe('ContactHistory', () => {
     expect(sent).toHaveAttribute('href', '/en/dashboard/tools/mail?folder=system%3Asent&id=m2');
   });
 
+  it('says beside a mail what happened next in its conversation (ADR-379)', async () => {
+    api.get.mockResolvedValue(
+      history({
+        received: [
+          { ...MAIL, reply: 'answered' },
+          { ...MAIL, id: 'm3', subject: 'Still open' },
+        ],
+        sent: [{ ...MAIL, id: 'm2', subject: 'My question', reply: 'reply_received' }],
+      })
+    );
+    panel();
+
+    const answered = await screen.findByRole('link', { name: /The agenda/ });
+    expect(within(answered).getByText('workbench.mail.answered')).toBeInTheDocument();
+    const replied = screen.getByRole('link', { name: /My question/ });
+    expect(within(replied).getByText('workbench.mail.reply_received')).toBeInTheDocument();
+    const open = screen.getByRole('link', { name: /Still open/ });
+    expect(within(open).queryByText(/workbench\.mail\.(answered|reply_received)/)).toBeNull();
+  });
+
   it('opens a meeting on its day, in its calendar', async () => {
     api.get.mockResolvedValue(history({ organized_by_them: [MEETING] }));
     panel();

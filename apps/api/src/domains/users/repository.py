@@ -29,12 +29,12 @@ from src.core.i18n import normalize_language
 from src.core.repository import BaseRepository
 from src.domains.chat.models import MessageTokenSummary, UserStatistics
 from src.domains.connectors.models import Connector, ConnectorStatus
+from src.domains.users.account_erasure import erase_purged_account
 from src.domains.users.admin_columns import (
     ADMIN_USER_COLUMN_SORTS,
     ADMIN_USER_SUBQUERY_SORTS,
 )
 from src.domains.users.models import AdminAuditLog, User
-from src.domains.users.resource_release import build_capability_origin_scrub
 
 logger = structlog.get_logger(__name__)
 
@@ -120,7 +120,9 @@ class UserRepository(BaseRepository[User]):
     def __init__(self, db: AsyncSession) -> None:
         super().__init__(db, User)
 
-    async def get_by_id(self, user_id: UUID, include_inactive: bool = False) -> User | None:
+    async def get_by_id(
+        self, user_id: UUID, include_inactive: bool = False, *, lock: bool = False
+    ) -> User | None:
         """
         Get user by ID with connectors eagerly loaded.
 
@@ -129,6 +131,7 @@ class UserRepository(BaseRepository[User]):
         Args:
             user_id: User UUID
             include_inactive: If False (default), exclude users with is_active=False
+            lock: Reload under a row lock for an account lifecycle transition.
 
         Returns:
             User object with connectors loaded, or None if not found
@@ -142,6 +145,8 @@ class UserRepository(BaseRepository[User]):
 
         if not include_inactive:
             query = query.where(User.is_active)
+        if lock:
+            query = query.with_for_update().execution_options(populate_existing=True)
 
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
@@ -291,13 +296,12 @@ class UserRepository(BaseRepository[User]):
         Permanently delete a user from database.
 
         This method provides the domain-specific hard delete API for User models.
-        Internally delegates to BaseRepository.delete().
+        Requires the audited account purge; no FK cascade may discard cleanup debt.
 
         Args:
             user: User object to delete
         """
-        await self.db.execute(build_capability_origin_scrub(user.id))
-        await BaseRepository.delete(self, user)
+        await erase_purged_account(self.db, user.id)
         logger.info("user_hard_deleted", user_id=str(user.id))
 
     async def search_by_email(self, email_pattern: str) -> list[User]:

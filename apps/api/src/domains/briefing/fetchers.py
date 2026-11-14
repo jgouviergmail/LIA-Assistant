@@ -23,7 +23,7 @@ import asyncio
 import math
 from collections.abc import Awaitable, Callable, Sequence
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -34,6 +34,7 @@ from src.core.config import settings
 from src.core.constants import (
     GMAIL_FORMAT_METADATA,
     HEALTH_METRICS_USER_TOGGLE_ATTR,
+    TASK_LISTS_READ_MAX,
 )
 from src.core.exceptions import ConnectorAPIError, MaxRetriesExceededError
 from src.core.time_utils import now_utc
@@ -69,9 +70,6 @@ from src.domains.briefing.formatters import (
     is_event_past,
     make_health_summary_item,
 )
-from src.domains.briefing.formatters import (
-    format_task_item as _task_to_item,
-)
 from src.domains.briefing.schemas import (
     AgendaData,
     BirthdaysData,
@@ -87,7 +85,11 @@ from src.domains.briefing.schemas import (
     TasksData,
     WeatherData,
 )
+from src.domains.briefing.tasks_card import card_items
 from src.domains.connectors.clients.normalizers.calendar_links import CONFERENCE_FIELDS
+from src.domains.connectors.clients.task_lists import TaskListing, read_every_task_list
+from src.domains.connectors.companion_weather import publish_companion_weather
+from src.domains.connectors.mail_reply_states import attach_reply_states
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
 from src.domains.connectors.weather_provider import (
@@ -191,6 +193,8 @@ async def fetch_weather(
         ) from exc
     finally:
         await client.close()
+    # The person's place, read now: the companion shows it too (ADR-294, 2026-11-13).
+    await publish_companion_weather(user.id, current)
 
     return format_weather_data(
         current=current,
@@ -321,6 +325,7 @@ async def fetch_forecast_alert(
         ) from exc
     finally:
         await client.close()
+    await publish_companion_weather(user.id, current)
     return detect_forecast_alert(
         current=current, forecast=forecast, user_tz=user_tz, now=now, rule=rule
     )
@@ -422,13 +427,17 @@ async def fetch_mails(
     language: str,
     exclude_commercial_mails: bool = False,
     qualify_items: bool = True,
+    situate_items: bool = True,
 ) -> MailsData:
-    """Fetch today's unread inbox emails from the active provider.
+    """Fetch the unread inbox emails from the active provider.
 
-    All providers normalize email shape to top-level from/subject/snippet/internalDate
-    (see context_aggregator._fetch_emails for reference behaviour). The
-    ``language`` argument is forwarded to ``format_email_item`` so received
+    All providers normalize email shape to top-level from/subject/snippet/internalDate.
+    The ``language`` argument is forwarded to ``format_email_item`` so received
     timestamps are rendered with the user's locale conventions.
+
+    Unread is not unanswered (ADR-379): each listed mail says where it stands in its
+    conversation, read through the one door while the mailbox is open. A reader that
+    only MATCHES the listing (a routine's condition) passes ``situate_items=False``.
     """
     from src.domains.connectors.active_client import (
         ActiveClient,
@@ -456,16 +465,19 @@ async def fetch_mails(
                 else None
             ),
         )
+        eligible = (
+            [m for m in full_messages if not commercial_mail(m)]
+            if exclude_commercial_mails
+            else full_messages
+        )
+        listed = eligible[: settings.briefing_max_mails_items]
+        if situate_items:
+            await attach_reply_states(opened.client, listed, user_timezone=str(user_tz))
         binding = source_binding(opened.client)
         provider = getattr(opened.connector_type, "value", "")
 
-    eligible = (
-        [m for m in full_messages if not commercial_mail(m)]
-        if exclude_commercial_mails
-        else full_messages
-    )
     selected = await classify_briefing_items(
-        eligible[: settings.briefing_max_mails_items],
+        listed,
         kind="email",
         user_id=user.id,
         provider=provider,
@@ -669,87 +681,86 @@ async def fetch_health(*, user: User) -> HealthData:
 # Tasks & documents (the active tasks provider, the account's drive — P15)
 # =============================================================================
 
+#: A provider that could not be reached: what a card answers with a classified access error.
+_TRANSPORT_FAILURES: tuple[type[Exception], ...] = (
+    TimeoutError,
+    httpx.HTTPError,
+    MaxRetriesExceededError,
+)
+#: What one read among several may fail on while the card keeps the rest.
+_READ_FAILURES: tuple[type[Exception], ...] = (*_TRANSPORT_FAILURES, ConnectorAPIError)
+
 
 async def fetch_tasks(*, user: User, user_tz: ZoneInfo, whole_page: bool = False) -> TasksData:
-    """Fetch strictly pending/overdue tasks from the active tasks provider.
+    """Fetch strictly pending/overdue tasks of EVERY list of the active tasks provider.
 
     Scope (2026-07-22 arbitration): open items only, overdue (unbounded past)
     + due within ``briefing_tasks_horizon_days``; undated tasks are outside
     the card's temporal scope (the provider ``due_max`` filter excludes
     them). ``days_until_due`` renders client-side.
 
-    ``whole_page`` keeps every task of the provider's page instead of the
-    card's first ``briefing_max_tasks_items``. A task routine (ADR-322) waits
-    for the NEWEST overdue task, which the card's oldest-first cut drops as
-    soon as the person has that many older ones.
+    Every list is read (owner, 2026-11-10), a few at a time through the one
+    walk (``connectors/clients/task_lists``), and assembled by ``tasks_card``:
+    each task names its own list by its real id, where the Tools open it. A list
+    that fails leaves the others
+    on the card, which then says it is partial; with nothing left to show the
+    failure is the card's, « nothing to do » never being told on a list nobody
+    read (ADR-303).
+
+    ``whole_page`` keeps every task read instead of the card's first
+    ``briefing_max_tasks_items``. A task routine (ADR-322) waits for the NEWEST
+    overdue task, which the card's oldest-first cut drops as soon as the person
+    has that many older ones.
 
     Raises:
         ConnectorNotConfiguredError: if no active tasks connector.
         ConnectorAccessError: on credential or HTTP failure.
     """
     from src.domains.connectors.active_client import ActiveClient, open_active_client
-    from src.domains.connectors.preferences.owner_defaults import (
-        TASK_LIST,
-        resolve_owner_container_id,
-    )
 
-    today_local = datetime.now(user_tz).date()
     due_max = (datetime.now(UTC) + timedelta(days=settings.briefing_tasks_horizon_days)).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
     )
-    # Same door as the heartbeat: provider, credentials and the preferred
-    # list's NAME in one short session; nothing held while Tasks answers.
-    async with open_active_client("tasks", user.id, container=TASK_LIST) as opened:
+    # Same door as the heartbeat: provider and credentials in one short
+    # session; nothing held while Tasks answers.
+    async with open_active_client("tasks", user.id) as opened:
         if not isinstance(opened, ActiveClient):
             raise ConnectorNotConfiguredError("tasks")
+        listing = TaskListing(max_results=settings.briefing_max_tasks_items * 4, due_max=due_max)
         try:
-            task_list_id = await resolve_owner_container_id(
-                client=opened.client,
-                name=opened.preferred_name,
-                owner_id=user.id,
-                container=TASK_LIST,
+            every = await read_every_task_list(
+                opened.client,
+                listing,
+                lists_max=TASK_LISTS_READ_MAX,
+                failures=_READ_FAILURES,
             )
-            result = await opened.client.list_tasks(
-                task_list_id=task_list_id,
-                max_results=settings.briefing_max_tasks_items * 4,
-                show_completed=False,
-                due_max=due_max,
-            )
-        except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError) as exc:
-            cause = getattr(exc, "last_error", None) or exc
-            raise ConnectorAccessError("tasks", _classify_http_error(cause), str(exc)) from exc
-        list_id = await _real_list_id(opened.client, task_list_id, TASK_LIST.fallback)
+        except _TRANSPORT_FAILURES as exc:
+            raise _tasks_access_error(exc) from exc
 
-    raw_items = result.get("items", []) or []
-    items = [
-        item
-        for task in raw_items
-        if (item := _task_to_item(task, today_local, zone=user_tz, list_id=list_id)) is not None
-    ]
-    # Overdue first (oldest due first), then due ascending; undated last.
-    items.sort(key=lambda t: (t.days_until_due is None, t.days_until_due or 0))
+    items = card_items(every.tasks(), today=datetime.now(user_tz).date(), zone=user_tz)
+    failure = every.first_failure
+    if failure is not None and not items:
+        _raise_tasks_failure(failure)
     if not whole_page:
         items = items[: settings.briefing_max_tasks_items]
-    return TasksData(items=items, overdue_count=sum(1 for t in items if t.overdue))
+    return TasksData(
+        items=items,
+        overdue_count=sum(1 for t in items if t.overdue),
+        partial=every.partial,
+    )
 
 
-async def _real_list_id(client: Any, list_id: str, alias: str) -> str | None:
-    """The list's real id, where the Tools open its tasks; None when it cannot be read.
+def _raise_tasks_failure(failure: Exception) -> NoReturn:
+    """The card's failure when no list gave anything: a provider's refusal stays what it is."""
+    if isinstance(failure, ConnectorAPIError):
+        raise failure
+    raise _tasks_access_error(failure) from failure
 
-    An alias (Google's ``@default``, which the Microsoft client maps to the first
-    list) is unknown to the Tools, and a task opened under another list than its
-    own would be written there. The address is a convenience: the card's tasks
-    never depend on it.
-    """
-    if list_id != alias:
-        return list_id
-    try:
-        listed = await client.get_task_list(list_id)
-    except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError, ConnectorAPIError) as exc:
-        logger.debug("briefing_task_list_unresolved", error_type=type(exc).__name__)
-        return None
-    real = listed.get("id") if isinstance(listed, dict) else None
-    return str(real) if real and real != alias else None
+
+def _tasks_access_error(exc: Exception) -> ConnectorAccessError:
+    """The classified access error a transport failure of the tasks provider amounts to."""
+    cause = getattr(exc, "last_error", None) or exc
+    return ConnectorAccessError("tasks", _classify_http_error(cause), str(exc))
 
 
 async def _document_path(client: Any, file: dict[str, Any], known: dict[str, Any]) -> str | None:
@@ -757,7 +768,7 @@ async def _document_path(client: Any, file: dict[str, Any], known: dict[str, Any
     try:
         path: str | None = await client.folder_path(file, known)
         return path
-    except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError, ConnectorAPIError) as exc:
+    except _READ_FAILURES as exc:
         logger.debug("briefing_document_path_unreadable", error_type=type(exc).__name__)
         return None
 
@@ -784,7 +795,7 @@ async def fetch_documents(
             raise ConnectorNotConfiguredError("drive")
         try:
             result = await opened.client.recent_files(settings.briefing_max_documents_items)
-        except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError) as exc:
+        except _TRANSPORT_FAILURES as exc:
             cause = getattr(exc, "last_error", None) or exc
             raise ConnectorAccessError("drive", _classify_http_error(cause), str(exc)) from exc
         files = (result.get("files", []) or [])[: settings.briefing_max_documents_items]
@@ -850,7 +861,9 @@ def _soonest_upcoming(
         (action, action.next_trigger_at)
         for action in actions
         if action.is_enabled
-        and action.trigger_kind != TriggerKind.CONDITION.value
+        # Only a schedule announces a run: a condition's trigger is a check, a
+        # webhook routine's a look at its calls (ADR-322, ADR-386).
+        and action.trigger_kind == TriggerKind.TIME.value
         and action.next_trigger_at is not None
         and action.next_trigger_at >= now
     ]

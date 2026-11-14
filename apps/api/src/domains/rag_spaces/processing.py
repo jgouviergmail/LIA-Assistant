@@ -16,15 +16,22 @@ from __future__ import annotations
 import asyncio
 import os
 import time
+from collections.abc import Callable
 from contextlib import suppress
 from functools import partial
 from pathlib import Path
+from typing import Final
 from uuid import UUID, uuid4
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+
+# Re-exported: the conversion lives in the core (one door, ADR-291), and the
+# kept answers import it from here as they always did.
+from src.core.html_markdown import html_to_markdown as html_to_markdown
+from src.core.text_decoding import decode_text
 from src.domains.rag_spaces.bookmark_processing_guard import (
     BookmarkProcessingStopped,
     require_bookmark_processing,
@@ -94,9 +101,25 @@ EMBEDDING_BATCH_SIZE = 100
 PDF_CONTENT_TYPE = "application/pdf"
 
 
+def _read_text(file_path: Path) -> str:
+    """A text file's content: its own letters, its line ends as ``\\n``.
+
+    A text file names no encoding, so its letters are read from its bytes
+    (``core.text_decoding``); a Windows or an old Mac line end is one line end,
+    as text mode always gave the readers below.
+
+    Args:
+        file_path: The stored file.
+
+    Returns:
+        The text, no carriage return left in it.
+    """
+    return decode_text(file_path.read_bytes()).replace("\r\n", "\n").replace("\r", "\n")
+
+
 def extract_text_plain(file_path: Path) -> str:
     """Extract text from plain text or markdown files."""
-    return file_path.read_text(encoding="utf-8", errors="replace")
+    return _read_text(file_path)
 
 
 def extract_text_pdf(file_path: Path) -> str:
@@ -201,13 +224,14 @@ def extract_text_xlsx(file_path: Path) -> str:
 def extract_text_csv(file_path: Path) -> str:
     """Extract text from CSV file as tab-separated rows."""
     import csv
+    import io
 
     text_parts: list[str] = []
-    with file_path.open(encoding="utf-8", errors="replace", newline="") as f:
-        reader = csv.reader(f)
-        for row in reader:
-            if any(cell.strip() for cell in row):
-                text_parts.append("\t".join(row))
+    # `newline=""`: a line break inside a quoted cell is the csv module's to read.
+    rows = csv.reader(io.StringIO(decode_text(file_path.read_bytes()), newline=""))
+    for row in rows:
+        if any(cell.strip() for cell in row):
+            text_parts.append("\t".join(row))
     return "\n".join(text_parts)
 
 
@@ -215,39 +239,12 @@ def extract_text_rtf(file_path: Path) -> str:
     """Extract text from RTF using striprtf."""
     from striprtf.striprtf import rtf_to_text
 
-    raw = file_path.read_text(encoding="utf-8", errors="replace")
-    return str(rtf_to_text(raw))
-
-
-def html_to_markdown(raw_html: str) -> str:
-    """Readable Markdown from HTML — the one reading of « how HTML becomes text ».
-
-    Shared by the file extractor and by the kept-answer renderer (a
-    ``lia-response`` document is HTML): scripts, styles and images never reach
-    the text.
-
-    Only ``img`` is on the strip list, on purpose. markdownify drops a
-    ``script`` or ``style`` element WITH its content by default; naming them in
-    ``strip`` replaces that with « remove the tag, keep the text » — measured
-    2026-09-16: ``.x{}alert(1)`` at the top of every converted page.
-
-    Args:
-        raw_html: The markup.
-
-    Returns:
-        The Markdown text.
-    """
-    from markdownify import markdownify
-
-    # ATX headings (``## Title``): the form every other Markdown of the corpus
-    # uses (mail threads, minutes, kept answers), so a heading reads the same
-    # whatever produced it.
-    return str(markdownify(raw_html, strip=["img"], heading_style="ATX"))
+    return str(rtf_to_text(_read_text(file_path)))
 
 
 def extract_text_html(file_path: Path) -> str:
     """Extract readable text from an HTML file."""
-    return html_to_markdown(file_path.read_text(encoding="utf-8", errors="replace"))
+    return html_to_markdown(_read_text(file_path))
 
 
 def _odf_extract_text(node: object) -> str:
@@ -339,7 +336,7 @@ def extract_text_epub(file_path: Path) -> str:
             continue
         if item.get_type() != ebooklib.ITEM_DOCUMENT:
             continue
-        html_content = item.get_content().decode("utf-8", errors="replace")
+        html_content = decode_text(item.get_content())
         chapter_text = html_to_markdown(html_content)
         if chapter_text.strip():
             text_parts.append(chapter_text.strip())
@@ -350,7 +347,7 @@ def extract_text_json(file_path: Path) -> str:
     """Extract JSON content as pretty-printed text."""
     import json
 
-    raw = file_path.read_text(encoding="utf-8", errors="replace")
+    raw = _read_text(file_path)
     try:
         data = json.loads(raw)
         return json.dumps(data, indent=2, ensure_ascii=False)
@@ -370,24 +367,16 @@ def extract_text_xml(file_path: Path) -> str:
         ET.indent(root)
         return ET.tostring(root, encoding="unicode")
     except ET.ParseError:
-        return file_path.read_text(encoding="utf-8", errors="replace")
+        return _read_text(file_path)
 
 
-def extract_text(file_path: Path, content_type: str) -> str:
+def _extractors() -> dict[str, Callable[[Path], str]]:
+    """MIME type -> its reader. ONE table: the formats a space indexes, a copied
+    document carries and the chat's composer accepts are the keys of this one
+    (``attachments.document_formats`` asserts it at import). Built at each call
+    so a reader is looked up by name when it is needed, as it always was.
     """
-    Extract text from a file based on its MIME type.
-
-    Args:
-        file_path: Path to the file on disk
-        content_type: MIME type of the file
-
-    Returns:
-        Extracted text content
-
-    Raises:
-        ValueError: If content type is not supported
-    """
-    extractors = {
+    return {
         "text/plain": extract_text_plain,
         "text/markdown": extract_text_plain,
         PDF_CONTENT_TYPE: extract_text_pdf,
@@ -409,7 +398,27 @@ def extract_text(file_path: Path, content_type: str) -> str:
         "application/xml": extract_text_xml,
         "text/xml": extract_text_xml,
     }
-    extractor = extractors.get(content_type)
+
+
+#: Every MIME type :func:`extract_text` reads.
+EXTRACTABLE_CONTENT_TYPES: Final[frozenset[str]] = frozenset(_extractors())
+
+
+def extract_text(file_path: Path, content_type: str) -> str:
+    """
+    Extract text from a file based on its MIME type.
+
+    Args:
+        file_path: Path to the file on disk
+        content_type: MIME type of the file
+
+    Returns:
+        Extracted text content
+
+    Raises:
+        ValueError: If content type is not supported
+    """
+    extractor = _extractors().get(content_type)
     if not extractor:
         msg = f"Unsupported content type: {content_type}"
         raise ValueError(msg)

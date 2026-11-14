@@ -40,6 +40,7 @@ from src.domains.agents.api.archive_metadata import (
     build_interrupted_stream_metadata,
     build_live_session_summary_metadata,
     build_live_turn_metadata,
+    build_turn_note_metadata,
 )
 from src.domains.agents.api.run_origin import RunOrigin, out_of_turn_origin_ctx
 from src.domains.agents.services.streaming.followup_metadata import NO_TURN_EXTRAS
@@ -97,6 +98,8 @@ def _builders() -> dict[str, dict[str, Any]]:
             voice_turns=0,
             usage=None,
         ),
+        # ADR-385 — the person's note, read by the loop while the answer was written.
+        "build_turn_note_metadata": lambda: build_turn_note_metadata(run_id="run-1"),
     }
 
 

@@ -43,6 +43,9 @@ CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
     # (``IN_TURN_CAPABILITIES``).
     "domains/agents/services/knowledge_enrichment_service.py": "in-turn",
     "domains/agents/services/planner/hue_discovery.py": "in-turn",
+    # The sent folder, read to learn how the person writes (ADR-383): in a turn as
+    # ``writing_style:email``; in a Tools assist, filed by the assist's own reading.
+    "domains/agents/emails/writing_style.py": "in-turn",
     "domains/briefing/fetchers.py": "briefing",
     # What a click on a tool asked LIA to read (ADR-372): through the Tools' own door,
     # filed by the assists' door, which the hand-made reads of the Tools never are.
@@ -73,6 +76,8 @@ CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
     "infrastructure/scheduler/heartbeat_wake_sweep.py": "wake",
     "domains/heartbeat/context_aggregator.py": "heartbeat",
     "domains/heartbeat/context_sources.py": "heartbeat",
+    # The pending tasks of every list of the account (owner rule, 2026-11-10).
+    "domains/heartbeat/tasks_context.py": "heartbeat",
     # Through the door (ADR-304): the calendar verdict of a tick — a cache hit
     # records nothing, a live read is filed on the heartbeat surface.
     "domains/moments/busy_gate.py": "heartbeat",
@@ -153,6 +158,13 @@ NOT_A_CAPABILITY_READ: Final[dict[str, str]] = {
         "dataclass of bytes) to read what the tool already downloaded: it opens no "
         "connection. The download is made by get_email_attachment_tool, which the "
         "tool gate records."
+    ),
+    "domains/agents/emails/previous_reply.py": (
+        "A helper of the reply act (ADR-379): through the client its CALLER hands it, it "
+        "reads the conversation of the message being answered and the person's own "
+        "earlier answer. It opens no connector and is no surface of its own: the read "
+        "belongs to the act that asked — the reply tools, which the tool gate records, "
+        "and the Tools' reply assist, filed on the tool_assist surface."
     ),
     "domains/email_share/service.py": (
         "SENDS, and reads nothing: at the person's explicit click it hands one of "

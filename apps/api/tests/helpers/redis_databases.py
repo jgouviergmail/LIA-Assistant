@@ -11,6 +11,10 @@ the few commands the channel doors, the turn claim and the HITL store send.
 
 from __future__ import annotations
 
+import json
+
+from src.core.constants import REDIS_KEY_HITL_PENDING_PREFIX
+from src.domains.agents.utils.hitl_store import SCHEMA_VERSION
 from src.infrastructure.locks.redis_claim import REFRESH_SCRIPT, RELEASE_SCRIPT
 
 
@@ -22,6 +26,20 @@ class DatabaseClient:
 
     async def get(self, key: str) -> str | None:
         return self._keys.get(key)
+
+    def seed_pending_question(self, runtime_id: str, payload: dict[str, object]) -> None:
+        """Seed an existing persisted question for reader tests, never simulate write authority.
+
+        The real writer and its atomic Lua fencing are exercised on PostgreSQL
+        and Redis by the conversation integration contracts.
+        """
+        self._keys[f"{REDIS_KEY_HITL_PENDING_PREFIX}{runtime_id}"] = json.dumps(
+            {
+                "schema_version": SCHEMA_VERSION,
+                "interrupt_ts": "2026-11-10T12:00:00+00:00",
+                "interrupt_data": payload,
+            }
+        )
 
     async def set(
         self, key: str, value: str | int | float, *, ex: int | None = None, nx: bool = False

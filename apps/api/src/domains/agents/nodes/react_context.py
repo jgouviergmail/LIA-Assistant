@@ -165,7 +165,7 @@ async def build_memory_profile_block(
             limit=settings.memory_max_results,
             min_score=settings.memory_min_search_score,
             session_id=session_id,
-            conversation_id=session_id,
+            conversation_id=_ctx.source_conversation_id if _ctx is not None else None,
         )
     except Exception as exc:  # pragma: no cover — best-effort, never gates a turn
         logger.warning("react_memory_profile_failed", error=str(exc))

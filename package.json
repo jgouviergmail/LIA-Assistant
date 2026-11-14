@@ -1,6 +1,6 @@
 {
   "name": "lia",
-  "version": "4.6.0",
+  "version": "5.0.0",
   "private": true,
   "license": "AGPL-3.0-or-later",
   "description": "LIA - AI-powered personal assistant monorepo",
@@ -35,9 +35,9 @@
       "flatted": "3.4.2",
       "picomatch": "4.0.4",
       "brace-expansion": "^5.0.12",
-      "rimraf>glob": "^14.0.3",
-      "minimatch@>=9 <11": "^11.0.3",
-      "vite": "^8.3.3",
+      "rimraf>glob": "^14.0.6",
+      "minimatch@>=9 <11": "^11.0.8",
+      "vite": "^8.3.7",
       "protobufjs": "^7.6.3",
       "uuid": "^11.1.1",
       "dompurify": "^3.4.17",
@@ -56,7 +56,8 @@
       "source-map-js": "1.2.2",
       "@tailwindcss/typography>postcss-selector-parser": "7.1.8",
       "re2js": "^2.8.7",
-      "es-toolkit": "^1.53.2"
+      "es-toolkit": "^1.53.2",
+      "tldts": "^7.4.24"
     },
     "patchedDependencies": {
       "brace-expansion@5.0.12": "patches/brace-expansion@5.0.12.patch"

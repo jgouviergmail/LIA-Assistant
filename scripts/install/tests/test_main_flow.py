@@ -24,12 +24,16 @@ drive ``run_install`` with the fakes of ``flow_fakes.py``.
 from __future__ import annotations
 
 import json
+import urllib.error
 from pathlib import Path
 
 from scripts.install.deploy import CommandResult
 from scripts.install.__main__ import run_install
+from scripts.install.i18n import msg
+from scripts.install.model import REQUIRED_PROVIDER_IDS
 from scripts.install.run_context import EXIT_INTERRUPTED, EXIT_OK, EXIT_PREFLIGHT, Deps
 from scripts.install.state import load_state
+from scripts.install.verify import provider_models_url
 from scripts.install.tests.flow_fakes import (
     ANSWERS,
     PASSWORD,
@@ -97,7 +101,7 @@ def test_full_local_install_hits_the_exact_ordered_surface(tmp_path: Path) -> No
     payload = json.loads(bootstrap_call["stdin"])
     assert payload["provider_keys"] == {
         "deepseek": "dk-CANARY-11",
-        "openai": "sk-CANARY-22",
+        "anthropic": "sk-CANARY-22",
     }
     override = (root / "docker-compose.install.yml").read_text(encoding="utf-8")
     assert "APPLY_SEEDS=false" in override, "seeds disarmed after first /ready"
@@ -193,7 +197,7 @@ def test_resume_before_bootstrap_reprompts_exactly_the_secrets(
         {
             "admin_password": PASSWORD,
             "provider_key_deepseek": "dk-CANARY-11",
-            "provider_key_openai": "sk-CANARY-22",
+            "provider_key_anthropic": "sk-CANARY-22",
             # The optional key is asked again, and may be skipped again.
             "provider_key_gemini": "",
         }
@@ -209,9 +213,9 @@ def test_resume_before_bootstrap_reprompts_exactly_the_secrets(
     prompted = [p[1:].split("]", 1)[0] for p in io.secret_prompts]
     assert sorted(prompted) == [
         "admin_password",
+        "provider_key_anthropic",
         "provider_key_deepseek",
         "provider_key_gemini",
-        "provider_key_openai",
     ]
     assert io.input_prompts == [], "resume must never re-ask public answers"
     state = load_state(root / ".install-state.json")
@@ -353,3 +357,99 @@ def test_rerun_keeps_existing_grafana_password_before_acquire(tmp_path: Path) ->
     assert runner.acquired
     unchanged = password() == original
     assert unchanged
+
+
+class _KeyChecks(_Opener):
+    """Ready for the stack; answers each provider's model listing as told.
+
+    Records, at each listing asked, how many commands had run by then.
+    """
+
+    def __init__(self, runner: _Runner, refused: tuple[str, ...] = ()) -> None:
+        self._runner = runner
+        self._refused = refused
+        self.asked: list[tuple[str, int]] = []
+
+    def __call__(self, request, *, timeout):
+        url = request.full_url
+        if "/models" in url:
+            self.asked.append((url, len(self._runner.calls)))
+            if any(provider in url for provider in self._refused):
+                raise urllib.error.HTTPError(url, 401, "denied", None, None)
+        return super().__call__(request, timeout=timeout)
+
+
+def test_a_rejected_key_is_said_before_anything_is_deployed_and_stops_nothing(
+    tmp_path: Path,
+) -> None:
+    """The key check had tests and no caller: a mistyped key was learnt from a
+    chat that failed, once the whole installation had run."""
+    root = _bundle(tmp_path)
+    io = _IO()
+    runner = _Runner()
+    opener = _KeyChecks(runner, refused=("anthropic",))
+    code = run_install(
+        ["--non-interactive", "--answers", str(_answers_file(root))],
+        Deps(root=root, io=io.adapter(), runner=runner, opener=opener, clock=_Clock()),
+    )
+
+    assert code == EXIT_OK, io.printed
+    assert msg("info.key_invalid", "en", provider="anthropic") in io.printed
+    assert not any("deepseek" in line and "key" in line.lower() for line in io.printed)
+    # Each required provider was asked once, before the first command ran.
+    assert sorted(url for url, _ in opener.asked) == sorted(
+        provider_models_url(provider) for provider in REQUIRED_PROVIDER_IDS
+    )
+    assert {commands_run for _, commands_run in opener.asked} == {0}
+    assert runner.calls, "an advisory check must not stop the installation"
+    # What the log keeps is the fact, never the key.
+    log = (root / "install.log").read_text(encoding="utf-8")
+    assert "provider_key_checked" in log and "invalid" in log
+    for secret in ("sk-CANARY-22", "dk-CANARY-11", PASSWORD):
+        assert secret not in log
+        assert secret not in "\n".join(io.printed)
+
+
+def test_a_dry_run_checks_the_keys_it_was_given(tmp_path: Path) -> None:
+    root = _bundle(tmp_path)
+    io = _IO()
+    runner = _Runner()
+    opener = _KeyChecks(runner)
+    code = run_install(
+        ["--dry-run", "--non-interactive", "--answers", str(_answers_file(root))],
+        Deps(root=root, io=io.adapter(), runner=runner, opener=opener, clock=_Clock()),
+    )
+
+    assert code == EXIT_OK, io.printed
+    assert len(opener.asked) == len(REQUIRED_PROVIDER_IDS)
+    assert runner.calls == []
+    assert not any("key" in line.lower() for line in io.printed), io.printed
+
+
+def test_a_resume_that_asks_the_keys_again_checks_them_again(tmp_path: Path) -> None:
+    root = _bundle(tmp_path)
+    assert (
+        run_install(
+            ["--dry-run", "--non-interactive", "--answers", str(_answers_file(root))],
+            _deps(root, _IO()),
+        )
+        == EXIT_OK
+    )
+    io = _IO(
+        {
+            "admin_password": PASSWORD,
+            "provider_key_deepseek": "dk-CANARY-11",
+            "provider_key_anthropic": "sk-CANARY-22",
+            "provider_key_gemini": "",
+        }
+    )
+    runner = _Runner()
+    opener = _KeyChecks(runner, refused=("deepseek",))
+    code = run_install(
+        ["--resume"],
+        Deps(root=root, io=io.adapter(), runner=runner, opener=opener, clock=_Clock()),
+    )
+
+    assert code == EXIT_OK, io.printed
+    assert msg("info.key_invalid", "en", provider="deepseek") in io.printed
+    assert {commands_run for _, commands_run in opener.asked} == {0}

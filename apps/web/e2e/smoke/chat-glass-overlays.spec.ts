@@ -92,7 +92,7 @@ for (const sample of [
     // The Next development portal is unrelated to the product's touch geometry.
     await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
 
-    const reset = page.getByRole('button', { name: 'Delete', exact: true });
+    const reset = page.getByRole('button', { name: 'Reset', exact: true });
     await reset.focus();
     await page.keyboard.press('Enter');
     const confirmation = page.getByRole('alertdialog');

@@ -1,8 +1,6 @@
 import { type Metadata } from 'next';
 import { initI18next, validateLanguage } from '@/i18n';
-import { languages, fallbackLng, LOCALE_MAP } from '@/i18n/settings';
-import type { Language } from '@/i18n/settings';
-import { SoftwareApplicationJsonLd, HowToJsonLd } from '@/components/seo/JsonLd';
+import { SoftwareApplicationJsonLd } from '@/components/seo/JsonLd';
 import { AuthRedirect } from '@/components/landing/AuthRedirect';
 import { TrackView } from '@/components/telemetry/TelemetryBootstrap';
 import { LandingHeader } from '@/components/landing/LandingHeader';
@@ -27,14 +25,10 @@ import { CosmosFinale } from '@/components/landing/cosmic/CosmosFinale';
 import { CosmosHero } from '@/components/landing/cosmic/CosmosHero';
 import { GhostWord } from '@/components/landing/cosmic/GhostWord';
 import { ScrollScrub } from '@/components/landing/cosmic/ScrollScrub';
-import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
+import { publicPageMetadata } from '@/lib/public-page-metadata';
 
 interface HomePageProps {
   params: Promise<{ lng: string }>;
-}
-
-function buildLangUrl(path: string, lng: Language): string {
-  return localizedUrl(getSiteOrigin(), path, lng);
 }
 
 export async function generateMetadata({ params }: HomePageProps): Promise<Metadata> {
@@ -42,41 +36,12 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
   const lng = validateLanguage(lngParam);
   const { t } = await initI18next(lng);
 
-  const title = t('landing.home_meta.title');
-  const description = t('landing.home_meta.description');
-  const canonicalUrl = buildLangUrl('/', lng);
-  const socialImage = getSiteOrigin()?.concat('/Title.png');
-
-  // Build hreflang alternates for all supported languages
-  const langAlternates: Record<string, string> = {};
-  for (const l of languages) {
-    langAlternates[l] = buildLangUrl('/', l);
-  }
-  langAlternates['x-default'] = buildLangUrl('/', fallbackLng);
-
-  return {
-    title,
-    description,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: langAlternates,
-    },
-    openGraph: {
-      title,
-      description,
-      url: canonicalUrl,
-      locale: LOCALE_MAP[lng],
-      alternateLocale: languages.filter(l => l !== lng).map(l => LOCALE_MAP[l]),
-      images: socialImage
-        ? [{ url: socialImage, width: 2125, height: 1193, alt: title }]
-        : undefined,
-    },
-    twitter: {
-      title,
-      description,
-      images: socialImage ? [socialImage] : undefined,
-    },
-  };
+  return publicPageMetadata(
+    lng,
+    '/',
+    t('landing.home_meta.title'),
+    t('landing.home_meta.description')
+  );
 }
 
 export default async function HomePage({ params }: HomePageProps) {
@@ -91,30 +56,6 @@ export default async function HomePage({ params }: HomePageProps) {
         lng={lng}
         title={t('landing.home_meta.title')}
         description={t('landing.home_meta.description')}
-      />
-
-      {/* SEO: HowTo structured data for "How it works" section */}
-      <HowToJsonLd
-        name={t('landing.how_it_works.title')}
-        description={t('landing.how_it_works.subtitle')}
-        steps={[
-          {
-            name: t('landing.how_it_works.step1.title'),
-            text: t('landing.how_it_works.step1.description'),
-          },
-          {
-            name: t('landing.how_it_works.step2.title'),
-            text: t('landing.how_it_works.step2.description'),
-          },
-          {
-            name: t('landing.how_it_works.step3.title'),
-            text: t('landing.how_it_works.step3.description'),
-          },
-          {
-            name: t('landing.how_it_works.step4.title'),
-            text: t('landing.how_it_works.step4.description'),
-          },
-        ]}
       />
 
       {/* Redirect authenticated users to dashboard */}

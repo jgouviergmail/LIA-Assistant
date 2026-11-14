@@ -1,0 +1,181 @@
+{
+  "doc_types": [
+    "xlsx",
+    "csv"
+  ],
+  "language": "fr",
+  "content": {
+    "filename_stem": "modele-ventes",
+    "title": "Modèle de ventes trimestriel",
+    "inputs": [
+      {
+        "name": "Taux de TVA",
+        "value": "20%",
+        "kind": "percent",
+        "note": "Taux normal en vigueur"
+      },
+      {
+        "name": "Croissance visée",
+        "value": "8%",
+        "kind": "percent",
+        "note": "Hypothèse de la direction"
+      }
+    ],
+    "sheets": [
+      {
+        "name": "Ventes",
+        "headers": [
+          "Région",
+          "Trimestre",
+          "Statut",
+          "Chiffre d'affaires HT",
+          "Coûts",
+          "Début",
+          "Fin"
+        ],
+        "rows": [
+          [
+            "Nord",
+            "2026",
+            "Validé",
+            "120000",
+            "80000",
+            "2026-01-01",
+            "2026-03-31"
+          ],
+          [
+            "Sud",
+            "2026",
+            "En cours",
+            "95000",
+            "70000",
+            "2026-01-15",
+            "2026-03-31"
+          ],
+          [
+            "Nord",
+            "2026",
+            "Validé",
+            "130000",
+            "82000",
+            "2026-04-01",
+            "2026-06-30"
+          ],
+          [
+            "Est*",
+            "2026",
+            "Brouillon",
+            "40000",
+            "39000",
+            "2026-04-01",
+            "2026-06-30"
+          ],
+          [
+            "Sud",
+            "2026",
+            "Validé",
+            "99000",
+            "0",
+            "2026-04-01",
+            "2026-06-30"
+          ]
+        ],
+        "columns": [
+          {
+            "header": "Trimestre",
+            "kind": "year"
+          },
+          {
+            "header": "Statut",
+            "choices": [
+              "Brouillon",
+              "En cours",
+              "Validé"
+            ]
+          },
+          {
+            "header": "Chiffre d'affaires HT",
+            "kind": "amount",
+            "unit": "EUR",
+            "total": "sum"
+          },
+          {
+            "header": "Coûts",
+            "kind": "amount",
+            "unit": "EUR",
+            "total": "sum"
+          },
+          {
+            "header": "Marge",
+            "formula": "{Chiffre d'affaires HT} - {Coûts}",
+            "kind": "amount",
+            "unit": "EUR",
+            "total": "sum",
+            "better": "higher"
+          },
+          {
+            "header": "Taux de marge",
+            "formula": "{Marge} / {Chiffre d'affaires HT}",
+            "kind": "percent",
+            "total": "average",
+            "better": "higher"
+          },
+          {
+            "header": "Rendement",
+            "formula": "{Chiffre d'affaires HT} / {Coûts}",
+            "kind": "quantity"
+          },
+          {
+            "header": "TTC",
+            "formula": "{Chiffre d'affaires HT} * (1 + {Taux de TVA})",
+            "kind": "amount",
+            "unit": "EUR"
+          },
+          {
+            "header": "Objectif",
+            "formula": "ROUND({Chiffre d'affaires HT} * (1 + {Croissance visée}), -2)",
+            "kind": "amount",
+            "unit": "EUR"
+          },
+          {
+            "header": "Part du total",
+            "formula": "{Chiffre d'affaires HT} / SUM({Chiffre d'affaires HT})",
+            "kind": "percent"
+          },
+          {
+            "header": "Durée (jours)",
+            "formula": "{Fin} - {Début}",
+            "kind": "quantity"
+          }
+        ],
+        "summary": {
+          "by": "Région",
+          "measures": [
+            "Chiffre d'affaires HT",
+            "Marge"
+          ],
+          "function": "sum",
+          "title": "Synthèse par région"
+        }
+      }
+    ],
+    "figures": [
+      {
+        "label": "Chiffre d'affaires total",
+        "formula": "SUM({Ventes/Chiffre d'affaires HT})",
+        "kind": "amount",
+        "unit": "EUR"
+      },
+      {
+        "label": "Taux de marge global",
+        "formula": "SUM({Ventes/Marge}) / {Chiffre d'affaires total}",
+        "kind": "percent"
+      },
+      {
+        "label": "Rendement moyen",
+        "formula": "AVERAGE({Ventes/Rendement})",
+        "kind": "quantity"
+      }
+    ]
+  }
+}

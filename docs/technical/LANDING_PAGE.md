@@ -302,7 +302,8 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
   `landing.tech.*` (choix techniques détaillés), `landing.features.<k>.*` (textes intégraux conservés).
 - Les autres surfaces conservent `landing.basics.*`, `landing.transparency.*`, `landing.day.*`,
   `landing.gallery.*`, `landing.rail.*`, `landing.security.*`, `landing.proof.items.*` et `landing.cta.*`.
-  `landing.how_it_works.*` reste réservé au HowTo JsonLd ; la section historique n’existe plus.
+  `landing.how_it_works.*` n’existe plus : la section a quitté la landing, et des données structurées ne
+  décrivent que ce que la page montre (clé tenue purgée par le contrat i18n éditorial).
 - Les limites montrées dans les scènes font partie du contrat éditorial : condition d’une routine configurée
   dans les réglages, spécialistes en lecture seule, connexion entre assistants sur le même serveur et données
   explicitement partagées. Les exemples ne garantissent ni exhaustivité des sources, ni délai, ni coût chiffré.
@@ -311,8 +312,22 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
 
 ## 7. SEO et OpenGraph
 
-- `generateMetadata()` : title/description localises + hreflang ×6 + OG/Twitter (inchange).
-- JsonLd : `SoftwareApplicationJsonLd` (featureList ← `LANDING_STATS`), `HowToJsonLd` (← `landing.how_it_works.*`).
+- `generateMetadata()` passe par `publicPageMetadata` (`src/lib/public-page-metadata.ts`) : titre et description
+  localisés, URL canonique, hreflang ×6 + `x-default`, OpenGraph (image, `og:site_name`, type) et carte Twitter.
+  L’accueil, `/faq`, `/changelog`, `/demo`, `/maps/*`, `/login` et `/register` partagent cette forme ; `/faq`,
+  `/changelog` et `/demo` ont un titre et une description à eux (`faq.meta_*`, `faq.changelog.meta_*`,
+  `landing.product_demo.meta_title`).
+- **Une adresse nommée répond, elle ne redirige pas** : l’accueil d’une langue préfixée est `/{lng}`, jamais
+  `/{lng}/` (le serveur répond 308 à la forme à barre finale) — `localizedUrl` (`src/lib/site-origin.ts`),
+  tenu par `site-origin.test.ts` et `public-pages.test.ts`.
+- JsonLd : `SoftwareApplicationJsonLd` (featureList ← `LANDING_STATS`) sur l’accueil, sans note ni avis inventés.
+  Le bloc `HowTo` est retiré : il décrivait une section que la page n’affiche plus.
+- `sitemap.xml` (`src/app/sitemap.ts`) : une entrée par version de langue, chacune avec l’ensemble complet de
+  ses alternates ; `lastmod` vient de ce qui change la page (jour de la release pour les pages qu’elle réécrit,
+  jour de révision d’un article), et une page sans date connue n’en déclare pas.
+- Les routes hors index (`NON_INDEXED_SEGMENTS`, `src/lib/public-pages.ts`) reçoivent l’en-tête
+  `X-Robots-Tag: noindex, nofollow` dans toutes les langues (`next.config.ts`) : `robots.txt` interdit
+  l’exploration, pas l’indexation d’une adresse liée ailleurs.
 - **Contenu depliable et onglets restent dans le DOM** (disclosure replie + panneaux `hidden`) : les descriptions
   detaillees et tous les onglets sont crawlables.
 - `public/llms.txt` a maintenir en coherence avec `LANDING_STATS`.

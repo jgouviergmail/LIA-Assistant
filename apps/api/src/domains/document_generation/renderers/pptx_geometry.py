@@ -18,6 +18,8 @@ from typing import Any
 
 import pptx
 from pptx.enum.shapes import PP_PLACEHOLDER
+from pptx.oxml.ns import qn
+from pptx.oxml.xmlchemy import OxmlElement
 from pptx.util import Inches
 
 from src.domains.document_generation import typography
@@ -31,6 +33,8 @@ LAYOUT_COMPARISON = 4
 LAYOUT_TITLE_ONLY = 5
 #: English Metric Units per point.
 EMU_PER_PT = 12700
+#: English Metric Units per inch.
+EMU_PER_IN = 72 * EMU_PER_PT
 #: Where a table sits on a "Title Only" slide, and how much room it has.
 TABLE_LEFT_IN = 0.667
 TABLE_TOP_IN = 1.75
@@ -90,6 +94,26 @@ def add_slide_number(slide: Any, layout: Any) -> None:
         if candidate.placeholder_format.type == PP_PLACEHOLDER.SLIDE_NUMBER:
             slide.shapes._spTree.append(copy.deepcopy(candidate._element))
             return
+
+
+def color_slide_number(slide: Any, color: str) -> None:
+    """The slide number in the ink that reads on the slide's own background.
+
+    The number is a field PowerPoint fills in; its colour lives on the field's
+    run properties, so the cloned placeholder keeps its place and its size.
+    """
+    for field in slide.shapes._spTree.iter(qn("a:fld")):
+        if field.get("type") != "slidenum":
+            continue
+        properties = field.find(qn("a:rPr"))
+        if properties is None:
+            properties = OxmlElement("a:rPr")
+            field.insert(0, properties)
+        fill = OxmlElement("a:solidFill")
+        swatch = OxmlElement("a:srgbClr")
+        swatch.set("val", color)
+        fill.append(swatch)
+        properties.insert(0, fill)
 
 
 def remove_shape(shape: Any) -> None:

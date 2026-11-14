@@ -1,0 +1,2040 @@
+{
+ "operations": {
+  "/attachments/from-bookmark": {
+   "POST": [
+    "attachments"
+   ]
+  },
+  "/attachments/from-generated": {
+   "POST": [
+    "attachments"
+   ]
+  },
+  "/attachments/from-knowledge-document": {
+   "POST": [
+    "attachments",
+    "rag_spaces"
+   ]
+  },
+  "/attachments/upload": {
+   "POST": [
+    "attachments"
+   ]
+  },
+  "/attachments/{attachment_id}": {
+   "DELETE": [],
+   "GET": []
+  },
+  "/attachments/{attachment_id}/preview": {
+   "GET": []
+  },
+  "/avatars/config": {
+   "GET": []
+  },
+  "/avatars/faces": {
+   "GET": []
+  },
+  "/avatars/sessions": {
+   "POST": [
+    "avatar"
+   ]
+  },
+  "/avatars/sessions/current": {
+   "GET": []
+  },
+  "/avatars/sessions/failure": {
+   "POST": []
+  },
+  "/avatars/sessions/heartbeat": {
+   "POST": []
+  },
+  "/avatars/sessions/release": {
+   "POST": []
+  },
+  "/avatars/settings": {
+   "PUT": []
+  },
+  "/avatars/ws": {
+   "WS": []
+  },
+  "/bookmarks": {
+   "GET": [],
+   "POST": [
+    "bookmarks"
+   ]
+  },
+  "/bookmarks/by-message/{message_id}": {
+   "DELETE": []
+  },
+  "/bookmarks/state": {
+   "GET": []
+  },
+  "/bookmarks/{bookmark_id}": {
+   "DELETE": []
+  },
+  "/channels": {
+   "GET": [
+    "channels"
+   ]
+  },
+  "/channels/otp/generate": {
+   "POST": [
+    "channels"
+   ]
+  },
+  "/channels/telegram/webhook": {
+   "POST": [
+    "channels"
+   ]
+  },
+  "/channels/{binding_id}": {
+   "DELETE": [
+    "channels"
+   ]
+  },
+  "/channels/{binding_id}/toggle": {
+   "PATCH": [
+    "channels"
+   ]
+  },
+  "/email-share": {
+   "POST": [
+    "email_share"
+   ]
+  },
+  "/email-share/options": {
+   "GET": [
+    "email_share"
+   ]
+  },
+  "/email-share/recipients": {
+   "GET": [
+    "email_share"
+   ]
+  },
+  "/habits": {
+   "DELETE": [],
+   "GET": []
+  },
+  "/habits/presence": {
+   "POST": [
+    "habits"
+   ]
+  },
+  "/habits/proposals": {
+   "GET": []
+  },
+  "/habits/proposals/{proposal_id}/{verdict}": {
+   "POST": [
+    "habits"
+   ]
+  },
+  "/habits/recompute": {
+   "POST": [
+    "habits"
+   ]
+  },
+  "/habits/settings": {
+   "PATCH": []
+  },
+  "/habits/{habit_id}": {
+   "DELETE": []
+  },
+  "/habits/{habit_id}/explanation": {
+   "GET": []
+  },
+  "/habits/{habit_id}/status": {
+   "POST": []
+  },
+  "/hooks/routines/{key}": {
+   "POST": [
+    "routine_webhooks"
+   ]
+  },
+  "/image-generation/options": {
+   "GET": [
+    "image_generation"
+   ]
+  },
+  "/ingest/health/heart_rate": {
+   "POST": []
+  },
+  "/ingest/health/steps": {
+   "POST": []
+  },
+  "/ingest/message": {
+   "POST": [
+    "sms"
+   ]
+  },
+  "/journals": {
+   "DELETE": [
+    "journals"
+   ],
+   "GET": [
+    "journals"
+   ],
+   "POST": [
+    "journals"
+   ]
+  },
+  "/journals/consolidate": {
+   "POST": [
+    "journals"
+   ]
+  },
+  "/journals/export": {
+   "GET": [
+    "journals"
+   ]
+  },
+  "/journals/portrait": {
+   "GET": [
+    "journals"
+   ]
+  },
+  "/journals/portrait/feedback": {
+   "POST": [
+    "journals"
+   ]
+  },
+  "/journals/settings": {
+   "GET": [
+    "journals"
+   ],
+   "PATCH": [
+    "journals"
+   ]
+  },
+  "/journals/themes": {
+   "GET": [
+    "journals"
+   ]
+  },
+  "/journals/{entry_id}": {
+   "DELETE": [
+    "journals"
+   ],
+   "PATCH": [
+    "journals"
+   ]
+  },
+  "/journals/{entry_id}/provenance": {
+   "GET": [
+    "journals"
+   ]
+  },
+  "/live/config": {
+   "GET": [
+    "live"
+   ]
+  },
+  "/live/connector/activate": {
+   "POST": [
+    "live"
+   ]
+  },
+  "/live/connectors": {
+   "GET": [
+    "live"
+   ]
+  },
+  "/live/connectors/{provider}": {
+   "PUT": [
+    "live"
+   ]
+  },
+  "/live/models": {
+   "GET": [
+    "live"
+   ]
+  },
+  "/live/models/discover": {
+   "POST": [
+    "live"
+   ]
+  },
+  "/live/preferences": {
+   "GET": [
+    "live"
+   ],
+   "PUT": [
+    "live"
+   ]
+  },
+  "/live/sessions": {
+   "POST": [
+    "live"
+   ]
+  },
+  "/live/sessions/{session_id}/credential": {
+   "POST": [
+    "live"
+   ]
+  },
+  "/live/sessions/{session_id}/end": {
+   "POST": [
+    "live"
+   ]
+  },
+  "/live/sessions/{session_id}/extend": {
+   "POST": [
+    "live"
+   ]
+  },
+  "/live/sessions/{session_id}/offer": {
+   "POST": [
+    "live"
+   ]
+  },
+  "/live/sessions/{session_id}/standby": {
+   "POST": [
+    "live"
+   ]
+  },
+  "/live/sessions/{session_id}/tools": {
+   "POST": [
+    "live"
+   ]
+  },
+  "/live/sessions/{session_id}/turns": {
+   "POST": [
+    "live"
+   ]
+  },
+  "/live/sessions/{session_id}/wake": {
+   "POST": [
+    "live"
+   ]
+  },
+  "/live/voices": {
+   "GET": [
+    "live"
+   ]
+  },
+  "/live/voices/published": {
+   "GET": [
+    "live"
+   ]
+  },
+  "/live/voices/sample": {
+   "POST": [
+    "live"
+   ]
+  },
+  "/mcp/admin-servers": {
+   "GET": []
+  },
+  "/mcp/admin-servers/{server_key}/app/call-tool": {
+   "POST": []
+  },
+  "/mcp/admin-servers/{server_key}/app/read-resource": {
+   "POST": []
+  },
+  "/mcp/admin-servers/{server_key}/toggle": {
+   "PATCH": []
+  },
+  "/mcp/servers": {
+   "GET": [
+    "mcp"
+   ],
+   "POST": [
+    "mcp"
+   ]
+  },
+  "/mcp/servers/known": {
+   "GET": [
+    "mcp"
+   ]
+  },
+  "/mcp/servers/oauth/callback": {
+   "GET": [
+    "mcp"
+   ]
+  },
+  "/mcp/servers/strategy/preview": {
+   "POST": [
+    "mcp"
+   ]
+  },
+  "/mcp/servers/{server_id}": {
+   "DELETE": [
+    "mcp"
+   ],
+   "PATCH": [
+    "mcp"
+   ]
+  },
+  "/mcp/servers/{server_id}/app/call-tool": {
+   "POST": [
+    "mcp"
+   ]
+  },
+  "/mcp/servers/{server_id}/app/read-resource": {
+   "POST": [
+    "mcp"
+   ]
+  },
+  "/mcp/servers/{server_id}/behavior": {
+   "GET": [
+    "mcp"
+   ]
+  },
+  "/mcp/servers/{server_id}/behavior/preview": {
+   "POST": [
+    "mcp"
+   ]
+  },
+  "/mcp/servers/{server_id}/generate-description": {
+   "POST": [
+    "mcp"
+   ]
+  },
+  "/mcp/servers/{server_id}/oauth/authorize": {
+   "POST": [
+    "mcp"
+   ]
+  },
+  "/mcp/servers/{server_id}/oauth/disconnect": {
+   "POST": [
+    "mcp"
+   ]
+  },
+  "/mcp/servers/{server_id}/test": {
+   "POST": [
+    "mcp"
+   ]
+  },
+  "/mcp/servers/{server_id}/toggle": {
+   "PATCH": [
+    "mcp"
+   ]
+  },
+  "/mcp/servers/{server_id}/tool-confirmations": {
+   "PUT": [
+    "mcp"
+   ]
+  },
+  "/meetings": {
+   "GET": [
+    "meetings"
+   ],
+   "POST": [
+    "meetings"
+   ]
+  },
+  "/meetings/active": {
+   "GET": [
+    "meetings"
+   ]
+  },
+  "/meetings/bulk-delete": {
+   "POST": [
+    "meetings"
+   ]
+  },
+  "/meetings/imports": {
+   "POST": [
+    "meetings"
+   ]
+  },
+  "/meetings/imports/limits": {
+   "GET": [
+    "meetings"
+   ]
+  },
+  "/meetings/preferences": {
+   "GET": [
+    "meetings"
+   ],
+   "PUT": [
+    "meetings"
+   ]
+  },
+  "/meetings/templates": {
+   "GET": [
+    "meetings"
+   ],
+   "POST": [
+    "meetings"
+   ]
+  },
+  "/meetings/templates/bulk-delete": {
+   "POST": [
+    "meetings"
+   ]
+  },
+  "/meetings/templates/bulk-duplicate": {
+   "POST": [
+    "meetings"
+   ]
+  },
+  "/meetings/templates/{ref}": {
+   "DELETE": [
+    "meetings"
+   ],
+   "GET": [
+    "meetings"
+   ],
+   "PUT": [
+    "meetings"
+   ]
+  },
+  "/meetings/{meeting_id}": {
+   "DELETE": [
+    "meetings"
+   ],
+   "GET": [
+    "meetings"
+   ],
+   "PATCH": [
+    "meetings"
+   ]
+  },
+  "/meetings/{meeting_id}/email": {
+   "POST": [
+    "meetings"
+   ]
+  },
+  "/meetings/{meeting_id}/import/complete": {
+   "POST": [
+    "meetings"
+   ]
+  },
+  "/meetings/{meeting_id}/import/{sequence}": {
+   "PUT": [
+    "meetings"
+   ]
+  },
+  "/meetings/{meeting_id}/pdf": {
+   "GET": [
+    "meetings"
+   ]
+  },
+  "/meetings/{meeting_id}/reformat": {
+   "POST": [
+    "meetings"
+   ]
+  },
+  "/meetings/{meeting_id}/regenerate": {
+   "POST": [
+    "meetings"
+   ]
+  },
+  "/meetings/{meeting_id}/report/reset": {
+   "POST": [
+    "meetings"
+   ]
+  },
+  "/meetings/{meeting_id}/resume": {
+   "POST": [
+    "meetings"
+   ]
+  },
+  "/meetings/{meeting_id}/retry": {
+   "POST": [
+    "meetings"
+   ]
+  },
+  "/meetings/{meeting_id}/segments/{sequence}": {
+   "PUT": [
+    "meetings"
+   ]
+  },
+  "/meetings/{meeting_id}/stop": {
+   "POST": [
+    "meetings"
+   ]
+  },
+  "/meetings/{meeting_id}/transcript": {
+   "DELETE": [
+    "meetings"
+   ]
+  },
+  "/open-loops": {
+   "GET": [
+    "open_loops"
+   ]
+  },
+  "/open-loops/{loop_id}": {
+   "PATCH": [
+    "open_loops"
+   ]
+  },
+  "/open-loops/{loop_id}/close": {
+   "POST": [
+    "open_loops"
+   ]
+  },
+  "/peers/access-log": {
+   "GET": [
+    "peers"
+   ]
+  },
+  "/peers/blocks": {
+   "GET": [
+    "peers"
+   ],
+   "POST": [
+    "peers"
+   ]
+  },
+  "/peers/blocks/{peer_id}": {
+   "DELETE": [
+    "peers"
+   ]
+  },
+  "/peers/capability-transfers/preview": {
+   "POST": [
+    "peers"
+   ]
+  },
+  "/peers/capability-transfers/{transfer_id}": {
+   "GET": [
+    "peers"
+   ]
+  },
+  "/peers/capability-transfers/{transfer_id}/send": {
+   "POST": [
+    "peers"
+   ]
+  },
+  "/peers/connections": {
+   "GET": [
+    "peers"
+   ]
+  },
+  "/peers/connections/{connection_id}": {
+   "DELETE": [
+    "peers"
+   ]
+  },
+  "/peers/connections/{connection_id}/images": {
+   "POST": [
+    "peers"
+   ]
+  },
+  "/peers/connections/{connection_id}/shares": {
+   "PUT": [
+    "peers"
+   ]
+  },
+  "/peers/discovery/search": {
+   "POST": [
+    "peers"
+   ]
+  },
+  "/peers/me": {
+   "GET": [
+    "peers"
+   ],
+   "PUT": [
+    "peers"
+   ]
+  },
+  "/peers/messages": {
+   "GET": [
+    "peers"
+   ]
+  },
+  "/peers/requests": {
+   "GET": [
+    "peers"
+   ],
+   "POST": [
+    "peers"
+   ]
+  },
+  "/peers/requests/{connection_id}/respond": {
+   "POST": [
+    "peers"
+   ]
+  },
+  "/psyche/expression": {
+   "GET": [
+    "psyche"
+   ]
+  },
+  "/psyche/history": {
+   "GET": [
+    "psyche"
+   ]
+  },
+  "/psyche/reset": {
+   "POST": [
+    "psyche"
+   ]
+  },
+  "/psyche/settings": {
+   "GET": [
+    "psyche"
+   ],
+   "PATCH": [
+    "psyche"
+   ]
+  },
+  "/psyche/state": {
+   "GET": [
+    "psyche"
+   ]
+  },
+  "/psyche/summary": {
+   "GET": [
+    "psyche"
+   ]
+  },
+  "/radio/articles/{article_id}": {
+   "GET": [
+    "radio"
+   ]
+  },
+  "/radio/budget": {
+   "GET": [
+    "radio"
+   ]
+  },
+  "/radio/heard": {
+   "DELETE": [
+    "radio"
+   ]
+  },
+  "/radio/options": {
+   "GET": [
+    "radio"
+   ]
+  },
+  "/radio/preferences": {
+   "GET": [
+    "radio"
+   ],
+   "PUT": [
+    "radio"
+   ]
+  },
+  "/radio/sessions": {
+   "POST": [
+    "radio"
+   ]
+  },
+  "/radio/sessions/{session_id}/playhead": {
+   "POST": [
+    "radio"
+   ]
+  },
+  "/radio/sessions/{session_id}/segments/{seq}/audio": {
+   "GET": [
+    "radio"
+   ]
+  },
+  "/radio/sessions/{session_id}/stop": {
+   "POST": [
+    "radio"
+   ]
+  },
+  "/radio/sources": {
+   "GET": [
+    "radio"
+   ],
+   "POST": [
+    "radio"
+   ]
+  },
+  "/radio/sources/preview": {
+   "POST": [
+    "radio"
+   ]
+  },
+  "/radio/sources/{source_id}": {
+   "DELETE": [
+    "radio"
+   ],
+   "PATCH": [
+    "radio"
+   ]
+  },
+  "/radio/voices/sample": {
+   "POST": [
+    "radio"
+   ]
+  },
+  "/rag-spaces": {
+   "GET": [
+    "rag_spaces"
+   ],
+   "POST": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/admin/reindex": {
+   "POST": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/admin/reindex/status": {
+   "GET": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/admin/system-spaces": {
+   "GET": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/admin/system-spaces/{space_name}/reindex": {
+   "POST": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/admin/system-spaces/{space_name}/staleness": {
+   "GET": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/documents": {
+   "GET": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}": {
+   "DELETE": [
+    "rag_spaces"
+   ],
+   "GET": [
+    "rag_spaces"
+   ],
+   "PATCH": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/documents": {
+   "POST": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/documents/archive": {
+   "GET": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/documents/bulk-delete": {
+   "POST": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/documents/move": {
+   "POST": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/documents/{document_id}": {
+   "DELETE": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/documents/{document_id}/download": {
+   "GET": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/documents/{document_id}/status": {
+   "GET": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/drive-browse": {
+   "GET": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/drive-sources": {
+   "GET": [
+    "rag_spaces"
+   ],
+   "POST": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/drive-sources/{source_id}": {
+   "DELETE": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/drive-sources/{source_id}/preflight": {
+   "GET": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/drive-sources/{source_id}/sync": {
+   "POST": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/drive-sources/{source_id}/sync-status": {
+   "GET": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/mail-labels": {
+   "GET": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/mail-sources": {
+   "GET": [
+    "rag_spaces"
+   ],
+   "POST": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/mail-sources/{source_id}": {
+   "DELETE": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/mail-sources/{source_id}/sync": {
+   "POST": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/mail-sources/{source_id}/sync-status": {
+   "GET": [
+    "rag_spaces"
+   ]
+  },
+  "/rag-spaces/{space_id}/toggle": {
+   "PATCH": [
+    "rag_spaces"
+   ]
+  },
+  "/scheduled-actions": {
+   "GET": [],
+   "POST": []
+  },
+  "/scheduled-actions/week": {
+   "GET": []
+  },
+  "/scheduled-actions/{action_id}": {
+   "DELETE": [],
+   "PATCH": []
+  },
+  "/scheduled-actions/{action_id}/execute": {
+   "POST": []
+  },
+  "/scheduled-actions/{action_id}/toggle": {
+   "PATCH": []
+  },
+  "/scheduled-actions/{action_id}/webhook-secret": {
+   "POST": [
+    "routine_webhooks"
+   ]
+  },
+  "/skill-library/install": {
+   "POST": [
+    "skill_library",
+    "skills"
+   ]
+  },
+  "/skill-library/installed": {
+   "GET": [
+    "skill_library",
+    "skills"
+   ]
+  },
+  "/skill-library/installed/{skill_id}/update": {
+   "GET": [
+    "skill_library",
+    "skills"
+   ],
+   "POST": [
+    "skill_library",
+    "skills"
+   ]
+  },
+  "/skill-library/preview": {
+   "GET": [
+    "skill_library",
+    "skills"
+   ]
+  },
+  "/skill-library/search": {
+   "GET": [
+    "skill_library",
+    "skills"
+   ]
+  },
+  "/skill-proposals/{proposal_id}": {
+   "GET": [
+    "skills"
+   ]
+  },
+  "/skill-proposals/{proposal_id}/install": {
+   "POST": [
+    "skills"
+   ]
+  },
+  "/skills": {
+   "GET": [
+    "skills"
+   ]
+  },
+  "/skills/admin/import": {
+   "POST": [
+    "skills"
+   ]
+  },
+  "/skills/admin/list": {
+   "GET": [
+    "skills"
+   ]
+  },
+  "/skills/admin/{skill_name}": {
+   "DELETE": [
+    "skills"
+   ]
+  },
+  "/skills/admin/{skill_name}/description": {
+   "PATCH": [
+    "skills"
+   ]
+  },
+  "/skills/admin/{skill_name}/download": {
+   "GET": [
+    "skills"
+   ]
+  },
+  "/skills/admin/{skill_name}/system-toggle": {
+   "PATCH": [
+    "skills"
+   ]
+  },
+  "/skills/admin/{skill_name}/translate-description": {
+   "POST": [
+    "skills"
+   ]
+  },
+  "/skills/dormant-decision": {
+   "POST": [
+    "skills"
+   ]
+  },
+  "/skills/import": {
+   "POST": [
+    "skills"
+   ]
+  },
+  "/skills/import-from-url": {
+   "POST": [
+    "skills"
+   ]
+  },
+  "/skills/reload": {
+   "POST": [
+    "skills"
+   ]
+  },
+  "/skills/{skill_name}": {
+   "DELETE": [
+    "skills"
+   ]
+  },
+  "/skills/{skill_name}/download": {
+   "GET": [
+    "skills"
+   ]
+  },
+  "/skills/{skill_name}/preview": {
+   "GET": [
+    "skills"
+   ]
+  },
+  "/skills/{skill_name}/restore-previous": {
+   "POST": [
+    "skills"
+   ]
+  },
+  "/skills/{skill_name}/toggle": {
+   "PATCH": [
+    "skills"
+   ]
+  },
+  "/sms/blocked-senders": {
+   "GET": [
+    "sms"
+   ]
+  },
+  "/sms/commands": {
+   "POST": [
+    "sms"
+   ]
+  },
+  "/sms/commands/{command_id}/cancel": {
+   "POST": [
+    "sms"
+   ]
+  },
+  "/sms/commands/{command_id}/confirm": {
+   "POST": [
+    "sms"
+   ]
+  },
+  "/sms/commands/{command_id}/token": {
+   "POST": [
+    "sms"
+   ]
+  },
+  "/sms/display-search": {
+   "POST": [
+    "sms"
+   ]
+  },
+  "/sms/identities/refresh": {
+   "POST": [
+    "sms"
+   ]
+  },
+  "/sms/preferences": {
+   "PATCH": [
+    "sms"
+   ]
+  },
+  "/sms/search": {
+   "POST": [
+    "sms"
+   ]
+  },
+  "/sms/senders": {
+   "GET": [
+    "sms"
+   ]
+  },
+  "/sms/settings": {
+   "GET": [
+    "sms"
+   ]
+  },
+  "/sms/tokens": {
+   "GET": [
+    "sms"
+   ]
+  },
+  "/sms/{message_id}": {
+   "GET": [
+    "sms"
+   ]
+  },
+  "/telephony/calls": {
+   "GET": []
+  },
+  "/telephony/calls/{call_id}": {
+   "GET": []
+  },
+  "/telephony/connector": {
+   "DELETE": []
+  },
+  "/telephony/connector/activate": {
+   "POST": [
+    "telephony"
+   ]
+  },
+  "/telephony/connector/validate-key": {
+   "POST": [
+    "telephony"
+   ]
+  },
+  "/telephony/identity": {
+   "GET": [],
+   "PATCH": [
+    "telephony"
+   ]
+  },
+  "/telephony/identity/confirm": {
+   "POST": [
+    "telephony"
+   ]
+  },
+  "/telephony/identity/number": {
+   "DELETE": [],
+   "PUT": [
+    "telephony"
+   ]
+  },
+  "/telephony/identity/verify": {
+   "POST": [
+    "telephony"
+   ]
+  },
+  "/telephony/tools/send_to_lia": {
+   "POST": [
+    "telephony"
+   ]
+  },
+  "/telephony/tools/{tool_name}": {
+   "POST": [
+    "telephony"
+   ]
+  },
+  "/telephony/webhook": {
+   "POST": []
+  },
+  "/tool-assists/calendar/from-words": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/contacts/complete": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/contacts/from-card": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/contacts/from-words": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/files/summary": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/mail/attachment": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/mail/compose": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/mail/conversation": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/mail/event": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/mail/filter": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/mail/reply": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/mail/search": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/mail/subject": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/mail/summary": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/mail/task": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/mail/translate": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/mail/triage": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/read-aloud": {
+   "POST": [
+    "tool_assists",
+    "tts"
+   ]
+  },
+  "/tool-assists/selection": {
+   "GET": [
+    "tool_assists"
+   ]
+  },
+  "/tool-assists/spaces/keep-attachment": {
+   "POST": [
+    "rag_spaces",
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/spaces/keep-file": {
+   "POST": [
+    "rag_spaces",
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/tasks/from-words": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/tasks/steps": {
+   "POST": [
+    "tool_assists",
+    "workbench"
+   ]
+  },
+  "/tool-assists/text/passage": {
+   "POST": [
+    "tool_assists"
+   ]
+  },
+  "/tool-assists/text/rewrite": {
+   "POST": [
+    "tool_assists"
+   ]
+  },
+  "/tool-assists/text/selection": {
+   "POST": [
+    "tool_assists"
+   ]
+  },
+  "/tool-assists/text/selection/stream": {
+   "POST": [
+    "tool_assists"
+   ]
+  },
+  "/tool-assists/text/translate": {
+   "POST": [
+    "tool_assists"
+   ]
+  },
+  "/tool-assists/text/write": {
+   "POST": [
+    "tool_assists"
+   ]
+  },
+  "/voice/lia-voices": {
+   "GET": [],
+   "PUT": []
+  },
+  "/voice/lia-voices/sample": {
+   "POST": [
+    "tts"
+   ]
+  },
+  "/voice/ticket": {
+   "POST": [
+    "stt"
+   ]
+  },
+  "/voice/ws/audio": {
+   "WS": [
+    "stt"
+   ]
+  },
+  "/workbench": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/calendar/calendars": {
+   "DELETE": [
+    "workbench"
+   ],
+   "GET": [
+    "workbench"
+   ],
+   "PATCH": [
+    "workbench"
+   ],
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/calendar/event": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/calendar/events": {
+   "DELETE": [
+    "workbench"
+   ],
+   "GET": [
+    "workbench"
+   ],
+   "PATCH": [
+    "workbench"
+   ],
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/calendar/events/answer": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/calendar/events/move": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/calendar/search": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/card-target": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/contacts": {
+   "DELETE": [
+    "workbench"
+   ],
+   "GET": [
+    "workbench"
+   ],
+   "PATCH": [
+    "workbench"
+   ],
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/contacts/contact": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/contacts/export": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/contacts/groups": {
+   "DELETE": [
+    "workbench"
+   ],
+   "GET": [
+    "workbench"
+   ],
+   "PATCH": [
+    "workbench"
+   ]
+  },
+  "/workbench/contacts/groups/join": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/contacts/groups/leave": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/contacts/history": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/contacts/import": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/contacts/member-of": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/contacts/other": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/contacts/other/save": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/contacts/photo": {
+   "DELETE": [
+    "workbench"
+   ],
+   "GET": [
+    "workbench"
+   ],
+   "PUT": [
+    "workbench"
+   ]
+  },
+  "/workbench/files": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/copy": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/delete": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/download": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/file": {
+   "GET": [
+    "workbench"
+   ],
+   "PATCH": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/folders": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/from-mail": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/move": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/preview": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/quota": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/restore": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/sharing": {
+   "GET": [
+    "workbench"
+   ],
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/sharing/link": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/sharing/remove": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/star": {
+   "PATCH": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/text": {
+   "GET": [
+    "workbench"
+   ],
+   "PUT": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/trash": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/trash/empty": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/files/upload": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/lights": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/lights/light": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/lights/room": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/lights/scene": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/attachable": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/attachment": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/attachment/preview": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/conversation": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/counts": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/delete-forever": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/draft": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/drafts": {
+   "GET": [
+    "workbench"
+   ],
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/drafts/send": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/drafts/trash": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/empty-trash": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/files": {
+   "POST": [
+    "attachments",
+    "workbench"
+   ]
+  },
+  "/workbench/mail/filters": {
+   "DELETE": [
+    "workbench"
+   ],
+   "GET": [
+    "workbench"
+   ],
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/folders": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/forward": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/labels": {
+   "DELETE": [
+    "workbench"
+   ],
+   "PATCH": [
+    "workbench"
+   ],
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/labels/apply": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/message": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/message/html": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/message/images": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/message/unsubscribe": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/messages": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/move": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/read-state": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/recipients": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/reply": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/reply-marks": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/reply-recipients": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/send": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/send-as": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/signature": {
+   "GET": [
+    "workbench"
+   ],
+   "PUT": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/star": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/unsubscribe": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/mail/vacation": {
+   "GET": [
+    "workbench"
+   ],
+   "PUT": [
+    "workbench"
+   ]
+  },
+  "/workbench/search": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/tasks": {
+   "DELETE": [
+    "workbench"
+   ],
+   "GET": [
+    "workbench"
+   ],
+   "PATCH": [
+    "workbench"
+   ],
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/tasks/clear-completed": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/tasks/due": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/tasks/lists": {
+   "DELETE": [
+    "workbench"
+   ],
+   "GET": [
+    "workbench"
+   ],
+   "PATCH": [
+    "workbench"
+   ],
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/tasks/place": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/tasks/selection/completed": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/tasks/selection/delete": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/tasks/selection/move": {
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/tasks/steps": {
+   "DELETE": [
+    "workbench"
+   ],
+   "PATCH": [
+    "workbench"
+   ],
+   "POST": [
+    "workbench"
+   ]
+  },
+  "/workbench/tasks/task": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workbench/tasks/view": {
+   "GET": [
+    "workbench"
+   ]
+  },
+  "/workboard/categories": {
+   "GET": [
+    "workboard"
+   ],
+   "POST": [
+    "workboard"
+   ]
+  },
+  "/workboard/categories/{category_id}": {
+   "DELETE": [
+    "workboard"
+   ],
+   "PATCH": [
+    "workboard"
+   ]
+  },
+  "/workboard/needs-me": {
+   "GET": [
+    "workboard"
+   ]
+  },
+  "/workboard/summary": {
+   "GET": [
+    "workboard"
+   ]
+  },
+  "/workboard/tickets": {
+   "GET": [
+    "workboard"
+   ],
+   "POST": [
+    "workboard"
+   ]
+  },
+  "/workboard/tickets/{ticket_id}": {
+   "DELETE": [
+    "workboard"
+   ],
+   "GET": [
+    "workboard"
+   ],
+   "PATCH": [
+    "workboard"
+   ]
+  },
+  "/workboard/tickets/{ticket_id}/comments": {
+   "POST": [
+    "workboard"
+   ]
+  },
+  "/workboard/tickets/{ticket_id}/move": {
+   "POST": [
+    "workboard"
+   ]
+  },
+  "/workboard/tickets/{ticket_id}/run-now": {
+   "POST": [
+    "workboard"
+   ]
+  },
+  "/world/avatar": {
+   "GET": [
+    "world"
+   ],
+   "PUT": [
+    "world"
+   ]
+  },
+  "/world/environment": {
+   "GET": [
+    "world"
+   ]
+  },
+  "/world/experience": {
+   "GET": [
+    "world"
+   ],
+   "PUT": [
+    "world"
+   ]
+  },
+  "/world/home": {
+   "GET": [
+    "world"
+   ],
+   "PUT": [
+    "world"
+   ]
+  },
+  "/world/messages/peers": {
+   "POST": [
+    "world"
+   ]
+  },
+  "/world/messages/public": {
+   "POST": [
+    "world"
+   ]
+  },
+  "/world/messages/read": {
+   "POST": [
+    "world"
+   ]
+  },
+  "/world/messages/send": {
+   "POST": [
+    "world"
+   ]
+  },
+  "/world/messages/status": {
+   "POST": [
+    "world"
+   ]
+  },
+  "/world/messages/translate": {
+   "POST": [
+    "world"
+   ]
+  },
+  "/world/ticket": {
+   "POST": [
+    "world"
+   ]
+  },
+  "/world/ws": {
+   "WS": []
+  }
+ },
+ "router_flags": {
+  "mcp": [
+   "mcp_user_enabled"
+  ]
+ }
+}

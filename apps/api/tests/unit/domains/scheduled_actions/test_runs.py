@@ -12,7 +12,7 @@ import pytest
 
 from src.core.recurrence import DailyTimes, RecurrenceSpec, TimeOfDay
 from src.domains.scheduled_actions.models import ScheduledRunOutcome
-from src.domains.scheduled_actions.runs import record_run
+from src.domains.scheduled_actions.runs import is_manual_run, record_run
 
 pytestmark = pytest.mark.unit
 
@@ -198,3 +198,18 @@ class TestAConditionRoutinesRun:
         kwargs = record.await_args.kwargs
         assert kwargs["slot_at"] == STARTED
         assert kwargs["manual"] is True
+
+
+class TestWhoStartedTheRun:
+    """One predicate for the row's ``manual`` flag and the failure notice."""
+
+    def test_a_due_slot_is_the_schedulers_run(self) -> None:
+        assert is_manual_run(DUE, STARTED) is False
+
+    def test_a_slot_still_ahead_means_the_person_asked(self) -> None:
+        tomorrow = datetime(2026, 8, 4, 6, 0, tzinfo=UTC)
+
+        assert is_manual_run(tomorrow, STARTED) is True
+
+    def test_no_pending_slot_at_all_means_the_person_asked(self) -> None:
+        assert is_manual_run(None, STARTED) is True

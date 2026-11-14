@@ -75,15 +75,31 @@ class TestSwitch:
 
 class TestTimeoutFamily:
     def test_a_page_waits_for_its_writer_as_a_document_does(self) -> None:
-        """Measured 2026-11-05: a stylized page takes longer than a document's floor."""
+        """Measured 2026-11-05: a stylized page takes longer than a document's floor.
+
+        A page and a document share the family's floor, and each step waits for the
+        calls its tool makes (ADR-221 amendment 2026-11-05): the page for its writer,
+        the document for its writer and then the pictures it asked for.
+        """
+        from src.core.config import settings
+        from src.core.constants import LLM_RUN_BOUND_MARGIN_SECONDS
+        from src.core.llm_config_helper import llm_call_timeout_seconds
         from src.domains.agents.orchestration.step_timeouts import (
             TOOL_LLM_SLOTS,
             compute_step_timeout,
         )
 
+        floor = settings.document_generation_tool_timeout_seconds
+        writer = llm_call_timeout_seconds("interactive_page")
         assert TOOL_LLM_SLOTS["generate_interactive_page"] == ("interactive_page",)
-        assert compute_step_timeout("generate_interactive_page", None) == compute_step_timeout(
-            "generate_document", None
+        assert compute_step_timeout("generate_interactive_page", None) == max(
+            floor, writer + LLM_RUN_BOUND_MARGIN_SECONDS
+        )
+        document = llm_call_timeout_seconds("document_generation") + llm_call_timeout_seconds(
+            "image_generation"
+        )
+        assert compute_step_timeout("generate_document", None) == max(
+            floor, document + LLM_RUN_BOUND_MARGIN_SECONDS
         )
 
 

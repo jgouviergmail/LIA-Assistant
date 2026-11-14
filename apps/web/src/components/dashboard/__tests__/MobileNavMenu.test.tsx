@@ -153,12 +153,18 @@ describe('MobileNavMenu — instance-gated destinations (ADR-258)', () => {
           workbench_enabled: true,
           sms_enabled: true,
           rag_spaces_enabled: true,
+          workboard_enabled: true,
         })}
       />
     );
     await user.click(screen.getByRole('button', { name: 'Menu' }));
     expect(screen.queryByRole('menuitem', { name: 'navigation.meetings' })).not.toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'navigation.sms' })).toBeInTheDocument();
+    // The workboard's door on a phone (owner, 2026-11-11).
+    expect(screen.getByRole('menuitem', { name: 'navigation.workboard' })).toHaveAttribute(
+      'href',
+      '/fr/dashboard/workboard'
+    );
     expect(screen.getByRole('menuitem', { name: 'navigation.spaces' })).toHaveAttribute(
       'href',
       '/fr/dashboard/spaces'

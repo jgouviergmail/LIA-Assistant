@@ -1,7 +1,11 @@
 """
-Knowledge Enrichment Service - Brave Search API integration.
+Knowledge Enrichment Service - web search integration.
 
-Enriches answers with up-to-date data (Web + News) through Brave Search.
+Enriches answers with up-to-date data (Web + News) through Brave Search, with
+the person's own key. A person with no key (or whose Brave the administrator
+switched off) is enriched by the instance's SearXNG when the operator runs one
+(lot 18, ``connectors/instance_search``): recorded as its own capability
+(``enrichment:searxng``), cached apart, named for what it is in the prompt.
 
 Architecture:
 - Singleton service with lazy Redis init
@@ -39,6 +43,13 @@ from src.core.constants import (
     BRAVE_SEARCH_MAX_RESULTS,
 )
 from src.core.i18n import resolve_language
+from src.domains.connectors.clients.searxng_client import SearXNGRecency
+from src.domains.connectors.instance_search import (
+    INSTANCE_SEARCH_SOURCE,
+    WebLink,
+    instance_search_available,
+    search_instance,
+)
 from src.domains.connectors.models import ConnectorType
 from src.infrastructure.cache.base import create_cache_entry, make_query_hash, parse_cache_entry
 from src.infrastructure.observability.logging import get_logger
@@ -60,6 +71,12 @@ RedisProvider = Callable[[], Awaitable[Any]]
 # Type alias for Brave Search endpoints
 BraveSearchEndpoint = Literal["web", "news"]
 
+#: The search service of an enrichment, as the cache and the prompt name it.
+BRAVE_SOURCE = "brave"
+_SOURCE_LABELS: dict[str, str] = {BRAVE_SOURCE: "Brave", INSTANCE_SEARCH_SOURCE: "SearXNG"}
+#: How far back the instance's news search looks, as Brave's news freshness does.
+_INSTANCE_NEWS_RECENCY: SearXNGRecency = "week"
+
 
 # =============================================================================
 # DATA STRUCTURES
@@ -68,12 +85,13 @@ BraveSearchEndpoint = Literal["web", "news"]
 
 @dataclass(frozen=True)
 class KnowledgeContext:
-    """Brave Search enrichment result for knowledge injection into LLM prompts."""
+    """Web search enrichment result for knowledge injection into LLM prompts."""
 
     keyword: str
     endpoint: str  # "web" or "news"
     results: tuple[dict[str, str], ...]  # Immutable tuple of {title, description, url}
     from_cache: bool
+    source: str = BRAVE_SOURCE  # which service found them (lot 18)
 
     def to_prompt_context(self) -> str:
         """
@@ -91,7 +109,8 @@ class KnowledgeContext:
             return ""
 
         # Build context text
-        parts = [f"[Source: Brave {self.endpoint.title()} Search - {self.keyword}]"]
+        label = _SOURCE_LABELS.get(self.source, self.source)
+        parts = [f"[Source: {label} {self.endpoint.title()} Search - {self.keyword}]"]
 
         for i, result in enumerate(self.results[:3], 1):
             title = result.get("title", "")
@@ -102,6 +121,16 @@ class KnowledgeContext:
             parts.append(f"{i}. {title}: {desc}")
 
         return "\n".join(parts)
+
+
+def _cache_key(source: str, keyword: str, endpoint: str, language: str) -> str:
+    """One cache key per service: a link one service found is never served as another's."""
+    return f"{source}_search:{endpoint}:{language}:{make_query_hash(keyword)}"
+
+
+def _instance_result(link: WebLink) -> dict[str, str]:
+    """A link of the instance's search as the prompt reads one, its engine line first."""
+    return {"title": link.title, "description": link.excerpt, "url": link.url}
 
 
 # =============================================================================
@@ -219,11 +248,6 @@ class KnowledgeEnrichmentService:
             logger.debug("knowledge_enrichment_no_deps")
             return None
 
-        # Check connector global config (admin can disable)
-        if not await self._check_connector_enabled(tool_deps):
-            logger.debug("brave_search_connector_disabled_by_admin")
-            return None
-
         # Combine keywords (max 3 for better context)
         if not keywords:
             logger.debug("knowledge_enrichment_no_keywords")
@@ -239,8 +263,20 @@ class KnowledgeEnrichmentService:
             current_year = datetime.now(UTC).year
             keyword = f"{keyword} {current_year}"
 
-        # Try cache first (global cache - same results for all users)
+        # The person's own key wins (ADR-307); without one, the instance's search
+        credentials = await self._brave_credentials(user_id, tool_deps)
         redis = await self._ensure_redis()
+        if credentials is None:
+            return await self._enrich_from_instance(
+                keyword=keyword,
+                endpoint=endpoint,
+                is_news_query=is_news_query,
+                user_id=user_id,
+                language=language,
+                redis=redis,
+            )
+
+        # Try cache first (global cache - same results for all users)
         if redis:
             cache_result = await self._check_cache(redis, keyword, endpoint, language)
             if cache_result:
@@ -253,8 +289,108 @@ class KnowledgeEnrichmentService:
             is_news_query=is_news_query,
             user_id=user_id,
             language=language,
-            tool_deps=tool_deps,
+            credentials=credentials,
             redis=redis,
+        )
+
+    async def _brave_credentials(
+        self, user_id: UUID, tool_deps: ToolDependencies
+    ) -> APIKeyCredentials | None:
+        """The person's Brave key, when they configured one and the administrator allows Brave.
+
+        Args:
+            user_id: Whose key.
+            tool_deps: ToolDependencies for ConnectorService access.
+
+        Returns:
+            The key, or None: not configured, switched off, or unreadable.
+        """
+        if not await self._check_connector_enabled(tool_deps):
+            logger.debug("brave_search_connector_disabled_by_admin")
+            return None
+        try:
+            connector_service = await tool_deps.get_connector_service()
+            credentials: APIKeyCredentials | None = await connector_service.get_api_key_credentials(
+                user_id, ConnectorType.BRAVE_SEARCH
+            )
+        except Exception as exc:
+            # A revoked or unreadable key is no usable key; the type, never the text.
+            logger.warning("brave_search_credentials_unreadable", error_type=type(exc).__name__)
+            return None
+        if credentials is None:
+            logger.debug("brave_search_connector_not_configured", user_id=str(user_id))
+        return credentials
+
+    async def _enrich_from_instance(
+        self,
+        *,
+        keyword: str,
+        endpoint: BraveSearchEndpoint,
+        is_news_query: bool,
+        user_id: UUID,
+        language: str,
+        redis: Any,
+    ) -> KnowledgeContext | None:
+        """Enrich through the instance's SearXNG (lot 18), for a person with no Brave key.
+
+        Args:
+            keyword: Search keyword.
+            endpoint: "web" or "news".
+            is_news_query: True for news (the news category, the last week).
+            user_id: Whose search.
+            language: Language code.
+            redis: Redis client (may be None).
+
+        Returns:
+            KnowledgeContext, or None: no instance search, a failure, or nothing found.
+        """
+        if not await instance_search_available():
+            logger.debug("knowledge_enrichment_no_search_source", user_id=str(user_id))
+            return None
+        if redis:
+            cached = await self._check_cache(
+                redis, keyword, endpoint, language, source=INSTANCE_SEARCH_SOURCE
+            )
+            if cached:
+                return cached
+        from src.domains.agents.effects.treatments import record_treatment
+
+        started = perf_counter()
+        succeeded = False
+        try:
+            links = await search_instance(
+                keyword,
+                user_id=user_id,
+                language=language,
+                count=BRAVE_SEARCH_MAX_RESULTS,
+                recency=_INSTANCE_NEWS_RECENCY if is_news_query else None,
+                news=is_news_query,
+            )
+            succeeded = True
+        except Exception:
+            # Counted and logged by the door: an enrichment never fails a turn.
+            return None
+        finally:
+            # Recorded through a cancellation too: success is only set by an answer.
+            record_treatment(
+                f"enrichment:{INSTANCE_SEARCH_SOURCE}",
+                None,
+                succeeded=succeeded,
+                duration_ms=int((perf_counter() - started) * 1000),
+            )
+        results = [_instance_result(link) for link in links if link.title and link.excerpt]
+        if not results:
+            return None
+        if redis:
+            await self._cache_results(
+                redis, keyword, endpoint, language, results, source=INSTANCE_SEARCH_SOURCE
+            )
+        return KnowledgeContext(
+            keyword=keyword,
+            endpoint=endpoint,
+            results=tuple(results),
+            from_cache=False,
+            source=INSTANCE_SEARCH_SOURCE,
         )
 
     async def _check_cache(
@@ -263,6 +399,7 @@ class KnowledgeEnrichmentService:
         keyword: str,
         endpoint: BraveSearchEndpoint,
         language: str,
+        source: str = BRAVE_SOURCE,
     ) -> KnowledgeContext | None:
         """
         Check cache for existing results.
@@ -272,19 +409,20 @@ class KnowledgeEnrichmentService:
             keyword: Search keyword
             endpoint: "web" or "news"
             language: Language code
+            source: The service whose results are read: a link one service
+                found is never served as another's.
 
         Returns:
             KnowledgeContext if cache hit, None otherwise
         """
-        query_hash = make_query_hash(keyword)
-        cache_key = f"brave_search:{endpoint}:{language}:{query_hash}"
+        cache_key = _cache_key(source, keyword, endpoint, language)
 
         try:
             cached = await redis.get(cache_key)
             if cached:
                 cache_result = parse_cache_entry(
                     cached_json=cached,
-                    cache_type="brave_search",
+                    cache_type=f"{source}_search",
                     context_info={"keyword": keyword, "endpoint": endpoint},
                 )
                 if (
@@ -303,6 +441,7 @@ class KnowledgeEnrichmentService:
                         endpoint=endpoint,
                         results=tuple(cache_result.data["results"]),
                         from_cache=True,
+                        source=source,
                     )
         except Exception as e:
             logger.warning("knowledge_enrichment_cache_error", error=str(e))
@@ -316,39 +455,25 @@ class KnowledgeEnrichmentService:
         is_news_query: bool,
         user_id: UUID,
         language: str,
-        tool_deps: ToolDependencies,
+        credentials: APIKeyCredentials,
         redis: Any,
     ) -> KnowledgeContext | None:
         """
-        Call Brave Search API and cache results.
+        Call Brave Search API with the person's key and cache results.
 
         Args:
             keyword: Search keyword
             endpoint: "web" or "news"
             is_news_query: True for news endpoint
-            user_id: User ID for credentials lookup
+            user_id: Whose search
             language: Language code
-            tool_deps: ToolDependencies for DB access
+            credentials: The person's Brave key (:meth:`_brave_credentials`)
             redis: Redis client (may be None)
 
         Returns:
             KnowledgeContext or None if error/no results
         """
         try:
-            # Get credentials via ConnectorService (from ToolDependencies)
-            connector_service = await tool_deps.get_connector_service()
-            credentials = await connector_service.get_api_key_credentials(
-                user_id, ConnectorType.BRAVE_SEARCH
-            )
-
-            if credentials is None:
-                # Non-blocking: user hasn't configured Brave Search connector
-                logger.debug(
-                    "brave_search_connector_not_configured",
-                    user_id=str(user_id),
-                )
-                return None
-
             # One client for this search, closed right after it.
             client = self._new_client(credentials, user_id, language)
 
@@ -454,6 +579,7 @@ class KnowledgeEnrichmentService:
         endpoint: str,
         language: str,
         results: list[dict[str, str]],
+        source: str = BRAVE_SOURCE,
     ) -> None:
         """
         Cache search results to Redis.
@@ -464,10 +590,10 @@ class KnowledgeEnrichmentService:
             endpoint: "web" or "news"
             language: Language code
             results: Parsed results to cache
+            source: The service that found them (its own key space)
         """
         try:
-            query_hash = make_query_hash(keyword)
-            cache_key = f"brave_search:{endpoint}:{language}:{query_hash}"
+            cache_key = _cache_key(source, keyword, endpoint, language)
 
             cache_entry = create_cache_entry(
                 {"results": results},

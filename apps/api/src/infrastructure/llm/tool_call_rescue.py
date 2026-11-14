@@ -1,6 +1,6 @@
 """Recover a tool call the parser or the schema refused for a mechanical reason.
 
-Three shapes, each a complete answer a door threw away:
+Five shapes, each a complete answer a door threw away:
 
 - **Nulls where the schema has a default** (production 2026-09-05,
   ``deepseek-v4-flash``, a complete minutes payload, ``"bullets": null`` on a
@@ -30,6 +30,26 @@ Three shapes, each a complete answer a door threw away:
   validation (ADR-184): a bare token in VALUE position, outside any string, is
   quoted; nothing else moves. A truncated answer is never rescued here — the
   door consults ADR-275's verdict before it reaches this module.
+- **A bracket that closes nothing** (bench 2026-11-13, a fast model without
+  reasoning, a long report: three of ten calls refused, « Extra data »). The
+  arguments held a whole value, valid against the schema, then one ``}``. Only
+  brackets may follow the value for it to be kept: they carry nothing, while
+  anything else may be content.
+- **A structure written as text** (bench 2026-11-13, a reasoning model through
+  the auto-tool door, a workbook: 4 of 9 lost, each refusal paid up to three
+  times). Where the schema expects a list or an object, the model wrote JSON
+  TEXT — and stopped it between two values, writing the rest of the open object
+  (``columns``, ``chart``) as keys of the call itself. The text is read back
+  (``json_recovery.close_cut_structure``: only the brackets it owes are added,
+  never after a cut inside a string), and each key the call's schema does not
+  declare goes back into the innermost object the text left open whose schema
+  declares it — nothing is guessed: what fits nowhere stays where it was. The
+  same text may also close once too often (a third model, the same day: 5 of
+  its 7 refusals in 8 workbooks): the whole value is kept, as for a call.
+  Strict tool use, which would prevent the defect at the source, holds a
+  request to 24 optional parameters across its strict tools: two of the three
+  document schemas declare 33 and 36, and the door never bends a schema to fit
+  (``strict_schema``).
 """
 
 from __future__ import annotations
@@ -43,6 +63,7 @@ from typing import Any, Literal, Union, get_args, get_origin
 from pydantic import BaseModel, ValidationError
 from pydantic.fields import FieldInfo
 
+from src.infrastructure.llm.json_recovery import close_cut_structure, drop_trailing_closers
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 
@@ -51,7 +72,11 @@ logger = get_logger(__name__)
 #: How a repair settled a refused answer — an ``outcome`` of
 #: ``llm_structured_output_outcomes_total`` (the doors add ``parsed`` and ``truncated``).
 RepairOutcome = Literal[
-    "absent_values_dropped", "invalid_call_repaired", "text_rescued", "rejected"
+    "absent_values_dropped",
+    "structures_decoded",
+    "invalid_call_repaired",
+    "text_rescued",
+    "rejected",
 ]
 
 #: Paths listed in a rejection reason before the list is cut (a log line, not a report).
@@ -91,21 +116,27 @@ def _model_of(annotation: Any) -> type[BaseModel] | None:
     return None
 
 
-def _list_item_model(annotation: Any) -> type[BaseModel] | None:
-    """The BaseModel behind ``list[Model]`` / ``Sequence[Model]`` (Optional tolerated)."""
+def _item_annotation(annotation: Any) -> Any:
+    """What one item of ``list[X]`` / ``Sequence[X]`` is (Optional tolerated), or ``None``."""
     origin = get_origin(annotation)
     if origin is Union or origin is types.UnionType:
         for arg in get_args(annotation):
-            model = _list_item_model(arg)
-            if model is not None:
-                return model
+            item = _item_annotation(arg)
+            if item is not None:
+                return item
         return None
     if origin in (list, Sequence, tuple) or (
         isinstance(origin, type) and issubclass(origin, Sequence)
     ):
         args = get_args(annotation)
-        return _model_of(args[0]) if args else None
+        return args[0] if args else None
     return None
+
+
+def _list_item_model(annotation: Any) -> type[BaseModel] | None:
+    """The BaseModel behind ``list[Model]`` / ``Sequence[Model]`` (Optional tolerated)."""
+    item = _item_annotation(annotation)
+    return _model_of(item) if item is not None else None
 
 
 @dataclass(frozen=True, slots=True)
@@ -252,16 +283,204 @@ def log_absent_values_dropped(provider: str, schema_name: str, absent: AbsentVal
     )
 
 
+# ---------------------------------------------------------------------------
+# A structure written as text
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True, slots=True)
+class TextStructures:
+    """What a parsed call wrote as text where its schema expects a structure, read back."""
+
+    decoded: int = 0
+    closed: int = 0
+    rehomed: int = 0
+    closers: int = 0
+
+    def __add__(self, other: TextStructures) -> TextStructures:
+        return TextStructures(
+            self.decoded + other.decoded,
+            self.closed + other.closed,
+            self.rehomed + other.rehomed,
+            self.closers + other.closers,
+        )
+
+
+_Kind = type[list[Any]] | type[dict[str, Any]]
+
+
+def _union_kind(members: tuple[Any, ...]) -> _Kind | None:
+    """The one structure a union expects — none when one of its members is a text."""
+    members = tuple(member for member in members if member is not type(None))
+    if any(member in (str, Any) for member in members):
+        return None  # a text is a value of this field: never read it as JSON
+    kinds = {kind for member in members if (kind := _structure_kind(member)) is not None}
+    return kinds.pop() if len(kinds) == 1 else None
+
+
+def _structure_kind(annotation: Any) -> _Kind | None:
+    """``list`` or ``dict`` when the annotation expects that structure and admits no text."""
+    origin = get_origin(annotation)
+    if origin is Union or origin is types.UnionType:
+        return _union_kind(get_args(annotation))
+    if _model_of(annotation) is not None or dict in (origin, annotation):
+        return dict
+    if origin in (list, tuple, Sequence) or annotation in (list, tuple):
+        return list
+    return None
+
+
+def _open_objects(
+    value: Any, annotation: Any, depth: int
+) -> list[tuple[dict[str, Any], type[BaseModel]]]:
+    """The objects a text left open, outermost first, each with the model it is meant for.
+
+    The text stopped inside its last element at every level: the last item of a
+    list, the value of the last key of an object.
+    """
+    objects: list[tuple[dict[str, Any], type[BaseModel]]] = []
+    node, hint = value, annotation
+    for _level in range(depth):
+        if isinstance(node, dict) and (model := _model_of(hint)) is not None:
+            objects.append((node, model))
+            last = next(reversed(node), None)
+            field = _declared_field(model, last) if last is not None else None
+            if last is None or field is None:
+                break
+            node, hint = node[last], field.annotation
+        elif isinstance(node, list) and node:
+            node, hint = node[-1], _item_annotation(hint)
+        else:
+            break
+    return objects
+
+
+def _rehome(
+    value: Any, annotation: Any, depth: int, siblings: dict[str, Any], schema: type[BaseModel]
+) -> int:
+    """Put back the keys written beside a cut structure into the object they continue.
+
+    A key the schema of ``siblings`` does not declare goes into the innermost
+    object the text left open whose model declares it and lacks it; a key that
+    fits nowhere stays where the model wrote it.
+    """
+    objects = _open_objects(value, annotation, depth)
+    moved = 0
+    for key in [key for key in siblings if _declared_field(schema, key) is None]:
+        for target, model in reversed(objects):
+            if key not in target and _declared_field(model, key) is not None:
+                target[key] = siblings.pop(key)
+                moved += 1
+                break
+    return moved
+
+
+def _read_text(
+    annotation: Any, text: str, siblings: dict[str, Any], schema: type[BaseModel] | None
+) -> tuple[Any, TextStructures]:
+    """A value written as JSON text where ``annotation`` expects a structure, read back.
+
+    A whole value followed by brackets only keeps the value; a value cut between
+    two values is closed, and what was written beside it put back.
+    """
+    kind = _structure_kind(annotation)
+    if kind is None:
+        return text, TextStructures()
+    whole, closers = drop_trailing_closers(text)
+    cut = close_cut_structure(whole)
+    if cut is None:
+        return text, TextStructures()
+    closed, depth = cut
+    value = json.loads(closed)
+    if not isinstance(value, kind):
+        return text, TextStructures()
+    rehomed = _rehome(value, annotation, depth, siblings, schema) if depth and schema else 0
+    return value, TextStructures(decoded=1, closed=int(depth > 0), rehomed=rehomed, closers=closers)
+
+
+def _decoded_value(annotation: Any, value: Any) -> tuple[Any, TextStructures]:
+    """``value`` with the structures its nested model(s) received as text read back."""
+    model = _model_of(annotation)
+    if model is not None and isinstance(value, dict):
+        return decode_text_structures(model, value)
+    item = _item_annotation(annotation)
+    if item is None or not isinstance(value, list):
+        return value, TextStructures()
+    found = TextStructures()
+    items: list[Any] = []
+    for element in value:
+        if isinstance(element, str):
+            element, read = _read_text(item, element, {}, None)
+            found += read
+        element, nested = _decoded_value(item, element)
+        found += nested
+        items.append(element)
+    return items, found
+
+
+def decode_text_structures(schema: type[BaseModel], payload: Any) -> tuple[Any, TextStructures]:
+    """A copy of ``payload`` with every structure written as JSON text read back.
+
+    Only where ``schema`` expects a list or an object and admits no text; nested
+    models and lists of models are walked the same way. A text the model stopped
+    between two values is closed, and the keys it wrote beside it go back into
+    the object they continue (module docstring).
+
+    Args:
+        schema: The Pydantic model the payload is meant for.
+        payload: The model's arguments (anything that is not a dict comes back as is).
+
+    Returns:
+        ``(payload, found)`` — the copy and what was read back.
+    """
+    if not isinstance(payload, dict):
+        return payload, TextStructures()
+    out = dict(payload)
+    found = TextStructures()
+    for key, value in payload.items():
+        field = _declared_field(schema, key)
+        if field is None:
+            continue
+        if isinstance(value, str):
+            value, read = _read_text(field.annotation, value, out, schema)
+            found += read
+        out[key], nested = _decoded_value(field.annotation, value)
+        found += nested
+    return out, found
+
+
+def rescue_text_structures[T: BaseModel](
+    raw_message: Any, schema: type[T]
+) -> tuple[T | None, TextStructures]:
+    """The first tool call of ``raw_message``, validated once its text structures are read.
+
+    Answers only for what it changed, its absent values removed on the way.
+
+    Returns:
+        ``(instance, found)``, or ``(None, TextStructures())`` when nothing was rescued.
+    """
+    tool_calls = getattr(raw_message, "tool_calls", None) or []
+    if not tool_calls:
+        return None, TextStructures()
+    payload, found = decode_text_structures(schema, tool_calls[0].get("args"))
+    if not found.decoded:
+        return None, TextStructures()
+    try:
+        instance, _absent = validate_without_absent_values(schema, payload)
+    except ValidationError:
+        return None, TextStructures()
+    return instance, found
+
+
 def repair_refused_answer[T: BaseModel](
     raw_message: Any, schema: type[T], provider: str, schema_name: str
 ) -> tuple[T | None, RepairOutcome]:
     """The first mechanical repair that makes a refused answer valid (ADR-184, ADR-100).
 
     ONE chain for every door that receives a message, in this order: the absent
-    values of a parsed call, the bare words of a call the parser refused, an
-    object written as text. The caller has consulted the truncation verdict
-    first (ADR-275): a cut answer must never reach a repair, which would close
-    it into a shorter object announced as complete.
+    values of a parsed call, its structures written as text, the bare words and
+    the closing brackets of a call the parser refused, an object written as
+    text. The caller has consulted the truncation verdict first (ADR-275): a cut
+    answer must never reach a repair, which would close it into a shorter object
+    announced as complete.
 
     Args:
         raw_message: The ``AIMessage`` the model returned (``None`` tolerated).
@@ -276,13 +495,26 @@ def repair_refused_answer[T: BaseModel](
     if instance is not None:
         log_absent_values_dropped(provider, schema_name, absent)
         return instance, "absent_values_dropped"
-    repaired, quoted = rescue_invalid_tool_call(raw_message, schema)
+    decoded, found = rescue_text_structures(raw_message, schema)
+    if decoded is not None:
+        logger.warning(
+            "structured_output_text_structures_decoded",
+            provider=provider,
+            schema=schema_name,
+            decoded=found.decoded,
+            closed=found.closed,
+            rehomed=found.rehomed,
+            closers_dropped=found.closers,
+        )
+        return decoded, "structures_decoded"
+    repaired, call = rescue_invalid_tool_call(raw_message, schema)
     if repaired is not None:
         logger.warning(
             "structured_output_invalid_call_repaired",
             provider=provider,
             schema=schema_name,
-            quoted=quoted,
+            quoted=call.quoted,
+            closers_dropped=call.closers,
         )
         return repaired, "invalid_call_repaired"
     rescued = rescue_from_text(raw_message, schema, provider, schema_name)
@@ -448,30 +680,40 @@ def invalid_call_arguments(raw_message: Any) -> str:
     return args if isinstance(args, str) else ""
 
 
+@dataclass(frozen=True, slots=True)
+class CallRepair:
+    """What a refused call's arguments needed to parse: bare words quoted, brackets dropped."""
+
+    quoted: int = 0
+    closers: int = 0
+
+
 def rescue_invalid_tool_call[T: BaseModel](
     raw_message: Any, schema: type[T]
-) -> tuple[T | None, int]:
-    """The first call the parser refused, validated once its bare values are quoted.
+) -> tuple[T | None, CallRepair]:
+    """The first call the parser refused, validated once its text is mechanically repaired.
 
-    Answers only for what it changed: arguments that quote nothing are the
-    parser's verdict to keep, and a payload the schema still refuses once it
-    parses is not rescued. The payload's absent values are removed on the
-    way, as for a parsed call.
+    Its bare values are quoted, then the brackets that close nothing after a
+    whole value are dropped. Answers only for what it changed: arguments that
+    need neither are the parser's verdict to keep, and a payload the schema
+    still refuses once it parses is not rescued. The payload's absent values
+    are removed on the way, as for a parsed call.
 
     Returns:
-        ``(instance, quoted)``, or ``(None, 0)`` when nothing could be rescued.
+        ``(instance, repair)``, or ``(None, CallRepair())`` when nothing was rescued.
     """
     arguments = invalid_call_arguments(raw_message)
     if not arguments:
-        return None, 0
-    repaired, quoted = quote_bare_values(arguments)
-    if quoted == 0:
-        return None, 0
+        return None, CallRepair()
+    quoted_text, quoted = quote_bare_values(arguments)
+    repaired, closers = drop_trailing_closers(quoted_text)
+    if not (quoted or closers):
+        return None, CallRepair()
     try:
         instance, _absent = validate_without_absent_values(schema, json.loads(repaired))
     except ValueError, ValidationError:
-        return None, 0
-    return instance, quoted
+        return None, CallRepair()
+    return instance, CallRepair(quoted=quoted, closers=closers)
 
 
 def refusal_verdict(raw_message: Any, parsing_error: BaseException | None) -> str:

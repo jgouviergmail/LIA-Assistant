@@ -1,5 +1,6 @@
 """Saved ordinal references fail closed as a whole, without shifting item numbers."""
 
+from datetime import UTC
 from uuid import uuid4
 
 import pytest
@@ -54,6 +55,7 @@ def test_raw_sms_tool_body_is_not_implicit_memory_extraction_context():
         [
             ToolMessage(content="private raw SMS", name="get_sms_tool", tool_call_id="call"),
             HumanMessage(content="Mon choix explicite"),
-        ]
+        ],
+        zone=UTC,
     )
     assert "private raw SMS" not in text and "Mon choix explicite" in text

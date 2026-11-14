@@ -564,3 +564,61 @@ async def test_the_delegation_tool_is_skipped_without_a_secret(
     monkeypatch.setattr(smod, "TelephonyConnectorService", _Connectors)
     monkeypatch.setattr(smod, "ConnectorService", _Creds)
     assert await smod._delegation_tool_for(object(), uuid4(), user_name="Alex") is None
+
+
+# ---------------------------------------------------------------------------
+# Never an agent with tools out of date or incomplete (owner decision 2026-11-11)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+async def test_live_tools_answer_none_when_they_cannot_be_made_exact(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A vendor refusal is NONE, never the empty set a call would dial with."""
+    from types import SimpleNamespace
+
+    from src.core.config import settings
+
+    monkeypatch.setattr(settings, "telephony_live_tools_enabled", True)
+
+    class _Connectors:
+        def __init__(self, _db) -> None:  # noqa: ANN001
+            pass
+
+        async def get_active(self, _user_id):  # noqa: ANN001
+            return SimpleNamespace(connector_metadata={"agent_id": "ag"})
+
+    class _Creds:
+        def __init__(self, _db) -> None:  # noqa: ANN001
+            pass
+
+        async def get_api_key_credentials(self, _user_id, _type):  # noqa: ANN001
+            return SimpleNamespace(api_key="k", api_secret="whsec")
+
+    async def _refused(db, *, connector, api_key, api_secret):  # noqa: ANN001
+        return None
+
+    monkeypatch.setattr(smod, "TelephonyConnectorService", _Connectors)
+    monkeypatch.setattr(smod, "ConnectorService", _Creds)
+    monkeypatch.setattr(smod, "ensure_vendor_live_tools", _refused)
+    assert await smod._live_tools_for(_TxDb(), uuid4()) is None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("call_mode", ["direct", "delegated"])
+async def test_an_owner_call_whose_tools_cannot_be_made_exact_is_refused_never_dialled(
+    monkeypatch: pytest.MonkeyPatch, call_mode: VoiceSessionMode
+) -> None:
+    """A direct call whose lookups could not be verified — or a Live one that fell
+    back to direct for want of its delegation tool — is refused with the agent's
+    own words, and nothing is dialled."""
+    _wire_dial(monkeypatch, delegation_tool_id=None)
+
+    async def _unverified(db, user_id, *, disabled_domains=frozenset()):  # noqa: ANN001
+        return None
+
+    monkeypatch.setattr(smod, "_live_tools_for", _unverified)
+    result = await _dial(call_mode)
+    assert result.status == "agent_sync_failed"
+    assert _Dial.calls == []

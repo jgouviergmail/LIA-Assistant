@@ -21,6 +21,8 @@ from src.core.field_names import (
     FIELD_TOKENS_IN,
     FIELD_TOKENS_OUT,
 )
+from src.domains.conversations.message_reads import TokenSummaryPayload
+from src.domains.conversations.models import ConversationMessage
 
 #: What a message entry carries of its run's summary; a run's earlier answers show none.
 TOKEN_FIELDS: Final[tuple[str, ...]] = (
@@ -30,6 +32,43 @@ TOKEN_FIELDS: Final[tuple[str, ...]] = (
     FIELD_COST_EUR,
     FIELD_GOOGLE_API_REQUESTS,
 )
+
+
+def enriched_message(
+    message: ConversationMessage, tokens: TokenSummaryPayload | None
+) -> dict[str, object]:
+    """Project an archived message and its owned historical billing without I/O.
+
+    Args:
+        message: Persisted message, including any per-message paid speech.
+        tokens: The repository's run summary; absent on an earlier answer.
+
+    Returns:
+        History fields. The run's cost already includes its speech share.
+    """
+    return {
+        "id": message.id,
+        "role": message.role,
+        FIELD_CONTENT: message.content,
+        "message_metadata": message.message_metadata,
+        "created_at": message.created_at,
+        FIELD_TOKENS_IN: tokens["prompt_tokens"] if tokens else None,
+        FIELD_TOKENS_OUT: tokens["completion_tokens"] if tokens else None,
+        FIELD_TOKENS_CACHE: tokens["cached_tokens"] if tokens else None,
+        FIELD_COST_EUR: tokens["cost_eur"] if tokens else None,
+        FIELD_GOOGLE_API_REQUESTS: tokens["google_api_requests"] if tokens else None,
+        "stt_provider": message.stt_provider,
+        "stt_audio_duration_seconds": (
+            float(message.stt_audio_duration_seconds)
+            if message.stt_audio_duration_seconds is not None
+            else None
+        ),
+        "stt_cost_eur": float(message.stt_cost_eur) if message.stt_cost_eur is not None else None,
+        "tts_provider": message.tts_provider,
+        "tts_model": message.tts_model,
+        "tts_characters": message.tts_characters,
+        "tts_cost_eur": float(message.tts_cost_eur) if message.tts_cost_eur is not None else None,
+    }
 
 
 def _answer_run(entry: Mapping[str, object]) -> str | None:

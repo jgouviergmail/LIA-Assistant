@@ -114,7 +114,10 @@ formuler différemment. Trois propriétés tiennent l'honnêteté :
   en parallèle, chacun sur sa propre session.
 - `documents` n'a **pas** de section de réglages (la capacité se pilote au
   niveau de l'instance) : son étoile pointe vers la racine des réglages, et
-  cette exemption est déclarée dans le garde, pas subie.
+  cette exemption est déclarée dans le garde, pas subie. Depuis le 2026-11-11,
+  un nœud qui vit sur une page de l'application (`relations`, `workboard`) y
+  mène son étoile (`CAPABILITY_PAGE`), et le garde tient cette route :
+  `documents` reste le seul sans destination.
 
 ### Défaut de documentation corrigé au passage
 

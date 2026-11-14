@@ -144,7 +144,15 @@ class _FakeMailBox:
     def __exit__(self, *exc_info):
         return False
 
-    def fetch(self, criteria=None, limit=None, mark_seen=False, reverse=False, headers_only=False):
+    def fetch(
+        self,
+        criteria=None,
+        limit=None,
+        mark_seen=False,
+        reverse=False,
+        headers_only=False,
+        bulk=False,
+    ):
         self.fetch_calls.append((criteria, limit, mark_seen, reverse))
         if isinstance(limit, slice):
             return list(self.messages[limit])

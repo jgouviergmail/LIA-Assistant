@@ -70,7 +70,10 @@ export function useMeetingRecorderContext(): MeetingRecorderContextValue | null 
 interface MeetingRecorderProviderProps {
   ownerId?: string;
   lng: Language;
-  /** The instance flag: a disabled feature mounts nothing and starts nothing. */
+  /**
+   * Whether the instance offers the meetings now (`meetingsAvailable`, the
+   * operator's switch included): off, nothing is mounted and nothing starts.
+   */
   enabled: boolean;
   children: ReactNode;
 }

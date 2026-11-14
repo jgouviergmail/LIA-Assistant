@@ -28,7 +28,7 @@ from src.core.exceptions import BaseAPIException, raise_internal_error, raise_in
 from src.core.i18n import normalize_language
 from src.core.private_input_route import PrivateApplicationInputRoute
 from src.core.session_dependencies import get_current_active_session
-from src.domains.briefing.companion import CompanionEnvironment, project_weather
+from src.domains.briefing.companion import CompanionEnvironment, read_present_weather
 from src.domains.briefing.preferences import (
     BriefingPreferences,
     sanitize_briefing_preferences,
@@ -52,11 +52,11 @@ router = APIRouter(prefix="/briefing", tags=["briefing"], route_class=PrivateApp
 async def get_companion_context(
     current_user: User = Depends(get_current_active_session),
 ) -> CompanionEnvironment:
-    """Read only this account's fresh cached weather; no provider or LLM call."""
+    """This account's newest present weather LIA already read; no provider or LLM call."""
     service = BriefingService(current_user)
-    section = await service.read_cached_weather()
     return CompanionEnvironment(
-        timezone=str(service.user_tz), weather=project_weather(section, datetime.now(UTC))
+        timezone=str(service.user_tz),
+        weather=await read_present_weather(service, datetime.now(UTC)),
     )
 
 

@@ -37,6 +37,9 @@ def test_source_fields_extend_request_but_require_semantic_review():
         "parent_id",
         "execution_mode",
         "follow",
+        # Reviewed 2026-11-11: the lane a ticket is born in — one of the
+        # owner's own categories, or its parent's when it is a step.
+        "category_id",
     }
     assert set(TicketCreate.model_fields) == fields == set(WorkboardCreateInput.model_fields)
     assert (
@@ -89,3 +92,50 @@ def test_ticket_creation_escapes_brief_and_excludes_private_context(language):
     editor = build_application_edit_prompt(draft.model_dump(mode="json"), "Make this my own task")
     assert json.loads(editor[1]["content"])["intent"] == request.model_dump(mode="json")
     assert "state_digest" not in str(editor) and "e" * 64 not in str(editor)
+
+
+@pytest.mark.parametrize("language", ["fr", "en", "de", "es", "it", "zh-CN"])
+def test_the_confirmation_names_the_category_the_ticket_is_filed_under(language):
+    """The person confirms a NAME, never an id — and the name is their own
+    text, escaped like the title beside it."""
+    category = uuid4()
+    selected = WorkboardCreateSelection(
+        request=WorkboardCreateInput(title="Paint the hall", category_id=category),
+        assignee_kind="human",
+        holder_id=None,
+        holder_name=None,
+        parent_title=None,
+        category_name="<b>Home</b>",
+        owned_count=0,
+        max_tickets=5,
+        state_digest="e" * 64,
+    )
+    scope = selected.public_scope()
+    assert scope["category_name"] == "<b>Home</b>"
+    assert scope["configuration"]["category_id"] == str(category)
+    draft = build_action_content(
+        uuid4(),
+        WORKBOARD_CREATE_OPERATION,
+        WorkboardCreatePatch(workboard_create=selected),
+        {"workboard_create": scope},
+        {"workboard_create": selected.public_scope(after=True)},
+    )
+    lines = render_application_preview(
+        draft.model_dump(mode="json"), get_draft_preview_labels(language), lambda value: value or ""
+    )
+    html = to_html_card(CardSpec(emoji="", title="", separator=": ", lines=tuple(lines)))
+    assert "&lt;b&gt;Home&lt;/b&gt;" in html and "<b>Home</b>" not in html
+
+
+def test_a_ticket_filed_under_nothing_says_so_explicitly():
+    selected = WorkboardCreateSelection(
+        request=WorkboardCreateInput(title="Sort the mail"),
+        assignee_kind="human",
+        holder_id=None,
+        holder_name=None,
+        parent_title=None,
+        owned_count=0,
+        max_tickets=5,
+        state_digest="e" * 64,
+    )
+    assert selected.public_scope()["category_name"] is None

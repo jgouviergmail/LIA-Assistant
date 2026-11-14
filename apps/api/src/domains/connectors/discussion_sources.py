@@ -1,22 +1,26 @@
 """Native personal connector readers; every result is typed, scope-fenced and coverage-qualified."""
 
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.core.mail_reply_state import REPLY_STATE_KEY
 from src.domains.connectors.active_client import ActiveClient, open_active_client
 from src.domains.connectors.calendar_access import CalendarAccess, open_active_calendar
+from src.domains.connectors.clients.protocols import EmailClientProtocol
 from src.domains.connectors.discussion_authority import require_reader_authority
 from src.domains.connectors.discussion_calendar import enrich_calendar_series
 from src.domains.connectors.discussion_projections import (
+    EmailRecord,
     calendar_evidence,
     contact_evidence,
     email_evidence,
     provider_identifier,
-    task_evidence,
 )
-from src.domains.connectors.preferences.owner_defaults import TASK_LIST, resolve_owner_container_id
+from src.domains.connectors.discussion_tasks import read_discussion_tasks
+from src.domains.connectors.mail_reply_states import answered_mark
 from src.domains.shared.discussion_sources import (
     DiscussionEvidence,
     SourceKey,
@@ -151,6 +155,53 @@ class CalendarDiscussionSource:
             return result
 
 
+def _window_query(request: SourceReadRequest) -> str:
+    """The window's messages up to now, in the mailbox query every client translates."""
+    query = f"after:{int(request.window_start.timestamp())} before:{int(min(request.window_end, request.now).timestamp())+1}"
+    if request.request.query:
+        # Model text is quoted as literal text, not mailbox operators broadening the window.
+        query += ' "' + request.request.query.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return query
+
+
+async def _mail_page(
+    client: EmailClientProtocol, request: SourceReadRequest
+) -> tuple[tuple[object, ...], str | None]:
+    """One page of the window's messages, each one whole, and where the next page starts.
+
+    A proof is read again whole, by its reference, before any use (ADR-358): what a page
+    hands out must be that very read, or every version differs and the run stops. A
+    mailbox whose listing carries a preview (Graph) is therefore read one message at a
+    time, its own mark with it. One call lists and one reads each hit, so the page lists
+    no more hits than the read's allowance reads whole: the rest is the next page's.
+    """
+    whole = client.SEARCH_HITS_ARE_WHOLE
+    raw = await client.search_emails(
+        query=_window_query(request),
+        max_results=(
+            request.item_limit if whole else max(1, min(request.item_limit, request.call_limit - 1))
+        ),
+        use_cache=False,
+        headers_only=False,
+        page_token=request.cursor,
+    )
+    page = ProviderPage.model_validate(raw)
+    if whole:
+        return page.messages, page.next_page_token
+    hits = [EmailRecord.model_validate(hit).id for hit in page.messages]
+    return (
+        tuple([await client.get_message(hit, use_cache=False, mailbox_mark=True) for hit in hits]),
+        page.next_page_token,
+    )
+
+
+def _with_mailbox_mark(row: object) -> object:
+    """A message with what its own mailbox marks of it, as its evidence tells it (ADR-379)."""
+    if isinstance(row, Mapping) and (said := answered_mark(row)):
+        return {**row, REPLY_STATE_KEY: said}
+    return row
+
+
 class EmailDiscussionSource:
     """The person's active mailbox, read under fresh authority."""
 
@@ -158,7 +209,9 @@ class EmailDiscussionSource:
         """Read one message by reference, or the window's messages up to now.
 
         A model query is searched as quoted literal text, never as mailbox operators
-        that could widen the window.
+        that could widen the window. Each message says what its own mailbox marks of
+        it — that the person answered it — read WITH the message, so a page and the
+        read of one message again tell the same fact (``mail_reply_states``).
 
         Args:
             request: The bounded read.
@@ -184,26 +237,19 @@ class EmailDiscussionSource:
                 raw: object = await opened.client.get_message(
                     provider_identifier(request.request.reference, SourceKey.EMAILS, account),
                     use_cache=False,
+                    mailbox_mark=True,
                 )
-                rows, more = (raw,), False
+                rows = (raw,)
             else:
-                query = f"after:{int(request.window_start.timestamp())} before:{int(min(request.window_end, request.now).timestamp())+1}"
-                if request.request.query:
-                    # Model text is quoted as literal text, not mailbox operators broadening the window.
-                    query += (
-                        ' "' + request.request.query.replace("\\", "\\\\").replace('"', '\\"') + '"'
-                    )
-                raw = await opened.client.search_emails(
-                    query=query,
-                    max_results=request.item_limit,
-                    use_cache=False,
-                    headers_only=False,
-                    page_token=request.cursor,
-                )
-                page = ProviderPage.model_validate(raw)
-                rows, more = page.messages, bool(page.next_page_token)
-                cursor = page.next_page_token
-            result = _snapshot(request, rows, account, email_evidence, more=more, cursor=cursor)
+                rows, cursor = await _mail_page(opened.client, request)
+            result = _snapshot(
+                request,
+                tuple(map(_with_mailbox_mark, rows)),
+                account,
+                email_evidence,
+                more=bool(cursor),
+                cursor=cursor,
+            )
             await _check_unchanged(request, opened, account)
             return result
 
@@ -257,12 +303,12 @@ class ContactDiscussionSource:
 
 
 class TaskDiscussionSource:
-    """The person's preferred task list in their active tasks connector."""
+    """Every task list of the person's active tasks connector, each its own container."""
 
     async def read(self, request: SourceReadRequest) -> SourceSnapshot:
-        """Read one task by reference, or the list's tasks (due in the window when future).
+        """Read one task by reference, or every list's tasks (due in the window when future).
 
-        A query filters the page read; it does not search the provider.
+        The lists read, their fencing and their bound are ``discussion_tasks``'s.
 
         Args:
             request: The bounded read.
@@ -277,55 +323,7 @@ class TaskDiscussionSource:
         """
         if not _permitted(request, SourceKey.TASKS):
             return closed_source(request, disabled=True, reason="consent")
-        async with open_active_client(
-            "tasks", request.owner_id, container=TASK_LIST, fresh=True
-        ) as opened:
+        async with open_active_client("tasks", request.owner_id, fresh=True) as opened:
             if not isinstance(opened, ActiveClient):
                 return closed_source(request, disabled=False, reason="provider")
-            task_list = await resolve_owner_container_id(
-                client=opened.client,
-                name=opened.preferred_name,
-                owner_id=request.owner_id,
-                container=TASK_LIST,
-            )
-            account = await require_reader_authority(
-                request.owner_id, opened.connector_type, opened.client, container=task_list
-            )
-            rows: tuple[object, ...]
-            if request.request.reference:
-                raw: object = await opened.client.get_task(
-                    task_list,
-                    provider_identifier(request.request.reference, SourceKey.TASKS, account),
-                )
-                rows = (raw,)
-            else:
-                raw = await opened.client.list_tasks(
-                    task_list_id=task_list,
-                    max_results=request.item_limit + 1,
-                    show_completed=True,
-                    show_hidden=False,
-                    due_min=(
-                        request.window_start.isoformat()
-                        if request.request.operation == "future"
-                        else None
-                    ),
-                    due_max=(
-                        request.window_end.isoformat()
-                        if request.request.operation == "future"
-                        else None
-                    ),
-                )
-                rows = ProviderPage.model_validate(raw).items
-            result = _snapshot(request, rows, account, task_evidence)
-            if request.request.query:
-                result = result.model_copy(
-                    update={
-                        "items": tuple(
-                            item
-                            for item in result.items
-                            if request.request.query.casefold() in item.excerpt.casefold()
-                        )
-                    }
-                )
-            await _check_unchanged(request, opened, account, container=task_list)
-            return result
+            return await read_discussion_tasks(request, opened)

@@ -31,11 +31,12 @@ import { dropSearchParams } from '@/lib/chat-deep-link';
  */
 export function useAttachDeepLink(
   enabled: boolean,
-  onAttached: (meta: ServerAttachmentMeta) => AddServerAttachmentOutcome
+  onAttached: (meta: ServerAttachmentMeta) => AddServerAttachmentOutcome,
+  observe = true
 ): void {
   const searchParams = useSearchParams();
   const { t } = useTranslation();
-  const raw = searchParams?.get('attach') ?? null;
+  const raw = observe ? (searchParams?.get('attach') ?? null) : null;
   // Keyed on the VALUE: a dev double effect or a re-render attaches it once.
   const handled = useRef(new Set<string>());
 

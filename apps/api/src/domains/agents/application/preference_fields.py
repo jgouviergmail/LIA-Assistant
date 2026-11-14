@@ -40,6 +40,8 @@ class PreferenceField(str, Enum):
     IMAGE_SIZE = "image_generation_default_size", "image-generation"
     IMAGE_FORMAT = "image_generation_output_format", "image-generation"
     IMAGE_ENHANCEMENT = "image_generation_prompt_enhancement", "image-generation"
+    DOCUMENT_ILLUSTRATIONS = "document_illustrations", "documents"
+    DOCUMENT_ANIMATIONS = "document_animations", "documents"
     EXCHANGE_RHYTHM = "exchange_rhythm", "usage-preferences"
     # Tighten-only: the chat may switch it on, never off (spec 2026-10-30 D7).
     MCP_CONFIRMATION = "mcp_hitl_required", "mcp-servers"

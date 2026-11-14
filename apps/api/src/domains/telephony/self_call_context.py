@@ -151,17 +151,29 @@ async def _fetch_open_loops(user_id: UUID) -> list[str]:
     return lines
 
 
-async def _fetch_recent_exchanges(user_id: UUID, *, flatten: TextFlattener) -> list[str]:
+async def _fetch_recent_exchanges(
+    user_id: UUID,
+    *,
+    flatten: TextFlattener,
+    timezone: str,
+    language: str,
+    conversation_id: UUID | None = None,
+) -> list[str]:
     """The last few visible exchanges, oldest first, through the repository.
 
     An assistant answer is often an HTML card or Markdown: the voice reads its
-    WORDS, flattened by the caller's own flattener, never its markup.
+    WORDS, flattened by the caller's own flattener, never its markup. Each line
+    starts with when it was written, in the person's zone and words, the form
+    the agenda and reminders sections use (lot 17): a call days after the chat
+    must not hear « the dentist tomorrow » as tomorrow.
     """
     from src.domains.conversations.repository import ConversationRepository
     from src.infrastructure.cache.conversation_cache import get_conversation_id_cached
     from src.infrastructure.database.session import get_db_context
 
-    conversation_id = await get_conversation_id_cached(user_id)
+    if conversation_id is None:
+        cached = await get_conversation_id_cached(user_id)
+        conversation_id = UUID(cached) if cached is not None else None
     if conversation_id is None:
         return []
     async with get_db_context() as db:
@@ -172,7 +184,11 @@ async def _fetch_recent_exchanges(user_id: UUID, *, flatten: TextFlattener) -> l
     for row in reversed(list(rows)):
         content = " ".join(flatten(str(getattr(row, "content", "") or "")).split())
         if content:
-            lines.append(f"{row.role}: {content[:_RECENT_EXCHANGE_MAX_CHARS]}")
+            written = getattr(row, "created_at", None)
+            stamp = (
+                f"[{format_datetime_for_display(written, timezone, language)}] " if written else ""
+            )
+            lines.append(f"{stamp}{row.role}: {content[:_RECENT_EXCHANGE_MAX_CHARS]}")
     return lines
 
 
@@ -183,6 +199,7 @@ def default_fetchers(
     timezone: str,
     memory_fetcher: SectionFetcher,
     flatten: TextFlattener,
+    conversation_id: UUID | None = None,
 ) -> dict[str, SectionFetcher]:
     """The real readers, one per section, each on a session of its own.
 
@@ -198,6 +215,7 @@ def default_fetchers(
         timezone: The person's IANA zone.
         memory_fetcher: The memories section, supplied by the caller.
         flatten: Turns a stored message into prose (an HTML card, Markdown).
+        conversation_id: An already owner-checked Live target; omitted by the phone.
 
     Returns:
         One fetcher per section of :data:`SECTION_ORDER`.
@@ -207,7 +225,13 @@ def default_fetchers(
         "agenda": lambda: _fetch_agenda(user_id, timezone=timezone, language=language),
         "reminders": lambda: _fetch_reminders(user_id, timezone=timezone, language=language),
         "open_loops": lambda: _fetch_open_loops(user_id),
-        "recent_exchanges": lambda: _fetch_recent_exchanges(user_id, flatten=flatten),
+        "recent_exchanges": lambda: _fetch_recent_exchanges(
+            user_id,
+            flatten=flatten,
+            timezone=timezone,
+            language=language,
+            conversation_id=conversation_id,
+        ),
     }
 
 

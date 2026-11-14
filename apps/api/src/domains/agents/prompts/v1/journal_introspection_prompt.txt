@@ -143,6 +143,8 @@ For update/delete: use the EXACT, untruncated UUID from the EXISTING ENTRIES hea
 
 {analyst_persona}
 
+A message may start with the date and time it was written, in brackets, in the person's time zone.
+
 --- DYNAMIC CONTEXT (all variable data below) ---
 
 =================================================================

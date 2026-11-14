@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any
 
 from src.core.card_composition import CardCompositionRequest
 from src.core.config import settings
+from src.core.conversation_target import ConversationKind, ConversationRef
 from src.domains.agents.api.archive_first import archive_user_message_first, turn_attachment_meta
 from src.domains.agents.api.attachments_injection import inject_attachments_into_state
 from src.domains.agents.api.run_origin import current_origin, plain_surface_ctx
@@ -40,11 +41,10 @@ from src.domains.agents.services.streaming.latency_sli import (
     a_person_is_waiting,
     observe_pre_graph_phase,
 )
+from src.domains.conversations.auto_title import title_waiting_discussion
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-
     from src.core.context import SkillContextTokens, UserMCPToolsContext
     from src.domains.agents.models import MessagesState
     from src.domains.agents.services.orchestration.service import OrchestrationService
@@ -59,7 +59,7 @@ class TurnStateRequest:
     """What one turn asks of its state load, its attachments and its archived request.
 
     Attributes:
-        conversation_id: The conversation (and checkpoint thread) of the turn.
+        target: The conversation and its immutable runtime generation.
         user_message: The person's request as they sent it.
         user_id: The account the turn runs for.
         session_id: The request's session identifier.
@@ -74,8 +74,8 @@ class TurnStateRequest:
         attachment_ids: The attachments the request named.
         auto_approve_plan: Inert flag kept until a policy for unattended runs
             exists (ADR-323): the router resets it before any reader.
-        archive_user_message: False when an earlier attempt already archived
-            the request (scheduled-action retries).
+        archive_user_message: Whether this surface owns the request archive.
+            Preparation retries use the same invocation's idempotent archive door.
         stt_kwargs: The dictation cost attribution of the archived row.
         is_automated_source: True for a run nobody typed (a routine).
         live_session_id: The live session the request was spoken in, if any.
@@ -83,7 +83,7 @@ class TurnStateRequest:
         card_composition: The card composition the client requested.
     """
 
-    conversation_id: uuid.UUID
+    target: ConversationRef
     user_message: str
     user_id: uuid.UUID
     session_id: str
@@ -103,6 +103,11 @@ class TurnStateRequest:
     live_session_id: str | None = None
     spoken_text: str | None = None
     card_composition: CardCompositionRequest | None = None
+
+    @property
+    def conversation_id(self) -> uuid.UUID:
+        """The stable business id used by archives and file provenance."""
+        return self.target.id
 
 
 @dataclass(frozen=True)
@@ -124,7 +129,6 @@ async def prepare_turn_state(
     request: TurnStateRequest,
     *,
     graph: Any,
-    db: AsyncSession,
     orchestration_service: OrchestrationService,
     conv_service: ConversationService,
 ) -> PreparedTurnState:
@@ -133,8 +137,6 @@ async def prepare_turn_state(
     Args:
         request: What the turn asks for.
         graph: The compiled graph whose checkpoints hold the conversation.
-        db: The turn's setup session (read by the attachments step); the
-            caller commits it once this returns.
         orchestration_service: Loads or creates the state.
         conv_service: Archives the request.
 
@@ -148,9 +150,8 @@ async def prepare_turn_state(
     started = time.perf_counter()
     state = await orchestration_service.load_or_create_state(
         graph=graph,
-        conversation_id=request.conversation_id,
+        target=request.target,
         user_message=request.user_message,
-        user_id=request.user_id,
         session_id=request.session_id,
         run_id=request.run_id,
         user_timezone=request.user_timezone,
@@ -169,7 +170,7 @@ async def prepare_turn_state(
             user_id=request.user_id,
             user_language=request.user_language,
             run_id=request.run_id,
-            db=db,
+            target=request.target,
         )
     if request.auto_approve_plan:
         state["plan_approved"] = True
@@ -217,7 +218,33 @@ async def _archive_request(
     )
     # POINT at what was asked; never copy it (ADR-263, lot 6).
     note_request_message(archived_user_msg_id)
+    if archived_user_msg_id is not None and _names_its_discussion(request):
+        # The person's own words: a Live delegation's ``user_message`` is the
+        # voice model's restatement of them.
+        await title_waiting_discussion(
+            request.conversation_id, request.spoken_text or request.user_message
+        )
     return archived_user_msg_id
+
+
+def _names_its_discussion(request: TurnStateRequest) -> bool:
+    """Whether this request may give its discussion a title (ADR-378 amendment 2026-11-12).
+
+    Only words a person typed or spoke in an annex: Main's title is fixed, an
+    answer to a question is not a subject, and nobody wrote a routine's
+    instruction. The catalogue then decides whether the annex still waits.
+
+    Args:
+        request: What the turn asks for.
+
+    Returns:
+        True when the archived request is offered as the discussion's title.
+    """
+    return (
+        request.target.kind == ConversationKind.SECONDARY
+        and not request.is_hitl_resumption
+        and not request.is_automated_source
+    )
 
 
 #: The progress step's glyph, as the other execution steps carry theirs.

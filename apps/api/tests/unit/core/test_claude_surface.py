@@ -38,6 +38,13 @@ MEASURED: dict[str, tuple[str, bool, bool, bool]] = {
     # and a replayed thinking block is bound to the conversation that made it.
     "claude-fable-5-1": ("always_on", False, False, True),
     "claude-opus-5-5": ("always_on", False, False, True),
+    # Measured 2026-11-11 (the Models API, then validation requests): Fable 5.1's
+    # surface. ``thinking.type.disabled``, a non-default ``temperature`` and a
+    # forced ``tool_choice`` are 400s; a thinking block replayed after the
+    # ``system`` prompt changed is a 400 (« The block is bound to a different
+    # conversation ») and is dropped under the binding control, while the same
+    # block on an unchanged prefix is accepted.
+    "claude-fable-5-2": ("always_on", False, False, True),
     # Read on the vendor's migration guide (2026-09-30), NOT measured -- no
     # Anthropic credit was left for a probe: ``disabled`` refused, its lowest
     # setting is ``between_tools``, forced tool choice refused, thinking bound.
@@ -72,6 +79,12 @@ def test_a_newer_name_is_never_captured_by_its_older_prefix() -> None:
     assert claude_surface("claude-opus-5").accepts_forced_tool_choice is True
     assert claude_surface("claude-fable-5-1").binds_thinking_to_conversation is True
     assert claude_surface("claude-fable-5").binds_thinking_to_conversation is False
+    # ``claude-fable-5`` is a prefix of ``claude-fable-5-2`` as well: matched
+    # there it would be forced a tool it refuses, and sent back a thinking block
+    # its prefix check rejects on every account.
+    assert claude_surface("claude-fable-5-2").accepts_forced_tool_choice is False
+    assert claude_surface("claude-fable-5-2").binds_thinking_to_conversation is True
+    assert claude_surface("claude-fable-5").accepts_forced_tool_choice is True
     assert claude_surface("claude-opus-4-8").thinking == "opt_in"
     assert claude_surface("claude-opus-4-7").thinking == "opt_in"
     # ``claude-sonnet-5`` is a prefix of ``claude-sonnet-5-5``: matched there it
@@ -94,8 +107,17 @@ def _facts(model: str) -> tuple[object, ...]:
 def test_the_mythos_models_share_the_fable_surface() -> None:
     """Glasswing's Mythos is the same model as Fable under another name (not
     reachable from an ordinary organisation, so not offered by the catalogue)."""
+    assert _facts("claude-mythos-5-2") == _facts("claude-fable-5-2")
     assert _facts("claude-mythos-5-1") == _facts("claude-fable-5-1")
     assert _facts("claude-mythos-5") == _facts("claude-fable-5")
+
+
+def test_fable_5_2_keeps_the_surface_of_fable_5_1() -> None:
+    """« Neither is a change if you come from Claude Fable 5.1 » (What's new in
+    Claude Fable 5.2, 2026-11-11): what differs is who the prefix check applies
+    to, which no column of the surface says."""
+    assert _facts("claude-fable-5-2") == _facts("claude-fable-5-1")
+    assert _facts("claude-fable-5-2") != _facts("claude-fable-5")
 
 
 def test_the_implicit_effort_is_the_one_the_api_applies_unasked() -> None:
@@ -104,6 +126,8 @@ def test_the_implicit_effort_is_the_one_the_api_applies_unasked() -> None:
     has none."""
     assert claude_surface("claude-opus-5-5").implicit_effort == "medium"
     assert claude_surface("claude-fable-5-1").implicit_effort == "high"
+    # « The API default is high » (What's new in Claude Fable 5.2, 2026-11-11).
+    assert claude_surface("claude-fable-5-2").implicit_effort == "high"
     assert claude_surface("claude-opus-5").implicit_effort == "high"
     assert claude_surface("claude-sonnet-5").implicit_effort == "high"
     assert claude_surface("claude-sonnet-5-5").implicit_effort == "high"
@@ -150,6 +174,8 @@ PRESERVES_PRIOR_TURN_THINKING: dict[str, bool] = {
     "claude-fable-5": True,
     "claude-mythos-5": True,
     "claude-fable-5-1": True,
+    "claude-fable-5-2": True,
+    "claude-mythos-5-2": True,
     "claude-opus-5-5": True,
     "claude-sonnet-5-5": True,
     "claude-haiku-5-5": True,

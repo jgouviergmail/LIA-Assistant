@@ -62,6 +62,25 @@ describe('eyesSignalsStore', () => {
     expect(useEyesSignalsStore.getState().isTypingLive(2000 + TYPING_ACTIVE_MS)).toBe(false);
   });
 
+  it('says the face follows text while a turn is open or the person types, and not otherwise', () => {
+    const store = useEyesSignalsStore.getState;
+    expect(store().isAttending(1000)).toBe(false);
+    store().recordTyping(1000);
+    expect(store().isAttending(1000 + TYPING_ACTIVE_MS - 1)).toBe(true);
+    expect(store().isAttending(1000 + TYPING_ACTIVE_MS)).toBe(false);
+    // An open turn has no clock: it lasts until the answer is delivered…
+    store().beginTurn('answer');
+    expect(store().isAttending(10 * 60_000)).toBe(true);
+    store().completeTurn('answer');
+    expect(store().isAttending(10 * 60_000)).toBe(false);
+    // …or until the turn is abandoned.
+    store().reset();
+    store().beginTurn();
+    expect(store().isAttending(0)).toBe(true);
+    store().endTurn();
+    expect(store().isAttending(0)).toBe(false);
+  });
+
   it('holds a reaction, progressively releases it, then expires', () => {
     useEyesSignalsStore.getState().setReaction('excited', 1, 'none', 1000);
     expect(useEyesSignalsStore.getState().liveReaction(1000 + REACTION_HOLD_MS - 1)).toBe(
@@ -81,6 +100,18 @@ describe('eyesSignalsStore', () => {
     useEyesSignalsStore.getState().setReaction('joy', 1, 'none', 1000);
     useEyesSignalsStore.getState().setReaction(null, 1, 'none', 2000);
     expect(useEyesSignalsStore.getState().liveReaction(2000)).toBeNull();
+  });
+
+  it('says the answer HOLDS the face for its hold only, while its release still fades', () => {
+    useEyesSignalsStore.getState().setReaction('neutral', 1, 'none', 1000);
+    const store = useEyesSignalsStore.getState();
+    expect(store.isReactionHeld(1000)).toBe(true);
+    expect(store.isReactionHeld(1000 + REACTION_HOLD_MS - 1)).toBe(true);
+    expect(store.isReactionHeld(1000 + REACTION_HOLD_MS)).toBe(false);
+    // The face keeps the answer's tone while it fades, but nothing holds it.
+    expect(store.liveReaction(1000 + REACTION_HOLD_MS)).toBe('neutral');
+    useEyesSignalsStore.getState().setReaction(null);
+    expect(useEyesSignalsStore.getState().isReactionHeld(1000)).toBe(false);
   });
 
   it('carries how forcefully the answer was written, for the same window', () => {

@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * useInputDraft — per-user persistence of the chat input draft (UXR Lot 2, A7).
+ * useInputDraft — per-account and per-discussion composer persistence.
  *
  * The typed text survives refresh/navigation via a debounced localStorage save
- * keyed by user id (`lia.chatDraft.{userId}`). Rules:
+ * keyed by account and discussion. Main has a stable role key before its first message.
  *
  * - empty/whitespace saves clear the key IMMEDIATELY and cancel any pending
  *   write — a refresh right after send must never resurrect the sent text;
@@ -14,13 +14,12 @@
  *   window never loses the last keystrokes;
  * - every storage access is try/catch-guarded — in private mode the draft
  *   simply does not survive;
- * - logout purges the key via `clearInputDraft` (called by the auth provider);
+ * - logout purges every account draft and invalidates pending writes;
  * - future aparté mode (C2) must pass `enabled: false` — ephemeral contexts
  *   never persist.
  *
- * Multi-tab: last write wins; the draft is read once at mount (the dashboard
- * layout mounts the chat page only after the user is resolved, so `userId` is
- * stable for the hook's lifetime). Drafts are user content, never session
+ * Multi-tab: last write wins per discussion; the draft is read on mount or
+ * target change, without replacing text someone is typing. Drafts are user content, never session
  * material — the BFF auth invariant is untouched.
  */
 
@@ -33,30 +32,61 @@ import type { CardCompositionDraft } from '@/types/card-actions';
 /** Debounce window between keystrokes and the localStorage write. */
 const DRAFT_SAVE_DEBOUNCE_MS = 500;
 
-function draftStorageKey(userId: string): string {
-  return `${CHAT_DRAFT_STORAGE_KEY_PREFIX}${userId}`;
+interface DraftDiscussion {
+  id: string;
+  kind: 'main' | 'secondary';
+}
+
+const ownerEpochs = new Map<string, number>();
+const discussionEpochs = new Map<string, number>();
+
+function draftStorageKey(userId: string, discussion?: DraftDiscussion): string {
+  return `${CHAT_DRAFT_STORAGE_KEY_PREFIX}${userId}.${discussion?.kind === 'secondary' ? discussion.id : 'main'}`;
+}
+
+function draftGeneration(userId: string | undefined, key: string | undefined): string {
+  return `${userId ? (ownerEpochs.get(userId) ?? 0) : 0}:${key ? (discussionEpochs.get(key) ?? 0) : 0}`;
+}
+
+/** A committed reset retires only this draft, including a write still waiting to flush. */
+export function clearDiscussionDraft(userId: string, discussion: DraftDiscussion): void {
+  if (discussion.kind === 'main') migrateMainDraft(userId);
+  const key = draftStorageKey(userId, discussion);
+  discussionEpochs.set(key, (discussionEpochs.get(key) ?? 0) + 1);
+  writeStoredDraft(key, '');
+}
+
+/** Recover a deleted annex's text without opening a composer or transferring its action. */
+export function readDiscussionDraft(userId: string, id: string): string | undefined {
+  return decodeCompositionDraft(readStoredDraft(draftStorageKey(userId, { id, kind: 'secondary' })))
+    .text;
 }
 
 /** Remove a user's stored draft — logout path and explicit clears. */
 export function clearInputDraft(userId: string): void {
+  ownerEpochs.set(userId, (ownerEpochs.get(userId) ?? 0) + 1);
   try {
-    window.localStorage.removeItem(draftStorageKey(userId));
+    const legacy = `${CHAT_DRAFT_STORAGE_KEY_PREFIX}${userId}`;
+    for (const key of Object.keys(window.localStorage)) {
+      if (key === legacy || key.startsWith(`${legacy}.`)) window.localStorage.removeItem(key);
+    }
   } catch {
     // Storage unavailable (private mode) — nothing to purge.
   }
 }
 
-function readStoredDraft(userId: string): string | undefined {
+function readStoredDraft(key: string): string | undefined {
   try {
-    return window.localStorage.getItem(draftStorageKey(userId)) ?? undefined;
+    return window.localStorage.getItem(key) ?? undefined;
   } catch {
     return undefined;
   }
 }
 
-function writeStoredDraft(userId: string, value: string): void {
+function writeStoredDraft(key: string, value: string): void {
   try {
-    window.localStorage.setItem(draftStorageKey(userId), value);
+    if (value) window.localStorage.setItem(key, value);
+    else window.localStorage.removeItem(key);
   } catch {
     // Storage unavailable or full — the draft simply does not survive.
   }
@@ -71,9 +101,25 @@ function writeStoredDraft(userId: string, value: string): void {
  * @param text - The words to find there; nothing is sent.
  */
 export function seedInputDraft(userId: string, text: string): void {
-  const { text: started } = decodeCompositionDraft(readStoredDraft(userId));
+  migrateMainDraft(userId);
+  const key = draftStorageKey(userId);
+  const { text: started } = decodeCompositionDraft(readStoredDraft(key));
   const draft = started?.trim() ? `${started}\n\n${text}` : text;
-  writeStoredDraft(userId, draft.slice(0, CHAT_INPUT_MAX_LENGTH));
+  writeStoredDraft(key, draft.slice(0, CHAT_INPUT_MAX_LENGTH));
+}
+
+/** Move the legacy draft only after storage accepted the new Main key. */
+function migrateMainDraft(userId: string): void {
+  try {
+    const oldKey = `${CHAT_DRAFT_STORAGE_KEY_PREFIX}${userId}`;
+    const key = draftStorageKey(userId);
+    const legacy = window.localStorage.getItem(oldKey);
+    if (legacy === null) return;
+    if (window.localStorage.getItem(key) === null) window.localStorage.setItem(key, legacy);
+    window.localStorage.removeItem(oldKey);
+  } catch {
+    // Preserve the old copy if storage refused the migration.
+  }
 }
 
 export interface UseInputDraftReturn {
@@ -84,66 +130,82 @@ export interface UseInputDraftReturn {
   saveDraft: (value: string, composition?: CardCompositionDraft) => void;
 }
 
+/** True when the released text belongs to a read-only recovery view. */
+export type RecoverReleasedDraft = (text: string | undefined) => boolean;
+
 export function useInputDraft(
   // The nullable user object (not a bare id): the null-branch lives HERE, in a
   // tiny function, instead of adding a branch to the page render hotspot
   // (frontend CC ratchet discipline).
   user: { id: string } | null | undefined,
-  enabled = true
+  enabled = true,
+  discussion?: DraftDiscussion,
+  recoverOnRelease?: RecoverReleasedDraft
 ): UseInputDraftReturn {
   const userId = user?.id;
   const active = enabled && !!userId;
+  const key = userId ? draftStorageKey(userId, discussion) : undefined;
+  const isMain = discussion?.kind !== 'secondary';
+  const epoch = useMemo(() => draftGeneration(userId, key), [userId, key]);
 
   const initial = useMemo(
-    () => decodeCompositionDraft(active && userId ? readStoredDraft(userId) : undefined),
-    [active, userId]
+    () =>
+      decodeCompositionDraft(
+        active && key
+          ? (readStoredDraft(key) ??
+              (isMain ? readStoredDraft(`${CHAT_DRAFT_STORAGE_KEY_PREFIX}${userId}`) : undefined))
+          : undefined
+      ),
+    [active, key, isMain, userId]
   );
 
+  useEffect(() => {
+    if (active && userId && isMain) migrateMainDraft(userId);
+  }, [active, userId, isMain]);
+
   const timerRef = useRef<number | null>(null);
-  const pendingRef = useRef<string | null>(null);
+  const editedDraft = useRef<string | null>(null);
 
   const saveDraft = useCallback(
     (value: string, composition?: CardCompositionDraft) => {
-      if (!active || !userId) return;
+      if (!active || !userId || !key || epoch !== draftGeneration(userId, key)) return;
       if (value.trim() === '') {
         if (timerRef.current !== null) {
           window.clearTimeout(timerRef.current);
           timerRef.current = null;
         }
-        pendingRef.current = null;
-        clearInputDraft(userId);
+        editedDraft.current = '';
+        writeStoredDraft(key, '');
         return;
       }
-      pendingRef.current = encodeCompositionDraft(
-        value.slice(0, CHAT_INPUT_MAX_LENGTH),
-        composition
-      );
+      const draft = encodeCompositionDraft(value.slice(0, CHAT_INPUT_MAX_LENGTH), composition);
+      editedDraft.current = draft;
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
       timerRef.current = window.setTimeout(() => {
         timerRef.current = null;
-        if (pendingRef.current !== null) {
-          writeStoredDraft(userId, pendingRef.current);
-          pendingRef.current = null;
-        }
+        if (epoch === draftGeneration(userId, key)) writeStoredDraft(key, draft);
       }, DRAFT_SAVE_DEBOUNCE_MS);
     },
-    [active, userId]
+    [active, userId, key, epoch]
   );
 
   // Flush a pending write on unmount — navigating away inside the debounce
   // window must not lose the last keystrokes.
   useEffect(() => {
     return () => {
-      if (timerRef.current !== null) {
-        window.clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-      if (active && userId && pendingRef.current !== null) {
-        writeStoredDraft(userId, pendingRef.current);
-        pendingRef.current = null;
-      }
+      const timer = timerRef.current;
+      const draft = editedDraft.current;
+      timerRef.current = null;
+      editedDraft.current = null;
+      if (timer !== null) window.clearTimeout(timer);
+      if (!active || !userId || !key || epoch !== draftGeneration(userId, key)) return;
+      // A deletion confirmed in another tab may have removed the shared copy.
+      const recovered = recoverOnRelease?.(
+        draft === null ? initial.text : decodeCompositionDraft(draft).text
+      );
+      if (!recovered && timer !== null && draft !== null) writeStoredDraft(key, draft);
     };
-  }, [active, userId]);
+  }, [active, userId, key, epoch, initial.text, recoverOnRelease]);
 
   return { initialDraft: initial.text, initialComposition: initial.composition, saveDraft };
 }

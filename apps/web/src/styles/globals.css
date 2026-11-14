@@ -42,17 +42,11 @@
 /* Enable dark: variant for .dark class */
 @variant dark (.dark &);
 
-/* A thin edge follows the local text colour, including inverted solid buttons.
-   Apply it to the artwork so callers retain their SVG filters and animations. */
+/* A thin edge follows the local text colour. Apply it to the artwork so callers
+   retain their SVG filters and animations. A solid surface never shows the
+   artwork: its glyphs go through `MonochromeIcons` (`lib/icon-style-context.tsx`). */
 .app-icon-artwork {
   filter: drop-shadow(0 0 0.48px currentColor) drop-shadow(0 0 0.48px currentColor);
-}
-
-/* The Fluent plane has blue paint close to the solid send button's blue.
-   Give its silhouette the same contrast colour as the button label. */
-.chat-send-icon > .app-icon-artwork {
-  filter: drop-shadow(0.6px 0 currentColor) drop-shadow(-0.6px 0 currentColor)
-    drop-shadow(0 0.6px currentColor) drop-shadow(0 -0.6px currentColor);
 }
 
 /* `text-[13px]` written so it follows the text scale: `text-px-13` is

@@ -77,6 +77,6 @@ async def test_a_discussion_is_a_stable_assistant_opening_and_keeps_reply_extrac
     assert opening.additional_kwargs.get("proactive_discussion") is True
     assert not opening.additional_kwargs.get("proactive_notification")
     formatted = format_messages_for_extraction(
-        [opening, HumanMessage(content="Do not bring it up again.")]
+        [opening, HumanMessage(content="Do not bring it up again.")], zone=UTC
     )
     assert "fictional appointment" in formatted and "Do not bring it up again" in formatted

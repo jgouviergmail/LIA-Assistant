@@ -115,3 +115,67 @@ single click where no other source is on. Not measured yet: whether the ReAct lo
 which sees an attachment's hint and not its text (above), misses a kept answer's
 text on a follow-up needing tools.
 
+
+## Amendment 2026-11-12 — the composer takes by upload what it takes by copy
+
+A copy from a knowledge space brought any of the fifteen formats into a message; the
+upload beside it still refused everything but an image and a PDF, so a Word document on
+the person's desktop had to be put in a space first. The upload now takes the same
+formats.
+
+- **One list for the two doors.** `EXTRACTABLE_DOCUMENT_TYPES_DEFAULT` is the default of
+  both `ATTACHMENTS_ALLOWED_DOC_TYPES` and `RAG_SPACES_ALLOWED_TYPES`; each stays its
+  operator's to narrow. `attachments/document_formats.DOCUMENT_FORMATS` names each format
+  once, and an import-time assert refuses one no reader of the spaces can extract
+  (`rag_spaces.processing.EXTRACTABLE_CONTENT_TYPES`).
+- **The type is what the file IS.** The request's declared type is never read. A signed
+  format is recognised by its bytes; the Office and OpenDocument archives open on the
+  same four bytes, so an archive is told apart by what it contains (the part an Office
+  file is built around, the `mimetype` member an OpenDocument or EPUB file declares
+  itself with) — read from the member NAMES and one member of a few dozen bytes, nothing
+  inflated. An unsigned format (text, Markdown, CSV, HTML, JSON, XML) is named by its
+  extension once its content is proven to be text: a NUL byte refuses it, a legacy
+  encoding does not. The decision needs the whole content — an archive names itself at
+  its end — so it runs after the bounded read, off the event loop.
+- **Published to the composer** (ADR-184): `/config` carries `attachments.image_types`
+  and `attachments.document_extensions`, and the picker and the drop zone filter on the
+  NAME — a browser reports no type for a `.md` and a spreadsheet's for a `.csv`.
+- **A text that cannot be extracted costs the text, never the upload**, as a scanned PDF
+  always did; the failure is logged by its type.
+- **A zipped document is not read past what it declares it inflates to.** A file sent
+  small can inflate large, and its readers inflate whole parts in memory, inside the
+  upload request. The sum an archive declares in its directory is a real bound (a zip
+  reader never inflates a member past its declared size) and is read without inflating
+  anything: past `ATTACHMENTS_MAX_INFLATED_MB` the reader is never started — the file is
+  kept, its text is not read, the fact is logged. This bound is the composer's upload's: a
+  knowledge space keeps its own limits, on a file's size and on the chunks it indexes.
+- **A text file is read in the letters it was written in** (same day). A text file names
+  no encoding, and every reader of a text format opened it as UTF-8 with replacement: a
+  spreadsheet export from a French Windows desktop reached the model, and a space's
+  index, with U+FFFD for every accent, and a « CSV UTF-8 » kept its byte-order mark as
+  the first letter of its first cell. The readers now ask ONE door,
+  `core/text_decoding.decode_text`: a UTF-16 mark is believed, bytes that are UTF-8 are
+  UTF-8, and bytes that are not are told apart by what they mostly are — a UTF-8 text
+  with a damaged byte loses that byte alone, a text of single-byte accents is read in
+  Windows' letters (cp1252). No other legacy encoding is guessed. The Tools' preview
+  (`workbench/previews.py`), which held the rule first, reads the same door. Line ends
+  are `\n` as text mode always gave them.
+
+**Operator note.** The environment templates used to state
+`ATTACHMENTS_ALLOWED_DOC_TYPES=application/pdf`. An instance whose `.env` kept that line
+keeps PDFs alone — the environment overrides the constant: remove the line, or update it.
+
+**Left as it was.** A served upload keeps `Content-Disposition: attachment` unless it is
+an image or a PDF: an uploaded HTML file is downloaded, never rendered on the API's
+origin. A text Windows writes as UTF-16 holds a NUL byte in every ASCII letter, the byte
+that refuses a binary: its byte-order mark says what it is, and the composer accepts it
+when what follows the mark decodes whole and holds no NUL character
+(`document_formats._is_utf16_text`); its readers read it through the same door.
+
+Guards: `tests/unit/domains/attachments/test_document_formats.py` (real files written by
+the libraries their readers use), `tests/unit/core/test_text_decoding.py`,
+`tests/unit/domains/rag_spaces/test_text_readers_encoding.py` (each text reader on a
+Windows file, and an AST guard refusing a reader that decodes by itself),
+`test_document_upload.py`,
+`tests/unit/api/test_client_config_flags.py`, and on the web
+`src/lib/__tests__/attachment-formats.test.ts` and `ChatInput.test.tsx`.

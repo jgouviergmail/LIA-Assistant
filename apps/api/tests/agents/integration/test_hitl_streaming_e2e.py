@@ -1,34 +1,21 @@
-"""
-E2E Integration Tests for HITL Streaming.
+"""Legacy HITL protocol components and synthetic timing checks.
 
-Tests cover the complete SSE streaming flow:
-- Full HTTP SSE connection lifecycle
-- 3-chunk streaming protocol (metadata → tokens → complete)
-- Integration with LangGraph state management
-- Real HITL interrupt and resumption flow
-- End-to-end TTFT measurement in production-like environment
-
-Architecture Flow Tested:
-1. POST /agents/chat/stream
-2. AgentService.stream_chat_response()
-3. Graph execution → HITL interrupt
-4. HITLQuestionGenerator.generate_confirmation_question_stream()
-5. SSE chunks: hitl_interrupt_metadata → hitl_question_token* → hitl_interrupt_complete
-6. User response → handle_hitl_response()
-7. Graph resumption → final response
-
-Phase 4.2: HITL Streaming E2E Integration Tests
+These component tests do not measure provider latency or exercise the full HTTP
+journey. The actual HTTP admission and question round-trip live in
+test_chat_http_admission.py and test_hitl_pending_endpoint.py; real LangGraph
+resumption is exercised in test_hitl_engine_scope.py.
 """
 
 import asyncio
 import uuid
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from langchain_core.messages import AIMessageChunk
 
 from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.api.service import AgentService
+from tests.fixtures.conversation_executions import redis_client as redis_client
+from tests.fixtures.conversation_executions import reserved as reserved
 
 # ============================================================================
 # Fixtures
@@ -212,103 +199,9 @@ class TestHITLStreamingE2E:
         assert first_token_time >= 0.05  # Verify delay was applied
         assert first_token_time < 0.15  # But not too slow
 
-    @pytest.mark.asyncio
-    async def test_hitl_interrupt_stores_pending_state_in_redis(
-        self,
-        mock_authenticated_user,
-        mock_hitl_interrupt_event,
-    ):
-        """Test that HITL interrupt stores pending state in Redis for resumption."""
-        # Arrange
-        conversation_id = uuid.uuid4()
-        AgentService()
-
-        from src.domains.agents.utils import HITLStore
-        from src.infrastructure.cache.redis import get_redis_cache
-
-        redis = await get_redis_cache()
-        hitl_store = HITLStore(redis_client=redis, ttl_seconds=300)
-
-        # Simulate storing interrupt data
-        interrupt_data = {
-            "action_requests": mock_hitl_interrupt_event["metadata"]["action_requests"],
-            "review_configs": mock_hitl_interrupt_event["metadata"]["review_configs"],
-        }
-
-        # Act
-        await hitl_store.save_interrupt(
-            thread_id=str(conversation_id),
-            interrupt_data=interrupt_data,
-        )
-
-        # Assert - Verify data can be retrieved
-        retrieved = await hitl_store.get_interrupt(str(conversation_id))
-        assert retrieved is not None
-        assert "interrupt_data" in retrieved
-        assert retrieved["interrupt_data"]["action_requests"] == interrupt_data["action_requests"]
-
-        # Cleanup
-        await hitl_store.clear_interrupt(str(conversation_id))
-
-    @pytest.mark.asyncio
-    async def test_hitl_resumption_after_approval(
-        self,
-        mock_authenticated_user,
-    ):
-        """Test graph resumption after user approves HITL interrupt."""
-        # Arrange
-        conversation_id = uuid.uuid4()
-        agent_service = AgentService()
-
-        # Mock pending HITL in Redis
-        from src.domains.agents.utils import HITLStore
-        from src.infrastructure.cache.redis import get_redis_cache
-
-        redis = await get_redis_cache()
-        hitl_store = HITLStore(redis_client=redis, ttl_seconds=300)
-
-        interrupt_data = {
-            "action_requests": [{"name": "search_contacts_tool", "args": {"query": "jean"}}],
-            "review_configs": [{"approval_type": "required"}],
-        }
-        await hitl_store.save_interrupt(
-            thread_id=str(conversation_id),
-            interrupt_data=interrupt_data,
-        )
-
-        # Mock classifier to return APPROVE
-        mock_classifier = AsyncMock()
-        mock_classifier.classify_hitl_response = AsyncMock(
-            return_value={"decision": "approve", "confidence": 0.95}
-        )
-        agent_service.hitl_classifier = mock_classifier
-
-        # Mock graph resumption
-        with patch.object(agent_service, "graph") as mock_graph:
-
-            async def mock_resume_stream(*args, **kwargs):
-                # Simulate successful resumption
-                yield {"type": "content", "content": "Recherche effectuée"}
-                yield {"type": "done", "metadata": {"status": "completed"}}
-
-            mock_graph.astream = AsyncMock(return_value=mock_resume_stream())
-
-            # Act - Simulate user response "ok"
-
-            # Build approval decision
-            from src.domains.agents.domain_schemas import ToolApprovalDecision
-
-            decision = ToolApprovalDecision(
-                decisions=[{"type": "approve"}],
-                action_indices=[0],
-            )
-
-            # Assert - Verify decision is correct
-            assert decision.decisions[0]["type"] == "approve"
-            assert decision.action_indices == [0]
-
-        # Cleanup
-        await hitl_store.clear_interrupt(str(conversation_id))
+    # Real LangGraph interrupt/resumption (including stale checkpoints) lives in
+    # integration/domains/conversations/test_hitl_engine_scope.py. The former
+    # test here constructed a decision without ever invoking the mocked graph.
 
     @pytest.mark.asyncio
     async def test_hitl_streaming_handles_empty_question_chunks(self):
@@ -399,44 +292,6 @@ class TestHITLStreamingE2E:
         assert done_chunk.metadata["tokens_in"] == 50
         assert done_chunk.metadata["tokens_out"] == len(mock_question_tokens)
         assert done_chunk.metadata["tokens_total"] == 50 + len(mock_question_tokens)
-
-    @pytest.mark.asyncio
-    async def test_concurrent_hitl_streaming_sessions(self):
-        """Test that multiple concurrent HITL streaming sessions are isolated."""
-        # Arrange
-        conversation_id_1 = uuid.uuid4()
-        conversation_id_2 = uuid.uuid4()
-
-        from src.domains.agents.utils import HITLStore
-        from src.infrastructure.cache.redis import get_redis_cache
-
-        redis = await get_redis_cache()
-        hitl_store = HITLStore(redis_client=redis, ttl_seconds=300)
-
-        interrupt_data_1 = {
-            "action_requests": [{"name": "tool_a", "args": {"x": 1}}],
-            "review_configs": [{"approval_type": "required"}],
-        }
-
-        interrupt_data_2 = {
-            "action_requests": [{"name": "tool_b", "args": {"y": 2}}],
-            "review_configs": [{"approval_type": "required"}],
-        }
-
-        # Act - Store two concurrent interrupts
-        await hitl_store.save_interrupt(str(conversation_id_1), interrupt_data_1)
-        await hitl_store.save_interrupt(str(conversation_id_2), interrupt_data_2)
-
-        # Assert - Verify sessions are isolated
-        retrieved_1 = await hitl_store.get_interrupt(str(conversation_id_1))
-        retrieved_2 = await hitl_store.get_interrupt(str(conversation_id_2))
-
-        assert retrieved_1["interrupt_data"]["action_requests"][0]["name"] == "tool_a"
-        assert retrieved_2["interrupt_data"]["action_requests"][0]["name"] == "tool_b"
-
-        # Cleanup
-        await hitl_store.clear_interrupt(str(conversation_id_1))
-        await hitl_store.clear_interrupt(str(conversation_id_2))
 
 
 # ============================================================================

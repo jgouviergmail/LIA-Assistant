@@ -1,0 +1,81 @@
+{
+  "doc_types": [
+    "pptx"
+  ],
+  "language": "fr",
+  "content": {
+    "filename_stem": "bilan-annuel",
+    "title": "Bilan annuel de la coopérative",
+    "subtitle": "Assemblée générale",
+    "tone": "warm",
+    "delivery": "presented",
+    "slides": [
+      {
+        "title": "L'année en bref",
+        "kind": "section",
+        "subtitle": "Ce que nous avons accompli ensemble",
+        "icon": "sparkles",
+        "notes": "Commençons par regarder l'année d'un seul coup d'œil."
+      },
+      {
+        "title": "Une année de croissance maîtrisée",
+        "kind": "figures",
+        "figures": [
+          {"value": "+18 %", "label": "de chiffre d'affaires", "icon": "trending-up"},
+          {"value": "1 240", "label": "adhérents actifs", "icon": "users"},
+          {"value": "3", "label": "nouveaux sites ouverts", "icon": "building"},
+          {"value": "97 %", "label": "de livraisons à l'heure", "icon": "clock"}
+        ],
+        "notes": "Quatre chiffres résument l'année : croissance, adhésion, implantation et fiabilité."
+      },
+      {
+        "title": "Ce que disent les adhérents",
+        "kind": "quote",
+        "quote": "La coopérative a changé la façon dont nous planifions nos semaines.",
+        "subtitle": "Une adhérente, exploitante maraîchère",
+        "notes": "Ce témoignage revient souvent dans l'enquête de satisfaction."
+      },
+      {
+        "title": "Les chantiers de l'année",
+        "kind": "section",
+        "subtitle": "Trois priorités tenues",
+        "icon": "target"
+      },
+      {
+        "title": "Trois priorités tenues",
+        "bullets": [
+          "Moderniser l'entrepôt principal",
+          "Ouvrir trois points de collecte",
+          "Former toutes les équipes à la sécurité"
+        ],
+        "notes": "Chacune de ces priorités a été tenue dans les délais."
+      },
+      {
+        "title": "Nos engagements en chiffres",
+        "kind": "figures",
+        "figures": [
+          {"value": "42 t", "label": "d'emballages évités", "icon": "leaf"},
+          {"value": "12", "label": "partenaires locaux", "icon": "handshake"},
+          {"value": "0", "label": "accident du travail", "icon": "shield-check"},
+          {"value": "8", "label": "formations données", "icon": "graduation-cap"},
+          {"value": "5 j", "label": "de délai moyen de paiement", "icon": "banknote"},
+          {"value": "4,6/5", "label": "de satisfaction", "icon": "award"}
+        ]
+      },
+      {
+        "title": "L'année qui vient",
+        "kind": "section",
+        "subtitle": "Nos prochaines étapes",
+        "icon": "rocket"
+      },
+      {
+        "title": "Trois décisions à prendre aujourd'hui",
+        "bullets": [
+          "Valider le budget d'investissement",
+          "Élire le nouveau conseil",
+          "Adopter la charte d'approvisionnement local"
+        ]
+      }
+    ]
+  }
+}

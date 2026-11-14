@@ -24,7 +24,8 @@ import { columnIcon } from '@/lib/workboard/icons';
 import { cn } from '@/lib/utils';
 import type { TicketRow } from '@/types/workboard';
 
-type CardHandlers = Pick<
+/** What every card of the board is handed, whatever container draws it. */
+export type CardHandlers = Pick<
   TicketCardProps,
   | 'loaded'
   | 'total'
@@ -36,6 +37,8 @@ type CardHandlers = Pick<
   | 'onDelete'
   | 'onStatusChange'
   | 'onAssigneeChange'
+  | 'categories'
+  | 'onCategoryChange'
 >;
 
 export interface ColumnProps extends CardHandlers {
@@ -48,10 +51,28 @@ export interface ColumnProps extends CardHandlers {
   className?: string;
 }
 
-/** A card that can be picked up, dragged and dropped by pointer or keyboard. */
-function SortableCard({ ticket, ...rest }: { ticket: TicketRow } & CardHandlers) {
+/**
+ * A card that can be picked up, dragged and dropped by pointer or keyboard.
+ *
+ * Shared with the lane board, whose cells draw the same card. `closed` is the
+ * lane board's: a card in a lane the dragged ticket may not enter must not be
+ * a drop target either, or the card would settle on a place the server
+ * refuses.
+ */
+export function SortableCard({
+  ticket,
+  closed = false,
+  ...rest
+}: { ticket: TicketRow; closed?: boolean } & CardHandlers & Pick<TicketCardProps, 'ground'>) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: ticket.id,
+    disabled: { droppable: closed },
+    // A GROUP that can be picked up, never a `button`: the whole card is the
+    // handle, and it holds the control that opens the ticket and the one that
+    // opens its menu. A button hides its content from assistive technology
+    // (axe `nested-interactive`, measured in a browser 2026-11-11), so a
+    // screen-reader user could pick the card up and never open it.
+    attributes: { role: 'group' },
   });
   return (
     <li
@@ -78,7 +99,7 @@ function SortableCard({ ticket, ...rest }: { ticket: TicketRow } & CardHandlers)
  * @param count - How many tickets it holds, from the server's aggregate.
  * @returns The classes to add to the glyph, or an empty string.
  */
-function liveness(status: string, count: number): string {
+export function liveness(status: string, count: number): string {
   if (count <= 0) return '';
   return status === 'in_progress'
     ? 'motion-safe:animate-spin [animation-duration:3s]'
@@ -109,7 +130,11 @@ export function Column({ status, tickets, count, draggable, className, ...cards 
       ref={setNodeRef}
       aria-label={t(`workboard.columns.${status}`)}
       className={cn(
-        'flex min-h-32 flex-col gap-3 rounded-xl border border-border bg-muted/30 p-3',
+        // A panel on the page: the CARD ground, whole, and its cards on the
+        // background (their default) — the two grounds alternate at every
+        // level, never a half tint (owner directive, 2026-11-08). It was
+        // `bg-muted/30` under cards at `bg-card/80`: two half tints.
+        'flex min-h-32 flex-col gap-3 rounded-xl border border-border bg-card p-3',
         isOver && 'border-primary/50 bg-primary/5',
         className
       )}

@@ -15,6 +15,7 @@ long-term memory settings, and the speakers the chat draws (``chat.message.you``
 from typing import Literal
 
 from src.core.i18n import normalize_language
+from src.core.i18n_drafts import label_separator
 
 #: A section of the readable archive whose wording is ours.
 ExportSection = Literal["conversations", "journals", "memories"]
@@ -89,3 +90,76 @@ def render_export_speaker(role: str, language: str) -> str:
         The speaker's name, or the role itself when it names nobody.
     """
     return EXPORT_SPEAKERS[normalize_language(language)].get(role, role)
+
+
+def render_export_turn(role: str, stamp: object, content: str, language: str) -> str:
+    """One message as a readable export writes it: who spoke, when, then the words.
+
+    One shape for the account archive and for the export of one discussion.
+    The reader's punctuation joins the speaker to the words (ADR-323); the
+    separator ends the line, so its trailing space would be the line's last
+    character and is dropped (the HITL headers strip it the same way).
+
+    Args:
+        role: The message's stored role.
+        stamp: When it was written, as the caller chose to state it.
+        content: The words, as the caller chose to export them.
+        language: Any locale spelling; normalised to the backend canon.
+
+    Returns:
+        The block, closed by a rule.
+    """
+    head = f"**{render_export_speaker(role, language)}** ({stamp})"
+    return f"{head}{label_separator(language).rstrip()}\n\n{content}\n\n---\n"
+
+
+#: What frames the export of ONE discussion.
+DiscussionExportLabel = Literal["main", "exported_on", "empty"]
+
+#: language -> label -> wording. ``main`` is the name the chat gives the
+#: permanent discussion (``chat.discussions.main``), which stores no title.
+EXPORT_DISCUSSION_LABELS: dict[str, dict[DiscussionExportLabel, str]] = {
+    "fr": {
+        "main": "Principale",
+        "exported_on": "Exportée le {date}",
+        "empty": "Aucun message.",
+    },
+    "en": {
+        "main": "Main",
+        "exported_on": "Exported on {date}",
+        "empty": "No messages.",
+    },
+    "de": {
+        "main": "Hauptunterhaltung",
+        "exported_on": "Exportiert am {date}",
+        "empty": "Keine Nachrichten.",
+    },
+    "es": {
+        "main": "Principal",
+        "exported_on": "Exportada el {date}",
+        "empty": "Sin mensajes.",
+    },
+    "it": {
+        "main": "Principale",
+        "exported_on": "Esportata il {date}",
+        "empty": "Nessun messaggio.",
+    },
+    "zh-CN": {
+        "main": "主对话",
+        "exported_on": "导出于 {date}",
+        "empty": "没有消息。",
+    },
+}
+
+
+def render_discussion_label(label: DiscussionExportLabel, language: str) -> str:
+    """Word the frame of one exported discussion in the reader's language.
+
+    Args:
+        label: Which wording.
+        language: Any locale spelling; normalised to the backend canon.
+
+    Returns:
+        The wording; ``exported_on`` carries a ``{date}`` placeholder.
+    """
+    return EXPORT_DISCUSSION_LABELS[normalize_language(language)][label]

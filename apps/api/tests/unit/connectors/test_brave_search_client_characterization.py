@@ -8,7 +8,7 @@ BaseAPIKeyClient (F2), so the migration can be proven behavior-preserving:
   exception) — callers rely on the None-on-error contract.
 - Auth via the X-Subscription-Token header (raw key, no prefix).
 - Query params: q, count (capped at 20 for web / 50 for news), search_lang,
-  plus optional freshness/country.
+  safesearch=off (unfiltered, ADR-382), plus optional freshness/country.
 - 429 responses are retried with backoff, then succeed.
 
 Implementation-agnostic mocking: httpx.AsyncClient is patched to route through
@@ -125,6 +125,25 @@ class TestBraveSearchSuccess:
         assert params["q"] == "hello world"
         assert params["count"] == "7"
         assert params["search_lang"] == "zh-hans"
+
+    @pytest.mark.parametrize("endpoint", ["web", "news"])
+    async def test_the_web_is_searched_unfiltered(self, client, endpoint):
+        """No safe-search filter on either endpoint: the owner's decision (ADR-382).
+
+        Brave filters « moderate » when the parameter is absent, so it is sent.
+        """
+        captured: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured.append(request)
+            return httpx.Response(200, json={"web": {"results": []}, "results": []})
+
+        p1, p2 = _patches(handler)
+        with p1, p2:
+            await client.search_or_raise("hello", endpoint=endpoint)
+            await client.close()
+
+        assert captured[0].url.params["safesearch"] == "off"
 
     async def test_count_is_capped_per_endpoint(self, client):
         """count is capped at 20 for web and 50 for news."""

@@ -74,6 +74,9 @@ _EMBEDDING_LOGS = LogRecipe(
     events=(
         "gemini_embedding_failed",
         "max_retries_exceeded",
+        # A refusal that named a delay its caller does not serve: the
+        # operation ended without a retry (ADR-254 amendment 2026-11-10).
+        "embedding_retry_not_attempted",
         "rag_injection_failed",
         "system_rag_injection_failed",
     ),
@@ -147,6 +150,9 @@ EVIDENCE_RECIPES: dict[str, EvidenceRecipe] = {
         EvidenceRecipe("DiskSpaceCritical", prom_queries=("disk_usage_percent",)),
         EvidenceRecipe("ContainerMemoryNearLimit", prom_queries=("memory_usage_percent",)),
         EvidenceRecipe("HighMemoryUsage", prom_queries=("memory_usage_percent",)),
+        # The kernel counts the kill and names no victim: the memory of every
+        # container is the first thing to read beside it.
+        EvidenceRecipe("OOMKillDetected", prom_queries=("memory_usage_percent",)),
         EvidenceRecipe(
             "ApiWorkerMemoryHigh",
             prom_queries=("api_worker_heap_mb", "stt_recognizers_by_worker"),
@@ -204,6 +210,25 @@ EVIDENCE_RECIPES: dict[str, EvidenceRecipe] = {
             prom_queries=("embedding_failure_rate", *_EMBEDDING_BREAKDOWNS),
             logs=_EMBEDDING_LOGS,
         ),
+        # The reaper logs each sweep that re-drove a source at INFO: that line
+        # is the evidence (how many, how often), so INFO is read here. A lease
+        # that could not be renewed while the documents embedded is what
+        # precedes a recovery, and says why.
+        EvidenceRecipe(
+            "RagSourceRecoveryLoop",
+            prom_queries=("background_job_errors",),
+            logs=LogRecipe(
+                events=(
+                    "rag_mail_sync_jobs_recovered",
+                    "rag_sync_jobs_recovered",
+                    "rag_mail_sync_dead_lettered",
+                    "rag_sync_dead_lettered",
+                    "rag_source_lease_renewal_failed",
+                    "rag_source_lease_renewal_refused",
+                ),
+                levels=("info", "warning", "error"),
+            ),
+        ),
         EvidenceRecipe(
             "SystemKnowledgeIndexationFailing",
             prom_queries=_EMBEDDING_BREAKDOWNS,
@@ -246,6 +271,34 @@ EVIDENCE_RECIPES: dict[str, EvidenceRecipe] = {
             "PhoneIngestionDeliveryUncertain",
             prom_queries=("ingestion_delivery_outcomes", "ingestion_delivery_freshness"),
             logs=LogRecipe(events=("fcm_delivery_refused", "ingestion_transport_ack_unknown")),
+        ),
+        EvidenceRecipe(
+            "ConversationCleanupDelayed",
+            prom_queries=("conversation_cleanup_backlog", "conversation_cleanup_oldest_age"),
+            logs=LogRecipe(
+                events=("conversation_cleanup_sweep_failed", "conversation_cleanup_sweep")
+            ),
+        ),
+        EvidenceRecipe(
+            "ConversationExecutionRecoveryRequired",
+            prom_queries=(
+                "conversation_executions_in_recovery",
+                "conversation_cleanup_snapshot_age",
+            ),
+            logs=LogRecipe(
+                events=(
+                    "conversation_execution_recovering",
+                    "conversation_execution_closure_failed",
+                    "live_reservation_recovered",
+                ),
+            ),
+        ),
+        EvidenceRecipe(
+            "ConversationCleanupSnapshotStale",
+            prom_queries=("conversation_cleanup_snapshot_age", "background_job_errors"),
+            logs=LogRecipe(
+                events=("conversation_cleanup_sweep_failed", "conversation_cleanup_sweep")
+            ),
         ),
         # ---- radio newsroom (ADR-324) ------------------------------------
         # No tick ended: the tick census says whether passes FAIL (then the
@@ -347,6 +400,7 @@ EVIDENCE_RECIPES: dict[str, EvidenceRecipe] = {
         ),
         # ---- observability tier -----------------------------------------
         EvidenceRecipe("AlertmanagerDown", prom_queries=("dependency_up",)),
+        EvidenceRecipe("AlertNotificationsFailing", prom_queries=("dependency_up",)),
         EvidenceRecipe("ObservabilityScrapeTargetMissing", prom_queries=("dependency_up",)),
         EvidenceRecipe(
             "LogsNotDelivered",

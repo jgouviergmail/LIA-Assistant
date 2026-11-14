@@ -19,6 +19,7 @@ Created: 2026-04-02
 
 from __future__ import annotations
 
+import random
 import re
 import time
 from collections.abc import Awaitable, Callable
@@ -29,12 +30,19 @@ from langchain_core.embeddings import Embeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 from src.core.config import settings
-from src.core.constants import CJK_SCRIPT_RANGES
+from src.core.constants import (
+    CJK_SCRIPT_RANGES,
+    EMBEDDING_PROVIDER_DELAY_JITTER_SECONDS,
+    EMBEDDING_PROVIDER_DELAY_MARGIN_SECONDS,
+)
+from src.core.exceptions import MaxRetriesExceededError
 from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
 from src.infrastructure.llm.embedding_errors import (
     embedding_retry_reason,
     is_transient_embedding_error,
+    provider_retry_delay_seconds,
 )
+from src.infrastructure.llm.embedding_patience import embeddings_may_wait
 from src.infrastructure.llm.providers.adapter import configured_api_key, environment_key
 from src.infrastructure.llm.tracked_embeddings import (
     embedding_api_calls_total,
@@ -100,6 +108,33 @@ def _shaper_key(model_name: str) -> str:
 
 
 T = TypeVar("T")
+
+
+def _jitter_seconds() -> float:
+    """The spread added to a served delay, so one batch does not return as one."""
+    return random.uniform(0.0, EMBEDDING_PROVIDER_DELAY_JITTER_SECONDS)
+
+
+def _named_delay_budget(attempt: int, *, patient: bool) -> float:
+    """The longest provider-named delay a caller serves before its next attempt.
+
+    Everything is on somebody's turn unless it says otherwise, and serves no
+    more than the wait it already makes: past that, the provider has said the
+    retry cannot succeed. Declared bulk work serves up to its patience — and
+    never LESS than everything else, so a patience switched off (0) leaves it
+    exactly the ordinary retry.
+
+    Args:
+        attempt: Index of the attempt that just failed (0 for the first).
+        patient: Whether the work declared it may wait (``patient_embeddings``).
+
+    Returns:
+        The budget in seconds.
+    """
+    ordinary = float(settings.embedding_retry_backoff_factor**attempt)
+    if patient:
+        return max(settings.embedding_patient_retry_max_wait_seconds, ordinary)
+    return ordinary
 
 
 def _exact_str(text: str) -> str:
@@ -528,6 +563,13 @@ class GeminiRetrievalEmbeddings(Embeddings):
         block the caller forever: the wait is bounded and expires OPEN, and only
         transient failures are retried.
 
+        A quota refusal names its own delay (``provider_retry_delay_seconds``).
+        Work that declared itself patient serves it, plus a margin, up to its
+        patience. Everything else never waits for a quota: a named delay longer
+        than the wait it already makes ends the operation at once, since the
+        provider has said the retry cannot succeed (ADR-254 amendment
+        2026-11-10).
+
         Args:
             factory: Builds a fresh awaitable for the provider call.
             texts: Input texts (for token estimation).
@@ -537,19 +579,60 @@ class GeminiRetrievalEmbeddings(Embeddings):
             The embedding result.
 
         Raises:
-            MaxRetriesExceededError: Every attempt hit a transient failure.
+            MaxRetriesExceededError: Every attempt hit a transient failure, or
+                the provider named a delay this caller does not serve.
             Exception: A non-transient provider error, unchanged.
         """
         token_count = _estimate_tokens(texts)
+        # Read once, where the operation starts: the declaration belongs to the
+        # work that opened it, whichever task ends up awaiting the provider.
+        patient = embeddings_may_wait()
+        operation_name = f"embedding_{operation}"
+        attempts = 0
+
+        async def attempt() -> T:
+            nonlocal attempts
+            attempts += 1
+            return await self._attempt(factory, token_count, operation)
+
+        def worth_another_attempt(refusal: Exception) -> bool:
+            """Not when the provider named a delay this caller does not serve."""
+            named = provider_retry_delay_seconds(refusal)
+            return named is None or named <= _named_delay_budget(attempts - 1, patient=patient)
+
+        def named_wait(refusal: Exception, _attempt: int) -> float | None:
+            """The provider's delay for declared bulk work; else the ordinary backoff."""
+            named = provider_retry_delay_seconds(refusal)
+            if named is None or not patient:
+                return None
+            return named + EMBEDDING_PROVIDER_DELAY_MARGIN_SECONDS + _jitter_seconds()
 
         try:
             result = await retry_async(
-                lambda: self._attempt(factory, token_count, operation),
+                attempt,
                 max_retries=settings.embedding_retry_max_attempts,
                 backoff_factor=settings.embedding_retry_backoff_factor,
                 retryable_exceptions=(_TransientEmbeddingError,),
-                operation_name=f"embedding_{operation}",
+                retry_if=worth_another_attempt,
+                delay_for=named_wait,
+                operation_name=operation_name,
             )
+        except _TransientEmbeddingError as refused:
+            # The provider named a delay this caller does not serve, so the
+            # retry was lost before it was sent. The caller gets the failure an
+            # exhausted retry gives — same type, same cause chain for whoever
+            # classifies on it — without the wait and without a second refusal.
+            embedding_call_outcomes_total.labels(model=self.model_name, outcome="failed").inc()
+            logger.warning(
+                "embedding_retry_not_attempted",
+                model=self.model_name,
+                operation=operation_name,
+                provider_delay_seconds=provider_retry_delay_seconds(refused),
+                patient=patient,
+            )
+            raise MaxRetriesExceededError(
+                operation=operation_name, max_retries=attempts, last_error=refused
+            ) from refused
         except Exception:
             embedding_call_outcomes_total.labels(model=self.model_name, outcome="failed").inc()
             raise

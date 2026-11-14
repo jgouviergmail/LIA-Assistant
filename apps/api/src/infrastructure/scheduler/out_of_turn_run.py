@@ -7,18 +7,13 @@ the routine path learned the hard way:
 
 - :func:`resolve_run_context` — who the run belongs to, and the preferences it
   will answer in. Refuses an inactive account (a deleted one is inactive too).
-- :func:`conversation_has_pending_hitl` — whether the person's thread already
-  holds a question nobody answered. It FAILS OPEN: the guard exists to avoid
-  stepping on a pending question, and failing to ASK must not become a reason
-  to do nothing at all.
-- :func:`stream_instruction` — driving ``stream_chat_response`` with a timeout
-  and a retry policy.
+- :func:`stream_instruction` — admitting the turn once, checking its generation's
+  question strictly, then driving ``stream_chat_response`` with bounded attempts.
 
 What this module deliberately does NOT own: the condition gate, propose-first,
 the run history, the rescheduling and the notification — those are the
-routine's, and the workboard has its own equivalents. It also opens no database
-session of its own on the streaming path: the caller owns the transaction it
-was already in.
+routine's, and the workboard has its own equivalents. Admission and settlement
+use short owned sessions, never a transaction around a provider or Redis wait.
 
 Everything the retry loop does is a defect the routine path paid for. A
 ``content_replacement`` chunk REPLACES the accumulated tokens rather than
@@ -42,10 +37,11 @@ from __future__ import annotations
 
 import asyncio
 import math
-from collections.abc import Mapping
-from dataclasses import dataclass, field
+from collections.abc import Awaitable, Callable, Mapping
+from contextlib import aclosing
+from dataclasses import dataclass, field, replace
 from enum import Enum
-from typing import Any
+from typing import Any, assert_never
 from uuid import UUID
 
 import structlog
@@ -55,11 +51,22 @@ from src.core.constants import (
     INSTANCE_BUDGET_EXHAUSTED_ERROR_CODE,
     USAGE_LIMIT_EXCEEDED_ERROR_CODE,
 )
+from src.core.conversation_execution import (
+    ConversationBusy,
+    ExecutionRevoked,
+    RunAdmission,
+    RunEnd,
+)
+from src.core.conversation_selection import ConversationSelection
 from src.core.i18n import language_scope, normalize_language
 from src.core.llm_config_helper import run_bound_seconds
+from src.core.run_authority import current_run_authority, run_authority_scope
 from src.core.user_display import resolve_user_display_name
+from src.domains.agents.api.internal_admission import internal_turn
 from src.domains.agents.api.run_origin import RunOrigin, out_of_turn_origin_ctx
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
+from src.domains.agents.services.nothing_new import DONE_KEY as NOTHING_NEW_DONE_KEY
+from src.domains.agents.services.nothing_new import quiet_run_scope
 from src.domains.agents.services.streaming.latency_sli import awaited_by_a_person
 from src.domains.shared.mcp_preapproval import MCPPreapproval, mcp_preapproval_scope
 
@@ -135,6 +142,31 @@ class RunOutcome(str, Enum):
     WAITING = "waiting"
     FAILED = "failed"
     QUOTA_BLOCKED = "quota_blocked"
+    BUSY = "busy"
+    PENDING_QUESTION = "pending_question"
+
+
+def run_end_of(outcome: RunOutcome) -> RunEnd:
+    """How a settled out-of-turn run ended, for the close that releases the account.
+
+    A turn that ran and answered — or asked the person — ended normally; a
+    refusal or a failure did not; a turn that never ran did not start (ADR-384).
+
+    Args:
+        outcome: The settled outcome.
+
+    Returns:
+        The end the close writes.
+    """
+    match outcome:
+        case RunOutcome.SUCCESS | RunOutcome.WAITING:
+            return RunEnd.NORMAL
+        case RunOutcome.FAILED | RunOutcome.QUOTA_BLOCKED:
+            return RunEnd.INTERRUPTED
+        case RunOutcome.BUSY | RunOutcome.PENDING_QUESTION:
+            return RunEnd.UNSTARTED
+        case _:
+            assert_never(outcome)
 
 
 #: The error codes a refusal by a spend ceiling arrives under. Read
@@ -235,6 +267,13 @@ class StreamRequest:
             delegation, ADR-301) — the chat router's own resumption, so the
             caller also passes it as ``run_id``: the accounting of a question
             and of its answer share one id.
+        conversation_id: Explicit discussion, paired with its revision; omitted
+            for an autonomous task or external channel targeting current Main.
+        conversation_revision: Displayed revision; a stale selection refuses.
+        resume_pending: Whether the person is answering a pending question.
+            Unattended jobs leave questions untouched and report pending_question.
+        admission: Private authority supplied by an owning voice reservation;
+            validated by the common door, never accepted from a client payload.
         live_session_id: The voice session's key, stamped on the turn's rows
             so the closing card counts them (ADR-299 A5); None otherwise.
         spoken_text: What the person actually said when the prompt is a
@@ -246,6 +285,10 @@ class StreamRequest:
         mcp_preapproval: The MCP servers a ROUTINE's form pre-approved, published
             to the turn for the effect gate (spec 2026-10-29 D9); None for every
             other caller — nothing else may confirm on the person's behalf.
+        quiet_when_nothing_new: A ROUTINE's own option (ADR-265 amendment
+            2026-11-12 c): the answering model is then told how to declare
+            that its answer says nothing new, and ``RunResult.nothing_new``
+            carries the declaration; False for every other caller.
     """
 
     user_id: UUID
@@ -270,6 +313,11 @@ class StreamRequest:
     spoken_text: str | None = None
     person_waiting: bool = False
     mcp_preapproval: MCPPreapproval | None = None
+    quiet_when_nothing_new: bool = False
+    conversation_id: UUID | None = None
+    conversation_revision: int | None = None
+    resume_pending: bool = False
+    admission: RunAdmission | None = None
 
 
 @dataclass(frozen=True)
@@ -326,6 +374,12 @@ class RunResult:
             manner; None when the annotation is off or the turn declared none.
         error_code: Structured exception type or stream error code; never
             derived from the human-readable failure message.
+        admission: Private receipt used only for conditional question cleanup;
+            it grants no authority after the execution has closed.
+        nothing_new: True when the answering model declared that its answer
+            says nothing new (a routine told to notify only of something
+            new) — on a successful run only, and only on an explicit
+            declaration: doubt notifies.
     """
 
     outcome: RunOutcome
@@ -336,6 +390,8 @@ class RunResult:
     interrupt: TurnInterrupt | None = None
     register: str | None = None
     error_code: str | None = None
+    admission: RunAdmission | None = None
+    nothing_new: bool = False
 
 
 async def resolve_run_context(db: Any, user_id: UUID) -> RunContext | None:
@@ -374,50 +430,7 @@ async def resolve_run_context(db: Any, user_id: UUID) -> RunContext | None:
     )
 
 
-async def conversation_has_pending_hitl(
-    db: Any, user_id: UUID, language: str
-) -> tuple[bool, UUID | None]:
-    """Whether the person's thread already holds an unanswered question.
-
-    Reads the SAME authority the chat reads — the pending-HITL record in Redis
-    — and not the graph's checkpoint. The chat routes the person's next message
-    as the answer to a question on the strength of that record alone, and a
-    run that stopped on a question moves it to the ticket and deletes the
-    record (ADR-276, lot 7); the checkpoint behind it still says « interrupted »
-    until the next input starts a fresh run, exactly as it does after a chat
-    turn. Reading the checkpoint made every later ticket of the account step
-    aside for a question nobody could see any more.
-
-    Fails OPEN: this guard exists to avoid stepping on a pending question, and
-    failing to ASK must not become a reason to do nothing at all.
-
-    Args:
-        db: The caller's session.
-        user_id: Whose thread.
-        language: Used only when the conversation must be created.
-
-    Returns:
-        ``(pending, conversation_id)``; the id is None when the probe failed.
-    """
-    from src.domains.agents.api.hitl_pending import check_pending_hitl_uncached
-    from src.domains.conversations.service import ConversationService
-
-    try:
-        conversation = await ConversationService().get_or_create_conversation(
-            user_id, db, language=language
-        )
-        pending = await check_pending_hitl_uncached(str(conversation.id)) is not None
-        return pending, conversation.id
-    except Exception as probe_error:  # noqa: BLE001 — a blind probe never blocks
-        logger.warning(
-            "out_of_turn_run_hitl_probe_failed",
-            user_id=str(user_id),
-            error=str(probe_error),
-        )
-        return False, None
-
-
-async def clear_question_of_run(conversation_id: UUID | None, run_id: str) -> bool:
+async def clear_question_of_run(admission: RunAdmission | None) -> bool:
     """Take back the question a run left on a thread nobody watches (N10).
 
     The ReAct loop no longer asks when nobody can answer, but a path that does
@@ -430,13 +443,12 @@ async def clear_question_of_run(conversation_id: UUID | None, run_id: str) -> bo
     failed one.
 
     Args:
-        conversation_id: The thread the run wrote to; None when the probe failed.
-        run_id: The run that asked.
+        admission: The exact invocation that asked; absent when nothing ran.
 
     Returns:
         True when the run's question was found and cleared.
     """
-    if conversation_id is None:
+    if admission is None:
         return False
     from src.core.config import settings
     from src.domains.agents.utils.hitl_store import HITLStore
@@ -447,25 +459,31 @@ async def clear_question_of_run(conversation_id: UUID | None, run_id: str) -> bo
             redis_client=await get_redis_cache(),
             ttl_seconds=settings.hitl_pending_data_ttl_seconds,
         )
-        return await store.clear_interrupt_for_run(str(conversation_id), run_id)
+        return await store.clear_interrupt_for_run(
+            str(admission.target.runtime_id), admission.run_id, activity_id=admission.activity_id
+        )
     except Exception as clear_error:  # noqa: BLE001 — never costs a settle
         logger.warning(
             "out_of_turn_run_question_clear_failed",
-            run_id=run_id,
+            run_id=admission.run_id,
             error_type=type(clear_error).__name__,
         )
         return False
 
 
-async def stream_instruction(request: StreamRequest) -> RunResult:
+async def stream_instruction(
+    request: StreamRequest, *, before_run: Callable[[], Awaitable[None]] | None = None
+) -> RunResult:
     """Run one instruction through the pipeline, with a timeout and retries.
 
     Args:
         request: What to run, and the bounds it runs under.
+        before_run: Admission-time check or independent start notification, after
+            admission and the question check. Cancellation joins owned resources.
 
     Returns:
-        The answer and how the turn ended. Never raises: an out-of-turn caller
-        has a row to settle whatever happened.
+        The answer and how the turn ended. Failures are results; cancellation
+        propagates after owned graph resources are drained and joined.
     """
     token = out_of_turn_origin_ctx.set(request.origin) if request.origin is not None else None
     try:
@@ -475,11 +493,73 @@ async def stream_instruction(request: StreamRequest) -> RunResult:
             language_scope(request.language),
             awaited_by_a_person(request.person_waiting),
             mcp_preapproval_scope(request.mcp_preapproval),
+            quiet_run_scope(request.quiet_when_nothing_new),
         ):
-            return await _attempt_until_settled(request)
+            return await _drive_admitted(request, before_run)
+    except ConversationBusy:
+        return _settled(request, RunOutcome.BUSY, attempt=0)
+    except Exception as exc:
+        logger.warning(
+            "out_of_turn_admission_failed",
+            session_id=request.session_id,
+            error_type=type(exc).__name__,
+        )
+        return _settled(
+            request,
+            RunOutcome.FAILED,
+            attempt=0,
+            error=type(exc).__name__,
+            error_code=type(exc).__name__,
+        )
     finally:
         if token is not None:
             out_of_turn_origin_ctx.reset(token)
+
+
+async def _drive_admitted(
+    request: StreamRequest, before_run: Callable[[], Awaitable[None]] | None
+) -> RunResult:
+    """Pin one generation and invocation across all attempts, without a transaction wait."""
+    async with internal_turn(
+        request.user_id,
+        selection=ConversationSelection(
+            conversation_id=request.conversation_id,
+            conversation_revision=request.conversation_revision,
+        ),
+        admission=request.admission,
+        run_id=request.run_id,
+        language=request.language,
+        answer_pending=request.resume_pending,
+    ) as prepared:
+        if prepared.pending_question:
+            _declare_end(RunOutcome.PENDING_QUESTION)
+            return _settled(request, RunOutcome.PENDING_QUESTION, attempt=0)
+        if (
+            request.original_run_id is not None
+            and request.original_run_id != prepared.original_run_id
+        ):
+            raise ExecutionRevoked()
+        request = replace(
+            request,
+            admission=prepared.admission,
+            run_id=prepared.admission.run_id,
+            original_run_id=prepared.original_run_id,
+        )
+        if before_run is not None:
+            # This check/notification produces no graph output. The graph slot
+            # stays occupied until it completes or its cancellation is joined.
+            with run_authority_scope(None):
+                await before_run()
+        result = await _attempt_until_settled(request)
+        _declare_end(result.outcome)
+        return result
+
+
+def _declare_end(outcome: RunOutcome) -> None:
+    """Tell the admission this turn owns how it ended, before its close reads it."""
+    authority = current_run_authority()
+    if authority is not None:
+        authority.end = run_end_of(outcome)
 
 
 async def _attempt_until_settled(request: StreamRequest) -> RunResult:
@@ -510,7 +590,7 @@ async def _attempt_until_settled(request: StreamRequest) -> RunResult:
                 "out_of_turn_run_failed",
                 session_id=request.session_id,
                 attempt=attempt,
-                error=f"{type(fatal).__name__}: {fatal}",
+                error_type=type(fatal).__name__,
             )
             return _settled(
                 request,
@@ -538,7 +618,7 @@ async def _attempt_until_settled(request: StreamRequest) -> RunResult:
             # that will not change.
             return _settled(
                 request,
-                RunOutcome.QUOTA_BLOCKED if failure.is_quota else RunOutcome.FAILED,
+                await _failure_outcome(failure, request.run_id),
                 attempt=attempt,
                 text=text,
                 error=failure.message or failure.code or "the run was refused",
@@ -551,7 +631,14 @@ async def _attempt_until_settled(request: StreamRequest) -> RunResult:
             if request.origin is not None and request.origin.refusals
             else RunOutcome.SUCCESS
         )
-        return _settled(request, outcome, attempt=attempt, text=text, register=read.register)
+        return _settled(
+            request,
+            outcome,
+            attempt=attempt,
+            text=text,
+            register=read.register,
+            nothing_new=read.nothing_new and outcome is RunOutcome.SUCCESS,
+        )
 
     return _settled(
         request,
@@ -588,7 +675,7 @@ async def _retry_or_settle(
     )
     if attempt >= request.max_attempts:
         return None
-    if await _run_acted(request.run_id):
+    if await _may_have_started(request.run_id):
         logger.warning(
             "out_of_turn_run_retry_refused_after_effect",
             session_id=request.session_id,
@@ -605,6 +692,21 @@ async def _retry_or_settle(
     if request.retry_delay_seconds:
         await asyncio.sleep(request.retry_delay_seconds)
     return None
+
+
+async def _failure_outcome(failure: StreamFailure, run_id: str | None) -> RunOutcome:
+    """Only an unstarted quota refusal may give a job back to its automatic queue."""
+    if failure.is_quota and not await _may_have_started(run_id):
+        return RunOutcome.QUOTA_BLOCKED
+    return RunOutcome.FAILED
+
+
+async def _may_have_started(run_id: str | None) -> bool:
+    """A paid or acting turn cannot be requeued, including after a later quota refusal."""
+    authority = current_run_authority()
+    return bool(authority is not None and authority.external_work_started) or await _run_acted(
+        run_id
+    )
 
 
 async def _run_acted(run_id: str | None) -> bool:
@@ -660,7 +762,7 @@ async def _one_attempt(request: StreamRequest, attempt: int) -> _StreamReader:
     from src.domains.agents.api.service import AgentService
 
     reader = _StreamReader()
-    async for chunk in AgentService().stream_chat_response(
+    stream = AgentService().stream_chat_response(
         user_message=request.prompt,
         user_id=request.user_id,
         session_id=session_id,
@@ -679,9 +781,9 @@ async def _one_attempt(request: StreamRequest, attempt: int) -> _StreamReader:
         user_memory_enabled=request.spoken_by_person and request.memory_enabled,
         user_journals_enabled=request.spoken_by_person and request.journals_enabled,
         user_psyche_enabled=request.spoken_by_person and request.psyche_enabled,
-        # Archive-first persisted the question on attempt one; a retry must not
-        # duplicate the row.
-        archive_user_message=(attempt == 1),
+        # The archive door returns the same request id on a preparation retry;
+        # the preceding attempt may have failed before it archived anything.
+        archive_user_message=True,
         # The SAME id across attempts on purpose: the ticket paid for every one
         # of them, so the cost aggregate must find them all under one run.
         run_id=request.run_id,
@@ -690,8 +792,12 @@ async def _one_attempt(request: StreamRequest, attempt: int) -> _StreamReader:
         original_run_id=request.original_run_id,
         live_session_id=request.live_session_id,
         spoken_text=request.spoken_text,
-    ):
-        reader.feed(chunk)
+        target=request.admission.target if request.admission is not None else None,
+        admission=request.admission,
+    )
+    async with aclosing(stream):
+        async for chunk in stream:
+            reader.feed(chunk)
     return reader
 
 
@@ -707,6 +813,8 @@ class _StreamReader:
         question: The question the stream settled on, when it said so.
         failure: The refusal the stream announced, when it announced one.
         register: The register the ``done`` chunk declared (ADR-253), if any.
+        nothing_new: Whether the ``done`` chunk carried the answering model's
+            declaration that its answer says nothing new.
     """
 
     tokens: list[str] = field(default_factory=list)
@@ -716,6 +824,7 @@ class _StreamReader:
     question: str | None = None
     failure: StreamFailure | None = None
     register: str | None = None
+    nothing_new: bool = False
 
     def feed(self, chunk: Any) -> None:
         """Read one chunk.
@@ -748,6 +857,7 @@ class _StreamReader:
             self.failure = StreamFailure(code=_error_code(chunk), message=text or "")
         elif chunk.type == "done":
             self.register = _register_of(chunk)
+            self.nothing_new = _declares_nothing_new(chunk)
 
     @property
     def text(self) -> str:
@@ -760,6 +870,19 @@ class _StreamReader:
         if self.asked is None and self.question is None:
             return None
         return _interrupt_of(self.asked, self.question or "".join(self.question_tokens))
+
+
+def _declares_nothing_new(chunk: Any) -> bool:
+    """Whether the ``done`` chunk carries an explicit « nothing new » declaration.
+
+    Args:
+        chunk: The ``done`` chunk.
+
+    Returns:
+        True on the boolean ``True`` alone: doubt notifies.
+    """
+    metadata = getattr(chunk, "metadata", None)
+    return isinstance(metadata, Mapping) and metadata.get(NOTHING_NEW_DONE_KEY) is True
 
 
 def _register_of(chunk: Any) -> str | None:
@@ -870,6 +993,7 @@ def _settled(
     interrupt: TurnInterrupt | None = None,
     register: str | None = None,
     error_code: str | None = None,
+    nothing_new: bool = False,
 ) -> RunResult:
     """Build the result, carrying whatever the gate refused along the way.
 
@@ -882,6 +1006,7 @@ def _settled(
         interrupt: The question the turn stopped on, when it stopped on one.
         register: The register the answer was said in, when one was declared.
         error_code: Structured exception type or stream error code.
+        nothing_new: Whether the answering model declared it had nothing new.
 
     Returns:
         The result the caller settles its row from.
@@ -895,6 +1020,8 @@ def _settled(
         interrupt=interrupt,
         register=register,
         error_code=error_code,
+        nothing_new=nothing_new,
+        admission=request.admission,
     )
 
 

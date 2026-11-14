@@ -263,9 +263,11 @@ async def _source(
                 charset="utf-8",
             )
         )
-    # The person's own generated file (never an upload), not past its deadline:
-    # the card of an expired file offers nothing, and the cleanup is about to
-    # take it. A kept file has no deadline.
+    # The person's own generated file (never an upload), published whole and
+    # not past its deadline: the card of an expired file offers nothing, and the
+    # cleanup is about to take it. A kept file has no deadline. Only READY is
+    # sendable: a row being written has no bytes yet, a row being removed is
+    # losing them.
     row = (
         await db.execute(
             select(
@@ -277,7 +279,7 @@ async def _source(
                 Attachment.id == attachment.attachment_id,
                 Attachment.user_id == user_id,
                 Attachment.origin.in_(_GENERATED_VALUES),
-                Attachment.status != AttachmentStatus.EXPIRED,
+                Attachment.status == AttachmentStatus.READY,
                 or_(Attachment.expires_at.is_(None), Attachment.expires_at > datetime.now(UTC)),
             )
         )

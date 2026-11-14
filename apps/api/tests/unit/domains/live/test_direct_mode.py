@@ -218,15 +218,17 @@ async def test_a_direct_session_ends_by_relaying_its_words_as_the_person_s_turn(
         patch(f"{CLOSING}.record_decision", AsyncMock()),
         patch(f"{CLOSING}.schedule_voice_learning", AsyncMock()) as learning,
         patch(f"{CLOSING}.synthesize_relay", AsyncMock()) as synth,
-        patch(f"{CLOSING}.safe_fire_and_forget") as scheduled,
+        patch(f"{CLOSING}.schedule_session_relay", AsyncMock()) as scheduled,
     ):
         response = await service.end(USER, "s" * 32, LiveEndRequest(outcome="ended"), language="fr")
     learning.assert_not_awaited()
     # No model inside the request: the synthesis AND the relayed turn run in a
     # task the closing owns, handed the KEPT turns; the end answers now.
     synth.assert_not_awaited()
-    scheduled.assert_called_once()
-    settle = scheduled.call_args.args[0]
+    scheduled.assert_awaited_once()
+    bound, body = scheduled.call_args.args
+    assert bound.reservation is not None
+    settle = body(bound)
     assert settle.cr_code.co_name == "_settle_direct_relay"
     assert settle.cr_frame.f_locals["transcript"].lines() == [
         "user: remind me to call the bank",
@@ -245,7 +247,7 @@ async def test_a_direct_session_ends_by_relaying_its_words_as_the_person_s_turn(
     assert content.startswith("**Session live** — terminée par toi · ")
     assert "échange" not in content and "0.0200" in content
     assert get_live_phrases("fr")["relay_scheduled"] in content
-    store.release.assert_awaited_once_with(USER.id, "tok")
+    store.release.assert_not_awaited()
 
 
 async def test_a_direct_session_with_nothing_to_say_relays_nothing() -> None:
@@ -266,9 +268,8 @@ async def test_a_direct_session_with_nothing_to_say_relays_nothing() -> None:
     assert archive.call_args.kwargs["metadata"]["live_summary"]["relay"] == "empty"
 
 
-async def test_a_direct_session_s_slot_is_released_before_any_model_runs() -> None:
-    """The claim goes with the end (the person may start again at once): the
-    synthesis a slow provider could hold for a minute never stands in the way."""
+async def test_a_direct_closing_hands_the_relay_its_reservation_without_running_a_model() -> None:
+    """The end answers promptly; the reservation belongs to the deferred relay until it joins."""
     service, store, _ = _service(_connector(), record=_direct_record())
     store.kept_turns.append(("user", "hello"))
     order: list[str] = []
@@ -283,11 +284,13 @@ async def test_a_direct_session_s_slot_is_released_before_any_model_runs() -> No
             f"{CLOSING}.synthesize_relay",
             AsyncMock(side_effect=lambda **_k: order.append("synthesised")),
         ) as synth,
-        patch(f"{CLOSING}.safe_fire_and_forget", lambda coro, **_k: coro.close()),
+        patch(f"{CLOSING}.schedule_session_relay", AsyncMock()) as scheduled,
     ):
         await service.end(USER, "s" * 32, LiveEndRequest(outcome="ended"), language="fr")
     synth.assert_not_awaited()
-    assert order == ["released"]
+    assert order == []
+    scheduled.assert_awaited_once()
+    assert scheduled.call_args.args[0].reservation is not None
 
 
 async def test_a_delegated_session_s_card_adds_the_session_s_own_run_to_the_delegated_ones() -> (
@@ -375,7 +378,14 @@ async def test_the_door_refuses_past_the_session_s_budget() -> None:
 
 
 async def test_the_door_runs_a_declared_tool_under_the_session_s_host() -> None:
-    service, store, _ = _service(_connector(), record=_direct_record())
+    discussion = uuid.uuid4()
+    record = replace(
+        _direct_record(),
+        lia_conversation_id=discussion,
+        lia_conversation_revision=2,
+        lia_activity_id=uuid.uuid4(),
+    )
+    service, store, _ = _service(_connector(), record=record)
     store.consume_tool_budget = AsyncMock(return_value=True)
     runner = AsyncMock(return_value="Two events tomorrow: the dentist at nine, lunch at noon.")
     with (
@@ -389,8 +399,11 @@ async def test_the_door_runs_a_declared_tool_under_the_session_s_host() -> None:
     assert args == (EVENTS, {"query": "tomorrow"})
     assert kwargs["user_id"] == USER.id and kwargs["language"] == "fr"
     host = kwargs["host"]
-    assert host == VoiceToolHost.live_session("s" * 32, "live_session_" + "s" * 32)
+    assert host == VoiceToolHost.live_session(
+        "s" * 32, "live_session_" + "s" * 32, conversation_id=discussion
+    )
     assert host.surface == "live_session" and host.spend_node == "live_session_tool"
+    assert host.conversation_id == discussion
 
 
 async def test_the_door_answers_not_found_for_another_session() -> None:

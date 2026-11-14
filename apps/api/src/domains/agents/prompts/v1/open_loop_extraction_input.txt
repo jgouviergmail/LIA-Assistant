@@ -1,0 +1,5 @@
+CURRENT OPEN LOOPS:
+{existing_loops}
+
+CONVERSATION TAIL:
+{conversation_tail}

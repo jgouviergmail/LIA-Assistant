@@ -16,6 +16,7 @@ from src.core.constants import (
 )
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.prompt_layout import single_call_messages
+from src.core.time_utils import resolve_zone
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.open_loop_extractor import OpenLoopExtraction
 from src.domains.interests.services.extraction_service import _render_extraction_prompt
@@ -45,7 +46,7 @@ def prompts(message):
             memory_trigger_topic_max_chars=MEMORY_TRIGGER_TOPIC_MAX_CHARS,
             memory_usage_nuance_max_chars=MEMORY_USAGE_NUANCE_MAX_CHARS,
         ),
-        "interests": _render_extraction_prompt(conversation, [], "en"),
+        "interests": _render_extraction_prompt(conversation, [], "en", zone=resolve_zone(None)),
         "journal": build_introspection_prompt(
             conversation=conversation,
             existing_entries="None",

@@ -4,10 +4,12 @@
  * SkillsSettings — thin section shell for the skills gallery (UXR Lot 10).
  *
  * Owns the data hook, the section toolbar, the two scope folds (`Disclosure`),
- * the selected-skill modal, the URL-import dialog, the skill library (ADR-327) and
- * the delete confirmation; rendering lives in SkillGallery / SkillDetailModal /
- * ImportFromUrlDialog / SkillLibraryDialog (CC budgets — keep this file
- * orchestration-only).
+ * the selected-skill modal, the URL-import dialog, the skill library (ADR-327),
+ * the delete confirmation, and a skill's life (lot 14): the proposal to switch
+ * off the dormant skills and the restoration of a previous version. Rendering
+ * lives in SkillGallery / SkillDetailModal / ImportFromUrlDialog /
+ * SkillLibraryDialog / DormantSkillsNotice / SkillRestoreDialog (CC budgets —
+ * keep this file orchestration-only).
  */
 
 import { useMemo, useRef, useState } from 'react';
@@ -40,11 +42,14 @@ import { SectionToolbar, type ToolbarAction } from '@/components/settings/Sectio
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SkillGuideModal } from '@/components/settings/SkillGuideModal';
 import { SkillGallery } from '@/components/settings/SkillGallery';
-import { SkillDetailModal } from '@/components/settings/SkillDetailModal';
+import { SkillDetailModal, type SkillsTranslator } from '@/components/settings/SkillDetailModal';
 import { ImportFromUrlDialog } from '@/components/settings/ImportFromUrlDialog';
+import { DormantSkillsNotice } from '@/components/settings/DormantSkillsNotice';
+import { SkillRestoreDialog } from '@/components/settings/SkillRestoreDialog';
 import { SkillLibraryDialog } from '@/components/settings/skill-library/SkillLibraryDialog';
 import { useAppConfig } from '@/hooks/useAppConfig';
-import { useSkills, type Skill } from '@/hooks/useSkills';
+import { useSkills, type DormantDecision, type Skill } from '@/hooks/useSkills';
+import { dormantSkills } from '@/lib/skill-life';
 import { skillLibraryAvailable } from '@/lib/skill-library/availability';
 import type { LibraryTab } from '@/lib/skill-library/dialog-state';
 import { usePlugins } from '@/hooks/usePlugins';
@@ -58,7 +63,7 @@ interface SkillsSettingsProps {
   lng: Language;
 }
 
-type Translator = (key: string, options?: Record<string, string>) => string;
+type Translator = SkillsTranslator;
 type SkillsHook = ReturnType<typeof useSkills>;
 
 /** File-import handler factory (CC discipline: one top-level unit per flow). */
@@ -148,6 +153,48 @@ function makeToggleHandler(deps: { t: Translator; hook: SkillsHook }) {
   };
 }
 
+/** Answer to the dormant-skills proposal (lot 14): the server says what it settled. */
+function makeDormantHandler(deps: { t: Translator; hook: SkillsHook; proposed: Skill[] }) {
+  const { t, hook, proposed } = deps;
+  return async (decision: DormantDecision) => {
+    const ids = proposed.flatMap(skill => (skill.skill_id ? [skill.skill_id] : []));
+    try {
+      const result = await hook.settleDormant(ids, decision);
+      if (!result) return;
+      const count = result.settled.length;
+      if (count === 0) {
+        toast.info(t('settings.skills.dormant.nothing_settled'));
+        return;
+      }
+      const key = decision === 'keep' ? 'kept_toast' : 'switched_off_toast';
+      toast.success(
+        t(`settings.skills.dormant.${key}`, { count, days: hook.dormantAfterDays ?? 0 })
+      );
+    } catch {
+      toast.error(t('settings.skills.dormant.error'));
+    }
+  };
+}
+
+/** Confirmed restoration of a previous version (lot 14). */
+function makeRestoreHandler(deps: {
+  t: Translator;
+  hook: SkillsHook;
+  setRestoring: (value: Skill | null) => void;
+}) {
+  const { t, hook, setRestoring } = deps;
+  return async (skill: Skill) => {
+    try {
+      await hook.restorePreviousSkill(skill.name);
+      toast.success(t('settings.skills.previous.success', { name: skill.name }));
+    } catch {
+      toast.error(t('settings.skills.previous.error'));
+    } finally {
+      setRestoring(null);
+    }
+  };
+}
+
 /** Toast-wrapped skill actions — composition only (branches live above). */
 function useSkillsActions(args: {
   t: Translator;
@@ -159,16 +206,23 @@ function useSkillsActions(args: {
   const [importing, setImporting] = useState(false);
   const [deletingName, setDeletingName] = useState<string | null>(null);
   const [downloadingName, setDownloadingName] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState<Skill | null>(null);
+  const proposed = dormantSkills(hook.skills);
 
   return {
     importing,
     deletingName,
     setDeletingName,
     downloadingName,
+    restoring,
+    setRestoring,
+    proposed,
     handleImport: makeImportHandler({ t, hook, fileInputRef, setImporting }),
     handleDownload: makeDownloadHandler({ t, hook, setDownloadingName }),
     handleDelete: makeDeleteHandler({ t, hook, deletingName, setDeletingName, onDeleted }),
     handleToggle: makeToggleHandler({ t, hook }),
+    handleDormant: makeDormantHandler({ t, hook, proposed }),
+    handleRestore: makeRestoreHandler({ t, hook, setRestoring }),
   };
 }
 
@@ -251,12 +305,13 @@ function ScopeDisclosure(props: {
   icon: LucideIcon;
   title: string;
   skills: Skill[];
-  lng: string;
+  lng: Language;
   t: Translator;
   onOpenSkill: (skill: Skill) => void;
   onToggle: (skill: Skill) => void;
   toggling: boolean;
   onShare?: (skill: Skill) => void;
+  dormantAfterDays?: number;
 }) {
   const { icon, title, skills, lng, t, onOpenSkill, onToggle, toggling } = props;
   return (
@@ -272,6 +327,7 @@ function ScopeDisclosure(props: {
           onToggle={onToggle}
           toggling={toggling}
           onShare={props.onShare}
+          dormantAfterDays={props.dormantAfterDays}
         />
       )}
     </Disclosure>
@@ -317,10 +373,15 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
     deletingName,
     setDeletingName,
     downloadingName,
+    restoring,
+    setRestoring,
+    proposed,
     handleImport,
     handleDownload,
     handleDelete,
     handleToggle,
+    handleDormant,
+    handleRestore,
   } = useSkillsActions({ t, hook, fileInputRef, onDeleted: () => setSelected(null) });
 
   const adminSkills = skills.filter(s => s.scope === 'admin');
@@ -365,6 +426,14 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
             onShowUrlImport={() => setShowUrlImport(true)}
             onShowLibrary={libraryOffered ? () => setLibraryTab('search') : undefined}
           />
+          {/* Above the folds: a proposal is read before any list is opened. */}
+          <DormantSkillsNotice
+            skills={proposed}
+            days={hook.dormantAfterDays}
+            t={t}
+            busy={hook.settlingDormant}
+            onDecide={handleDormant}
+          />
           {adminSkills.length > 0 && (
             <ScopeDisclosure
               icon={ShieldCheck}
@@ -376,6 +445,7 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
               onToggle={handleToggle}
               toggling={toggling}
               onShare={shareSkill}
+              dormantAfterDays={hook.dormantAfterDays}
             />
           )}
           <ScopeDisclosure
@@ -388,6 +458,7 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
             onToggle={handleToggle}
             toggling={toggling}
             onShare={shareSkill}
+            dormantAfterDays={hook.dormantAfterDays}
           />
         </div>
       )}
@@ -435,6 +506,15 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
               }
             : undefined
         }
+        onRestore={setRestoring}
+      />
+      <SkillRestoreDialog
+        skill={restoring}
+        lng={lng}
+        t={t}
+        busy={hook.restoringPrevious}
+        onCancel={() => setRestoring(null)}
+        onConfirm={handleRestore}
       />
 
       <AlertDialog

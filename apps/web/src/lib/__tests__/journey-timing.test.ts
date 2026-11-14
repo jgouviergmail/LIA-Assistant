@@ -7,10 +7,12 @@ vi.mock('@/lib/product-telemetry', async importOriginal => ({
   trackClientTiming,
 }));
 
-import { clearChatTurnTiming, markChatTurnStarted } from '@/lib/journey-timing';
-import { processSSEChunk, resetTokenBatching } from '@/lib/sse-handlers';
+import { createSSEProcessor } from '@/lib/sse-handlers';
 import { buildHandlerContext } from '@/lib/sse-handlers/__tests__/context-fixture';
 import type { ChatStreamChunk } from '@/types/chat';
+
+const { processSSEChunk, resetTokenBatching, clearChatTurnTiming, markChatTurnStarted } =
+  createSSEProcessor();
 
 function token(content: string): ChatStreamChunk {
   return { type: 'token', content, metadata: null } as ChatStreamChunk;

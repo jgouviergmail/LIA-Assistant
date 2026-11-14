@@ -40,6 +40,8 @@ const LIMITS: MemoryLimits = {
   content_max_chars: 500,
   trigger_topic_max_chars: 100,
   usage_nuance_max_chars: 300,
+  import_max_memories: 500,
+  import_max_file_kb: 64,
 };
 
 function memory(over: Partial<Memory> = {}): Memory {
@@ -73,6 +75,8 @@ function hook(over: Partial<MemoriesHook> = {}) {
     updateMemory: vi.fn(),
     deleteAllMemories: vi.fn(),
     togglePin: vi.fn(),
+    importing: false,
+    importMemories: vi.fn(),
     ...over,
   };
 }
@@ -311,6 +315,116 @@ describe('MemorySettings — pinned export', () => {
     const exportBtn = await screen.findByRole('button', { name: 'memories.export' });
     expect(exportBtn.closest('.hidden')).toBeNull();
     expect(screen.queryByRole('button', { name: 'common.more_actions' })).toBeNull();
+  });
+});
+
+describe('MemorySettings — importing an export', () => {
+  const exported = () => new File(['content,category\nA fact,personal\n'], 'memories.csv');
+  const picker = () => screen.findByLabelText('memories.import_file');
+
+  it('offers Import beside Export, at every size, even with no memory yet', async () => {
+    useMemories.mockReturnValue(hook({ memories: [], total: 0 }));
+    render();
+
+    const action = await screen.findByRole('button', { name: 'memories.import' });
+    expect(action.closest('.hidden')).toBeNull();
+    expect(action).toBeEnabled();
+  });
+
+  it('sends the picked export and says what became of every entry', async () => {
+    const importMemories = vi.fn<MemoriesHook['importMemories']>().mockResolvedValue({
+      total: 3,
+      imported: 2,
+      already_present: 1,
+      duplicates: 0,
+      invalid: 0,
+    });
+    useMemories.mockReturnValue(hook({ importMemories }));
+    const { user } = render();
+    const file = exported();
+
+    await user.upload(await picker(), file);
+
+    await waitFor(() => expect(importMemories).toHaveBeenCalledWith(file));
+    expect(toast.success).toHaveBeenCalledWith(
+      'memories.import_imported · memories.import_already_present'
+    );
+    // The same file picked again is a new choice, not no change.
+    expect(await picker()).toHaveValue('');
+  });
+
+  it('does not call a file that brought nothing new a success', async () => {
+    const importMemories = vi.fn<MemoriesHook['importMemories']>().mockResolvedValue({
+      total: 2,
+      imported: 0,
+      already_present: 2,
+      duplicates: 0,
+      invalid: 0,
+    });
+    useMemories.mockReturnValue(hook({ importMemories }));
+    const { user } = render();
+
+    await user.upload(await picker(), exported());
+
+    await waitFor(() =>
+      expect(toast.info).toHaveBeenCalledWith(
+        'memories.import_imported · memories.import_already_present'
+      )
+    );
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('says why the API refused the file, in the API’s own words', async () => {
+    const importMemories = vi
+      .fn<MemoriesHook['importMemories']>()
+      .mockRejectedValue(new Error('This file is not a LIA memories export (CSV or JSON)'));
+    useMemories.mockReturnValue(hook({ importMemories }));
+    const { user } = render();
+
+    await user.upload(await picker(), exported());
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'This file is not a LIA memories export (CSV or JSON)'
+      )
+    );
+  });
+
+  it('does not send a file larger than the import reads: the bound is published', async () => {
+    const importMemories = vi.fn<MemoriesHook['importMemories']>();
+    useMemories.mockReturnValue(hook({ importMemories }));
+    const { user } = render();
+    const oversized = exported();
+    Object.defineProperty(oversized, 'size', { value: 64 * 1024 + 1 });
+
+    await user.upload(await picker(), oversized);
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('memories.import_too_large'));
+    expect(importMemories).not.toHaveBeenCalled();
+  });
+
+  it('opens the file picker from the action', async () => {
+    const { user } = render();
+    const opened = vi.spyOn(await picker(), 'click');
+
+    await user.click(await screen.findByRole('button', { name: 'memories.import' }));
+
+    expect(opened).toHaveBeenCalledTimes(1);
+  });
+
+  it('holds the action while an import runs, without dropping it from the page', async () => {
+    useMemories.mockReturnValue(hook({ importing: true }));
+    const { user } = render();
+    const opened = vi.spyOn(await picker(), 'click');
+
+    const action = await screen.findByRole('button', { name: 'memories.import' });
+    // Busy, never natively disabled: a control disabled while it holds the
+    // focus drops the keyboard user who just activated it back on the page top.
+    expect(action).toHaveAttribute('aria-busy', 'true');
+    expect(action).toBeEnabled();
+    // The guard, not the attribute, is what refuses a second file meanwhile.
+    await user.click(action);
+    expect(opened).not.toHaveBeenCalled();
   });
 });
 

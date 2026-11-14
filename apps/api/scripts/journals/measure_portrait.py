@@ -53,6 +53,7 @@ importlib.import_module("src.domains.agents.services")
 from sqlalchemy import delete, select, update  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 
+from scripts.proof_account import PROOF_ID_PREFIX, proof_user  # noqa: E402
 from src.core.config import settings  # noqa: E402
 from src.core.llm_config_helper import get_llm_config_for_agent  # noqa: E402
 from src.domains.bookmarks.indexing import discard_index, unlink_quietly  # noqa: E402
@@ -80,10 +81,8 @@ from src.domains.workboard.models import WorkboardTicket  # noqa: E402
 from src.infrastructure.database.session import get_db_context  # noqa: E402
 from src.infrastructure.llm.providers.token_counter import OpenAITokenCounter  # noqa: E402
 
-PROOF_DOMAIN = "proof-lia.dev"
 #: How far a seeded ticket, routine or reminder is put out of every worker's reach.
 INERT_FOR = timedelta(days=365)
-PROOF_ID_PREFIX = "d7db1a08"
 SEED_TAG = "portrait-measure"
 CORPUS = Path(__file__).with_name("portrait_corpus.json")
 MODELS: dict[str, type[Any]] = {
@@ -102,15 +101,6 @@ MODELS: dict[str, type[Any]] = {
 
 def _ago(days: int) -> datetime:
     return datetime.now(UTC) - timedelta(days=days)
-
-
-async def _proof_user(db: AsyncSession) -> User:
-    """The proof account, and nothing else: an owner's row is refused."""
-    rows = (await db.execute(select(User).where(User.email.like(f"%@{PROOF_DOMAIN}")))).scalars()
-    user = next((row for row in rows if str(row.id).startswith(PROOF_ID_PREFIX)), None)
-    if user is None:
-        raise SystemExit("No proof account (e-mail under proof-lia.dev, id d7db1a08…) — refusing")
-    return user
 
 
 def _refuse_anthropic() -> None:
@@ -144,7 +134,7 @@ async def seed(state_path: Path) -> None:
     corpus = json.loads(CORPUS.read_text(encoding="utf-8"))
     created: dict[str, list[str]] = {key: [] for key in MODELS}
     async with get_db_context() as db:
-        user = await _proof_user(db)
+        user = await proof_user(db)
         uid = user.id
         preexisting_entries = [
             str(row_id)

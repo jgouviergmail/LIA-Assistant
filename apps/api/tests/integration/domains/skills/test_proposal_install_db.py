@@ -18,16 +18,20 @@ from typing import Any
 import pytest
 from redis.asyncio import Redis
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from src.core.config import settings
+from src.core.conversation_target import ConversationRef
 from src.domains.shared import action_sink
 from src.domains.skills import proposal_service
 from src.domains.skills.cache import SkillsCache
 from src.domains.skills.import_commit import SkillImportCompletionUnknown, commit_skill_import
 from src.domains.skills.models import Skill
 from src.domains.skills.proposal_errors import STALE, ProposalRefusal
-from tests.fixtures.factories import UserFactory
+from src.domains.skills.proposals import SkillProposal
+from src.infrastructure.streaming import run_admission, runtime_redis
+from tests.fixtures.conversation_executions import redis_client as redis_client
+from tests.fixtures.persisted_runtimes import persist_runtime_targets
 
 pytestmark = pytest.mark.integration
 
@@ -38,12 +42,12 @@ async def test_lost_import_acknowledgement_never_replays_the_original_proposal(
     redis_client,
     recorder,
     monkeypatch,
+    target: ConversationRef,
 ) -> None:
-    actor = await _user(one_session)
-    proposal, _ = await proposal_service.propose(
+    actor = target.owner_id
+    proposal, _ = await _propose(
+        target,
         {"SKILL.md": _manifest("Controlled instructions.")},
-        owner_id=actor,
-        conversation_id="controlled",
         redis=redis_client,
     )
     commits = 0
@@ -86,14 +90,15 @@ class _Recorder:
 
 
 @pytest.fixture
-async def redis_client() -> AsyncIterator[Redis]:
-    try:
-        redis = Redis.from_url(str(settings.redis_url), decode_responses=True)
-        await redis.ping()
-    except Exception as exc:  # noqa: BLE001 — environment guard, not logic
-        pytest.skip(f"Redis not available: {exc}")
-    yield redis
-    await redis.aclose()
+async def target(
+    async_engine: AsyncEngine, committed_user_ids: list[uuid.UUID], redis_client: Redis
+) -> AsyncIterator[ConversationRef]:
+    """Use an independently committed owner, then clean only its temporary proposal keys."""
+    (target,) = await persist_runtime_targets(async_engine, committed_user_ids, count=1)
+    yield target
+    keys = [key async for key in redis_client.scan_iter(f"skill_proposal*{target.owner_id}*")]
+    if keys:
+        await redis_client.delete(*keys)
 
 
 @pytest.fixture()
@@ -112,15 +117,22 @@ def skill_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path
 
 
 @pytest.fixture()
-def one_session(async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> AsyncSession:
-    """The proposal's short validation session is the test's (rolled back at the end)."""
+async def one_session(
+    async_engine: AsyncEngine, monkeypatch: pytest.MonkeyPatch, committed_user_ids: list[uuid.UUID]
+) -> AsyncIterator[AsyncSession]:
+    """Own the click's session; validation and authority use independent short transactions."""
 
     @asynccontextmanager
     async def context() -> AsyncIterator[AsyncSession]:
-        yield async_session
+        async with AsyncSession(async_engine, expire_on_commit=False) as db:
+            yield db
+            await db.commit()
 
     monkeypatch.setattr(proposal_service, "get_db_context", context)
-    return async_session
+    monkeypatch.setattr(run_admission, "get_db_context", context)
+    monkeypatch.setattr(runtime_redis, "get_db_context", context)
+    async with AsyncSession(async_engine, expire_on_commit=False) as db:
+        yield db
 
 
 @pytest.fixture()
@@ -130,11 +142,16 @@ def recorder(monkeypatch: pytest.MonkeyPatch) -> _Recorder:
     return fake
 
 
-async def _user(db: AsyncSession) -> uuid.UUID:
-    user = UserFactory.create()
-    db.add(user)
-    await db.flush()
-    return user.id
+async def _propose(
+    target: ConversationRef, files: dict[str, str], *, redis: Redis
+) -> tuple[SkillProposal, int]:
+    """Run preparation under real admission, then close it before the independent click."""
+    async with run_admission.execution_for_turn(
+        target.owner_id, target=target, admission=None, run_id=None, language=None
+    ):
+        return await proposal_service.propose(
+            files, owner_id=target.owner_id, runtime_id=target.runtime_id, redis=redis
+        )
 
 
 async def _rows(db: AsyncSession, owner: uuid.UUID) -> list[Skill]:
@@ -148,13 +165,12 @@ async def test_the_click_installs_exactly_the_proposal(
     skill_dirs: Path,
     redis_client: Redis,
     recorder: _Recorder,
+    target: ConversationRef,
 ) -> None:
-    me = await _user(one_session)
+    me = target.owner_id
     files = {"SKILL.md": _manifest("Do the thing."), "references/notes.md": "# notes\n"}
 
-    proposal, _ = await proposal_service.propose(
-        files, owner_id=me, conversation_id=f"conv-{me}", redis=redis_client
-    )
+    proposal, _ = await _propose(target, files, redis=redis_client)
     assert await _rows(one_session, me) == [], "a proposal registered a skill"
 
     installed = await proposal_service.install(one_session, me, proposal.id, redis=redis_client)
@@ -181,22 +197,18 @@ async def test_a_replacement_installs_the_described_version_and_nothing_older(
     skill_dirs: Path,
     redis_client: Redis,
     recorder: _Recorder,
+    target: ConversationRef,
 ) -> None:
-    me = await _user(one_session)
-    first, _ = await proposal_service.propose(
-        {"SKILL.md": _manifest("v1")}, owner_id=me, conversation_id="c", redis=redis_client
-    )
+    me = target.owner_id
+    first, _ = await _propose(target, {"SKILL.md": _manifest("v1")}, redis=redis_client)
     await proposal_service.install(one_session, me, first.id, redis=redis_client)
 
-    second, _ = await proposal_service.propose(
+    second, _ = await _propose(
+        target,
         {"SKILL.md": _manifest("v2"), "references/new.md": "new\n"},
-        owner_id=me,
-        conversation_id="c",
         redis=redis_client,
     )
-    third, _ = await proposal_service.propose(
-        {"SKILL.md": _manifest("v3")}, owner_id=me, conversation_id="c", redis=redis_client
-    )
+    third, _ = await _propose(target, {"SKILL.md": _manifest("v3")}, redis=redis_client)
     assert second.changes is not None
     assert second.changes.added == ("references/new.md",)
     assert second.changes.modified == ("SKILL.md",)

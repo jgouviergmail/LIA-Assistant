@@ -16,12 +16,12 @@ seam would only make the call site harder to check against the bag above it.
 from __future__ import annotations
 
 import asyncio
-import uuid
 from typing import Any
 
 from langgraph.store.base import BaseStore
 
 from src.core.application_origin import ApplicationOrigin
+from src.core.conversation_target import ConversationRef
 from src.core.exchange_rhythm import effective_exchange_rhythm
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.models import MessagesState
@@ -32,8 +32,7 @@ __all__ = ["build_runtime_context"]
 def build_runtime_context(
     *,
     state: MessagesState,
-    user_id: uuid.UUID,
-    conversation_id: uuid.UUID,
+    target: ConversationRef,
     memory_store: BaseStore | None = None,
     tool_deps: Any = None,
     browser_context: Any = None,
@@ -61,8 +60,7 @@ def build_runtime_context(
         state: Graph state; the display name, timezone and language are read
             from it directly rather than re-passed, so the call site cannot
             forward a value that disagrees with the state it came from.
-        user_id: The acting user. Stays a ``uuid.UUID`` — no string twin.
-        conversation_id: The conversation; also becomes the LangGraph thread.
+        target: The owned business identity and its admitted runtime generation.
         memory_store: Long-term memory store compiled into the graph.
         tool_deps: Tool dependency container (live object, by reference).
         browser_context: Consented geolocation and client hints, when supplied.
@@ -92,8 +90,7 @@ def build_runtime_context(
     }
 
     return LiaRuntimeContext.for_conversation(
-        user_id=user_id,
-        conversation_id=conversation_id,
+        target=target,
         store=memory_store,
         memory_enabled=user_memory_enabled,
         journals_enabled=user_journals_enabled,
@@ -104,7 +101,7 @@ def build_runtime_context(
             application_origin
             if not is_automated_source
             and application_origin is not None
-            and application_origin.user_id == user_id
+            and application_origin.user_id == target.owner_id
             else None
         ),
         exchange_rhythm=effective_exchange_rhythm(user_exchange_rhythm),

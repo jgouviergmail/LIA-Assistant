@@ -16,6 +16,7 @@ from src.domains.agents.services import response_context
 from src.domains.agents.services.response_context import ResponseContextBundle
 from src.domains.agents.services.streaming.service import StreamingService
 from src.domains.agents.services.streaming.voice_scope import VoiceScope
+from tests.fixtures.conversation_cases import conversation_target
 
 pytestmark = pytest.mark.unit
 node = import_module("src.domains.agents.nodes.response_node")
@@ -45,8 +46,7 @@ async def test_mode_reaches_prompt_history_selection_rendering_and_sse(
 ) -> None:
     """Exercise the node itself: substituting I/O must not bypass its mode decisions."""
     context = LiaRuntimeContext.for_conversation(
-        user_id=uuid4(),
-        conversation_id=uuid4(),
+        target=conversation_target(uuid4(), uuid4()),
         display_mode=display_mode,
         voice_enabled=voice_enabled,
     )
@@ -164,7 +164,7 @@ async def test_reference_only_items_are_candidates_before_selection(
 ) -> None:
     """A retained reference can render; rejection must not revive its fallback card."""
     context = LiaRuntimeContext.for_conversation(
-        user_id=uuid4(), conversation_id=uuid4(), display_mode=display_mode
+        target=conversation_target(uuid4(), uuid4()), display_mode=display_mode
     )
     monkeypatch.setattr(runtime_context, "runtime_context_if_running", lambda: context)
     prose = "Here is the reference." if selection else "No relevant record."

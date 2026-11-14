@@ -5,6 +5,244 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0] - 2026-11-14
+
+**A discussion for every subject.**
+LIA now keeps a permanent **Main** discussion and as many side discussions as you have subjects, each
+with its own history, draft and cost, searched together and exported one by one. You can write while
+LIA answers: your words wait their turn, or join the answer in progress. A routine starts on another
+system's signed call or when a web page changes, a mail says whether you already answered it and is
+drafted in your own voice, documents compute, chart and illustrate themselves, and the web is
+searched without a key of your own.
+
+### Added
+
+- 💬 **Several discussions** (ADR-378): the pill in the middle of the chat header opens
+  **Discussions**: **Main**, permanent, where reminders, routines and unsolicited messages keep
+  arriving, and the side discussions you create, titled by you or by the beginning of your first
+  message. Each has its own history, draft and session badge (tokens, cost, context); memories, the
+  journal and preferences stay the account's. A side discussion is renamed, reset or deleted, any
+  discussion is exported as Markdown, and one answer runs per account at a time, so more discussions
+  add no parallel cost.
+- 🔎 **Search all discussions** (ADR-378 amendment): the history search finds your words in Main and
+  in every side discussion, newest first, names the discussion and opens it at the message. Asked in
+  the chat, LIA searches what was said word for word, with no model call.
+- ⏳ **Write while LIA works** (ADR-384): the composer stays open while an answer is being written.
+  **Send next** keeps your text on the server as a waiting message, one per discussion, that you can
+  edit, withdraw or **Send now** (which stops the answer first). It leaves by itself after an answer
+  that ended normally, waits for your click after an interruption, and is never read as the answer to
+  a question LIA asked. Text only: an attachment or a dictation still waits for the end.
+- ➕ **Add to the answer in progress** (ADR-385): in ReAct mode a waiting message can join the answer
+  being written. LIA reads it at its next step, the note stays marked in the thread, and one it did
+  not read goes back to waiting.
+- 📡 **A routine started by another system** (ADR-386): the trigger **When another system calls it**
+  gives a routine its own address and a secret shown once. A call signed with HMAC-SHA256 (a code
+  forge's `X-Hub-Signature-256` is read alike) starts it within a minute, a delivery sent twice is
+  stored once, and what the caller sent is read as data, never as instructions. A new secret can be
+  drawn at any time and retires the previous one.
+- 👀 **A routine that watches a web page** (ADR-387): the condition **A web page changes** reads a
+  public page with no model, hourly by default, and runs the routine when new lines appear: a price, a
+  stock notice, a date. **Only lines containing** narrows it. A page drawn by scripts or kept behind a
+  sign-in may show nothing, and a page that could not be read is said, never read as unchanged.
+- 🧩 **Ready-made routines, and quieter ones** (ADR-265 amendment): four templates fill the form
+  (**Morning briefing**, **Inbox triage**, **Weekly review**, **Overdue task**) and two built-in
+  skills carry the weekly review and the inbox triage. **Only notify me when there is something new**
+  keeps the answer in the chat and holds the notification back when the run found nothing new; in
+  doubt, it notifies.
+- ✉️ **Mail that knows it was answered** (ADR-379): a listed mail says where it stands (**Answered**,
+  **Reply drafted, not sent**, **Reply received**) in the chat's cards, on the home, in Tools › Mail
+  and in a contact's latest exchanges, read from your mailbox with no model call. LIA stops offering
+  to answer what you answered, notifications leave answered mail out, and a new reply continues from
+  yours. A state that could not be read is « not known », never « unanswered ».
+- 🖋️ **E-mails in your own voice** (ADR-383): the first time LIA writes an e-mail for you, it learns
+  how you write (greeting, sign-off, signature, register, length) from your latest sent e-mails, never
+  what you wrote about. **Settings › Writing style** shows what was learned, stored encrypted and
+  learned again regularly, with a switch and **Forget**.
+- 📊 **Documents that compute, chart and illustrate** (ADR-388): a spreadsheet carries formulas that
+  recalculate, totals, named assumptions, key figures, drop-down lists and native charts; a
+  presentation gains key-figure tiles, quotes, an agenda, pictograms and editable charts; a report
+  gains a cover page, numbered figures, cited sources and landscape pages for wide tables; a tone sets
+  the palette. **Settings › Documents** decides whether LIA illustrates a document (each picture is an
+  image generation, counted in your costs) and animates a deck that is presented.
+- 🌐 **Web search without a key** (ADR-382): where the instance runs its own search (SearXNG, proposed
+  by default by the installer), an account with no search key gets web links in the chat's search, the
+  answer's enrichment, the interest watch and the Tools' research. Your own Brave key keeps priority.
+- 🧰 **Known MCP servers**: **Known MCPs** opens a gallery of 32 vendor-hosted servers (Notion,
+  GitHub, Linear, Asana, Todoist, Canva, Hugging Face…), each with its icon and how it signs in. A
+  tile opens the form already filled, a server already added is marked **Installed**, and « add the
+  Notion MCP server » works from the chat.
+- 🗂️ **Workboard categories** (ADR-276 amendment): **Categories** sorts your tickets into lanes, plus
+  **To categorize**; a card is dragged across lanes on a computer and takes its category from a list
+  on a phone, and deleting a category deletes no ticket. The board becomes a destination of the menu,
+  with **The board at a glance** above its filters, and LIA reads, filters and files by category name.
+- ✅ **Tasks from every list** (ADR-369 amendment): the Tools open on **All tasks**, and every reader
+  (the chat, the home, the briefing, proactive notifications, the radio, the titles shared with a
+  connection) reads all your lists and names each task's list. The default list is only where a new
+  task goes, and an act on a task runs in the task's own list.
+- 📎 **Fifteen document formats in the chat** (ADR-295 amendment): Word, Excel, PowerPoint,
+  OpenDocument, EPUB, RTF, CSV, Markdown, HTML, JSON, XML and plain text join images and PDFs as
+  attachments, each recognised by its content rather than its name.
+- 🧠 **Skills you use, memories you bring back** (ADR-165 amendment): a skill says how often it was
+  used; one left unused for 60 days is proposed for **Switch them off** or **Keep them**, and a
+  replaced skill keeps one previous version to restore. **Import** reads a memories export (CSV or
+  JSON) back in, everything new or nothing, with the exact counts.
+- 🗺️ **A map in an interactive page** (ADR-370 amendment): a page can draw a map you drag and zoom,
+  from the tile sources the administrator allows; a part the page was refused is said under the page
+  instead of staying blank.
+- 🕰️ **LIA reads when each message was written** (ADR-381): a conversation resumed days later is no
+  longer read as if everything had just been said.
+- 🌦️ **A companion that lives the moment** (ADR-294 follow-ups): it acknowledges a message, presents
+  the answer then hands over, looks at what matters on the screen, opens its mouth on the voice
+  actually heard, and plays the weather observed where you are.
+- 🌗 **Automatic, from the title bar** (ADR-243 amendment): for a signed-in account the theme button
+  goes light, dark, absolute black, then automatic.
+
+### Changed
+
+- 🔁 **Reset replaces Delete in the chat** (ADR-279 amendment): it clears the discussion on screen and
+  keeps its title; an uploaded file goes only when that discussion held its last use, and generated
+  files, memories, kept answers and recorded costs stay.
+- ⏰ **A routine says why it did not run** (ADR-265 amendment): you are told at the first failure of a
+  series and when a routine is paused; a usage ceiling is **skipped**, not failed, and told once; an
+  occurrence reached too late is marked **missed** instead of run late (it is caught up within half
+  its interval, two hours at most by default); a busy account is waited for.
+- 🌍 **Web results are no longer filtered**: Brave and the instance's search are asked without
+  safe-search on every request (ADR-382 amendment).
+- 🎚️ **Only what the instance offers** (ADR-280, ADR-172, ADR-277 amendments): a section, a menu
+  destination, a pinned shortcut or a workspace whose capability the administrator switched off is no
+  longer listed, instead of opening on a refusal; a stored phone number or telephony key stays
+  visible and removable.
+- 📞 **Voice opens on verified tools** (ADR-373, ADR-290 amendments): before a call, a Live start, a
+  wake or a reconnection with an ElevenLabs agent, LIA's tools are held exact in your workspace; a set
+  that cannot be made exact refuses the conversation instead of leaving without tools.
+- 📱 **Lighter screens**: on a phone the chat header holds on one row and five lists fold their sort
+  and filters behind **Filters**; in the Tools the selection bars of mail, files and tasks hold on one
+  line, the mail bar in the reader's own words. The SMS archive opens on what arrived last, day by
+  day, the grouping by sender one press away.
+- 🛠️ **The installer asks for an Anthropic and a DeepSeek key** (ADR-215 amendment) and checks each
+  one with its provider; a new installation starts on the reference configuration production runs,
+  and Claude Fable 5.2 joins the model catalogue (ADR-306 amendment).
+- 🧮 **The history summary runs on the Context Compaction slot** (ADR-244 amendment): it no longer
+  needs a key of its own.
+- 🔌 **API**: a turn names its discussion (`conversation_id` with `conversation_revision`), a busy
+  account answers 409 `run_in_progress` for the whole account, naming the discussion it works in, and
+  the history is paged by an opaque cursor.
+
+### Removed
+
+- 🔍 The `search` parameter of `GET /conversations/me/messages`, replaced by
+  `GET /conversations/me/search` across every discussion.
+- ⚙️ The **Workboard** settings section, whose figures are now **The board at a glance**, and the
+  `SUMMARIZATION_MODEL` setting (a leftover is ignored).
+- 🧹 The Redis lock of the running answer (occupancy is a database row no expiry releases), with the
+  metrics `conversation_reset_keys_kept_total` and `reset_undeclared_family_total`.
+
+### Fixed
+
+- 📅 **An event moved or edited in Tools › Calendar** no longer lands an hour late (ADR-380): a time
+  you say travels with its zone to Google, Microsoft and Apple. On iCloud the assistant can change a
+  timed event again, and a series created in winter keeps its hour in summer.
+- ⏱️ **A deadline said without a zone** (« by Tuesday 6 pm ») is kept at your hour, no longer shifted
+  to UTC (ADR-139, ADR-381 amendments).
+- ✅ **A task asked « in list X »** no longer lands in the default list in silence, an act on a task
+  of another list finds it, and a Microsoft To Do read no longer fails on a filter Graph refuses.
+- ✉️ **A mail opened since it arrived** is no longer announced as unread (ADR-261 amendment), and
+  **Reply expected** leaves a mail you answered.
+- 🔁 **A failing routine** no longer fails five times and switches off without a word, and a routine
+  of an account at its usage ceiling no longer loops unseen.
+- 🌐 **A failed web source** (Brave, Perplexity, Wikipedia) is named in the answer instead of reading
+  as « nothing found », and a degraded answer is not cached.
+- 🧾 **An answer no longer claims a « fallback »** for a source that simply answered (ADR-310
+  amendment).
+- 📚 **A knowledge space fed by a Gmail label** no longer synchronises in a loop, a large label or
+  folder no longer ends in refused embeddings (ADR-129, ADR-254, ADR-262 amendments), and a text file
+  with Western accents is read as written.
+- 📄 **A generated document** is no longer lost, or paid several times, when its structure came back
+  as text or with a stray bracket (ADR-100 amendment).
+- 🔐 **A personal MCP server switched to OAuth** offers **Connect via OAuth** again, and tokens are
+  never stored on a server edited while you were consenting.
+- 🖱️ **A list opened inside a dialog** no longer freezes the page, and a list or a switch keeps the
+  keyboard focus while it saves.
+- 🧭 **With a capability switched off by the administrator**, no screen keeps offering it or opens on
+  an error, and a stored telephony key can be removed.
+- 🗺️ **An interactive page asked for a map** no longer shows an empty frame without a word.
+- 🎭 **The companion** no longer draws a brow over an eye, starts a scene in the middle of an answer
+  or reads from left to right while it speaks, and costs far less to draw.
+- 🌗 **The theme button** no longer undoes a press as it is drawn when the server answers at once,
+  two tabs of one account no longer answer each other in a flicker, and entering automatic by day
+  keeps its reveal (ADR-243 follow-up).
+- 💬 **The SMS destination** no longer wears the chat's icon in the menu, and **Send by mail** only
+  sends a file that is ready.
+- 🔎 **The public site names addresses that answer**: the home of a prefixed language is `/en`, no
+  longer `/en/`, which redirected and weakened its canonical URL and its language alternates. The
+  sitemap lists every language version with its whole set of alternates and dates a page from what
+  changes it, never from the moment it is asked; `/faq`, `/changelog` and `/demo` carry a title and a
+  description of their own, and the sign-in pages their canonical URL. A page that must stay out of
+  the index (password reset, e-mail verification, OAuth returns, the dashboard) answers
+  `X-Robots-Tag: noindex`, and the HowTo structured data of a section the landing no longer shows is
+  gone.
+
+### Security
+
+- 🧱 **Account deletion cannot lose work** (ADR-067 amendment): the account is fenced while its files
+  and discussions are cleaned, cannot be reactivated meanwhile, and the final erasure has one door.
+- 🪝 **A routine's secret** is stored encrypted, shown once, never written to a log, a chat message or
+  the account export, and out of the text menus' reach.
+- 🧾 **`validate_settings`** names a refused field and never prints its value (ADR-250 amendment), and
+  a verified e-mail address no longer appears in a log line.
+- 📦 **Dependencies**: cbor2 6.3.0 and soupsieve 4.1 (Python), vite 8.3.8, minimatch 11.0.8, glob
+  14.0.6 and tldts 7.5.2 (build and test tools) close the advisories this release's watch read
+  (ADR-331); `pnpm audit` and `pip-audit` read clean.
+
+### Operations and documentation
+
+- 🗃️ **Migrations**: 29 revisions in one chain, up to `7c2e5b9d4a18`. Discussions, their durable
+  execution and the files they use: `b43c6d9e1a72`, `c58d9e2f4a61`, `d69e1f3a5b72`, `f81a3b5c7d94`,
+  `a92b4c6d8e05`, `b03c5d7e9f16`, `c14d6e8f0a27`, `d25e7f9a1b38`, `e36f8a0b2c49`, `f4709b1c3d50`,
+  `a5810c2d4e61`, `d8f6b4a10c2e`, `f302f3667c58` and `dd5668ab9b2c`; routine outcomes and options:
+  `e70f2a4b6c83`, `1e2baddce0fe`, `7a3c9e51d4b8` and `b6e2f48a1c93`; workboard categories:
+  `92fba8ef5778`; catalogue rows: `5cccb7a8d77f`, `43891b5db14c`, `45cf916cc02f` and `27fc835b8d44`;
+  skill use: `c4d9e1f7a2b5`; writing styles: `a57db671b943`; waiting messages and notes:
+  `41dd8c9c2117` and `a696c8a365f2`; document preferences: `d6a3f0c2b8e1`; routine webhooks:
+  `7c2e5b9d4a18`. Every existing discussion becomes its account's Main. Stop the old workers before
+  migrating, as a deploy does, and keep the dump: several downgrades refuse once the new tables hold
+  data.
+- 🐳 **One optional Compose service**, `searxng`, behind its own profile: proposed by default by the
+  installer, off after an upgrade, and no mandatory key. The self-hosting guide has a note for this
+  upgrade.
+- ⚙️ **Settings**: new `SECONDARY_CONVERSATIONS_ENABLED`, `CONVERSATION_*`,
+  `ACCOUNT_CLEANUP_WAIT_SECONDS`, `ROUTINE_WEBHOOK*`, `SCHEDULED_ACTIONS_PAGE_CHECK_MINUTES`,
+  `SCHEDULED_ACTIONS_CATCH_UP_MAX_MINUTES`, `SCHEDULED_ACTIONS_QUOTA_NOTICE_COOLDOWN_HOURS`,
+  `SEARXNG_URL`, `MAIL_REPLY_STATE_*`, `WRITING_STYLE_*`, `DOCUMENT_ILLUSTRATIONS_MAX`,
+  `INTERACTIVE_PAGE_MAP_PROVIDERS`, `WORKBOARD_MAX_CATEGORIES_PER_USER`, `SKILLS_DORMANT_AFTER_DAYS`,
+  `MEMORY_IMPORT_*`, `ATTACHMENTS_MAX_INFLATED_MB` and `EMBEDDING_PATIENT_RETRY_MAX_WAIT_SECONDS`, all
+  with defaults. `ATTACHMENTS_ALLOWED_DOC_TYPES` now defaults to every format a space reads: an `.env`
+  that kept `application/pdf` keeps PDFs alone.
+- 📈 **Observability**: `chat_waiting_messages_total`, `sse_token_gap_seconds`,
+  `conversation_cleanup_*`, `conversation_executions_recovering`, `mail_reply_state_*`,
+  `routine_webhook_calls_total`, `routine_webhook_calls_served_total` and
+  `live_agent_tools_repaired_total`, each read by a dashboard or an alert. Six alerts join
+  (`ConversationExecutionRecoveryRequired`, `ConversationCleanupDelayed`,
+  `ConversationCleanupSnapshotStale`, `OOMKillDetected`, `RagSourceRecoveryLoop`,
+  `AlertNotificationsFailing`), `DiskSpaceCritical` leaves read-only filesystems out (ADR-119
+  amendment), and a deployment checks its settings in the new image before it switches (ADR-250
+  amendment).
+- 🧪 **Measurement benches**: `task agents:timestamps:measure`, `emails:writing-style:measure`,
+  `routines:quiet:measure`, `react:notes:measure`, `documents:writer:measure`,
+  `skills:detection:measure`, `skills:from-conversation:measure`, `connectors:searxng:measure`,
+  `mcp:known-servers:check` and three for model-output health (`agents:repetition:measure`,
+  `agents:model-tail:measure`, `agents:history-tokens:measure`).
+- 📚 **Documentation**: ADR-378 to ADR-388, amendments to ADR-067, 100, 117, 119, 129, 139, 165, 172,
+  182, 215, 229, 230, 243, 244, 250, 252, 254, 260, 261, 262, 265, 274, 276, 277, 279, 280, 290, 294,
+  295, 306, 307, 310, 319, 322, 344, 369, 370, 373 and 377, `SECONDARY_CONVERSATIONS.md`,
+  `WAITING_MESSAGES.md`, `ROUTINE_WEBHOOKS.md`, `MAIL_REPLY_STATE.md`, `WRITING_STYLE.md`,
+  `WEB_SEARCH.md`, `MODEL_OUTPUT_HEALTH.md`, five runbooks (the recovery of a conversation execution
+  and four alerts), six-language FAQ and knowledge, public guides, settings search and the
+  functional, technical and decision maps. On the public site, the landing cards, three blog
+  articles and the « How LIA works » cards follow the release, and `/more` gains six attentions
+  with their scenes (a message that waits its turn, a mail that says where it stands, a routine that
+  says why, known servers, lanes, skills that say whether they serve).
+
 ## [4.6.0] - 2026-11-10
 
 **Everywhere, your way.**

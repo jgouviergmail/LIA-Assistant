@@ -61,6 +61,8 @@ MARKER_REQUIRED: tuple[str, ...] = (
     "image_prompt_enhancement_prompt",
     # Mailbox drafts (ADR-344): the reply's rules first, the received e-mail in the tail
     "mailbox_reply_draft_prompt",
+    # Writing style (ADR-383): the request first, the person's sent e-mails in the tail
+    "writing_style_profile_prompt",
     # The Tools (ADR-372): the rules first, the person's words in the tail
     "tool_assist_rewrite_prompt",
     "tool_assist_translate_prompt",
@@ -161,15 +163,15 @@ ALLOWED_BEFORE_MARKER: dict[str, frozenset[str]] = {
     # they quantify, or a writer reads a rule whose number lives elsewhere.
     # The same rule for a page's ceiling (ADR-370): the setting read through the
     # slot's output budget, invariant for a deployment, beside the rule it bounds.
-    "interactive_page_prompt": frozenset({"max_page_kb"}),
-    "document_generation_prompt": frozenset(
-        {
-            "max_bullets_per_slide",
-            "max_bullet_chars",
-            "toc_min_headings",
-            "length_budget_words",
-        }
-    ),
+    # ``map_tile_sources``: the map sources the frame's policy allows, one setting
+    # (``INTERACTIVE_PAGE_MAP_PROVIDERS``) read by the policy and by this list, so
+    # it changes with a deployment and never between two requests.
+    "interactive_page_prompt": frozenset({"max_page_kb", "map_tile_sources"}),
+    # The family budgets moved to one file per family (2026-11-13), inserted
+    # before the marker by ``document_generation/prompts.py`` and checked there.
+    # ``chart_max_series``: the palette's size (``typography.CHART_MAX_SERIES``), a
+    # constant of the code — invariant for every deployment — beside the rule it bounds.
+    "document_generation_prompt": frozenset({"length_budget_words", "chart_max_series"}),
     # Personality block in the static header; stable per user.
     "heartbeat_message_prompt": frozenset({"personality_instruction"}),
     # The bound the enhancement checks enforce, published next to the rule it

@@ -278,16 +278,59 @@ async def test_list_tools_reads_every_page_of_the_workspaces_client_tools() -> N
         seen.append(request)
         return httpx.Response(200, json=pages[request.url.params.get("cursor")])
 
-    tools = await _client(handler).list_tools()
+    tools = await _client(handler).list_tools("client")
 
     # What is not a tool the vendor described is not read as one.
     assert [tool["id"] for tool in tools] == ["t1", "t2"]
     assert [request.url.params.get("cursor") for request in seen] == [None, "c2"]
     for request in seen:
         assert request.method == "GET" and request.url.path == "/v1/convai/tools"
-        # LIA only ever creates client tools: nothing else is read.
+        # Only the kind asked for is read: the live session's client tools here.
         assert request.url.params["types"] == "client"
         assert int(request.url.params["page_size"]) == ELEVENLABS_TOOLS_PAGE_SIZE
+
+
+@pytest.mark.unit
+async def test_list_tools_reads_the_phones_webhook_tools_when_asked() -> None:
+    """The phone's tools are WEBHOOK tools (measured 2026-11-11: the listing
+    filters on ``types``): a phone verification reads those, never the client ones."""
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.params["types"])
+        hook = {"id": "h1", "tool_config": {"type": "webhook", "name": "get_events_tool"}}
+        return httpx.Response(200, json={"tools": [hook], "has_more": False})
+
+    tools = await _client(handler).list_tools("webhook")
+    assert [tool["id"] for tool in tools] == ["h1"]
+    assert seen == ["webhook"]
+
+
+@pytest.mark.unit
+async def test_update_tool_rewrites_the_tool_in_place_under_its_id() -> None:
+    """Measured 2026-11-11: ``PATCH /tools/{id}`` REPLACES the tool's config and
+    keeps its id, so every agent naming it holds the rewritten tool at once."""
+    seen: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["method"] = request.method
+        seen["path"] = request.url.path
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"id": "tool_x", "tool_config": {}})
+
+    body = {"tool_config": {"type": "client", "name": "send_to_lia", "description": "d"}}
+    await _client(handler).update_tool("tool_x", body)
+    assert seen == {"method": "PATCH", "path": "/v1/convai/tools/tool_x", "body": body}
+
+
+@pytest.mark.unit
+async def test_update_tool_raises_a_vendor_refusal() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, json={"detail": {"type": "not_found"}})
+
+    with pytest.raises(ElevenLabsAgentsError) as refused:
+        await _client(handler).update_tool("tool_gone", {"tool_config": {"name": "x"}})
+    assert refused.value.status_code == 404
 
 
 @pytest.mark.unit
@@ -304,7 +347,7 @@ async def test_list_tools_stops_at_its_page_bound() -> None:
             200, json={"tools": [_tool(f"t{calls}")], "has_more": True, "next_cursor": "again"}
         )
 
-    tools = await _client(handler).list_tools()
+    tools = await _client(handler).list_tools("client")
     assert calls == ELEVENLABS_TOOLS_LIST_MAX_PAGES
     assert len(tools) == ELEVENLABS_TOOLS_LIST_MAX_PAGES
 
@@ -315,7 +358,7 @@ async def test_list_tools_raises_a_vendor_refusal() -> None:
         return httpx.Response(500, json={"detail": "boom"})
 
     with pytest.raises(ElevenLabsAgentsError):
-        await _client(handler).list_tools()
+        await _client(handler).list_tools("client")
 
 
 @pytest.mark.unit

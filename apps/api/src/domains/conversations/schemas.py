@@ -7,9 +7,14 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-from src.core.constants import RESPONSE_FEEDBACK_COMMENT_MAX_LENGTH
+from src.core.constants import (
+    CONVERSATION_HISTORY_CURSOR_MAX_LENGTH,
+    CONVERSATION_REVISION_MAX,
+    RESPONSE_FEEDBACK_COMMENT_MAX_LENGTH,
+)
+from src.core.conversation_target import ConversationKind
 
 
 class ResponseFeedbackRequest(BaseModel):
@@ -31,12 +36,20 @@ class ConversationResponse(BaseModel):
     id: UUID = Field(..., description="Conversation UUID")
     user_id: UUID = Field(..., description="User UUID")
     title: str | None = Field(None, description="Conversation title")
+    kind: ConversationKind = Field(
+        ConversationKind.MAIN, description="Permanent main or secondary discussion."
+    )
+    revision: int = Field(
+        0,
+        ge=0,
+        description="Current generation; reset advances it without changing the discussion id.",
+    )
     message_count: int = Field(..., description="Number of messages in conversation")
     total_tokens: int = Field(..., description="Total tokens consumed")
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ConversationMessageResponse(BaseModel):
@@ -109,6 +122,14 @@ class ConversationMessagesResponse(BaseModel):
         ),
     )
     conversation_id: UUID = Field(..., description="Conversation UUID")
+    conversation_revision: int = Field(
+        ge=0, le=CONVERSATION_REVISION_MAX, description="Generation of this history page."
+    )
+    next_page_cursor: str | None = Field(
+        default=None,
+        max_length=CONVERSATION_HISTORY_CURSOR_MAX_LENGTH,
+        description="Opaque composite cursor. Pass as cursor to load older messages without timestamp gaps.",
+    )
     total_count: int = Field(
         ...,
         description=(
@@ -135,6 +156,37 @@ class ConversationMessagesResponse(BaseModel):
     )
 
 
+class DiscussionSearchResult(BaseModel):
+    """One message containing the words, with the discussion that holds it."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    message_id: UUID = Field(..., description="Message UUID")
+    role: str = Field(..., description="Who wrote it: 'user' (the person) or 'assistant'")
+    content: str = Field(..., description="The message as the chat shows it")
+    created_at: datetime = Field(..., description="When it was written")
+    conversation_id: UUID = Field(..., description="Discussion holding the message")
+    conversation_kind: ConversationKind = Field(..., description="Main or a secondary discussion")
+    conversation_title: str | None = Field(
+        None, description="A secondary discussion's title; null for Main, labelled by the reader"
+    )
+    conversation_revision: int = Field(
+        ge=0, le=CONVERSATION_REVISION_MAX, description="The discussion's current generation"
+    )
+
+
+class DiscussionSearchResponse(BaseModel):
+    """A page of a search across every discussion of the account, newest first."""
+
+    results: list[DiscussionSearchResult] = Field(..., description="Matching messages")
+    has_more: bool = Field(..., description="True when older matches remain beyond this page")
+    next_cursor: str | None = Field(
+        default=None,
+        max_length=CONVERSATION_HISTORY_CURSOR_MAX_LENGTH,
+        description="Opaque position of the last result; pass it back as cursor for the next page",
+    )
+
+
 class ConversationResetResponse(BaseModel):
     """Response model for conversation reset action."""
 
@@ -157,6 +209,8 @@ class ConversationTotalsResponse(BaseModel):
     """Response model for conversation totals (tokens + cost)."""
 
     conversation_id: UUID = Field(..., description="Conversation UUID")
+    conversation_revision: int = Field(ge=0, description="Conversation generation of the totals")
+    user_message_count: int = Field(ge=0, description="Exact count of visible user messages")
     total_tokens_in: int = Field(0, description="Total input tokens (historical)")
     total_tokens_out: int = Field(0, description="Total output tokens (historical)")
     total_tokens_cache: int = Field(0, description="Total cached tokens (historical)")

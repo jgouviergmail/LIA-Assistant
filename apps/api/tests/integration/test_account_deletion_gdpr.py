@@ -14,17 +14,39 @@ row is soft-deleted — FK CASCADEs never fire. Reproduced defects:
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
+from src.domains.conversations import cleanup_port
 from src.domains.health_metrics.models import HealthMetricToken, HealthSample
 from src.domains.health_metrics.service import HealthMetricsService
+from src.domains.users import account_cleanup_port
 from src.domains.users.account_deletion_service import AccountDeletionService
 from src.domains.users.models import User
+from src.infrastructure.account_cleanup_runtime import NativeAccountCleanup
+from src.infrastructure.conversation_cleanup_runtime import NativeRuntimeCleanup
+from tests.helpers.committed_account_session import async_session as async_session
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(autouse=True)
+def native_cleanup(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Install production cleanup ports on the disposable database and file roots."""
+    monkeypatch.setattr(account_cleanup_port, "_cleanup", NativeAccountCleanup())
+    monkeypatch.setattr(cleanup_port, "_runtime_cleanup", NativeRuntimeCleanup())
+    for name in (
+        "attachments_storage_path",
+        "rag_spaces_storage_path",
+        "skills_users_path",
+        "plugins_users_path",
+        "meetings_storage_path",
+    ):
+        monkeypatch.setattr(settings, name, str(tmp_path / name))
 
 
 async def _seed_health_data(db: AsyncSession, user: User) -> str:
@@ -62,11 +84,6 @@ async def _prepare_deletable_user(db: AsyncSession, user: User) -> None:
     user.is_active = False
     user.last_known_location_encrypted = "encrypted-location-blob"
     user.last_known_location_updated_at = datetime.now(UTC)
-    await db.commit()
-
-    # delete_account purges the LangGraph store with raw SQL; that table is
-    # owned by LangGraph setup (not ORM metadata), so create a minimal stand-in.
-    await db.execute(text("CREATE TABLE IF NOT EXISTS store (prefix TEXT)"))
     await db.commit()
 
 

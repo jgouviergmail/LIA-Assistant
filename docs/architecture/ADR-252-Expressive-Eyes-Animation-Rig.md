@@ -277,7 +277,10 @@ that honest:
 
 Measured per frame, the rig itself costs ~3.5 µs; the DOM write dominates, and
 a settled channel writes nothing at all (a value that cannot change its own
-displayed text is never even formatted).
+displayed text is never even formatted). What that write costs was measured in
+a browser on 2026-11-11: it is the style recalculation of the tree below the
+root, not the call — see the follow-up in
+[ADR-294](ADR-294-A-Face-That-Never-Plays-The-Same-Twice.md).
 
 Four more reductions came from the mouth, which took the channel count past
 fifty and put the widget's long-clock tests over their budget under coverage

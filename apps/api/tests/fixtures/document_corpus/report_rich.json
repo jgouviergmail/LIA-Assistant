@@ -1,0 +1,127 @@
+{
+  "doc_types": [
+    "docx",
+    "pdf",
+    "md",
+    "txt"
+  ],
+  "language": "fr",
+  "pictures": "synthetic",
+  "content": {
+    "filename_stem": "bilan-portuaire",
+    "title": "Bilan annuel du port de commerce",
+    "subtitle": "Conseil d'administration, novembre 2026",
+    "tone": "institutional",
+    "illustration": {
+      "subject": "a commercial harbour at dawn with container cranes",
+      "alt": "Le port de commerce à l'aube, ses portiques à conteneurs."
+    },
+    "image_style": "clean editorial photography, cool morning light",
+    "blocks": [
+      {
+        "kind": "heading",
+        "level": 1,
+        "text": "Synthèse"
+      },
+      {
+        "kind": "paragraph",
+        "text": "L'exercice confirme la reprise du trafic, portée par les conteneurs et les vracs agricoles [1]. Le détail des volumes figure dans [l'annuaire statistique](https://example.org/annuaire_statistique_2026) publié en octobre [2]."
+      },
+      {
+        "kind": "figures",
+        "figures": [
+          {"value": "42 %", "label": "part du trafic régional"},
+          {"value": "+18 %", "label": "trafic conteneurs sur un an"},
+          {"value": "1 234 567 €", "label": "excédent d'exploitation"},
+          {"value": "3 jours", "label": "délai moyen d'escale"},
+          {"value": "0", "label": "accident grave"}
+        ]
+      },
+      {
+        "kind": "callout",
+        "text": "Le dragage du chenal reste la condition du maintien des escales des navires de plus de 300 mètres."
+      },
+      {
+        "kind": "heading",
+        "level": 1,
+        "text": "Exploitation"
+      },
+      {
+        "kind": "heading",
+        "level": 2,
+        "text": "Le terminal à conteneurs"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Le terminal a traité un volume record au troisième trimestre, avant un léger repli lié aux travaux du quai nord."
+      },
+      {
+        "kind": "illustration",
+        "illustration": {
+          "subject": "container cranes loading a ship at dusk",
+          "alt": "Des portiques chargent un porte-conteneurs au crépuscule."
+        },
+        "caption": "Le terminal à conteneurs au crépuscule"
+      },
+      {
+        "kind": "chart",
+        "caption": "Conteneurs traités par trimestre",
+        "table": {
+          "name": "Trafic",
+          "headers": ["Trimestre", "Conteneurs"],
+          "rows": [["T1", "1200"], ["T2", "1350"], ["T3", "1500"], ["T4", "1420"]],
+          "columns": [{"header": "Conteneurs", "kind": "quantity"}],
+          "chart": {"intent": "trend"}
+        }
+      },
+      {
+        "kind": "heading",
+        "level": 2,
+        "text": "Les escales"
+      },
+      {
+        "kind": "table",
+        "caption": "Escales par terminal et par mois",
+        "table": {
+          "name": "Escales",
+          "headers": ["Terminal", "Janv.", "Févr.", "Mars", "Avr.", "Mai", "Juin", "Juil.", "Total"],
+          "rows": [
+            ["Conteneurs", "21", "19", "24", "22", "25", "23", "26", ""],
+            ["Vracs", "12", "11", "13", "12", "14", "13", "12", ""],
+            ["Rouliers", "8", "9", "8", "10", "9", "11", "10", ""]
+          ],
+          "columns": [
+            {"header": "Total", "kind": "quantity", "formula": "{Janv.} + {Févr.} + {Mars} + {Avr.} + {Mai} + {Juin} + {Juil.}"}
+          ]
+        }
+      },
+      {
+        "kind": "heading",
+        "level": 1,
+        "text": "Énergie et environnement"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Le branchement électrique des navires à quai couvre désormais deux postes sur trois, selon le rapport de l'agence de l'environnement [3]."
+      },
+      {
+        "kind": "heading",
+        "level": 1,
+        "text": "Perspectives"
+      },
+      {
+        "kind": "bullets",
+        "items": [
+          "Achever le dragage du chenal avant l'été.",
+          "Ouvrir le troisième poste électrifié.",
+          "Renouveler deux portiques du terminal nord."
+        ]
+      }
+    ],
+    "sources": [
+      {"title": "Note de conjoncture portuaire", "url": "https://example.org/conjoncture/2026-t3"},
+      {"title": "Annuaire statistique 2026", "url": "https://example.org/annuaire_statistique_2026"},
+      {"title": "Entretien avec la direction de l'environnement"}
+    ]
+  }
+}

@@ -53,6 +53,15 @@ const AVAILABLE: SettingsSearchAvailability = {
   sandboxEgressEnabled: true,
   liveEnabled: true,
   radioEnabled: true,
+  channelsEnabled: true,
+  psycheEnabled: true,
+  journalsEnabled: true,
+  skillsEnabled: true,
+  mcpEnabled: true,
+  ragSpacesEnabled: true,
+  imageGenerationEnabled: true,
+  telephonyEnabled: true,
+  hapticsSupported: true,
   debugUserAccess: true,
 };
 
@@ -203,5 +212,26 @@ describe('SettingsPane', () => {
     expect(container.querySelector('#settings-section-admin-users')).toBeNull();
     await advance(SECTION_SETTLE_DEADLINE_MS + 500);
     expect(screen.getByTestId('empty-state')).toHaveTextContent('settings.search.unavailable');
+  });
+
+  it('never loads the section of a capability the operator switched off', async () => {
+    // A stale deep link or a pinned shortcut: every journals route refuses
+    // under the switch, so the module is not even loaded — nothing can ask.
+    const render = vi.spyOn(SETTINGS_SECTION_REGISTRY.journals, 'render');
+    const { container } = renderWithProviders(
+      <SettingsPane
+        lng="en"
+        availability={{ ...AVAILABLE, journalsEnabled: false }}
+        token="journals"
+        onBack={() => {}}
+      />
+    );
+
+    await advance(SECTION_SETTLE_DEADLINE_MS + 500);
+
+    expect(render).not.toHaveBeenCalled();
+    expect(container.querySelector('#settings-section-journals')).toBeNull();
+    expect(screen.getByTestId('empty-state')).toHaveTextContent('settings.search.unavailable');
+    render.mockRestore();
   });
 });

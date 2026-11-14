@@ -183,6 +183,13 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
       return <ImageGenerationSettings lng={lng} />;
     },
   },
+  documents: {
+    feature: 'documents',
+    render: async lng => {
+      const { DocumentSettings } = await import('./DocumentSettings');
+      return <DocumentSettings lng={lng} />;
+    },
+  },
   'generated-assets': {
     feature: 'generated-assets',
     render: async lng => {
@@ -260,6 +267,13 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
     render: async lng => {
       const { MemorySettings } = await import('./MemorySettings');
       return <MemorySettings lng={lng} />;
+    },
+  },
+  'writing-style': {
+    feature: 'writing-style-settings',
+    render: async lng => {
+      const { WritingStyleSettings } = await import('./WritingStyleSettings');
+      return <WritingStyleSettings lng={lng} />;
     },
   },
   interests: {
@@ -366,13 +380,6 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
     render: async lng => {
       const { SmsSettings } = await import('./SmsSettings');
       return <SmsSettings lng={lng} />;
-    },
-  },
-  workboard: {
-    feature: 'workboard',
-    render: async lng => {
-      const { WorkboardSettings } = await import('@/components/settings/WorkboardSettings');
-      return <WorkboardSettings lng={lng} />;
     },
   },
   'user-consumption-export': {

@@ -35,8 +35,13 @@ export function ApplicationPersonalMCPConfigurationCard({ status, checkResult, r
     action.waiting &&
     action.ready &&
     action.mode === 'idle' &&
-    isMCPServerFormValid(action.form, !!action.server);
-  const message = personalMCPConfigurationMessage(status, action.mode, action.expired);
+    isMCPServerFormValid(action.form, action.server);
+  const message = personalMCPConfigurationMessage(
+    status,
+    action.mode,
+    action.expired,
+    action.closed
+  );
   return (
     <section
       className="mt-2 w-full min-w-0 rounded-xl border bg-muted/20 p-3"

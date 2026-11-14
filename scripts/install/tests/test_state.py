@@ -50,6 +50,7 @@ def _public() -> PublicAnswers:
         personal_radio=True,
         speaking_avatar=True,
         world=True,
+        web_search=True,
         server_host=None,
         web_domain="lia.example.org",
         api_domain="api.example.org",
@@ -129,7 +130,14 @@ def test_older_state_keeps_new_capabilities_disabled(tmp_path: Path) -> None:
     path = tmp_path / ".install-state.json"
     save_state(path, _state())
     payload = json.loads(path.read_text(encoding="utf-8"))
-    for key in ("self_diagnostics", "live_mode", "personal_radio", "speaking_avatar", "world"):
+    for key in (
+        "self_diagnostics",
+        "live_mode",
+        "personal_radio",
+        "speaking_avatar",
+        "world",
+        "web_search",
+    ):
         payload["public_answers"].pop(key)
     path.write_text(json.dumps(payload), encoding="utf-8")
     loaded = load_state(path)
@@ -139,6 +147,8 @@ def test_older_state_keeps_new_capabilities_disabled(tmp_path: Path) -> None:
     assert not loaded.public_answers.personal_radio
     assert not loaded.public_answers.speaking_avatar
     assert not loaded.public_answers.world
+    # An install made before the question keeps what it runs until it is asked.
+    assert not loaded.public_answers.web_search
 
 
 def test_atomic_save_survives_a_failed_replace(

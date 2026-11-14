@@ -2,6 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-13
+- **Amended**: 2026-11-13 by [ADR-383](ADR-383-A-Draft-Speaks-In-The-Persons-Voice.md) —
+  the reply the person confirms is written by the reply drafter when they dictated no words,
+  and every e-mail writer follows how the person writes.
 - **Amends**: ADR-263 (a write declares what it owes: `reversible` with its
   written reason), ADR-276 lot 7 (the digest lock), ADR-287 (one e-mail
   vocabulary at the client boundary), ADR-288 (a FOR_EACH lot of drafts),

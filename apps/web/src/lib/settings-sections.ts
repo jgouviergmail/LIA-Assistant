@@ -100,9 +100,9 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'usage-preferences',
     declaredIn: 'components/settings/UsagePreferencesSettings.tsx',
   },
-  // Renders nothing where `navigator.vibrate` is absent (desktop, iOS Safari),
-  // so a deep link can legitimately resolve to an absent section — same as the
-  // other capability-gated entries here.
+  // Offered only where `navigator.vibrate` exists — iOS WebKit does not
+  // implement it. The index gates the section on the device
+  // (`deviceHaptics`): listed nowhere there, and a deep link says so.
   haptics: {
     tab: 'preferences',
     accordionValue: 'haptics',
@@ -186,6 +186,13 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'image-generation',
     declaredIn: 'components/settings/ImageGenerationSettings.tsx',
   },
+  // How LIA illustrates and animates the documents it generates — next to the
+  // image switch an illustration depends on.
+  documents: {
+    tab: 'preferences',
+    accordionValue: 'documents',
+    declaredIn: 'components/settings/DocumentSettings.tsx',
+  },
   // What LIA produced (ADR-279): images, documents and browser screenshots the
   // person can find, download and remove — next to the generation switch that
   // creates them.
@@ -246,6 +253,13 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'memories',
     declaredIn: 'components/settings/MemorySettings.tsx',
   },
+  // How the person writes, learned from their sent mail (ADR-383): something LIA
+  // learns about them, beside the memories.
+  'writing-style': {
+    tab: 'features',
+    accordionValue: 'writing-style',
+    declaredIn: 'components/settings/WritingStyleSettings.tsx',
+  },
   interests: {
     tab: 'features',
     accordionValue: 'interests',
@@ -259,14 +273,14 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'open-loops',
     declaredIn: 'components/settings/OpenLoopsSection.tsx',
   },
-  // Learned habits (ADR-214): a capability like open-loops, self-gated on the
-  // instance flag `features.habits_enabled`.
+  // Learned habits (ADR-214): self-gated on the habits' deployment flag —
+  // what was learned is a record, shown whatever the operator's switch says.
   habits: {
     tab: 'features',
     accordionValue: 'habits',
     declaredIn: 'components/settings/HabitsSettings.tsx',
   },
-  // Renders nothing when the instance flag `features.peers_enabled` is off
+  // Renders nothing where the instance does not offer connections
   // (self-gating, OpenLoopsSection precedent) — a deep link then legitimately
   // resolves to an absent section, like the other capability-gated entries.
   'peer-connections': {
@@ -341,8 +355,8 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'rag-spaces',
     declaredIn: 'components/spaces/SpacesSettingsSection.tsx',
   },
-  // Meeting recording & minutes (ADR-258). Self-gated on the instance flag
-  // `features.meetings_enabled` (OpenLoopsSection precedent): a deep link
+  // Meeting recording & minutes (ADR-258). Self-gated on what the instance
+  // offers now (`meetingsAvailable`, OpenLoopsSection precedent): a deep link
   // may legitimately resolve to an absent section.
   meetings: {
     tab: 'features',
@@ -353,14 +367,6 @@ export const SETTINGS_SECTIONS = {
     tab: 'features',
     accordionValue: 'sms',
     declaredIn: 'components/settings/SmsSettings.tsx',
-  },
-  // The workboard (ADR-276). This section is the board's DOOR — D15 gives it no
-  // header destination — so a deep link here is how a person reaches their
-  // tickets from anywhere in the settings.
-  workboard: {
-    tab: 'features',
-    accordionValue: 'workboard',
-    declaredIn: 'components/settings/WorkboardSettings.tsx',
   },
   // The component serves both the user and the admin export from one file and
   // therefore picks its accordion value at runtime (`mode`), which is why the

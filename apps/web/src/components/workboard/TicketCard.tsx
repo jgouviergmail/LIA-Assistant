@@ -34,7 +34,14 @@
  *   glyph before its name — sit between the title and the date and are how a
  *   ticket moves when it cannot be dragged (owner, 2026-09-10). Where it
  *   can, the column is the drag and the card carries no list repeating the
- *   header it sits under.
+ *   header it sits under. On a board with lanes the CATEGORY is a third list
+ *   there, for the same reason and for the owner alone: a lane is one more
+ *   place a drag would have changed.
+ * - **Its ground is its container's opposite, whole.** A card sits on the
+ *   background inside a card-ground panel and on the card ground inside a
+ *   background one — never a half tint, which makes a card the colour of what
+ *   it sits on (owner directive, 2026-11-08). On the board itself the card
+ *   carries NO category badge: it sits in its lane.
  * - **The priority is the edge, never a badge.** The leading edge ranks it
  *   and `urgent` sits on its own ground; a badge saying « Élevée » repeated
  *   what the edge already showed (owner, 2026-09-09). The name stays for a
@@ -49,6 +56,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { RowActions, type RowAction } from '@/components/ui/row-actions';
+import { CategorySelect } from '@/components/workboard/CategorySelect';
 import { HolderSelect } from '@/components/workboard/HolderSelect';
 import { StatusSelect } from '@/components/workboard/StatusSelect';
 import type { Language } from '@/i18n/settings';
@@ -70,7 +78,8 @@ import {
   type RunState,
 } from '@/lib/workboard/display';
 import { partyIcon } from '@/lib/workboard/icons';
-import type { TicketRow, TicketUpdateBody } from '@/types/workboard';
+import { lanePatch } from '@/lib/workboard/lanes';
+import type { CategoryOption, TicketRow, TicketUpdateBody } from '@/types/workboard';
 
 export interface TicketCardProps {
   ticket: TicketRow;
@@ -91,6 +100,20 @@ export interface TicketCardProps {
    */
   onStatusChange?: (id: string, status: string) => void;
   onAssigneeChange?: (id: string, patch: TicketUpdateBody) => void;
+  /**
+   * The reader's own categories and the write that files the ticket: the
+   * third list of a card that cannot be dragged into another lane. Drawn for
+   * the OWNER only — the category is theirs — and only once a category exists.
+   */
+  categories?: readonly CategoryOption[];
+  onCategoryChange?: (id: string, patch: TicketUpdateBody) => void;
+  /**
+   * The ground the card is drawn on: the OPPOSITE of its container's, never a
+   * half tint. A column and a lane on the card ground hold cards on the
+   * background (the default); a lane on the background holds them on the
+   * card ground.
+   */
+  ground?: 'card' | 'background';
   /**
    * Sortable attributes and listeners, when the board is draggable. Spread on
    * the whole card rather than on a grip: a 16 px target is not a touch
@@ -276,6 +299,64 @@ function RunFailureLine({ ticket, run }: { ticket: TicketRow; run: RunState }) {
   );
 }
 
+/**
+ * The lists a card carries where nothing drags: everything a drag does on a
+ * wide screen — the column, the holder, the lane.
+ *
+ * Raised above the stretched door, so the lists stay lists — one UNDER the
+ * other, never beside (owner, 2026-09-10): half-width lists on a phone
+ * truncate their own options. Each is named with the ticket: a column of
+ * cards each saying « Colonne » tells a screen reader nothing about which one.
+ *
+ * The holder and the lane are the OWNER's: a ticket held for somebody else is
+ * handed back, never re-assigned, and its category is its owner's word about
+ * it. The lane is offered only once the reader has a category to file under.
+ */
+function CardLists({
+  ticket,
+  iAmOwner,
+  peers,
+  categories = [],
+  onStatusChange,
+  onAssigneeChange,
+  onCategoryChange,
+}: Pick<TicketCardProps, 'ticket' | 'peers' | 'categories' | 'onCategoryChange'> & {
+  iAmOwner: boolean;
+  onStatusChange: NonNullable<TicketCardProps['onStatusChange']>;
+  onAssigneeChange: NonNullable<TicketCardProps['onAssigneeChange']>;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="relative z-10 mt-2 space-y-2">
+      <StatusSelect
+        id={`wb-card-status-${ticket.id}`}
+        label={t('workboard.card.column_of', { title: ticket.title })}
+        value={ticket.status}
+        onChange={status => onStatusChange(ticket.id, status)}
+      />
+      {iAmOwner && (
+        <HolderSelect
+          id={`wb-card-holder-${ticket.id}`}
+          label={t('workboard.card.holder_of', { title: ticket.title })}
+          value={heldBy(ticket)}
+          peers={peers}
+          onChange={choice => onAssigneeChange(ticket.id, assignPatch(choice))}
+        />
+      )}
+      {iAmOwner && onCategoryChange && categories.length > 0 && (
+        // The same write the drop makes on a wide screen.
+        <CategorySelect
+          id={`wb-card-category-${ticket.id}`}
+          label={t('workboard.card.category_of', { title: ticket.title })}
+          value={ticket.category_id}
+          categories={categories}
+          onChange={category => onCategoryChange(ticket.id, lanePatch(category))}
+        />
+      )}
+    </div>
+  );
+}
+
 export function TicketCard({
   ticket,
   loaded,
@@ -288,6 +369,9 @@ export function TicketCard({
   onDelete,
   onStatusChange,
   onAssigneeChange,
+  categories,
+  onCategoryChange,
+  ground = 'background',
   dragHandle,
   className,
 }: TicketCardProps) {
@@ -334,7 +418,10 @@ export function TicketCard({
       data-testid="ticket-card"
       data-ticket-id={ticket.id}
       className={cn(
-        'relative rounded-lg border border-l-4 border-border bg-card/80 p-3 shadow-sm',
+        'relative rounded-lg border border-l-4 border-border p-3 shadow-sm',
+        // One of the two grounds, whole — never `bg-card/80`, the half tint
+        // that left a card the colour of the column it sat on.
+        ground === 'card' ? 'bg-card' : 'bg-background',
         'focus-within:ring-2 focus-within:ring-ring',
         // The edge RANKS the priority — the only place it is said in colour.
         priorityAccent(ticket.priority),
@@ -356,10 +443,11 @@ export function TicketCard({
         className
       )}
       // Two controls must never share one name. Once the listeners are on
-      // the card, the card IS a drag control (dnd-kit gives it `role="button"`
-      // and `aria-roledescription="sortable"`), and the title button inside it
-      // is the door — so the card is named for what PICKING IT UP does, and
-      // the title keeps naming what OPENING it does.
+      // the card, the card IS a drag control (a focusable group dnd-kit
+      // describes as `aria-roledescription="sortable"` — a group, never a
+      // button, which would hide the controls it holds), and the title
+      // button inside it is the door — so the card is named for what
+      // PICKING IT UP does, and the title keeps naming what OPENING it does.
       aria-label={
         dragHandle ? t('workboard.card.drag_card', { title: ticket.title }) : ticket.title
       }
@@ -398,28 +486,15 @@ export function TicketCard({
       <span className="sr-only">{t(`workboard.priority.${ticket.priority}`)}</span>
 
       {!dragHandle && onStatusChange && onAssigneeChange && (
-        // Raised above the stretched door, so the lists stay lists — the
-        // column, then the holder UNDER it, never beside (owner, 2026-09-10):
-        // two half-width lists on a phone truncate their own options. Each
-        // is named with the ticket: a column of cards each saying « Colonne »
-        // tells a screen reader nothing about which one.
-        <div className="relative z-10 mt-2 space-y-2">
-          <StatusSelect
-            id={`wb-card-status-${ticket.id}`}
-            label={t('workboard.card.column_of', { title: ticket.title })}
-            value={ticket.status}
-            onChange={status => onStatusChange(ticket.id, status)}
-          />
-          {iAmOwner && (
-            <HolderSelect
-              id={`wb-card-holder-${ticket.id}`}
-              label={t('workboard.card.holder_of', { title: ticket.title })}
-              value={heldBy(ticket)}
-              peers={peers}
-              onChange={choice => onAssigneeChange(ticket.id, assignPatch(choice))}
-            />
-          )}
-        </div>
+        <CardLists
+          ticket={ticket}
+          iAmOwner={iAmOwner}
+          peers={peers}
+          categories={categories}
+          onStatusChange={onStatusChange}
+          onAssigneeChange={onAssigneeChange}
+          onCategoryChange={onCategoryChange}
+        />
       )}
 
       <CardMeta

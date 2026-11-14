@@ -113,6 +113,9 @@ def client(
     monkeypatch.setattr("src.infrastructure.database.get_db_context", open_database)
 
     class EmptyRedis:
+        async def eval(self, script: str, numkeys: int, /, *args: str) -> int:
+            return 1
+
         async def get(self, key):
             return None
 
@@ -128,6 +131,10 @@ def client(
 
     monkeypatch.setattr(
         "src.infrastructure.cache.redis.get_redis_cache", AsyncMock(return_value=EmptyRedis())
+    )
+    monkeypatch.setattr(
+        "src.domains.habits.preference_commands.get_redis_cache",
+        AsyncMock(return_value=EmptyRedis()),
     )
     _StubRepo.profile = None
     _StubRepo.habits = []
@@ -158,7 +165,9 @@ def client(
 
     monkeypatch.setattr("src.domains.habits.router.forget_habit_data", forget)
 
-    user = SimpleNamespace(id=uuid.uuid4(), habits_enabled=True, is_active=True, deleted_at=None)
+    user = SimpleNamespace(
+        id=uuid.uuid4(), habits_enabled=True, is_active=True, deleted_at=None, extraction_revision=0
+    )
 
     async def change_managed(db, owner, habit_id, change):
         from src.domains.habits.management_commands import ManagedHabit

@@ -166,6 +166,11 @@ annotation version becomes `email-event-v2-reply`; a v1 annotation archived in a
 thread is still read and never re-classified. The badge, the model view
 (`reply_expected=true|false`), the response prompt and the initiative gate read it.
 
+`reply_expected` judges the e-mail's TEXT alone. Whether that reply was already given is
+another fact, read from the mailbox: the [reply state](./MAIL_REPLY_STATE.md) (ADR-379). An
+answered mail keeps its qualification — hiding the label from the model was measured useless —
+and the state settles it: the badge is withdrawn and the prompts report the request as done.
+
 Qualified on the three corpora, each email labelled by reading it (true when a reply
 or an action is explicitly asked; false for information, spam and phishing; null for a
 greeting alone or a training request to analyse a quoted scam), by one paid replay of

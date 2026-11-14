@@ -34,7 +34,6 @@ const PLACEMENTS: Partial<Record<SettingsSectionToken, FunctionPlace>> = {
   'mcp-servers': 'engineering',
   plugins: 'engineering',
   'open-loops': 'home',
-  workboard: 'home',
   journals: 'transverse',
   'health-metrics': 'gym',
   interests: 'garden',
@@ -120,7 +119,6 @@ const ACTIVITIES: ReadonlySet<SettingsSectionToken> = new Set([
   'rag-spaces',
   'meetings',
   'sms',
-  'workboard',
   'user-consumption-export',
 ]);
 export type FunctionSurface = 'activity' | 'settings';

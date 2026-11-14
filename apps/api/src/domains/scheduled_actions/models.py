@@ -1,11 +1,12 @@
 """Scheduled Actions domain models.
 
-A routine runs on ONE of two clocks (ADR-322). A TIME routine stores a
-``RecurrenceSpec`` (``src/core/recurrence``) — which calendar days it serves,
+A routine runs on ONE of three clocks (ADR-322, ADR-386). A TIME routine stores
+a ``RecurrenceSpec`` (``src/core/recurrence``) — which calendar days it serves,
 and which moments inside them. A CONDITION routine stores no schedule: the
-system checks its condition (``domains/scheduled_actions/trigger.py``). The
-scheduler polls for due rows on ``next_trigger_at`` (UTC), which is NULL when
-nothing follows.
+system checks its condition (``domains/scheduled_actions/trigger.py``). A
+WEBHOOK routine stores an address and its secret: another system's signed call
+is kept as a delivery and arms it. The scheduler polls for due rows on
+``next_trigger_at`` (UTC), which is NULL when nothing follows.
 """
 
 from datetime import datetime
@@ -23,7 +24,9 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
+    UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
@@ -68,6 +71,9 @@ class TriggerKind(str, Enum):
 
     TIME = "time"  # Runs at every instant of its recurrence
     CONDITION = "condition"  # Checked by the system; runs on a new fact
+    # ADR-386: another system calls the routine's address, signed with its
+    # secret; the next pass serves what the calls brought.
+    WEBHOOK = "webhook"
 
 
 # Condition vocabulary (N-07 phase 1). The EVALUATORS live in
@@ -81,6 +87,9 @@ CONDITION_TYPE_WEATHER_CHANGE = "weather_change"
 CONDITION_TYPE_MAIL_MATCH = "mail_match"
 CONDITION_TYPE_DOCUMENT_ADDED = "document_added"
 CONDITION_TYPE_CALENDAR_EVENT = "calendar_event"
+# ADR-387: a public page a person watches — read by the system, no model,
+# and a run only for the lines that were not on it at the last reading.
+CONDITION_TYPE_PAGE_CHANGE = "page_change"
 
 CONDITION_TYPES: frozenset[str] = frozenset(
     {
@@ -89,6 +98,7 @@ CONDITION_TYPES: frozenset[str] = frozenset(
         CONDITION_TYPE_MAIL_MATCH,
         CONDITION_TYPE_DOCUMENT_ADDED,
         CONDITION_TYPE_CALENDAR_EVENT,
+        CONDITION_TYPE_PAGE_CHANGE,
     }
 )
 
@@ -167,7 +177,10 @@ class ScheduledAction(BaseModel):
         nullable=False,
         default=TriggerKind.TIME.value,
         server_default=TriggerKind.TIME.value,
-        comment="time = runs on its recurrence; condition = checked by the system (ADR-322)",
+        comment=(
+            "time = runs on its recurrence; condition = checked by the system (ADR-322); "
+            "webhook = started by a signed call to its address (ADR-386)"
+        ),
     )
     condition_config: Mapped[dict | None] = mapped_column(
         JSONB(none_as_null=True),
@@ -188,6 +201,17 @@ class ScheduledAction(BaseModel):
         server_default="false",
         comment="True = propose via notification (?intent= link) instead of executing.",
     )
+    # ADR-265 amendment 2026-11-12 c: the run still happens and its answer still
+    # lands in the chat; what this holds back is the NOTIFICATION, when the
+    # answering model declares it found nothing new. SQL `comment=` mirrors the
+    # migration EXACTLY.
+    notify_only_when_new: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+        comment="True = a run that found nothing new is answered in the chat and not notified.",
+    )
 
     execution_mode: Mapped[str] = mapped_column(
         String(10),
@@ -206,6 +230,21 @@ class ScheduledAction(BaseModel):
         JSONB(none_as_null=True),
         nullable=True,
         comment="MCP server keys a run may confirm for itself (routine form only). NULL = none.",
+    )
+
+    # ADR-386: a webhook routine's address key and its HMAC secret, set exactly
+    # when the routine runs on that clock (CHECK below). The secret is Fernet
+    # ciphertext (``encrypt_data``): decrypted to check a signature, and shown to
+    # its owner once, when it is drawn. SQL ``comment=`` mirrors the migration.
+    webhook_key: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="WEBHOOK kind only: the key of its address. NULL otherwise.",
+    )
+    webhook_secret: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="WEBHOOK kind only: its HMAC secret, encrypted. NULL otherwise.",
     )
 
     # Status
@@ -264,14 +303,24 @@ class ScheduledAction(BaseModel):
                 "is_enabled = true AND status = 'active' AND next_trigger_at IS NOT NULL"
             ),
         ),
-        # One clock per routine (ADR-322): the rule `schemas.trigger_mode_refusal`
-        # states to the API caller, held by the table for every other writer.
+        # One clock per routine (ADR-322, ADR-386): the rule
+        # `schemas.trigger_mode_refusal` states to the API caller, held by the
+        # table for every other writer.
         CheckConstraint(
             "(trigger_kind = 'time' AND recurrence IS NOT NULL AND condition_config IS NULL)"
             " OR (trigger_kind = 'condition' AND recurrence IS NULL"
-            " AND condition_config IS NOT NULL)",
+            " AND condition_config IS NOT NULL)"
+            " OR (trigger_kind = 'webhook' AND recurrence IS NULL"
+            " AND condition_config IS NULL)",
             name="ck_scheduled_actions_one_clock",
         ),
+        # A webhook routine has its address and its secret, and only it does.
+        CheckConstraint(
+            "(trigger_kind = 'webhook')"
+            " = (webhook_key IS NOT NULL AND webhook_secret IS NOT NULL)",
+            name="ck_scheduled_actions_webhook_address",
+        ),
+        UniqueConstraint("webhook_key", name="uq_scheduled_actions_webhook_key"),
     )
 
     @property
@@ -310,9 +359,10 @@ class ScheduledAction(BaseModel):
 class ScheduledRunOutcome(str, Enum):
     """How one tick of a routine ended (ADR-265).
 
-    Five values, one per exit of the executor, so the weekly timeline can say
-    WHY a cell is not green rather than leaving a silent blank: the two skips
-    and the proposal happen BEFORE the pipeline runs and count no execution.
+    Each exit of the executor has a reason, so the weekly timeline can say
+    WHY a cell is not green rather than leaving a silent blank: skips
+    and the proposal happen BEFORE the pipeline runs and count no execution,
+    and no skip counts toward the pause a series of failures ends in.
 
     ``skipped_condition`` has had NO producer since ADR-322: a condition
     routine is now checked by the system, every ten minutes by default, and a
@@ -327,6 +377,17 @@ class ScheduledRunOutcome(str, Enum):
     SKIPPED_CONDITION = "skipped_condition"  # Legacy (pre ADR-322): an unmet check.
     PROPOSED = "proposed"  # Propose-first: notified, waiting for the user's click.
     SKIPPED_HITL = "skipped_hitl"  # A HITL interrupt was pending on the conversation.
+    # Another graph occupied this account for the whole catch-up window of the
+    # occurrence (or when the person started the run): a busy account is first
+    # waited for, pass after pass, with no row.
+    SKIPPED_BUSY = "skipped_busy"
+    # The account's usage ceiling stood the tick aside (ADR-272): not a failure,
+    # nothing counts toward the pause. A time routine's row only — a condition
+    # routine says it on its ledger (``last_check_error``).
+    SKIPPED_QUOTA = "skipped_quota"
+    # The scheduler reached the occurrence past its catch-up window (an outage,
+    # a stalled scheduler): it is not run late, the routine re-arms.
+    SKIPPED_LATE = "skipped_late"
 
 
 class ScheduledActionRun(Base, UUIDMixin):
@@ -389,7 +450,10 @@ class ScheduledActionRun(Base, UUIDMixin):
             values_callable=lambda enum_cls: [m.value for m in enum_cls],
         ),
         nullable=False,
-        comment="success | failure | skipped_condition | proposed | skipped_hitl",
+        comment=(
+            "success | failure | skipped_condition | proposed | skipped_hitl | skipped_busy"
+            " | skipped_quota | skipped_late"
+        ),
     )
     attempts: Mapped[int] = mapped_column(
         SmallInteger,
@@ -427,4 +491,111 @@ class ScheduledActionRun(Base, UUIDMixin):
         return (
             f"<ScheduledActionRun(action={self.scheduled_action_id}, "
             f"slot={self.slot_at}, outcome={self.outcome})>"
+        )
+
+
+class RoutineWebhookDeliveryStatus(str, Enum):
+    """Where one accepted call stands (ADR-386)."""
+
+    PENDING = "pending"  # Accepted, waiting for a run.
+    SERVED = "served"  # Read by a run that answered; its body is erased.
+
+
+class RoutineWebhookDelivery(Base, UUIDMixin):
+    """One call a webhook routine accepted, kept until a run serves it (ADR-386).
+
+    Written BEFORE the call is answered, in the transaction that arms the
+    routine. A run reads its routine's pending calls oldest first and marks the
+    ones it read served from its explicit success, in the transaction of the
+    routine's own settle: the body is erased then, and the row stays
+    ``ROUTINE_WEBHOOK_SERVED_RETENTION_DAYS`` so that a delivery sent again is
+    recognised by its id. Never updated otherwise. SQL ``comment=`` mirrors the
+    migration EXACTLY.
+    """
+
+    __tablename__ = "routine_webhook_deliveries"
+
+    scheduled_action_id: Mapped[UUID] = mapped_column(
+        ForeignKey("scheduled_actions.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="The routine called. Dies with it.",
+    )
+    delivery_id: Mapped[str | None] = mapped_column(
+        String(200),
+        nullable=True,
+        comment="The sender's own id for this delivery, when it gives one.",
+    )
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        comment="When the call was accepted (UTC).",
+    )
+    content_type: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="The media type the sender declared, when it declared one.",
+    )
+    body_bytes: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        comment="Size of the body as received, in bytes.",
+    )
+    body: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="The body read as text, encrypted; erased once served.",
+    )
+    status: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        default=RoutineWebhookDeliveryStatus.PENDING.value,
+        server_default=RoutineWebhookDeliveryStatus.PENDING.value,
+        comment="pending = waiting for a run; served = read by a run that answered.",
+    )
+    served_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When a run that answered served it (UTC).",
+    )
+
+    __table_args__ = (
+        # A delivery the sender names once is stored once per routine.
+        Index(
+            "uq_routine_webhook_deliveries_delivery",
+            "scheduled_action_id",
+            "delivery_id",
+            unique=True,
+            postgresql_where=text("delivery_id IS NOT NULL"),
+        ),
+        # A run's read: one routine's waiting calls, oldest first.
+        Index(
+            "ix_routine_webhook_deliveries_pending",
+            "scheduled_action_id",
+            "received_at",
+            postgresql_where=text("status = 'pending'"),
+        ),
+        # The retention purge, which knows no routine.
+        Index(
+            "ix_routine_webhook_deliveries_served",
+            "served_at",
+            postgresql_where=text("status = 'served'"),
+        ),
+        CheckConstraint(
+            "status IN ('pending', 'served')", name="ck_routine_webhook_deliveries_status"
+        ),
+        # Served exactly when stamped, and a served call keeps no body.
+        CheckConstraint(
+            "(status = 'served') = (served_at IS NOT NULL)",
+            name="ck_routine_webhook_deliveries_served_at",
+        ),
+        CheckConstraint(
+            "status = 'pending' OR body IS NULL",
+            name="ck_routine_webhook_deliveries_served_body",
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<RoutineWebhookDelivery(action={self.scheduled_action_id}, "
+            f"status={self.status}, bytes={self.body_bytes})>"
         )

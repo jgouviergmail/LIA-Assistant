@@ -30,7 +30,7 @@ from typing import Final, Literal
 
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, SessionTransaction
 
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.infrastructure.async_utils import safe_fire_and_forget
@@ -44,6 +44,7 @@ logger = get_logger(__name__)
 
 __all__ = [
     "CONVERSATION_RESET",
+    "CONVERSATION_METADATA",
     "CONVERSATION_UPDATED",
     "SyncKind",
     "arm_after_archive",
@@ -55,11 +56,29 @@ CONVERSATION_UPDATED: Final = "conversation_updated"
 #: The conversation was emptied: the open tabs empty theirs.
 CONVERSATION_RESET: Final = "conversation_reset"
 
-SyncKind = Literal["conversation_updated", "conversation_reset"]
+#: Only the catalogue metadata changed. No history or checkpoint was touched.
+CONVERSATION_METADATA: Final = "conversation_metadata"
+
+SyncKind = Literal["conversation_updated", "conversation_reset", "conversation_metadata"]
+_PRIORITY: dict[SyncKind, int] = {
+    CONVERSATION_METADATA: 0,
+    CONVERSATION_UPDATED: 1,
+    CONVERSATION_RESET: 2,
+}
 
 #: ``Session.info`` keys — per session, so two requests never share a pending set.
 _PENDING: Final = "lia_conversation_sync_pending"
 _LISTENING: Final = "lia_conversation_sync_listening"
+
+type SignalBatch = dict[tuple[uuid.UUID, uuid.UUID], SyncKind]
+type TransactionBatches = dict[SessionTransaction | None, SignalBatch]
+
+
+def _merge_signals(destination: SignalBatch, source: SignalBatch) -> None:
+    """Coalesce a committed child without weakening its parent's reset."""
+    for key, kind in source.items():
+        if key not in destination or _PRIORITY[kind] > _PRIORITY[destination[key]]:
+            destination[key] = kind
 
 
 def arm_conversation_signal(
@@ -67,8 +86,8 @@ def arm_conversation_signal(
 ) -> None:
     """Announce a change to the person's tabs once ``db``'s transaction commits.
 
-    Several changes in one transaction make ONE signal per person; a reset in
-    the transaction wins over an update, since the thread it leaves is empty.
+    Several changes in one transaction make one signal per account/discussion
+    pair. A reset wins over an update for that discussion alone.
 
     Args:
         db: The session whose transaction wrote the change.
@@ -77,9 +96,11 @@ def arm_conversation_signal(
         kind: What changed.
     """
     session = db.sync_session
-    pending: dict[uuid.UUID, tuple[uuid.UUID, SyncKind]] = session.info.setdefault(_PENDING, {})
-    if user_id not in pending or kind == CONVERSATION_RESET:
-        pending[user_id] = (conversation_id, kind)
+    batches: TransactionBatches = session.info.setdefault(_PENDING, {})
+    transaction = session.get_nested_transaction() or session.get_transaction()
+    pending = batches.setdefault(transaction, {})
+    key = (user_id, conversation_id)
+    _merge_signals(pending, {key: kind})
     if not session.info.get(_LISTENING):
         session.info[_LISTENING] = True
         event.listen(session, "after_commit", _after_commit)
@@ -111,25 +132,42 @@ async def arm_after_archive(db: AsyncSession, message: ConversationMessage) -> N
 
 
 def _after_commit(session: Session) -> None:
-    pending: dict[uuid.UUID, tuple[uuid.UUID, SyncKind]] | None = session.info.pop(_PENDING, None)
-    if not pending:
+    batches: TransactionBatches | None = session.info.get(_PENDING)
+    if not batches:
         return
+    nested = session.get_nested_transaction()
+    if nested is not None:
+        _merge_signals(batches.setdefault(nested.parent, {}), batches.pop(nested, {}))
+        return
+    session.info.pop(_PENDING, None)
+    pending: SignalBatch = {}
+    for batch in batches.values():
+        _merge_signals(pending, batch)
     try:
         asyncio.get_running_loop()
     except RuntimeError:
         # No running loop: a synchronous caller (a script). Checked BEFORE any
         # coroutine exists — one created and never awaited is a warning, and
         # the tabs catch up at their next foreground return anyway.
-        for _conversation_id, kind in pending.values():
+        for kind in pending.values():
             conversation_sync_signals_total.labels(kind=kind, outcome="no_loop").inc()
         return
-    for user_id, (conversation_id, kind) in pending.items():
+    for (user_id, conversation_id), kind in pending.items():
         safe_fire_and_forget(
-            _publish(user_id, conversation_id, kind), name="conversation_sync_signal"
+            _publish(user_id, conversation_id, kind),
+            name="conversation_sync_signal",
+            # Publication announces a committed fact even when the producing
+            # graph was revoked while its final partial was being archived.
+            independent_of_graph=True,
         )
 
 
 def _after_rollback(session: Session) -> None:
+    nested = session.get_nested_transaction()
+    if nested is not None:
+        batches: TransactionBatches = session.info.get(_PENDING, {})
+        batches.pop(nested, None)
+        return
     session.info.pop(_PENDING, None)
 
 

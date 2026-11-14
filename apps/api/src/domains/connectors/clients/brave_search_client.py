@@ -16,7 +16,8 @@ Built on BaseAPIKeyClient (F2 migration): Redis-backed rate limiting with
 local fallback, circuit breaker, retry with backoff, connection pooling.
 The public contract is unchanged: ``search()`` returns the parsed response
 dict, or **None on any error** — callers rely on the None-on-error contract
-(``if not result: return []``).
+(``if not result: return []``). Every search is unfiltered (``safesearch=off``):
+the owner's decision, the same for the instance's SearXNG (ADR-382).
 """
 
 from __future__ import annotations
@@ -25,7 +26,11 @@ from typing import Literal
 from uuid import UUID
 
 from src.core.config import settings
-from src.core.constants import BRAVE_SEARCH_MAX_QUERY_CHARS, BRAVE_SEARCH_MAX_QUERY_WORDS
+from src.core.constants import (
+    BRAVE_SAFESEARCH_OFF,
+    BRAVE_SEARCH_MAX_QUERY_CHARS,
+    BRAVE_SEARCH_MAX_QUERY_WORDS,
+)
 from src.core.i18n import resolve_language
 from src.domains.connectors.clients.base_api_key_client import BaseAPIKeyClient
 from src.domains.connectors.models import ConnectorType
@@ -241,11 +246,12 @@ class BraveSearchClient(BaseAPIKeyClient):
                 user_id=str(self.user_id) if self.user_id else None,
             )
 
-        # Build params
+        # Build params. Unfiltered: absent, Brave filters « moderate » (ADR-382).
         params: dict = {
             "q": clamped_query,
             "count": min(count, 20 if endpoint == "web" else 50),
             "search_lang": self.language,
+            "safesearch": BRAVE_SAFESEARCH_OFF,
         }
         if freshness:
             params["freshness"] = freshness

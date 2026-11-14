@@ -390,6 +390,8 @@ class GoogleGmailClient(
         format: str = GMAIL_FORMAT_FULL,
         fields: list[str] | None = None,
         use_cache: bool = True,
+        *,
+        mailbox_mark: bool = False,
     ) -> dict[str, Any]:
         """
         Get a single email message by ID.
@@ -399,6 +401,8 @@ class GoogleGmailClient(
             format: Message format (minimal, metadata, full, raw).
             fields: Field projection (optional).
             use_cache: Use Redis cache (default True).
+            mailbox_mark: Accepted for parity (ADR-379): Gmail keeps no « answered »
+                mark on a message, so this read is the ordinary one.
 
         Returns:
             Dict with message data:

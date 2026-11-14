@@ -18,6 +18,7 @@ from src.domains.agents.tools import application_skill_library_tools as tools
 from src.domains.agents.tools import application_skill_tools as skill_tools
 from src.domains.skill_library import service
 from src.domains.skill_library.schemas import LibraryInstallRequest
+from tests.helpers.committed_account_session import async_session as async_session
 from tests.helpers.runtime_context import make_tool_runtime
 from tests.integration.application_runtime_context import installed_runtime_context
 from tests.integration.domains.skill_library.test_library_install import (

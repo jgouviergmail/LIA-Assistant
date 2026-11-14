@@ -286,3 +286,27 @@ exactly how a `cd` into a directory the job renames survived review.
 - **A remote agent/daemon owning deployments.** Refused as disproportionate: one
   host, one operator, and a `flock` plus a verdict file answer the same question
   with no service to run, secure and supervise.
+
+## Amendment 2026-11-10 — the settings are judged by the new image before anything is switched
+
+On 2026-11-09 a value above its bound in `.env.prod` (`RAG_SPACES_MAX_DOCS_PER_SPACE`) restarted
+the API in a loop for 53 minutes. Nothing confronted the file with the code before the running
+version was cut, `up --wait` failing ends the script before the readiness gate is reached (the
+script runs under `set -e`), and the gate's rollback restores images, not the environment.
+
+`deploy.sh` now runs `python -m scripts.validate_settings` in the image it has just built, after
+the build and before the directory swap. It builds the real `Settings` with no database and no
+network, takes three seconds on the host, names the offending field and never its value; a refusal
+ends the deployment with the running version untouched. It is run through compose with the same
+three files as the start, so the environment and the mounts are the service's own, under the LIVE
+project name (`-p`): started from the staging directory, compose would otherwise create a network
+and volumes named after it.
+
+The script already existed for the installer (ADR-215). In a fresh process it failed at the import
+of the settings package, before its own value-free report, and printed a traceback quoting the
+value: the import now sits inside the handled block
+(`apps/api/tests/unit/test_validate_settings_script.py` runs it as the deployment does).
+
+Not changed, on purpose: a failed `up --wait` still ends the script before the readiness gate.
+Reaching the rollback there would also roll back a slow boot that was about to succeed, on a
+database the new image may already have migrated (ADR-250, the 2026-10-25 slow boot).

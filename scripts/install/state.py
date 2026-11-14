@@ -100,6 +100,7 @@ def _public_to_payload(public: PublicAnswers) -> dict[str, object]:
         "personal_radio": public.personal_radio,
         "speaking_avatar": public.speaking_avatar,
         "world": public.world,
+        "web_search": public.web_search,
         "server_host": public.server_host,
         "web_domain": public.web_domain,
         "api_domain": public.api_domain,
@@ -126,6 +127,8 @@ def _payload_to_public(payload: Mapping[str, object]) -> PublicAnswers:
         personal_radio=bool(payload.get("personal_radio", False)),
         speaking_avatar=bool(payload.get("speaking_avatar", False)),
         world=bool(payload.get("world", False)),
+        # Recorded before the question: keeps what it runs until asked again.
+        web_search=bool(payload.get("web_search", False)),
         server_host=(
             str(payload["server_host"]) if payload.get("server_host") else None
         ),

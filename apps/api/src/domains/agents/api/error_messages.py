@@ -74,12 +74,10 @@ class SSEErrorMessages:
     @staticmethod
     def run_orphaned(language: SupportedLanguage | None = None) -> str:
         """
-        Error message for an orphaned background run (ADR-117 hard-kill path).
+        State a lost response stream without inventing the producer's fate.
 
-        Emitted by the SSE relay when the run's producer died without a
-        terminal marker (server crash, OOM, power loss): the conversation's
-        active-run lock vanished and no chunk arrived within the grace
-        period. The generation is genuinely gone — the user must retry.
+        The relay cannot establish whether a remote producer has stopped.
+        Only its actual supervisor can close the durable admission.
 
         Args:
             language: Target language (fr/en/es/de/it/zh-CN); the declared language when None
@@ -89,26 +87,21 @@ class SSEErrorMessages:
         """
         messages = {
             "fr": (
-                "La génération a été interrompue de manière inattendue "
-                "(redémarrage du serveur). Réessaie."
+                "Le flux de réponse a été interrompu. " "L’exécution peut encore être en cours."
             ),
-            "en": (
-                "The response generation was unexpectedly interrupted "
-                "(server restart). Please try again."
-            ),
+            "en": ("The response stream was interrupted. " "Execution may still be in progress."),
             "es": (
-                "La generación de la respuesta se interrumpió de forma inesperada "
-                "(reinicio del servidor). Por favor, inténtalo de nuevo."
+                "El flujo de respuesta se ha interrumpido. " "La ejecución podría seguir en curso."
             ),
             "de": (
-                "Die Antwortgenerierung wurde unerwartet unterbrochen "
-                "(Serverneustart). Bitte versuche es erneut."
+                "Die Übertragung der Antwort wurde unterbrochen. "
+                "Die Ausführung läuft möglicherweise noch."
             ),
             "it": (
-                "La generazione della risposta è stata interrotta in modo imprevisto "
-                "(riavvio del server). Riprova."
+                "Il flusso della risposta è stato interrotto. "
+                "L’esecuzione potrebbe essere ancora in corso."
             ),
-            "zh-CN": "回复生成意外中断（服务器重启）。请重试。",
+            "zh-CN": "回复流已中断。任务可能仍在执行中。",
         }
 
         return messages[resolve_language(language)]

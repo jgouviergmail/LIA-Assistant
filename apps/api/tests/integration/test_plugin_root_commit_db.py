@@ -2,15 +2,19 @@
 
 import io
 import json
+from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import AGENT_PLUGINS_PLUGIN_SCHEMA_ID
 from src.domains.plugins.import_service import PluginImportService
 from src.domains.plugins.root_commit import PluginImportCompletionUnknown
+from src.domains.users.models import User
+from tests.helpers.committed_account_session import async_session as async_session
 from tests.integration.test_application_plugin_read import _plugin
 
 pytestmark = pytest.mark.integration
@@ -18,8 +22,12 @@ pytestmark = pytest.mark.integration
 
 @pytest.mark.parametrize("scenario", ["success", "rejected", "lost_ack"])
 async def test_original_plugin_import_preserves_root_and_database_truth(
-    async_session, test_user, monkeypatch, tmp_path, scenario
-):
+    async_session: AsyncSession,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    scenario: str,
+) -> None:
     monkeypatch.setattr(settings, "plugins_users_path", str(tmp_path))
     row = await _plugin(async_session, test_user.id, "database-plugin")
     root = tmp_path / str(test_user.id) / row.name
@@ -33,7 +41,7 @@ async def test_original_plugin_import_preserves_root_and_database_truth(
     original_commit = async_session.commit
     calls = 0
 
-    async def commit():
+    async def commit() -> None:
         nonlocal calls
         calls += 1
         if scenario == "rejected":

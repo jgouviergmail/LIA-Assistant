@@ -17,6 +17,7 @@ from src.domains.agents.application.document_move import (
 from src.domains.agents.application.document_move_schemas import DocumentMoveInput
 from src.domains.rag_spaces.models import RAGChunk, RAGDocument, RAGSpace
 from src.domains.users.preference_cas import PreferenceWriteReceipt
+from tests.helpers.committed_account_session import async_session as async_session
 
 pytestmark = pytest.mark.integration
 

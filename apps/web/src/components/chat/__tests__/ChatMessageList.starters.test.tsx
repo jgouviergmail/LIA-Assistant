@@ -105,7 +105,7 @@ function message(overrides: Partial<Message> = {}): Message {
 
 describe('empty-chat starters', () => {
   it('offers a way in when the conversation is empty', async () => {
-    await render(<ChatMessageList messages={[]} onStarterPick={vi.fn()} />);
+    await render(<ChatMessageList messages={[]} psycheOffered onStarterPick={vi.fn()} />);
 
     expect(screen.getByRole('group', { name: 'Essayez par exemple' })).toBeInTheDocument();
     expect(
@@ -121,7 +121,7 @@ describe('empty-chat starters', () => {
 
   it('hands back the exact phrase the user read', async () => {
     const onStarterPick = vi.fn();
-    await render(<ChatMessageList messages={[]} onStarterPick={onStarterPick} />);
+    await render(<ChatMessageList messages={[]} psycheOffered onStarterPick={onStarterPick} />);
 
     await userEvent.click(screen.getByRole('button', { name: CONTENT['chat.starters.reminder'] }));
 
@@ -132,26 +132,26 @@ describe('empty-chat starters', () => {
   it('never resolves a translation key as a starter', async () => {
     // A missing key would render "chat.starters.explain" as a clickable phrase
     // and send that to the model.
-    await render(<ChatMessageList messages={[]} onStarterPick={vi.fn()} />);
+    await render(<ChatMessageList messages={[]} psycheOffered onStarterPick={vi.fn()} />);
     const group = screen.getByRole('group', { name: 'Essayez par exemple' });
     expect(group.textContent).not.toContain('chat.starters');
   });
 
   it('disappears as soon as the conversation has content', async () => {
     // Beginner scaffolding must not survive into a real conversation.
-    await render(<ChatMessageList messages={[message()]} onStarterPick={vi.fn()} />);
+    await render(<ChatMessageList messages={[message()]} psycheOffered onStarterPick={vi.fn()} />);
     expect(screen.queryByRole('group', { name: 'Essayez par exemple' })).not.toBeInTheDocument();
   });
 
   it('renders nothing clickable without a handler', async () => {
-    await render(<ChatMessageList messages={[]} />);
+    await render(<ChatMessageList messages={[]} psycheOffered />);
     expect(screen.queryByRole('group', { name: 'Essayez par exemple' })).not.toBeInTheDocument();
     // The greeting itself is untouched.
     expect(screen.getByText('Commencez une conversation')).toBeInTheDocument();
   });
 
   it('keeps the buttons out of any form submission path', async () => {
-    await render(<ChatMessageList messages={[]} onStarterPick={vi.fn()} />);
+    await render(<ChatMessageList messages={[]} psycheOffered onStarterPick={vi.fn()} />);
     for (const button of screen.getAllByRole('button')) {
       expect(button).toHaveAttribute('type', 'button');
     }

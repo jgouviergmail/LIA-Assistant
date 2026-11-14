@@ -14,6 +14,8 @@ export function AlertListToolbar({
   categories: readonly AlertCategory[];
 }) {
   const { t } = useTranslation();
+  const categoryLabel = (category: AlertCategory) =>
+    t(category === 'sms' ? 'sms.title' : `notifications_hub.sections.${category}.title`);
   return (
     <ListToolbar<AlertCriteria['sort']>
       query={value.q}
@@ -26,6 +28,7 @@ export function AlertListToolbar({
         value: key,
         label: t(`notifications_hub.filter.${key || 'default'}`),
       }))}
+      active={value.category ? [categoryLabel(value.category)] : []}
     >
       <ListChoice<AlertCriteria['category']>
         label={t('notifications_hub.filter.category')}
@@ -33,12 +36,7 @@ export function AlertListToolbar({
         onChange={category => onChange({ ...value, category })}
         options={[
           { value: '', label: t('notifications_hub.filter.all') },
-          ...categories.map(category => ({
-            value: category,
-            label: t(
-              category === 'sms' ? 'sms.title' : `notifications_hub.sections.${category}.title`
-            ),
-          })),
+          ...categories.map(category => ({ value: category, label: categoryLabel(category) })),
         ]}
       />
     </ListToolbar>

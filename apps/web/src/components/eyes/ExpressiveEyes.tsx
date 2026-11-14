@@ -41,7 +41,7 @@ import { strokeContours } from '@/components/eyes/rig/stroke-geometry';
 import { resolvePose } from '@/components/eyes/rig/poses';
 import { restChannelValues } from '@/components/eyes/rig/channels';
 import type { EyesSize } from '@/stores/eyesWidgetStore';
-import { AmbientAccessories, WrappedScarf } from './AmbientAccessories';
+import { AmbientAccessories, SkyAccessories, WrappedScarf } from './AmbientAccessories';
 import { useId, type CSSProperties, type ReactNode } from 'react';
 import { BodyVolume } from './volume/BodyVolume';
 import type { VolumeCharacter } from './volume/volume-geometry';
@@ -505,6 +505,7 @@ export function ExpressiveEyes(props: ExpressiveEyesProps) {
       className={cn('lia-eyes', `lia-eyes--${size}`, className)}
       style={avatar.style}
     >
+      {view.life ? <SkyAccessories /> : null}
       <span className="lia-head-shadow" />
       <span className="lia-body-motion">
         <EyesEmote emote={view.emote} leaving={view.emoteLeaving} />

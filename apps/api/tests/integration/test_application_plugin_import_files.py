@@ -12,6 +12,7 @@ from src.domains.agents.application.plugin_url_import import (
 )
 from src.domains.agents.application.plugin_url_import_schemas import PluginUrlImportInput
 from src.domains.users.preference_cas import PreferenceWriteReceipt
+from tests.helpers.committed_account_session import async_session as async_session
 from tests.integration.domains.skills.test_per_account_skill_names import _skill
 from tests.integration.test_application_plugin_read import _plugin
 from tests.integration.test_application_plugin_url_import import _package

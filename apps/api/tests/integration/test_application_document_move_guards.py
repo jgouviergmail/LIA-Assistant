@@ -11,6 +11,7 @@ from src.domains.agents.application.command_service import CommandRejected
 from src.domains.agents.application.document_move import prepare_document_move
 from src.domains.agents.application.document_move_schemas import DocumentMoveInput
 from src.domains.rag_spaces.models import RAGDocument, RAGSpace
+from tests.helpers.committed_account_session import async_session as async_session
 
 pytestmark = pytest.mark.integration
 

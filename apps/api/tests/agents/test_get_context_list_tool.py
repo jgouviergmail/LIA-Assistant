@@ -181,8 +181,11 @@ class TestGetContextListTool:
 
     async def test_missing_session_id_returns_configuration_error(self):
         """Test missing session_id (thread_id) returns configuration_error."""
-        # Given: Runtime mock with missing thread_id
-        runtime = make_tool_runtime(configurable={"thread_id": None}, store=MagicMock())
+        # Given: a run context that names no thread — the thread is the typed
+        # context's, so one left in `configurable` does not stand in for it
+        runtime = make_tool_runtime(
+            thread_id="", configurable={"thread_id": str(uuid4())}, store=MagicMock()
+        )
 
         # When: Call the underlying function directly
         result = await get_context_list.coroutine(domain="contacts", runtime=runtime)

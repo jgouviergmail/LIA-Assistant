@@ -51,6 +51,7 @@ from src.core.constants import (
     CLIENT_RATE_LIMIT_MICROSOFT_PER_SECOND_DEFAULT,
     CLIENT_RATE_LIMIT_OPENWEATHERMAP_PER_SECOND_DEFAULT,
     CLIENT_RATE_LIMIT_PERPLEXITY_PER_SECOND_DEFAULT,
+    CLIENT_RATE_LIMIT_SEARXNG_PER_SECOND_DEFAULT,
     CLIENT_RATE_LIMIT_WIKIPEDIA_PER_SECOND_DEFAULT,
     CONNECTOR_API_KEY_VERIFY_TIMEOUT_SECONDS_DEFAULT,
     CONTACTS_TOOL_DEFAULT_LIMIT_DEFAULT,
@@ -93,6 +94,7 @@ from src.core.constants import (
     HTTP_TIMEOUT_PERPLEXITY,
     HTTP_TIMEOUT_PLACES_API,
     HTTP_TIMEOUT_ROUTES_API,
+    HTTP_TIMEOUT_SEARXNG,
     HTTP_TIMEOUT_SSE_POLLING,
     HTTP_TIMEOUT_TOKEN,
     HTTP_TIMEOUT_WEATHER,
@@ -102,6 +104,12 @@ from src.core.constants import (
     INTEREST_PERPLEXITY_RECENCY_FILTER_DEFAULT,
     INTEREST_PERPLEXITY_RETURN_RELATED_QUESTIONS_DEFAULT,
     INTEREST_WIKIPEDIA_SEARCH_LIMIT_DEFAULT,
+    MAIL_REPLY_STATE_CONVERSATION_MAX_MESSAGES_DEFAULT,
+    MAIL_REPLY_STATE_ENABLED_DEFAULT,
+    MAIL_REPLY_STATE_EXCERPT_MAX_CHARS_DEFAULT,
+    MAIL_REPLY_STATE_MAX_MESSAGES_DEFAULT,
+    MAIL_REPLY_STATE_TIMEOUT_SECONDS_DEFAULT,
+    MAIL_REPLY_STATE_VALIDITY_SECONDS_DEFAULT,
     OAUTH_HEALTH_CHECK_INTERVAL_MINUTES_DEFAULT,
     OAUTH_HEALTH_CRITICAL_COOLDOWN_HOURS_DEFAULT,
     OAUTH_PROACTIVE_REFRESH_INTERVAL_MINUTES,
@@ -138,6 +146,9 @@ from src.core.constants import (
     WIKIPEDIA_CACHE_ARTICLE_TTL,
     WIKIPEDIA_CACHE_SEARCH_TTL,
     WIKIPEDIA_SUMMARY_MAX_CHARS,
+    WRITING_STYLE_MAX_AGE_DAYS_DEFAULT,
+    WRITING_STYLE_MIN_SENT_MAILS,
+    WRITING_STYLE_SENT_MAILS_DEFAULT,
 )
 
 
@@ -558,6 +569,34 @@ class ConnectorsSettings(BaseSettings):
         le=100.0,
         description="Brave Search API: max requests per second per user (default: 20)",
     )
+    # The instance's SearXNG (lot 18): a keyless connector (ADR-307) the operator
+    # RUNS — the `searxng` service of the compose files. Empty = not deployed:
+    # an account with no search key of its own then has Wikipedia alone.
+    searxng_url: str = Field(
+        default="",
+        description=(
+            "Base URL of the instance's SearXNG (e.g. http://searxng:8080), reached on "
+            "the internal network only. Empty: the instance runs none."
+        ),
+    )
+    http_timeout_searxng: float = Field(
+        default=HTTP_TIMEOUT_SEARXNG,
+        ge=1.0,
+        le=60.0,
+        description=(
+            "Timeout for one SearXNG search (seconds). Keep it above SearXNG's own "
+            "outgoing.max_request_timeout, or LIA gives up on an answer still coming."
+        ),
+    )
+    client_rate_limit_searxng_per_second: float = Field(
+        default=CLIENT_RATE_LIMIT_SEARXNG_PER_SECOND_DEFAULT,
+        gt=0.1,
+        le=50.0,
+        description=(
+            "SearXNG searches per second for the WHOLE instance (one bucket): the "
+            "public engines it asks throttle the server's address, not an account."
+        ),
+    )
     brave_search_cache_ttl_seconds: int = Field(
         default=BRAVE_SEARCH_CACHE_TTL,
         ge=60,
@@ -762,6 +801,26 @@ class ConnectorsSettings(BaseSettings):
         ),
     )
 
+    # How the person writes, learned from their sent mail (ADR-383)
+    writing_style_sent_mails: int = Field(
+        default=WRITING_STYLE_SENT_MAILS_DEFAULT,
+        ge=WRITING_STYLE_MIN_SENT_MAILS,
+        le=50,
+        description=(
+            "Latest sent e-mails a writing-style profile is learned from "
+            f"(default: {WRITING_STYLE_SENT_MAILS_DEFAULT}) (ADR-383)."
+        ),
+    )
+    writing_style_max_age_days: int = Field(
+        default=WRITING_STYLE_MAX_AGE_DAYS_DEFAULT,
+        ge=1,
+        le=365,
+        description=(
+            "Days after which a writing-style profile is learned again from the sent mail "
+            f"(default: {WRITING_STYLE_MAX_AGE_DAYS_DEFAULT}) (ADR-383)."
+        ),
+    )
+
     # Reading one attachment of a message (get_email_attachment)
     email_attachment_max_mb: int = Field(
         default=EMAIL_ATTACHMENT_MAX_MB_DEFAULT,
@@ -835,6 +894,51 @@ class ConnectorsSettings(BaseSettings):
             "Drop the quoted history and the signature from a reply body at the client "
             "boundary, so a thread is not read eight times over (ADR-287)."
         ),
+    )
+
+    # Where a listed message stands in its conversation (ADR-379)
+    mail_reply_state_enabled: bool = Field(
+        default=MAIL_REPLY_STATE_ENABLED_DEFAULT,
+        description=(
+            "Read, for every listed mail, whether it was answered (and by what): one read "
+            "of the page's conversations, no model call. Off, no surface is told."
+        ),
+    )
+    mail_reply_state_max_messages: int = Field(
+        default=MAIL_REPLY_STATE_MAX_MESSAGES_DEFAULT,
+        ge=1,
+        le=100,
+        description="Messages of one listed page whose conversation is read; the rest get no state.",
+    )
+    mail_reply_state_conversation_max_messages: int = Field(
+        default=MAIL_REPLY_STATE_CONVERSATION_MAX_MESSAGES_DEFAULT,
+        ge=2,
+        le=100,
+        description="Messages of one conversation read to tell a reply state, the newest.",
+    )
+    mail_reply_state_timeout_seconds: float = Field(
+        default=MAIL_REPLY_STATE_TIMEOUT_SECONDS_DEFAULT,
+        gt=0,
+        le=30,
+        description=(
+            "Time budget of that read for one page; past it the page is served without "
+            "reply states (counted, never an error)."
+        ),
+    )
+    mail_reply_state_validity_seconds: int = Field(
+        default=MAIL_REPLY_STATE_VALIDITY_SECONDS_DEFAULT,
+        ge=10,
+        le=3600,
+        description=(
+            "How long a « no reply yet » may be repeated to a model; past it the state "
+            "reads « not checked ». An answer that was sent stays sent."
+        ),
+    )
+    mail_reply_state_excerpt_max_chars: int = Field(
+        default=MAIL_REPLY_STATE_EXCERPT_MAX_CHARS_DEFAULT,
+        ge=20,
+        le=500,
+        description="Longest excerpt of the reply a state carries, cut on a word.",
     )
 
     # Emails URL shortening threshold (for readability)

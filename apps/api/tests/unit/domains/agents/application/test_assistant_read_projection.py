@@ -27,6 +27,7 @@ async def test_all_assistant_fields_are_current_and_no_private_column_is_project
         "onboarding_completed": True,
         "debug_panel_enabled": False,
         "response_display_mode": "html_cards",
+        "writing_style_enabled": False,
     }
     actor = User(
         id=uuid4(), is_active=True, deleted_at=None, hashed_password="planted-secret", **values

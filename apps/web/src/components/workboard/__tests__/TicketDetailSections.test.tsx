@@ -15,9 +15,11 @@ import {
   CommentsBlock,
   HistoryBlock,
   LastRunBlock,
+  StepsBlock,
   TicketUsageBlock,
 } from '@/components/workboard/TicketDetailSections';
 import type { CommentRow, EventRow, TicketRow } from '@/types/workboard';
+import { makeTicket } from '@/__tests__/factories';
 
 // The figures follow the header's own « show figures » switch, exactly as
 // the chat's per-message line does.
@@ -221,44 +223,26 @@ describe('CommentsBlock', () => {
 
 describe('LastRunBlock', () => {
   function ticket(overrides: Partial<TicketRow> = {}): TicketRow {
-    return {
+    return makeTicket({
       id: 't1',
       owner_user_id: 'me',
-      parent_id: null,
       title: 'Réserver la salle',
-      description: null,
       status: 'validating',
-      priority: 'medium',
-      start_at: null,
-      due_at: null,
       assignee_kind: 'lia',
-      assignee_user_id: null,
       effective_assignee_id: 'me',
-      position: 0,
-      follow_owner: false,
-      follow_assignee: false,
-      created_by: 'user',
-      status_changed_at: '2026-09-09T10:00:00Z',
       run_count: 1,
-      run_claimed_at: null,
       last_run_at: '2026-09-09T08:30:00Z',
       last_run_outcome: 'success',
-      last_run_error: null,
       last_run_tokens_in: 1840,
       last_run_tokens_out: 260,
       last_run_tokens_cache: 1200,
       last_run_google_requests: 0,
       last_run_cost_eur: 0.012,
-      created_at: '2026-09-09T10:00:00Z',
-      execution_mode: 'react',
       total_tokens_in: 1840,
       total_tokens_out: 260,
-      total_tokens_cache: 0,
-      total_google_requests: 0,
       total_cost_eur: 0.012,
-      updated_at: '2026-09-09T10:00:00Z',
       ...overrides,
-    };
+    });
   }
 
   it("says the run's verdict in its own words, never the column", () => {
@@ -372,5 +356,48 @@ describe('LastRunBlock', () => {
 
     expect(screen.getByText(/0,002576|0\.002576/)).toBeInTheDocument();
     expect(screen.queryByText(/^0,00 €$|^€0\.00$/)).not.toBeInTheDocument();
+  });
+});
+
+describe('StepsBlock', () => {
+  // A step is born in its parent's lane, and may be filed elsewhere afterwards.
+  // Repeating the parent's own category on every line would say nothing; the
+  // one that DIFFERS is the information.
+  const nameOf = (id: string) => ({ home: 'Maison', work: 'Travail' })[id];
+  const step = (id: string, category_id: string | null) =>
+    makeTicket({ id, title: `Étape ${id}`, parent_id: 'parent', category_id });
+
+  it('names the lane of a step filed apart from its ticket', () => {
+    renderWithProviders(
+      <StepsBlock
+        steps={[step('a', 'home'), step('b', 'work')]}
+        parentCategoryId="home"
+        categoryName={nameOf}
+      />
+    );
+
+    const badges = screen.getAllByTestId('category-badge');
+    expect(badges).toHaveLength(1);
+    expect(badges[0]).toHaveTextContent('Travail');
+    expect(screen.getByText('Étape b').closest('li')).toContainElement(badges[0]);
+  });
+
+  it('says nothing of a step that sits in its ticket’s own lane, or in none', () => {
+    renderWithProviders(
+      <StepsBlock
+        steps={[step('a', 'home'), step('b', null)]}
+        parentCategoryId="home"
+        categoryName={nameOf}
+      />
+    );
+
+    expect(screen.queryByTestId('category-badge')).toBeNull();
+  });
+
+  it('shows no badge for a category nobody can name', () => {
+    renderWithProviders(<StepsBlock steps={[step('a', 'gone')]} parentCategoryId={null} />);
+
+    expect(screen.queryByTestId('category-badge')).toBeNull();
+    expect(screen.getByText('Étape a')).toBeInTheDocument();
   });
 });

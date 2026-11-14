@@ -46,6 +46,7 @@ from src.domains.workbench.schemas.tasks import (
     TaskStep,
     TaskStepChange,
     TaskViewQuery,
+    ViewTasks,
 )
 
 router = APIRouter(prefix="/tasks")
@@ -113,11 +114,11 @@ async def get_due_tasks(query: Annotated[DueTasksQuery, Query()], user: _Account
 
 @router.get(
     "/view",
-    response_model=DueTasks,
-    summary="What every list holds for today, overdue or the days ahead",
+    response_model=ViewTasks,
+    summary="What every list holds: for today, overdue, the days ahead, the three, or all of it",
     dependencies=[Depends(rate_limit_read)],
 )
-async def get_task_view(query: Annotated[TaskViewQuery, Query()], user: _Account) -> DueTasks:
+async def get_task_view(query: Annotated[TaskViewQuery, Query()], user: _Account) -> ViewTasks:
     """A view across the lists, in the account's day."""
     return await tasks_service.read_task_view(user.id, resolve_user_timezone(user), query)
 

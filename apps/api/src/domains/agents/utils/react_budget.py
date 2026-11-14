@@ -115,6 +115,7 @@ class ReactTurnReset(TypedDict):
     react_activated_skills: list[str]
     react_recovery_passes: list[dict[str, Any]]
     react_output_truncated: bool
+    react_turn_notes: list[dict[str, Any]]
 
 
 def react_turn_reset() -> ReactTurnReset:
@@ -166,6 +167,9 @@ def react_turn_reset() -> ReactTurnReset:
         # ADR-275 (amended): a cut output ends ITS turn; left set, it would end
         # every later turn of the thread at its first call.
         react_output_truncated=False,
+        # ADR-385: the notes of a turn were folded into ITS question at the loop's
+        # exit; carried over, each later call would show them again in place.
+        react_turn_notes=[],
     )
 
 

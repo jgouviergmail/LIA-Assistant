@@ -3,12 +3,13 @@
  * (skeletons), the unavailable-pricing error, and the loaded selectors;
  * enabling generation (persist + refresh + toast), the error path, and the
  * no-user guard; the prompt enhancement switch (ADR-315), offered only when the
- * server would honour it.
+ * server would honour it; a list saving its own choice stays focusable (busy, never
+ * disabled).
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, userEvent, waitFor } from '@/__tests__/test-utils';
 import { makeUser } from '@/__tests__/factories';
 import { dataQuery, loadingQuery, errorQuery } from '@/__tests__/api-mocks';
 import type { User } from '@/lib/auth';
@@ -244,4 +245,26 @@ it.each(['en', 'fr'] as const)('names the quality, size and format selectors in 
   for (const field of ['quality', 'size', 'format'] as const) {
     expect(screen.getByRole('combobox', { name: labels[field] })).toBeInTheDocument();
   }
+});
+
+describe('ImageGenerationSettings — a list saving its own choice', () => {
+  it('stays focusable and busy until the save answers, never disabled', async () => {
+    useImageGenerationOptions.mockReturnValue(dataQuery(OPTIONS));
+    let answer!: (value: unknown) => void;
+    patch.mockReturnValue(new Promise(resolve => (answer = resolve)));
+    renderWithProviders(<ImageGenerationSettings lng="en" />);
+
+    const format = screen.getByRole('combobox', { name: 'settings.image_generation.format' });
+    await userEvent.click(format);
+    await userEvent.click(await screen.findByRole('option', { name: 'WebP' }));
+
+    expect(patch).toHaveBeenCalledWith('/users/u1', { image_generation_output_format: 'webp' });
+    for (const list of screen.getAllByRole('combobox')) {
+      expect(list).toHaveAttribute('aria-busy', 'true');
+      expect(list).not.toBeDisabled();
+    }
+
+    answer({});
+    await waitFor(() => expect(format).not.toHaveAttribute('aria-busy'));
+  });
 });

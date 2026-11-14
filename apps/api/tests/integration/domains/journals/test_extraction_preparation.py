@@ -95,6 +95,7 @@ async def test_embedding_preparation_leaves_owner_available_and_refuses_stale_wo
             [HumanMessage(content="Keep the condition.", id="source-message")],
             session_id,
             parent_run_id=run_id,
+            user_timezone=None,
         )
     )
     try:

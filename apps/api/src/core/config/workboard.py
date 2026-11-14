@@ -17,10 +17,12 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     WORKBOARD_BRIEF_MAX_NOTES_DEFAULT,
+    WORKBOARD_CATEGORY_NAME_MAX_CHARS_DEFAULT,
     WORKBOARD_CLOSED_HIDE_DAYS_DEFAULT,
     WORKBOARD_COMMENT_MAX_CHARS_DEFAULT,
     WORKBOARD_DESCRIPTION_MAX_CHARS_DEFAULT,
     WORKBOARD_HIDDEN_ROWS_RETENTION_DAYS_DEFAULT,
+    WORKBOARD_MAX_CATEGORIES_PER_USER_DEFAULT,
     WORKBOARD_MAX_CHILDREN_PER_TICKET_DEFAULT,
     WORKBOARD_MAX_RUNS_PER_TICKET_DEFAULT,
     WORKBOARD_MAX_TICKETS_PER_USER_DEFAULT,
@@ -83,6 +85,18 @@ class WorkboardSettings(BaseSettings):
         ge=1,
         le=1000,
         description="Sub-tickets one ticket may carry (one level — ADR-276 D9).",
+    )
+    workboard_max_categories_per_user: int = Field(
+        default=WORKBOARD_MAX_CATEGORIES_PER_USER_DEFAULT,
+        ge=1,
+        le=200,
+        description="Ticket categories one account may define — one board lane each.",
+    )
+    workboard_category_name_max_chars: int = Field(
+        default=WORKBOARD_CATEGORY_NAME_MAX_CHARS_DEFAULT,
+        ge=1,
+        le=200,
+        description="Longest ticket category name accepted (a lane header and a badge).",
     )
     workboard_max_runs_per_ticket: int = Field(
         default=WORKBOARD_MAX_RUNS_PER_TICKET_DEFAULT,

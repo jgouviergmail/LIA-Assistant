@@ -49,6 +49,9 @@ LLM_SPEND_ROADS: dict[str, SpendRoad] = {
     "infrastructure/llm/jev_runtime.py": SpendRoad.ACCOUNTED,
     # --- Inside the agent turn: the ambient TrackingContext records these ----
     "domains/agents/graphs/base_agent_builder.py": SpendRoad.TURN,
+    # The history summarizer those agents carry: it writes with the compaction slot,
+    # inside the run of the agent that carries it.
+    "infrastructure/llm/slot_summarization.py": SpendRoad.TURN,
     "domains/agents/nodes/initiative_node.py": SpendRoad.TURN,
     "domains/agents/nodes/react_nodes.py": SpendRoad.TURN,
     "domains/agents/nodes/response_node.py": SpendRoad.TURN,
@@ -73,6 +76,9 @@ LLM_SPEND_ROADS: dict[str, SpendRoad] = {
     "domains/agents/emails/content_generation.py": SpendRoad.TURN,
     # The reply a mailbox draft holds, written in the turn (ADR-344).
     "domains/agents/emails/reply_drafting.py": SpendRoad.TURN,
+    # How the person writes, learned on the run of the writer that first needs it,
+    # turn or assist, whose config it is handed (ADR-383).
+    "domains/agents/emails/writing_style.py": SpendRoad.TURN,
     "domains/agents/emails/digest.py": SpendRoad.TURN,
     "domains/agents/emails/attachment_content.py": SpendRoad.TURN,
     # The optional image prompt rewrite, inside the image tool's turn (ADR-315).

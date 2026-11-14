@@ -15,6 +15,8 @@ regression — the measurement harness
 
 from __future__ import annotations
 
+from datetime import UTC
+
 import pytest
 
 from src.core.constants import (
@@ -148,6 +150,7 @@ class TestMemoryAdmissionDoctrine:
             existing_memories="None",
             known_relationships=[],
             health_context="",
+            zone=UTC,
         )
 
         assert "bonjour" in rendered

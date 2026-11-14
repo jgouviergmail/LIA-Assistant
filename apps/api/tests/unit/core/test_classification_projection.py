@@ -14,12 +14,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from src.core.classification_projection import (
-    classification_text,
-    classification_view,
-    model_classifications,
-    serialized_classifications,
-)
+from src.core.annotation_projection import model_annotations, serialized_annotations
+from src.core.classification_projection import classification_text, classification_view
 from src.core.content_classification import EmailClassification, EventClassification
 
 pytestmark = pytest.mark.unit
@@ -126,7 +122,7 @@ class TestTheModelData:
             "total": 2,
         }
 
-        projected = model_classifications(source, now=NOW)
+        projected = model_annotations(source, now=NOW)
 
         assert projected == {
             "events": [
@@ -161,7 +157,7 @@ class TestTheModelData:
     def test_a_classification_key_that_is_no_annotation_is_left_as_it_is(self) -> None:
         source: dict[str, object] = {"items": [{"classification": "confidential"}]}
 
-        assert model_classifications(source, now=NOW) == source
+        assert model_annotations(source, now=NOW) == source
 
 
 class TestTheSerializedView:
@@ -175,14 +171,14 @@ class TestTheSerializedView:
     def test_an_archived_annotation_is_projected_when_it_is_read(self) -> None:
         archived = json.dumps({"subject": "Notice", "classification": email()})
 
-        assert json.loads(serialized_classifications(archived, NOW))["classification"] == {
+        assert json.loads(serialized_annotations(archived, NOW))["classification"] == {
             "kind": "email",
             "category": "phishing_scam",
             "evidence_scope": "snippet",
             "priority": "urgent",
             "state": "current",
         }
-        later = serialized_classifications(archived, NOW + timedelta(minutes=10))
+        later = serialized_annotations(archived, NOW + timedelta(minutes=10))
         assert json.loads(later)["classification"]["state"] == "expired"
         assert not AN_INSTANT.search(later)
 
@@ -196,7 +192,7 @@ class TestTheSerializedView:
             }
         )
 
-        projected = json.loads(serialized_classifications(archived, NOW + timedelta(minutes=2)))
+        projected = json.loads(serialized_annotations(archived, NOW + timedelta(minutes=2)))
 
         assert [item["classification"]["state"] for item in projected["items"]] == [
             "current",
@@ -209,7 +205,7 @@ class TestTheSerializedView:
         spoof = json.dumps({"classification": email()})
         archived = json.dumps({"subject": spoof})
 
-        assert serialized_classifications(archived, NOW) == archived
+        assert serialized_annotations(archived, NOW) == archived
 
     @pytest.mark.parametrize(
         "value",
@@ -224,18 +220,18 @@ class TestTheSerializedView:
     def test_a_value_that_is_no_annotation_is_left_as_it_is(self, value: str) -> None:
         archived = '{"name": "Report", "classification": ' + value + "}"
 
-        assert serialized_classifications(archived, NOW) == archived
+        assert serialized_annotations(archived, NOW) == archived
 
     def test_text_that_is_no_json_after_the_key_is_left_as_it_is(self) -> None:
         archived = 'Answer prose. "classification": {not json'
 
-        assert serialized_classifications(archived, NOW) == archived
+        assert serialized_annotations(archived, NOW) == archived
 
     def test_prose_and_wrappers_around_the_records_are_kept(self) -> None:
         record = json.dumps({"registry_id": "email-1", "data": {"classification": email()}})
         head, tail = "Found it.\n\n<external_content>\n", "\n</external_content>"
 
-        projected = serialized_classifications(head + record + tail, NOW)
+        projected = serialized_annotations(head + record + tail, NOW)
 
         assert projected.startswith(head) and projected.endswith(tail)
         inner = json.loads(projected.removeprefix(head).removesuffix(tail))
@@ -261,7 +257,7 @@ def _render_filter_data(payload: dict[str, object]) -> str:
 
 
 def _render_tool_data(payload: dict[str, object]) -> str:
-    return str(model_classifications({"emails": [payload]}))
+    return str(model_annotations({"emails": [payload]}))
 
 
 def _render_history(payload: dict[str, object], now: datetime | None = None) -> str:

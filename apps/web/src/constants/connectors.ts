@@ -56,6 +56,8 @@ export const CONNECTOR_TYPES = [
   'wikipedia',
   'perplexity',
   'brave_search',
+  // The instance's own web search (lot 18, keyless — ADR-307)
+  'searxng',
   'browser',
   // Smart Home connectors
   'philips_hue',
@@ -113,6 +115,7 @@ export const CONNECTOR_LABELS: Record<ConnectorType, string> = {
   wikipedia: 'Wikipedia',
   perplexity: 'Perplexity',
   brave_search: 'Brave Search',
+  searxng: 'SearXNG',
   browser: 'Browser',
   // Smart Home connectors
   philips_hue: 'Philips Hue',
@@ -160,7 +163,14 @@ export const CONNECTOR_CATEGORIES = {
     'microsoft_tasks',
     'microsoft_onedrive',
   ],
-  external: ['openweathermap', 'wikipedia', 'perplexity', 'brave_search', 'browser'],
+  external: [
+    'openweathermap',
+    'wikipedia',
+    'perplexity',
+    'brave_search',
+    'searxng',
+    'browser',
+  ],
   smart_home: ['philips_hue'],
   telephony: ['elevenlabs_telephony'],
   live: ['gemini_live', 'gpt_live', 'elevenlabs_live'],

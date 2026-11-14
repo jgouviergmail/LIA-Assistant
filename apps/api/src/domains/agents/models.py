@@ -601,6 +601,10 @@ class MessagesState(TypedDict):
     # budget. The cut message is never written to `messages`; this flag is what
     # ends the loop and tells the finalize node why.
     react_output_truncated: bool
+    # ADR-385: the person's notes the loop read this turn, one record each (id,
+    # text, written_at, anchor_id, passes_before) — shown per call after their
+    # anchor, never written to `messages`, folded into the question at the exit.
+    react_turn_notes: list[dict[str, Any]]
 
 
 class AgentMessagesState(TypedDict):

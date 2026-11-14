@@ -39,21 +39,29 @@ Measured before the change:
    produced. The downgrade gives every kept file the deadline a release would give it,
    then restores `NOT NULL`.
 
-2. **The sweep is ONE conditional statement.** `AttachmentRepository.delete_expired`
-   runs `DELETE … WHERE expires_at <= :now RETURNING file_path`; the service commits,
-   then removes the files off the event loop. The condition is evaluated by the
-   statement that deletes, never by an earlier read, so a keep that commits first wins:
-   under READ COMMITTED the DELETE re-checks the row it waited for and finds `NULL`.
-   Rows first, files after the commit: a crash between the two leaves an orphan file,
-   never a card pointing at nothing. Proven with two actors on real PostgreSQL
-   (`tests/integration/domains/attachments/test_keep_db.py`).
+2. **The sweep retires conditionally and retains its file evidence** (amended
+   2026-11-10). `AttachmentFileRepository.retire_expired` claims a bounded set of
+   READY rows with `FOR UPDATE SKIP LOCKED`, rechecks their deadlines and marks
+   them DELETING. A keep locks the selected rows, including already-kept files;
+   a keep that commits first wins, and a retired file cannot be kept again.
+   After commit, a token-and-fence claim owns the off-loop unlink. Only its
+   explicit success removes the row. Failure, cancellation or a crash after
+   unlink retains retryable evidence; another attempt may safely find the
+   immutable path absent. Native confirmed removal also retains the approved
+   file identity, so a replacement remains refused on a retry. Unknown
+   UPLOADED writers are never reclaimed by age: recovery requires proof that
+   their exact worker and owned children stopped. See the
+   [recovery runbook](../runbooks/CONVERSATION_EXECUTION_RECOVERY.md).
+   The real PostgreSQL/filesystem tests live in
+   `tests/integration/domains/attachments/`.
 
 3. **Two ceilings per account, published and exact.** `GENERATED_ASSETS_KEEP_MAX_FILES`
    and `GENERATED_ASSETS_KEEP_MAX_MB` bound what one account keeps (either at `0`
    switches keeping off: the pin disappears, and a file already kept can still be
    released). Every
    gallery page carries `keep` — the account's kept files and bytes, counted over its
-   whole set, and both ceilings — so the limit is stated before a click is refused
+   whole published set (retired files release the allowance), and both ceilings —
+   so the limit is stated before a click is refused
    (ADR-184, ADR-185). A selection that would pass either ceiling is refused WHOLE
    (409, `GeneratedAssetKeepLimitError`, a translated sentence naming both ceilings):
    keeping half of what a person selected is a result nobody asked for.

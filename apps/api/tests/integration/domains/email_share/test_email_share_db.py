@@ -28,6 +28,7 @@ from src.domains.email_share import errors
 from src.domains.email_share.schemas import EmailShareRequest
 from src.domains.email_share.service import ShareRoute, StoredFile, prepare_share
 from src.domains.users.models import User
+from src.infrastructure.observability.metrics_attachments import DELETION_REASON_USER
 
 pytestmark = pytest.mark.integration
 
@@ -62,6 +63,7 @@ async def _file(
     origin: AttachmentOrigin = AttachmentOrigin.GENERATED_DOCUMENT,
     expires_at: datetime | None | str = "soon",
     status: AttachmentStatus = AttachmentStatus.READY,
+    deletion_reason: str | None = None,
 ) -> Attachment:
     stored = f"{uuid4()}.pdf"
     relative = f"{owner}/{stored}"
@@ -77,6 +79,7 @@ async def _file(
         content_type=AttachmentContentType.DOCUMENT,
         origin=origin.value,
         status=status,
+        deletion_reason=deletion_reason,
         expires_at=datetime.now(UTC) + timedelta(hours=12) if expires_at == "soon" else expires_at,
     )
     session.add(row)
@@ -124,7 +127,14 @@ async def test_a_kept_file_has_no_deadline_and_is_sent(
 
 @pytest.mark.parametrize(
     "variant",
-    ["another_account", "upload", "past_deadline", "expired_status"],
+    [
+        "another_account",
+        "upload",
+        "past_deadline",
+        "expired_status",
+        "being_removed",
+        "still_being_written",
+    ],
 )
 async def test_what_is_not_the_persons_live_generated_file_is_gone(
     async_session: AsyncSession, storage: Path, variant: str
@@ -136,6 +146,13 @@ async def test_what_is_not_the_persons_live_generated_file_is_gone(
         "upload": {"origin": AttachmentOrigin.UPLOAD},
         "past_deadline": {"expires_at": datetime.now(UTC) - timedelta(minutes=1)},
         "expired_status": {"status": AttachmentStatus.EXPIRED},
+        # Retired and awaiting its unlink, or not published yet: only a READY
+        # file is whole and still the person's to send.
+        "being_removed": {
+            "status": AttachmentStatus.DELETING,
+            "deletion_reason": DELETION_REASON_USER,
+        },
+        "still_being_written": {"status": AttachmentStatus.UPLOADED},
     }[variant]
     holder = other.id if variant == "another_account" else owner.id
     file = await _file(async_session, storage, holder, **kwargs)

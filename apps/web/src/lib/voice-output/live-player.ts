@@ -52,6 +52,8 @@ export class RoutedLivePlayer implements LivePlayer {
   private activityTimer: ReturnType<typeof setInterval> | null = null;
   private directAudio: HTMLAudioElement | null = null;
   private directAudioReady = false;
+  /** Lets go of the face's tap on what the native sink plays (ADR-294, 2026-11-13). */
+  private releaseDirectVoice: (() => void) | null = null;
   private remoteStream: MediaStream | null = null;
   private releaseCapture: (() => void) | null = null;
   private stopPermission: (() => void) | null = null;
@@ -128,6 +130,8 @@ export class RoutedLivePlayer implements LivePlayer {
     audio.style.display = 'none';
     document.body.appendChild(audio);
     this.directAudio = audio;
+    // The element plays; the face hears it on the local player's running context.
+    this.releaseDirectVoice = this.local.tapStream?.(stream) ?? null;
     void audio
       .play()
       .then(() => {
@@ -142,16 +146,22 @@ export class RoutedLivePlayer implements LivePlayer {
   private ownsDirectAudio(audio: HTMLAudioElement, attachment: number): boolean {
     return !this.disposed && attachment === this.attachment && this.directAudio === audio;
   }
-  private releaseRemoteStream(): void {
-    this.stopPermission?.();
-    this.stopPermission = null;
-    this.releaseCapture?.();
-    this.releaseCapture = null;
+  /** Stops the native sink, and the face's tap on what it played. */
+  private dropDirectAudio(): void {
+    this.releaseDirectVoice?.();
+    this.releaseDirectVoice = null;
     this.directAudio?.pause();
     if (this.directAudio) this.directAudio.srcObject = null;
     this.directAudio?.remove();
     this.directAudio = null;
     this.directAudioReady = false;
+  }
+  private releaseRemoteStream(): void {
+    this.stopPermission?.();
+    this.stopPermission = null;
+    this.releaseCapture?.();
+    this.releaseCapture = null;
+    this.dropDirectAudio();
     this.remoteStream = null;
     if (this.activityTimer) clearInterval(this.activityTimer);
     this.activityTimer = null;
@@ -167,11 +177,7 @@ export class RoutedLivePlayer implements LivePlayer {
   private beginNativeCapture(): void {
     const stream = this.remoteStream;
     if (!stream) return;
-    this.directAudio?.pause();
-    if (this.directAudio) this.directAudio.srcObject = null;
-    this.directAudio?.remove();
-    this.directAudio = null;
-    this.directAudioReady = false;
+    this.dropDirectAudio();
     this.releaseCapture?.();
     this.releaseCapture = this.capture.attach(stream);
     this.nativeActive = false;

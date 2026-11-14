@@ -47,7 +47,7 @@ import {
   Square,
   Sun,
 } from '@/lib/icons';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
@@ -68,6 +68,7 @@ export interface LiveBannerProps {
   session: UseLiveSessionReturn;
   /** Cancel LIA's current turn, then end the session. */
   onStopAll: () => void;
+  discussion?: { title: string; open: () => void };
 }
 
 /** Endings the person did not choose and cannot read in the thread's card alone. */
@@ -88,13 +89,14 @@ function useStartedToast(): void {
   const { t } = useTranslation();
   const status = useLiveStore(state => state.status);
   const sessionId = useLiveStore(state => state.sessionId);
-  const greeted = useRef<string | null>(null);
   useEffect(() => {
-    // Keyed on the session, not on a flag: a reconnection keeps its id and is
-    // not greeted again, a new session is — whatever renders were batched.
-    if (status !== 'live' || sessionId === null || greeted.current === sessionId) return;
-    greeted.current = sessionId;
-    toast.success(t('live.toast.started'));
+    if (
+      status === 'live' &&
+      sessionId !== null &&
+      useLiveStore.getState().claimStartNotice(sessionId)
+    ) {
+      toast.success(t('live.toast.started'));
+    }
   }, [status, sessionId, t]);
 }
 
@@ -235,7 +237,34 @@ function MicrophoneControl({ session }: { session: UseLiveSessionReturn }) {
   );
 }
 
-export function LiveBanner({ session, onStopAll }: LiveBannerProps) {
+function LiveDiscussionNotice({ discussion }: Pick<LiveBannerProps, 'discussion'>) {
+  const { t } = useTranslation();
+  if (!discussion) return null;
+  const label = t('chat.discussions.live_origin', { title: discussion.title });
+  return (
+    <div className="flex min-w-0 items-center justify-between gap-2">
+      <span title={label} className="min-w-0 truncate">
+        {label}
+      </span>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="min-h-11 shrink-0"
+        onClick={discussion.open}
+      >
+        {t('chat.discussions.live_return')}
+      </Button>
+    </div>
+  );
+}
+
+function liveStatusKey(status: string, delegating: boolean, direct: boolean): string {
+  if (!delegating) return `live.status.${status}`;
+  return direct ? 'live.status.looking_up' : 'live.status.delegating';
+}
+
+export function LiveBanner({ session, onStopAll, discussion }: LiveBannerProps) {
   const { t } = useTranslation();
   const status = useLiveStore(state => state.status);
   const captions = useLiveStore(state => state.captions);
@@ -253,8 +282,7 @@ export function LiveBanner({ session, onStopAll }: LiveBannerProps) {
 
   // A direct session (ADR-300 wave 4) runs no chat turn: its wait is a
   // lookup, named as such, and there is nothing to stop.
-  const workingKey = direct ? 'live.status.looking_up' : 'live.status.delegating';
-  const statusKey = delegating ? workingKey : `live.status.${status}`;
+  const statusKey = liveStatusKey(status, delegating, direct);
   return (
     <section
       aria-label={t('live.captions.title')}
@@ -264,6 +292,7 @@ export function LiveBanner({ session, onStopAll }: LiveBannerProps) {
       // through). One element: `bg-card` paints the colour, the gradient the tint.
       className="flex flex-col gap-1 border-b border-primary/25 bg-card bg-gradient-to-r from-primary/10 to-primary/10 px-4 py-2 text-xs"
     >
+      <LiveDiscussionNotice discussion={discussion} />
       <div className="flex flex-wrap items-center gap-2">
         <AudioLines
           className={cn(

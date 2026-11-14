@@ -120,7 +120,7 @@ for (const sample of [
     expect(starts).toEqual([{}]);
     for (const [button, off, name] of [
       [cost, costOff, 'CircleDollarSign'],
-      [radio, radioOff, 'Radio'],
+      [radio, radioOff, 'RadioSet'],
     ] as const) {
       const on = await buttonPaint(button);
       expect(on.borderWidth).toBe('1px');

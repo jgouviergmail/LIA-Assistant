@@ -19,6 +19,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.constants import (
     DEFAULT_CURRENCY,
+    EMBEDDING_PROVIDER_DELAY_JITTER_SECONDS,
+    EMBEDDING_PROVIDER_DELAY_MARGIN_SECONDS,
     FISHAUDIO_CLONE_TOTAL_MAX_BYTES,
     HTTP_LOG_EXCLUDE_PATHS_DEFAULT,
     MULTIPART_ENVELOPE_OVERHEAD_BYTES,
@@ -41,6 +43,7 @@ from .browser import BrowserSettings
 from .calculation import CalculationSettings
 from .channels import ChannelsSettings
 from .connectors import ConnectorsSettings
+from .conversations import ConversationsSettings
 from .database import DatabaseSettings
 from .demo import DemoSettings
 from .devops import DevOpsSettings
@@ -155,6 +158,7 @@ class Settings(
     LiveSettings,
     AvatarSettings,
     BookmarksSettings,
+    ConversationsSettings,
     EmailShareSettings,
     RadioSettings,
     SkillLibrarySettings,
@@ -418,6 +422,46 @@ class Settings(
         return self
 
     @model_validator(mode="after")
+    def _validate_embedding_patience_fits_the_document_lease(self) -> Settings:
+        """Refuse a patience that could outlast the lease of a waiting document.
+
+        Bulk indexing serves the delay a quota refusal names (ADR-254 amendment
+        2026-11-10). Those waits sit inside ONE embedding batch of one document,
+        whose lease is renewed BEFORE each batch (ADR-129), and a batch waits
+        once between two attempts: every wait it may make is counted. Waits as
+        long as the lease would let the reaper requeue a document that is only
+        waiting for its provider; half the lease is left to the calls they
+        separate.
+
+        Returns:
+            The validated settings instance.
+
+        Raises:
+            ValueError: The waits one batch may make exceed half the job lease.
+        """
+        patience = self.embedding_patient_retry_max_wait_seconds
+        waits = self.embedding_retry_max_attempts - 1
+        if patience <= 0 or waits <= 0:
+            return self
+        longest_wait = waits * (
+            patience
+            + EMBEDDING_PROVIDER_DELAY_MARGIN_SECONDS
+            + EMBEDDING_PROVIDER_DELAY_JITTER_SECONDS
+        )
+        ceiling = self.rag_job_lease_ttl_seconds / 2
+        if longest_wait > ceiling:
+            raise ValueError(
+                f"embedding_patient_retry_max_wait_seconds ({patience:g} s) may be waited "
+                f"{waits} time(s) by one embedding batch (embedding_retry_max_attempts="
+                f"{waits + 1}): {longest_wait:g} s with its margins exceeds half of "
+                f"rag_job_lease_ttl_seconds ({ceiling:g} s), and a document waiting for the "
+                "embedding provider would lose its lease. Lower "
+                "EMBEDDING_PATIENT_RETRY_MAX_WAIT_SECONDS or EMBEDDING_RETRY_MAX_ATTEMPTS, "
+                "or raise RAG_JOB_LEASE_TTL_SECONDS."
+            )
+        return self
+
+    @model_validator(mode="after")
     def _refuse_debug_in_production(self) -> Settings:
         """Refuse to boot a production instance in debug mode (ADR-326).
 
@@ -510,6 +554,7 @@ __all__ = [
     "AccountExportSettings",
     "MeetingsSettings",
     "BookmarksSettings",
+    "ConversationsSettings",
     "EmailShareSettings",
     "RadioSettings",
     "SkillLibrarySettings",

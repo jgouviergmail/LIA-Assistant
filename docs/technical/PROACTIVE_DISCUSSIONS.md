@@ -147,6 +147,38 @@ framing margin. No envelope is written in the code — a model is what an
 administrator configured. A pass offers at most `DISCUSSION_CONTEXT_FACTS_PER_PASS`
 facts, spread across sources so one busy mailbox cannot take every place.
 
+The tasks source reads EVERY list of the account (`connectors/discussion_tasks.py`,
+ADR-369 §4): the list the connector's settings name as the default is where a new task
+goes, nothing else. Each list is its own container — a task's reference is read back in
+the list it was minted under — and the read's call budget bounds the lists read
+(`DISCUSSION_READ_CALL_LIMIT` − 1: one call lists them, one reads each); a page that
+could not cover them all is `truncated`.
+
+The mail source tells what the mailbox ITSELF marks of each message — that the person
+answered it ([reply state](./MAIL_REPLY_STATE.md), ADR-379 decision 15,
+`connectors/mail_listers.py`). A proof is read again at its version before any use, so what
+it tells must come with the message: Graph's last verb, asked in the read of the message;
+IMAP's `\Answered` flag, which every read returns. The evidence states it ahead of the body
+(`"reply_state":"answered on <UTC instant>"`), so a mail answered since it was read is a
+changed fact and a mail nothing is marked of keeps its version; a marked mail carries the
+usage nuance that says how the mark reads (`email_answered_nuance`). No conversation is
+read: one read per listed message does not fit `DISCUSSION_READ_CALL_LIMIT` on a mailbox
+that reads one thread per call (a guard recomputes that arithmetic from the settings), so
+an answer that left no mark is not seen. Gmail keeps no mark; its search covers every
+folder, so the person's own reply is a fact of its own in the same window. Measured on a
+small sample (ADR-379): with the mark, the context call no longer stores the mail as a
+request awaiting a reply; no opening was made with or without it, so its effect on an
+opening's words was not observed.
+
+A page hands out each mail as the read of that one mail returns it, or no proof would ever
+come back at its version. A mailbox whose listing carries a preview (Outlook) is read one
+message at a time: one call lists, one reads each hit, and the page lists no more hits
+than the allowance reads whole (`DISCUSSION_READ_CALL_LIMIT` − 1); the rest is the next
+page's. An iCloud page comes in ONE command inside a bounded read: every IMAP command is a
+call, and one per message refused a full default page as `budget`; the page is held whole
+meanwhile. Outlook and iCloud are proven on the providers' references and scripted
+mailboxes, not on a real one (ADR-379 holds the measurements).
+
 Whatever model the slot runs, one malformed proposal never refuses the whole answer:
 each is [read on its own](../../apps/api/src/domains/proactive_discussions/contextualization/proposal_reading.py).
 A reference listed twice or left empty, or an anchor missing from its own references,

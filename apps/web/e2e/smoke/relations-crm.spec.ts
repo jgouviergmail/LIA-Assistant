@@ -8,7 +8,7 @@
  * route change), and "prepare a 360° point" deep-links the chat with a
  * `?intent=` (ADR-173).
  */
-import { test, expect, type MockRoute } from '../fixtures';
+import { test, expect, openListFilters, type MockRoute } from '../fixtures';
 
 const NAME = 'Gérard Dupont';
 
@@ -236,6 +236,8 @@ test.describe('relations CRM (N-09)', () => {
       const peers = page.getByRole('button', { name: 'Sur LIA', exact: true });
       const dormant = page.getByRole('button', { name: 'En sommeil', exact: true });
       await expect(search).toBeVisible();
+      // On a phone the order and the two quick filters wait behind « Filtres ».
+      const fold = await openListFilters(page, 'Filtres');
       await expect(sort).toBeVisible();
       await expect(peers).toBeVisible();
       await expect(dormant).toBeVisible();
@@ -247,6 +249,14 @@ test.describe('relations CRM (N-09)', () => {
       await dormant.click();
       await expect(peers).toHaveAttribute('aria-pressed', 'true');
       await expect(dormant).toHaveAttribute('aria-pressed', 'true');
+      if (fold) {
+        // Folded again, the summary still says what narrows the list.
+        await fold.click();
+        await expect(peers).toHaveCount(0);
+        await expect(fold).toContainText('Sur LIA · En sommeil');
+        await expect(fold).toContainText('2');
+        await fold.click();
+      }
       await page.getByRole('button', { name: 'Effacer les filtres', exact: true }).click();
       await search.fill('Alice');
       await expect(page.getByText('Alice', { exact: true })).toBeVisible();

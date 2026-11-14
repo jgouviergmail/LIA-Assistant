@@ -54,13 +54,16 @@ def _clients(search: AsyncMock) -> tuple[MagicMock, list[MagicMock]]:
 async def _search(
     service: KnowledgeEnrichmentService, deps: MagicMock, person: UUID
 ) -> KnowledgeContext | None:
+    """One Brave search with the key the person's connector holds right now."""
+    connectors = await deps.get_connector_service()
+    credentials = await connectors.get_api_key_credentials(person, "brave_search")
     return await service._call_api(
         keyword="solar eclipse",
         endpoint="web",
         is_news_query=False,
         user_id=person,
         language="it",
-        tool_deps=deps,
+        credentials=credentials,
         redis=None,
     )
 

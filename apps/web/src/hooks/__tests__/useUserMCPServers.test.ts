@@ -5,9 +5,10 @@ import { userMCPServerFixture as server } from '@/__tests__/fixtures/mcp-servers
  * by the settings-panel tests and therefore only pinned here.
  *
  * Beyond the usual optimistic updaters, two operations are not plain writes and
- * carry their own rule: a **successful** connection test refetches (the server
- * cached a new tool list, so the local copy is stale), and an OAuth initiation
- * hands the browser over — but only when the server actually returned a URL.
+ * carry their own rule: an **answered** connection test refetches (the server
+ * stored a status, and on success a new tool list, so the local copy is stale),
+ * and an OAuth initiation hands the browser over — but only when the server
+ * actually returned a URL.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -100,7 +101,7 @@ describe('useUserMCPServers — reading', () => {
   it('reads the collection and exposes it', () => {
     const { result } = setup();
 
-    expect(useApplicationAccountQuery).toHaveBeenCalledWith(ENDPOINT, expect.objectContaining({}));
+    expect(useApplicationAccountQuery).toHaveBeenCalledWith(ENDPOINT, 'UserMCPServers', true);
     expect(result.current.servers).toHaveLength(1);
     expect(result.current.total).toBe(1);
   });
@@ -204,8 +205,27 @@ describe('useUserMCPServers — connection test', () => {
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
-  it('leaves the list alone when the handshake fails', async () => {
-    mutate.test.mockResolvedValue({ success: false, tool_count: 0, tools: [], error: 'refused' });
+  it('refreshes the list when the handshake fails too: the server stored its new status', async () => {
+    // A failed test leaves the server `error` or `auth_required`; the card must show it,
+    // or an OAuth server awaiting its authorization never offers « Connect via OAuth ».
+    mutate.test.mockResolvedValue({
+      success: false,
+      tool_count: 0,
+      tools: [],
+      error: 'OAuth authorization required',
+      error_code: 'oauth_authorization_required',
+    });
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.testConnection('s1');
+    });
+
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the list alone when the test got no answer', async () => {
+    mutate.test.mockResolvedValue(undefined);
     const { result } = setup();
 
     await act(async () => {

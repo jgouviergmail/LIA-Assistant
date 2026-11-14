@@ -31,9 +31,11 @@ _CAP = "src.domains.habits.capability.is_capability_enabled"
 class TestTheDeclaration:
     def test_habits_and_heartbeat_are_service_enforced(self) -> None:
         for capability in (PlatformCapability.HABITS, PlatformCapability.HEARTBEAT):
-            spec = CAPABILITY_SPECS[capability]
-            assert spec.service_enforced is True
-            assert spec.route_enforced is False
+            assert CAPABILITY_SPECS[capability].service_enforced is True
+        # The heartbeat acts in its sweeps alone; three habits routes ARE acts
+        # (recompute, presence, a proposal's verdict) and carry the guard too.
+        assert CAPABILITY_SPECS[PlatformCapability.HEARTBEAT].route_enforced is False
+        assert CAPABILITY_SPECS[PlatformCapability.HABITS].route_enforced is True
 
 
 class TestTheNightlyJob:

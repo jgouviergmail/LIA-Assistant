@@ -48,6 +48,7 @@ import { Switch } from '@/components/ui/switch';
 import { weekdayName } from '@/lib/habit-labels';
 import { lifecycleTone } from '@/lib/status-tone';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { capabilityAvailable, capabilityMounted } from '@/lib/capability-availability';
 import { useConfirm } from '@/components/ui/use-confirm';
 import {
   formatWindow,
@@ -66,7 +67,11 @@ import type { BaseSettingsProps } from '@/types/settings';
 export function HabitsSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { config } = useAppConfig();
-  const flagOn = !!config?.features?.habits_enabled;
+  // What was learned is a RECORD: the section stays under the deployment
+  // flag. Recomputing is an ACT, and its route refuses once the operator
+  // switched the habits off.
+  const flagOn = capabilityMounted(config, 'habits');
+  const learns = capabilityAvailable(config, 'habits');
   const {
     overview,
     unavailable,
@@ -161,7 +166,7 @@ export function HabitsSettings({ lng }: BaseSettingsProps) {
             onDelete={habit => void handleDelete(habit)}
             forgetting={forgetting}
             recomputing={recomputing}
-            onRecompute={() => void handleRecompute()}
+            onRecompute={learns ? () => void handleRecompute() : undefined}
             onForgetAll={() => void handleForgetAll()}
           />
         )
@@ -198,7 +203,8 @@ function HabitsOverviewBody({
   recomputing: boolean;
   onStatus: (habit: Habit, status: HabitStatus) => void;
   onDelete: (habit: Habit) => void;
-  onRecompute: () => void;
+  /** Absent where the instance no longer learns: the act is not offered. */
+  onRecompute?: () => void;
   onForgetAll: () => void;
 }) {
   const { t, i18n } = useTranslation(lng);
@@ -309,16 +315,18 @@ function HabitsOverviewBody({
           The extra top padding separates actions from data (owner screenshot
           feedback: the row sat too close to the last heatmap). */}
       <div className="flex flex-wrap items-center gap-2 pt-2">
-        <Button
-          type="button"
-          variant="default"
-          size="sm"
-          isLoading={recomputing}
-          onClick={onRecompute}
-        >
-          <RefreshCw className="mr-1.5 h-4 w-4" aria-hidden="true" />
-          {t('settings.habits.recompute_label')}
-        </Button>
+        {onRecompute && (
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            isLoading={recomputing}
+            onClick={onRecompute}
+          >
+            <RefreshCw className="mr-1.5 h-4 w-4" aria-hidden="true" />
+            {t('settings.habits.recompute_label')}
+          </Button>
+        )}
         <Button
           type="button"
           variant="destructive"

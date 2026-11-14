@@ -193,6 +193,8 @@ export type ChatAction =
   // ADR-320: the newest server page, merged into the thread on screen.
   | { type: 'MERGE_SERVER_PAGE'; payload: { messages: Message[] } }
   | { type: 'APPEND_MESSAGE'; payload: { message: Message } }
+  // ADR-384: a send the busy account kept as a waiting message leaves the thread.
+  | { type: 'WITHDRAW_MESSAGE'; payload: { id: string } }
 
   // API health
   | { type: 'SET_API_AVAILABLE'; payload: { available: boolean } }

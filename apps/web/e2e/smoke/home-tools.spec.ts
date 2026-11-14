@@ -16,12 +16,18 @@ import { appConfig } from '../fixtures/dashboard-shell';
 import { expectNoOverflow, prepareTheme } from './overflow-report';
 
 const LIST = 'list-home';
+const LIST_NAME = 'Household';
 
 /** The home's payload, its tasks and messages named by their ids as the API now sends them. */
 function toolsBriefing() {
   const briefing = homeBriefing();
   const tasks = briefing.cards.tasks.data!;
-  tasks.items = tasks.items.map((task, index) => ({ ...task, id: `task-${index}`, list_id: LIST }));
+  tasks.items = tasks.items.map((task, index) => ({
+    ...task,
+    id: `task-${index}`,
+    list_id: LIST,
+    list_name: LIST_NAME,
+  }));
   const mails = briefing.cards.mails.data!;
   mails.items = mails.items.map((mail, index) => ({ ...mail, id: `mail-${index}` }));
   return briefing;
@@ -119,7 +125,10 @@ test('a task of the home opens in its own list in the tasks tool', async ({
   await mockApi([...homeRoutes(user, toolsBriefing()), ...toolsRoutes([])]);
   await readyHome(page);
 
-  await page.getByRole('link', { name: `Open the task “${homeItemName('tasks', 0)}”` }).click();
+  // The card gathers every list (2026-11-10): each task names its own in a badge.
+  const opens = page.getByRole('link', { name: `Open the task “${homeItemName('tasks', 0)}”` });
+  await expect(opens.getByTitle(LIST_NAME)).toBeVisible();
+  await opens.click();
 
   await expect(page).toHaveURL(/\/en\/dashboard\/tools\/tasks\?list=list-home&task=task-0$/);
   const detail = page.getByRole('complementary', { name: 'Detail' });

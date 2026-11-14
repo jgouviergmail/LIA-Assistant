@@ -42,6 +42,15 @@ Feedback thumbs retain their familiar up/down shapes, now with coloured surfaces
 in both colour styles. A missing vendor concept never silently returns the
 monochrome renderer.
 
+Where no collection draws the object at all, the line set included, the colour
+styles show a drawing LIA authored outright under a name of its own, and the line
+style keeps the glyph it already used. The radio is a radio set in colour and
+Lucide's broadcast in line, on every surface that names it; the broadcast glyph
+stays the mark of the live and signal controls, each of which declares what it
+means by it (guard `radio-glyph.guard.test.ts`). The recorder shows the recording
+dot, red at rest as well as live, inside a ring whose colour and pulse say that a
+recording is running.
+
 Selection and fill remain semantic states. Stars, hearts, pins, circles and
 squares use an interior layer inheriting the effective SVG fill, while their contour and accents retain
 their colours. This preserves explicit `fill` props, utility classes and a fill

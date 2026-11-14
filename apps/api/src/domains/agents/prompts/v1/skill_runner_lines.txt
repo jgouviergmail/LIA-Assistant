@@ -1,0 +1,10 @@
+# Model-facing lines of the script-skill runner's task, one `key|template` per
+# line; blank lines and #-comments are ignored (ADR-284: prose never lives in a
+# .py). Read by domains/agents/nodes/response_skill_runner.py.
+
+# What the runner is asked: the activated skill and the request it answers.
+task|Skill '{skill_name}' is activated. Follow its instructions to respond to: {request}
+
+# After the history, for a skill that declares a dialogue (S5); each message of
+# the history may carry the moment it was written (lot 17).
+history_note|The skill runs a multi-step dialogue: use this history to resume it (e.g. treat the latest user message as the answer to a question you asked earlier). A message may start with the date and time it was written, in brackets.

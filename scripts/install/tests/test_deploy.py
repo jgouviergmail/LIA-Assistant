@@ -10,7 +10,10 @@ suite, ``test_deploy_reconfigure.py``; both use the fakes of ``deploy_fakes.py``
 
 from __future__ import annotations
 
+import io
 import json
+import urllib.error
+from email.message import Message
 from pathlib import Path
 
 import pytest
@@ -111,7 +114,7 @@ def test_bootstrap_sends_one_json_stdin_and_no_secret_argv() -> None:
     runner = _Runner()
     secrets = SecretAnswers(
         admin_password=PASSWORD,
-        provider_keys={"deepseek": PROVIDER_KEY, "openai": "sk-o"},
+        provider_keys={"deepseek": PROVIDER_KEY, "anthropic": "sk-o"},
     )
     run_bootstrap(_invocation(), _public(), secrets, runner)
     call = runner.calls[0]
@@ -133,7 +136,7 @@ def test_bootstrap_sends_one_json_stdin_and_no_secret_argv() -> None:
     payload = json.loads(call["stdin"])
     assert payload["admin"]["email"] == "admin@ops.tld"
     assert payload["admin"]["password"] == PASSWORD
-    assert payload["provider_keys"] == {"deepseek": PROVIDER_KEY, "openai": "sk-o"}
+    assert payload["provider_keys"] == {"deepseek": PROVIDER_KEY, "anthropic": "sk-o"}
 
 
 def test_bootstrap_publication_failure_exit_3_is_not_fatal() -> None:
@@ -248,6 +251,22 @@ def test_wait_ready_times_out_with_a_stable_code() -> None:
         wait_ready("http://127.0.0.1:8000/ready", opener, clock, timeout_s=30)
     assert "readiness_timeout" in str(excinfo.value)
     assert clock.now >= 30
+
+
+def test_wait_ready_releases_the_answer_of_an_api_not_ready_yet() -> None:
+    """``urlopen`` raises a 503 as an error that IS the response: one per poll
+    while /ready says « not yet », each left to the garbage collector unless
+    released."""
+    body = io.BytesIO(b"starting")
+    starting = urllib.error.HTTPError(
+        "http://127.0.0.1:8000/ready", 503, "Service Unavailable", Message(), body
+    )
+    opener = _ReadyOpener([starting, 200])
+
+    wait_ready("http://127.0.0.1:8000/ready", opener, _Clock(), timeout_s=300)
+
+    assert len(opener.urls) == 2
+    assert body.closed
 
 
 def test_the_degraded_report_is_the_result_line_among_log_lines() -> None:

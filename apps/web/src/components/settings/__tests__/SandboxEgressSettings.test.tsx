@@ -36,9 +36,16 @@ const state = {
   maxPerUser: 50,
 };
 
+/** What the operator switched off: absent, the deployment flag alone decides. */
+const operator = vi.hoisted(() => ({
+  capabilities: undefined as Record<string, { enabled: boolean; family: string }> | undefined,
+}));
 vi.mock('@/hooks/useAppConfig', () => ({
   useAppConfig: () => ({
-    config: { features: { python_sandbox_egress_enabled: state.flagOn } },
+    config: {
+      features: { python_sandbox_egress_enabled: state.flagOn },
+      capabilities: operator.capabilities,
+    },
   }),
 }));
 vi.mock('@/hooks/useSandboxEgress', () => ({
@@ -329,5 +336,16 @@ describe('SandboxEgressSettings — two folds, closed on arrival', () => {
       field
     );
     expect(screen.queryByText('api.search.brave.com')).not.toBeInTheDocument();
+  });
+});
+
+describe('SandboxEgressSettings under the operator switch', () => {
+  it('keeps the grants readable: they are a record the person may withdraw', () => {
+    state.flagOn = true;
+    operator.capabilities = { python_sandbox_egress: { enabled: false, family: 'reach' } };
+    const { container } = renderClosed();
+    operator.capabilities = undefined;
+
+    expect(container).not.toBeEmptyDOMElement();
   });
 });

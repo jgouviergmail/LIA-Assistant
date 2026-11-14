@@ -5,8 +5,7 @@ from uuid import UUID
 from pydantic import JsonValue
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.exceptions import ResourceNotFoundError
-from src.domains.conversations.repository import ConversationRepository
+from src.core.conversation_publication import CurrentPrimaryPublication
 from src.domains.conversations.service import ConversationService
 from src.domains.proactive_discussions.publication_repository import DiscussionPublicationRepository
 from src.domains.shared.discussion_archive import ArchivedDiscussion
@@ -29,13 +28,14 @@ async def archive_discussion(
     Raises:
         ResourceNotFoundError: The person has no active conversation.
     """
-    conversation = await ConversationRepository(db).get_active_for_user(owner_id)
-    if conversation is None:
-        raise ResourceNotFoundError("conversation")
     message = await ConversationService().archive_message(
-        conversation_id=conversation.id, role="assistant", content=content, metadata=metadata, db=db
+        conversation_id=CurrentPrimaryPublication(owner_id),
+        role="assistant",
+        content=content,
+        metadata=metadata,
+        db=db,
     )
-    return ArchivedDiscussion(conversation_id=conversation.id, message_id=message.id)
+    return ArchivedDiscussion(conversation_id=message.conversation_id, message_id=message.id)
 
 
 def publication_repository(db: AsyncSession) -> DiscussionPublicationRepository:

@@ -22,6 +22,7 @@ from src.domains.agents.services.streaming.service import (
 from src.infrastructure.observability.metrics_langgraph import (
     langgraph_streaming_chunks_total,
 )
+from tests.fixtures.conversation_cases import streaming_target
 
 
 @pytest.fixture(autouse=True)
@@ -94,7 +95,7 @@ class TestStreamingChunksTracking:
         # Collect chunks
         chunks = []
         async for chunk, _content in service.stream_sse_chunks(
-            mock_graph_stream(), conversation_id, run_id
+            mock_graph_stream(), streaming_target(conversation_id), run_id
         ):
             chunks.append(chunk)
 
@@ -151,7 +152,7 @@ class TestStreamingChunksTracking:
         # Collect chunks
         chunks = []
         async for chunk, _content in service.stream_sse_chunks(
-            mock_graph_stream(), conversation_id, run_id
+            mock_graph_stream(), streaming_target(conversation_id), run_id
         ):
             chunks.append(chunk)
 
@@ -180,7 +181,7 @@ class TestStreamingChunksTracking:
         # Collect chunks
         chunks = []
         async for chunk, _content in service.stream_sse_chunks(
-            mock_graph_stream(), conversation_id, run_id
+            mock_graph_stream(), streaming_target(conversation_id), run_id
         ):
             chunks.append(chunk)
 
@@ -228,7 +229,7 @@ class TestStreamingChunksTracking:
         # Collect chunks
         chunks = []
         async for chunk, _content in service.stream_sse_chunks(
-            mock_graph_stream(), conversation_id, run_id
+            mock_graph_stream(), streaming_target(conversation_id), run_id
         ):
             chunks.append(chunk)
 

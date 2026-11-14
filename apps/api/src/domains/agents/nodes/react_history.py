@@ -17,7 +17,8 @@ import structlog
 from langchain_core.messages import AIMessage, BaseMessage
 
 from src.core.config import settings
-from src.infrastructure.llm.message_view import as_model_messages
+from src.core.time_utils import resolve_zone
+from src.infrastructure.llm.message_view import as_model_messages, with_written_at
 
 logger = structlog.get_logger(__name__)
 
@@ -84,6 +85,7 @@ def window_messages_for_react(
     turn_id: int | None = None,
     blocks: bool = False,
     turn_started_at: float | None = None,
+    zone: str | None = None,
 ) -> list[BaseMessage]:
     """Window messages for the ReAct LLM call to control token usage.
 
@@ -119,6 +121,11 @@ def window_messages_for_react(
             expired between two calls would change the history before the turn's
             own reasoning — refused where thinking is bound to the conversation
             (ADR-306), a broken prefix elsewhere. ``None`` reads the clock.
+        zone: The person's display zone (``user_timezone``). Each message the
+            person wrote reads with when they wrote it, in that zone (lot 17),
+            the turn's question included. A stamp depends on nothing but the
+            message and the zone: the same bytes on every call of a turn, and in
+            the next turn, which reads this one back through its question.
 
     Returns:
         Windowed message list.
@@ -170,9 +177,9 @@ def window_messages_for_react(
     ]
 
     read_at = None if turn_started_at is None else datetime.fromtimestamp(turn_started_at, UTC)
-    windowed = (
-        neutralize_widget_sentinels(as_model_messages(windowed_history, read_at)) + current_turn
-    )
+    person_zone = resolve_zone(zone)
+    projected = with_written_at(as_model_messages(windowed_history, read_at), person_zone)
+    windowed = neutralize_widget_sentinels(projected) + with_written_at(current_turn, person_zone)
 
     if len(windowed) < len(messages):
         logger.debug(

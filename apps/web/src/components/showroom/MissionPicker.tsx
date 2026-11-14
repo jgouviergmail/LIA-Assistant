@@ -9,7 +9,15 @@
  * synthetic contract is stated before anything runs.
  */
 
-import { Bell, FileText, Handshake, type LucideIcon, Phone, Radio, UserRound } from '@/lib/icons';
+import {
+  Bell,
+  FileText,
+  Handshake,
+  type LucideIcon,
+  Phone,
+  RadioSet,
+  UserRound,
+} from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import type { ShowroomMissionDefinition, ShowroomMissionId } from '@/components/showroom/types';
@@ -21,7 +29,7 @@ const MISSION_ICONS: Record<ShowroomMissionId, LucideIcon> = {
   proactive_alert: Bell,
   memory_dinner: Handshake,
   phone_booking: Phone,
-  daily_briefing: Radio,
+  daily_briefing: RadioSet,
   config_tour: FileText,
 };
 

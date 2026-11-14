@@ -188,6 +188,20 @@ const PINNED: ReadonlyArray<{ key: string; placeholders?: readonly string[] }> =
     key: `auth.turnstile.${part}`,
   })),
   ...['turnstile_failed', 'turnstile_unavailable'].map(code => ({ key: `auth.errors.${code}` })),
+  // Known MCP servers — the gallery's tiles and the create form's notice name a
+  // scheme by interpolation (`settings.mcp.known.scheme.${scheme}`, `.next.${scheme}`).
+  ...['button', 'title', 'description', 'installed', 'installed_hint', 'unavailable'].map(part => ({
+    key: `settings.mcp.known.${part}`,
+  })),
+  ...['none', 'oauth2', 'oauth2_own', 'api_key', 'bearer'].map(scheme => ({
+    key: `settings.mcp.known.scheme.${scheme}`,
+  })),
+  { key: 'settings.mcp.known.next.none' },
+  ...['oauth2', 'oauth2_own', 'api_key', 'bearer'].map(scheme => ({
+    key: `settings.mcp.known.next.${scheme}`,
+    placeholders: ['name'],
+  })),
+  { key: 'settings.mcp.known.callback' },
 ];
 
 /** Resolve a dotted path, or undefined. */

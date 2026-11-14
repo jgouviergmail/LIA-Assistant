@@ -1,6 +1,6 @@
 /** Literal criteria, stable paging, honest failures and a narrow native toolbar. */
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect } from '../fixtures';
+import { test, expect, openListFilters } from '../fixtures';
 
 test('activity filters, account dates and pagination stay coherent', async ({
   page,
@@ -65,6 +65,8 @@ test('activity filters, account dates and pagination stay coherent', async ({
   await expect.poll(() => requests.at(-1)?.get('q')).toBe('été');
   expect(requests.at(-1)?.get('offset')).toBe('0');
   await expect(page.getByText('Older note', { exact: true })).toHaveCount(0);
+  // A phone: the category and the order wait behind « Filters ».
+  await openListFilters(page, 'Filters');
   await page.getByRole('combobox', { name: 'Category', exact: true }).selectOption('journal_entry');
   await page.getByRole('combobox', { name: 'Sort by', exact: true }).selectOption('oldest');
   await expect.poll(() => requests.at(-1)?.get('sort')).toBe('oldest');

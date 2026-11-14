@@ -594,7 +594,7 @@ async def _resume_pending_hitl(
     # whatever the client sends back, so a question of any other conversation
     # reads as one that no longer waits.
     is_own = conversation_id == await _own_conversation_id(user_id)
-    pending = await read_pending_question(conversation_id) if is_own else None
+    pending = await read_pending_question(user_id, conversation_id) if is_own else None
     question_id = _pending_question_id(pending)
 
     if question_id is None or question_fingerprint(question_id) != press.question:

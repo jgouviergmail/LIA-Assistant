@@ -52,11 +52,12 @@ BASE_PUBLIC = {
     "personal_radio": "no",
     "speaking_avatar": "no",
     "world": "no",
+    "web_search": "no",
 }
 SECRETS = {
     "admin_password": ADMIN_PASSWORD,
     "provider_key_deepseek": "dk-secret",
-    "provider_key_openai": "sk-secret",
+    "provider_key_anthropic": "sk-secret",
     # The optional key, left empty at the prompt: skipped.
     "provider_key_gemini": "",
     "maps_browser_key": "",
@@ -145,11 +146,11 @@ def test_interactive_lan_flow_routes_secrets_through_getpass_only() -> None:
     assert public.server_host == "192.168.1.50"
     assert public.web_domain is None and public.api_domain is None
     assert secrets.admin_password == ADMIN_PASSWORD
-    assert set(secrets.provider_keys) == {"deepseek", "openai"}
+    assert set(secrets.provider_keys) == {"anthropic", "deepseek"}
     assert set(io.secret_served) == {
         "admin_password",
         "provider_key_deepseek",
-        "provider_key_openai",
+        "provider_key_anthropic",
         "provider_key_gemini",
         "maps_browser_key",
         "maps_map_id",
@@ -162,7 +163,7 @@ def test_a_given_gemini_key_joins_the_provider_keys() -> None:
     _public, secrets = _collect(io)
     assert secrets.provider_keys == {
         "deepseek": "dk-secret",
-        "openai": "sk-secret",
+        "anthropic": "sk-secret",
         "gemini": "gm-secret",
     }
 
@@ -174,7 +175,7 @@ def test_an_answers_file_may_leave_the_optional_key_out(tmp_path: Path) -> None:
     answers = _write_answers(tmp_path / "answers.env", without_gemini)
     io = _ScriptedIO({}, {})
     _public, secrets = _collect(io, non_interactive=True, answers_path=answers)
-    assert set(secrets.provider_keys) == {"deepseek", "openai"}
+    assert set(secrets.provider_keys) == {"anthropic", "deepseek"}
 
 
 def test_a_reconfiguration_keeps_what_runs_when_every_answer_is_enter() -> None:
@@ -225,7 +226,7 @@ def test_speaking_avatar_opt_in_is_public_and_has_no_provider_key_question() -> 
     public, secrets = _collect(io)
     assert public.speaking_avatar is True
     assert "speaking_avatar" in io.public_served
-    assert set(secrets.provider_keys) == {"deepseek", "openai"}
+    assert set(secrets.provider_keys) == {"anthropic", "deepseek"}
 
 
 def test_world_opt_in_survives_reconfiguration_without_a_provider_key() -> None:
@@ -233,7 +234,7 @@ def test_world_opt_in_survives_reconfiguration_without_a_provider_key() -> None:
     public, secrets = _collect(io)
     assert public.world is True
     assert "world" in io.public_served
-    assert set(secrets.provider_keys) == {"deepseek", "openai"}
+    assert set(secrets.provider_keys) == {"anthropic", "deepseek"}
     scripted = _ScriptedIO({key: "" for key in BASE_PUBLIC}, {})
     candidate = collect_reconfiguration(
         build_reconfiguration_questions(public), io=scripted.adapter(), current=public
@@ -308,7 +309,7 @@ def test_non_interactive_reads_the_answers_file_and_never_prompts(
     io = _ScriptedIO({}, {})
     public, secrets = _collect(io, non_interactive=True, answers_path=answers)
     assert public.admin_email == "admin@ops.tld"
-    assert secrets.provider_keys["openai"] == "sk-secret"
+    assert secrets.provider_keys["anthropic"] == "sk-secret"
     assert io.public_served == [] and io.secret_served == []
 
 
@@ -328,6 +329,35 @@ def test_older_answers_file_keeps_speaking_avatar_disabled(tmp_path: Path) -> No
     path = _write_answers(tmp_path / "answers.env", previous_answers)
     public, _secrets = _collect(_ScriptedIO({}, {}), non_interactive=True, answers_path=path)
     assert public.speaking_avatar is False
+
+
+def test_the_instance_web_search_is_offered_and_enter_turns_it_on() -> None:
+    # On unless the operator refuses it (ADR-382): a person with no search key of
+    # their own then finds web links, and a person's own Brave key still wins.
+    io = _ScriptedIO({**BASE_PUBLIC, "web_search": ""}, SECRETS)
+    public, _secrets = _collect(io)
+    assert public.web_search is True
+    assert "web_search" in io.public_served
+
+
+def test_a_refused_web_search_survives_reconfiguration() -> None:
+    public, _secrets = _collect(_ScriptedIO(BASE_PUBLIC, SECRETS))
+    assert public.web_search is False
+    scripted = _ScriptedIO({key: "" for key in BASE_PUBLIC}, {})
+    candidate = collect_reconfiguration(
+        build_reconfiguration_questions(public), io=scripted.adapter(), current=public
+    )
+    assert candidate.web_search is False
+
+
+def test_an_answers_file_that_does_not_mention_web_search_gets_the_default(
+    tmp_path: Path,
+) -> None:
+    previous_answers = {**BASE_PUBLIC, **SECRETS}
+    previous_answers.pop("web_search")
+    path = _write_answers(tmp_path / "answers.env", previous_answers)
+    public, _secrets = _collect(_ScriptedIO({}, {}), non_interactive=True, answers_path=path)
+    assert public.web_search is True
 
 
 def test_older_answers_file_keeps_world_disabled(tmp_path: Path) -> None:

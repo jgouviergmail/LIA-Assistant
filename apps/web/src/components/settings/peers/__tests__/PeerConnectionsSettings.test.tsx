@@ -60,6 +60,21 @@ beforeEach(() => {
 });
 
 describe('PeerConnectionsSettings', () => {
+  it('renders NOTHING and disables the queries once the operator switched connections off', () => {
+    useAppConfig.mockReturnValue({
+      config: {
+        features: { peers_enabled: true },
+        capabilities: { peers: { enabled: false, family: 'people' } },
+      },
+      loading: false,
+      error: null,
+    });
+    usePeerConnections.mockReturnValue(hookState());
+    const { container } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
+    expect(container).toBeEmptyDOMElement();
+    expect(usePeerConnections).toHaveBeenCalledWith(false);
+  });
+
   it('renders NOTHING and disables the queries when the instance flag is off', () => {
     useAppConfig.mockReturnValue({
       config: { features: { peers_enabled: false } },

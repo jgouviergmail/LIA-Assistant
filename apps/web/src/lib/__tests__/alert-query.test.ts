@@ -47,4 +47,13 @@ describe('complete routine collection', () => {
       scheduledDisplayRows([condition, rows[1]], { q: '', sort: 'recent' }).map(r => r.id)
     ).toEqual(['a', 'b']);
   });
+  it('does not invent a next run for a routine started by calls (ADR-386)', () => {
+    // Armed for the scheduler's next look at its calls, never a planned run.
+    // Soonest first: armed for Nov 1, it would come BEFORE Nov 2 if read as a run.
+    const onCalls: ScheduledActionRow = { ...rows[0], trigger_kind: 'webhook' };
+    expect(scheduledDisplayRows([onCalls, rows[1]], { q: '', sort: '' }).map(r => r.id)).toEqual([
+      'a',
+      'b',
+    ]);
+  });
 });

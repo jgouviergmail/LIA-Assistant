@@ -32,7 +32,11 @@ def import_all_models() -> None:
     import src.domains.channels.models  # noqa: F401
     import src.domains.chat.models  # noqa: F401
     import src.domains.connectors.models  # noqa: F401
+    import src.domains.conversations.cleanup_models  # noqa: F401
+    import src.domains.conversations.execution_models  # noqa: F401
     import src.domains.conversations.models  # noqa: F401
+    import src.domains.conversations.reservation_models  # noqa: F401
+    import src.domains.conversations.waiting_models  # noqa: F401
     import src.domains.diagnostics.models  # noqa: F401
     import src.domains.google_api.models  # noqa: F401
     import src.domains.habits.models  # noqa: F401
@@ -80,9 +84,11 @@ def import_all_models() -> None:
     import src.domains.usage_limits.models  # noqa: F401
     import src.domains.user_mcp.models  # noqa: F401
     import src.domains.user_mcp.tool_choices  # noqa: F401
+    import src.domains.users.file_writer_models  # noqa: F401
     import src.domains.users.models  # noqa: F401
     import src.domains.voice.fishaudio.models  # noqa: F401
     import src.domains.workboard.models  # noqa: F401
     import src.domains.world.message_models  # noqa: F401
+    import src.domains.writing_style.models  # noqa: F401
 
     _models_imported = True

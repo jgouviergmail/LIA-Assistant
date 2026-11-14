@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import shutil
+from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -42,11 +43,13 @@ from src.domains.skills.exceptions import (
     raise_skill_write_failed,
 )
 from src.domains.skills.models import SkillProvenance
+from src.domains.skills.previous_version import previous_versions
 from src.domains.skills.ui_projection import merge_skill_metadata as _merge_with_cache
 from src.domains.skills.ui_projection import parsed_skill_metadata as _skill_to_response
 from src.domains.skills.url_rate_limit import (
     rate_limit_url_import as _url_import_rate_limit,
 )
+from src.domains.skills.usage import skill_life
 from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
@@ -132,6 +135,8 @@ async def list_skills(
     skill_ids = [UUID(s["skill_id"]) for s in db_skills]
     origins = await capability_origins(db, user.id, "skill", skill_ids)
     shares = await capability_shares(db, user.id, "skill", skill_ids)
+    now, dormant_after = datetime.now(UTC), settings.skills_dormant_after_days
+    previous = await asyncio.to_thread(previous_versions, settings.skills_users_path, user.id)
     for item, source in zip(items, db_skills, strict=True):
         origin = origins.get(UUID(source["skill_id"]))
         item["shared_origin"] = origin.model_dump(mode="json") if origin else None
@@ -139,7 +144,17 @@ async def list_skills(
             share.model_dump(mode="json") for share in shares.get(UUID(source["skill_id"]), [])
         ]
         item["is_third_party"] = source["is_third_party"]
-    return {"skills": items, "total": len(items)}
+        # Its use, the switch-off proposal and the way back (lot 14).
+        item.update(
+            skill_life(
+                source,
+                always_loaded=item["always_loaded"],
+                previous=previous,
+                now=now,
+                after_days=dormant_after,
+            )
+        )
+    return {"skills": items, "total": len(items), "dormant_after_days": dormant_after}
 
 
 @router.get(

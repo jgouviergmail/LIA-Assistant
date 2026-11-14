@@ -43,9 +43,9 @@
   "bricks": {
     "f.chat": {
       "name": "Conversación",
-      "role": "El hilo único donde hablas con LIA, por escrito o por voz: respuestas en streaming, archivos adjuntos, tarjetas visuales y el coste mostrado bajo cada respuesta. Si el contenido no cambia, las fichas interactivas y los widgets conservan su estado durante las actualizaciones automáticas de la presentación.",
-      "goal": "Responder con acierto y rapidez, en un solo hilo, mostrando lo que ha costado cada respuesta.",
-      "src": "27744283b4cf"
+      "role": "Habla con LIA por escrito o por voz en Principal o en una conversación con título. Cada conversación guarda su historial, sus archivos adjuntos y su indicador de sesión. Las respuestas llegan en directo con tarjetas visuales y el coste por mensaje. Las tarjetas interactivas y los widgets conservan su estado cuando las actualizaciones en segundo plano mantienen el mismo contenido.",
+      "goal": "Seguir cada tema en su propio historial con las preferencias y el aprendizaje de la cuenta.",
+      "src": "7291719e0f81"
     },
     "f.routing": {
       "name": "Comprensión de la petición",

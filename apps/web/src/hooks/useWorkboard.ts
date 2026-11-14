@@ -29,6 +29,7 @@ import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLife
 import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
 import { ApiError } from '@/lib/api-client';
 import { workboardApi } from '@/lib/workboard/api';
+import { lanePatch } from '@/lib/workboard/lanes';
 import {
   initialWorkboardState,
   ticketsOf,
@@ -37,6 +38,7 @@ import {
 } from '@/reducers/workboard-reducer';
 import type {
   BoardFilters,
+  LaneRow,
   TicketCreateBody,
   TicketRow,
   TicketUpdateBody,
@@ -52,6 +54,11 @@ export interface WriteOutcome {
 export interface UseWorkboardResult {
   tickets: TicketRow[];
   countsByStatus: Record<string, number>;
+  /**
+   * The board's lanes — one per category in sight, with exact counts per
+   * column. Empty for a reader with no category: the board is then flat.
+   */
+  lanes: LaneRow[];
   /** Exact number of tickets the filter matches, page or no page. */
   total: number;
   /** The cards of one column, ordered. */
@@ -63,7 +70,16 @@ export interface UseWorkboardResult {
   /** The instance flag is off (the router answers 404): callers render nothing. */
   isUnavailable: boolean;
   refetch: () => Promise<void>;
-  move: (id: string, status: string, position: number) => Promise<WriteOutcome>;
+  /**
+   * Move a card. `lane` files it under a category (`null`: under none) in the
+   * SAME write; left out, the card stays filed where it was.
+   */
+  move: (
+    id: string,
+    status: string,
+    position: number,
+    lane?: string | null
+  ) => Promise<WriteOutcome>;
   patch: (id: string, body: TicketUpdateBody) => Promise<WriteOutcome>;
   create: (body: TicketCreateBody) => Promise<WriteOutcome>;
   comment: (id: string, body: string) => Promise<WriteOutcome>;
@@ -287,15 +303,27 @@ export function useWorkboard(
   );
 
   const move = useCallback(
-    async (id: string, status: string, position: number): Promise<WriteOutcome> => {
+    async (
+      id: string,
+      status: string,
+      position: number,
+      lane?: string | null
+    ): Promise<WriteOutcome> => {
       if (!isCurrent()) return { ok: false, errorCode: null };
       // The snapshot is the rollback: restoring it puts every card back at the
-      // index it held, which re-deriving an inverse move could only approximate.
+      // index it held — and every lane's figures with it — which re-deriving
+      // an inverse move could only approximate.
       const snapshot: WorkboardState = stateRef.current;
-      dispatch({ type: 'moved', id, status, position });
+      dispatch({ type: 'moved', id, status, position, lane });
       return duringWrite(async () => {
         try {
-          const row = await workboardApi.move(id, { status, position });
+          const row = await workboardApi.move(id, {
+            status,
+            position,
+            // A move that names no lane must not un-file the card: the field
+            // is ABSENT, never null.
+            ...(lane === undefined ? {} : lanePatch(lane)),
+          });
           if (!isCurrent()) return { ok: false, errorCode: null };
           dispatch({ type: 'patched', ticket: row });
           return { ok: true, errorCode: null };
@@ -363,6 +391,7 @@ export function useWorkboard(
     () => ({
       tickets: visibleState.tickets,
       countsByStatus: visibleState.countsByStatus,
+      lanes: visibleState.lanes,
       total: visibleState.total,
       column,
       firstLoad: !owned || firstLoad,

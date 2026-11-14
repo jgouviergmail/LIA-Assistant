@@ -1587,7 +1587,67 @@ function CardOpensToolScene({ active, labels }: SceneProps) {
   );
 }
 
+type MailStandingPhase = 'list' | 'answered' | 'drafted' | 'received';
+const MAIL_STANDING_STEPS: readonly TimelineStep<MailStandingPhase>[] = [
+  { at: 0, state: 'list' },
+  { at: 900, state: 'answered' },
+  { at: 1700, state: 'drafted' },
+  { at: 2500, state: 'received' },
+];
+const MAIL_STANDING_RANK: Record<MailStandingPhase, number> = {
+  list: 0,
+  answered: 1,
+  drafted: 2,
+  received: 3,
+};
+
+/** One listed mail and the word that says where it stands. */
+function MailStandingRow({
+  badge,
+  shown,
+  pending,
+}: {
+  badge: string;
+  shown: boolean;
+  pending?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1">
+      <Mail className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <SkeletonLine w="w-10" />
+      <span
+        className={cn(
+          'ml-auto shrink-0 truncate rounded-full px-1.5 py-0.5 text-px-9 font-medium transition-opacity duration-300 motion-reduce:transition-none',
+          pending ? 'bg-warning/10 text-warning' : 'bg-primary/10 text-primary',
+          shown ? 'opacity-100' : 'opacity-0'
+        )}
+      >
+        {badge}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Three listed mails take their standing one after the other: answered, a reply
+ * left as a draft, a reply received. The resting frame shows the three.
+ */
+function MailStandingScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(MAIL_STANDING_STEPS, { active });
+  const rank = MAIL_STANDING_RANK[phase];
+  return (
+    <div className={STAGE}>
+      <div className="flex w-full max-w-[230px] flex-col gap-1">
+        <MailStandingRow badge={labels.answered} shown={rank >= 1} />
+        <MailStandingRow badge={labels.drafted} shown={rank >= 2} pending />
+        <MailStandingRow badge={labels.received} shown={rank >= 3} />
+      </div>
+    </div>
+  );
+}
+
 export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
+  mail_standing: MailStandingScene,
   discussion_reactions: DiscussionReactionsScene,
   card_details: CardDetailsScene,
   card_compose: CardComposeScene,

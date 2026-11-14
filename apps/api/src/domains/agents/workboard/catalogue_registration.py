@@ -18,13 +18,16 @@ from src.domains.agents.workboard.catalogue_manifests import (
     list_tickets_catalogue_manifest,
     update_ticket_catalogue_manifest,
 )
+from src.domains.agents.workboard.category_manifest import (
+    list_ticket_categories_catalogue_manifest,
+)
 
 if TYPE_CHECKING:
     from src.domains.agents.registry.agent_registry import AgentRegistry
 
 
 def register_workboard_manifests(registry: AgentRegistry) -> None:
-    """Register the ticket agent and its six tool manifests.
+    """Register the ticket agent and its seven tool manifests.
 
     Args:
         registry: Global agent registry being initialized.
@@ -36,3 +39,4 @@ def register_workboard_manifests(registry: AgentRegistry) -> None:
     registry.register_tool_manifest(list_tickets_catalogue_manifest)
     registry.register_tool_manifest(get_ticket_catalogue_manifest)
     registry.register_tool_manifest(delete_ticket_catalogue_manifest)
+    registry.register_tool_manifest(list_ticket_categories_catalogue_manifest)

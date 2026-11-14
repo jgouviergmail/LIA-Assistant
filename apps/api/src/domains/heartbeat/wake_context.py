@@ -71,12 +71,16 @@ async def gmail_delta_preview(client: Any, anchor: str) -> tuple[list[str], str 
 
 
 async def fetch_mail_metadata(client: Any, message_ids: list[str]) -> list[dict[str, Any]]:
-    """Metadata of at most ``PUSH_WAKE_MAIL_MAX_MESSAGES`` messages (best-effort)."""
+    """Metadata of at most ``PUSH_WAKE_MAIL_MAX_MESSAGES`` messages (best-effort).
+
+    Read FRESH: the pre-filter asks whether a message is still unread, and a copy
+    cached when the mail arrived would answer for a message opened since.
+    """
     messages: list[dict[str, Any]] = []
     for message_id in message_ids[:PUSH_WAKE_MAIL_MAX_MESSAGES]:
         try:
             message = await client.get_message(
-                message_id, format=GMAIL_METADATA_FORMAT, use_cache=True
+                message_id, format=GMAIL_METADATA_FORMAT, use_cache=False
             )
         except Exception as exc:  # noqa: BLE001 — one unreadable message is not a wake failure
             logger.debug("push_wake_mail_metadata_failed", error=str(exc))

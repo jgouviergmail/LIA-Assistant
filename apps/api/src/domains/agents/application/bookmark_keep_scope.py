@@ -5,6 +5,8 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.conversation_execution import ExecutionRevoked
+from src.core.conversation_source import current_conversation_source
 from src.domains.agents.application.bookmark_keep_schemas import (
     BookmarkKeepInput,
     BookmarkKeepObservation,
@@ -14,6 +16,7 @@ from src.domains.agents.application.command_service import CommandRejected
 from src.domains.agents.effects.digest import payload_digest
 from src.domains.bookmarks.models import MessageBookmark
 from src.domains.bookmarks.service import BookmarkService
+from src.domains.users.conversation_authority import hold_conversation_source
 
 
 def bookmark_copy_digest(row: MessageBookmark) -> str:
@@ -60,7 +63,16 @@ async def resolve_bookmark_keep(
 ) -> ResolvedBookmarkKeepInput:
     identity = request.message_id
     if identity is None:
-        message = await BookmarkService(db).repository.latest_visible_assistant_message(actor_id)
+        source = current_conversation_source()
+        if source is None or source.owner_id != actor_id:
+            raise CommandRejected("NOT_FOUND_OR_UNAUTHORIZED")
+        try:
+            await hold_conversation_source(db, actor_id, source)
+        except ExecutionRevoked as exc:
+            raise CommandRejected("NOT_FOUND_OR_UNAUTHORIZED") from exc
+        message = await BookmarkService(db).repository.latest_visible_assistant_message(
+            actor_id, source.id
+        )
         if message is None:
             raise CommandRejected("NOT_FOUND_OR_UNAUTHORIZED")
         identity = message.id

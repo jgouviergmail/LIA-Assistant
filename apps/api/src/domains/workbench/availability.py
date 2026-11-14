@@ -32,6 +32,7 @@ from src.domains.workbench.features import (
     PROVIDER_FEATURES,
     TOOL_CATEGORY,
     TOOL_PROVIDERS,
+    WorkbenchFeature,
     WorkbenchTool,
 )
 from src.domains.workbench.schemas.common import (
@@ -117,6 +118,18 @@ def broken_provider(
     )
 
 
+def _offered(provider: ConnectorType) -> frozenset[WorkbenchFeature]:
+    """What a provider accepts that the instance has not switched off.
+
+    The page asks for the reply marks of a listing only where they are offered
+    (ADR-184): with the capability off the route would answer nothing every time.
+    """
+    accepted = PROVIDER_FEATURES[provider]
+    if settings.mail_reply_state_enabled:
+        return accepted
+    return accepted - {WorkbenchFeature.REPLY_MARKS}
+
+
 def _tool(
     tool: WorkbenchTool,
     resolved: ConnectorType | None,
@@ -129,7 +142,7 @@ def _tool(
             tool=tool,
             state="ready",
             provider=ready.value,
-            features=sorted(PROVIDER_FEATURES[ready], key=lambda feature: feature.value),
+            features=sorted(_offered(ready), key=lambda feature: feature.value),
             bounds=dict(PROVIDER_BOUNDS.get(ready, {})),
         )
     broken = broken_provider(tool, statuses)

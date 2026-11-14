@@ -96,6 +96,10 @@ class WorkbenchFeature(str, Enum):
     FILTER_WORDS = "filter_words"
     #: The aliases a message may leave from: Gmail alone lists and honours them.
     SEND_AS = "send_as"
+    #: Where a row stands in its conversation, read apart from the listing (ADR-379):
+    #: every mailbox reads conversations, and the operator's switch withholds the marks
+    #: (``availability``).
+    REPLY_MARKS = "reply_marks"
     # Calendar
     ALL_DAY = "all_day"
     CONFERENCE = "conference"
@@ -160,6 +164,7 @@ _MAIL_COMMON: Final = frozenset(
         WorkbenchFeature.DRAFTS,
         WorkbenchFeature.HTML,
         WorkbenchFeature.ATTACHMENTS,
+        WorkbenchFeature.REPLY_MARKS,
     }
 )
 

@@ -1,6 +1,6 @@
 # ADR-274 — The craft belongs to the renderer, the meaning to the model
 
-**Status:** Accepted — 2026-09-08
+**Status:** Accepted — 2026-09-08; amended 2026-11-13 (ADR-388)
 **Amends:** ADR-226 (document generation agent), ADR-184 (what a system
 enforces, it publishes), ADR-085 (boot-time completeness)
 
@@ -187,3 +187,20 @@ Six more measurements shaped the design:
 5. **`updateFields` on open** for Word's contents: a dialog on every open.
 6. **A new PDF dependency** (reportlab, weasyprint): ADR-226 already rejected
    one, and the Story engine plus a two-pass layout gives exact numbers.
+
+## Amendment 2026-11-13 — the formats' own mechanisms (ADR-388)
+
+The principle stands: the model says what a thing IS, the renderer draws it. What moves is
+recorded in [ADR-388](ADR-388-Documents-Use-What-Their-Formats-Can-Do.md):
+
+- **§9 « greyscale only »** still holds for a document with no tone — meeting minutes among
+  them, unchanged — and is lifted for one the writer gives a tone: a palette validated for
+  contrast and for colour-blind readers colours its structure and its charts, never its small
+  text.
+- **The vocabulary grows**, every list closed, published and repaired rather than refused:
+  columns say what their values are and how they are computed (one grammar, a live formula in a
+  workbook and its value everywhere else), a table may ask for a chart by its intent, a deck may
+  carry key figures, quotes, pictograms and pictures, a report key figures, pictures and the
+  sources it cites.
+- **The thousands separator** (Consequences above): a column now declares when it is a year or
+  a code, so an amount reads with its separator and a year without.

@@ -553,13 +553,14 @@ async def test_complete_read_directive_precedes_source_io_and_is_cached(
 async def test_busy_conversation_refuses_publication_after_model_work(
     producer, discussion_owner, monkeypatch
 ):
-    from contextlib import asynccontextmanager
+    original = discussion_attention.DiscussionAuthority.check
 
-    @asynccontextmanager
-    async def busy(*args, **kwargs):
-        yield False
+    async def busy_at_publication(self: discussion_attention.DiscussionAuthority) -> None:
+        if "message" in FakeModel.calls:
+            raise discussion_attention.InitiativeStopped("attention_busy")
+        await original(self)
 
-    monkeypatch.setattr(discussion_runner, "active_run_lease", busy)
+    monkeypatch.setattr(discussion_attention.DiscussionAuthority, "check", busy_at_publication)
     assert await discussion_runner.run_for_owner(discussion_owner) == "skipped"
     assert FakeModel.calls == ["context", "decision", "message"]
     # Nothing was posted, so nothing was claimed as done.
@@ -1288,7 +1289,6 @@ async def test_a_published_opening_holds_the_next_run_back(producer, discussion_
 
     # Redis is the external level the gate reads last; nothing streams, nothing waits.
     monkeypatch.setattr(discussion_attention, "get_redis_cache", AsyncMock(return_value=object()))
-    monkeypatch.setattr(discussion_attention, "get_active_run", AsyncMock(return_value=None))
     monkeypatch.setattr(discussion_attention, "HITLStore", NoApproval)
     monkeypatch.setattr(discussion_run_setup, "attention_hold", real_attention_hold)
     assert await discussion_runner.run_for_owner(discussion_owner) == "completed"

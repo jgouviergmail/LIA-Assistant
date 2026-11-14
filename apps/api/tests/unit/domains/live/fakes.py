@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from collections import Counter
+
+from src.domains.live import session_scripts
 
 
 class FakeRedis:
@@ -98,19 +101,52 @@ class FakeRedis:
         self.ttls[key] = seconds
         return True
 
-    async def eval(self, script: str, numkeys: int, *args):
-        """The compare-and-delete and the compare-and-refresh of ``redis_claim``."""
+    async def eval(self, script: str, numkeys: int, *args: str) -> object:
+        """The session commands; real atomicity is tested separately on native Redis."""
         self.ops["eval"] += 1
         self._check()
-        key, token = args[0], args[1]
-        if self.store.get(key) != token:
-            return 0
-        if "'del'" in script:
-            del self.store[key]
+        keys, values = args[:numkeys], args[numkeys:]
+        token = self.store.get(keys[0])
+        if script == session_scripts.CLAIM:
+            if token is not None:
+                return 0
+            await self.set(keys[0], values[0], ex=int(values[2]))
+            await self.set(keys[1], values[1], ex=int(values[2]))
+            await self.delete(*keys[2:])
             return 1
-        # compare-and-refresh: the owner's claim gets the new TTL
-        self.ttls[key] = int(args[2])
-        return 1
+        if script == session_scripts.READ:
+            raw = self.store.get(keys[1])
+            return raw if raw and json.loads(raw).get("token") == token else None
+        if token != values[0]:
+            return -1 if script == session_scripts.APPEND else None
+        if script == session_scripts.RELEASE:
+            await self.delete(*keys)
+            return 1
+        if script == session_scripts.EXTEND:
+            raw = self.store.get(keys[1])
+            if not raw or json.loads(raw).get("record_revision", 0) != int(values[3]):
+                return 0
+            await self.expire(keys[0], int(values[2]))
+            await self.set(keys[1], values[1], ex=int(values[2]))
+            for key in keys[2:]:
+                await self.expire(key, int(values[2]))
+            return 1
+        if script == session_scripts.APPEND:
+            maximum = int(values[2])
+            room = len(values) if maximum < 0 else max(0, maximum - await self.llen(keys[1]))
+            kept = values[3:][:room]
+            if kept:
+                await self.rpush(keys[1], *kept)
+            await self.expire(keys[1], int(values[1]))
+            return len(kept)
+        rows = list(self.lists.get(keys[1], []))
+        if script == session_scripts.READ_LIST:
+            return rows
+        if script == session_scripts.DRAIN:
+            count = int(values[1])
+            self.lists[keys[1]] = rows[count:]
+            return rows[:count]
+        raise AssertionError("Unmodelled Redis command")
 
     async def zadd(self, key: str, mapping: dict[str, float]) -> int:
         self.ops["zadd"] += 1

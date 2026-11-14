@@ -46,6 +46,9 @@ class TicketItem(BaseModel):
     status: str
     priority: str
     assignee_kind: str
+    #: The NAME of the category the ticket is filed under, never its id: it is
+    #: what the person says (« the one in Home ») and what a model can read.
+    category: str | None = None
     start_at: str | None = None
     due_at: str | None = None
 
@@ -58,6 +61,10 @@ ContextTypeRegistry.register(
         primary_id_field="id",
         display_name_field="title",
         reference_fields=["title", "status", "priority"],
+        # « The one in Home »: a category is shared by several tickets, so it
+        # is no identity — it is read only when no title carries the words, and
+        # two tickets of one category stay two (the chat then asks which).
+        content_reference_fields=["category"],
         icon="🗂️",
     )
 )

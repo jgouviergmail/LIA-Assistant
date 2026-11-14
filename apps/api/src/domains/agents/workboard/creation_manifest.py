@@ -13,6 +13,10 @@ from src.domains.agents.registry.catalogue import (
     PermissionProfile,
     ToolManifest,
 )
+from src.domains.agents.workboard.category_manifest import (
+    MANAGED_ON_THE_BOARD,
+    category_name_parameter,
+)
 from src.domains.workboard.constants import STATUS_ORDER
 
 _COLUMNS = ", ".join(STATUS_ORDER)
@@ -28,7 +32,10 @@ create_ticket_catalogue_manifest = ToolManifest(
         "to…', 'take care of…'). Set assignee='lia' when they ask LIA to DO it "
         "— LIA then runs it on its own and comments the result on the ticket. "
         "To break a complex task down, create the parent first and call this "
-        "again with parent_ticket for each step. NOT for a provider to-do "
+        "again with parent_ticket for each step. To file it in a lane of the "
+        "board, pass category with the exact name of one of the user's own "
+        f"categories. {MANAGED_ON_THE_BOARD}: an unknown name is refused, it "
+        "does not create a category. NOT for a provider to-do "
         "(use task), a timed notification (use reminder) or a recurring job "
         "(use automation)."
     ),
@@ -140,6 +147,14 @@ create_ticket_catalogue_manifest = ToolManifest(
                 "ticket. Off by default — a board that talks about every "
                 "ticket teaches the user to ignore it."
             ),
+        ),
+        category_name_parameter(
+            "File the ticket under this category: the exact NAME of one of the "
+            "user's own categories (case and accents do not matter). Omit it "
+            "when the user names none: the ticket is then filed under no "
+            "category, and a step is filed like the ticket it belongs to. A name "
+            "that is not one of the user's categories is refused — read them "
+            "with list_ticket_categories_tool."
         ),
     ],
     outputs=[

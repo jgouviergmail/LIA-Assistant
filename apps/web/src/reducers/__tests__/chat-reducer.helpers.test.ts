@@ -12,6 +12,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { createInitialState, persistDebugMetricsHistory } from '@/reducers/chat-reducer';
 import { initialChatState, type DebugMetricsEntry } from '@/types/chat-state';
 import type { DebugMetrics } from '@/types/chat';
+import { conversationScopeKey } from '@/lib/conversation-selection';
 
 const STORAGE_KEY = 'lia_debug_metrics_history';
 
@@ -79,6 +80,22 @@ describe('createInitialState', () => {
 });
 
 describe('persistDebugMetricsHistory', () => {
+  it('isolates debug history by account, discussion and generation', () => {
+    const target = { conversation_id: 'annex', conversation_revision: 3 };
+    const scope = conversationScopeKey('owner', target);
+    persistDebugMetricsHistory([makeEntry('annex-only')], scope);
+    expect(createInitialState(scope).debugMetricsHistory.map(entry => entry.id)).toEqual([
+      'annex-only',
+    ]);
+    for (const other of [
+      conversationScopeKey('other-owner', target),
+      conversationScopeKey('owner', { ...target, conversation_id: 'main' }),
+      conversationScopeKey('owner', { ...target, conversation_revision: 4 }),
+    ]) {
+      expect(createInitialState(other).debugMetricsHistory).toEqual([]);
+    }
+  });
+
   it('persists the history to sessionStorage', () => {
     persistDebugMetricsHistory([makeEntry('e-1')]);
 

@@ -58,6 +58,8 @@ export interface GlyphSelectProps {
   items: readonly GlyphItem[];
   onChange: (value: string) => void;
   disabled?: boolean;
+  /** A save this list's own choice started is on its way (`Select`'s `busy`). */
+  busy?: boolean;
   className?: string;
   /** Visually hide the label; it stays in the accessibility tree. */
   hideLabel?: boolean;
@@ -98,6 +100,7 @@ export function GlyphSelect({
   items,
   onChange,
   disabled,
+  busy,
   className,
   hideLabel = true,
   id,
@@ -109,7 +112,7 @@ export function GlyphSelect({
           {label}
         </GlyphLabel>
       )}
-      <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <Select value={value} onValueChange={onChange} disabled={disabled} busy={busy}>
         <SelectTrigger
           id={id}
           aria-label={hideLabel ? label : undefined}

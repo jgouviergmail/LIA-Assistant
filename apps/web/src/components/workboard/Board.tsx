@@ -1,6 +1,15 @@
 'use client';
 /**
- * The seven columns, and the two ways to move a card between them (ADR-276).
+ * The board, in the shape its reader's categories give it (ADR-276).
+ *
+ * **With no category in sight** it is the flat board: the seven columns, and
+ * the two ways to move a card between them. **With at least one lane** it is
+ * the lane board (`LaneBoard`): one row of the same columns per category. The
+ * choice is made here, once, from the lanes the SERVER sent — an empty list is
+ * what a reader who never created a category receives, and they keep exactly
+ * the board they had.
+ *
+ * What follows describes the flat board; the lane board states its own rules.
  *
  * **From `lg` up**: the columns sit side by side inside ONE horizontally
  * scrolling container, so the page body never scrolls sideways, and a card can
@@ -15,43 +24,40 @@
  * **Below `lg`**: one column at a time, chosen with the column list the cards
  * carry (its items wear the column glyphs, lot 20), two arrows, or a
  * horizontal SWIPE across the column (owner, 2026-09-10). Nothing drags
- * there: a finger that presses a card opens its detail, and the two lists on
- * the card — or the panel's — are where a phone changes the column or the
- * holder. A swipe is a travel of
- * at least `SWIPE_MIN_PX` that is clearly more sideways than down — anything
- * else is the scroll it looks like.
+ * there: a finger that presses a card opens its detail, and the lists on the
+ * card — or the panel's — are where a phone changes the column or the holder.
  *
  * The `DndContext` wraps BOTH layouts: the sensors decide what a gesture means,
- * never a second copy of the rule sitting outside them.
+ * never a second copy of the rule sitting outside them. Those sensors, the
+ * shown column and the swipe are shared with the lane board
+ * (`board-gestures.tsx`).
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  TouchSensor,
   closestCorners,
-  useSensor,
-  useSensors,
   type Announcements,
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { ChevronLeft, ChevronRight } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import {
+  ColumnPicker,
+  drawnStatuses,
+  useBoardSensors,
+  useShownColumn,
+} from '@/components/workboard/board-gestures';
 import { Column, type ColumnProps } from '@/components/workboard/Column';
-import { StatusSelect } from '@/components/workboard/StatusSelect';
+import { LaneBoard } from '@/components/workboard/LaneBoard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { columnOfDroppable, dragSpeech, resolveDrop, titleOf } from '@/lib/workboard/dnd';
-import { CONDITIONAL_STATUSES, TICKET_STATUSES, type TicketRow } from '@/types/workboard';
+import { laneKey, laneViews } from '@/lib/workboard/lanes';
+import { TICKET_STATUSES, type LaneRow, type TicketRow } from '@/types/workboard';
+
+export { SWIPE_MIN_PX } from '@/components/workboard/board-gestures';
 
 type CardHandlers = Omit<ColumnProps, 'status' | 'tickets' | 'count' | 'draggable' | 'className'>;
-
-/** A horizontal travel below this is a scroll, not a swipe. */
-export const SWIPE_MIN_PX = 48;
 
 export interface BoardProps extends CardHandlers {
   /** The cards of one column, in board order. */
@@ -63,51 +69,41 @@ export interface BoardProps extends CardHandlers {
    * background refresh while the gesture lasts.
    */
   onDragActive?: (active: boolean) => void;
-  onMove: (id: string, status: string, position: number) => void;
+  /**
+   * The drop. `lane` is the category the card lands in (`null` for the unfiled
+   * lane) and is ABSENT when the drop names no lane — the flat board never
+   * names one, and a move inside a lane does not either.
+   */
+  onMove: (id: string, status: string, position: number, lane?: string | null) => void;
+  /** The board's lanes, as the server sent them; empty draws the flat board. */
+  lanes?: readonly LaneRow[];
+  /** Whether a filter narrows the board: an emptied lane is then not drawn. */
+  narrowed?: boolean;
+  /** Create a ticket straight into a lane (`null` for the unfiled one). */
+  onAdd?: (categoryId: string | null) => void;
 }
 
-export function Board({ column, countsByStatus, onMove, onDragActive, ...cards }: BoardProps) {
+export function Board({ lanes, narrowed = false, onAdd, ...board }: BoardProps) {
+  const views = useMemo(
+    () => laneViews(lanes ?? [], board.meId, narrowed),
+    [lanes, board.meId, narrowed]
+  );
+  // Every lane the server sent, drawn or not: a fold is remembered for a lane
+  // a filter is hiding too.
+  const laneKeys = useMemo(() => (lanes ?? []).map(lane => laneKey(lane.category_id)), [lanes]);
+  if (views.length === 0) return <FlatBoard {...board} />;
+  return <LaneBoard {...board} lanes={views} laneKeys={laneKeys} onAdd={onAdd} />;
+}
+
+type FlatBoardProps = Omit<BoardProps, 'lanes' | 'narrowed' | 'onAdd'>;
+
+function FlatBoard({ column, countsByStatus, onMove, onDragActive, ...cards }: FlatBoardProps) {
   const { t } = useTranslation();
   const wide = useMediaQuery('(min-width: 1024px)');
   const [dragged, setDragged] = useState<TicketRow | null>(null);
-  const [shown, setShown] = useState<string>('todo');
-  // A conditional column is drawn only while it holds a ticket: « À
-  // confirmer » would otherwise be an empty eighth column on every board.
-  const shownStatuses = TICKET_STATUSES.filter(
-    status => !CONDITIONAL_STATUSES.has(status) || (countsByStatus[status] ?? 0) > 0
-  );
-  // The shown column is DERIVED, never trusted: « À confirmer » comes and goes
-  // with the ticket it holds, so a reader watching it while they answer would
-  // be left on a column the board no longer draws — an empty region, a list
-  // with no selected value and a dead « previous » arrow. Derived rather than
-  // corrected in an effect: a `setState` during a render is the ratchet's own
-  // refusal, and there is nothing to store that the columns do not already say.
-  const current = shownStatuses.includes(shown as (typeof TICKET_STATUSES)[number])
-    ? shown
-    : (shownStatuses[0] ?? TICKET_STATUSES[0]);
-  const shownIndex = shownStatuses.indexOf(current as (typeof TICKET_STATUSES)[number]);
-  // ONE way to step through the columns for the arrows and the swipe alike,
-  // over the columns actually DRAWN: stepping through `TICKET_STATUSES` landed
-  // on « à confirmer » while it was hidden.
-  const step = (delta: number) => {
-    const index = Math.min(shownStatuses.length - 1, Math.max(0, shownIndex + delta));
-    setShown(shownStatuses[index]);
-  };
-  const touchStart = useRef<{ x: number; y: number } | null>(null);
-  const onTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
-    const touch = event.touches[0];
-    touchStart.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
-  };
-  const onTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
-    const start = touchStart.current;
-    touchStart.current = null;
-    const touch = event.changedTouches[0];
-    if (!start || !touch) return;
-    const dx = touch.clientX - start.x;
-    const dy = touch.clientY - start.y;
-    if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < Math.abs(dy) * 2) return;
-    step(dx < 0 ? 1 : -1);
-  };
+  const shownStatuses = drawnStatuses(countsByStatus);
+  const shown = useShownColumn(shownStatuses);
+  const sensors = useBoardSensors();
 
   const statusOf = useCallback(
     (id: string) => {
@@ -117,20 +113,6 @@ export function Board({ column, countsByStatus, onMove, onDragActive, ...cards }
       return null;
     },
     [column]
-  );
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      // A few pixels of travel before a drag begins: without it, every click on
-      // a card's title is read as the start of one.
-      activationConstraint: { distance: 8 },
-    }),
-    useSensor(TouchSensor, {
-      // Press and hold. A finger scrolling the column must never pick a card up
-      // — the defect that makes a touch board unusable.
-      activationConstraint: { delay: 250, tolerance: 8 },
-    }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   const columnName = useCallback(
@@ -206,38 +188,9 @@ export function Board({ column, countsByStatus, onMove, onDragActive, ...cards }
   );
 
   const body = !wide ? (
-    <div className="space-y-3" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label={t('workboard.board.previous_column')}
-          disabled={shownIndex <= 0}
-          onClick={() => step(-1)}
-        >
-          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-        </Button>
-        {/* The SAME list a card carries, with the exact count beside each
-            column: choosing one is an informed pick. */}
-        <StatusSelect
-          label={t('workboard.board.pick_column')}
-          value={current}
-          statuses={shownStatuses}
-          counts={countsByStatus}
-          className="h-10 flex-1 px-3 text-sm"
-          onChange={setShown}
-        />
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label={t('workboard.board.next_column')}
-          disabled={shownIndex >= shownStatuses.length - 1}
-          onClick={() => step(1)}
-        >
-          <ChevronRight className="h-4 w-4" aria-hidden="true" />
-        </Button>
-      </div>
-      {columnFor(current)}
+    <div className="space-y-3" {...shown.swipe}>
+      <ColumnPicker column={shown} statuses={shownStatuses} counts={countsByStatus} />
+      {columnFor(shown.current)}
     </div>
   ) : (
     /* ONE horizontal scroller: the page body never scrolls sideways. */

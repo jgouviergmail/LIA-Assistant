@@ -151,7 +151,9 @@ d'une porte existante, pas une nouvelle porte.
 mesurée maximale. Le tableau s'atteint depuis une section de réglages et depuis
 chaque notification de ticket dans le chat, et le hub des notifications porte un
 badge « a besoin de vous » — un ensemble à décider, jamais un décompte de tout ce
-que le compte possède.
+que le compte possède. *Renversée par le propriétaire le 2026-11-11 : la rangée
+ne dessine plus que des icônes, le tableau y est une destination et la section
+de réglages a disparu (amendement du 2026-11-11).*
 
 **D17 — Glisser-déposer ET liste déroulante.** L'équivalence clavier est une
 règle de correction dans ce dépôt, pas une option : chaque carte porte un
@@ -925,7 +927,7 @@ par le routeur asynchrone perdait une frappe sur deux.
 
 **D76 — La section Réglages › Workboard est le tableau en un coup d'œil.**
 C'était une phrase et un bouton — « c'est ridicule d'avoir une page vide avec
-un bouton » (propriétaire, 2026-09-10) — alors que D15 en fait la PORTE du
+un bouton » (propriétaire, 2026-09-10) — alors que D16 en fait la PORTE du
 tableau. Elle lit désormais `GET /workboard/summary` : chaque chiffre est un
 AGRÉGAT sur l'ensemble entier (ADR-185) — jamais la longueur d'une page que
 personne n'a demandée — et chaque chiffre est un lien vers le tableau réduit à
@@ -940,7 +942,10 @@ sous le commutateur de l'en-tête comme partout. Les requêtes vivent dans
 `summary_queries.py`, à côté du dépôt et non dedans : le fichier du dépôt est
 sous le plafond de taille logique, et ces énoncés n'appartiennent qu'au résumé
 — le filtre du dépôt est devenu public (`filtered_stmt`) pour que le résumé
-compte sur le MÊME prédicat de visibilité que la page.
+compte sur le MÊME prédicat de visibilité que la page. *Déplacée le 2026-11-11 :
+ces chiffres sont au-dessus des filtres du tableau (`BoardGlance`), chacun un
+bouton qui le rétrécit sur place, et la section n'existe plus (amendement du
+2026-11-11).*
 
 ### Ce que le lot 19 (trois retours du 2026-09-10) a décidé
 
@@ -1323,3 +1328,168 @@ premier « Détenu par » d'un fil partait de rien.
 libération), `tests/unit/infrastructure/scheduler/test_workboard_runner.py`
 (remise), `apps/web/src/lib/workboard/__tests__/display.test.ts`,
 `apps/web/src/components/workboard/__tests__/TicketDetailSections.test.tsx`.
+
+## Amendement, 2026-11-11 — des catégories, et un couloir par catégorie
+
+**Constat.** Sept colonnes disent où en est un ticket ; rien ne disait à quoi il
+appartient. Passé quelques dizaines de tickets le tableau se lisait mal, et la
+personne n'avait aucun moyen de ranger les siens — maison, travail, santé — ni
+de retrouver ce rangement là où un ticket se montre ailleurs que sur le tableau.
+
+**Décision.**
+
+- **Une catégorie est un nom que le PROPRIÉTAIRE d'un tableau donne à un
+  couloir.** Table `workboard_categories` (propriétaire, nom, clé pliée unique
+  par propriétaire, position dense) et `workboard_tickets.category_id`, clé
+  étrangère `ON DELETE SET NULL` : supprimer une catégorie rend ses tickets au
+  couloir « À catégoriser » et n'en supprime jamais un. Un ticket sans catégorie
+  est un état normal, et un ticket n'en a qu'une. Une étape naît dans le couloir
+  de son ticket ; l'héritage est écrit par `validate_creation`, donc la création
+  confirmée depuis le chat compare la même valeur que celle qu'elle a montrée.
+- **La catégorie est celle du seul propriétaire du ticket** (arbitrage du
+  propriétaire). Un pair qui détient un ticket LIT le couloir de son
+  propriétaire — celui-là, rien d'autre du vocabulaire de l'autre — et ne peut
+  ni reclasser le ticket ni gérer la catégorie (`workboard_peer_cannot_edit_field`).
+  Une catégorie par côté a été écartée : le même ticket aurait eu deux
+  rangements qui se contredisent.
+- **Aucune couleur par catégorie** (arbitrage du propriétaire) : les couloirs
+  alternent les deux fonds du thème, entiers, et une carte prend le fond opposé
+  à celui de son couloir. Un nom distingue une catégorie, pas une teinte.
+- **Le tableau a deux formes, choisies par ce que le SERVEUR envoie.**
+  `BoardPage.lanes` vide : le tableau plat, inchangé pour qui n'a aucune
+  catégorie. Au moins un couloir : un rang des mêmes colonnes par catégorie,
+  « À catégoriser » en tête. Le compteur de chaque case est un agrégat sur le
+  filtre même de la page (ADR-185), et une case qui tient plus de tickets que la
+  page n'en porte le dit.
+- **Un glisser est UNE écriture.** Déposer une carte dans un autre couloir d'une
+  autre colonne envoie la colonne, la place et la catégorie ensemble
+  (`POST /tickets/{id}/move`). « Aucune catégorie » se dit explicitement
+  (`clear_category`) : `null` et « inchangé » sont la même valeur sur le fil.
+  Un couloir où la carte en l'air ne peut pas entrer est fermé pendant le geste,
+  et la même règle est rejouée avant l'envoi (`laneMove`).
+- **Toute écriture de catégorie prend la barrière du compte**
+  (`lock_peer_pair(compte, compte)`) : le plafond, l'unicité du nom et
+  « supprimer pendant qu'on classe » tiennent sous deux transactions réelles.
+- **Hors du tableau, la catégorie est un badge.** Le nom voyage avec la page
+  qui porte le ticket — hub des alertes (`NeedsMePage.categories`), carte de
+  l'accueil (`WorkboardTicketItem.category`), étapes d'un ticket, chiffres du
+  tableau (`BoardSummary.lanes`), carte du chat — et il est lu par un seul énoncé,
+  `WorkboardCategoryRepository.names_stmt`, qui ne nomme qu'une catégorie
+  présente sur le tableau du lecteur, quel que soit l'identifiant demandé
+  (`WorkboardCategoryService.names_for` le pose une fois pour toute une page).
+- **L'assistant lit, filtre et classe ; il n'administre pas** (arbitrage du
+  propriétaire : l'administration des catégories par l'assistant est retirée du
+  programme). Les outils nomment la catégorie d'un ticket, restreignent le
+  tableau à une catégorie par son NOM et classent un ticket sous une catégorie
+  EXISTANTE du compte ; `list_ticket_categories_tool` liste les catégories avec
+  leurs comptes exacts. Créer, renommer, réordonner et supprimer se font sur le
+  tableau, et chaque manifeste concerné le dit ; une telle demande arrive au
+  lecteur, dont le RÉSULTAT dit où cela se fait. Un nom inconnu est refusé
+  (`workboard_category_unknown`), jamais créé, et il est lu parmi les catégories
+  de l'ACTEUR : le refus est le même que le propriétaire du ticket ait ou non une
+  catégorie de ce nom.
+
+- **Le tableau a sa porte dans l'en-tête, et plus aucune dans les réglages**
+  (arbitrage du propriétaire, 2026-11-11, qui renverse D16). D16 refusait au
+  tableau une destination d'en-tête — sept libellés étaient le maximum mesuré —
+  et faisait d'une section des réglages sa porte. La rangée ne dessine plus
+  que des icônes depuis le 2026-10-31 : le tableau y entre juste après les
+  réunions (`lib/dashboard-nav.ts`), offert là où l'instance l'offre
+  (`workboardAvailable`), et la section des réglages est supprimée — son jeton
+  quitte aussi la liste des sections épinglables que tient le serveur
+  (`core/settings_surface.py`), où un épinglage ancien est toléré. L'étoile
+  du tableau dans la constellation mène à sa page (`CAPABILITY_PAGE`), jamais
+  à la racine des réglages — comme celle des relations, qui y retombait
+  depuis qu'ADR-269 a posé leur réglage sur leur page. Un garde tient ces deux
+  routes, et que chacune est une destination de l'en-tête.
+- **Les chiffres du tableau entier sont au-dessus de ses filtres**
+  (`BoardGlance`). C'était le contenu de la section supprimée. Chaque chiffre
+  rétrécit le tableau sur place ; le bloc se replie, arrive replié sous `lg`,
+  et replié il ne demande rien au serveur. Ouvert, il est relu chaque fois que
+  le tableau l'est et après chaque écriture réussie : aucun compte de la page
+  ne dit qu'une échéance est passée ou qu'une catégorie a changé de nom.
+- **Un trait fin marque chaque colonne de la précédente** (propriétaire,
+  2026-11-11), sous les noms de colonnes et dans chaque couloir, de `lg` vers
+  le haut : la couleur neutre des bordures, jamais une teinte.
+
+**Ce que le passage a corrigé au tableau existant.** La carte qu'on saisit est
+un GROUPE nommé (`role="group"`), plus un bouton : en bouton elle cachait aux
+lecteurs d'écran le titre qui ouvre le ticket et son menu (axe,
+`nested-interactive`, mesuré dans un navigateur). Les fonds du tableau plat sont
+les deux fonds entiers du thème, plus deux demi-teintes. Et la MODIFICATION,
+le COMMENTAIRE et la SUPPRESSION d'un ticket depuis le chat disent pourquoi ils
+sont refusés : ils passaient par la préparation commune des outils natifs, qui
+répond à tout refus de validation une phrase sans cause — mesuré en conteneur,
+« range ce ticket dans Jardin » était refusé sans que le modèle sache si la
+catégorie manquait ou si le ticket n'était pas le sien, et un titre porté par
+deux tickets sans qu'il puisse demander lequel. Un refus dont le détail est un
+code de `WorkboardError` voyage maintenant sous ce code, par une seule porte
+(`workboard_refusals()` dans `agents/tools/workboard_refusal.py`), comme à la
+création ; tout autre détail reste la phrase commune.
+
+**Une destination que l'opérateur a coupée n'est offerte nulle part.** L'en-tête
+offrait le tableau là où l'instance l'offre (`workboardAvailable`), mais le
+monde 3D lisait le plafond du déploiement : sa liste « Application », le bureau
+qui ouvre le tableau et le signal qui y mène. Interrupteur coupé, le monde
+ouvrait le tableau sur un refus — et de même les réunions et les SMS. L'en-tête,
+le menu du logo et le monde lisent maintenant UNE liste, où chaque destination
+prend l'état effectif de sa capacité
+(`components/dashboard/offered-destinations.ts`) ; ADR-280 porte la règle, dans
+son amendement du même jour.
+
+**Le routage des catégories est mesuré, et la mesure a corrigé le lecteur**
+(2026-11-11, trois modèles, 108 phrases chacun, deux passages, 0,115 $ au
+total). Premier passage : 102/108 sur `claude-haiku-5-5` (le créneau `planner`
+de l'instance de dev), 102/108 sur `deepseek-v4-flash`, 97/108 sur
+`gpt-5.6-luna` — les douze familles d'origine à 72/72 sur chacun, aucune phrase
+d'un voisin sur le tableau, mais « crée une catégorie » n'atteignait le lecteur
+qu'une fois sur 18 : sa description demandait de DIRE où cela se fait, et le
+modèle répondait sans appeler d'outil, ce dont la réponse du mode Pipeline
+n'aurait rien su. La description demande maintenant l'appel, le résultat du
+lecteur dit où les catégories se gèrent (`managed_from`), et la consigne « passe
+par le lecteur avant de classer » est retirée (elle détournait cinq créations ou
+classements ; un nom inconnu est déjà refusé par un code qui nomme le lecteur).
+Second passage : 107/108, 108/108 et 107/108. Deux vrais tours de chat l'ont
+confirmé (Pipeline puis ReAct, 0,047 $) : le lecteur est appelé, rien n'est
+créé, la réponse dit où cela se fait — et le premier a fait nommer la page
+comme le menu la nomme, « the workboard page » ayant été rendu « tableau de
+bord ». La page et le bouton sont depuis nommés dans la langue du tour, tels
+que l'écran de la personne les montre : une petite table côté serveur
+(`core/i18n_workboard_categories.py`), tenue égale aux six fichiers de langue
+du web par un garde ; le tour Pipeline rejoué (0,012 $) répond « depuis la page
+« Workboard » du menu de l'application, via le bouton « Catégories » ». Le
+détail est dans `docs/technical/WORKBOARD.md`. La mesure avait d'abord corrigé son propre
+script, qui offrait six outils au modèle quand le corpus en attend sept et
+reconnaissait un outil du tableau à la forme de son nom.
+
+**Ce que cet amendement ne fait pas.** Pas de catégorie par côté d'un ticket
+partagé, pas de couleur, pas de catégories imbriquées, pas d'administration par
+l'assistant. Dans le monde 3D, la liste des fonctions est dérivée des sections
+de réglages : le tableau en sort avec sa section, et s'y atteint par le bureau
+de la maison et par le lien « Workboard » de l'application. Au clavier, un
+couloir vide ne se rejoint pas par le glisser — son en-tête est une bande trop
+large pour le capteur — mais par la liste « Catégorie » du panneau, qui écrit
+la même chose.
+
+**Preuves.** `tests/unit/domains/workboard/test_categories.py`,
+`tests/integration/domains/workboard/test_categories_db.py` (dont trois courses
+à deux sessions), `tests/integration/test_workboard_category_tools.py`,
+`tests/unit/domains/agents/tools/test_workboard_tools.py`,
+`apps/web/src/lib/workboard/__tests__/lanes.test.ts` et `lane-dnd.test.ts`,
+`apps/web/src/components/workboard/__tests__/LaneBoard.test.tsx` et
+`CategoryManager.test.tsx`, `BoardGlance.test.tsx`, `useBoardGlance.test.tsx`,
+`apps/web/src/lib/__tests__/dashboard-nav.test.ts`,
+`apps/api/tests/unit/domains/agents/application/test_layout_preferences.py`
+(la section retirée quitte aussi la liste du serveur),
+`apps/web/e2e/smoke/workboard-lanes.spec.ts` (fonds mesurés en clair, sombre et
+OLED ; glisser au pointeur et au clavier ; traits de colonnes mesurés au
+pixel ; bloc des chiffres ouvert sur ordinateur, replié sur téléphone),
+`apps/web/src/components/dashboard/__tests__/offered-destinations.test.ts` et
+`offered-destinations.guard.test.ts` (une seule liste, un seul lecteur de ses
+drapeaux), `apps/web/src/features/world/__tests__/catalogue-application.test.tsx`,
+`activity-entry.test.ts` et `private-signals.test.tsx` (le monde suit
+l'interrupteur), `apps/web/src/lib/__tests__/capability-sections.test.ts` et
+`apps/api/tests/unit/domains/capabilities/test_capability_coverage_guard.py`
+(une étoile qui vit sur une page y mène),
+`apps/api/tests/unit/scripts/test_workboard_routing_measure.py` (la mesure de
+routage offre ce que son corpus attend).

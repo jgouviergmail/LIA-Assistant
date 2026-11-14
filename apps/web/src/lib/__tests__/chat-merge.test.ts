@@ -176,6 +176,42 @@ describe('mergeServerPage — what only this tab holds stays in place', () => {
     expect(merged[3]).toBe(answer);
   });
 
+  it('keeps the answer being streamed after a row archived while it is written (ADR-385)', () => {
+    // The person's note entered the discussion while LIA was still writing: the
+    // archive will hold it BEFORE the answer, so the screen does too, now.
+    const question = live('client-u', 'Restaurants?', 'user', 'u1');
+    const streaming = live('client-a', 'Looking for', 'assistant');
+    const thread = [row('a', 1), question, streaming];
+    const page = [
+      row('a', 1),
+      { ...row('u1', 2, 'Restaurants?'), role: 'user' as const },
+      { ...row('note', 3, 'only Sunday'), role: 'user' as const },
+    ];
+
+    const merged = mergeServerPage(thread, page, { streamingId: 'client-a' }).messages;
+
+    expect(ids(merged)).toEqual(['a', 'client-u', 'note', 'client-a']);
+    expect(merged[3]).toBe(streaming);
+  });
+
+  it('keeps a bubble that is not streaming where it was', () => {
+    const question = live('client-u', 'Restaurants?', 'user', 'u1');
+    const answer = live('client-a', 'Here they are', 'assistant');
+    const thread = [row('a', 1), question, answer];
+    const page = [
+      row('a', 1),
+      { ...row('u1', 2, 'Restaurants?'), role: 'user' as const },
+      row('reminder', 3, 'Rappel'),
+    ];
+
+    expect(ids(mergeServerPage(thread, page).messages)).toEqual([
+      'a',
+      'client-u',
+      'client-a',
+      'reminder',
+    ]);
+  });
+
   it('drops a second bubble naming a row another already stands for', () => {
     const thread = [row('a', 1), live('client-a', 'row a', 'assistant', 'a')];
     const page = [row('a', 1)];

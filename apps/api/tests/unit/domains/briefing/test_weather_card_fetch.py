@@ -16,8 +16,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
+import httpx
 import pytest
 
+from src.domains.briefing.exceptions import ConnectorAccessError
 from src.domains.briefing.fetchers import fetch_weather
 
 pytestmark = pytest.mark.unit
@@ -190,3 +192,45 @@ async def test_a_failing_weather_call_waits_for_its_siblings_before_the_card_fai
 
     assert sorted(settled[:2]) == ["extras", "forecast"]
     assert settled[-1] == "close"
+
+
+async def test_the_cards_read_of_the_present_feeds_the_companion() -> None:
+    """The card read the person's place: what it observed is offered to the companion."""
+    current = {"dt": 1_763_035_200, "main": {"temp": 4.0}, "weather": [{"main": "Rain"}]}
+    client = _client(AsyncMock(return_value=current))
+    user = SimpleNamespace(id=uuid4())
+    patches = _card_patches(client, AsyncMock(return_value=None), {})
+    with (
+        patches[0],
+        patches[1],
+        patches[2],
+        patches[3],
+        patches[4],
+        patches[5],
+        patches[6],
+        patch(f"{_FETCHERS}.publish_companion_weather", AsyncMock(return_value=True)) as offer,
+    ):
+        await fetch_weather(user=user, user_tz=ZoneInfo("UTC"), language="fr")
+
+    offer.assert_awaited_once_with(user.id, current)
+
+
+async def test_a_failed_read_offers_nothing_to_the_companion() -> None:
+    client = _client(AsyncMock(side_effect=httpx.ConnectError("down")))
+    patches = _card_patches(client, AsyncMock(return_value=None), {})
+    with (
+        patches[0],
+        patches[1],
+        patches[2],
+        patches[3],
+        patches[4],
+        patches[5],
+        patches[6],
+        patch(f"{_FETCHERS}.publish_companion_weather", AsyncMock()) as offer,
+        pytest.raises(ConnectorAccessError),
+    ):
+        await fetch_weather(
+            user=SimpleNamespace(id=uuid4()), user_tz=ZoneInfo("UTC"), language="fr"
+        )
+
+    offer.assert_not_awaited()

@@ -3,6 +3,14 @@
 Endpoints are mounted only when ``TELEPHONY_ENABLED`` is set (see
 ``api/v1/routes.py``). The post-call ``/telephony/webhook`` + ``/telephony/calls``
 endpoints are added in Phase 4.
+
+Two routers share the prefix. ``router`` IS the capability — the wizard, a
+number declared and verified by a call, the preferences of owner calls — and
+the operator's switch closes it at the door. ``record_router`` serves what the
+switch must leave reachable: a switch removes the capability, never the record
+(ADR-280). What the person already has — a stored key, a number, the history
+of their calls — is read and taken back there, and a call placed before the
+switch was flipped still reports its end.
 """
 
 from __future__ import annotations
@@ -62,6 +70,11 @@ router = APIRouter(
     dependencies=capability_dependencies(PlatformCapability.TELEPHONY),
 )
 
+# The record's own door: NO capability guard. A route declared here stays
+# served while the operator has switched telephony off — it must never place a
+# call, create anything at the vendor, or prepare the next call.
+record_router = APIRouter(prefix="/telephony", tags=["Telephony"])
+
 
 @router.post(
     "/connector/validate-key",
@@ -113,7 +126,7 @@ async def activate(
     )
 
 
-@router.delete(
+@record_router.delete(
     "/connector",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Deactivate telephony (delete the LIA agent + remove the connector)",
@@ -122,12 +135,20 @@ async def deactivate(
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Unlink telephony for the current user."""
+    """Unlink telephony for the current user.
+
+    Served whatever the operator's switch says: the key is the person's own
+    record, and taking it back also removes the agent LIA created in their
+    vendor workspace — which nothing else would clean up.
+    """
     await TelephonyConnectorService(db).deactivate(user.id)
     logger.info("telephony_connector_deactivated_api", user_id=str(user.id))
 
 
-@router.post(
+# On the record's door: the vendor delivers a call's end ONCE. A call placed
+# before the switch was flipped must still be closed from its explicit result
+# (ADR-263) — refused here, its transcript and its account would be lost.
+@record_router.post(
     "/webhook",
     include_in_schema=False,
     summary="ElevenLabs post-call webhook",
@@ -175,7 +196,7 @@ async def telephony_webhook(
     return {"ok": True}  # foreign / unknown / malformed → 200, silently dropped
 
 
-@router.get(
+@record_router.get(
     "/calls",
     response_model=list[TelephonyCallSummary],
     summary="List the current user's recent outbound calls",
@@ -195,7 +216,7 @@ async def list_calls(
     return await project_call_history(db, user.id, calls)
 
 
-@router.get(
+@record_router.get(
     "/calls/{call_id}",
     response_model=TelephonyCallSummary,
     summary="Read one of the current user's calls",
@@ -229,7 +250,7 @@ async def _verification(db: AsyncSession) -> TelephonyVerificationService:
     return TelephonyVerificationService(db, redis=await get_redis_cache())
 
 
-@router.get(
+@record_router.get(
     "/identity",
     response_model=TelephonyIdentityResponse,
     summary="The current user's own phone number and its verification state",
@@ -298,7 +319,7 @@ async def set_identity_number(
     return _identity_response(identity)
 
 
-@router.delete(
+@record_router.delete(
     "/identity/number",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Forget the current user's own phone number",

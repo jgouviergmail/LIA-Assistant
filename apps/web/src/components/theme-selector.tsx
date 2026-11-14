@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { useColorTheme } from '@/lib/theme-context';
 import { Check, Palette } from '@/lib/icons';
+import { MonochromeIcons } from '@/lib/icon-style-context';
 import { InfoBox } from '@/components/ui/info-box';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from '@/i18n/client';
@@ -139,7 +140,11 @@ export function ThemeSelector({ lng }: ThemeSelectorProps) {
                       }
                     `}
                   >
-                    {isSelected && <Check className="h-3 w-3" strokeWidth={3} />}
+                    {isSelected && (
+                      <MonochromeIcons>
+                        <Check className="h-3 w-3" strokeWidth={3} />
+                      </MonochromeIcons>
+                    )}
                   </div>
 
                   {/* Color preview */}

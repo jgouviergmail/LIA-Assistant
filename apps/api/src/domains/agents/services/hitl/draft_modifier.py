@@ -66,7 +66,8 @@ PRESERVED_FIELDS: dict[str, list[str]] = {
     "file_share": ["file_id", "name"],
     "contact": [],  # All fields can be modified
     "contact_update": ["resource_name"],
-    "task": ["task_list_id"],
+    # The list a new task goes in travels with its name, which the card shows.
+    "task": ["task_list_id", "task_list_name"],
     "task_update": ["task_id", "task_list_id"],
     # Delete types: homogenized with update types for draft type changes
     "event_delete": ["event_id", "calendar_id", "timezone", "send_updates"],

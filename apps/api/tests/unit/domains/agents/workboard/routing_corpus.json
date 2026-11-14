@@ -119,6 +119,85 @@
       }
     },
     {
+      "name": "list_the_categories",
+      "expect_domain": "ticket",
+      "expect_tool": "list_ticket_categories_tool",
+      "utterances": {
+        "fr": "Quelles sont les catégories de mon tableau de tickets ?",
+        "en": "What categories does my ticket board have?",
+        "de": "Welche Kategorien hat mein Ticket-Board?",
+        "es": "¿Qué categorías tiene mi tablero de tickets?",
+        "it": "Quali categorie ha la mia bacheca dei ticket?",
+        "zh-CN": "我的工单板有哪些类别？"
+      }
+    },
+    {
+      "name": "list_one_category",
+      "expect_domain": "ticket",
+      "expect_tool": "list_tickets_tool",
+      "utterances": {
+        "fr": "Montre-moi les tickets de la catégorie Maison",
+        "en": "Show me the tickets in the Home category",
+        "de": "Zeig mir die Tickets der Kategorie Zuhause",
+        "es": "Muéstrame los tickets de la categoría Casa",
+        "it": "Mostrami i ticket della categoria Casa",
+        "zh-CN": "给我看看“家庭”类别里的工单"
+      }
+    },
+    {
+      "name": "list_uncategorized",
+      "expect_domain": "ticket",
+      "expect_tool": "list_tickets_tool",
+      "utterances": {
+        "fr": "Quels tickets de mon tableau ne sont pas encore catégorisés ?",
+        "en": "Which tickets on my board are not categorized yet?",
+        "de": "Welche Tickets auf meinem Board sind noch keiner Kategorie zugeordnet?",
+        "es": "¿Qué tickets de mi tablero aún no tienen categoría?",
+        "it": "Quali ticket della mia bacheca non hanno ancora una categoria?",
+        "zh-CN": "我的工单板上哪些工单还没有分类？"
+      }
+    },
+    {
+      "name": "file_a_ticket",
+      "expect_domain": "ticket",
+      "expect_tool": "update_ticket_tool",
+      "utterances": {
+        "fr": "Range le ticket « réserver la salle » dans la catégorie Travail",
+        "en": "File the ticket “book the room” under the Work category",
+        "de": "Ordne das Ticket „Raum buchen“ der Kategorie Arbeit zu",
+        "es": "Pon el ticket «reservar la sala» en la categoría Trabajo",
+        "it": "Metti il ticket «prenotare la sala» nella categoria Lavoro",
+        "zh-CN": "把「预订会议室」这个工单归到“工作”类别"
+      }
+    },
+    {
+      "name": "create_in_a_category",
+      "expect_domain": "ticket",
+      "expect_tool": "create_ticket_tool",
+      "utterances": {
+        "fr": "Crée un ticket « repeindre le salon » dans la catégorie Maison",
+        "en": "Create a ticket “paint the living room” in the Home category",
+        "de": "Erstelle ein Ticket „Wohnzimmer streichen“ in der Kategorie Zuhause",
+        "es": "Crea un ticket «pintar el salón» en la categoría Casa",
+        "it": "Crea un ticket «dipingere il salotto» nella categoria Casa",
+        "zh-CN": "在“家庭”类别里创建一个工单「粉刷客厅」"
+      }
+    },
+    {
+      "name": "administer_a_category",
+      "expect_domain": "ticket",
+      "expect_tool": "list_ticket_categories_tool",
+      "_why": "No tool creates, renames, reorders or deletes a category: the user does it on the board. The request must reach the reader, whose result says where it is done — never create_ticket_tool with the name of a category that does not exist.",
+      "utterances": {
+        "fr": "Crée une catégorie Jardin sur mon tableau de tickets",
+        "en": "Create a Garden category on my ticket board",
+        "de": "Erstelle eine Kategorie Garten auf meinem Ticket-Board",
+        "es": "Crea una categoría Jardín en mi tablero de tickets",
+        "it": "Crea una categoria Giardino sulla mia bacheca dei ticket",
+        "zh-CN": "在我的工单板上创建一个“花园”类别"
+      }
+    },
+    {
       "name": "negative_provider_task",
       "expect_domain": "task",
       "expect_tool": null,

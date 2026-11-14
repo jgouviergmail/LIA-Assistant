@@ -34,7 +34,13 @@ function syncPsycheSettings(settings: PsycheSettings) {
   store.setEnabled(settings.psyche_enabled);
 }
 
-export function usePsyche() {
+/**
+ * @param enabled - Whether the instance offers the psyche now. Its router
+ *   refuses every route under the operator's switch (ADR-280): a caller that
+ *   mounts outside the settings index — the chat thread — says so, and
+ *   nothing is asked, on mount or on a later re-read.
+ */
+export function usePsyche(enabled = true) {
   // Both style selectors share this confirmed server preference. Its stable
   // identity rereads OCEAN without reacting to pending saves or catalogue copy.
   const personalityKey = usePersonalityStore(
@@ -50,7 +56,7 @@ export function usePsyche() {
   const stateQuery = useApplicationAccountQuery<PsycheState | null>(
     '/psyche/state?initialize=false',
     'usePsyche',
-    true,
+    enabled,
     acceptState,
     { deps: [personalityKey] }
   );
@@ -75,7 +81,7 @@ export function usePsyche() {
   } = useApplicationAccountQuery<PsycheSettings>(
     '/psyche/settings',
     'usePsyche',
-    true,
+    enabled,
     syncPsycheSettings
   );
 

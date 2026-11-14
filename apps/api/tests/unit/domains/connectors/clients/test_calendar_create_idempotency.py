@@ -15,6 +15,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
@@ -22,6 +23,7 @@ import pytest
 from src.core.exceptions import ConnectorAPIError, ExternalServiceError
 from src.domains.connectors.clients import retry_policy
 from src.domains.connectors.clients.apple_calendar_client import AppleCalendarClient
+from src.domains.connectors.clients.event_bounds import bounds_of
 from src.domains.connectors.clients.google_calendar_client import GoogleCalendarClient
 from src.domains.connectors.clients.microsoft_calendar_client import MicrosoftCalendarClient
 from src.domains.connectors.clients.retry_policy import provider_idempotency_id
@@ -29,11 +31,11 @@ from src.domains.connectors.schemas import ConnectorCredentials
 
 pytestmark = pytest.mark.unit
 
-_EVENT = {
+_EVENT: dict[str, Any] = {
     "summary": "Dentist",
-    "start_datetime": "2026-11-02T10:00:00",
-    "end_datetime": "2026-11-02T11:00:00",
-    "timezone": "UTC",
+    "bounds": bounds_of(
+        "2026-11-02T10:00:00", "2026-11-02T11:00:00", ZoneInfo("Europe/Paris"), all_day=False
+    ),
 }
 _KEY = "draft:0123456789abcdef"
 

@@ -110,7 +110,8 @@ export function LocationSettings({ lng }: BaseSettingsProps) {
             <Switch
               checked={isEnabled}
               onCheckedChange={handleGeoToggle}
-              disabled={geoLoading || permission === 'unsupported'}
+              busy={geoLoading}
+              disabled={permission === 'unsupported'}
               aria-labelledby="geolocation-label"
             />
           </div>

@@ -35,9 +35,9 @@ from src.domains.telephony.availability import AvailabilityRead, build_availabil
 from src.domains.telephony.client import ElevenLabsAgentsClient, ElevenLabsAgentsError
 from src.domains.telephony.connector import TelephonyConnectorService
 from src.domains.telephony.live_tools import (
+    LIVE_TOOLS_ATTACHED_KEY,
     LiveToolBinding,
     attach_live_tools,
-    live_tools_attached,
 )
 from src.domains.telephony.mandates import (
     MandateInputs,
@@ -48,6 +48,7 @@ from src.domains.telephony.mandates import (
 )
 from src.domains.telephony.models import CallKind, PhoneCall, PhoneCallStatus
 from src.domains.telephony.repository import TelephonyRepository
+from src.domains.telephony.workspace_tools import VENDOR_FAILURES, agent_tool_ids
 from src.domains.users.models import User
 from src.domains.voice.cue_prompt import palette
 from src.domains.voice.expressive_cues import NO_CUES, CueDialect
@@ -70,10 +71,13 @@ logger = structlog.get_logger(__name__)
 # "rejected" → the vendor DECLINED for a configuration reason (unverified
 #              source number, exhausted credit). Retrying changes nothing, so
 #              the two must not share a message that says "try again".
-# "agent_sync_failed" → an owner or verification mandate could not be
-#              installed on the vendor agent (the PATCH failed). Dialling
-#              anyway would serve the owner the stranger's rules, so the
-#              call is refused; retrying can work once the vendor answers.
+# "agent_sync_failed" → the vendor agent could not be put in the state the
+#              call needs: an owner or verification mandate not installed
+#              (the PATCH failed), or the agent's tools not made exactly the
+#              call's (owner decision 2026-11-11). Dialling anyway would serve
+#              the owner the stranger's rules, a stranger the owner's tools,
+#              or the owner a voice without its own; the call is refused, and
+#              retrying can work once the vendor answers.
 _InitiateStatus = Literal[
     "placed",
     "already_active",
@@ -258,25 +262,42 @@ class TelephonyService:
         logger.info("telephony_agent_synced", agent_id=agent_id)
         return True
 
+    async def _read_agent(self, active: _ActiveConnector) -> dict[str, Any] | None:
+        """The agent as the vendor serves it, read ONCE before a dial; None when unreadable.
+
+        One read serves the tools and the palette: what the agent carries is
+        never inferred from a note LIA kept (owner decision 2026-11-11).
+        """
+        try:
+            return await self._client_factory(active.api_key).get_agent(active.agent_id)
+        except VENDOR_FAILURES as exc:
+            logger.warning("telephony_agent_unreadable", error_type=type(exc).__name__)
+            return None
+
     async def _arm_agent_tools(
         self,
         active: _ActiveConnector,
         kind: CallKind,
         live_tools: Sequence[LiveToolBinding],
         delegation_tool_id: str | None,
-    ) -> tuple[tuple[LiveToolBinding, ...], bool]:
-        """Put the agent in the tool state THIS call needs (lot 7, ADR-301).
+        agent: dict[str, Any] | None,
+    ) -> tuple[LiveToolBinding, ...] | None:
+        """Put the agent in the tool state THIS call needs, or refuse the call (lot 7, ADR-301).
 
         The owner's tools serve the owner's call only, and the vendor refuses
         them per call (measured 2026-09-16: « Tool IDs not attached to this
         agent », the call dies at pickup), so they live on the AGENT between
         the dial and the end of the owner call. A DIRECT owner call attaches
-        its lookups; a LIVE one attaches the one delegation tool; before any
-        other call, an agent still carrying tools (a webhook that never came)
-        is detached first — a stranger is never phoned by an agent holding
-        the owner's lookups or their delegation. Vendor HTTP outside any
-        transaction; the connector's new state is committed before the
-        dialing row opens its own.
+        its lookups; a LIVE one attaches the one delegation tool; any other
+        call needs an agent carrying nothing — a stranger is never phoned by an
+        agent holding the owner's lookups or their delegation. What the agent
+        carries is READ (``agent``), never taken from the connector's note: the
+        same agent may serve a Live session, or be edited on the portal. An
+        agent that cannot be read is written anyway, and one that cannot be put
+        in this call's state refuses the call (owner decision 2026-11-11: never
+        an agent with tools out of date or incomplete). Vendor HTTP outside any
+        transaction; the connector's new state is committed before the dialing
+        row opens its own.
 
         Args:
             active: The provisioned agent and its key.
@@ -284,25 +305,34 @@ class TelephonyService:
             live_tools: The bindings a direct owner call was handed.
             delegation_tool_id: The delegation tool a Live owner call was
                 handed, or None.
+            agent: The agent as read before the dial, or None when unreadable.
 
         Returns:
-            The bindings the prompt may name and whether the delegation tool
-            is on the agent — each empty/False when the attach was refused (a
-            call without tools beats a prompt promising what the agent cannot
-            make).
+            The bindings the prompt may name; None when the agent could not be
+            put in this call's state — the call is then refused.
         """
         wanted = tuple(live_tools) if kind is CallKind.SELF else ()
         delegation = delegation_tool_id if kind is CallKind.SELF else None
         ids = [binding.vendor_id for binding in wanted] + ([delegation] if delegation else [])
-        if not ids and not live_tools_attached(active.connector):
-            return (), False
+        if agent is not None and agent_tool_ids(agent) == ids:
+            metadata = active.connector.connector_metadata or {}
+            if metadata.get(LIVE_TOOLS_ATTACHED_KEY) is not bool(ids):
+                # The note follows the agent (the JSONB rule: a NEW dict).
+                active.connector.connector_metadata = {
+                    **metadata,
+                    LIVE_TOOLS_ATTACHED_KEY: bool(ids),
+                }
+                await self.db.commit()
+            return wanted
         client = self._client_factory(active.api_key)
         if not await attach_live_tools(client, active.connector, ids):
-            return (), False
+            return None
         await self.db.commit()
-        return wanted, delegation is not None
+        return wanted
 
-    async def _arm_agent_expression(self, active: _ActiveConnector, kind: CallKind) -> CueDialect:
+    async def _arm_agent_expression(
+        self, active: _ActiveConnector, kind: CallKind, agent: dict[str, Any] | None
+    ) -> CueDialect:
         """Give the agent the cue palette of the call it is about to make (ADR-373).
 
         The palette lives on the AGENT (the vendor reads it on every
@@ -315,11 +345,7 @@ class TelephonyService:
         Returns:
             What the agent's engine performs — :data:`NO_CUES` when unreadable.
         """
-        client = self._client_factory(active.api_key)
-        try:
-            agent = await client.get_agent(active.agent_id)
-        except ElevenLabsAgentsError as exc:
-            logger.warning("telephony_agent_expression_unreadable", status_code=exc.status_code)
+        if agent is None:
             return NO_CUES
         dialect = agent_dialect(agent)
         if expression_of(dialect) != "cues":
@@ -329,6 +355,7 @@ class TelephonyService:
         )
         if tts is None:
             return dialect
+        client = self._client_factory(active.api_key)
         try:
             await client.patch_agent(active.agent_id, {"conversation_config": {"tts": tts}})
         except ElevenLabsAgentsError as exc:
@@ -482,19 +509,24 @@ class TelephonyService:
                 kind=kind.value,
             )
             return InitiateCallResult(status="agent_sync_failed")
-        live_tools, delegation_armed = await self._arm_agent_tools(
+        agent = await self._read_agent(active)
+        armed = await self._arm_agent_tools(
             active,
             kind,
             live_tools if call_mode == "direct" else (),
             delegation_tool_id if call_mode == "delegated" else None,
+            agent,
         )
-        if call_mode == "delegated" and not delegation_armed:
-            # The agent refused the delegation tool: a Live mandate with no way
-            # to delegate would promise what the voice cannot do (ADR-184).
-            logger.warning("telephony_live_call_degraded_to_direct", user_id=str(user_id))
-            call_mode = "direct"
-            mandate = mandate_for(kind, mode=call_mode)
-        cue_dialect = await self._arm_agent_expression(active, kind)
+        if armed is None:
+            # The agent could not be put in this call's tool state: dialling would
+            # hand a stranger the person's tools, or the person a voice without
+            # its own (owner decision 2026-11-11). Refused in the agent's words.
+            logger.warning(
+                "telephony_call_refused_agent_tools", user_id=str(user_id), kind=kind.value
+            )
+            return InitiateCallResult(status="agent_sync_failed")
+        live_tools = armed
+        cue_dialect = await self._arm_agent_expression(active, kind, agent)
 
         availability_summary = ""
         if mandate.prefetch_availability:

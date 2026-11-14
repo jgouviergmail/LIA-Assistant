@@ -11,6 +11,7 @@ import pytest
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 
 from src.domains.agents.services.streaming.service import StreamingService
+from tests.fixtures.conversation_cases import streaming_target
 
 
 @pytest.fixture
@@ -415,7 +416,7 @@ async def test_stream_sse_chunks_accumulates_response_content(
     # Stream SSE chunks
     accumulated_content = ""
     async for _sse_chunk, content_fragment in streaming_service.stream_sse_chunks(
-        mock_graph_stream(), conversation_id, run_id
+        mock_graph_stream(), streaming_target(conversation_id), run_id
     ):
         accumulated_content += content_fragment
 
@@ -652,7 +653,7 @@ class TestLARSRegistryUpdate:
         # Stream SSE chunks
         registry_updates_received = []
         async for sse_chunk, _content in streaming_service.stream_sse_chunks(
-            mock_graph_stream(), conversation_id, run_id
+            mock_graph_stream(), streaming_target(conversation_id), run_id
         ):
             if sse_chunk.type == "registry_update":
                 registry_updates_received.append(sse_chunk)
@@ -1040,7 +1041,9 @@ def _make_interrupt_chunk(interrupt_id: str | None) -> dict:
 async def _collect_hitl_metadata_message_id(service, chunk, conversation_id, run_id) -> str:
     """Run _handle_hitl_interrupt and return the emitted metadata message_id."""
     chunks = []
-    async for sse_chunk in service._handle_hitl_interrupt(chunk, conversation_id, run_id):
+    async for sse_chunk in service._handle_hitl_interrupt(
+        chunk, streaming_target(conversation_id), run_id
+    ):
         chunks.append(sse_chunk)
     metadata_chunks = [c for c in chunks if c.type == "hitl_interrupt_metadata"]
     assert metadata_chunks, "expected a hitl_interrupt_metadata chunk"

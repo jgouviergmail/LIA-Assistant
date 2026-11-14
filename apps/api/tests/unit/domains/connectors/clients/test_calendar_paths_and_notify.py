@@ -19,11 +19,13 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
 
 from src.core.exceptions import ConnectorAPIError
+from src.domains.connectors.clients.event_bounds import bounds_of
 from src.domains.connectors.clients.google_calendar_client import GoogleCalendarClient
 from src.domains.connectors.clients.microsoft_calendar_client import MicrosoftCalendarClient
 from src.domains.connectors.schemas import ConnectorCredentials
@@ -32,6 +34,9 @@ pytestmark = pytest.mark.unit
 
 HOLIDAYS = "fr.french#holiday@group.v.calendar.google.com"
 QUOTED = "fr.french%23holiday%40group.v.calendar.google.com"
+_AN_HOUR = bounds_of(
+    "2026-11-02T10:00:00", "2026-11-02T11:00:00", ZoneInfo("Europe/Paris"), all_day=False
+)
 
 
 def _credentials() -> ConnectorCredentials:
@@ -96,9 +101,7 @@ class TestGoogle:
                 f"/calendar/v3/calendars/{QUOTED}/events/e%2F1",
             ),
             (
-                lambda c: c.create_event(
-                    "x", "2026-11-02T10:00:00", "2026-11-02T11:00:00", calendar_id=HOLIDAYS
-                ),
+                lambda c: c.create_event("x", _AN_HOUR, calendar_id=HOLIDAYS),
                 "POST",
                 f"/calendar/v3/calendars/{QUOTED}/events",
             ),
@@ -161,9 +164,7 @@ class TestGraph:
             ),
             (lambda c: c.delete_event("AA/k="), "DELETE", "/v1.0/me/events/AA%2Fk%3D"),
             (
-                lambda c: c.create_event(
-                    "x", "2026-11-02T10:00:00", "2026-11-02T11:00:00", calendar_id="Cal/1="
-                ),
+                lambda c: c.create_event("x", _AN_HOUR, calendar_id="Cal/1="),
                 "POST",
                 "/v1.0/me/calendars/Cal%2F1%3D/events",
             ),

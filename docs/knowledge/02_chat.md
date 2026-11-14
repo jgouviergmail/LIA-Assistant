@@ -1,16 +1,20 @@
 # Conversations
 
 ## Can I have multiple conversations at the same time?
-LIA works with **one active conversation**. This design choice allows:
+Yes. Open the discussion badge in the middle of the chat header:
 
-• A **coherent context**: LIA remembers the entire conversation
-• **Natural references**: "*the first email*", "*the previous contact*"
-• A **smooth experience**: no need to juggle between windows
+• **Main** is always there, and it receives reminders, notifications and automatic openings
+• When creation is enabled, choose **New discussion** and enter a title, or leave it empty: the discussion then takes the beginning of your first message as its title
+• From the list you can open, rename or delete a side discussion
+• From the same list you can export any discussion, Main included, as a Markdown file: every message you see, oldest first, dated on your own clock
+• Each discussion keeps its own history and draft, and LIA remembers the whole of the one you are in; ask it what was said in another one and it searches them all, word for word
+• The session badge shows the tokens, cost and context of the selected discussion
 
 **To start fresh:**
-Click the **🗑️** button in the chat header. It deletes the messages and the files you
-attached yourself. Files LIA generated stay in **My generated files** until their
-own expiry, or longer when you keep them.
+Use **Reset** in the chat header and confirm the discussion shown. It clears that
+discussion's messages and working context, and its title stays. A file you uploaded
+goes once its last use is released; files LIA generated stay in **My generated files**
+until their own expiry, or longer when you keep them.
 
 ## Which item does LIA use when I refer to a sender, a title or a position?
 
@@ -27,13 +31,13 @@ that action and the steps depending on it unexecuted. LIA does not treat a searc
 result as your choice merely because it arrived first.
 
 ## How do I reset a conversation?
-To clear history and start over:
+To clear a discussion's history and start over:
 
-1. In the chat header, find the **🗑️** button
-2. Click it
-3. Confirm in the dialog
+1. Open the discussion you want to clear
+2. In the chat header, use **Reset**
+3. Confirm: the dialog names the discussion
 
-**⚠️ What is actually deleted:** Every message, **the attachments you uploaded yourself** — and the context LIA had built from this conversation (`POST /conversations/me/reset` also clears the token summaries, the LangGraph checkpoints and the tool contexts). The action is **irreversible**.
+**⚠️ What is actually cleared:** every message of that discussion and the working context LIA had built from it. Its title stays and your other discussions are untouched. **An attachment you uploaded yourself** is removed once its last use is released: a file another discussion still uses stays. The action is **irreversible**.
 
 **✅ What is NOT deleted:** **the files LIA produced** — images, documents, browser screenshots — stay in Settings › Preferences › My generated files until their own deadline, or for good if you keep them: a file LIA made for you belongs to you, not to the conversation that happened to produce it. And what LIA learned about you lives outside the conversation and stays — your long-term memory, the rhythm and recurring requests it observed, its mark of which emails it had already read, the thresholds it adjusted for you. Each stored value declares what it is, and a reset only clears what a conversation created (a value whose family is unknown is kept, never guessed). To erase the learning too, use **Forget everything** in the settings, or delete your account.
 
@@ -42,17 +46,19 @@ To clear history and start over:
 • If LIA seems confused by previous context
 • When you would rather not leave that history behind
 
+A side discussion can also be **deleted** from the discussion list: its entry and its messages go after you confirm. Main is permanent: it can be reset, never deleted.
+
 ## Are conversations saved?
-Yes, your conversations are **automatically saved**:
+Yes, your discussions are **saved to your account**:
 
 • **Real-time sync**: each message is recorded instantly
-• **Multi-device**: access your conversation from any device
-• **Persistence**: find your conversation even after logging out
+• **Multi-device**: open the discussion badge on another signed-in device to pick up the same history
+• **Persistence**: find your discussions even after logging out
 
 **📱 Multi-device tip:**
-You can start a conversation on your computer and continue on mobile (and vice-versa).
+You can start a discussion on your computer and continue on mobile (and vice-versa).
 
-**🗑️ Deleting is a deliberate act:** nothing is removed until you use the 🗑️ button and confirm.
+**🗑️ Clearing is a deliberate act:** resetting clears the selected discussion's history, deleting a side discussion removes its entry, and neither happens before you confirm.
 
 ## How do I use line breaks in my messages?
 Two keyboard shortcuts to know:
@@ -103,6 +109,14 @@ When you review a draft (email, event…) and ask for changes ("*add a polite cl
 • When a message needs no tool call, LIA re-anchors on the entities it actually retrieved in the previous turns (an appointment time, a contact, a place) instead of paraphrasing its own earlier wording
 • Those entities are age-bounded and never override data fetched for the current message
 • If a detail was never retrieved, LIA says so rather than producing a plausible value — an honest "I don't have that" beats a convincing mistake
+
+## Does LIA know when I wrote each message?
+Yes. Each of your messages keeps the moment you wrote it, in your time zone, and LIA reads
+it with the message. If you write "*I have the dentist tomorrow at 10*" on a Tuesday and
+come back on the Friday, LIA knows that this "tomorrow" was the Wednesday and that the
+appointment is behind you. The same goes for the analysis of your request, for the summary
+that replaces a long conversation (`/resume`), and for a phone call from LIA, which knows
+when your last exchanges took place. Nothing changes on screen: it is what LIA reads.
 
 ## Why does LIA sometimes take time to respond?
 Response time varies based on your request's complexity:
@@ -181,16 +195,16 @@ Three ways to attach files:
 Click the **📎** button to the left of the input area to browse your files.
 
 **🖱️ Drag and drop:**
-Drag files directly from your file explorer into the input area. A clear landing zone appears over the composer — "Drop your images or PDFs here".
+Drag files directly from your file explorer into the input area. A clear landing zone appears over the composer — "Drop your images or documents here".
 
 **📋 Paste from the clipboard:**
-Press **Ctrl+V** (Cmd+V on Mac) with a screenshot, an image or a PDF in the clipboard: the file is attached through the exact same pipeline as the paperclip (same limits, same preview). Pasting text together with a file keeps both — the text lands in the input while the file uploads.
+Press **Ctrl+V** (Cmd+V on Mac) with a screenshot, an image or a document in the clipboard: the file is attached through the exact same pipeline as the paperclip (same limits, same preview). Pasting text together with a file keeps both — the text lands in the input while the file uploads.
 
 **📁 Accepted formats:**
 • **Photos** (JPEG, PNG, GIF, WebP, HEIC) — automatically compressed
-• **PDF documents** — text is automatically extracted
+• **Documents** (PDF, Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, CSV, Markdown, HTML, JSON, XML, plain text) — text is automatically extracted
 
-Thumbnails are displayed in the conversation. Click a thumbnail to enlarge it. LIA can analyze the visual content of images and the text of PDFs to answer your questions.
+Thumbnails are displayed in the conversation. Click a thumbnail to enlarge it. LIA can analyze the visual content of images and the text of documents to answer your questions.
 
 **💡 Limits**: maximum 5 attachments per message, 10 MB per image, 20 MB per document.
 
@@ -308,11 +322,11 @@ Yes.
 **🔍 Search bar in the chat**
 - A search input appears in the chat header (🔍 icon)
 - Type a word or phrase → matching messages are filtered instantly
-- Search is case-insensitive ("pizza" also finds "Pizza")
+- Search ignores case and accents ("pizza" also finds "Pizza", "reunion" also finds "réunion")
 
-**💡 Current limitations**
-- Searches through messages currently loaded in the chat — by default the last 50, but you can **load more by scrolling up** (see the next section)
-- Accent-sensitive ("reunion" won't find "réunion")
+**💡 Good to know**
+- The instant filter covers the messages currently loaded in the chat — by default the last 50, and you can **load more by scrolling up** (see the next section)
+- To search every message of all your discussions, use the button under the field (see "How do I search all my discussions?")
 - Click ✕ to clear the search and see all messages again
 
 **🎯 When to use it?**
@@ -351,12 +365,39 @@ Nothing is lost. Generation continues **in the background** on the server:
 - If your phone suspended the tab and the connection died without saying so, LIA recognises the silence and reconnects on its own: you no longer sit on "Generating the response…" in front of an answer that is already finished and saved
 
 **⏹️ Stopping an in-progress answer**
-- While LIA is writing, the send button becomes a **Stop** button
+- While LIA is writing, a **Stop** button stands beside the composer
 - The partial text is kept and marked "interrupted" ⏸
 - Note: actions already performed (a sent email, a created event…) are **not undone**
 
 **📌 Good to know**
-- Only one answer runs at a time per conversation: if you try to send another message during a generation, LIA reattaches you to the answer in progress instead of showing an error
+- Only one answer runs at a time on your account: a message you send meanwhile is not lost, it **waits for its turn** (see the next question)
+
+## Can I write while LIA is answering?
+
+Yes. Your words **wait for their turn**, kept by the server — you can even close the tab:
+
+**✍️ While LIA answers**
+- The composer stays open: type and press **Send next** (or Enter)
+- Your message appears below the conversation, marked **Waiting message**
+- Several messages written in a row join the same waiting message, separated by a blank line
+- You can **Edit** it or **Withdraw** it until it leaves
+
+**🚀 When it leaves**
+- As soon as LIA has finished normally, it leaves by itself, as your own message
+- If LIA asked you a question meanwhile, it waits for your answer first: a message written before the question is never taken as its answer
+- If the answer was stopped or failed, it **does not leave by itself**: it says so, and you choose to send it, change it or withdraw it
+- **Send now** stops the answer in progress in this conversation, then sends your message
+
+**➕ Add it to the answer in progress (ReAct mode)**
+- While LIA answers in this conversation in ReAct mode, the waiting message offers **Add to the answer in progress**
+- LIA reads it at its next step, as your own words, and takes it into account for the rest of its answer: handy for *only the ones open on Sunday*
+- Until LIA has read it, you can still edit or withdraw it; if LIA finishes first, it is sent right after, as usual
+- Your note stays in the conversation, marked as added to the answer in progress
+
+**📌 Good to know**
+- Only text waits: a message with a photo or a document is sent once LIA has finished
+- It also works when LIA is busy elsewhere on your account (a routine, another conversation, another tab)
+- Resetting or deleting the conversation removes its waiting message
 
 ## How do I approve or cancel an action LIA proposes?
 When LIA is about to do something sensitive (send an email, delete an event, validate a draft…), an **approval card** appears above the input with **Confirm** and **Cancel** buttons — and **Modify** for drafts, which lets you describe the change to make.
@@ -384,10 +425,12 @@ On a very long turn the panel keeps a bounded number of steps, and it keeps **th
 
 Each tool line also says **what the tool did**, in figures only: how many times it was called (×2), how many results it found, how many LIA actually read when it found more than it could read, and how many calls failed. The same figures appear while LIA works and in the stored trace — never the names of the items it read.
 
-## How do I search my entire conversation history?
-Type in the **search field** of the chat header (or tap the 🔍 icon on mobile). The loaded messages filter instantly — accent-insensitive — with the matches **highlighted** in the bubbles and a result counter.
+## How do I search all my discussions?
+Type in the **search field** of the chat header (or tap the 🔍 icon on mobile). The loaded messages filter instantly — ignoring case and accents — with the matches **highlighted** in the bubbles and a result counter.
 
-If older history exists, a **"Search entire history"** button queries the server across everything ever said and lists dated results. Clicking one **jumps to that moment** of the conversation, and a banner offers "Back to present" at any time. Sending a new message automatically returns you to the present first.
+When older history or another discussion exists, a **"Search all discussions"** button queries the server across everything said in every discussion of your account — Main and your side discussions — and lists dated results, newest first. A result found in another discussion names it; clicking it **opens that discussion at that moment**, the searched words highlighted, and a banner offers "Back to present" at any time. While more results exist, the list says it shows the most recent ones and offers "More results". Deleted discussions are not searched. Sending a new message automatically returns you to the present first. While LIA is answering, a result of another discussion waits for the answer to end, unless your server lets answers go on in the background.
+
+You can also simply ask LIA, for example *what did we say about the roof estimate?*: it searches all your discussions word for word and answers from the messages it finds, with their date and discussion.
 
 ## What are the 👍/👎 under the responses for?
 Two discreet thumbs appear next to the **Copy** button on ordinary responses. Your verdict is **saved with the message** (you will find it on your other devices) and feeds LIA's understanding: it strengthens or weakens the personal observations that shaped that answer. A 👎 unfolds an optional one-line **"what went wrong?"** field, recorded as a correction.

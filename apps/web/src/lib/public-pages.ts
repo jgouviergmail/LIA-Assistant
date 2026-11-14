@@ -17,7 +17,9 @@
  *  - `PUBLIC_FAQ_SECTIONS` and friends answer what a given page renders.
  */
 
-import { isLanguage } from '@/i18n/settings';
+// Relative on purpose: `next.config.ts` loads this module to build its header
+// rules, before any path alias is resolved.
+import { isLanguage, languages } from '../i18n/settings';
 
 /** How often a page's content is expected to change, in sitemap vocabulary. */
 export type ChangeFrequency = 'weekly' | 'monthly' | 'yearly';
@@ -30,6 +32,13 @@ export interface PublicPage {
   readonly changeFrequency: ChangeFrequency;
   /** Sitemap `priority`, 0 to 1. */
   readonly priority: number;
+  /**
+   * What dates the page, when something does: `release` for a page every
+   * release rewrites (its news, its counts, its stamp), `articles` for the
+   * list that follows its newest article. A page with neither states no date:
+   * a `lastmod` is read only as long as it is true.
+   */
+  readonly lastModified?: 'release' | 'articles';
 }
 
 /**
@@ -39,21 +48,22 @@ export interface PublicPage {
  * every release, which is precisely the rhythm a crawler should expect.
  */
 export const PUBLIC_PAGES: readonly PublicPage[] = [
-  { path: '/', changeFrequency: 'weekly', priority: 1.0 },
-  { path: '/blog', changeFrequency: 'weekly', priority: 0.8 },
-  { path: '/faq', changeFrequency: 'monthly', priority: 0.7 },
-  { path: '/changelog', changeFrequency: 'weekly', priority: 0.6 },
-  { path: '/more', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/', changeFrequency: 'weekly', priority: 1.0, lastModified: 'release' },
+  { path: '/blog', changeFrequency: 'weekly', priority: 0.8, lastModified: 'articles' },
+  { path: '/faq', changeFrequency: 'monthly', priority: 0.7, lastModified: 'release' },
+  { path: '/changelog', changeFrequency: 'weekly', priority: 0.6, lastModified: 'release' },
+  { path: '/more', changeFrequency: 'monthly', priority: 0.7, lastModified: 'release' },
   // The living maps follow the code: a new decision lands on the history, and
   // on the two maps' details, at every release.
-  { path: '/maps', changeFrequency: 'weekly', priority: 0.6 },
-  { path: '/maps/functional', changeFrequency: 'weekly', priority: 0.6 },
-  { path: '/maps/technical', changeFrequency: 'weekly', priority: 0.6 },
-  { path: '/maps/history', changeFrequency: 'weekly', priority: 0.6 },
+  { path: '/maps', changeFrequency: 'weekly', priority: 0.6, lastModified: 'release' },
+  { path: '/maps/functional', changeFrequency: 'weekly', priority: 0.6, lastModified: 'release' },
+  { path: '/maps/technical', changeFrequency: 'weekly', priority: 0.6, lastModified: 'release' },
+  { path: '/maps/history', changeFrequency: 'weekly', priority: 0.6, lastModified: 'release' },
   { path: '/demo', changeFrequency: 'monthly', priority: 0.5 },
-  { path: '/why', changeFrequency: 'monthly', priority: 0.7 },
-  { path: '/how', changeFrequency: 'monthly', priority: 0.7 },
-  { path: '/story', changeFrequency: 'monthly', priority: 0.7 },
+  // The three guides carry the release's stamp and its counts.
+  { path: '/why', changeFrequency: 'monthly', priority: 0.7, lastModified: 'release' },
+  { path: '/how', changeFrequency: 'monthly', priority: 0.7, lastModified: 'release' },
+  { path: '/story', changeFrequency: 'monthly', priority: 0.7, lastModified: 'release' },
   { path: '/privacy', changeFrequency: 'yearly', priority: 0.5 },
   { path: '/terms', changeFrequency: 'yearly', priority: 0.5 },
   { path: '/login', changeFrequency: 'monthly', priority: 0.3 },
@@ -98,6 +108,22 @@ export const NON_INDEXED_SEGMENTS: Readonly<Record<string, string>> = {
     'code-bearing deep-link landing for the shells — indexing one would publish the code',
   share: 'PWA share-target receiver, redirects immediately',
 };
+
+/**
+ * Header rule sources for the routes kept out of the index: each segment and
+ * everything under it, with and without a language prefix.
+ *
+ * robots.txt can forbid a crawl, never the indexing of an address someone else
+ * linked. A token-bearing URL therefore says `noindex` itself, on the wire,
+ * whatever the page renders (`next.config.ts` sends `X-Robots-Tag` on these).
+ */
+export function nonIndexedHeaderSources(): string[] {
+  const prefix = `/:lng(${languages.join('|')})`;
+  return Object.keys(NON_INDEXED_SEGMENTS).flatMap(segment => [
+    `/${segment}/:path*`,
+    `${prefix}/${segment}/:path*`,
+  ]);
+}
 
 /** Sitemap paths, home excluded — the shape robots.txt lists. */
 export function indexablePathsWithoutHome(): string[] {

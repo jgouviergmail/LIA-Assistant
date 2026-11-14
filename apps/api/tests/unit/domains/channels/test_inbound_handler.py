@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Literal
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 from prometheus_client import REGISTRY
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.i18n import resolve_language
@@ -20,11 +22,13 @@ from src.domains.agents.services.hitl.interactions.text_tokens import text_token
 from src.domains.channels.abstractions import ChannelInboundMessage, ChannelOutboundMessage
 from src.domains.channels.inbound_handler import InboundMessageHandler, interaction_type_of
 from src.domains.channels.models import ChannelType
+from src.domains.conversations.models import Conversation
 from src.infrastructure.channels.telegram.formatter import get_bot_message
 from src.infrastructure.channels.telegram.hitl_keyboard import (
     get_button_label,
     question_fingerprint,
 )
+from tests.fixtures.instruction_runtime import instruction_runtime
 
 # Patch targets — source modules (lazy imports inside functions)
 _PATCH_AGENT_SERVICE = "src.domains.agents.api.service.AgentService"
@@ -164,18 +168,26 @@ async def _handle(
     pending_hitl: dict[str, object] | None = None,
     hitl_decision: dict[str, str] | None = None,
 ) -> None:
-    await handler.handle(
-        message=message,
-        user_id=uuid4(),
-        user_language=language,
-        user_timezone="Europe/Paris",
-        user_memory_enabled=True,
-        user_journals_enabled=True,
-        user_psyche_enabled=True,
-        conversation_id=conversation_id,
-        pending_hitl=pending_hitl,
-        hitl_decision=hitl_decision,
-    )
+    owner = uuid4()
+    with (
+        instruction_runtime(owner),
+        patch(
+            "src.domains.agents.api.hitl_pending.check_pending_hitl_uncached",
+            AsyncMock(return_value=pending_hitl),
+        ),
+    ):
+        await handler.handle(
+            message=message,
+            user_id=owner,
+            user_language=language,
+            user_timezone="Europe/Paris",
+            user_memory_enabled=True,
+            user_journals_enabled=True,
+            user_psyche_enabled=True,
+            conversation_id=conversation_id,
+            pending_hitl=pending_hitl,
+            hitl_decision=hitl_decision,
+        )
 
 
 def _sent(sender: AsyncMock) -> ChannelOutboundMessage:
@@ -286,17 +298,18 @@ class TestTextMessageHandling:
         mock_agent.stream_chat_response = MagicMock(return_value=_mock_stream(*chunks))
 
         user_id = uuid4()
-        await handler.handle(
-            message=text_message,
-            user_id=user_id,
-            user_language="en",
-            user_timezone="America/New_York",
-            user_memory_enabled=False,
-            user_journals_enabled=True,
-            user_psyche_enabled=True,
-            conversation_id=None,
-            pending_hitl=None,
-        )
+        with instruction_runtime(user_id):
+            await handler.handle(
+                message=text_message,
+                user_id=user_id,
+                user_language="en",
+                user_timezone="America/New_York",
+                user_memory_enabled=False,
+                user_journals_enabled=True,
+                user_psyche_enabled=True,
+                conversation_id=None,
+                pending_hitl=None,
+            )
 
         call_kwargs = mock_agent.stream_chat_response.call_args[1]
         assert call_kwargs["session_id"] == f"channel_telegram_{user_id}"
@@ -525,13 +538,13 @@ class TestHITLResponse:
         asked, as in the chat — never under a fresh one (review 12)."""
         from src.core.constants import REDIS_CACHE_DB
         from src.core.field_names import FIELD_ACTION_REQUESTS, FIELD_RUN_ID
-        from src.domains.agents.utils.hitl_store import HITLStore
         from src.domains.channels.message_router import read_pending_question
         from tests.helpers.redis_databases import RedisServer
 
+        owner, conversation, runtime = uuid4(), uuid4(), uuid4()
         engine_cache = RedisServer().client(REDIS_CACHE_DB)
-        await HITLStore(redis_client=engine_cache, ttl_seconds=60).save_interrupt(
-            "conv-789",
+        engine_cache.seed_pending_question(
+            str(runtime),
             {
                 FIELD_ACTION_REQUESTS: [{"type": "plan_approval"}],
                 "count": 1,
@@ -545,11 +558,24 @@ class TestHITLResponse:
         mock_agent.stream_chat_response = MagicMock(
             return_value=_mock_stream(_make_chunk("done", ""))
         )
-        with patch(
-            "src.infrastructure.cache.redis.get_redis_cache",
-            new=AsyncMock(return_value=engine_cache),
+
+        @asynccontextmanager
+        async def session() -> AsyncIterator[AsyncSession]:
+            yield AsyncMock(spec=AsyncSession)
+
+        row = Conversation(id=conversation, user_id=owner, runtime_id=runtime)
+        with (
+            patch("src.infrastructure.database.session.get_db_context", session),
+            patch(
+                "src.domains.conversations.repository.ConversationRepository.get_active_for_user",
+                AsyncMock(return_value=row),
+            ),
+            patch(
+                "src.infrastructure.cache.redis.get_redis_cache",
+                AsyncMock(return_value=engine_cache),
+            ),
         ):
-            pending = await read_pending_question("conv-789")
+            pending = await read_pending_question(owner, str(conversation))
 
         await _handle(handler, text_message, conversation_id="conv-789", pending_hitl=pending)
 
@@ -559,28 +585,26 @@ class TestHITLResponse:
     @pytest.mark.parametrize("run_id", [None, "", 42], ids=["absent", "empty", "not_a_string"])
     @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
     @patch(_PATCH_AGENT_SERVICE)
-    async def test_a_question_with_no_usable_run_resumes_under_a_fresh_one(
+    async def test_a_question_with_no_usable_run_refuses_without_running_a_model(
         self,
         mock_agent_cls: MagicMock,
         mock_md_html: MagicMock,
         run_id: object,
         handler: InboundMessageHandler,
+        mock_sender: AsyncMock,
         text_message: ChannelInboundMessage,
     ) -> None:
-        """What the store holds is read, never trusted: a run id it cannot
-        use leaves the service to mint one, as the voice delegation does
-        (``voice_delegation._resumption``)."""
+        """Malformed confirmation state is a failure, never an ordinary new turn."""
         pending: dict[str, object] = {"action_requests": [{"type": "clarification"}]}
         if run_id is not None:
             pending["run_id"] = run_id
         mock_agent = mock_agent_cls.return_value
-        mock_agent.stream_chat_response = MagicMock(
-            return_value=_mock_stream(_make_chunk("done", ""))
-        )
+        mock_agent.stream_chat_response = MagicMock()
 
         await _handle(handler, text_message, conversation_id="conv-789", pending_hitl=pending)
 
-        assert mock_agent.stream_chat_response.call_args.kwargs["original_run_id"] is None
+        mock_agent.stream_chat_response.assert_not_called()
+        assert _sent(mock_sender).text == get_bot_message("error", "fr")
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(

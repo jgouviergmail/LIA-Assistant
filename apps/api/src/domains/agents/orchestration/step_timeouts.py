@@ -80,7 +80,8 @@ TOOL_LLM_SLOTS: Mapping[str, tuple[str, ...]] = {
     _BROWSER_TOOL_NAME: ("browser_agent",),
     "generate_image": ("image_prompt_enhancement", "image_generation"),
     "edit_image": ("image_generation",),
-    "generate_document": ("document_generation",),
+    # The writer, then the pictures it asked for (ADR-274 amendment 2026-11-13).
+    "generate_document": ("document_generation", "image_generation"),
     "generate_interactive_page": ("interactive_page",),
     "get_emails_tool": ("email_digest",),
     "get_email_attachment_tool": ("vision_analysis",),
@@ -88,6 +89,7 @@ TOOL_LLM_SLOTS: Mapping[str, tuple[str, ...]] = {
     "send_email_to_me_tool": ("emails_agent",),
     "create_mailbox_draft_tool": ("emails_agent",),
     "create_mailbox_reply_draft_tool": ("emails_agent",),
+    "reply_email_tool": ("emails_agent",),
     "update_mailbox_draft_tool": ("hitl_question_generator",),
 }
 #: A server's task runs on ONE of these, chosen from what the server exposes.

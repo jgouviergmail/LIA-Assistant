@@ -3,7 +3,8 @@
 The latest mail each way and the latest meetings each organised, read on the person's own mailbox
 and calendar by ADDRESS. ``relations`` holds the searches each provider can answer and what an
 event says of its people; its own lens goes on to qualify what it selected, a step this screen
-never takes: nothing here reaches a model or a register (D5).
+never takes: nothing here reaches a model or a register (D5). Each mail shown says where it stands
+in its conversation — answered, a reply received — through the one door (ADR-379).
 
 A calendar answers a window oldest first, so a long read would hand back the oldest meetings and
 cut the latest: the window walks back from now and stops once both lists are full. How far it
@@ -31,7 +32,9 @@ from src.core.constants import (
     WORKBENCH_CONTACT_HISTORY_SPANS,
 )
 from src.core.exceptions import BaseAPIException
+from src.core.mail_reply_state import ReplyState
 from src.domains.connectors.clients.protocols import CalendarClientProtocol, EmailClientProtocol
+from src.domains.connectors.mail_reply_states import reply_states_of
 from src.domains.connectors.preferences.owner_defaults import (
     CALENDAR,
     resolve_owner_container_id,
@@ -49,6 +52,7 @@ from src.domains.workbench.clients import open_tool_client
 from src.domains.workbench.contacts_lines import phone_history
 from src.domains.workbench.errors import NOT_CONNECTED, refusal_code_of
 from src.domains.workbench.features import WorkbenchTool
+from src.domains.workbench.mail_projection import reply_mark
 from src.domains.workbench.schemas.contacts import (
     ContactHistory,
     ContactHistoryQuery,
@@ -65,6 +69,8 @@ _RECEIVED: Final = "received"
 _UNDATED: Final = datetime.min.replace(tzinfo=UTC)
 
 Standing = Literal["by_them", "by_you", "shared"]
+#: A mail of the exchange, with the message it was read from (its conversation is asked by it).
+_Found = tuple[ExchangedEmail, dict[str, Any]]
 
 
 @dataclass(slots=True)
@@ -103,7 +109,11 @@ async def contact_history(
     addresses = list(dict.fromkeys(str(address) for address in query.address))
     phones = list(dict.fromkeys(query.phone))
     (mail, mail_source), (meetings, calendar_source), phone = await asyncio.gather(
-        _sourced(_mail_with(user_id, addresses), _Mail()) if addresses else _unasked(_Mail()),
+        (
+            _sourced(_mail_with(user_id, zone, addresses), _Mail())
+            if addresses
+            else _unasked(_Mail())
+        ),
         (
             _sourced(_meetings_with(user_id, zone, addresses, now), _Meetings())
             if addresses
@@ -151,30 +161,46 @@ async def _sourced[T](reading: Awaitable[T], nothing: T) -> tuple[T, HistorySour
         return nothing, "disabled" if missing else "unavailable"
 
 
-async def _mail_with(user_id: UUID, addresses: list[str]) -> _Mail:
+async def _exchanged(client: EmailClientProtocol, addresses: list[str]) -> list[_Found]:
+    """The mail exchanged with these addresses, newest first, each listed once."""
+    found: dict[str, _Found] = {}
+    for address in addresses:
+        for direction, search in exchange_queries(address):
+            page = await client.search_emails(
+                search, max_results=_ITEMS, use_cache=False, headers_only=True
+            )
+            for message in page.get("messages") or []:
+                email = to_exchanged_email(message, direction)
+                if email is not None:
+                    found.setdefault(email.id, (email, message))
+    return sorted(found.values(), key=lambda row: row[0].occurred_at or _UNDATED, reverse=True)
+
+
+async def _mail_with(user_id: UUID, zone: ZoneInfo, addresses: list[str]) -> _Mail:
     async with open_tool_client(_MAIL, user_id) as opened:
         client: EmailClientProtocol = opened.client
         async with provider_call(_MAIL, "history", act=False):
-            found: dict[str, ExchangedEmail] = {}
-            for address in addresses:
-                for direction, search in exchange_queries(address):
-                    page = await client.search_emails(
-                        search, max_results=_ITEMS, use_cache=False, headers_only=True
-                    )
-                    for message in page.get("messages") or []:
-                        email = to_exchanged_email(message, direction)
-                        if email is not None:
-                            found.setdefault(email.id, email)
-    latest = sorted(found.values(), key=lambda row: row.occurred_at or _UNDATED, reverse=True)
+            latest = await _exchanged(client, addresses)
+            received = [row for row in latest if row[0].direction == _RECEIVED][:_ITEMS]
+            sent = [row for row in latest if row[0].direction != _RECEIVED][:_ITEMS]
+            # One read for the rows shown, both lists together (ADR-379).
+            states = await reply_states_of(
+                client, [message for _, message in (*received, *sent)], user_timezone=zone.key
+            )
     return _Mail(
-        received=[_mail_row(row) for row in latest if row.direction == _RECEIVED][:_ITEMS],
-        sent=[_mail_row(row) for row in latest if row.direction != _RECEIVED][:_ITEMS],
+        received=[_mail_row(email, states) for email, _ in received],
+        sent=[_mail_row(email, states) for email, _ in sent],
     )
 
 
-def _mail_row(email: ExchangedEmail) -> HistoryMail:
+def _mail_row(email: ExchangedEmail, states: Mapping[str, ReplyState]) -> HistoryMail:
     subject = "" if email.subject == NO_SUBJECT else email.subject
-    return HistoryMail(id=email.id, subject=subject, at=email.occurred_at)
+    return HistoryMail(
+        id=email.id,
+        subject=subject,
+        at=email.occurred_at,
+        reply=reply_mark(states.get(email.id)),
+    )
 
 
 async def _meetings_with(

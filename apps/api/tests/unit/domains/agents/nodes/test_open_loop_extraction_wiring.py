@@ -5,6 +5,7 @@ under the SAME guards as the sibling extractions (automated source, trivial
 message) plus the global flag.
 """
 
+from collections.abc import Coroutine
 from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import UUID
@@ -44,9 +45,16 @@ def _call(state, context, *, flag_on: bool = True):
     captured: list = []
     config = _CONFIG
 
-    def _fake_fire_and_forget(coro, *, name="", run_id=None):
+    def _fake_fire_and_forget(
+        coro: Coroutine[object, object, object],
+        *,
+        name: str = "",
+        run_id: str | None = None,
+        independent_of_graph: bool = False,
+    ) -> None:
         captured.append((name, coro))
         coro.close()  # prevent un-awaited coroutine warnings
+        assert independent_of_graph
 
     with (
         installed_runtime_context(context),

@@ -30,7 +30,6 @@ import {
   IDLE_LIFE_EXPRESSIONS,
   MIN_EXPRESSION_HOLD_MS,
   PRE_GAZE_BLINK_LEAD_MS,
-  READING_STEP_MS,
   RETURN_PERK_MIN_AWAY_MS,
   SACCADE_MOVE_MS,
   URGENT_ARRIVALS,
@@ -38,7 +37,7 @@ import {
   deriveExpression,
   sleepPolicyFrame,
   accessoryForExpression,
-  emoteForExpression,
+  frameEmote,
   gazeHoldMs,
   resolveIdleFamily,
   idleGazeTarget,
@@ -47,7 +46,6 @@ import {
   nextBlinkDelayMs,
   nextIdleGestureDelayMs,
   pickIdleGesture,
-  readingGazeAt,
   shouldBlinkBeforeGaze,
   shouldChainGlance,
   wakePerformanceFor,
@@ -60,7 +58,17 @@ import {
   type IdleMoodFamily,
   type PerformanceStep,
 } from '@/components/eyes/expression-engine';
-import { accentGesture, accentSparkles, type ToneAccent } from '@/components/eyes/tone';
+import { accentSparkles, deliveryGesture, type ToneAccent } from '@/components/eyes/tone';
+import {
+  ACKNOWLEDGEMENT_GESTURE,
+  HAND_OVER_AFTER_MS,
+  HAND_OVER_GESTURE,
+  TOOL_DONE_GESTURE,
+  finishedToolKey,
+  handsOver,
+  mayHandOver,
+  messageSent,
+} from '@/components/eyes/exchange-beats';
 import { prefersReducedMotion } from '@/lib/utils/motion';
 import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
 import { usePsycheStore } from '@/stores/psycheStore';
@@ -137,7 +145,12 @@ export interface EyesBehavior {
 }
 
 function sameFrame(a: ExpressionFrame, b: ExpressionFrame): boolean {
-  return a.expression === b.expression && a.gaze?.x === b.gaze?.x && a.gaze?.y === b.gaze?.y;
+  return (
+    a.expression === b.expression &&
+    a.target === b.target &&
+    a.gaze?.x === b.gaze?.x &&
+    a.gaze?.y === b.gaze?.y
+  );
 }
 
 /**
@@ -198,41 +211,194 @@ function applyEmoteTransition(
  * roll outright — an accessory is pure flourish, and a flourish is the first
  * thing that preference asks to be spared.
  */
-/** How long an accent beat plays before the face lets it go. */
+/** How long a declared accent beat plays before the face lets it go. */
 const ACCENT_BEAT_MS = 900;
 
+type TimerRef = React.MutableRefObject<ReturnType<typeof setTimeout> | null>;
+type SignalsState = ReturnType<typeof useEyesSignalsStore.getState>;
+
+/** The timers the delivery of an answer keeps between two evaluations. */
+interface DeliveryTimers {
+  readonly beat: TimerRef;
+  readonly handOver: TimerRef;
+}
+
+/** The beat a delivered answer earned, waiting for the answer's own face. */
+interface PendingDelivery {
+  readonly gesture: IdleGesture;
+  /** The face the answer earned: the beat plays on the frame that lands it. */
+  readonly expression: EyeExpression;
+  /** The reaction it belongs to; another one, or none, cancels it. */
+  readonly at: number;
+}
+
+function cancelHandOver(handOver: TimerRef): void {
+  if (handOver.current) clearTimeout(handOver.current);
+  handOver.current = null;
+}
+
 /**
- * Play the one-shot beat an answer's register earned (ADR-253).
+ * Read what a delivered answer earned (ADR-253, ADR-294): the accent its
+ * model declared when it declared a movement, the register's presentation
+ * when it declared none (`deliveryGesture`). Returns the accent, which the
+ * arriving frame's accessory reads, and the beat, PARKED like that accessory
+ * for the frame that lands the answer's face: played before it, the beat was
+ * wiped a commit later by that very arrival (the rig interrupts every beat
+ * on a new expression), so a streamed answer was never presented at all.
+ */
+function receiveAnswer(
+  signals: SignalsState,
+  now: number,
+  handOver: TimerRef
+): { accent: ToneAccent; delivery: PendingDelivery | null } {
+  cancelHandOver(handOver);
+  const reaction = signals.reaction;
+  const accent = signals.liveAccent(now);
+  if (!reaction || !signals.isReactionHeld(now)) return { accent, delivery: null };
+  const gesture = deliveryGesture(reaction.expression, accent);
+  return {
+    accent,
+    delivery: gesture ? { gesture, expression: reaction.expression, at: reaction.at } : null,
+  };
+}
+
+/**
+ * Play the parked delivery on the frame that lands its answer's face — the
+ * same commit, so the arrival comes first and cannot wipe it — then, after a
+ * presentation, the hand-over a moment later, « à toi », if it is still owed
+ * when its time comes.
  *
  * Kept module-level next to `applyAccessory`, for the same two reasons: it
- * holds the hook under the complexity ratchet, and reduced motion declines it
- * outright — an accent is punctuation on an expression, and the expression
- * says the same thing without it.
- *
- * A movement accent rides the EXISTING idle-gesture vocabulary rather than a
- * new animation: the accent names what the beat MEANS, and the rig already
- * owns a tested movement for each meaning. `sparkle` is the exception that
- * proves it — it is an accessory, not a movement, so it goes to the accessory
- * channel and never to this one.
+ * holds the hook under the complexity ratchet, and reduced motion declines
+ * every beat outright (`playBeat`) — a delivery is punctuation on an
+ * expression, and the expression says the same thing without it. `sparkle`
+ * is an accessory, not a movement: `applyAccessory` owns it.
  */
-function applyAccentBeat(
-  accent: ToneAccent,
+function deliverOnArrival(
+  expression: EyeExpression,
+  now: number,
+  pending: React.MutableRefObject<PendingDelivery | null>,
+  timers: DeliveryTimers,
+  setBeat: (value: IdleGesture | null) => void
+): void {
+  // A face that speaks plays no delivery: the voice hands the answer over itself.
+  // A presentation under way, or the « à toi » falling due three seconds later,
+  // played on through the first words and moved a mouth the voice was to move
+  // (owner report 2026-11-14, spoken comments and both Live modes). The delivery
+  // still parked goes too: played when the voice pauses between two phrases, it
+  // would be cut by the next one.
+  if (expression === 'speaking') {
+    pending.current = null;
+    cancelHandOver(timers.handOver);
+    playBeat(null, 0, timers.beat, setBeat);
+    return;
+  }
+  const delivery = pending.current;
+  if (!delivery || delivery.expression !== expression) return;
+  pending.current = null;
+  const signals = useEyesSignalsStore.getState();
+  if (signals.reaction?.at !== delivery.at || !signals.isReactionHeld(now)) return;
+  const { gesture } = delivery;
+  if (!handsOver(gesture)) {
+    playBeat(gesture, ACCENT_BEAT_MS, timers.beat, setBeat);
+    return;
+  }
+  playBeat(gesture, GESTURE_DURATION_MS[gesture], timers.beat, setBeat);
+  timers.handOver.current = setTimeout(() => {
+    timers.handOver.current = null;
+    const current = useEyesSignalsStore.getState();
+    const heldAt = current.reaction?.at ?? null;
+    if (!mayHandOver(heldAt, delivery.at, current.isAttending(Date.now()))) return;
+    playBeat(HAND_OVER_GESTURE, GESTURE_DURATION_MS[HAND_OVER_GESTURE], timers.beat, setBeat);
+  }, HAND_OVER_AFTER_MS);
+}
+
+/**
+ * Whether something else owns the face, so its idle life waits: real work, an
+ * answer it holds, or a beat the exchange earned that is still playing — a
+ * wandering look in the middle of « à toi » would take back what it hands over.
+ */
+function faceIsTaken(signals: SignalsState, now: number, beat: IdleGesture | null): boolean {
+  return Boolean(signals.liveActivity(now)) || signals.isReactionHeld(now) || beat !== null;
+}
+
+/**
+ * Play ONE beat and let it go once it has played — the single channel for
+ * everything the exchange earns from the face: an answer's accent, the
+ * acknowledgement of a message, the mark of a finished tool. The last one
+ * asked wins; reduced motion declines them all.
+ */
+function playBeat(
+  gesture: IdleGesture | null,
+  holdMs: number,
   beatTimerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
-  setAccentGesture: (value: IdleGesture | null) => void
+  setBeat: (value: IdleGesture | null) => void
 ): void {
   if (beatTimerRef.current) {
     clearTimeout(beatTimerRef.current);
     beatTimerRef.current = null;
   }
-  // `sparkle` is deliberately absent: it is an accessory, not a movement, and
-  // `applyAccessory` owns it. One beat, one mechanism.
-  const gesture = prefersReducedMotion() ? null : accentGesture(accent);
-  setAccentGesture(gesture);
-  if (!gesture) return;
+  const beat = prefersReducedMotion() ? null : gesture;
+  setBeat(beat);
+  if (!beat) return;
   beatTimerRef.current = setTimeout(() => {
     beatTimerRef.current = null;
-    setAccentGesture(null);
-  }, ACCENT_BEAT_MS);
+    setBeat(null);
+  }, holdMs);
+}
+
+/** What the exchange's beats read and write between two evaluations. */
+interface ExchangeBeatState {
+  /** The chat status the previous evaluation saw. */
+  status: React.MutableRefObject<ChatState['status']>;
+  /** The finished tool already marked; `undefined` until the face has looked
+   * once — what finished before it was mounted is not its to mark. */
+  markedTool: React.MutableRefObject<string | null | undefined>;
+  /** When the current expression landed: an acknowledgement re-arms the hold,
+   * so the thought that follows a send waits for the beat instead of cutting it. */
+  heldSince: React.MutableRefObject<number>;
+  beatTimer: React.MutableRefObject<ReturnType<typeof setTimeout> | null>;
+  setBeat: (value: IdleGesture | null) => void;
+  pulseBlink: () => void;
+}
+
+/**
+ * The beats of a turn under way, on signal EDGES (`exchange-beats.ts`): a
+ * message leaves, a tool comes back with a result.
+ *
+ * Module-level for the reason the accent is: `evaluate` is timer-driven and
+ * sits under the complexity ratchet.
+ */
+function playExchangeBeats(
+  chatStatus: ChatState['status'],
+  finishedTool: string | null,
+  now: number,
+  state: ExchangeBeatState
+): void {
+  const sent = messageSent(state.status.current, chatStatus);
+  state.status.current = chatStatus;
+  const marked = state.markedTool.current;
+  state.markedTool.current = finishedTool;
+  if (prefersReducedMotion()) return;
+  if (sent) {
+    state.heldSince.current = now;
+    playBeat(
+      ACKNOWLEDGEMENT_GESTURE,
+      GESTURE_DURATION_MS[ACKNOWLEDGEMENT_GESTURE],
+      state.beatTimer,
+      state.setBeat
+    );
+    return;
+  }
+  if (marked === undefined || finishedTool === null || finishedTool === marked) return;
+  // A boundary of attention is a blink; the brows say what it found.
+  state.pulseBlink();
+  playBeat(
+    TOOL_DONE_GESTURE,
+    GESTURE_DURATION_MS[TOOL_DONE_GESTURE],
+    state.beatTimer,
+    state.setBeat
+  );
 }
 
 function showAccessory(
@@ -297,12 +463,24 @@ export function useEyesBehavior({
   const [accessory, setAccessory] = useState<EyeAccessory | null>(null);
   const [emphasis, setEmphasis] = useState(1);
   const [responseWeight, setResponseWeight] = useState(1);
-  // The one-shot beat the last answer earned. Held apart from the idle
-  // gesture because the two have different owners and different lifetimes:
-  // an idle gesture is cleared the moment a directed expression arrives,
-  // which is exactly when an accent is supposed to be playing.
-  const [accentBeat, setAccentBeat] = useState<IdleGesture | null>(null);
+  // The one-shot beat the EXCHANGE earned: an answer's accent, the
+  // acknowledgement of a message, the mark of a finished tool. Held apart
+  // from the idle gesture because the two have different owners and
+  // different lifetimes: an idle gesture is cleared the moment a directed
+  // expression arrives, which is exactly when a beat is supposed to play.
+  const [accentBeat, setAccentBeatState] = useState<IdleGesture | null>(null);
   const accentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handOverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingDeliveryRef = useRef<PendingDelivery | null>(null);
+  // The idle-life timers read the beat outside render: the ref changes in
+  // the same call as the state, never one commit later.
+  const accentBeatRef = useRef<IdleGesture | null>(null);
+  const setAccentBeat = useCallback((beat: IdleGesture | null) => {
+    accentBeatRef.current = beat;
+    setAccentBeatState(beat);
+  }, []);
+  const beatStatusRef = useRef(chatStatus);
+  const markedToolRef = useRef<string | null | undefined>(undefined);
   const lastReactionAtRef = useRef<number | null>(null);
   const pendingAccentRef = useRef<ToneAccent>('none');
   const accessoryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -415,43 +593,58 @@ export function useEyesBehavior({
    * holds MIN_EXPRESSION_HOLD_MS before being replaced (anti-zapping).
    * The rig then blends each organ continuously from its current velocity.
    */
-  const applyFrame = useCallback((next: ExpressionFrame, now: number) => {
-    const changed = next.expression !== frameRef.current.expression;
-    if (changed) {
-      const heldFor = now - heldSinceRef.current;
-      if (heldFor < MIN_EXPRESSION_HOLD_MS && !URGENT_ARRIVALS.has(next.expression)) {
-        if (holdRetryTimerRef.current) clearTimeout(holdRetryTimerRef.current);
-        holdRetryTimerRef.current = setTimeout(
-          () => evaluateRef.current(),
-          MIN_EXPRESSION_HOLD_MS - heldFor
-        );
-        return;
-      }
-      heldSinceRef.current = now;
-    }
-    const land = () => {
-      setFrame(prev => (sameFrame(prev, next) ? prev : next));
-      applyEmoteTransition(
-        emoteForExpression(next.expression),
-        emoteGlyphRef,
-        emoteTimerRef,
-        setEmote
-      );
+  const applyFrame = useCallback(
+    (next: ExpressionFrame, now: number) => {
+      const changed = next.expression !== frameRef.current.expression;
       if (changed) {
-        applyAccessory(next.expression, pendingAccentRef.current, accessoryTimerRef, setAccessory);
-        pendingAccentRef.current = 'none';
+        const heldFor = now - heldSinceRef.current;
+        if (heldFor < MIN_EXPRESSION_HOLD_MS && !URGENT_ARRIVALS.has(next.expression)) {
+          if (holdRetryTimerRef.current) clearTimeout(holdRetryTimerRef.current);
+          holdRetryTimerRef.current = setTimeout(
+            () => evaluateRef.current(),
+            MIN_EXPRESSION_HOLD_MS - heldFor
+          );
+          return;
+        }
+        heldSinceRef.current = now;
       }
-      // Leaving the wandering family cancels the idle life immediately — a
-      // directed expression must never carry a stale wander target or
-      // gesture. 'speaking' keeps its reading-gaze loop but never plays
-      // one-shot gestures (see the idle-life loop).
-      if (!IDLE_LIFE_EXPRESSIONS.has(next.expression) && next.expression !== 'speaking') {
-        setIdleGaze(prev => (prev === null ? prev : null));
-        setGesture(prev => (prev === null ? prev : null));
-      }
-    };
-    land();
-  }, []);
+      const land = () => {
+        setFrame(prev => (sameFrame(prev, next) ? prev : next));
+        applyEmoteTransition(
+          frameEmote(next.expression, useEyesSignalsStore.getState().liveReaction(now)),
+          emoteGlyphRef,
+          emoteTimerRef,
+          setEmote
+        );
+        if (changed) {
+          applyAccessory(
+            next.expression,
+            pendingAccentRef.current,
+            accessoryTimerRef,
+            setAccessory
+          );
+          pendingAccentRef.current = 'none';
+        }
+        deliverOnArrival(
+          next.expression,
+          now,
+          pendingDeliveryRef,
+          { beat: accentTimerRef, handOver: handOverTimerRef },
+          setAccentBeat
+        );
+        // Leaving the wandering family cancels the idle life immediately — a
+        // directed expression must never carry a stale wander target or
+        // gesture. Speaking is directed too: LIA speaks TO the person, so a
+        // glance under way when the voice starts comes back to them.
+        if (!IDLE_LIFE_EXPRESSIONS.has(next.expression)) {
+          setIdleGaze(prev => (prev === null ? prev : null));
+          setGesture(prev => (prev === null ? prev : null));
+        }
+      };
+      land();
+    },
+    [setAccentBeat]
+  );
 
   const evaluate = useCallback(() => {
     const now = Date.now();
@@ -489,14 +682,22 @@ export function useEyesBehavior({
     const reactionAt = signals.reaction?.at ?? null;
     if (reactionAt !== lastReactionAtRef.current) {
       lastReactionAtRef.current = reactionAt;
-      const accent = signals.liveAccent(now);
       // The movement plays now; the accessory is PARKED for the frame that is
       // about to land, because that is where the accessory has its single
       // owner. Playing it here instead put two writers a few milliseconds
       // apart, and the arrival's roll won.
-      pendingAccentRef.current = accent;
-      if (accent !== 'none') applyAccentBeat(accent, accentTimerRef, setAccentBeat);
+      const received = receiveAnswer(signals, now, handOverTimerRef);
+      pendingAccentRef.current = received.accent;
+      pendingDeliveryRef.current = received.delivery;
     }
+    playExchangeBeats(chatStatus, finishedToolKey(signals.lastActivity), now, {
+      status: beatStatusRef,
+      markedTool: markedToolRef,
+      heldSince: heldSinceRef,
+      beatTimer: accentTimerRef,
+      setBeat: setAccentBeat,
+      pulseBlink,
+    });
     trackSleepClock(next.expression, now, sleepSinceRef);
     // Narrative beats on signal EDGES, idle-stage only (an interactive state
     // owns the face): a cross-family mood shift plays its rise/fall beat; a
@@ -508,7 +709,16 @@ export function useEyesBehavior({
     // sit on top of a live exchange or to hide the notification glance.
     if (!idleStage || signals.isNotificationLive(now)) cancelPerformance();
     applyFrame(next, now);
-  }, [chatStatus, streamPhase, hitlAwaiting, allowSleep, cancelPerformance, applyFrame]);
+  }, [
+    chatStatus,
+    streamPhase,
+    hitlAwaiting,
+    allowSleep,
+    cancelPerformance,
+    applyFrame,
+    pulseBlink,
+    setAccentBeat,
+  ]);
   useEffect(() => {
     evaluateRef.current = evaluate;
   }, [evaluate]);
@@ -518,6 +728,7 @@ export function useEyesBehavior({
     const onChange = () => {
       if (!query?.matches) return;
       cancelPerformance();
+      cancelHandOver(handOverTimerRef);
       setGesture(null);
       setAccentBeat(null);
       setIdleGaze(null);
@@ -526,7 +737,7 @@ export function useEyesBehavior({
     };
     query?.addEventListener('change', onChange);
     return () => query?.removeEventListener('change', onChange);
-  }, [cancelPerformance]);
+  }, [cancelPerformance, setAccentBeat]);
 
   // Re-derive on every input change: props (via evaluate identity), the live
   // live stores, and the heartbeat that ages the time-based signals. The
@@ -677,13 +888,16 @@ export function useEyesBehavior({
         if (cancelled) return;
         const current = frameRef.current;
         const signals = useEyesSignalsStore.getState();
-        const busy = signals.liveActivity(Date.now()) || signals.liveReaction(Date.now());
-        // 'speaking' lives in its own reading loop (below), not here.
+        const busy = faceIsTaken(signals, Date.now(), accentBeatRef.current);
+        // 'speaking' has no wandering life: the gaze holds on the person spoken to.
         const alive =
           !document.hidden &&
           !busy &&
           !winkingRef.current &&
           current.gaze === null &&
+          // A face that looks AT something neither wanders nor fidgets: the
+          // answer being written has it.
+          !current.target &&
           IDLE_LIFE_EXPRESSIONS.has(current.expression);
         if (alive) {
           // The mood is the personality channel of the idle life (soft
@@ -711,46 +925,6 @@ export function useEyesBehavior({
       pending.forEach(clearTimeout);
     };
   }, [enabled, motionReduced, pulseBlink]);
-
-  // Reading loop: while the answer streams ('speaking'), the gaze walks a
-  // reading line in small left-to-right steps with a quick carriage return —
-  // the eyes "write" their answer. Replaces random saccades for this state;
-  // when speaking ends the last beat sends the gaze home.
-  useEffect(() => {
-    if (!enabled || motionReduced) return;
-    let cancelled = false;
-    let step = 1;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const tick = () => {
-      timer = setTimeout(() => {
-        if (cancelled) return;
-        const speaking = frameRef.current.expression === 'speaking';
-        if (speaking && !document.hidden && !winkingRef.current) {
-          const move = readingGazeAt(step);
-          setIdleGaze({ gaze: move.gaze, ms: move.ms });
-          step += 1;
-        } else if (step > 1) {
-          // Left mid-line: come home, never strand the gaze off-center.
-          setIdleGaze(prev =>
-            prev === null ? prev : { gaze: { x: 0, y: 0 }, ms: GAZE_RETURN_MS }
-          );
-          step = 1;
-        }
-        tick();
-      }, READING_STEP_MS);
-    };
-    tick();
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-      // Torn down mid-line (widget minimized while streaming): send the gaze
-      // home NOW — the loop is gone, nobody else would (owner invariant: no
-      // positional drift, ever — same rule as gazeHomingTimersRef).
-      if (step > 1) {
-        setIdleGaze(prev => (prev === null ? prev : { gaze: { x: 0, y: 0 }, ms: GAZE_RETURN_MS }));
-      }
-    };
-  }, [enabled, motionReduced]);
 
   // Coming back to the tab after a real absence earns a small welcome perk —
   // awake families only (a drowsy character does not jump to attention).
@@ -788,7 +962,13 @@ export function useEyesBehavior({
   useEffect(() => {
     // Timer handles (not DOM nodes): reading them at cleanup time is the
     // point — the array indirection keeps exhaustive-deps quiet about it.
-    const timerRefs = [winkTimerRef, emoteTimerRef, accessoryTimerRef];
+    const timerRefs = [
+      winkTimerRef,
+      emoteTimerRef,
+      accessoryTimerRef,
+      accentTimerRef,
+      handOverTimerRef,
+    ];
     return () => {
       timerRefs.forEach(ref => {
         if (ref.current) clearTimeout(ref.current);

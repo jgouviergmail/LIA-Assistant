@@ -300,6 +300,14 @@ so the reaper recovers a crashed label sync exactly like a crashed folder
 sync. A PENDING document of a LIVE label sync is excluded from recovery for
 the same reason as a Drive one: its sync will claim it.
 
+That exclusion, and the reaper leaving a live sync alone, both rest on the
+source's lease staying alive — including while the queued documents embed,
+which is the long part of a sync. `process_queued` therefore names its source
+and holds `source_lease_keepalive.source_lease_kept` around the whole batch:
+the lease is renewed every `RAG_JOB_HEARTBEAT_INTERVAL_SECONDS`, on a short
+session of its own, until the last document has embedded (ADR-129 follow-up
+2026-11-10).
+
 **Endpoints** (space-scoped, ownership hides existence):
 `GET /rag-spaces/{space_id}/mail-labels` (the user's own labels — system
 labels are never offered), `GET|POST /rag-spaces/{space_id}/mail-sources`,

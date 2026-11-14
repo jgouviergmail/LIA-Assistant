@@ -35,7 +35,6 @@ export interface MinMaxPerDayProps {
   max: number;
   /** Highest offered value (Heartbeat offers 8, Interests 10). */
   limit: number;
-  disabled?: boolean;
   onChange: (field: 'min' | 'max', value: number) => void;
 }
 
@@ -47,7 +46,6 @@ export function MinMaxPerDay({
   min,
   max,
   limit,
-  disabled,
   onChange,
 }: MinMaxPerDayProps) {
   const options = Array.from({ length: limit }, (_, i) => i + 1);
@@ -57,11 +55,7 @@ export function MinMaxPerDay({
           a caller's label icon stacks ABOVE the text instead of before it. */}
       <Label className="flex items-center gap-2 text-sm">{label}</Label>
       <div className="flex items-center gap-2">
-        <Select
-          value={String(min)}
-          onValueChange={v => onChange('min', parseInt(v))}
-          disabled={disabled}
-        >
+        <Select value={String(min)} onValueChange={v => onChange('min', parseInt(v))}>
           <SelectTrigger className="w-20" aria-label={minAriaLabel}>
             <SelectValue />
           </SelectTrigger>
@@ -76,11 +70,7 @@ export function MinMaxPerDay({
         <span className="text-muted-foreground" aria-hidden="true">
           -
         </span>
-        <Select
-          value={String(max)}
-          onValueChange={v => onChange('max', parseInt(v))}
-          disabled={disabled}
-        >
+        <Select value={String(max)} onValueChange={v => onChange('max', parseInt(v))}>
           <SelectTrigger className="w-20" aria-label={maxAriaLabel}>
             <SelectValue />
           </SelectTrigger>
@@ -106,7 +96,12 @@ export interface HourWindowProps {
   endAriaLabel: string;
   startHour: number;
   endHour: number;
-  disabled?: boolean;
+  /**
+   * The window is saving the hour just chosen: both lists stay focusable, say so
+   * and refuse another choice (`Select`'s `busy`) — a list `disabled` while it
+   * holds the focus hands it to the page.
+   */
+  busy?: boolean;
   onChange: (field: 'start' | 'end', value: number) => void;
 }
 
@@ -122,7 +117,7 @@ export function HourWindow({
   endAriaLabel,
   startHour,
   endHour,
-  disabled,
+  busy,
   onChange,
 }: HourWindowProps) {
   return (
@@ -132,7 +127,7 @@ export function HourWindow({
         <Select
           value={String(startHour)}
           onValueChange={v => onChange('start', parseInt(v))}
-          disabled={disabled}
+          busy={busy}
         >
           <SelectTrigger className="w-24" aria-label={startAriaLabel}>
             <SelectValue />
@@ -151,7 +146,7 @@ export function HourWindow({
         <Select
           value={String(endHour)}
           onValueChange={v => onChange('end', parseInt(v))}
-          disabled={disabled}
+          busy={busy}
         >
           <SelectTrigger className="w-24" aria-label={endAriaLabel}>
             <SelectValue />

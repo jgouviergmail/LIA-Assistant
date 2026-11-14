@@ -23,6 +23,7 @@ import { ClassificationBadges } from '@/components/chat/ClassificationBadges';
 
 import { useState } from 'react';
 import { CalendarDays, Contact, Mail, Sparkles } from '@/lib/icons';
+import { MonochromeIcons } from '@/lib/icon-style-context';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
@@ -223,7 +224,7 @@ export function ProviderEmailsSection({
                 <span className="mt-1 w-full text-sm font-semibold text-foreground">
                   {email.subject}
                 </span>
-                <ClassificationBadges value={email.classification} />
+                <ClassificationBadges value={email.classification} replyState={email.reply_state} />
                 {/* The subject alone rarely says what an exchange was about
                   ("Re: Re: point"). Four lines at most — enough for the
                   provider's whole preview on a desktop, twice the two lines a
@@ -251,7 +252,9 @@ export function ProviderEmailsSection({
           // of the sheet (owner request 2026-10-22).
           className="inline-flex w-full items-center justify-start gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-left text-xs font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto sm:justify-center"
         >
-          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+          <MonochromeIcons>
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+          </MonochromeIcons>
           {t('relations.emails_summarize', { count: selectedHere.length })}
         </button>
       )}

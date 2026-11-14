@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Concatenate
 
 import structlog
 
+from src.core.browser_scope import BrowserScope
 from src.core.config import settings
 from src.core.constants import (
     BROWSER_SCREENSHOT_THUMBNAIL_QUALITY,
@@ -58,29 +59,31 @@ def _while_active[**P, R](
 
 
 class BrowserSession:
-    """Manages a single user's browser session within a BrowserContext.
+    """Manages one conversation runtime's browser session within a BrowserContext.
 
     Each session wraps a Playwright BrowserContext and provides high-level
     browser interaction methods (navigate, click, fill) with security checks,
     accessibility tree extraction, and content wrapping.
 
     Args:
-        user_id: The user who owns this session.
+        scope: The account and runtime that own the session.
         context: The Playwright BrowserContext for this session.
         security: Security policy for URL validation and input sanitization.
     """
 
     def __init__(
         self,
-        user_id: str,
+        scope: BrowserScope,
         context: BrowserContext,
         security: BrowserSecurityPolicy,
     ) -> None:
-        self.user_id = user_id
+        self.scope = scope
+        self.user_id = str(scope.owner_id)
         self.context = context
         self.page: Page | None = None
         self.created_at = time.monotonic()
         self.last_activity = time.monotonic()
+        self.last_screenshot_at = 0.0
         self.navigation_count = 0
         self._active_operations = 0
         self._extractor = AccessibilityTreeExtractor()

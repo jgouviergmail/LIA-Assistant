@@ -62,9 +62,11 @@ from src.domains.skills.import_commit import (
     SkillImportCompletionUnknown,
     commit_skill_import,
 )
-from src.domains.skills.import_disk import finish_disk_step, run_disk_step
+from src.domains.skills.import_disk import finish_disk_step, import_destination, run_disk_step
 from src.domains.skills.import_hooks import AfterSkillCommit, BeforeSkillSwap
 from src.domains.skills.models import SkillProvenance
+from src.domains.skills.previous_version import replacement_keeps, settle_previous
+from src.domains.users.file_writers import account_file_write
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -712,88 +714,132 @@ class SkillImportService:
             after_register: Called with the session and the registered row
                 before the commit.
         """
-        from src.domains.skills.cache import SkillsCache
+        async with account_file_write(self.db, owner_id):
+            if not is_system and owner_id is not None:
+                from src.domains.skills.lifecycle_lock import lock_skill_owner
 
-        if not is_system and owner_id is not None:
-            from src.domains.skills.lifecycle_lock import lock_skill_owner
-
-            await lock_skill_owner(self.db, owner_id)
-        skill = await self._validated(
-            staged_skill_dir,
-            name,
-            owner_id=owner_id,
-            is_system=is_system,
-            settings=settings,
-            plugin_id=plugin_id,
-            provenance=provenance,
-        )
-        if before_swap is not None:
-            await before_swap(self.db)
-
-        # Disk swap: the previous version (if any) is parked in the staging
-        # root — outside the scanned skills tree, auto-cleaned with it — so a
-        # failure at ANY later step can restore it byte-for-byte.
-        base_dir = (
-            Path(settings.skills_system_path)
-            if is_system
-            else Path(settings.skills_users_path) / str(owner_id)
-        )
-        base_dir.mkdir(parents=True, exist_ok=True)
-        target_dir = base_dir / name
-        backup_dir = staged_skill_dir.parent / "__previous__"
-        # Blocking disk swap → offload off the event loop (CA-4).
-        cancelled = await finish_disk_step(
-            partial(self._swap_in, staged_skill_dir, target_dir, backup_dir)
-        )
-
-        # Rebase source_path onto the live location for the response.
-        skill["source_path"] = str(target_dir / "SKILL.md")
-
-        # Pre-commit failures restore the previous package. An attempted commit
-        # without acknowledgement preserves the new bytes and refuses replay.
-        try:
-            if cancelled:
-                raise asyncio.CancelledError
-            if carry_over_untransportable:
-                await run_disk_step(partial(_carry_over_untransportable, backup_dir, target_dir))
-            row = await self._register_row(
-                skill,
-                name=name,
-                is_system=is_system,
+                await lock_skill_owner(self.db, owner_id)
+            skill = await self._validated(
+                staged_skill_dir,
+                name,
                 owner_id=owner_id,
+                is_system=is_system,
+                settings=settings,
                 plugin_id=plugin_id,
                 provenance=provenance,
             )
-            if after_register is not None:
-                await after_register(self.db, row)
-            if before_commit is not None:
-                await before_commit(self.db)
-            await commit_skill_import(self.db)
-        except SkillImportCompletionUnknown:
-            logger.warning("skill_import_commit_unknown", owner_id=str(owner_id), skill_name=name)
-            raise
-        except IntegrityError:
-            # A concurrent import won the identity between our conflict check
-            # and the flush: the provenance guard of create_skill_for_import,
-            # or the per-scope unique index (ADR-327). Restore the disk and
-            # answer the same 409 as the up-front check.
-            await finish_disk_step(partial(self._roll_back_disk, target_dir, backup_dir))
-            raise_skill_name_conflict(name)
-        except Exception, asyncio.CancelledError:
-            await finish_disk_step(partial(self._roll_back_disk, target_dir, backup_dir))
-            raise
+            if before_swap is not None:
+                await before_swap(self.db)
+            # Lot 14: whether the version replaced stays restorable (the person's own words only).
+            keep = await replacement_keeps(self.db, owner_id, name, provenance)
 
+            # Disk swap: the previous version (if any) is parked in the staging
+            # root — outside the scanned skills tree, auto-cleaned with it — so a
+            # failure at ANY later step can restore it byte-for-byte.
+            target_dir = import_destination(
+                settings.skills_system_path, settings.skills_users_path, is_system, owner_id, name
+            )
+            backup_dir = staged_skill_dir.parent / "__previous__"
+            # Blocking disk swap → offload off the event loop (CA-4).
+            cancelled = await finish_disk_step(
+                partial(self._swap_in, staged_skill_dir, target_dir, backup_dir)
+            )
+
+            # Rebase source_path onto the live location for the response.
+            skill["source_path"] = str(target_dir / "SKILL.md")
+
+            # Pre-commit failures restore the previous package. An attempted commit
+            # without acknowledgement preserves the new bytes and refuses replay.
+            try:
+                if cancelled:
+                    raise asyncio.CancelledError
+                if carry_over_untransportable:
+                    await run_disk_step(
+                        partial(_carry_over_untransportable, backup_dir, target_dir)
+                    )
+                row = await self._register_row(
+                    skill,
+                    name=name,
+                    is_system=is_system,
+                    owner_id=owner_id,
+                    plugin_id=plugin_id,
+                    provenance=provenance,
+                )
+                if after_register is not None:
+                    await after_register(self.db, row)
+                if before_commit is not None:
+                    await before_commit(self.db)
+                await commit_skill_import(self.db)
+            except SkillImportCompletionUnknown:
+                logger.warning(
+                    "skill_import_commit_unknown", owner_id=str(owner_id), skill_name=name
+                )
+                raise
+            except IntegrityError:
+                # A concurrent import won the identity between our conflict check
+                # and the flush: the provenance guard of create_skill_for_import,
+                # or the per-scope unique index (ADR-327). Restore the disk and
+                # answer the same 409 as the up-front check.
+                await finish_disk_step(partial(self._roll_back_disk, target_dir, backup_dir))
+                raise_skill_name_conflict(name)
+            except Exception, asyncio.CancelledError:
+                await finish_disk_step(partial(self._roll_back_disk, target_dir, backup_dir))
+                raise
+
+            await self._after_commit(
+                row,
+                backup_dir,
+                users_root=settings.skills_users_path,
+                owner_id=owner_id,
+                name=name,
+                is_system=is_system,
+                keep=keep,
+                after_commit=after_commit,
+            )
+            return skill
+
+    async def _after_commit(
+        self,
+        row: Skill,
+        backup_dir: Path,
+        *,
+        users_root: str,
+        owner_id: UUID | None,
+        name: str,
+        is_system: bool,
+        keep: bool,
+        after_commit: AfterSkillCommit | None,
+    ) -> None:
+        """Everything a committed import still owes: the way back, the caller, the cache, the record.
+
+        The parked version becomes the previous one, or leaves (lot 14). A
+        cancellation arriving meanwhile travels on only once all of it is done
+        and the commit is said.
+
+        Args:
+            row: The registered skill row.
+            backup_dir: Where the swap parked the replaced version.
+            users_root: ``SKILLS_USERS_PATH``.
+            owner_id: The importing person (None for a system import).
+            name: The skill's validated name.
+            is_system: True for an admin import.
+            keep: Whether the replaced version stays restorable.
+            after_commit: The caller's post-commit hook, if any.
+        """
+        from src.domains.skills.cache import SkillsCache
+
+        cancelled = await settle_previous(backup_dir, users_root, owner_id, name, keep=keep)
         if after_commit is not None:
             after_commit(row)
         await SkillsCache.invalidate_and_reload()
-
         logger.info(
             "skill_import_committed",
             skill_name=name,
             is_system=is_system,
             owner_id=str(owner_id) if owner_id else None,
         )
-        return skill
+        if cancelled:
+            raise asyncio.CancelledError
 
     async def _register_row(
         self,
@@ -892,6 +938,7 @@ class SkillImportService:
         restored, so a failed re-import can never destroy the existing skill.
         Called via ``asyncio.to_thread``.
         """
+        target_dir.parent.mkdir(parents=True, exist_ok=True)
         if target_dir.exists():
             if backup_dir.exists():
                 shutil.rmtree(backup_dir, ignore_errors=True)

@@ -1,18 +1,23 @@
 """Original browser session, HITL and explicit selected-file consent authorize one package."""
 
 import asyncio
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from io import BytesIO
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from fastapi import UploadFile
+from langchain_core.tools import StructuredTool
 from langgraph.store.memory import InMemoryStore
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import FormData
 
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException
+from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.application.command_service import CommandRejected
 from src.domains.agents.application.command_status import read_command_status
 from src.domains.agents.application.draft_execution import execute_application_action_draft
@@ -21,11 +26,20 @@ from src.domains.agents.application.plugin_file_upload_service import (
     serve_plugin_file_upload_command,
 )
 from src.domains.agents.services import draft_executor
+from src.domains.agents.services.draft_executor_types import EXECUTOR_REGISTRY
 from src.domains.agents.tools import application_plugin_tools
+from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.plugins.models import UserPlugin
+from src.domains.plugins.root_commit import (
+    PluginImportCompletionUnknown,
+    PluginRootSlot,
+    commit_plugin_root,
+)
+from src.domains.users.models import User
 from src.infrastructure.application_sessions import bind_browser_session
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.cache.session_store import SessionStore
+from tests.helpers.committed_account_session import async_session as async_session
 from tests.helpers.runtime_context import make_tool_runtime
 from tests.integration.application_runtime_context import installed_runtime_context
 from tests.integration.test_application_plugin_read import _plugin
@@ -55,8 +69,13 @@ pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("agent_registry")
     ],
 )
 async def test_native_plugin_file_upload_needs_both_consents_and_original_browser(
-    async_session, test_user, monkeypatch, tmp_path, mode, scenario
-):
+    async_session: AsyncSession,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    mode: str,
+    scenario: str,
+) -> None:
     monkeypatch.setattr(settings, "application_tools_enabled", True)
     monkeypatch.setattr(settings, "plugins_enabled", True)
     # File upload must remain usable when URL imports are disabled.
@@ -78,7 +97,7 @@ async def test_native_plugin_file_upload_needs_both_consents_and_original_browse
     origin = bind_browser_session(owner, browser.session_id)
 
     @asynccontextmanager
-    async def database():
+    async def database() -> AsyncIterator[AsyncSession]:
         try:
             yield async_session
             await async_session.commit()
@@ -91,10 +110,10 @@ async def test_native_plugin_file_upload_needs_both_consents_and_original_browse
     monkeypatch.setattr(application_plugin_tools, "get_db_context", database)
     monkeypatch.setattr("src.infrastructure.database.session.get_db_context", database)
     parsed = 0
-    events = asyncio.Queue()
+    events: asyncio.Queue[ChatStreamChunk] = asyncio.Queue()
 
     @asynccontextmanager
-    async def form():
+    async def form() -> AsyncIterator[FormData]:
         nonlocal parsed
         parsed += 1
         content = _package()
@@ -132,7 +151,9 @@ async def test_native_plugin_file_upload_needs_both_consents_and_original_browse
             execution_mode=mode,
             side_channel_queue=events,
         ):
-            proposal = await application_plugin_tools.import_lia_plugin_file_tool.coroutine(
+            tool = application_plugin_tools.import_lia_plugin_file_tool
+            assert isinstance(tool, StructuredTool) and tool.coroutine is not None
+            proposal = await tool.coroutine(
                 request={"replace_plugin_id": target},
                 runtime=make_tool_runtime(
                     user_id=owner,
@@ -142,11 +163,12 @@ async def test_native_plugin_file_upload_needs_both_consents_and_original_browse
                     side_channel_queue=events,
                 ),
             )
+            assert isinstance(proposal, UnifiedToolOutput)
             assert proposal.success and proposal.metadata["requires_confirmation"]
             item = next(iter(proposal.registry_updates.values()))
             draft = ApplicationActionDraftContent.model_validate(item.payload["content"])
             if scenario != "no_confirmation":
-                with patch.dict(draft_executor.EXECUTOR_REGISTRY):
+                with patch.dict(EXECUTOR_REGISTRY):
                     draft_executor.register_executor(
                         "application_action", execute_application_action_draft
                     )
@@ -166,14 +188,19 @@ async def test_native_plugin_file_upload_needs_both_consents_and_original_browse
             elif scenario == "changed_local":
                 (root / "old.bin").write_bytes(b"changed private version")
             elif scenario == "lost_ack":
-                from src.domains.plugins.root_commit import (
-                    PluginImportCompletionUnknown,
-                    commit_plugin_root,
-                )
 
-                async def lost_ack(*args, **kwargs):
-                    kwargs["after_commit"] = None
-                    await commit_plugin_root(*args, **kwargs)
+                async def lost_ack(
+                    db: AsyncSession,
+                    staged: Path,
+                    live: Path,
+                    *,
+                    before_commit: Callable[[], Awaitable[None]] | None = None,
+                    after_stage: Callable[[PluginRootSlot], Awaitable[None]] | None = None,
+                    after_commit: Callable[[], None] | None = None,
+                ) -> None:
+                    await commit_plugin_root(
+                        db, staged, live, before_commit=before_commit, after_stage=after_stage
+                    )
                     raise PluginImportCompletionUnknown("database committed; acknowledgement lost")
 
                 monkeypatch.setattr("src.domains.plugins.root_commit.commit_plugin_root", lost_ack)
@@ -202,12 +229,11 @@ async def test_native_plugin_file_upload_needs_both_consents_and_original_browse
                         UserPlugin.user_id == owner, UserPlugin.name == "native-plugin"
                     )
                 )
-                assert (
-                    row is not None
-                    and str(row.id) == accepted.values["plugin_file_upload"]["plugin_id"]
-                )
+                upload = accepted.values["plugin_file_upload"]
+                assert isinstance(upload, dict)
+                assert row is not None and str(row.id) == upload["plugin_id"]
                 if target is not None:
-                    assert accepted.values["plugin_file_upload"]["plugin_id"] == str(target)
+                    assert upload["plugin_id"] == str(target)
                 with pytest.raises(BaseAPIException):
                     await serve_plugin_file_upload_command(
                         async_session,
@@ -256,7 +282,8 @@ async def test_native_plugin_file_upload_needs_both_consents_and_original_browse
                     changes.append(event)
             assert len(changes) == int(scenario in {"valid", "replace", "close_failed"})
             if changes:
-                assert changes[0].metadata["change"]["resources"] == [
+                metadata = changes[0].metadata
+                assert metadata is not None and metadata["change"]["resources"] == [
                     "plugins",
                     "skills",
                     "user_mcp",

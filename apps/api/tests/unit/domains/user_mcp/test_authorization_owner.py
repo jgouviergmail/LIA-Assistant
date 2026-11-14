@@ -8,6 +8,7 @@ import pytest
 
 from src.core.exceptions import AuthorizationError, BadGatewayError, ValidationError
 from src.domains.user_mcp.authorization import initiate_personal_mcp_authorization
+from src.domains.user_mcp.oauth_binding import authorization_binding
 
 
 @pytest.mark.parametrize("refuse_at", [None, "flow", "write"])
@@ -62,6 +63,8 @@ async def test_authorization_checks_before_network_and_metadata_write(refuse_at)
                 client_secret="private",
                 requested_scopes="read",
                 stored_issuer="https://issuer.example.org",
+                # What the consent is asked for: this row, with the client it stores.
+                binding=authorization_binding(server, "client"),
             )
     assert handler.initiate_flow.await_count == int(refuse_at != "flow")
     assert service.cache_oauth_metadata.await_count == int(refuse_at is None)

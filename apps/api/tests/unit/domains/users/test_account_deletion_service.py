@@ -7,7 +7,7 @@ and external service cleanup. Uses mocked DB and services.
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from sqlalchemy import DateTime
@@ -17,6 +17,7 @@ from src.domains.users.account_deletion_service import (
     AccountDeletionService,
     build_purge_statements,
 )
+from src.domains.users.account_files import remove_account_tree
 from src.domains.users.models import User
 from src.domains.users.user_column_map import SCRUBBED_AT_DELETION, USER_COLUMNS
 from src.infrastructure.database.registry import import_all_models
@@ -223,52 +224,32 @@ class TestMarkUserDeleted:
 class TestFileCleanup:
     """Tests for physical file cleanup."""
 
-    def test_cleanup_attachment_files_existing_dir(self, tmp_path: Path) -> None:
+    async def test_cleanup_attachment_files_existing_dir(self, tmp_path: Path) -> None:
         """Deletes user attachment directory when it exists."""
         user_id = uuid.uuid4()
         user_dir = tmp_path / str(user_id)
         user_dir.mkdir()
         (user_dir / "test.pdf").write_text("content")
 
-        db = AsyncMock(spec=AsyncSession)
-        service = AccountDeletionService(db)
-
-        with patch.object(
-            type(service),
-            "_cleanup_attachment_files",
-            wraps=service._cleanup_attachment_files,
-        ):
-            with patch("src.domains.users.account_deletion_service.settings") as mock_settings:
-                mock_settings.attachments_storage_path = str(tmp_path)
-                result = service._cleanup_attachment_files(user_id)
+        result = await remove_account_tree(user_id, str(tmp_path))
 
         assert result == 1
         assert not user_dir.exists()
 
-    def test_cleanup_attachment_files_missing_dir(self, tmp_path: Path) -> None:
+    async def test_cleanup_attachment_files_missing_dir(self, tmp_path: Path) -> None:
         """Returns 0 when user directory doesn't exist."""
-        db = AsyncMock(spec=AsyncSession)
-        service = AccountDeletionService(db)
-
-        with patch("src.domains.users.account_deletion_service.settings") as mock_settings:
-            mock_settings.attachments_storage_path = str(tmp_path)
-            result = service._cleanup_attachment_files(uuid.uuid4())
+        result = await remove_account_tree(uuid.uuid4(), str(tmp_path))
 
         assert result == 0
 
-    def test_cleanup_rag_files_existing_dir(self, tmp_path: Path) -> None:
+    async def test_cleanup_rag_files_existing_dir(self, tmp_path: Path) -> None:
         """Deletes user RAG upload directory when it exists."""
         user_id = uuid.uuid4()
         space_dir = tmp_path / str(user_id) / "space1"
         space_dir.mkdir(parents=True)
         (space_dir / "doc.pdf").write_text("content")
 
-        db = AsyncMock(spec=AsyncSession)
-        service = AccountDeletionService(db)
-
-        with patch("src.domains.users.account_deletion_service.settings") as mock_settings:
-            mock_settings.rag_spaces_storage_path = str(tmp_path)
-            result = service._cleanup_rag_files(user_id)
+        result = await remove_account_tree(user_id, str(tmp_path))
 
         assert result == 1
         assert not (tmp_path / str(user_id)).exists()
@@ -332,49 +313,3 @@ class TestDeactivateConnectors:
 
         assert count == 5
         assert db.execute.call_count == 2
-
-
-# ==============================================================================
-# ORDERING TESTS
-# ==============================================================================
-
-
-@pytest.mark.unit
-class TestTheUsageCacheIsForgottenAfterTheCommit:
-    """A limit check running between the invalidation and the commit, on its own
-    session, re-cached the verdict the deletion replaces — for the cache TTL."""
-
-    async def test_commit_then_invalidate(self) -> None:
-        steps: list[str] = []
-        user = _make_user()
-        db = AsyncMock(spec=AsyncSession)
-        db.commit = AsyncMock(side_effect=lambda: steps.append("commit"))
-        service = AccountDeletionService(db)
-
-        noop = AsyncMock(return_value=None)
-        counting = AsyncMock(return_value=0)
-        with (
-            patch.object(service, "_load_and_validate_user", AsyncMock(return_value=user)),
-            patch.object(service, "_load_conversation", AsyncMock(return_value=None)),
-            patch.object(service, "_revoke_all_oauth_tokens", noop),
-            patch.object(service, "_disconnect_mcp_pool", noop),
-            patch.object(service, "_invalidate_redis_sessions", noop),
-            patch.object(service, "_cleanup_redis_caches", noop),
-            patch.object(service, "_cleanup_world_presence", noop),
-            patch.object(service, "_cleanup_attachment_files", MagicMock(return_value=0)),
-            patch.object(service, "_cleanup_rag_files", MagicMock(return_value=0)),
-            patch.object(service, "_cleanup_user_tree", MagicMock(return_value=0)),
-            patch.object(service, "_purge_langgraph_store", counting),
-            patch.object(service, "_deactivate_connectors", counting),
-            patch.object(service, "_purge_user_data_tables", AsyncMock(return_value={})),
-            patch.object(service, "_mark_user_deleted", noop),
-            patch.object(service, "_create_audit_log", noop),
-            patch.object(
-                service,
-                "_invalidate_usage_limit_cache",
-                AsyncMock(side_effect=lambda _user_id: steps.append("invalidate")),
-            ),
-        ):
-            await service.delete_account(user.id, uuid.uuid4(), reason="closed", request=None)
-
-        assert steps == ["commit", "invalidate"]

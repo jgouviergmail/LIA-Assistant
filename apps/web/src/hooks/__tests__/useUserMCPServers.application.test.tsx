@@ -65,3 +65,19 @@ describe('personal MCP account and plugin-group refresh', () => {
     expect(mocks.delete).not.toHaveBeenCalled();
   });
 });
+
+describe('personal MCP servers the instance has switched off', () => {
+  it('asks nothing of the closed router, on mount or on a resource event', async () => {
+    const { result } = renderHook(() => useUserMCPServers(false));
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 20));
+    });
+    act(() => publishApplicationResources('owner', new Set(['user_mcp'])));
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 20));
+    });
+
+    expect(mocks.get).not.toHaveBeenCalled();
+    expect(result.current.servers).toEqual([]);
+  });
+});

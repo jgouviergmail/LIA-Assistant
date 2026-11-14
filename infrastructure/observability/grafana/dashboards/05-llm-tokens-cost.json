@@ -2952,7 +2952,7 @@
           "placement": "bottom"
         }
       },
-      "description": "Which schema and which outcome — `absent_values_dropped` is a null or an empty undeclared key, `invalid_call_repaired` is the bare-word defect, `rejected` is a lost answer (the query analyzer falls back to a bare conversation, a document tool refuses). `call_failed` is a call that got no answer at all (a provider 5xx or 429, a cut connection): the provider's failure, never the model's (ADR-100, 2026-10-23). `parsed` is left out so the rare outcomes stay readable."
+      "description": "Which schema and which outcome — `absent_values_dropped` is a null or an empty undeclared key, `structures_decoded` is a list or an object written as JSON text (and the keys written beside a text stopped open, put back), `invalid_call_repaired` is the bare-word defect or a bracket that closes nothing, `rejected` is a lost answer (the query analyzer falls back to a bare conversation, a document tool refuses). `call_failed` is a call that got no answer at all (a provider 5xx or 429, a cut connection): the provider's failure, never the model's (ADR-100, 2026-10-23). `parsed` is left out so the rare outcomes stay readable."
     },
     {
       "id": 137,

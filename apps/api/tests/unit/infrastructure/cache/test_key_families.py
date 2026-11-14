@@ -61,8 +61,8 @@ def test_learning_and_runtime_keys_survive_a_reset(key: str) -> None:
         f"rag:{UID}",
     ],
 )
-def test_conversation_and_cache_keys_are_purged(key: str) -> None:
-    assert is_reset_purgeable(key) is True
+def test_only_runtime_scopes_can_enter_targeted_cleanup(key: str) -> None:
+    assert is_reset_purgeable(key) == (scope_of(key) == KeyScope.CONVERSATION)
     assert is_user_scoped(key) is True
 
 

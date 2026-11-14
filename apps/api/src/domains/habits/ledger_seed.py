@@ -100,6 +100,7 @@ async def seed_ledger_from_outcomes(
             return 0
         if not await _ledger_is_empty(redis, user_id):
             return 0
+        write_token = await recurrence_store.acquire_write_token(redis, str(user_id))
 
         since = datetime.now(UTC) - timedelta(days=settings.recurrence_window_days + 1)
         # Savepoint: this SELECT shares the recompute's session, and a failed
@@ -134,6 +135,8 @@ async def seed_ledger_from_outcomes(
                 recurrence_store.redis_key(str(user_id), signature),
                 data,
                 int(settings.recurrence_window_days),
+                user_id=str(user_id),
+                write_token=write_token,
             )
             if written:
                 seeded += 1

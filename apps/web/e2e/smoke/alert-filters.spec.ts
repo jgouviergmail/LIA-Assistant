@@ -1,6 +1,6 @@
 /** Real hub controls with controlled HTTP: independent sections and bounded SMS refusals. */
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect, idleNotificationStream } from '../fixtures';
+import { test, expect, idleNotificationStream, openListFilters } from '../fixtures';
 import { appConfig } from '../fixtures/dashboard-shell';
 import type { SmsPage, SmsQuery, SmsDisplayOrder } from '../../src/types/sms';
 
@@ -110,6 +110,9 @@ test('alert filters preserve rubrics, lazy reads, proposals and SMS period recov
     .locator('details')
     .filter({ has: page.locator('summary').getByText('Proposals', { exact: true }) });
   await expect(reminders.locator('summary')).toBeVisible();
+  // A phone: the category and the order wait behind « Filters », and the
+  // rubrics still start under the opened block.
+  await openListFilters(page, 'Filters');
   const filterBox = await page
     .getByRole('combobox', { name: 'Category', exact: true })
     .boundingBox();
@@ -137,14 +140,18 @@ test('alert filters preserve rubrics, lazy reads, proposals and SMS period recov
   await expect(offers).toBeVisible();
   const sms = page
     .locator('details')
-    .filter({ has: page.locator('summary').getByText('My SMS', { exact: true }) });
+    .filter({ has: page.locator('summary').getByText('My SMS', { exact: true }) })
+    // The page's « Filters » fold now names the chosen category in its summary.
+    .filter({ hasNot: page.locator(':scope > summary').getByText('Filters', { exact: true }) });
   expect(smsReads).toHaveLength(0);
-  await sms.locator('summary').click();
+  await sms.locator(':scope > summary').click();
   await expect(
     sms.getByRole('paragraph').filter({ hasText: '<script>literal message</script>' })
   ).toBeVisible();
   expect(smsReads.at(-1)).toMatchObject({ query: 'été', sort: 'name' });
   await expect(sms.locator('time')).toContainText('12:30');
+  // The section's own period folds too, under the page's.
+  await openListFilters(sms, 'Filters');
   await sms.getByLabel('From (inclusive)', { exact: false }).fill('2026-11-02');
   await expect.poll(() => smsReads.at(-1)?.from_ts).toBe('2026-11-01T11:00:00.000Z');
   const before = smsReads.length;

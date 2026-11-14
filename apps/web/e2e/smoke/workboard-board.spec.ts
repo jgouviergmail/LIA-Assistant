@@ -21,6 +21,7 @@
  * out — in CI too, where the managed build would have redded the job. A
  * hydration probe names a node the page ACTUALLY renders.
  */
+import { scanPage } from '../a11y/scan';
 import { test, expect, waitForHydration, type MockRoute } from '../fixtures';
 
 const TICKET_ID = '8f0e1d2c-1111-4000-8000-000000000001';
@@ -36,6 +37,7 @@ function ticket(overrides: Record<string, unknown> = {}) {
     id: TICKET_ID,
     owner_user_id: E2E_USER_ID,
     parent_id: null,
+    category_id: null,
     title: 'Réserver la salle',
     description: 'Douze personnes, le 20.',
     status: 'todo',
@@ -84,12 +86,12 @@ function boardRoutes(
     {
       url: '**/api/v1/workboard/tickets?**',
       method: 'GET',
-      json: { tickets: [row], total: 1, counts_by_status: counts },
+      json: { tickets: [row], total: 1, counts_by_status: counts, lanes: [] },
     },
     {
       url: '**/api/v1/workboard/tickets',
       method: 'GET',
-      json: { tickets: [row], total: 1, counts_by_status: counts },
+      json: { tickets: [row], total: 1, counts_by_status: counts, lanes: [] },
     },
     {
       url: `**/api/v1/workboard/tickets/${TICKET_ID}`,
@@ -110,6 +112,29 @@ function boardRoutes(
     },
     { url: '**/api/v1/peers/connections', json: [] },
     { url: '**/api/v1/notifications/hub-counts', json: { workboard: 0 } },
+    {
+      // The whole board at a glance, above the filters (owner, 2026-11-11).
+      url: '**/api/v1/workboard/summary',
+      method: 'GET',
+      json: {
+        total: 1,
+        counts_by_status: counts,
+        overdue: 0,
+        held_by_lia: 0,
+        held_by_me: 1,
+        needs_me: 0,
+        owned: 1,
+        max_tickets: 200,
+        max_runs_per_ticket: 10,
+        runs_total: 0,
+        tokens_in: 0,
+        tokens_out: 0,
+        tokens_cache: 0,
+        google_requests: 0,
+        cost_eur: 0,
+        lanes: [],
+      },
+    },
   ];
 }
 
@@ -178,6 +203,28 @@ test.describe('the workboard', () => {
 
     await expect(page.getByRole('region', { name: 'À faire' })).toBeVisible();
     await expect(page.getByRole('region', { name: 'À confirmer' })).toHaveCount(0);
+  });
+
+  test('a card that can be picked up still exposes the controls it holds', async ({
+    page,
+    authenticate,
+    mockApi,
+  }, testInfo) => {
+    // The whole card is the drag handle AND it holds the door to the ticket
+    // and its menu. As a `button` it hid both from assistive technology (axe
+    // `nested-interactive`, measured 2026-11-11); it is a named group now.
+    await authenticate({ language: 'fr' });
+    await mockApi(boardRoutes([]));
+
+    await page.goto('/fr/dashboard/workboard');
+    await waitForHydration(page, CARD);
+
+    const card = page.getByTestId('ticket-card');
+    await expect(card).toHaveAttribute('role', 'group');
+    await expect(card).toHaveAccessibleName('Déplacer le ticket Réserver la salle');
+    await expect(card.getByRole('button', { name: 'Réserver la salle', exact: true })).toBeVisible();
+    const { blocking, summary } = await scanPage(page, testInfo, 'workboard-flat-desktop');
+    expect(blocking, summary).toHaveLength(0);
   });
 
   test('hands the ticket to LIA from the panel', async ({ page, authenticate, mockApi }) => {
@@ -254,7 +301,7 @@ test.describe('the workboard', () => {
   });
 
   test('a narrowed link narrows the board on arrival', async ({ page, authenticate, mockApi }) => {
-    // The settings page points at « what is late » and « what LIA holds »: the
+    // The home card points at « what is late » and « what LIA holds »: the
     // filters START from the URL, and the first read carries them.
     await authenticate({ language: 'fr' });
     await mockApi(boardRoutes([]));

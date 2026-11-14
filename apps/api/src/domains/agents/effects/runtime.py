@@ -43,6 +43,7 @@ from src.domains.agents.effects.gate import (
     unattended_refusal_message,
 )
 from src.domains.agents.effects.integrity import IntegrityKind, record_integrity_event
+from src.domains.agents.effects.invocation import invoke_authorized
 from src.domains.agents.effects.labels import build_effect_label
 from src.domains.agents.effects.outcome import ToolOutcome, read_outcome, succeeded_only
 from src.domains.agents.effects.preapproval import preapproved_scope
@@ -50,7 +51,6 @@ from src.domains.agents.effects.schemas import ClaimRequest, EffectSourceName
 from src.domains.agents.effects.scope import EffectScope, current_scope, has_execution_identity
 from src.domains.agents.effects.source import resolve_source
 from src.domains.agents.effects.treatments import record_treatment
-from src.domains.agents.expressivity.activity import observe_activity
 from src.infrastructure.async_utils import write_through_cancellation
 from src.infrastructure.email.smtp_outcome import SMTPPartialAcceptanceError
 from src.infrastructure.observability.metrics_effects import (
@@ -570,7 +570,7 @@ async def _pass_through(
     """
     started = time.perf_counter()
     try:
-        result = await observe_activity(tool_name, policy, lambda: coroutine(*args, **kwargs))
+        result = await invoke_authorized(tool_name, policy, lambda: coroutine(*args, **kwargs))
     except Exception:
         record_treatment(tool_name, policy, succeeded=False, duration_ms=_elapsed_ms(started))
         raise
@@ -944,7 +944,7 @@ def gated(
             return (
                 refusal
                 if refusal is not None
-                else await observe_activity(tool_name, policy, lambda: coroutine(*args, **kwargs))
+                else await invoke_authorized(tool_name, policy, lambda: coroutine(*args, **kwargs))
             )
 
         if ticket.claim_token is None:
@@ -952,7 +952,7 @@ def gated(
 
         return await _perform_and_close(
             ticket,
-            lambda: observe_activity(tool_name, policy, lambda: coroutine(*args, **kwargs)),
+            lambda: invoke_authorized(tool_name, policy, lambda: coroutine(*args, **kwargs)),
             policy=str(policy),
         )
 
@@ -1082,7 +1082,7 @@ def gated_executor(draft_type: str, executor: ExecutorFnT, *, strict: bool = Fal
                 run_id=request.run_id if request is not None else None,
                 detail=f"{draft_reason}:draft",
             )
-            served: dict[str, Any] = await observe_activity(
+            served: dict[str, Any] = await invoke_authorized(
                 f"draft:{draft_type}",
                 "confirm",
                 lambda: executor(draft_content, user_id, deps),
@@ -1112,7 +1112,7 @@ def gated_executor(draft_type: str, executor: ExecutorFnT, *, strict: bool = Fal
 
         performed: dict[str, Any] = await _perform_and_close(
             ticket,
-            lambda: observe_activity(
+            lambda: invoke_authorized(
                 f"draft:{draft_type}",
                 "confirm",
                 lambda: executor(draft_content, user_id, deps),

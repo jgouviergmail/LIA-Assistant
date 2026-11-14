@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   AlertTriangle,
   BookUser,
@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Save,
   Trash2,
+  Upload,
   X,
 } from '@/lib/icons';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -51,6 +52,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';
 import { useMemoryCreateForm } from './useMemoryCreateForm';
+import { useMemoryImportAction } from './useMemoryImportAction';
 import apiClient from '@/lib/api-client';
 import { isMemoryTextSavable, isRefusedInput } from '@/lib/memories/text-bounds';
 import {
@@ -134,7 +136,11 @@ function AccountMemorySettings({ lng }: BaseSettingsProps) {
     updateMemory,
     deleteAllMemories,
     togglePin,
+    importing,
+    importMemories,
   } = useMemories();
+  const importInput = useRef<HTMLInputElement>(null);
+  const importPicked = useMemoryImportAction(importMemories, limits, toast, t);
 
   // State for memory enabled toggle
   const [updatingMemoryEnabled, setUpdatingMemoryEnabled] = useState(false);
@@ -310,7 +316,7 @@ function AccountMemorySettings({ lng }: BaseSettingsProps) {
             <Switch
               checked={user?.memory_enabled ?? true}
               onCheckedChange={handleToggleMemoryEnabled}
-              disabled={updatingMemoryEnabled}
+              busy={updatingMemoryEnabled}
               aria-label={t('memories.enable_memory')}
             />
           </Card>
@@ -338,6 +344,18 @@ function AccountMemorySettings({ lng }: BaseSettingsProps) {
                 // into "⋯" it read as absent.
                 pinned: true,
               },
+              {
+                // What Export wrote comes back here: beside it, and offered on
+                // an empty account — that is when an export is brought back.
+                // Busy while a file is read, never `disabled`: the person is
+                // back on this very control when the picker closes.
+                key: 'import',
+                label: t('memories.import'),
+                icon: Upload,
+                loading: importing,
+                onSelect: () => importInput.current?.click(),
+                pinned: true,
+              },
             ]}
             destructive={{
               key: 'delete-all',
@@ -347,6 +365,16 @@ function AccountMemorySettings({ lng }: BaseSettingsProps) {
               loading: deletingAll,
               onSelect: () => setConfirmDeleteAllOpen(true),
             }}
+          />
+          {/* The Import action opens it: out of the page for every reader, so
+              that ONE control imports (the chat composer's picker pattern). */}
+          <input
+            ref={importInput}
+            type="file"
+            accept=".csv,.json"
+            aria-label={t('memories.import_file')}
+            className="hidden"
+            onChange={importPicked}
           />
           <AlertDialog open={confirmDeleteAllOpen} onOpenChange={setConfirmDeleteAllOpen}>
             <AlertDialogContent>

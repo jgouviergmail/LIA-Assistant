@@ -24,6 +24,61 @@ from src.domains.agents.context.store import (
 from tests._pool_fakes import fake_psycopg_pool
 
 
+@pytest.mark.unit
+@pytest.mark.parametrize("failure_type", [RuntimeError, asyncio.CancelledError])
+async def test_failed_store_close_still_closes_and_releases_its_pool(
+    failure_type: type[BaseException], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A joined Store's failure must not abandon the connection pool it owned."""
+    from src.domains.agents.context import store as module
+
+    store = AsyncMock()
+    store.aclose.side_effect = failure_type()
+    pool = AsyncMock()
+    monkeypatch.setattr(module, "_tool_context_store", store)
+    monkeypatch.setattr(module, "_store_pool", pool)
+    with pytest.raises(failure_type):
+        await cleanup_tool_context_store()
+    pool.close.assert_awaited_once()
+    assert module._tool_context_store is None and module._store_pool is None
+
+
+@pytest.mark.unit
+async def test_repeated_cancellation_waits_until_pool_shutdown_is_finished(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The loop must not move on to teardown while its pool still owns workers."""
+    from src.domains.agents.context import store as module
+
+    started, release, closed = asyncio.Event(), asyncio.Event(), asyncio.Event()
+
+    async def close() -> None:
+        started.set()
+        await release.wait()
+        closed.set()
+
+    pool = AsyncMock()
+    pool.close.side_effect = close
+    monkeypatch.setattr(module, "_tool_context_store", None)
+    monkeypatch.setattr(module, "_store_pool", pool)
+    owner = asyncio.create_task(cleanup_tool_context_store())
+    try:
+        await started.wait()
+        owner.cancel()
+        await asyncio.sleep(0)
+        owner.cancel()
+        await asyncio.sleep(0)
+        assert not owner.done(), "The pool cleanup is still in flight"
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await owner
+        assert closed.is_set()
+        assert module._store_pool is None
+    finally:
+        release.set()
+        await asyncio.gather(owner, return_exceptions=True)
+
+
 @pytest.fixture(autouse=True)
 def gemini_key() -> Iterator[MagicMock]:
     """A Gemini key is configured unless a test says otherwise."""
@@ -52,7 +107,7 @@ class TestGetToolContextStore:
     ) -> None:
         # The index is decided at boot (setup creates its table); built without
         # a key, every indexed write would fail on the missing key instead.
-        reset_tool_context_store()
+        await cleanup_tool_context_store()
         gemini_key.return_value = ""
         with (
             patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
@@ -70,12 +125,12 @@ class TestGetToolContextStore:
 
             assert "index" not in mock_store_class.call_args.kwargs
             mock_embeddings.assert_not_called()
-        reset_tool_context_store()
+        await cleanup_tool_context_store()
 
     @pytest.mark.asyncio
     async def test_get_tool_context_store_creates_instance(self):
         """Test that get_tool_context_store() creates AsyncPostgresStore on a pool."""
-        reset_tool_context_store()  # Start fresh
+        await cleanup_tool_context_store()  # Start fresh
 
         with (
             patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
@@ -115,12 +170,12 @@ class TestGetToolContextStore:
             # Verify return value
             assert store is mock_store
 
-        reset_tool_context_store()
+        await cleanup_tool_context_store()
 
     @pytest.mark.asyncio
     async def test_get_tool_context_store_singleton_pattern(self):
         """Test that get_tool_context_store() returns same instance on repeated calls."""
-        reset_tool_context_store()  # Start fresh
+        await cleanup_tool_context_store()  # Start fresh
 
         with (
             patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
@@ -149,7 +204,7 @@ class TestGetToolContextStore:
             assert mock_store_class.call_count == 1
             assert mock_store.setup.call_count == 1
 
-        reset_tool_context_store()
+        await cleanup_tool_context_store()
 
     # NOTE: test_get_tool_context_store_with_disabled_setting removed
     # Tool context is now always enabled (no feature flag)
@@ -162,7 +217,7 @@ class TestGetToolContextStore:
         installed by the DB redirection: it wins over ``settings`` by design, so
         without it this assertion is intermittently handed the Testcontainers URL.
         """
-        reset_tool_context_store()  # Start fresh
+        await cleanup_tool_context_store()  # Start fresh
 
         with (
             patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
@@ -192,12 +247,12 @@ class TestGetToolContextStore:
             assert pool_url == "postgresql://user:pass@localhost:5432/testdb"
             assert "+asyncpg" not in pool_url
 
-        reset_tool_context_store()
+        await cleanup_tool_context_store()
 
     @pytest.mark.asyncio
     async def test_get_tool_context_store_pool_params(self):
         """Test that the pool is created with correct sizes and connection kwargs."""
-        reset_tool_context_store()  # Start fresh
+        await cleanup_tool_context_store()  # Start fresh
 
         with (
             patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
@@ -240,12 +295,12 @@ class TestGetToolContextStore:
                 wait=True, timeout=mock_settings.database_pool_timeout
             )
 
-        reset_tool_context_store()
+        await cleanup_tool_context_store()
 
     @pytest.mark.asyncio
     async def test_setup_failure_closes_pool_and_allows_retry(self):
         """A setup() failure must not leak the opened pool nor poison the singleton."""
-        reset_tool_context_store()
+        await cleanup_tool_context_store()
 
         with (
             patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
@@ -272,7 +327,7 @@ class TestGetToolContextStore:
             store = await get_tool_context_store()
             assert store is healthy_store
 
-        reset_tool_context_store()
+        await cleanup_tool_context_store()
 
 
 class TestCleanupToolContextStore:
@@ -281,7 +336,7 @@ class TestCleanupToolContextStore:
     @pytest.mark.asyncio
     async def test_cleanup_with_existing_store(self):
         """Test cleanup closes the pool and clears the store."""
-        reset_tool_context_store()  # Start fresh
+        await cleanup_tool_context_store()  # Start fresh
 
         with (
             patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
@@ -313,12 +368,12 @@ class TestCleanupToolContextStore:
             # New pool created after cleanup
             assert mock_pool_cls.call_count == 2
 
-        reset_tool_context_store()
+        await cleanup_tool_context_store()
 
     @pytest.mark.asyncio
     async def test_cleanup_with_no_store(self):
         """Test cleanup does nothing when no store exists."""
-        reset_tool_context_store()  # Ensure no store
+        await cleanup_tool_context_store()  # Ensure no store
 
         # Cleanup should not crash
         await cleanup_tool_context_store()
@@ -327,7 +382,7 @@ class TestCleanupToolContextStore:
     @pytest.mark.asyncio
     async def test_cleanup_without_pool(self):
         """Test cleanup handles case where store exists but pool is None."""
-        reset_tool_context_store()
+        await cleanup_tool_context_store()
 
         with (
             patch("src.domains.agents.context.store._tool_context_store", AsyncMock()),
@@ -340,10 +395,10 @@ class TestCleanupToolContextStore:
 class TestResetToolContextStore:
     """Tests for reset_tool_context_store() reset function."""
 
-    def test_reset_clears_singleton(self):
+    async def test_reset_clears_singleton(self):
         """Test that reset clears global store and pool."""
         # This is a synchronous function
-        reset_tool_context_store()
+        await cleanup_tool_context_store()
 
         # Verify function executes without error
         # (actual verification happens in integration with get_tool_context_store)
@@ -352,7 +407,7 @@ class TestResetToolContextStore:
     @pytest.mark.asyncio
     async def test_reset_forces_new_instance(self):
         """Test that reset forces creation of new store instance."""
-        reset_tool_context_store()
+        await cleanup_tool_context_store()
 
         with (
             patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
@@ -376,7 +431,7 @@ class TestResetToolContextStore:
             store1 = await get_tool_context_store()
 
             # Reset
-            reset_tool_context_store()
+            await cleanup_tool_context_store()
 
             # Second call after reset
             store2 = await get_tool_context_store()
@@ -386,12 +441,12 @@ class TestResetToolContextStore:
             assert store1 is mock_store1
             assert store2 is mock_store2
 
-        reset_tool_context_store()
+        await cleanup_tool_context_store()
 
     @pytest.mark.asyncio
-    async def test_reset_schedules_pool_close(self):
-        """reset closes the previous pool best-effort via a background task."""
-        reset_tool_context_store()
+    async def test_reset_refuses_to_abandon_owned_resources(self):
+        """A synchronous reset cannot leave a Store task or pool behind."""
+        await cleanup_tool_context_store()
 
         with (
             patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
@@ -407,9 +462,11 @@ class TestResetToolContextStore:
             mock_store_class.return_value = AsyncMock()
 
             await get_tool_context_store()
-            reset_tool_context_store()
-            # Yield to the loop so the scheduled close task runs
-            await asyncio.sleep(0)
+            with pytest.raises(RuntimeError, match="cleanup_tool_context_store"):
+                reset_tool_context_store()
+            await cleanup_tool_context_store()
+            # Cleanup has joined the Store before returning the pool.
+            mock_store_class.return_value.aclose.assert_awaited_once()
 
             mock_pool.close.assert_awaited_once()
 
@@ -420,7 +477,7 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_full_lifecycle(self):
         """Test complete lifecycle: create → use → cleanup → recreate."""
-        reset_tool_context_store()
+        await cleanup_tool_context_store()
 
         with (
             patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
@@ -458,4 +515,4 @@ class TestIntegration:
             assert store2 is mock_store2
             assert store2 is not store1
 
-        reset_tool_context_store()
+        await cleanup_tool_context_store()

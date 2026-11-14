@@ -32,7 +32,7 @@ import {
   Mic,
   Moon,
   Music,
-  Radio,
+  RadioSet,
   CalendarDays,
   Loader2,
   Smile,
@@ -43,6 +43,8 @@ import {
   Volume2,
   Users,
 } from '@/lib/icons';
+
+import type { ReactNode } from 'react';
 
 import { HealthDial } from '@/components/dashboard/cards/HealthDial';
 import { cn } from '@/lib/utils';
@@ -893,7 +895,7 @@ function RadioCompanionScene({ active, labels }: SceneProps) {
   return (
     <div className={cn(STAGE, 'justify-center gap-2')}>
       <div className="flex items-center gap-2 rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5 text-primary">
-        <Radio className="h-4 w-4 motion-safe:animate-pulse" aria-hidden="true" />
+        <RadioSet className="h-4 w-4 motion-safe:animate-pulse" aria-hidden="true" />
         <span className="text-px-10 font-semibold">{labels[phase]}</span>
       </div>
       <div className="flex items-end gap-1" aria-hidden="true">
@@ -999,7 +1001,7 @@ function VoicesReactScene({ active, labels }: SceneProps) {
   return (
     <div className={cn(STAGE, 'items-stretch justify-center gap-2')}>
       <div className="flex items-center gap-2">
-        <Radio className="h-3 w-3 shrink-0 text-muted-foreground" />
+        <RadioSet className="h-3 w-3 shrink-0 text-muted-foreground" />
         <span className="w-16 shrink-0 truncate text-px-9 text-muted-foreground">
           {labels.news}
         </span>
@@ -1512,7 +1514,80 @@ function HealthDialsScene({ active, labels }: SceneProps) {
   );
 }
 
+type TicketLanesPhase = 'unfiled' | 'moving' | 'filed';
+const TICKET_LANES_STEPS: readonly TimelineStep<TicketLanesPhase>[] = [
+  { at: 0, state: 'unfiled' },
+  { at: 1300, state: 'moving' },
+  { at: 2100, state: 'filed' },
+];
+
+/** One lane of the board: its category, then the tickets it holds. */
+function BoardLane({
+  name,
+  highlighted,
+  children,
+}: {
+  name: string;
+  highlighted?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        'flex flex-col gap-1 rounded-md border bg-background px-2 py-1 transition-colors duration-300 motion-reduce:transition-none',
+        highlighted ? 'border-primary/50' : 'border-border'
+      )}
+    >
+      <span className="truncate text-px-9 font-semibold text-muted-foreground">{name}</span>
+      <div className="flex h-5 items-center gap-1">{children}</div>
+    </div>
+  );
+}
+
+/** The ticket the scene files: the only named one of the board. */
+function LaneTicket({ label, lifted }: { label: string; lifted?: boolean }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex max-w-full items-center rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-px-9 text-foreground transition-transform duration-500 motion-reduce:transition-none',
+        // A lift, never a fade: the page is scanned for contrast while its
+        // scenes move, and a held half-opacity is a frame that fails.
+        lifted && '-translate-y-3 shadow-sm'
+      )}
+    >
+      <span className="truncate">{label}</span>
+    </span>
+  );
+}
+
+/**
+ * A ticket leaves « To categorize » for the lane of its category. The resting
+ * frame is the ticket filed, the lane it left still there for the rest.
+ */
+function TicketLanesScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(TICKET_LANES_STEPS, { active });
+  const filed = phase === 'filed';
+  return (
+    <div className={STAGE}>
+      <div className="flex w-full max-w-[220px] flex-col gap-1.5">
+        <BoardLane name={labels.lane} highlighted={phase !== 'unfiled'}>
+          <SkeletonLine w="w-10" />
+          {filed && <LaneTicket label={labels.ticket} />}
+        </BoardLane>
+        <BoardLane name={labels.unfiled}>
+          {filed ? (
+            <SkeletonLine w="w-8" />
+          ) : (
+            <LaneTicket label={labels.ticket} lifted={phase === 'moving'} />
+          )}
+        </BoardLane>
+      </div>
+    </div>
+  );
+}
+
 export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
+  ticket_lanes: TicketLanesScene,
   sender_notice: SenderNoticeScene,
   alerts_hub: AlertsHubScene,
   briefing_custom: BriefingCustomScene,

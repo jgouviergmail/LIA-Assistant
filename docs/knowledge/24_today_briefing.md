@@ -16,7 +16,7 @@ If the briefing cannot load, the radio and your shortcuts stay available.
 
 ## Which cards are on My dashboard, and what can I do from them?
 
-Eleven cards, in the order you choose: **Weather** (with air quality and pollen where available), **Birthdays**, **Active reminders**, **Health**, **My SMS** (the messages your phone relayed, counted for the period), **Agenda** (a timeline, day by day), **Unread mail**, **For you** (commitments being tracked and your next routine), **Tasks** (pending and overdue), **Documents** (your latest files) and **Workboard** (your tickets, what LIA or your connections hold, what is late or open — each count opens the board, filtered).
+Eleven cards, in the order you choose: **Weather** (with air quality and pollen where available), **Birthdays**, **Active reminders**, **Health**, **My SMS** (the messages your phone relayed, counted for the period), **Agenda** (a timeline, day by day), **Unread mail**, **For you** (commitments being tracked and your next routine), **Tasks** (pending and overdue, from all your lists, each naming its list), **Documents** (your latest files) and **Workboard** (your tickets, what LIA or your connections hold, what is late or open — each count opens the board, filtered).
 
 **👆 From an item:**
 • where your instance offers the **Tools**, a click opens the item in its tool — the event in Calendar, the mail in Mail, the task in its own list, the file in Files, the person whose birthday it is in Contacts; an SMS opens on the SMS page. Otherwise a click opens the chat with a matching request ready — you send it yourself

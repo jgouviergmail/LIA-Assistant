@@ -91,6 +91,15 @@ describe('application icon catalogue', () => {
     ).not.toThrow();
   }, 30_000);
 
+  it('draws every declared concept and refuses one with no drawing', () => {
+    expect(() =>
+      execFileSync(process.execPath, ['--test', 'scripts/icons/lia-concepts.test.mjs'], {
+        cwd: REPO_ROOT,
+        stdio: 'pipe',
+      })
+    ).not.toThrow();
+  }, 30_000);
+
   it('preserves native paint luminance and rejects flattened contrast', () => {
     expect(() =>
       execFileSync(process.execPath, ['--test', 'scripts/icons/native-chromatic.test.mjs'], {

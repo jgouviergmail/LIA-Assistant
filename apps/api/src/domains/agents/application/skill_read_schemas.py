@@ -33,9 +33,24 @@ class SkillReadItem(BaseModel):
     provenance: SkillProvenance | None
 
 
+class SkillReadEntry(SkillReadItem):
+    """A listed skill as the settings show it: its identity, then its life (lot 14).
+
+    Read only: a confirmation seals the ``SkillReadItem`` identity alone, so a
+    use between a draft and its confirmation never reads as a changed skill.
+    """
+
+    use_count: int
+    last_used_at: AwareDatetime | None
+    counted_since: AwareDatetime
+    dormant: bool
+    previous_version_at: AwareDatetime | None
+
+
 class SkillReadProjection(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     observed_at: AwareDatetime
-    items: tuple[SkillReadItem, ...]
+    items: tuple[SkillReadEntry, ...]
     total: int
     next_offset: int | None
+    dormant_after_days: int

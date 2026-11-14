@@ -2,6 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AudioQueue } from '../audio-queue';
 
+const { tapVoice, releaseVoice } = vi.hoisted(() => {
+  const releaseVoice = vi.fn();
+  return { releaseVoice, tapVoice: vi.fn(() => releaseVoice) };
+});
+vi.mock('../audio/voice-envelope', () => ({ tapVoice }));
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (error: Error) => void;
@@ -314,5 +320,59 @@ describe('AudioQueue sequential playback', () => {
     expect(queue.queueLength).toBe(0);
     await queue.enqueue(chunk);
     expect(error).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('AudioQueue: the face hears what plays (ADR-294, 2026-11-13)', () => {
+  let queue: AudioQueue;
+
+  beforeEach(() => {
+    vi.stubGlobal('AudioContext', FakeContext);
+    tapVoice.mockClear();
+    releaseVoice.mockClear();
+    queue = new AudioQueue();
+  });
+
+  afterEach(() => {
+    queue.dispose();
+    vi.unstubAllGlobals();
+  });
+
+  it('taps each chunk it plays, and lets it go when it ends', async () => {
+    await queue.enqueue(btoa('spoken'));
+    await settle();
+    const source = FakeContext.latest.sources[0];
+    expect(tapVoice).toHaveBeenCalledTimes(1);
+    expect(tapVoice).toHaveBeenCalledWith(source);
+    expect(releaseVoice).not.toHaveBeenCalled();
+
+    source.finish();
+    await settle();
+    expect(releaseVoice).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets the voice go when it is stopped mid-sentence', async () => {
+    await queue.enqueue(btoa('spoken'));
+    await settle();
+    queue.stop();
+    expect(releaseVoice).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets the voice go when it cannot start', async () => {
+    const create = FakeContext.prototype.createBufferSource;
+    const refused = vi
+      .spyOn(FakeContext.prototype, 'createBufferSource')
+      .mockImplementation(function (this: FakeContext) {
+        const source = create.call(this);
+        source.start.mockImplementation(() => {
+          throw new Error('start refused');
+        });
+        return source;
+      });
+    await queue.enqueue(btoa('spoken'));
+    await settle();
+    expect(tapVoice).toHaveBeenCalledTimes(1);
+    expect(releaseVoice).toHaveBeenCalledTimes(1);
+    refused.mockRestore();
   });
 });

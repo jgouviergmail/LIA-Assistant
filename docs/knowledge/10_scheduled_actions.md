@@ -46,6 +46,9 @@ Settings → "*Scheduled Actions*" section → **Add** button
 3. **Days**: select days of the week (Mon-Sun buttons)
 4. **Time**: choose the execution time
 
+**⚡ Ready-made routines:**
+The form's **Template** list fills it in one choice: **Morning briefing** (every day at 7:30), **Inbox triage** (on weekdays at 8:00, notifying you only when there is something new), **Weekly review** (on Sunday at 18:00) and **Overdue task** (as soon as a task falls overdue). Nothing is scheduled until you save, and every field stays editable.
+
 **💡 Tip:**
 Be specific in the instruction, as if you were talking to LIA directly.
 
@@ -101,6 +104,7 @@ Above the list, the **Week view** draws your routines on a grid: hours down, day
 LIA handles errors robustly:
 
 **⚠️ On failure:**
+• LIA tells you at the first failure of a series — in the chat, by push notification and on your connected channels; the next failures of the same series stay silent
 • The action is rescheduled for the next slot
 • The error message is displayed on the card
 • The consecutive failure counter increments
@@ -109,6 +113,17 @@ LIA handles errors robustly:
 • After **5 consecutive failures**, the action is automatically paused
 • Status changes to "Error"
 • You can re-enable it via the switch after fixing the issue
+• LIA tells you when the action is paused
+
+**⏸️ Usage limit reached:**
+• The action is skipped, not failed: nothing counts toward the automatic pause
+• The week view shows why the slot did not run
+• LIA tells you once, not for every routine, and your routines resume on their own once the limit is lifted
+
+**⏰ Missed time:**
+• If LIA could not start the routine on time (server unavailable, account already busy with another discussion), it catches up within a window equal to half the interval before the next run, two hours at most by default
+• If your account is busy, the routine waits for it to be free within that same window
+• Past that delay, the run is marked “missed” in the week view and the routine resumes at its next occurrence
 
 **🔄 Re-activation:**
 • Re-enabling the action resets the counters
@@ -138,6 +153,8 @@ When a routine produces an answer, LIA sends a notification to your devices and,
 
 Formatting (HTML layout, data cards, icons) is turned into plain text before it is shortened, so a notification never shows markup. The complete answer, with its cards, waits in your conversation.
 
+With a routine's **Only notify me when there is something new** option, the run always happens and its answer is still saved in your conversation, but LIA only sends the notification when that run found something new; a failure is always reported. The option cannot be combined with **Ask me before running**.
+
 A condition check that found nothing new runs nothing, so it sends nothing either. Notifications on a device need to be allowed in **Settings › Preferences › Notifications & Communication › Push Notifications**.
 
 ## Can LIA watch for a reply and tell me as soon as it arrives?
@@ -160,6 +177,7 @@ In the editor, under **When it runs**, choose **When a condition is met**, then 
 • **An event is coming up**
 • **A document was added**
 • **Weather change**
+• **A web page changes**
 
 A routine that waits for something has **no schedule at all**.
 
@@ -183,6 +201,30 @@ The editor shows your instance's horizon and threshold under the condition.
 **🧭 What LIA is told:** the hour, the day, the chance and the source of the change, so the run knows exactly what to check.
 
 **📅 Once a day per phenomenon:** a second shower the same day does not run the routine again. During the run, LIA reads the weather with your own tools: if your service differs from Google Weather, the answer can say which source saw the change.
+
+## How does a routine watching a web page work?
+
+Choose **When a condition is met**, then **A web page changes**, and give the page's address — a price, a stock status, an announcement page.
+
+**🔎 Read by LIA itself:** LIA reads the page with no model, at the pace the editor shows, and runs the routine only when lines **appear** on it: a price that changes, an "in stock" that comes back, an announcement added. The first reading runs the routine once, with what the page shows at that moment.
+
+**🎯 Only the lines that matter:** **Only lines containing** keeps the lines with that text — `€` for a price, `stock` for availability. Put the rule in the instruction ("tell me if the price drops below 300 €") and tick **Only notify me when there is something new**: a run that finds nothing worth telling stays quiet.
+
+**🧭 What LIA is told:** the new lines, as the page's own words — read as data, never as instructions.
+
+**⚠️ Limits:** only a public page is read — never an address on a local network, never one carrying credentials. A page drawn by scripts, or reserved to signed-in accounts, may show nothing; the card then says the page could not be read.
+
+## Can another system start a routine?
+
+Yes, where your instance offers it. Under **When it runs**, choose **When another system calls it**: a home automation box, a code forge, a form service or anything that can send a web request can start the routine.
+
+**🔑 The address and its secret:** when you save, LIA gives the routine its own address and a secret, and shows the secret **once** — copy it then, with the address, into the other system. The dialog shows a signed-call example. Lost the secret? Open the routine and **Draw a new secret**: the previous one stops working at once.
+
+**✍️ A signed call:** the other system signs the exact body with the secret (HMAC-SHA256) and sends the signature in the `X-LIA-Signature-256` header — `X-Hub-Signature-256`, which code forges send, is read alike. A call without a valid signature is refused. A call that is too large, or that comes while too many wait, is refused too, and the sender is told to try again later.
+
+**⏱️ Within a minute:** each call is kept and served at the next pass of the scheduler; calls that arrive together are served by one run. The routine reads what each call sent as **data, never as instructions**: a call can tell it what happened, never what to do.
+
+**⏸️ Paused, or another trigger:** a paused routine refuses calls, and the calls already kept wait for it. Choosing another trigger erases its address, its secret and the calls still waiting. Such a routine has no **Test now** and cannot ask first: it has nothing to run without a call.
 
 ## Can I manage scheduled actions through chat?
 

@@ -26,6 +26,7 @@ from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.services.streaming.machine_tags import MachineTagFilter
 from src.domains.agents.services.streaming.service import StreamingService
 from src.domains.voice.sentence_streamer import ProgressiveSentenceStreamer
+from tests.fixtures.conversation_cases import streaming_target
 from tests.support.cpu_growth import measure_growth
 
 pytestmark = pytest.mark.unit
@@ -92,7 +93,7 @@ async def _streamed(
         if final is not None:
             yield ("values", {"routing_history": [], "content_final_replacement": final})
 
-    stream = service.stream_sse_chunks(graph_stream(), uuid.uuid4(), "run-tags")
+    stream = service.stream_sse_chunks(graph_stream(), streaming_target(uuid.uuid4()), "run-tags")
     return [chunk async for chunk in stream]
 
 

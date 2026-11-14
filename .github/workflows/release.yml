@@ -502,7 +502,7 @@ jobs:
 
             ## Guided self-host installation
 
-            OpenAI and DeepSeek are required for the current core.
+            Anthropic and DeepSeek are required for the current core.
 
             ```bash
             # Download lia-self-host-bundle.tar.gz, its .sha256, and

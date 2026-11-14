@@ -243,3 +243,65 @@ qui existaient alors :
 - Le quota du fournisseur reste le vrai plafond à mesure que les utilisateurs
   se multiplient : ces trois mécanismes rendent l'échec gracieux, ils ne
   fabriquent pas de quota.
+
+## Amendement 2026-11-10 — le fournisseur dit quand revenir : l'indexation l'écoute, un tour de chat ne l'attend pas
+
+Mesuré en production le 2026-11-09, sur un libellé Gmail de 2 502 fils lié d'un coup : 38 249
+fragments vectorisés en 13 minutes, 581 refus du fournisseur, 253 documents en échec au premier
+passage. Trois faits que cet ADR ne connaissait pas.
+
+- **Le fournisseur compte chaque CONTENU comme une requête.** Son refus le dit lui-même, dans sa
+  partie structurée : `quotaMetric` `embed_content_paid_tier_requests`, `quotaValue` `3000`,
+  « requests per minute ». Un appel de LIA porte un document, soit une quinzaine de fragments : à
+  230 appels par minute, la rafale envoyait 3 200 à 3 560 contenus. Le lisseur, lui, compte des
+  appels (48 par minute) et expire ouvert : il ne pouvait rien y faire, et ce n'est pas son rôle —
+  il plafonne la concurrence instantanée, pas un débit.
+- **Chaque refus nomme son délai.** `error.details[]` porte un `RetryInfo` : entre 20 et 49 s ce
+  soir-là. La relance partait après une seconde (`backoff_factor ** attempt`) : 302 relances
+  perdues d'avance.
+- **Le délai structuré est arrondi à la seconde inférieure** : `40s` à côté d'un message qui dit
+  « retry in 40.38414246s ». Le servir à la seconde près, c'est revenir une fraction trop tôt.
+
+Ce qui change :
+
+- `embedding_errors.provider_retry_delay_seconds` lit ce délai, **structurellement** (la réponse
+  que le SDK garde sur son erreur, suivie par la chaîne des causes comme le code HTTP), sans jamais
+  lire la phrase. Illisible ou absent : aucun délai, la relance ordinaire reste.
+- **Le profil unique reste le défaut de tout appelant**, et devient plus strict : un embedding qui
+  reçoit un refus nommant un délai plus long que l'attente qu'il fait déjà **ne relance pas**.
+  Même échec qu'une relance épuisée (`MaxRetriesExceededError`, même chaîne de causes), une
+  seconde et un second refus plus tôt. Rien ne change pour un délai court, pour une erreur 5xx ou
+  pour un refus sans structure.
+- **Le travail en masse se déclare patient** (`embedding_patience.patient_embeddings`, une
+  `ContextVar`) : il sert le délai nommé, plus une marge d'une seconde et un étalement aléatoire,
+  jusqu'à `EMBEDDING_PATIENT_RETRY_MAX_WAIT_SECONDS` (60 s : un quota à la minute ne demande jamais
+  plus). Un délai plus long — un quota journalier — n'est pas attendu du tout. La seule porte qui
+  se déclare est `process_queued`, par où passent en masse les documents d'une source.
+- La crainte écrite plus haut — « un drapeau par appel serait oublié quelque part et coûterait
+  des secondes à un utilisateur » — est tenue par le sens du défaut : oublier de se déclarer ne
+  coûte une seconde à personne.
+- La patience est bornée au démarrage par la moitié du bail d'un document, comptée autant de fois
+  qu'un lot peut attendre : une fois entre deux tentatives, soit `EMBEDDING_RETRY_MAX_ATTEMPTS − 1`
+  (`Settings`, `_validate_embedding_patience_fits_the_document_lease`). Ces attentes se logent dans
+  un lot de fragments d'un document sous bail, renouvelé avant chaque lot (ADR-129) ; relever le
+  nombre de tentatives sans relever le bail est refusé au démarrage. Le bail de la SOURCE,
+  lui, est désormais renouvelé sur une minuterie pendant toute la vectorisation (suivi du même
+  jour dans l'ADR-129) — sans quoi attendre le fournisseur aurait rallongé la fenêtre où le reaper
+  relançait une seconde synchronisation.
+
+Ce qui est prouvé : la forme du refus est celle que la production a reçue 136 fois sur 136
+(relevée dans ses journaux) ; `tests/unit/infrastructure/llm/test_embedding_quota_simulation.py`
+rejoue la rafale contre un fournisseur à quota par minute et horloge virtuelle — 2 500 documents,
+aucun échec, 12,4 minutes — et montre qu'une marge nulle en fait échouer.
+
+Ce qui ne l'est pas : aucun tour de chat n'a reçu de refus ce soir-là (un seul identifiant de
+requête sur 581 refus, celui de la synchronisation). Réserver au chat une part du quota pendant un
+lot demanderait de déclarer ce quota par déploiement ; ce n'est pas fait, et reste à rouvrir le
+jour où `embedding_retry_not_attempted` apparaît sur un chemin de requête pendant une indexation.
+
+Ce qui ne se déclare pas : la réindexation d'un espace, le rejeu du reaper de documents, un envoi,
+un favori et une réunion appellent `process_document` sans passer par `process_queued`. Pour eux
+le seul changement est le profil par défaut devenu plus strict — un refus nommant un long délai
+termine l'embedding tout de suite, là où la relance à une seconde était perdue d'avance. La
+réindexation est le seul de ces chemins à pouvoir produire la même rafale ; déclarer son drainage
+demande de lire d'abord ce que son propre bail permet, et n'est pas fait ici.

@@ -1848,6 +1848,110 @@
             }
           },
           "description": "Size of registry_update SSE events in bytes. Shown: p95 percentile."
+        },
+        {
+          "id": 4310,
+          "type": "timeseries",
+          "title": "Answer token gap (p50 · p99)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 102
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum by (le) (rate(sse_token_gap_seconds_bucket[5m])))",
+              "legendFormat": "p50",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(sse_token_gap_seconds_bucket[5m])))",
+              "legendFormat": "p99",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Gap between two consecutive answer tokens of a stream a person waits for (sse_token_gap_seconds, lot 26 follow-up). A stalled model stream is a long gap no timeout ends; a long answer is many short gaps. docs/technical/MODEL_OUTPUT_HEALTH.md"
+        },
+        {
+          "id": 4311,
+          "type": "timeseries",
+          "title": "Answer token gaps over 10 s (per hour)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 102
+          },
+          "targets": [
+            {
+              "expr": "sum(increase(sse_token_gap_seconds_count[1h])) - sum(increase(sse_token_gap_seconds_bucket{le=\"10.0\"}[1h]))",
+              "legendFormat": "gaps > 10 s",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Gaps longer than 10 seconds between two answer tokens over the last hour: a stall a person saw. The detector is worth writing only if these show stalls the slot timeouts do not end (docs/technical/MODEL_OUTPUT_HEALTH.md)."
         }
       ]
     },
@@ -3116,6 +3220,47 @@
           "fieldConfig": {
             "defaults": {
               "unit": "s",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 4312,
+          "title": "Waiting messages (by event, ADR-384, ADR-385)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Messages written while the account was busy (chat_waiting_messages_total): kept or added while LIA worked, departed as the person's turn, held after an interrupted end, sent now, edited, withdrawn; joined to the answer being written, read by the loop as a note (note_read), or given back unread at the release (note_returned). Held without departures = the person is left deciding; kept without departures = releases are not reaching the departure; joined without note_read = the loop is not reading its notes (docs/technical/WAITING_MESSAGES.md). Empty = no message written while LIA worked.",
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 179
+          },
+          "targets": [
+            {
+              "expr": "sum by (event) (rate(chat_waiting_messages_total[$__rate_interval]))",
+              "legendFormat": "{{event}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "noValue": "0",
               "custom": {
                 "drawStyle": "line",
                 "lineInterpolation": "smooth",

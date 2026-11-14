@@ -51,6 +51,7 @@ function listing(): WorkbenchPageState<MailSummary> {
     skipped: 0,
     truncated: false,
     error: null,
+    read: 1,
     loadMore: vi.fn(),
     refresh: vi.fn(),
     replaceItem: vi.fn(),

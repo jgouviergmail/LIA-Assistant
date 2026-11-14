@@ -54,7 +54,14 @@ async def apply_ticket_mutation(
     service = WorkboardService(db, assignment_notices=notices, mutation_events=events)
     ticket = await service.update(actor, ticket_id, changes)
     if move is not None:
-        ticket = await service.move(actor, ticket_id, move.status, move.position)
+        ticket = await service.move(
+            actor,
+            ticket_id,
+            move.status,
+            move.position,
+            category_id=move.category_id,
+            clear_category=move.clear_category,
+        )
     if run_now:
         ticket = await service.run_now(actor, ticket_id)
     await db.flush()

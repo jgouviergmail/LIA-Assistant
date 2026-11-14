@@ -1,18 +1,25 @@
 """Native mail completion counts persisted ready threads and retries errored versions."""
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import AsyncMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
+from prometheus_client import Counter
 from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.domains.rag_spaces import mail_sync, source_worker_runtime
+from src.domains.rag_spaces.jobs_repository import MAIL_SOURCE_TABLE
 from src.domains.rag_spaces.models import RAGDocument, RAGMailSource, RAGSpace
 from src.domains.rag_spaces.source_worker_lease import SourceWorkerLease
 from src.domains.rag_spaces.storage_paths import stored_file_path
+from src.domains.users.models import User
+from tests.helpers.committed_account_session import async_session as async_session
 from tests.unit.domains.rag_spaces.test_mail_sync import LABEL, _message, _thread
 
 pytestmark = pytest.mark.integration
@@ -20,8 +27,12 @@ pytestmark = pytest.mark.integration
 
 @pytest.mark.parametrize("scenario", ["unchanged_ready", "retry_error", "embedding_failed"])
 async def test_native_mail_completion_uses_actual_thread_document_states(
-    async_session, test_user, monkeypatch, tmp_path, scenario
-):
+    async_session: AsyncSession,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    scenario: str,
+) -> None:
     for flag in ("application_tools_enabled", "rag_spaces_enabled", "rag_spaces_mail_sync_enabled"):
         monkeypatch.setattr(settings, flag, True)
     monkeypatch.setattr(settings, "rag_spaces_storage_path", str(tmp_path))
@@ -70,7 +81,7 @@ async def test_native_mail_completion_uses_actual_thread_document_states(
     await async_session.commit()
 
     @asynccontextmanager
-    async def database():
+    async def database() -> AsyncIterator[AsyncSession]:
         yield async_session
 
     for module in (mail_sync, source_worker_runtime):
@@ -90,9 +101,17 @@ async def test_native_mail_completion_uses_actual_thread_document_states(
     )
     monkeypatch.setattr(mail_sync, "gmail_client_or_none", AsyncMock(return_value=client))
 
-    async def processing(queued, *, counter):
+    leased: list[tuple[UUID, str]] = []
+
+    async def processing(
+        queued: list[dict[str, object]], *, source_id: UUID, source_table: str, counter: Counter
+    ) -> tuple[int, int]:
+        leased.append((source_id, source_table))
         for kwargs in queued:
-            document = await async_session.get(RAGDocument, kwargs["document_id"])
+            document_id = kwargs["document_id"]
+            assert isinstance(document_id, UUID)
+            document = await async_session.get(RAGDocument, document_id)
+            assert document is not None
             document.status = "error" if scenario == "embedding_failed" else "ready"
         await async_session.commit()
         return (0, len(queued)) if scenario == "embedding_failed" else (len(queued), 0)
@@ -106,6 +125,9 @@ async def test_native_mail_completion_uses_actual_thread_document_states(
         .where(RAGMailSource.id == source_id)
         .execution_options(populate_existing=True)
     )
+    # The batch names the source it embeds for: that is whose lease is kept.
+    assert leased == [(source_id, MAIL_SOURCE_TABLE)]
+    assert current is not None
     assert current.sync_status == ("error" if scenario == "embedding_failed" else "completed")
     assert current.synced_thread_count == int(scenario != "embedding_failed")
     documents = list(

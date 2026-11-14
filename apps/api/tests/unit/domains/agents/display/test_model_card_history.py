@@ -118,7 +118,7 @@ def test_same_length_replacement_cannot_reuse_a_stale_token_count() -> None:
 def test_compaction_reads_semantic_data_and_preserves_its_external_provenance() -> None:
     message = _answer()
     service = CompactionService()
-    summary_input = service._format_messages_for_summary([message])
+    summary_input = service._format_messages_for_summary([message], zone=UTC)
     assert _SEMANTIC in summary_input
     assert "Display-only" not in summary_input
     assert service._carries_external_content([message])
@@ -266,7 +266,7 @@ def test_an_archived_qualification_reaches_every_history_reader_with_its_state()
     readings = {
         "react": str(window_messages_for_react(messages)[1].content),
         "response": format_conversation_history(filter_for_llm_context([answer])),
-        "compaction": CompactionService()._format_messages_for_summary([answer]),
+        "compaction": CompactionService()._format_messages_for_summary([answer], zone=UTC),
     }
 
     for reader, text in readings.items():

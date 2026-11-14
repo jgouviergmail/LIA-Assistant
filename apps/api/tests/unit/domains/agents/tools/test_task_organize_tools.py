@@ -16,6 +16,7 @@ import pytest
 
 from src.domains.agents.drafts.models import Draft, DraftType
 from src.domains.agents.tools.common import ToolErrorCode
+from src.domains.agents.tools.exceptions import ToolValidationError
 from src.domains.agents.tools.task_extras import TaskExtras, extras_refusal, read_extras
 from src.domains.agents.tools.task_organize_tools import MoveTaskTool, RenameTaskListTool
 from src.domains.agents.tools.tasks_draft_executors import (
@@ -31,9 +32,13 @@ USER = uuid4()
 TODO, GOOGLE = ConnectorType.MICROSOFT_TASKS, ConnectorType.GOOGLE_TASKS
 
 
+#: The account's lists: a tool takes one by its id or by its name (owner rule, 2026-11-10).
+_LISTS = {"items": [{"id": "l1", "title": "Bills"}, {"id": "l2", "title": "Home"}]}
+
+
 def _client(kind: ConnectorType = TODO, **methods: Any) -> MagicMock:
     client = MagicMock(connector_type=kind)
-    for name, value in methods.items():
+    for name, value in {"list_task_lists": _LISTS, **methods}.items():
         setattr(client, name, AsyncMock(return_value=value))
     return client
 
@@ -53,6 +58,26 @@ class TestRenamingAList:
         client.rename_task_list.assert_awaited_once_with("l1", "New")
         assert result["title"] == "New"
 
+    async def test_the_list_is_taken_by_its_name_too(self) -> None:
+        client = _client(rename_task_list={"id": "l2", "title": "House"})
+
+        result = await RenameTaskListTool().execute_api_call(
+            client, USER, task_list_id="home", title="House"
+        )
+
+        client.rename_task_list.assert_awaited_once_with("l2", "House")
+        assert result["task_list_id"] == "l2"
+
+    async def test_a_list_nobody_has_is_refused_never_replaced_by_another(self) -> None:
+        client = _client(rename_task_list={})
+
+        with pytest.raises(ToolValidationError):
+            await RenameTaskListTool().execute_api_call(
+                client, USER, task_list_id="l9", title="New"
+            )
+
+        client.rename_task_list.assert_not_awaited()
+
     async def test_a_name_is_needed(self) -> None:
         with pytest.raises(Exception):  # noqa: B017 - the tool's own validation
             await RenameTaskListTool().execute_api_call(_client(), USER, task_list_id="l1")
@@ -68,6 +93,26 @@ class TestMovingATask:
 
         client.move_task.assert_awaited_once_with("l1", "t1", "l2")
         assert result["task_id"] == "n1"
+
+    async def test_both_lists_are_taken_by_their_names_too(self) -> None:
+        client = _client(move_task={"id": "n1", "title": "Pay"})
+
+        result = await MoveTaskTool().execute_api_call(
+            client, USER, task_id="t1", task_list_id="Bills", destination_list_id="home"
+        )
+
+        client.move_task.assert_awaited_once_with("l1", "t1", "l2")
+        assert result["task_list_id"] == "l2"
+
+    async def test_a_destination_nobody_has_moves_nothing(self) -> None:
+        client = _client(move_task={})
+
+        with pytest.raises(ToolValidationError):
+            await MoveTaskTool().execute_api_call(
+                client, USER, task_id="t1", task_list_id="l1", destination_list_id="Work"
+            )
+
+        client.move_task.assert_not_awaited()
 
     async def test_a_task_left_in_both_lists_is_said_as_a_failure(self) -> None:
         client = _client()

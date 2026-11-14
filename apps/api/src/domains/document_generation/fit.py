@@ -43,6 +43,11 @@ FULL_WIDTH_EM = 1.0
 _FULL_WIDTH_CLASSES = frozenset({"W", "F"})
 #: The interval within which every calibration line count stays exact.
 CALIBRATED_CHAR_WIDTH_RANGE: tuple[float, float] = (0.426, 0.493)
+#: Average glyph width of the SANS face a chart is drawn in (Helvetica in
+#: MuPDF), measured 2026-11-13 with PyMuPDF's own metrics over chart labels in
+#: five languages: 0.35-0.57 em per character, digits 0.556. The top of the
+#: range, so a measured label never collides with its neighbour.
+SANS_CHAR_WIDTH_EM = 0.57
 #: Line box as a fraction of the font size.
 LINE_HEIGHT_FACTOR = 1.2
 #: Space between paragraphs, as a fraction of the font size.
@@ -82,7 +87,7 @@ class TextFrame:
         return max(1.0, self.width_pt - 2 * INSET_PT - self.indent_pt)
 
 
-def text_width_em(text: str) -> float:
+def text_width_em(text: str, *, narrow_em: float = AVG_CHAR_WIDTH_EM) -> float:
     """The width of a string in em, full-width glyphs counted as one.
 
     A Latin string measures exactly ``len(text) * AVG_CHAR_WIDTH_EM``, so every
@@ -90,14 +95,16 @@ def text_width_em(text: str) -> float:
 
     Args:
         text: Any string.
+        narrow_em: The average width of a narrow glyph in the face measured
+            (Calibri's by default; ``SANS_CHAR_WIDTH_EM`` for a chart).
 
     Returns:
         The width in em (multiply by the font size for points).
     """
     if text.isascii():  # the common case, and never full-width
-        return len(text) * AVG_CHAR_WIDTH_EM
+        return len(text) * narrow_em
     return sum(
-        FULL_WIDTH_EM if east_asian_width(char) in _FULL_WIDTH_CLASSES else AVG_CHAR_WIDTH_EM
+        FULL_WIDTH_EM if east_asian_width(char) in _FULL_WIDTH_CLASSES else narrow_em
         for char in text
     )
 
@@ -143,6 +150,28 @@ def text_height(paragraphs: Sequence[str], size_pt: float, frame: TextFrame) -> 
 def fits(paragraphs: Sequence[str], size_pt: float, frame: TextFrame) -> bool:
     """Whether the paragraphs stay inside the frame at ``size_pt``."""
     return text_height(paragraphs, size_pt, frame) <= frame.height_pt
+
+
+def stack_height(paragraphs: Sequence[tuple[str, float]], frame: TextFrame) -> float:
+    """Height of paragraphs set EACH at its own size, with the safety margin.
+
+    A key figure is a large number over a small label: measuring both at the
+    number's size would refuse what fits. Summed paragraph by paragraph, the
+    height equals ``text_height`` whenever the sizes agree.
+
+    Args:
+        paragraphs: (text, size in points) in order.
+        frame: The box they are placed in (its width decides the lines).
+
+    Returns:
+        The height in points.
+    """
+    return sum(text_height([text], size_pt, frame) for text, size_pt in paragraphs)
+
+
+def stack_fits(paragraphs: Sequence[tuple[str, float]], frame: TextFrame) -> bool:
+    """Whether paragraphs set each at its own size stay inside the frame."""
+    return stack_height(paragraphs, frame) <= frame.height_pt
 
 
 def base_body_size(count: int) -> int:
@@ -252,3 +281,30 @@ def rows_per_slide(columns: int, frame: TextFrame) -> int:
     """Data rows one slide holds at the table's font size, header row excluded."""
     row_height = TABLE_ROW_HEIGHT_PT[table_font_size(columns)]
     return max(1, int(frame.height_pt / row_height) - 1)
+
+
+def balanced_rows[Item](items: Sequence[Item], per_row: int) -> list[list[Item]]:
+    """Split items into as few rows as fit, as even as possible: six read 3 + 3, not 4 + 2.
+
+    Shared by every renderer that sets things side by side — a deck's figure
+    tiles, a report's band of key figures — so the same six figures read the
+    same way on a slide and on a page.
+
+    Args:
+        items: Everything to set side by side, in order.
+        per_row: The most a row holds.
+
+    Returns:
+        The rows, in order, the longer ones first; none for no item.
+    """
+    if not items:
+        return []
+    count = -(-len(items) // per_row)
+    size, longer = divmod(len(items), count)
+    rows: list[list[Item]] = []
+    start = 0
+    for index in range(count):
+        end = start + size + (1 if index < longer else 0)
+        rows.append(list(items[start:end]))
+        start = end
+    return rows

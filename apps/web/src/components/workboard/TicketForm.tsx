@@ -7,6 +7,11 @@
  * instruction LIA follows when the ticket is handed to it. The mode and the
  * follow switch carry their name and nothing under it (owner, 2026-09-09).
  *
+ * The category is asked only of a reader who HAS categories: a board with no
+ * lane has nothing to file a ticket under, and a list holding « no category »
+ * alone would be a question with one answer. Opened from a lane's « + », the
+ * form starts in that lane.
+ *
  * The submit button is guarded by a HANDLER, never by `disabled` on the control
  * that holds focus: disabling a focused button blurs it and drops the keyboard
  * user back on `<body>`.
@@ -25,6 +30,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { CategorySelect } from '@/components/workboard/CategorySelect';
 import { ExecutionModeField } from '@/components/workboard/ExecutionModeField';
 import { HolderSelect } from '@/components/workboard/HolderSelect';
 import { PrioritySelect } from '@/components/workboard/PrioritySelect';
@@ -32,7 +38,7 @@ import { Textarea } from '@/components/ui/textarea';
 import type { Language } from '@/i18n/settings';
 import { dueAtFromInput } from '@/lib/workboard/dates';
 import type { PeerName } from '@/lib/workboard/display';
-import type { ExecutionMode, TicketCreateBody } from '@/types/workboard';
+import type { CategoryOption, ExecutionMode, TicketCreateBody } from '@/types/workboard';
 
 export interface TicketFormProps {
   open: boolean;
@@ -41,14 +47,27 @@ export interface TicketFormProps {
   onClose: () => void;
   onCreate: (body: TicketCreateBody) => Promise<{ ok: boolean }>;
   initialDraft?: Pick<TicketCreateBody, 'title' | 'description'>;
+  /** The reader's own categories; empty or absent, the form asks for none. */
+  categories?: readonly CategoryOption[];
+  /** The lane the form was opened from; null or absent for none. */
+  initialCategoryId?: string | null;
 }
 
-export function TicketForm({ open, peers, onClose, onCreate, initialDraft }: TicketFormProps) {
+export function TicketForm({
+  open,
+  peers,
+  onClose,
+  onCreate,
+  initialDraft,
+  categories = [],
+  initialCategoryId = null,
+}: TicketFormProps) {
   const { t } = useTranslation();
   const [title, setTitle] = useState(initialDraft?.title ?? '');
   const [description, setDescription] = useState(initialDraft?.description ?? '');
   const [priority, setPriority] = useState('medium');
   const [assignee, setAssignee] = useState('me');
+  const [categoryId, setCategoryId] = useState<string | null>(initialCategoryId);
   const [dueAt, setDueAt] = useState('');
   const [executionMode, setExecutionMode] = useState<ExecutionMode>('react');
   const [follow, setFollow] = useState(false);
@@ -60,6 +79,7 @@ export function TicketForm({ open, peers, onClose, onCreate, initialDraft }: Tic
     setDescription('');
     setPriority('medium');
     setAssignee('me');
+    setCategoryId(initialCategoryId);
     setDueAt('');
     setExecutionMode('react');
     setFollow(false);
@@ -76,6 +96,11 @@ export function TicketForm({ open, peers, onClose, onCreate, initialDraft }: Tic
       priority,
       // `me` and `lia` are keywords; anything else is a connected peer's id.
       ...(peer ? { assignee_user_id: peer.peer_id } : { assignee: assignee as 'me' | 'lia' }),
+      // Only a category the reader still has: one deleted while the form was
+      // open is not sent, and the ticket is created unfiled.
+      ...(categoryId !== null && categories.some(row => row.id === categoryId)
+        ? { category_id: categoryId }
+        : {}),
       due_at: dueAtFromInput(dueAt),
       execution_mode: executionMode,
       follow,
@@ -121,6 +146,20 @@ export function TicketForm({ open, peers, onClose, onCreate, initialDraft }: Tic
             />
             <p className="text-xs text-muted-foreground">{t('workboard.form.description_hint')}</p>
           </div>
+
+          {categories.length > 0 && (
+            <div className="space-y-2">
+              <CategorySelect
+                id="wb-new-category"
+                hideLabel={false}
+                label={t('workboard.form.category')}
+                value={categoryId}
+                categories={categories}
+                className="h-10 px-3 text-sm"
+                onChange={setCategoryId}
+              />
+            </div>
+          )}
 
           <div className="grid gap-3 sm:grid-cols-2">
             {/* The panel's own lists, not copies of them (D81): three surfaces,

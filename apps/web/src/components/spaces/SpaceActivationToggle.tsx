@@ -6,13 +6,14 @@ import { Switch } from '@/components/ui/switch';
 interface SpaceActivationToggleProps {
   isActive: boolean;
   onToggle: () => void;
-  disabled?: boolean;
+  /** The space's activation is being saved: the switch stays focusable (`Switch`'s `busy`). */
+  busy?: boolean;
 }
 
 export function SpaceActivationToggle({
   isActive,
   onToggle,
-  disabled,
+  busy,
 }: SpaceActivationToggleProps) {
   const { t } = useTranslation();
 
@@ -20,7 +21,7 @@ export function SpaceActivationToggle({
     <Switch
       checked={isActive}
       onCheckedChange={onToggle}
-      disabled={disabled}
+      busy={busy}
       aria-label={isActive ? t('spaces.deactivate') : t('spaces.activate')}
       onClick={e => e.stopPropagation()}
     />

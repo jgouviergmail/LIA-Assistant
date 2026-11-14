@@ -33,8 +33,14 @@ if ($decks) {
             $failures++; Write-Output "  REFUSED $($file.Name): $($_.Exception.Message)"; continue
         }
         $slideOverflows = 0
+        # What PowerPoint READ of the motion and the charts LIA wrote: a timing or
+        # a chart part it repaired away would count zero here, not refuse the file.
+        $transitions = 0; $effects = 0; $charts = 0
         foreach ($slide in $deck.Slides) {
+            if ($slide.SlideShowTransition.EntryEffect -ne 0) { $transitions++ }
+            $effects += $slide.TimeLine.MainSequence.Count
             foreach ($shape in $slide.Shapes) {
+                if ($shape.HasChart) { $charts++ }
                 if ($shape.HasTextFrame -and $shape.TextFrame.HasText) {
                     $range = $shape.TextFrame.TextRange
                     $over = [math]::Round($range.BoundHeight - $shape.Height, 1)
@@ -47,7 +53,7 @@ if ($decks) {
         }
         $overflows += $slideOverflows
         $size = "$($deck.PageSetup.SlideWidth)x$($deck.PageSetup.SlideHeight)"
-        Write-Output "  $($file.Name): $($deck.Slides.Count) slides, $size, overflows=$slideOverflows"
+        Write-Output "  $($file.Name): $($deck.Slides.Count) slides, $size, overflows=$slideOverflows, transitions=$transitions, effects=$effects, charts=$charts"
         # NEVER overwrite the artefact under measurement: LIA renders its own PDF.
         $deck.SaveAs("$($file.FullName).powerpoint.pdf", 32)
         $deck.Close()

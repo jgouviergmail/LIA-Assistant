@@ -15,14 +15,17 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from src.core.conversation_execution import RunAdmission
+from src.core.run_authority import RunAuthority, current_run_authority, run_authority_scope
+from src.domains.agents.api.chat_response import partial_finalizer
 from src.domains.conversations import sync_signal
 from src.domains.conversations.models import Conversation
 from src.domains.conversations.service import ConversationService
 from src.domains.users.models import User
 from src.domains.voice_sessions.summary import rewrite_session_card
+from src.infrastructure.database import session as database_session
 
 pytestmark = pytest.mark.integration
 
@@ -87,6 +90,37 @@ async def test_a_rolled_back_write_says_nothing(
     await _drain()
 
     published.assert_not_awaited()
+
+
+async def test_a_committed_partial_is_announced_after_the_graph_is_revoked(
+    async_engine: AsyncEngine,
+    published: AsyncMock,
+    reserved: RunAdmission,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The commit, rather than the graph's now-revoked authority, owns the signal."""
+    authority = RunAuthority(reserved, revoked=True)
+    inherited: list[RunAuthority | None] = []
+
+    async def capture(user_id: uuid.UUID, payload: dict[str, str]) -> bool:
+        inherited.append(current_run_authority())
+        return True
+
+    published.side_effect = capture
+    monkeypatch.setattr(
+        database_session,
+        "AsyncSessionLocal",
+        async_sessionmaker(async_engine, expire_on_commit=False),
+    )
+    with run_authority_scope(authority):
+        await partial_finalizer(reserved)("An observed partial", "cancelled")
+        await _drain()
+    published.assert_awaited_once_with(
+        reserved.target.owner_id,
+        {"type": "conversation_updated", "conversation_id": str(reserved.target.id)},
+    )
+    assert not authority.writers
+    assert inherited == [None]
 
 
 async def test_several_messages_in_one_transaction_make_one_signal(
@@ -205,20 +239,20 @@ async def test_a_failed_publication_is_counted_never_raised(async_session: Async
 async def test_a_commit_outside_any_event_loop_is_counted_and_leaves_no_coroutine() -> None:
     # A synchronous caller (a script) commits with no running loop: nothing can
     # be scheduled, and no coroutine may be created only to be dropped.
-    session = Session()
-    session.info[sync_signal._PENDING] = {
-        uuid.uuid4(): (uuid.uuid4(), sync_signal.CONVERSATION_UPDATED)
-    }
     before = sync_signal.conversation_sync_signals_total.labels(
         kind="conversation_updated", outcome="no_loop"
     )._value.get()
 
-    def commit_without_a_loop() -> None:
-        sync_signal._after_commit(session)
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")  # « coroutine was never awaited » would raise
-        await asyncio.to_thread(commit_without_a_loop)
+    async with AsyncSession() as db:
+        sync_signal.arm_conversation_signal(
+            db,
+            user_id=uuid.uuid4(),
+            conversation_id=uuid.uuid4(),
+            kind=sync_signal.CONVERSATION_UPDATED,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # Unowned coroutines must fail the test.
+            await asyncio.to_thread(db.sync_session.commit)
 
     after = sync_signal.conversation_sync_signals_total.labels(
         kind="conversation_updated", outcome="no_loop"

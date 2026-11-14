@@ -19,12 +19,18 @@ from src.domains.agents.application.plugin_url_import import (
 from src.domains.agents.application.plugin_url_import_schemas import PluginUrlImportInput
 from src.domains.plugins.models import UserPlugin
 from src.domains.users.preference_cas import PreferenceWriteReceipt
+from tests.helpers.committed_account_session import async_session as async_session
 from tests.integration.test_application_plugin_read import _plugin
 
 pytestmark = pytest.mark.integration
 
 
-def _package(version="2.0", skills=False, description=None, name="native-plugin"):
+def _package(
+    version: str = "2.0",
+    skills: bool = False,
+    description: str | None = None,
+    name: str = "native-plugin",
+) -> bytes:
     buffer = io.BytesIO()
     with ZipFile(buffer, "w") as archive:
         archive.writestr(

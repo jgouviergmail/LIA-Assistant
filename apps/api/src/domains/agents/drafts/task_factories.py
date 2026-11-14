@@ -27,6 +27,7 @@ def create_task_draft(
     related_registry_ids: list[str] | None = None,
     source_tool: str = "create_task_tool",
     user_language: str | None = None,
+    task_list_name: str | None = None,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create a task draft.
@@ -40,6 +41,7 @@ def create_task_draft(
         related_registry_ids: Related registry items
         source_tool: Source tool name
         user_language: Language for HITL
+        task_list_name: The name of that list, which the card shows
 
     Returns:
         UnifiedToolOutput with draft
@@ -51,6 +53,7 @@ def create_task_draft(
         notes=notes,
         due=due,
         task_list_id=task_list_id,
+        task_list_name=task_list_name,
         importance=kept.importance,
         reminder=kept.reminder,
         repeat=kept.repeat,

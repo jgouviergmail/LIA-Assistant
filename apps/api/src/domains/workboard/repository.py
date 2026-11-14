@@ -54,6 +54,7 @@ from src.domains.workboard import detail_queries, summary_queries
 from src.domains.workboard.board_queries import (
     BoardFilters,
     apply_assignee,
+    apply_category,
     needs_me_stmt,
     priority_rank,
     visible_predicate,
@@ -64,12 +65,11 @@ from src.domains.workboard.constants import (
     STATUS_ORDER,
     ActorKind,
     AssigneeKind,
-    RunError,
-    RunOutcome,
     TicketStatus,
 )
 from src.domains.workboard.models import WorkboardComment, WorkboardTicket, WorkboardTicketEvent
 from src.domains.workboard.mutation_fence import lock_mutation_ticket
+from src.domains.workboard.run_repository import WorkboardRunRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -129,7 +129,7 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
         stmt = select(WorkboardTicket).where(visible_predicate(user_id))
         if filters.statuses:
             stmt = stmt.where(WorkboardTicket.status.in_(filters.statuses))
-        stmt = apply_assignee(stmt, user_id, filters.assignee)
+        stmt = apply_category(apply_assignee(stmt, user_id, filters.assignee), filters)
         if filters.priorities:
             stmt = stmt.where(WorkboardTicket.priority.in_(filters.priorities))
         if filters.overdue:
@@ -719,24 +719,11 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
         Returns:
             The claimed row, or None when somebody got there first.
         """
-        stmt = (
-            update(WorkboardTicket)
-            .where(
-                WorkboardTicket.id == ticket.id,
-                WorkboardTicket.status == TicketStatus.TODO.value,
-                WorkboardTicket.run_claimed_at.is_(None),
-            )
-            .values(
-                status=TicketStatus.IN_PROGRESS.value,
-                status_changed_at=now,
-                run_claimed_at=now,
-                run_attempts=WorkboardTicket.run_attempts + 1,
-                run_count=WorkboardTicket.run_count + 1,
-                last_run_id=run_id,
-            )
-            .returning(WorkboardTicket)
-        )
-        return (await self.db.execute(stmt)).scalar_one_or_none()
+        return await WorkboardRunRepository(self.db).claim_ticket(ticket, run_id=run_id, now=now)
+
+    async def lock_owned_run(self, ticket_id: UUID, run_id: str) -> bool:
+        """Lock this claim until its start event commits; refuse a stale worker."""
+        return await WorkboardRunRepository(self.db).lock_owned_run(ticket_id, run_id)
 
     async def settle_run(
         self,
@@ -793,6 +780,7 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
                 WorkboardTicket.id == ticket_id,
                 WorkboardTicket.last_run_id == run_id,
                 WorkboardTicket.status == TicketStatus.IN_PROGRESS.value,
+                WorkboardTicket.run_claimed_at.is_not(None),
             )
             .values(
                 status=status,
@@ -874,6 +862,7 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
                 WorkboardTicket.id == ticket_id,
                 WorkboardTicket.last_run_id == run_id,
                 WorkboardTicket.status == TicketStatus.IN_PROGRESS.value,
+                WorkboardTicket.run_claimed_at.is_not(None),
             )
             .values(
                 status=TicketStatus.TODO.value,
@@ -889,35 +878,18 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
         return bool(await self._rows_affected(stmt))
 
     async def reap_stale_claims(self, *, older_than: datetime) -> int:
-        """Give back the tickets a dead worker still holds.
+        """Retire stale claims without replaying work whose result is unknown.
 
-        Released, never settled: nobody knows how that run ended, and a settle
-        would state an outcome nobody observed. The attempt it already counted
-        is what stops an unrunnable ticket from being retried for ever — which
-        is why this does NOT reset ``run_attempts``.
+        A durable execution protects its ticket. An unowned claim keeps its
+        counted attempt and an interruption error, awaiting an explicit retry.
 
         Args:
             older_than: Claims older than this instant are stranded.
 
         Returns:
-            How many tickets were released.
+            How many claims were retired.
         """
-        stmt = (
-            update(WorkboardTicket)
-            .where(
-                WorkboardTicket.status == TicketStatus.IN_PROGRESS.value,
-                WorkboardTicket.run_claimed_at.is_not(None),
-                WorkboardTicket.run_claimed_at < older_than,
-            )
-            .values(
-                status=TicketStatus.TODO.value,
-                status_changed_at=older_than,
-                run_claimed_at=None,
-                last_run_outcome=RunOutcome.FAILED.value,
-                last_run_error=RunError.RUN_REAPED.value,
-            )
-        )
-        return await self._rows_affected(stmt)
+        return await WorkboardRunRepository(self.db).reap_stale_claims(older_than=older_than)
 
     async def run_usage(self, run_id: str) -> RunUsage:
         """What one run spent, in the vocabulary the chat already shows.

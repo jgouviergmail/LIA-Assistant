@@ -18,6 +18,7 @@ from collections.abc import Mapping
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
+from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.shared.markdown_literal import untrusted_markdown
 from src.infrastructure.observability.logging import get_logger
 
@@ -43,6 +44,9 @@ def skill_runner_task(
     block carried an earlier text game, the model took the request for a reply
     within it and ran no script (production 2026-09-20, 18:00).
 
+    The wording lives in ``skill_runner_lines.txt`` (ADR-284); the note that
+    explains a history, and its stamps (lot 17), comes with the history only.
+
     Args:
         skill_name: The activated skill.
         instructions: What ``activate_skill`` returned for it.
@@ -53,19 +57,23 @@ def skill_runner_task(
     Returns:
         The task text.
     """
+    lines = _runner_lines()
     history_block = ""
     if history.strip():
         history_block = (
             f"\n\n<conversation_history>\n{history}\n</conversation_history>\n"
-            "The skill runs a multi-step dialogue: use this history to resume it "
-            "(e.g. treat the latest user message as the answer to a question you "
-            "asked earlier)."
+            f"{lines['history_note']}"
         )
+    task = lines["task"].format(skill_name=skill_name, request=last_user_message)
     return (
-        f"Skill '{skill_name}' is activated. Follow its instructions to respond to: "
-        f"{last_user_message}\n\n<skill_instructions>\n{instructions}\n</skill_instructions>"
+        f"{task}\n\n<skill_instructions>\n{instructions}\n</skill_instructions>"
         f"{history_block}{agent_data}"
     )
+
+
+def _runner_lines() -> dict[str, str]:
+    """The runner task's model-facing lines, read from the store (cached)."""
+    return dict(parse_prompt_sections(read_prompt_file("skill_runner_lines"), 2))
 
 
 def settle_skill_runner(

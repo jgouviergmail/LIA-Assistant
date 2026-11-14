@@ -1,16 +1,19 @@
-"""Catalogue manifests for the memory search tool (ADR-313).
+"""Catalogue manifests for the memory agent's lookups (ADR-313).
 
-Long-term memory as an active, routable capability. Internal, no OAuth,
-read-only — the passive per-turn profile injection is unchanged. Every bound
-published here is the bound the tool enforces, read from the SAME source
-(ADR-184): the category vocabulary from ``MemoryCategoryType``, the result
-ceiling from ``settings.memory_max_results``.
+Long-term memory as an active, routable capability, and beside it the past
+conversations themselves, word for word (``search_conversations_tool``, through
+the door the history search field asks too). Internal, no OAuth, read-only — the
+passive per-turn profile injection is unchanged. Every bound published here is
+the bound the tool enforces, read from the SAME source (ADR-184): the category
+vocabulary from ``MemoryCategoryType``, the result ceilings from settings, the
+words' length from the history search's own constants.
 """
 
 from datetime import UTC, datetime
 from typing import get_args
 
 from src.core.config import settings
+from src.core.constants import CONVERSATION_SEARCH_MAX_LENGTH, CONVERSATION_SEARCH_MIN_LENGTH
 from src.domains.agents.registry.catalogue import (
     AgentManifest,
     CostProfile,
@@ -38,9 +41,10 @@ MEMORY_AGENT_MANIFEST = AgentManifest(
     description=(
         "Agent specialized in what LIA remembers about the user: long-term "
         "memories built from past conversations (preferences, people, habits, "
-        "significant events, standing instructions). Semantic lookup. Read-only."
+        "significant events, standing instructions), and the past conversations "
+        "themselves, word for word, in every discussion. Read-only."
     ),
-    tools=["search_memories_tool"],
+    tools=["search_memories_tool", "search_conversations_tool"],
     max_parallel_runs=2,
     default_timeout_ms=settings.default_tool_timeout_ms,
     display=DisplayMetadata(
@@ -188,9 +192,121 @@ search_memories_catalogue_manifest = ToolManifest(
 )
 
 
+# =============================================================================
+# Tool Manifest: search_conversations_tool
+# =============================================================================
+
+search_conversations_catalogue_manifest = ToolManifest(
+    name="search_conversations_tool",
+    agent="memory_agent",
+    description=(
+        "Search what was SAID in the user's past conversations with LIA, word for "
+        "word, in every discussion (the main one and the secondary ones): the "
+        "messages that contain the given words, newest first, each cut around "
+        "them, with who said it, when, and in which discussion. Use it when the "
+        "user asks what was said, decided or answered before (« what did we say "
+        "about…», « find the message where…»). Literal words, not a paraphrase: "
+        "search the words that were most likely written. The current request is "
+        "never among the results. An empty result means no past message contains "
+        "these words; 'more' means older ones exist — narrow the words. NOT what "
+        "LIA remembers about the user (search_memories_tool), NOT e-mails (email)."
+    ),
+    parameters=[
+        ParameterSchema(
+            name="query",
+            type="string",
+            required=True,
+            description=(
+                "Words the message contains, as they were written, in the language "
+                "they were said in (case and accents do not matter)."
+            ),
+            constraints=[
+                ParameterConstraint(kind="min_length", value=CONVERSATION_SEARCH_MIN_LENGTH),
+                ParameterConstraint(kind="max_length", value=CONVERSATION_SEARCH_MAX_LENGTH),
+            ],
+        ),
+        ParameterSchema(
+            name="max_results",
+            type="integer",
+            required=False,
+            description="Most passages to return (default: the maximum).",
+            constraints=[
+                ParameterConstraint(kind="minimum", value=1),
+                ParameterConstraint(
+                    kind="maximum", value=settings.conversation_search_tool_max_results
+                ),
+            ],
+        ),
+    ],
+    outputs=[
+        OutputFieldSchema(
+            path="passages",
+            type="array",
+            description="Messages containing the words, newest first",
+        ),
+        OutputFieldSchema(
+            path="passages[].discussion",
+            type="string",
+            description="'main' or the title of the secondary discussion holding it",
+            semantic_type="Text",
+        ),
+        OutputFieldSchema(
+            path="passages[].said_by",
+            type="string",
+            description="'person' (the user) or 'assistant' (LIA)",
+        ),
+        OutputFieldSchema(
+            path="passages[].said_at",
+            type="string",
+            description="When it was written, ISO 8601 in the user's timezone",
+            semantic_type="DateTime",
+        ),
+        OutputFieldSchema(
+            path="passages[].excerpt",
+            type="string",
+            description="The message as plain text, cut around the words",
+            semantic_type="Text",
+        ),
+        OutputFieldSchema(path="count", type="integer", description="Passages returned"),
+        OutputFieldSchema(path="more", type="boolean", description="Older matching messages exist"),
+    ],
+    cost=CostProfile(
+        est_tokens_in=30,
+        est_tokens_out=600,
+        est_cost_usd=0.0,
+        est_latency_ms=300,
+    ),
+    permissions=PermissionProfile(
+        required_scopes=[],
+        data_classification="CONFIDENTIAL",
+        hitl_required=False,
+    ),
+    semantic_keywords=[
+        "what did we say about this",
+        "find the message where I mentioned",
+        "what did you answer me last time",
+        "search our past conversations",
+        "when did I talk about this",
+    ],
+    reference_examples=[],
+    display=DisplayMetadata(
+        emoji="🔎",
+        i18n_key="search_conversations",
+        visible=True,
+        category="tool",
+    ),
+    tool_category="search",
+    # Substring matching: a conceptual term the planner adds would find nothing.
+    text_search_mode="literal",
+    version="1.0.0",
+    updated_at=datetime.now(UTC),
+)
+
+
 __all__ = [
     "MEMORY_AGENT_MANIFEST",
     "MEMORY_SEARCH_CATEGORIES",
     "MEMORY_SEARCH_QUERY_MIN_CHARS",
+    "search_conversations_catalogue_manifest",
     "search_memories_catalogue_manifest",
 ]

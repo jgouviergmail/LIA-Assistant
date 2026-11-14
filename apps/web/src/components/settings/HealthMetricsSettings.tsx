@@ -411,7 +411,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                   <Switch
                     id="health-metrics-agents-toggle"
                     checked={!!user?.health_metrics_agents_enabled}
-                    disabled={isUpdatingAgentsPreference}
+                    busy={isUpdatingAgentsPreference}
                     onCheckedChange={handleAgentsToggle}
                   />
                 </div>

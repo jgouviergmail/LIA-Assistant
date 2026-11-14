@@ -14,10 +14,14 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock
+from uuid import uuid4
 
 import pytest
 
+from src.core.conversation_execution import ExecutionKind, RunAdmission
+from src.core.conversation_target import ConversationKind, ConversationRef
 from src.domains.agents.api import background_runner
+from src.domains.agents.api.run_output import RunEndStatus
 from src.domains.agents.api.schemas import ChatStreamChunk
 
 pytestmark = pytest.mark.unit
@@ -29,9 +33,13 @@ async def test_a_run_stopped_while_publishing_closes_its_stream_in_its_own_task(
     publishing = asyncio.Event()
     closed_in: list[asyncio.Task[object] | None] = []
 
-    async def publish_forever(*_args: object) -> None:
-        publishing.set()
-        await asyncio.sleep(3600)  # the stop lands here, outside the generator
+    class BlockedOutput:
+        async def publish(self, chunk: ChatStreamChunk) -> None:
+            publishing.set()
+            await asyncio.Event().wait()  # cancellation lands outside the generator
+
+        async def finish(self, status: RunEndStatus) -> None:
+            assert status == "killed"
 
     async def stream() -> AsyncGenerator[ChatStreamChunk]:
         try:
@@ -41,12 +49,13 @@ async def test_a_run_stopped_while_publishing_closes_its_stream_in_its_own_task(
             closed_in.append(asyncio.current_task())
 
     monkeypatch.setattr(background_runner, "get_redis_cache", AsyncMock(return_value=object()))
-    monkeypatch.setattr(background_runner, "publish_chunk", publish_forever)
     monkeypatch.setattr(background_runner, "is_cancel_requested", AsyncMock(return_value=False))
-    monkeypatch.setattr(background_runner, "_finalize_abnormal", AsyncMock())
-
+    target = ConversationRef(uuid4(), uuid4(), ConversationKind.MAIN, 0, uuid4())
+    admission = RunAdmission(
+        uuid4(), target, ExecutionKind.GRAPH, "run", "stream", uuid4(), uuid4(), 1, False
+    )
     producer = asyncio.create_task(
-        background_runner._produce(stream(), "run", "run", "user", "session", None)
+        background_runner._produce(stream(), admission, "session", BlockedOutput(), None)
     )
     await asyncio.wait_for(publishing.wait(), timeout=5)
     producer.cancel()

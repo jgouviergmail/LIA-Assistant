@@ -68,6 +68,8 @@ DECLARED_ELSEWHERE = {
     "react_runner.py",
     # Imports the delivery sweep to kick it: the model is called by the sweep, not the tool.
     "peers_tools.py",
+    # The one reply writer of two tools, each declared under its own name (ADR-383).
+    "reply_writing.py",
 }
 
 

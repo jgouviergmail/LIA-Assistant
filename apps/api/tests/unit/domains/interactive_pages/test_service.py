@@ -8,78 +8,58 @@ writer calls none.
 
 from __future__ import annotations
 
+import re
 import uuid
-from collections.abc import AsyncIterator, Iterator
-from contextlib import asynccontextmanager
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
 from src.core.config import settings as app_settings
 from src.core.constants import DYNAMIC_CONTEXT_MARKER, INTERACTIVE_PAGE_BYTES_PER_OUTPUT_TOKEN
+from src.core.map_tile_providers import MAP_TILE_PROVIDERS
 from src.domains.attachments.models import AttachmentOrigin
 from src.domains.document_generation import document_store
 from src.domains.document_generation import service as document_service
 from src.domains.interactive_pages import service as svc
-from src.domains.interactive_pages.document import PageRefusal
+from src.domains.interactive_pages.document import PageRefusal, page_frame
 from src.domains.interactive_pages.schemas import PageContent, PageMode, PageSource
 from src.infrastructure.llm.structured_output import StructuredOutputTruncatedError
+from tests.helpers.attachment_publication import CapturingAttachmentRepository as _FakeRepo
+from tests.helpers.attachment_publication import publication_session as _fake_db_context
+from tests.helpers.run_authority import unit_run_authority
 
 pytestmark = pytest.mark.unit
 
-_ATTACHMENT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+_OWNER = uuid.UUID("00000000-0000-0000-0000-000000000001")
 _CONVERSATION = "00000000-0000-0000-0000-00000000c001"
+_RUNTIME = "00000000-0000-0000-0000-00000000c002"
 PAGE = '<!doctype html><html lang="fr"><head><title>Morpion</title></head><body><p>🎃</p></body></html>'
-
-
-class _FakeAttachment:
-    def __init__(self, expires_at: datetime) -> None:
-        self.id = _ATTACHMENT_ID
-        self.expires_at = expires_at
-
-
-class _FakeRepo:
-    created: dict[str, Any] = {}
-
-    def __init__(self, db: object) -> None:
-        self._db = db
-
-    async def create(self, payload: dict[str, Any]) -> _FakeAttachment:
-        type(self).created = dict(payload)
-        return _FakeAttachment(expires_at=payload["expires_at"])
-
-
-class _FakeDb:
-    async def commit(self) -> None:
-        return None
-
-
-@asynccontextmanager
-async def _fake_db_context() -> AsyncIterator[_FakeDb]:
-    yield _FakeDb()
 
 
 @pytest.fixture(autouse=True)
 def storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     monkeypatch.setattr(app_settings, "attachments_storage_path", str(tmp_path))
-    _FakeRepo.created = {}
-    document_store.get_and_clear_pending_documents(_CONVERSATION)
+    _FakeRepo.snapshot = {}
+    document_store.get_and_clear_pending_documents(_RUNTIME)
     with (
-        patch.object(document_service, "AttachmentRepository", _FakeRepo),
+        unit_run_authority(_OWNER, uuid.UUID(_CONVERSATION), uuid.UUID(_RUNTIME)),
+        patch("src.domains.attachments.file_publication.AttachmentFileRepository", _FakeRepo),
         patch.object(document_service, "get_db_context", _fake_db_context),
     ):
         yield tmp_path
-    document_store.get_and_clear_pending_documents(_CONVERSATION)
+    document_store.get_and_clear_pending_documents(_RUNTIME)
 
 
 def _request(mode: PageMode, **overrides: Any) -> svc.PageRequest:
     values: dict[str, Any] = {
         "mode": mode,
-        "user_id": uuid.uuid4(),
+        "user_id": _OWNER,
         "conversation_id": _CONVERSATION,
+        "delivery_runtime_id": _RUNTIME,
         "instructions": "un morpion d'Halloween",
         "source_data": "",
         "base": None,
@@ -105,7 +85,7 @@ async def test_a_new_page_is_written_stored_and_carded(storage: Path) -> None:
     assert page.stored is not None
     assert page.stored.filename == "morpion-halloween.html"
 
-    row = _FakeRepo.created
+    row = _FakeRepo.snapshot
     assert row["mime_type"] == "text/html"
     assert row["origin"] == AttachmentOrigin.GENERATED_DOCUMENT.value
     assert row["title"] == "morpion-halloween.html"
@@ -116,7 +96,9 @@ async def test_a_new_page_is_written_stored_and_carded(storage: Path) -> None:
     assert data.endswith(PAGE.encode())
     assert row["file_size"] == len(data)
 
-    (card,) = document_store.peek_pending_documents(_CONVERSATION)
+    assert row["conversation_id"] == uuid.UUID(_CONVERSATION)
+    assert document_store.peek_pending_documents(_CONVERSATION) == []
+    (card,) = document_store.peek_pending_documents(_RUNTIME)
     assert card.doc_type == "html"
     assert card.filename == "morpion-halloween.html"
 
@@ -171,12 +153,12 @@ async def test_show_files_the_page_and_code_files_nothing() -> None:
     shown = await svc.produce_page(_request(PageMode.SHOW, base=base))
     assert shown.stored is not None
     assert shown.stored.filename == "Morpion.html"
-    _FakeRepo.created = {}
+    _FakeRepo.snapshot = {}
     document_store.get_and_clear_pending_documents(_CONVERSATION)
 
     code = await svc.produce_page(_request(PageMode.CODE, base=base))
     assert code.stored is None
-    assert _FakeRepo.created == {}
+    assert _FakeRepo.snapshot == {}
     assert document_store.peek_pending_documents(_CONVERSATION) == []
 
 
@@ -192,7 +174,7 @@ async def test_a_page_cut_at_the_budget_is_refused_and_names_it() -> None:
     ):
         await svc.produce_page(_request(PageMode.CREATE))
     assert err.value.budget_tokens > 0
-    assert _FakeRepo.created == {}
+    assert _FakeRepo.snapshot == {}
     assert document_store.peek_pending_documents(_CONVERSATION) == []
 
 
@@ -205,6 +187,10 @@ async def test_a_page_cut_at_the_budget_is_refused_and_names_it() -> None:
             PageRefusal.EXTERNAL_SCRIPT,
         ),
         ("rien", PageRefusal.EMPTY),
+        (
+            '<body><iframe src="https://maps.example/maps?q=x&output=embed"></iframe></body>',
+            PageRefusal.EMBEDDED_DOCUMENT,
+        ),
     ],
 )
 async def test_a_page_that_cannot_work_is_refused_before_any_file(
@@ -216,7 +202,7 @@ async def test_a_page_that_cannot_work_is_refused_before_any_file(
     ):
         await svc.produce_page(_request(PageMode.CREATE))
     assert err.value.refusal is refusal
-    assert _FakeRepo.created == {}
+    assert _FakeRepo.snapshot == {}
     assert document_store.peek_pending_documents(_CONVERSATION) == []
 
 
@@ -263,14 +249,15 @@ async def test_showing_a_long_page_cuts_nothing(monkeypatch: pytest.MonkeyPatch)
 
 
 async def test_a_storage_failure_queues_no_card() -> None:
-    failing = AsyncMock(side_effect=OSError("disk full"))
+    failing = Mock(side_effect=OSError("disk full"))
     with (
         patch.object(svc, "_call_page_llm", AsyncMock(return_value=_written())),
-        patch.object(document_service, "_write_document_file", failing),
+        patch("src.domains.attachments.generated_publication._write_bytes", failing),
         pytest.raises(OSError),
     ):
         await svc.produce_page(_request(PageMode.CREATE))
-    assert document_store.peek_pending_documents(_CONVERSATION) == []
+    failing.assert_called_once()
+    assert document_store.peek_pending_documents(_RUNTIME) == []
 
 
 class TestWriterCall:
@@ -316,10 +303,51 @@ class TestPromptValues:
     def _rendered(self, request: svc.PageRequest) -> str:
         return svc.load_page_prompt().format(**svc.prompt_values(request))
 
-    def test_every_placeholder_is_produced_and_the_marker_is_there(self) -> None:
+    def test_every_placeholder_is_produced_and_the_marker_is_there(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(app_settings, "interactive_page_map_providers", [])
         rendered = self._rendered(_request(PageMode.CREATE))
         assert DYNAMIC_CONTEXT_MARKER in rendered
-        assert "{" not in rendered.split(DYNAMIC_CONTEXT_MARKER)[0]
+        static = rendered.split(DYNAMIC_CONTEXT_MARKER)[0]
+        # The three tile tokens are told to the writer as they are written in a pattern.
+        assert set(re.findall(r"\{[^}]*\}", static)) <= {"{z}", "{x}", "{y}"}
+
+    def test_the_writer_reads_the_sources_the_policy_allows(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """What the frame's policy ENFORCES, the prompt PUBLISHES, from one setting."""
+        first, second = list(MAP_TILE_PROVIDERS)[:2]
+        monkeypatch.setattr(app_settings, "interactive_page_map_providers", [first, second])
+        sources = str(svc.prompt_values(_request(PageMode.CREATE))["map_tile_sources"])
+        lines = sources.splitlines()
+        assert len(lines) == 2
+        for line, key in zip(lines, (first, second), strict=True):
+            provider = MAP_TILE_PROVIDERS[key]
+            assert provider.label in line
+            assert provider.url_template in line
+            assert provider.credit in line
+            assert str(provider.max_zoom) in line
+        prefix = page_frame("").document
+        for key in (first, second):
+            assert MAP_TILE_PROVIDERS[key].origin in prefix
+
+    def test_a_deployment_that_allows_no_source_says_so_to_the_writer(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A writer told nothing would write tiles nobody loads."""
+        monkeypatch.setattr(app_settings, "interactive_page_map_providers", [])
+        sources = str(svc.prompt_values(_request(PageMode.CREATE))["map_tile_sources"])
+        assert "http" not in sources
+        assert "none" in sources
+
+    def test_the_map_rules_sit_in_the_static_part(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Invariant for a deployment: they belong before the marker, beside the frame's rules."""
+        (first,) = list(MAP_TILE_PROVIDERS)[:1]
+        monkeypatch.setattr(app_settings, "interactive_page_map_providers", [first])
+        static = self._rendered(_request(PageMode.CREATE)).split(DYNAMIC_CONTEXT_MARKER)[0]
+        assert MAP_TILE_PROVIDERS[first].url_template in static
+        assert "iframe" in static
 
     def test_writes_in_the_language_of_the_person(self) -> None:
         assert "French" in self._rendered(_request(PageMode.CREATE, language="fr"))

@@ -39,6 +39,10 @@ def test_full_source_update_schema_is_reviewed_and_bound_to_both_modes():
         "assignee_user_id",
         "execution_mode",
         "follow",
+        # Reviewed 2026-11-11: the ticket's lane. The service lets the OWNER
+        # alone refile, and only under one of their own categories.
+        "category_id",
+        "clear_category",
     }
     assert set(WorkboardUpdateInput.model_fields) == set(TicketUpdate.model_fields) | {
         "ticket_id",
@@ -72,6 +76,10 @@ def test_full_source_update_schema_is_reviewed_and_bound_to_both_modes():
         {"move": {"status": "done", "position": 0}, "status": "todo"},
         {"run_now": True, "status": "done"},
         {"due_at": "2026-10-09T10:00:00Z", "clear_due_at": True},
+        {"clear_category": "true"},
+        {"category_id": str(uuid4()), "clear_category": True},
+        {"move": {"status": "done", "position": 0, "clear_category": "true"}},
+        {"move": {"status": "done", "position": 0, "category_id": "not-a-uuid"}},
     ],
 )
 def test_malformed_or_contradictory_native_control_is_refused(changes):
@@ -127,3 +135,26 @@ def test_update_preview_and_edit_prompt_boundaries(language):
         and "pending_preview" not in str(prompt)
         and "expected_events" not in str(prompt)
     )
+
+
+def test_the_update_confirmation_names_the_category_it_files_under():
+    """Before and after carry the ticket row; the NAME of the lane it lands in
+    is said beside them, because a row only holds an id."""
+    from src.domains.agents.application.workboard_update_schemas import WorkboardUpdateSelection
+
+    assert "category_name" in WorkboardUpdateSelection.model_fields
+    selected = WorkboardUpdateSelection.model_construct(
+        request=WorkboardUpdateInput(ticket_id=uuid4(), category_id=uuid4()),
+        before={},
+        after={},
+        pending_preview=[],
+        answer_note=None,
+        answer=None,
+        pending_before=False,
+        pending_after=False,
+        pending_approved=False,
+        holder_name=None,
+        category_name="Home",
+    )
+    assert selected.public_scope()["category_name"] == "Home"
+    assert selected.public_scope(after=True)["category_name"] == "Home"

@@ -16,6 +16,7 @@ from typing import Any, Final
 import structlog
 from imap_tools.utils import DEFAULT_EMAIL_DATE, EmailAddress
 
+from src.core.field_names import FIELD_MAIL_ANSWERED
 from src.domains.connectors.clients.email_attachments import declares_attachments
 from src.domains.connectors.clients.normalizers.html_text import html_to_text, strip_html_to_line
 from src.domains.connectors.clients.normalizers.imap_handles import message_handle
@@ -97,12 +98,21 @@ _FLAG_LABELS: tuple[tuple[str, bool, str], ...] = (
 )
 
 
-def _label_ids(msg: Any, folder: str) -> list[str]:
-    """The folder, then the labels the message's flags speak."""
+#: What a mail client flags a message it answered with: « Message has been answered »
+#: (RFC 3501 §2.3.2). Every FETCH returns the flags, headers alone or the whole message.
+_ANSWERED_FLAG: Final = "\\Answered"
+
+
+def _flags(msg: Any) -> tuple[str, ...]:
+    """A message's flags; a message whose flags cannot be read carries none."""
     try:
-        flags = msg.flags  # cached_property — must be accessed within MailBox context
+        return tuple(msg.flags)  # cached_property — must be accessed within MailBox context
     except Exception:
-        flags = ()
+        return ()
+
+
+def _label_ids(flags: tuple[str, ...], folder: str) -> list[str]:
+    """The folder, then the labels the message's flags speak."""
     return [folder] + [label for flag, present, label in _FLAG_LABELS if (flag in flags) is present]
 
 
@@ -139,6 +149,28 @@ def conversation_opening(headers: Any) -> str | None:
         for value in headers.get(name) or ():
             if found := _SEARCHABLE_MESSAGE_ID.search(str(value)):
                 return found.group()
+    return None
+
+
+def names_a_conversation(value: str) -> bool:
+    """Whether ``value`` is an id an IMAP search can carry, as :func:`conversation_opening`
+    returns them — a message naming nothing is published under its own handle instead."""
+    return _SEARCHABLE_MESSAGE_ID.fullmatch(value) is not None
+
+
+def answered_message_id(headers: Any) -> str | None:
+    """The id of the message this one says it answers (``In-Reply-To``), when a search
+    can carry it.
+
+    Args:
+        headers: The headers as ``imap_tools`` keys them (lower case, a tuple each).
+
+    Returns:
+        The id, brackets included; None when the header names none.
+    """
+    for value in headers.get("in-reply-to") or ():
+        if found := _SEARCHABLE_MESSAGE_ID.search(str(value)):
+            return found.group()
     return None
 
 
@@ -211,7 +243,8 @@ def normalize_imap_message(
             }
         )
 
-    label_ids = _label_ids(msg, folder)
+    flags = _flags(msg)
+    label_ids = _label_ids(flags, folder)
     internal_date = _internal_date(msg.date)
 
     return {
@@ -241,6 +274,8 @@ def normalize_imap_message(
         # Provider marker for downstream formatters and display components.
         # Used to determine web URL availability and "read more" link text.
         "_provider": "apple",
+        # What its mailbox says of it (ADR-379). A flag has no date: none is claimed.
+        **({FIELD_MAIL_ANSWERED: True} if _ANSWERED_FLAG in flags else {}),
     }
 
 

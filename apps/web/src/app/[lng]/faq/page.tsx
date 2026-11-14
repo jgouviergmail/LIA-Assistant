@@ -1,7 +1,7 @@
 import { type Metadata } from 'next';
 import Link from 'next/link';
 import { initI18next, validateLanguage } from '@/i18n';
-import { languages, fallbackLng, LOCALE_MAP } from '@/i18n/settings';
+import { fallbackLng } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
 import { FAQPageJsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { LandingHeader } from '@/components/landing/LandingHeader';
@@ -12,6 +12,7 @@ import { PUBLIC_FAQ_SECTIONS } from '@/components/faq/faq-sections';
 import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
 import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
 import { CosmosThemeDefault } from '@/components/landing/cosmic/CosmosThemeDefault';
+import { publicPageMetadata } from '@/lib/public-page-metadata';
 import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
 
 function buildLangUrl(path: string, lng: Language): string {
@@ -27,35 +28,7 @@ export async function generateMetadata({ params }: FAQPageProps): Promise<Metada
   const lng = validateLanguage(lngParam);
   const { t } = await initI18next(lng);
 
-  const title = `FAQ — ${t('landing.meta.title')}`;
-  const description = t('faq.subtitle');
-  const canonicalUrl = buildLangUrl('/faq', lng);
-
-  const langAlternates: Record<string, string> = {};
-  for (const l of languages) {
-    langAlternates[l] = buildLangUrl('/faq', l);
-  }
-  langAlternates['x-default'] = buildLangUrl('/faq', fallbackLng);
-
-  return {
-    title,
-    description,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: langAlternates,
-    },
-    openGraph: {
-      title,
-      description,
-      url: canonicalUrl,
-      locale: LOCALE_MAP[lng],
-      alternateLocale: languages.filter(l => l !== lng).map(l => LOCALE_MAP[l]),
-    },
-    twitter: {
-      title,
-      description,
-    },
-  };
+  return publicPageMetadata(lng, '/faq', t('faq.meta_title'), t('faq.meta_description'));
 }
 
 export default async function PublicFAQPage({ params }: FAQPageProps) {

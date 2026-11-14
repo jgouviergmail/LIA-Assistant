@@ -26,6 +26,7 @@ from src.core.exceptions import (
 from src.core.field_names import FIELD_IS_ACTIVE, FIELD_USER_ID
 from src.core.i18n import _, normalize_language
 from src.core.sql_search import LIKE_ESCAPE, escape_like
+from src.domains.users.activation_policy import assert_activation_allowed
 from src.domains.users.display_preferences import requires_preference_lock, validate_display_patch
 from src.domains.users.models import User
 from src.domains.users.preference_cas import (
@@ -307,14 +308,10 @@ class UserService:
         Raises:
             HTTPException: If user not found
         """
-        user = await self.repository.get_by_id(user_id)
-
-        if not user:
+        user = await self.repository.get_by_id(user_id, include_inactive=hard_delete)
+        if user is None:
             raise_user_not_found(user_id)
-
-        # Type narrowing: user is User (not None) after exception check
         assert user is not None
-
         if hard_delete:
             await self.repository.hard_delete(user)
             logger.info("user_hard_deleted", user_id=str(user_id))
@@ -665,7 +662,7 @@ class UserService:
         Raises:
             ResourceNotFoundError: If user not found
         """
-        user = await self.repository.get_by_id(user_id, include_inactive=True)
+        user = await self.repository.get_by_id(user_id, include_inactive=True, lock=True)
         if not user:
             raise_user_not_found(user_id)
 
@@ -675,6 +672,9 @@ class UserService:
         # Extract request metadata
         ip_address = resolve_client_ip(request) if request else None
         user_agent = request.headers.get("user-agent") if request else None
+
+        # Account cleanup commits before native I/O; it cannot be undone by reactivation.
+        assert_activation_allowed(user, requested=update_data.is_active)
 
         # Update activation status
         user.is_active = update_data.is_active
@@ -840,6 +840,9 @@ class UserService:
             ip_address=ip_address,
             user_agent=user_agent,
         )
+
+        # End audit/read SQL before waiting on Redis (the final erasure re-locks).
+        await self.db.commit()
 
         # Invalidate all sessions
         await self._invalidate_all_user_sessions(user_id)

@@ -25,6 +25,7 @@ from src.domains.agents.context.runtime_context import (
     LiaRuntimeContext,
     assert_runtime_context,
 )
+from tests.fixtures.conversation_cases import conversation_target
 
 
 def _ctx(**overrides) -> LiaRuntimeContext:
@@ -151,7 +152,9 @@ def test_no_hardcoded_language_or_timezone_literal_in_the_module() -> None:
 def test_for_conversation_makes_the_thread_mirror_the_conversation() -> None:
     """LangGraph's thread_id IS the conversation id for a normal run."""
     cid = uuid.uuid4()
-    ctx = LiaRuntimeContext.for_conversation(user_id=uuid.uuid4(), conversation_id=cid)
+    ctx = LiaRuntimeContext.for_conversation(
+        target=conversation_target(uuid.uuid4(), cid),
+    )
 
     assert ctx.thread_id == str(cid)
     assert ctx.conversation_id == str(cid)
@@ -163,8 +166,7 @@ def test_for_conversation_forwards_overrides_and_live_objects() -> None:
     sentinel = object()
 
     ctx = LiaRuntimeContext.for_conversation(
-        user_id=uuid.uuid4(),
-        conversation_id=uuid.uuid4(),
+        target=conversation_target(uuid.uuid4(), uuid.uuid4()),
         language="de",
         timezone="Europe/Berlin",
         side_channel_queue=queue,
@@ -186,7 +188,9 @@ def test_deriving_a_sub_thread_keeps_the_conversation() -> None:
     real conversation.
     """
     cid = uuid.uuid4()
-    parent = LiaRuntimeContext.for_conversation(user_id=uuid.uuid4(), conversation_id=cid)
+    parent = LiaRuntimeContext.for_conversation(
+        target=conversation_target(uuid.uuid4(), cid),
+    )
 
     child = dataclasses.replace(parent, thread_id="react_sub_1")
 
@@ -210,6 +214,8 @@ def test_the_context_carries_every_value_the_chokepoint_builds() -> None:
         "thread_id",
         "user_id",
         "conversation_id",
+        "runtime_id",
+        "conversation_revision",
         "store",
         "memory_enabled",
         "extraction_revision",
@@ -245,10 +251,13 @@ def test_the_builder_carries_the_voice_preference() -> None:
     state = {"messages": []}
     user_id, conversation_id = uuid.uuid4(), uuid.uuid4()
     with_voice = build_runtime_context(
-        state=state, user_id=user_id, conversation_id=conversation_id, user_voice_enabled=True
+        state=state, target=conversation_target(user_id, conversation_id), user_voice_enabled=True
     )
     assert with_voice.voice_enabled is True
-    without = build_runtime_context(state=state, user_id=user_id, conversation_id=conversation_id)
+    without = build_runtime_context(
+        state=state,
+        target=conversation_target(user_id, conversation_id),
+    )
     assert without.voice_enabled is False
 
 
@@ -279,11 +288,13 @@ def test_build_runtime_context_carries_the_effective_exchange_rhythm(
 
     chosen = build_runtime_context(
         state=state,
-        user_id=user_id,
-        conversation_id=conversation_id,
+        target=conversation_target(user_id, conversation_id),
         user_exchange_rhythm="occasional",
     )
-    unset = build_runtime_context(state=state, user_id=user_id, conversation_id=conversation_id)
+    unset = build_runtime_context(
+        state=state,
+        target=conversation_target(user_id, conversation_id),
+    )
 
     assert chosen.exchange_rhythm is ExchangeRhythm.OCCASIONAL
     assert unset.exchange_rhythm is effective_exchange_rhythm(None)

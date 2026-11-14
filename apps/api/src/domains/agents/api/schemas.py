@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from src.core.application_device_snapshot import RecordingDeviceSnapshot
 from src.core.card_composition import CardCompositionRequest
 from src.core.constants import CHAT_MESSAGE_MAX_LENGTH, ENTITY_RESOLUTION_MAX_CANDIDATES_CAP
+from src.core.conversation_selection import ConversationSelection
 from src.domains.agents.capability_directives import DirectiveCapability
 
 
@@ -144,7 +145,7 @@ class CapabilityDirectiveRequest(BaseModel):
     )
 
 
-class ChatRequest(BaseModel):
+class ChatRequest(ConversationSelection):
     """
     Request to send a message to the agent.
 

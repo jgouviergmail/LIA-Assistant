@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from fastapi import Response
 
 from src.domains.scheduled_actions import router as router_module
 from src.domains.scheduled_actions.schemas import (
@@ -27,10 +28,11 @@ pytestmark = pytest.mark.unit
 
 
 def _service() -> MagicMock:
-    action = SimpleNamespace(id=uuid4())
+    action = SimpleNamespace(id=uuid4(), trigger_kind="time")
     return MagicMock(
         create=AsyncMock(return_value=action),
         update=AsyncMock(return_value=action),
+        get_with_ownership_check=AsyncMock(return_value=action),
         set_mcp_preapproval=AsyncMock(return_value=action),
     )
 
@@ -54,7 +56,7 @@ async def _create(service: MagicMock, payload: dict[str, Any]) -> None:
         patch.object(router_module, "_action_to_response", return_value=None),
     ):
         await router_module.create_scheduled_action(
-            ScheduledActionFormCreate.model_validate(payload), user=user, db=db
+            ScheduledActionFormCreate.model_validate(payload), Response(), user=user, db=db
         )
 
 
@@ -66,7 +68,7 @@ async def _update(service: MagicMock, payload: dict[str, Any]) -> None:
         patch.object(router_module, "_action_to_response", return_value=None),
     ):
         await router_module.update_scheduled_action(
-            uuid4(), ScheduledActionFormUpdate.model_validate(payload), user=user, db=db
+            uuid4(), ScheduledActionFormUpdate.model_validate(payload), Response(), user=user, db=db
         )
 
 

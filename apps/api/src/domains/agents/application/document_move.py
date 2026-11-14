@@ -40,6 +40,7 @@ from src.domains.rag_spaces.document_move_files import (
 from src.domains.rag_spaces.document_ops import relocate_document_rows
 from src.domains.rag_spaces.models import RAGDocument
 from src.domains.rag_spaces.service import RAGSpaceService
+from src.domains.users.file_writers import account_file_write
 from src.domains.users.preference_cas import PreferenceWriteReceipt
 from src.infrastructure.observability.logging import get_logger
 
@@ -155,51 +156,52 @@ async def execute_document_move(
     draft: ApplicationActionDraftContent,
     receipt: PreferenceWriteReceipt,
 ) -> None:
-    if draft.actor_id != actor_id or draft.operation_id != DOCUMENT_MOVE_OPERATION.operation_id:
-        raise CommandRejected("FORBIDDEN")
-    if not canonical_document_move(draft):
-        raise ValueError("Movement requires canonical exact approval")
-    selected = DocumentMovePatch.model_validate(draft.intent).documents_to_move
+    async with account_file_write(db, actor_id):
+        if draft.actor_id != actor_id or draft.operation_id != DOCUMENT_MOVE_OPERATION.operation_id:
+            raise CommandRejected("FORBIDDEN")
+        if not canonical_document_move(draft):
+            raise ValueError("Movement requires canonical exact approval")
+        selected = DocumentMovePatch.model_validate(draft.intent).documents_to_move
 
-    async def check() -> None:
-        await _access(db, actor_id)
-        await require_move_idle()
-        if datetime.now(UTC) >= draft.expires_at:
-            raise CommandRejected("EXPIRED")
+        async def check() -> None:
+            await _access(db, actor_id)
+            await require_move_idle()
+            if datetime.now(UTC) >= draft.expires_at:
+                raise CommandRejected("EXPIRED")
 
-    await check()
-    service = RAGSpaceService(db)
-    for space_id in sorted((selected.request.space_id, selected.target.id)):
-        await service.get_space(space_id, actor_id, for_update=True)
-    if await document_move_selection(db, actor_id, selected.request) != selected:
-        raise ResourceConflictError("document_move", detail={"error_code": "STALE_STATE"})
-    await lock_document_deletion(db, actor_id, selected.documents.request)
-    if await document_move_selection(db, actor_id, selected.request) != selected:
-        raise ResourceConflictError("document_move", detail={"error_code": "STALE_STATE"})
-    staged: list[StagedDocumentFile] = []
-    committing = False
-    try:
-        await _stage_sources(actor_id, selected, staged, check)
         await check()
-        await _verify_parents(db, actor_id, selected)
-        if (
-            await document_deletion_selection(db, actor_id, selected.documents.request)
-            != selected.documents
-        ):
+        service = RAGSpaceService(db)
+        for space_id in sorted((selected.request.space_id, selected.target.id)):
+            await service.get_space(space_id, actor_id, for_update=True)
+        if await document_move_selection(db, actor_id, selected.request) != selected:
             raise ResourceConflictError("document_move", detail={"error_code": "STALE_STATE"})
-        await _move_index_rows(db, actor_id, selected)
-        await check()
-        committing = True
+        await lock_document_deletion(db, actor_id, selected.documents.request)
+        if await document_move_selection(db, actor_id, selected.request) != selected:
+            raise ResourceConflictError("document_move", detail={"error_code": "STALE_STATE"})
+        staged: list[StagedDocumentFile] = []
+        committing = False
         try:
-            await db.commit()
-        except (Exception, asyncio.CancelledError) as error:
-            raise CommandRejected("COMPLETION_UNKNOWN") from error
-    except BaseException:
-        if not committing:
-            await db.rollback()
-            await _rollback_copies(staged)
-        raise
-    receipt.committed = True
-    public = {**selected.public_scope(after=True), "moved": True, "file_cleanup_pending": True}
-    receipt.values = {"documents_to_move": public}
-    public["file_cleanup_pending"] = not await _clean_originals(actor_id, selected)
+            await _stage_sources(actor_id, selected, staged, check)
+            await check()
+            await _verify_parents(db, actor_id, selected)
+            if (
+                await document_deletion_selection(db, actor_id, selected.documents.request)
+                != selected.documents
+            ):
+                raise ResourceConflictError("document_move", detail={"error_code": "STALE_STATE"})
+            await _move_index_rows(db, actor_id, selected)
+            await check()
+            committing = True
+            try:
+                await db.commit()
+            except (Exception, asyncio.CancelledError) as error:
+                raise CommandRejected("COMPLETION_UNKNOWN") from error
+        except BaseException:
+            if not committing:
+                await db.rollback()
+                await _rollback_copies(staged)
+            raise
+        receipt.committed = True
+        public = {**selected.public_scope(after=True), "moved": True, "file_cleanup_pending": True}
+        receipt.values = {"documents_to_move": public}
+        public["file_cleanup_pending"] = not await _clean_originals(actor_id, selected)

@@ -305,7 +305,6 @@ async def test_deferred_native_job_uses_the_real_source_worker_and_persists_its_
     with (
         patch("src.infrastructure.database.session.get_db_context", session),
         patch("src.domains.agents.application.routine_execution_policy.get_db_context", session),
-        patch("src.domains.agents.application.routine_execution.get_redis_cache", AsyncMock()),
         patch(
             "src.domains.agents.application.routine_execution.wait_for_routine_turn",
             AsyncMock(return_value=True),
@@ -315,17 +314,16 @@ async def test_deferred_native_job_uses_the_real_source_worker_and_persists_its_
             AsyncMock(return_value=intervention == "quota"),
         ) as quota,
         patch(
-            "src.infrastructure.scheduler.scheduled_action_executor.conversation_has_pending_hitl",
-            AsyncMock(return_value=(False, None)),
-        ),
-        patch(
             "src.infrastructure.scheduler.scheduled_action_executor.stream_instruction", generation
         ),
-        patch("src.infrastructure.scheduler.scheduled_action_executor._notify_result", AsyncMock()),
+        patch("src.infrastructure.scheduler.scheduled_action_executor.notify_result", AsyncMock()),
     ):
-        await _run_reserved(reservation, "owned-conversation")
+        await _run_reserved(reservation)
     assert generation.await_count == int(intervention == "none")
-    quota.assert_awaited_once()
+    # The ceiling is asked of every launch still authorized to run. One whose
+    # approved instruction changed is refused BEFORE it: it must neither run
+    # nor settle, so it has no reason to leave on the week either.
+    assert quota.await_count == int(intervention != "changed")
     await async_session.refresh(row)
     assert row.status == "active" and row.execution_token is None
     runs = list(
@@ -335,7 +333,12 @@ async def test_deferred_native_job_uses_the_real_source_worker_and_persists_its_
             )
         ).all()
     )
-    assert len(runs) == int(intervention == "none")
+    # A ceiling refusal is said, never a failure (ADR-265 amendment 2026-11-12):
+    # its row is the reason on the week, and nothing is counted against the routine.
+    expected = {"none": ["success"], "quota": ["skipped_quota"], "changed": []}
+    assert [run.outcome for run in runs] == expected[intervention]
+    assert all(run.manual for run in runs)
+    assert row.consecutive_failures == 0
+    assert row.execution_count == int(intervention == "none")
     if intervention == "none":
         assert generation.await_args.args[0].prompt == "Approved instruction"
-        assert runs[0].outcome == "success" and runs[0].manual and row.execution_count == 1

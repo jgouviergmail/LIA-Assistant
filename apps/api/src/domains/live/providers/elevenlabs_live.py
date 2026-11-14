@@ -49,7 +49,6 @@ from dataclasses import asdict, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, Final
 
-import httpx
 import structlog
 
 from src.core.config import settings
@@ -66,6 +65,7 @@ from src.core.constants import (
     ELEVENLABS_LIVE_TOOLS_METADATA_KEY,
     ELEVENLABS_LIVE_WS_SUBPROTOCOL,
     LIVE_DELEGATION_TOOL_NAME,
+    TELEPHONY_LIVE_TOOL_PROVISIONING_CONCURRENCY,
 )
 from src.domains.connectors.models import ConnectorType
 from src.domains.live.providers.protocol import (
@@ -86,7 +86,13 @@ from src.domains.telephony.client import (
     ElevenLabsAgentsClient,
     ElevenLabsAgentsError,
     ToolRelease,
-    first_refusal,
+)
+from src.domains.telephony.workspace_tools import (
+    VENDOR_FAILURES,
+    agent_tool_ids,
+    create_tools,
+    read_workspace_tools,
+    repair_set,
 )
 from src.domains.voice.cue_prompt import palette
 from src.domains.voice.expressive_cues import CueDialect, dialect_named
@@ -141,13 +147,14 @@ def declarations_of(inputs: LiveSetupInputs) -> list[dict[str, Any]]:
     return list(inputs.direct_tools)
 
 
-def tools_fingerprint(declarations: list[dict[str, Any]]) -> str:
-    """One digest of what the agent must hold: a changed description re-provisions."""
-    canonical = json.dumps(
-        [{k: v for k, v in declaration.items() if k != "behavior"} for declaration in declarations],
-        sort_keys=True,
-        separators=(",", ":"),
-    )
+def tools_fingerprint(bodies: list[dict[str, Any]]) -> str:
+    """One digest of everything the workspace must hold for a set, in its order.
+
+    Read on the BODIES the workspace is sent, as the phone does: a changed
+    description, a parameter, a timeout an operator raised — any byte LIA sends —
+    names another set, which is created and replaces the old one.
+    """
+    canonical = json.dumps(bodies, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
 
 
@@ -168,6 +175,21 @@ def client_tool_body(declaration: dict[str, Any], *, timeout_seconds: int) -> di
             "response_timeout_secs": min(timeout_seconds, ELEVENLABS_LIVE_TOOL_TIMEOUT_MAX_SECONDS),
         }
     }
+
+
+def set_bodies(inputs: LiveSetupInputs) -> list[dict[str, Any]]:
+    """The workspace bodies of a setup's set, in the declarations' order.
+
+    The timeout is the wire's: the delegation waits for a whole chat turn
+    (``LIVE_DELEGATION_TIMEOUT_SECONDS``), a direct lookup for one tool
+    (``TELEPHONY_LIVE_TOOL_TIMEOUT_SECONDS``).
+    """
+    timeout = (
+        settings.live_delegation_timeout_seconds
+        if inputs.tool_declaration is not None
+        else settings.telephony_live_tool_timeout_seconds
+    )
+    return [client_tool_body(d, timeout_seconds=timeout) for d in declarations_of(inputs)]
 
 
 def voice_model_of(agent: dict[str, Any]) -> str | None:
@@ -278,20 +300,31 @@ def _retire_previous(
     return held.pop(previous, [])
 
 
-async def _create_set(
-    client: ElevenLabsAgentsClient, inputs: LiveSetupInputs, declarations: list[dict[str, Any]]
-) -> list[str]:
-    """Create one set of client tools for a setup, under the timeout its wire needs."""
-    timeout = (
-        settings.live_delegation_timeout_seconds
-        if inputs.tool_declaration is not None
-        else settings.telephony_live_tool_timeout_seconds
-    )
-    created = await _create_client_tools(
-        client, [client_tool_body(d, timeout_seconds=timeout) for d in declarations]
-    )
-    logger.info("elevenlabs_live_tools_created", tool_count=len(created))
-    return created
+async def _hold_set(
+    client: ElevenLabsAgentsClient,
+    recorded: list[str] | None,
+    bodies: list[dict[str, Any]],
+) -> tuple[list[str], list[str], dict[str, dict[str, Any]] | None]:
+    """The set this setup needs, exactly as LIA sends it, in the workspace.
+
+    A set never recorded (or recorded under another shape) is created whole —
+    exact by construction. A recorded one is held against what the workspace
+    serves today: a tool edited on the portal is rewritten in place, a lost one
+    re-created (owner decision 2026-11-11: never an agent with tools out of date
+    or incomplete); a workspace that cannot be read refuses the start.
+
+    Returns:
+        The set's ids, the ids created by this call (removed if the attach is
+        refused), and the client tools the workspace served (None when no
+        listing was read).
+    """
+    if recorded is None or len(recorded) != len(bodies):
+        created = await create_tools(client, bodies)
+        logger.info("elevenlabs_live_tools_created", tool_count=len(created))
+        return created, created, None
+    listing = await read_workspace_tools(client, "client")
+    repair = await repair_set(client, recorded, bodies, listing, surface="live")
+    return list(repair.ids), list(repair.recreated), listing
 
 
 class ElevenLabsLiveProvider:
@@ -477,17 +510,20 @@ class ElevenLabsLiveProvider:
         part, never the session.
 
         The agent's tools are LIA's referential (ADR-373): its ``tool_ids``
-        are set to EXACTLY this session's set, created once per fingerprint of
-        the declarations — the person's own tools and LIA's other set are
-        detached, never deleted (a delegated session never sees the read-only
-        tools, and vice versa). A new fingerprint of a KIND (a renamed
-        description, a tool a release added) retires the set that kind held
-        before, so at most one set per kind lives in the workspace. Once
-        detached, what LIA left on this agent is released without force
-        (:func:`_sweep`). An attach refused because the workspace lost a tool
-        of the set is healed once (:func:`_attach`); any other refusal deletes
-        the set this call created (the metadata naming it is stored by the
-        caller, once this returns) and re-raises.
+        are set to EXACTLY this session's set, recorded once per fingerprint
+        of the bodies LIA sends (:func:`tools_fingerprint`) — the person's own
+        tools and LIA's other set are detached, never deleted (a delegated
+        session never sees the read-only tools, and vice versa). Before the
+        agent is handed a recorded set, the set is held against what the
+        workspace serves (:func:`_hold_set`, amendment 2026-11-11): every
+        opening — start, wake, reconnection — finds the tools exactly as LIA
+        sends them today, or does not open. A new fingerprint of a KIND (a
+        renamed description, a tool a release added, a raised timeout) retires
+        the set that kind held before, so at most one set per kind lives in the
+        workspace. Once detached, what LIA left on this agent is released
+        without force (:func:`_sweep`). A refused attach deletes the tools
+        this call created (the metadata naming them is stored by the caller,
+        once this returns) and re-raises.
 
         Args:
             api_key: The person's key.
@@ -508,28 +544,27 @@ class ElevenLabsLiveProvider:
         agent = await client.get_agent(agent_id)
         await _grant_overrides(client, agent_id, agent)
         await _write_expression(client, agent_id, agent, dialect_named(inputs.cue_dialect))
-        declarations = declarations_of(inputs)
-        fingerprint = tools_fingerprint(declarations)
+        bodies = set_bodies(inputs)
+        fingerprint = tools_fingerprint(bodies)
         held, kinds = _held_sets(updated)
-        fresh = fingerprint not in held
-        if fresh:
-            held[fingerprint] = await _create_set(client, inputs, declarations)
+        recorded = held.get(fingerprint)
+        # A set recorded under another shape is replaced whole: its old ids are
+        # released below like a retired set's.
+        reshaped = recorded if recorded is not None and len(recorded) != len(bodies) else []
+        held[fingerprint], created, listing = await _hold_set(client, recorded, bodies)
         # The set this kind held before, when it is another one: released
         # below, once the agent no longer names it.
-        retired_ids = _retire_previous(held, kinds, set_kind_of(inputs), fingerprint)
-        carried = _agent_tool_ids(agent)
+        retired_ids = [*_retire_previous(held, kinds, set_kind_of(inputs), fingerprint), *reshaped]
+        carried = agent_tool_ids(agent)
         if held[fingerprint] != carried:
             try:
-                held[fingerprint] = await _attach(
-                    client, agent_id, inputs, declarations, held[fingerprint], may_heal=not fresh
-                )
-            except ElevenLabsAgentsError:
-                # The caller stores the metadata only once this returns: a set
+                await client.set_agent_tool_ids(agent_id, held[fingerprint])
+            except VENDOR_FAILURES:
+                # The caller stores the metadata only once this returns: a tool
                 # created by THIS call would be named by nothing, and the next
-                # start would create it again — one orphan set per attempt.
-                if fresh:
-                    for tool_id in held[fingerprint]:
-                        await client.delete_tool(tool_id)
+                # start would create it again — one orphan per attempt.
+                for tool_id in created:
+                    await client.delete_tool(tool_id)
                 raise
         updated[ELEVENLABS_LIVE_TOOLS_METADATA_KEY] = held
         updated[ELEVENLABS_LIVE_TOOL_KINDS_METADATA_KEY] = kinds
@@ -542,6 +577,7 @@ class ElevenLabsLiveProvider:
                 if tool_id not in current
             ],
             recorded=set(retired_ids),
+            listing=listing,
         )
         return updated
 
@@ -649,122 +685,6 @@ def _metadata_of(ws: Any, message: Any) -> dict[str, Any] | None:
     return None
 
 
-async def _create_client_tools(
-    client: ElevenLabsAgentsClient, bodies: list[dict[str, Any]]
-) -> list[str]:
-    """Create every client tool, concurrently under the phone's bound, in the declarations' order.
-
-    Never leaves half a set behind: on a vendor failure what was created is
-    removed (forced) before the failure is re-raised — a set the metadata
-    never recorded would be orphaned in the person's workspace. The siblings
-    are CANCELLED and awaited first (a ``TaskGroup``, never ``gather``):
-    measured 2026-09-19 on dev, ``gather`` raised on the third refusal while
-    fifty creations went on, the rollback iterated a dict they kept filling
-    (« dictionary changed size during iteration ») and every tool created
-    after it was an orphan nobody recorded.
-    """
-    from src.domains.agents.telephony.live_tools import LIVE_TOOL_PROVISIONING_CONCURRENCY
-
-    created: dict[int, str] = {}
-    gate = asyncio.Semaphore(LIVE_TOOL_PROVISIONING_CONCURRENCY)
-
-    async def _create(index: int, body: dict[str, Any]) -> None:
-        async with gate:
-            created[index] = await client.create_tool(body)
-
-    refused: ElevenLabsAgentsError | None = None
-    try:
-        async with asyncio.TaskGroup() as group:
-            for index, body in enumerate(bodies):
-                group.create_task(_create(index, body))
-    except* ElevenLabsAgentsError as refusals:
-        refused = first_refusal(refusals)
-    if refused is not None:
-        # Every sibling is finished or cancelled here: the snapshot is complete.
-        for tool_id in list(created.values()):
-            await client.delete_tool(tool_id)
-        raise refused
-    return [created[i] for i in range(len(bodies))]
-
-
-async def _attach(
-    client: ElevenLabsAgentsClient,
-    agent_id: str,
-    inputs: LiveSetupInputs,
-    declarations: list[dict[str, Any]],
-    ids: list[str],
-    *,
-    may_heal: bool,
-) -> list[str]:
-    """Make the agent carry EXACTLY ``ids``; heal, once, a set the workspace lost.
-
-    A portal deletion, a sibling instance's sweep or a hand cleanup leaves the
-    metadata naming a tool the vendor no longer holds, and the vendor refuses
-    to attach it — before this, a session refused for ever. A refused attach
-    is read against the workspace: the lost tools are re-created in their
-    place and the attach retried once. A refusal no lost tool explains is
-    raised as is, and a set this very call created (``may_heal`` false) cannot
-    have lost one.
-
-    Returns:
-        The ids the agent now carries: ``ids``, or the healed set.
-
-    Raises:
-        ElevenLabsAgentsError: The refusal, when no lost tool explains it, or
-            the retry's — the tools the heal created removed first.
-    """
-    try:
-        await client.set_agent_tool_ids(agent_id, ids)
-        return ids
-    except ElevenLabsAgentsError:
-        lost = await _lost_ids(client, ids) if may_heal else []
-        if not lost:
-            raise
-    healed, created = await _recreate(client, inputs, declarations, ids, lost)
-    try:
-        await client.set_agent_tool_ids(agent_id, healed)
-    except ElevenLabsAgentsError:
-        for tool_id in created:
-            await client.delete_tool(tool_id)
-        raise
-    logger.info("elevenlabs_live_tools_healed", tool_count=len(created))
-    return healed
-
-
-async def _lost_ids(client: ElevenLabsAgentsClient, ids: list[str]) -> list[str]:
-    """The ids of ``ids`` the workspace no longer holds; none when it cannot be read."""
-    try:
-        alive = {str(tool["id"]) for tool in await client.list_tools()}
-    except (ElevenLabsAgentsError, httpx.RequestError) as exc:
-        logger.warning("elevenlabs_live_tools_unlisted", error_type=type(exc).__name__)
-        return []
-    return [tool_id for tool_id in ids if tool_id not in alive]
-
-
-async def _recreate(
-    client: ElevenLabsAgentsClient,
-    inputs: LiveSetupInputs,
-    declarations: list[dict[str, Any]],
-    ids: list[str],
-    lost: list[str],
-) -> tuple[list[str], list[str]]:
-    """``ids`` with each lost tool re-created in its place, and the ids created.
-
-    The set is held in the declarations' order; a set that does not match
-    them is re-created whole.
-    """
-    if len(ids) != len(declarations):
-        created = await _create_set(client, inputs, declarations)
-        return created, created
-    missing = set(lost)
-    positions = [index for index, tool_id in enumerate(ids) if tool_id in missing]
-    created = await _create_set(client, inputs, [declarations[index] for index in positions])
-    healed = list(ids)
-    for index, tool_id in zip(positions, created, strict=True):
-        healed[index] = tool_id
-    return healed, created
-
-
 def _lia_tool_names() -> frozenset[str]:
     """The names LIA gives the client tools it creates: the delegation, every live lookup."""
     from src.domains.agents.telephony.live_tools import live_tool_specs
@@ -772,14 +692,17 @@ def _lia_tool_names() -> frozenset[str]:
     return frozenset({LIVE_DELEGATION_TOOL_NAME, *(spec.name for spec in live_tool_specs())})
 
 
-def _named_as_lia(tool: dict[str, Any], names: frozenset[str]) -> bool:
-    """Whether a workspace tool is a CLIENT tool named as one of LIA's."""
-    config = _mapping(tool.get("tool_config"))
+def _named_as_lia(config: dict[str, Any], names: frozenset[str]) -> bool:
+    """Whether a workspace tool's config is a CLIENT tool named as one of LIA's."""
     return config.get("type") == "client" and config.get("name") in names
 
 
 async def _sweep(
-    client: ElevenLabsAgentsClient, candidates: list[str], *, recorded: set[str]
+    client: ElevenLabsAgentsClient,
+    candidates: list[str],
+    *,
+    recorded: set[str],
+    listing: dict[str, dict[str, Any]] | None = None,
 ) -> None:
     """Release from the workspace what LIA left on this agent, never what another agent uses.
 
@@ -790,16 +713,18 @@ async def _sweep(
     same key; the person's own tools stay in their workspace. Each is deleted
     WITHOUT force: a tool another agent still uses is kept and counted. Scoped
     to this agent — a workspace-wide scan by name would free the set a
-    sibling instance holds detached. Best effort: an unreadable workspace
+    sibling instance holds detached. The listing the set was verified on
+    serves here too; read otherwise, best effort: an unreadable workspace
     skips the sweep, never the session.
     """
     if not candidates:
         return
-    try:
-        listing = {str(tool["id"]): tool for tool in await client.list_tools()}
-    except (ElevenLabsAgentsError, httpx.RequestError) as exc:
-        logger.warning("elevenlabs_live_tool_sweep_skipped", error_type=type(exc).__name__)
-        return
+    if listing is None:
+        try:
+            listing = await read_workspace_tools(client, "client")
+        except VENDOR_FAILURES as exc:
+            logger.warning("elevenlabs_live_tool_sweep_skipped", error_type=type(exc).__name__)
+            return
     names = _lia_tool_names()
     doomed = [
         tool_id
@@ -821,10 +746,8 @@ async def _sweep(
 
 async def _release_all(client: ElevenLabsAgentsClient, tool_ids: list[str]) -> list[ToolRelease]:
     """Release each tool, concurrently under the provisioning bound, outcomes in order."""
-    from src.domains.agents.telephony.live_tools import LIVE_TOOL_PROVISIONING_CONCURRENCY
-
     outcomes: dict[int, ToolRelease] = {}
-    gate = asyncio.Semaphore(LIVE_TOOL_PROVISIONING_CONCURRENCY)
+    gate = asyncio.Semaphore(TELEPHONY_LIVE_TOOL_PROVISIONING_CONCURRENCY)
 
     async def _release(index: int, tool_id: str) -> None:
         async with gate:
@@ -834,13 +757,6 @@ async def _release_all(client: ElevenLabsAgentsClient, tool_ids: list[str]) -> l
         for index, tool_id in enumerate(tool_ids):
             group.create_task(_release(index, tool_id))
     return [outcomes[index] for index in range(len(tool_ids))]
-
-
-def _agent_tool_ids(agent: dict[str, Any]) -> list[str]:
-    """The tool ids the agent holds, as the vendor serves them."""
-    prompt = ((agent.get("conversation_config") or {}).get("agent") or {}).get("prompt") or {}
-    ids = prompt.get("tool_ids") or []
-    return [str(tool_id) for tool_id in ids if isinstance(tool_id, str)]
 
 
 def _child(parent: dict[str, Any], key: str) -> dict[str, Any]:

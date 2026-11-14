@@ -29,13 +29,14 @@ import { EYE_EXPRESSIONS, type EyeExpression } from '@/components/eyes/expressio
 
 const CSS = readFileSync(join(process.cwd(), 'src/styles/eyes.css'), 'utf8');
 
-/** The brow's own lift above the eye, from its `translate` — its own regex
- * because the value lives inside a `calc()` rather than in a plain length. */
+/** The brow's own lift above the eye — the breath its box keeps over the
+ * edge it hangs from. Its own regex because the value lives inside a
+ * `calc()` rather than in a plain length. */
 function browBaseOffset(): number {
   const block = CSS.slice(CSS.indexOf('.lia-eye-brow {'));
   const match = block
-    .slice(0, block.indexOf('}'))
-    .match(/calc\(-100% - ([\d.]+)em \+ var\(--brow-y\)\)/);
+    .slice(0, block.indexOf('\n}'))
+    .match(/--brow-lift:\s*calc\(var\(--brow-h\) \+ ([\d.]+)em\)/);
   if (!match) throw new Error('no brow base offset');
   return Number(match[1]);
 }
@@ -224,7 +225,7 @@ describe('the speech bubble', () => {
    * authored, which is not what a `surprised` answer at full intensity draws. */
   function browReachEm(): number {
     const base = browBaseOffset();
-    const height = cssLength('.lia-eye-brow {', 'height');
+    const height = cssLength('.lia-eye-brow {', '--brow-h');
     const padding = cssLength('.lia-eyes-gaze {', 'padding');
     const loudest = AMPLITUDE_MAX * FAMILY_DYNAMICS.lively.amplitude;
     const neutral = resolvePose('neutral', 'cozmo');

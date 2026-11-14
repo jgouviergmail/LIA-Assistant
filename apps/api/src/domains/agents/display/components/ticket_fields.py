@@ -55,6 +55,12 @@ def ticket_core_fields(data: dict[str, Any], ctx: RenderContext) -> str:
                 "person",
             )
         )
+    category = scalar_text(data.get("category"))
+    if category:
+        # The lane the ticket is filed under, by its NAME: off the board there
+        # is no lane to say it. No colour of its own — categories are told
+        # apart by their name, never by a hue each (owner, 2026-11-11).
+        chips.append(render_chip(category, "indigo", "label"))
     dates = ""
     date_fields: tuple[tuple[str, CardLabel], ...] = (("start_at", "start"), ("due_at", "due"))
     for key, label_key in date_fields:

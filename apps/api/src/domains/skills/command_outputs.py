@@ -16,22 +16,17 @@ the API's own origin:
 
 from __future__ import annotations
 
-import asyncio
-import contextlib
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Literal
 
-from src.core.config import settings
+from src.domains.attachments.file_contracts import UploadMetadata
+from src.domains.attachments.generated_publication import publish_generated_files
 from src.domains.attachments.models import (
     AttachmentContentType,
     AttachmentOrigin,
-    AttachmentStatus,
 )
-from src.domains.attachments.repository import AttachmentRepository
 from src.domains.attachments.thread_id import conversation_uuid
 from src.domains.attachments.urls import attachment_url
 from src.domains.document_generation.document_store import PendingDocument, store_pending_document
@@ -162,23 +157,10 @@ def classify(file: OutputFile) -> Deliverable | str:
     return Deliverable(file.name, extension, mime_type, family, file.data)
 
 
-def _write(root: Path, relative: str, data: bytes) -> None:
-    target = root / relative
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(data)
-
-
-def _unlink(root: Path, relatives: Sequence[str]) -> None:
-    for relative in relatives:
-        # Best effort: the TTL sweep never sees a file with no row.
-        with contextlib.suppress(OSError):
-            (root / relative).unlink()
-
-
 async def _file(
-    kept: Sequence[Deliverable], user_id: uuid.UUID, conversation_id: str
+    kept: Sequence[Deliverable], user_id: uuid.UUID, conversation_id: str | None
 ) -> list[tuple[Deliverable, str, str | None]]:
-    """Write the files, then their rows in ONE short session; undo the files on failure.
+    """Commit every file intent, join the disk work, then publish the complete batch.
 
     Returns:
         ``(deliverable, attachment id, expires_at ISO)`` per file.
@@ -186,42 +168,27 @@ async def _file(
     Raises:
         Exception: Whatever the write or the rows raised (files removed first).
     """
-    root = Path(settings.attachments_storage_path)
-    stored = [f"{user_id}/{uuid.uuid4()}.{item.extension}" for item in kept]
-    expires_at = datetime.now(UTC) + timedelta(hours=settings.attachments_ttl_hours)
-    written: list[str] = []
-    try:
-        for item, relative in zip(kept, stored, strict=True):
-            await asyncio.to_thread(_write, root, relative, item.data)
-            written.append(relative)
-        rows = []
-        async with get_db_context() as db:
-            repository = AttachmentRepository(db)
-            for item, relative in zip(kept, stored, strict=True):
-                row = await repository.create(
-                    {
-                        "user_id": user_id,
-                        "original_filename": item.name,
-                        "stored_filename": Path(relative).name,
-                        "mime_type": item.mime_type,
-                        "file_size": len(item.data),
-                        "file_path": relative,
-                        "content_type": _CONTENT_TYPE[item.family],
-                        "origin": item.origin.value,
-                        "title": item.name,
-                        "conversation_id": conversation_uuid(conversation_id),
-                        "status": AttachmentStatus.READY,
-                        "expires_at": expires_at,
-                    }
-                )
-                expires = row.expires_at.isoformat() if row.expires_at else None
-                rows.append((item, str(row.id), expires))
-            await db.commit()
-    except BaseException:
-        # A cancellation too: a file left without its row is swept by nothing.
-        await asyncio.shield(asyncio.to_thread(_unlink, root, written))
-        raise
-    return rows
+    files = [
+        (
+            UploadMetadata(
+                filename=item.name,
+                mime_type=item.mime_type,
+                content_type=_CONTENT_TYPE[item.family],
+                suffix=f".{item.extension}",
+                origin=item.origin,
+                title=item.name,
+                conversation_id=conversation_uuid(conversation_id),
+            ),
+            item.data,
+        )
+        for item in kept
+    ]
+    async with get_db_context() as db:
+        rows = await publish_generated_files(db, owner_id=user_id, files=files)
+    return [
+        (item, str(row.id), row.expires_at.isoformat() if row.expires_at else None)
+        for item, row in zip(kept, rows, strict=True)
+    ]
 
 
 def _show(conversation_id: str, item: Deliverable, attachment_id: str, expires: str | None) -> None:
@@ -245,14 +212,19 @@ def _show(conversation_id: str, item: Deliverable, attachment_id: str, expires: 
 
 
 async def deliver_outputs(
-    files: Sequence[OutputFile], *, user_id: uuid.UUID, conversation_id: str
+    files: Sequence[OutputFile],
+    *,
+    user_id: uuid.UUID,
+    conversation_id: str | None,
+    delivery_runtime_id: str | None = None,
 ) -> Delivery:
     """Hand the command's files to the person: stored, filed, shown.
 
     Args:
         files: What the command wrote under ``out/``, already bounded.
         user_id: The person who owns them.
-        conversation_id: The conversation the cards show in.
+        conversation_id: Stable business identity for file provenance.
+        delivery_runtime_id: Root runtime receiving cards, absent outside a chat.
 
     Returns:
         What reached the person, and every file that did not, with its reason.
@@ -281,7 +253,8 @@ async def deliver_outputs(
         skipped.extend((item.name, SKIP_NOT_SAVED) for item in kept)
         return Delivery(delivered=(), skipped=tuple(skipped))
     for item, attachment_id, expires in rows:
-        _show(conversation_id, item, attachment_id, expires)
+        if delivery_runtime_id is not None:
+            _show(delivery_runtime_id, item, attachment_id, expires)
     logger.info(
         "skill_command_outputs_delivered",
         user_id=str(user_id),

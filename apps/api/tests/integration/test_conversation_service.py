@@ -6,11 +6,13 @@ Adapted to match existing service implementation.
 """
 
 from datetime import UTC, datetime
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.conversations.lifecycle import ConversationLifecycle
 from src.domains.conversations.models import (
     Conversation,
     ConversationAuditLog,
@@ -330,9 +332,11 @@ async def test_reset_conversation(
     await async_session.commit()
 
     # Reset conversation
-    await service.reset_conversation(
-        user_id=sample_user.id,
-        db=async_session,
+    await ConversationLifecycle(async_session).request_reset(
+        sample_user.id,
+        sample_conversation.id,
+        operation_id=uuid4(),
+        expected_revision=sample_conversation.revision,
     )
 
     # Verify reset
@@ -357,17 +361,17 @@ async def test_reset_conversation_creates_audit_log(
     sample_conversation: Conversation,
 ):
     """Test reset conversation creates audit log entry."""
-    service = ConversationService()
-
     # Add some stats before reset
     sample_conversation.message_count = 10
     sample_conversation.total_tokens = 5000
     await async_session.commit()
 
     # Reset conversation
-    await service.reset_conversation(
-        user_id=sample_user.id,
-        db=async_session,
+    await ConversationLifecycle(async_session).request_reset(
+        sample_user.id,
+        sample_conversation.id,
+        operation_id=uuid4(),
+        expected_revision=sample_conversation.revision,
     )
 
     # Verify audit log created

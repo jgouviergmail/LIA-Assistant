@@ -205,6 +205,7 @@ function SpaceList({ variant }: SpacesManagerProps) {
           onChange={setCriteria}
           onlyManaged={onlyManaged}
           onToggleManaged={() => setOnlyManaged(value => !value)}
+          surface={variant === 'page' ? 'primary' : 'nested'}
         />
 
         {error ? (

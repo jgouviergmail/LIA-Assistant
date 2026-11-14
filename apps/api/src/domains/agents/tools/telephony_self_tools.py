@@ -31,10 +31,8 @@ from src.core.config import get_settings
 from src.core.i18n import resolve_language
 from src.core.i18n_telephony import get_tool_phrases
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
-from src.domains.agents.telephony.live_tools import (
-    available_live_tools,
-    ensure_vendor_live_tools,
-)
+from src.domains.agents.telephony.live_provisioning import ensure_vendor_live_tools
+from src.domains.agents.telephony.live_tools import available_live_tools
 from src.domains.agents.tools.decorators import connector_tool, with_user_preferences
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import parse_user_id, validate_runtime_config
@@ -133,15 +131,17 @@ def spoken_text(text: str) -> str:
 
 async def _live_tools_for(
     db: Any, user_id: UUID, *, disabled_domains: frozenset[str] = frozenset()
-) -> tuple[LiveToolBinding, ...]:
-    """The webhook tools an owner call may attach (lot 7), provisioned if needed.
+) -> tuple[LiveToolBinding, ...] | None:
+    """The webhook tools an owner call may attach (lot 7), provisioned and verified.
 
     Read the flag first so nothing is looked up when the feature is off; then
     the active connector and its secret, which the call-back token derives
-    from. A missing piece means a call WITHOUT tools, never a refused call.
-    Every offered tool is provisioned once per connector; THIS call attaches
-    what the call-back door accepts — the person's own switches (lot 8) and
-    the account's connectors (RC2.1), read through the door's own seam.
+    from. A missing piece is a configuration with no lookups: a call WITHOUT
+    tools, whose prompt promises none. Every offered tool is provisioned once
+    per connector and held against the workspace before every call (owner
+    decision 2026-11-11); THIS call attaches what the call-back door accepts —
+    the person's own switches (lot 8) and the account's connectors (RC2.1),
+    read through the door's own seam.
 
     Args:
         db: The session the connector metadata is committed on.
@@ -149,7 +149,8 @@ async def _live_tools_for(
         disabled_domains: The domains the person switched off.
 
     Returns:
-        The bindings to hand to the dial; empty when none apply.
+        The bindings to hand to the dial; empty when none apply; None when the
+        tools could not be made exact — the call is then refused.
     """
     if not get_settings().telephony_live_tools_enabled:
         return ()
@@ -166,6 +167,8 @@ async def _live_tools_for(
     bindings = await ensure_vendor_live_tools(
         db, connector=connector, api_key=creds.api_key, api_secret=creds.api_secret
     )
+    if bindings is None:
+        return None
     offered = await available_live_tools(disabled_domains=disabled_domains, user_id=user_id)
     names = {spec.name for spec in offered}
     return tuple(binding for binding in bindings if binding.name in names)
@@ -218,9 +221,10 @@ async def _initiate_owner_call(
     whose delegation tool cannot be provisioned runs DIRECT, with what a
     direct call needs (review 2026-09-20: it used to degrade AFTER the
     lookups and the context had been skipped — a voice that could answer
-    nothing). A vendor refusal at the attach itself, inside the dial, still
-    degrades without them — the same envelope as a direct call whose attach
-    was refused.
+    nothing). Lookups that cannot be made exact, or an agent refusing the
+    call's tools inside the dial, refuse the call (``agent_sync_failed``):
+    never a voice with its tools out of date or missing (owner decision
+    2026-11-11).
 
     Args:
         user_id: The person being called.
@@ -259,10 +263,15 @@ async def _initiate_owner_call(
                     reason="delegation_tool_unavailable",
                 )
                 call_mode = "direct"
-        live_tools: tuple[LiveToolBinding, ...] = ()
+        live_tools: tuple[LiveToolBinding, ...] | None = ()
         context = ""
         if call_mode == "direct":
             live_tools = await _live_tools_for(db, user_id, disabled_domains=disabled_domains)
+            if live_tools is None:
+                # Owner decision 2026-11-11: never an agent with tools out of date
+                # or incomplete. Refused in the agent's own words; nothing dialled.
+                logger.warning("telephony_owner_call_tools_unverified", user_id=str(user_id))
+                return InitiateCallResult(status="agent_sync_failed")
             context = await _owner_context(
                 user_id,
                 language=user_language,

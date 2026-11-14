@@ -20,6 +20,10 @@ and state layers are painted by explicit recipes. These complements are LIA
 artwork, not official Fluent Color or Streamline artwork. They replace missing
 native concepts without a monochrome fallback. Lucide mode itself is unchanged.
 
+An object none of these collections draws (the radio set) is drawn by LIA outright
+in both colored styles and adapts no third-party geometry. Lucide mode keeps the
+Lucide glyph the manifest names for it.
+
 ----- Microsoft license -----
 MIT License
 

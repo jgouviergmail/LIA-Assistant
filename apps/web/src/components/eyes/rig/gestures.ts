@@ -18,6 +18,7 @@ import {
   type IdleGesture,
 } from '@/components/eyes/expression-engine';
 import { bothSides, relative, scaleTapes, type Keys } from '@/components/eyes/rig/choreo';
+import { deliveryTapes, nodTapes } from '@/components/eyes/rig/delivery';
 import type { Tape } from '@/components/eyes/rig/tape';
 import type { SpringConfig } from '@/components/eyes/rig/spring';
 
@@ -159,6 +160,8 @@ export function tapesForGesture(gesture: IdleGesture, scale = 1): Tape[] {
 }
 
 function gestureTapes(gesture: IdleGesture): Tape[] {
+  const delivered = deliveryTapes(gesture);
+  if (delivered) return delivered;
   switch (gesture) {
     case 'slow-blink':
       // A sigh is an exhale: the mouth narrows with the lids and lets go as
@@ -213,24 +216,16 @@ function gestureTapes(gesture: IdleGesture): Tape[] {
       ];
     case 'nod':
       // One thought, one nod: anticipation, acknowledgement, then a quiet
-      // return. Pitch belongs to the head, so the eyes never jump separately.
+      // return. Measured on the bench, a pitch alone (a few degrees of a
+      // flat painting) is invisible on a sculpted character: the head dips
+      // and the eyes and the body go with it (`nodTapes`).
       return [
-        follow(
-          'headPitch',
-          [
-            [0, -0.05],
-            [120, 0.24],
-            [350, 0.24],
-            [520, 0],
-          ],
-          1040,
-          ACCENT_SPRING
-        ),
+        ...nodTapes(),
         ...browsFollow(
           'browY',
           [
-            [150, -0.012],
-            [460, 0],
+            [150, -0.016],
+            [520, 0],
           ],
           1000,
           ACCENT_SPRING

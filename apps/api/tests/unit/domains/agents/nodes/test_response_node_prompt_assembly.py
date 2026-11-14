@@ -62,7 +62,7 @@ def test_system_prompt_base_only_when_no_extras():
     with (
         patch(f"{_RESP}.get_response_prompt", Mock(return_value="BASE")),
         patch(f"{_RESP}._should_inject_html_directive", Mock(return_value=False)),
-        patch(f"{_RESP}.inject_tone_instruction", Mock(side_effect=lambda p: p)),
+        patch(f"{_RESP}.inject_answer_annotations", Mock(side_effect=lambda p: p)),
     ):
         out = _prompt()
     assert out == "BASE"
@@ -72,7 +72,7 @@ def test_system_prompt_appends_user_model_block():
     with (
         patch(f"{_RESP}.get_response_prompt", Mock(return_value="BASE")),
         patch(f"{_RESP}._should_inject_html_directive", Mock(return_value=False)),
-        patch(f"{_RESP}.inject_tone_instruction", Mock(side_effect=lambda p: p)),
+        patch(f"{_RESP}.inject_answer_annotations", Mock(side_effect=lambda p: p)),
     ):
         out = _prompt(user_model_block="PORTRAIT")
     assert out == "BASE\n\nPORTRAIT"
@@ -140,6 +140,23 @@ def test_system_prompt_injects_psyche_instruction_when_enabled():
     ):
         out = _prompt(user_psyche_enabled=True, psyche_context="present")
     assert "PSYCHE_INSTR" in out
+
+
+def test_system_prompt_hands_the_answered_mails_to_the_assembler():
+    """ADR-379: the turn's answered mails are a section of the prompt (the assembler
+    places it after the data). A keyword dropped at this seam removes it in silence."""
+    lines = "- [email_a] answered on 2026-11-10T13:40+00:00"
+    assembler = Mock(return_value="BASE")
+    with (
+        patch(f"{_RESP}.get_response_prompt", assembler),
+        patch(f"{_RESP}._should_inject_html_directive", Mock(return_value=False)),
+    ):
+        _prompt(answered_mail=lines)
+        _prompt()
+
+    told, untold = assembler.call_args_list
+    assert told.kwargs["answered_mail"] == lines
+    assert untold.kwargs["answered_mail"] == ""
 
 
 # ---------------------------------------------------------------------------
@@ -275,7 +292,7 @@ async def test_an_earlier_answer_reaches_the_model_once_and_whole():
     }
     with (
         patch(f"{_RESP}._should_inject_html_directive", Mock(return_value=False)),
-        patch(f"{_RESP}.inject_tone_instruction", Mock(side_effect=lambda p: p)),
+        patch(f"{_RESP}.inject_answer_annotations", Mock(side_effect=lambda p: p)),
     ):
         system_prompt = _prompt(state=state, user_query_for_prompt="second question")
     messages = await _prepare_conversational_messages(

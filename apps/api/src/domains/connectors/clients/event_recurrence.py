@@ -10,8 +10,8 @@ an event with a zone.
 A series starts on the event's own day: a rule that day does not belong to is refused before
 anything is sent, because each provider would answer it differently (Google keeps the day as an
 extra occurrence, Graph refuses). What the rule says of a time of day is not read: an event has
-its own. Changing a whole series keeps its first day and takes the new time of day and the new
-length: an occurrence's date is no date for the series.
+its own. Changing a whole series keeps its first day and takes the new times of day: an
+occurrence's date is no date for the series (``event_bounds.series_bounds``).
 """
 
 from __future__ import annotations
@@ -111,29 +111,6 @@ def first_day_of(master: Mapping[str, Any], zone: str) -> date | None:
     if instant.tzinfo is None:
         instant = instant.replace(tzinfo=ZoneInfo(str(start.get("timeZone") or "UTC")))
     return instant.astimezone(ZoneInfo(zone)).date()
-
-
-def series_bounds(first_day: date, start: str, end: str, *, all_day: bool) -> tuple[str, str]:
-    """The bounds a whole series takes from an occurrence's: its first day, their time and length.
-
-    Args:
-        first_day: The day the series starts.
-        start: The new start, a wall time or a day.
-        end: The new end.
-        all_day: The bounds are days, the end exclusive.
-
-    Returns:
-        The bounds as the calendar clients take them.
-    """
-    if all_day:
-        span = date.fromisoformat(end[:10]) - date.fromisoformat(start[:10])
-        return first_day.isoformat(), (first_day + span).isoformat()
-    wall_start, wall_end = datetime.fromisoformat(start), datetime.fromisoformat(end)
-    moved = datetime.combine(first_day, wall_start.time())
-    return (
-        moved.isoformat(timespec="seconds"),
-        (moved + (wall_end - wall_start)).isoformat(timespec="seconds"),
-    )
 
 
 def rrule_of(spec: RecurrenceSpec, *, zone: str, all_day: bool) -> str:
@@ -256,5 +233,4 @@ __all__ = [
     "graph_recurrence",
     "is_series",
     "rrule_of",
-    "series_bounds",
 ]

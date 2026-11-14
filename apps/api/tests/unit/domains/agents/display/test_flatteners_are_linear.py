@@ -29,7 +29,10 @@ from src.domains.agents.display.components import base as display_base
 from src.domains.agents.display.components.folded_synthesis import format_synthesis_html
 from src.domains.agents.display.components.html_flatten import format_email_body, html_to_text
 from src.domains.connectors.clients.normalizers.html_text import html_to_text as body_to_text
-from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
+from src.domains.connectors.clients.normalizers.reply_trimming import (
+    clean_reply_body,
+    preview_own_words,
+)
 from src.domains.shared.markdown_literal import read_as_markdown, untrusted_markdown
 from src.domains.voice.expressive_cues import (
     FISH_S1_CUES,
@@ -68,6 +71,8 @@ FLATTENERS: dict[str, Flattener] = {
     "flatten_for_voice": lambda s: flatten_for_voice(s, strip_html=plain_text.strip_html_if_markup),
     "body_to_text": lambda s: body_to_text(s, url_shorten_threshold=60),
     "clean_reply_body": lambda s: clean_reply_body(s, subject="x"),
+    # A message's preview, read for every reply state of a listed page (ADR-379).
+    "preview_own_words": preview_own_words,
     # A sentence bound for TTS, read before every synthesis (py/polynomial-redos
     # #956/#957: a tag or bracket pattern rescanning to the end per opening mark).
     "is_speakable": is_speakable,
@@ -129,6 +134,10 @@ WITNESSES: dict[str, Callable[[int], str]] = {
     "unmatched parentheses": lambda n: "(" * n,
     "control marker openers": lambda n: "<|" * (n // 2),
     "task boxes after list markers": lambda n: "- [x] " * (n // 6),
+    # What opens a quoted history inside a preview: a banner's dashes, Outlook's rule
+    # (ADR-379; six hundred dashes cost the banner pattern 22 ms before it read a run once).
+    "a run of dashes": lambda n: "-" * n,
+    "a run of underscores": lambda n: "_" * n,
 }
 
 

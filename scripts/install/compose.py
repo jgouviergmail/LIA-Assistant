@@ -42,9 +42,14 @@ def build_invocation(
         files.append(root / SKILL_SANDBOX_COMPOSE)
     if public.mode is InstallMode.PREBUILT:
         files.append(root / IMAGES_COMPOSE)
+    profiles: list[str] = []
+    if public.observability:
+        profiles.append("observability")
+    if public.web_search:
+        profiles.append("searxng")
     return ComposeInvocation(
         files=tuple(files),
-        profiles=("observability",) if public.observability else (),
+        profiles=tuple(profiles),
         mode=public.mode,
         project_name=project_name,
         env={"LIA_INSTALL_CADDY": "1" if public.exposure is Exposure.CADDY else ""},
@@ -70,10 +75,16 @@ OBSERVABILITY_SERVICES: tuple[str, ...] = (
     "portainer",
 )
 
+#: The instance's keyless web search (ADR-382), behind the ``searxng`` profile.
+WEB_SEARCH_SERVICES: tuple[str, ...] = ("searxng",)
+
 #: The services each optional profile starts. Compose never counts a disabled
 #: profile's containers as orphans, so turning a profile off must stop these by
 #: name; a test holds every profile :func:`build_invocation` emits here.
-PROFILE_SERVICES: dict[str, tuple[str, ...]] = {"observability": OBSERVABILITY_SERVICES}
+PROFILE_SERVICES: dict[str, tuple[str, ...]] = {
+    "observability": OBSERVABILITY_SERVICES,
+    "searxng": WEB_SEARCH_SERVICES,
+}
 
 #: The generated Caddyfile Caddy reads once at start (bind-mounted, no watch).
 CADDYFILE_NAME = "Caddyfile"
@@ -88,6 +99,8 @@ def locked_services(public: PublicAnswers) -> tuple[str, ...]:
     services = ["api", "web", *BASE_DEPENDENCY_SERVICES]
     if public.observability:
         services.extend(OBSERVABILITY_SERVICES)
+    if public.web_search:
+        services.extend(WEB_SEARCH_SERVICES)
     if public.exposure is Exposure.CADDY:
         services.append("caddy")
     return tuple(services)

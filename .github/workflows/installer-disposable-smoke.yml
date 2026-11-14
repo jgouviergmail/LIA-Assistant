@@ -24,6 +24,8 @@ permissions:
 
 env:
   # Hermetic provider endpoints — the ONLY provider surface in this workflow.
+  # Anthropic's is the host alone: its SDK appends /v1/messages itself.
+  ANTHROPIC_BASE_URL: http://fake-provider:18080
   OPENAI_BASE_URL: http://fake-provider:18080/v1
   QWEN_BASE_URL: http://fake-provider:18080/v1
   DEEPSEEK_BASE_URL: http://fake-provider:18080/v1
@@ -172,8 +174,8 @@ jobs:
           observability=no
           skill_sandbox=no
           admin_password=$ADMIN_PASSWORD
+          provider_key_anthropic=$FAKE_PROVIDER_KEY
           provider_key_deepseek=$FAKE_PROVIDER_KEY
-          provider_key_openai=$FAKE_PROVIDER_KEY
           EOF
           chmod 600 answers.env
           # Explicit flag per mode: with NO flag the wizard resolves the mode
@@ -197,8 +199,8 @@ jobs:
         working-directory: work
         run: |
           set -euo pipefail
-          # docker-compose.disposable.yml adds the fake provider and points
-          # OPENAI/QWEN/DEEPSEEK base URLs at it for the API service. It was
+          # docker-compose.disposable.yml adds the fake provider and points the
+          # ANTHROPIC/OPENAI/QWEN/DEEPSEEK base URLs at it for the API service. It was
           # designed for exactly this harness and referenced by NOTHING — the
           # SSE chat probe would have reached the real providers with a fake
           # key. Applied AFTER the wizard's own sequence on purpose: the

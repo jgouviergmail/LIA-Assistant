@@ -14,7 +14,10 @@ minus the inner margin).
 Provisioned once per connector and remembered by fingerprint beside the live
 tools' ids (a NEW metadata dict, never a mutation — the JSONB rule): a drift
 of the description (the person's name), the URL, the token or the timeout
-re-creates it before the next dial. Attached to the AGENT for the owner's Live
+re-creates it before the next dial, and before every Live owner call the
+recorded tool is held against the workspace — edited on the portal,
+rewritten in place; lost, re-created (owner decision 2026-11-11). Attached
+to the AGENT for the owner's Live
 call only, exactly like the live tools of a direct call, and taken off it when
 the call ends — a stranger is never phoned by an agent still carrying the
 person's delegation.
@@ -36,13 +39,18 @@ from src.core.constants import (
     LIVE_DELEGATION_TOOL_NAME,
     TELEPHONY_LIVE_TOOL_INNER_MARGIN_SECONDS,
 )
-from src.domains.telephony.client import ElevenLabsAgentsClient, ElevenLabsAgentsError
+from src.domains.telephony.client import ElevenLabsAgentsClient
 from src.domains.telephony.live_tools import (
     LiveToolParameter,
     live_tool_token,
     live_tool_url,
     live_tools_fingerprint,
     webhook_tool_body,
+)
+from src.domains.telephony.workspace_tools import (
+    VENDOR_FAILURES,
+    read_workspace_tools,
+    repair_set,
 )
 from src.domains.voice_sessions.mandate import (
     REQUEST_PARAMETER,
@@ -110,12 +118,15 @@ async def ensure_vendor_delegation_tool(
     user_name: str,
     client_factory: Callable[[str], ElevenLabsAgentsClient] | None = None,
 ) -> str | None:
-    """Make sure the vendor holds the delegation tool of this connector.
+    """Make sure the vendor holds the delegation tool of this connector, exactly.
 
-    Idempotent by fingerprint; on drift the new tool is created first, the old
-    one deleted after (forced), and the metadata committed. A vendor refusal
-    leaves the dial WITHOUT the tool rather than without a dial — the caller
-    then runs the call direct and says so.
+    Remembered by fingerprint; on drift the new tool is created first, the old
+    one deleted after (forced), and the metadata committed. A tool already
+    recorded is held against what the workspace serves before every Live owner
+    call (owner decision 2026-11-11: never an agent with tools out of date):
+    edited on the portal, it is rewritten in place; lost, re-created and
+    recorded. A vendor refusal, or a workspace that cannot be read, leaves the
+    dial WITHOUT the tool — the caller then runs the call direct and says so.
 
     Args:
         db: Session the connector row is committed on.
@@ -126,20 +137,32 @@ async def ensure_vendor_delegation_tool(
         client_factory: Test seam for the vendor client.
 
     Returns:
-        The vendor id of the tool, or None when it could not be provisioned.
+        The vendor id of the tool, or None when it could not be provisioned or verified.
     """
     body = delegation_tool_body(token=live_tool_token(api_secret), user_name=user_name)
     fingerprint = live_tools_fingerprint([body])
     metadata: dict[str, Any] = dict(connector.connector_metadata or {})
     stored = metadata.get(METADATA_DELEGATION_ID)
-    if stored and metadata.get(METADATA_DELEGATION_HASH) == fingerprint:
-        return str(stored)
-
     client = (client_factory or ElevenLabsAgentsClient)(api_key)
+    if stored and metadata.get(METADATA_DELEGATION_HASH) == fingerprint:
+        try:
+            served = await read_workspace_tools(client, "webhook")
+            repair = await repair_set(client, [str(stored)], [body], served, surface="phone")
+        except VENDOR_FAILURES as exc:
+            logger.warning("telephony_delegation_tool_unverified", error_type=type(exc).__name__)
+            return None
+        (tool_id,) = repair.ids
+        if tool_id != stored:
+            connector.connector_metadata = {**metadata, METADATA_DELEGATION_ID: tool_id}
+            await db.commit()
+        return tool_id
+
     try:
         created = await client.create_tool(body)
-    except ElevenLabsAgentsError as exc:
-        logger.warning("telephony_delegation_tool_provisioning_failed", status_code=exc.status_code)
+    except VENDOR_FAILURES as exc:
+        logger.warning(
+            "telephony_delegation_tool_provisioning_failed", error_type=type(exc).__name__
+        )
         return None
     if stored:
         await client.delete_tool(str(stored))

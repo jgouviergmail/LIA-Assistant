@@ -20,21 +20,20 @@ import asyncio
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any, Final
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from src.core.config import settings
 from src.core.content_disposition import served_media_type
 from src.domains.attachments.attachable_queries import build_attachable_statement
+from src.domains.attachments.file_contracts import FileWriteResult, UploadMetadata
+from src.domains.attachments.file_publication import publish_file
 from src.domains.attachments.models import (
     Attachment,
     AttachmentContentType,
-    AttachmentOrigin,
-    AttachmentStatus,
 )
-from src.domains.attachments.repository import AttachmentRepository
 from src.domains.workbench import files_service
 from src.domains.workbench.availability import listing_page_size
 from src.domains.workbench.errors import INVALID_REQUEST, ITEM_GONE, TOO_LARGE, refuse
@@ -148,8 +147,8 @@ async def carried_files(
 async def keep_device_file(user_id: UUID, file: DeviceFile) -> AttachableFile:
     """Keep a file of the device for a message, as the person's upload.
 
-    Its bytes reach the disk first, so a row always names a file; a row that could not
-    be filed leaves nothing behind. No session is open across the write.
+    Its path is durably owned before writing, using the chat upload's publication
+    protocol. It remains unbound to a discussion until a turn accepts it.
 
     Raises:
         BaseAPIException: ``invalid_request`` for a name past what can be kept.
@@ -158,31 +157,20 @@ async def keep_device_file(user_id: UUID, file: DeviceFile) -> AttachableFile:
     if len(name) > Attachment.original_filename.type.length:
         refuse(INVALID_REQUEST)
     mime_type = _type_of(file)
-    stored = f"{uuid4()}.bin"
-    relative = f"{user_id}/{stored}"
-    path = Path(settings.attachments_storage_path) / relative
-    await asyncio.to_thread(_write, path, file.data)
-    try:
-        async with get_db_context() as db:
-            row = await AttachmentRepository(db).create(
-                {
-                    "user_id": user_id,
-                    "original_filename": name,
-                    "stored_filename": stored,
-                    "mime_type": mime_type,
-                    "file_size": len(file.data),
-                    "file_path": relative,
-                    "content_type": _category_of(mime_type),
-                    "status": AttachmentStatus.READY,
-                    "origin": AttachmentOrigin.UPLOAD.value,
-                    "expires_at": datetime.now(UTC)
-                    + timedelta(hours=settings.attachments_ttl_hours),
-                }
-            )
-            return _file(row)
-    except BaseException:
-        await asyncio.to_thread(path.unlink, missing_ok=True)
-        raise
+
+    def write(path: Path) -> FileWriteResult:
+        _write(path, file.data)
+        return FileWriteResult(len(file.data))
+
+    async with get_db_context() as db:
+        row = await publish_file(
+            db,
+            owner_id=user_id,
+            target=None,
+            metadata=UploadMetadata(name, mime_type, _category_of(mime_type), ".bin"),
+            write=write,
+        )
+        return _file(row)
 
 
 def _kept_name(sent: str) -> str:

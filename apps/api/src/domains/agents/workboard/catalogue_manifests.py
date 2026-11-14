@@ -1,7 +1,8 @@
 """Catalogue manifests for the workboard tools (ADR-276, lot 3).
 
-Six capabilities over the person's own board of tickets: create one, change
-one, comment on one, list them, read one, delete one.
+Seven capabilities over the person's own board of tickets: create one, change
+one, comment on one, list them, read one, delete one — and list the categories
+the board is split into (``category_manifest``).
 
 Two rules shape every manifest here, and neither is decoration:
 
@@ -38,6 +39,11 @@ from src.domains.agents.registry.catalogue import (
     PermissionProfile,
     ToolManifest,
 )
+from src.domains.agents.workboard.category_manifest import (
+    MANAGED_ON_THE_BOARD,
+    category_name_parameter,
+    category_output,
+)
 from src.domains.agents.workboard.creation_manifest import (
     create_ticket_catalogue_manifest as create_ticket_catalogue_manifest,
 )
@@ -55,7 +61,9 @@ TICKET_AGENT_MANIFEST = AgentManifest(
         "seven columns that the user — or LIA on their behalf — works through. "
         "Create a ticket, move it between columns, comment on it, list what is "
         "on the board or overdue, hand one to LIA or to a connected user, "
-        "delete one. NOT the user's provider to-do list (use task), NOT a "
+        "delete one. The board is split into CATEGORIES (its lanes): list them, "
+        "narrow the board to one, file a ticket under one. NOT the user's "
+        "provider to-do list (use task), NOT a "
         "timed notification (use reminder), NOT a recurring scheduled job "
         "(use automation)."
     ),
@@ -66,6 +74,7 @@ TICKET_AGENT_MANIFEST = AgentManifest(
         "list_tickets_tool",
         "get_ticket_tool",
         "delete_ticket_tool",
+        "list_ticket_categories_tool",
     ],
     max_parallel_runs=1,
     default_timeout_ms=settings.default_tool_timeout_ms,
@@ -123,6 +132,7 @@ def _ticket_outputs(prefix: str) -> list[OutputFieldSchema]:
             description="Priority",
             semantic_type="ticket_priority",
         ),
+        category_output(prefix),
         OutputFieldSchema(
             path=f"{prefix}.start_at",
             type="string",
@@ -147,9 +157,11 @@ update_ticket_catalogue_manifest = ToolManifest(
     agent="ticket_agent",
     description=(
         "Changes a ticket on the workboard: its column, priority, dates, "
-        "title, description, who holds it, or whether the user follows it. "
+        "title, description, who holds it, the category it is filed under, or "
+        "whether the user follows it. "
         "Use for 'move this ticket to in progress', 'close…', 'push… back to "
-        "Thursday', 'give this ticket to Marie', 'hand this to LIA'. Set run_now=true to "
+        "Thursday', 'give this ticket to Marie', 'hand this to LIA', 'put this "
+        "ticket in Home', 'take it out of its category'. Set run_now=true to "
         "ask LIA to run a ticket it holds right away instead of waiting for "
         "the sweep. Only the fields given are changed."
         " Preparation produces mandatory native human confirmation, without persisting a change or "
@@ -157,7 +169,9 @@ update_ticket_catalogue_manifest = ToolManifest(
         "dates, execution mode, move with position, and run_now; it is exclusive with legacy fields. "
         "Source rights and actual predicted consequences are shown. A changed ticket, peer relationship, "
         "answer note or affected column requires a new proposal. LIA work remains subject to normal "
-        "quotas and costs; requesting a run never claims its completion. Assignment notices follow commit."
+        "quotas and costs; requesting a run never claims its completion. Assignment notices follow commit. "
+        f"{MANAGED_ON_THE_BOARD}: category files the ticket under an EXISTING category of the "
+        "user's, and an unknown name is refused."
     ),
     parameters=[
         replace(_TICKET_REFERENCE, required=False),
@@ -245,6 +259,23 @@ update_ticket_catalogue_manifest = ToolManifest(
             description=(
                 "Ask LIA to run this ticket at the next sweep instead of "
                 "waiting for its start date. Only for a ticket LIA holds."
+            ),
+        ),
+        category_name_parameter(
+            "File the ticket under this category: the exact NAME of one of the "
+            "user's own categories (case and accents do not matter). Only the "
+            "ticket's OWNER may change it. Never together with clear_category. A "
+            "name that is not one of the user's categories is refused — read "
+            "them with list_ticket_categories_tool."
+        ),
+        ParameterSchema(
+            name="clear_category",
+            type="boolean",
+            required=False,
+            description=(
+                "true takes the ticket out of its category, leaving it filed "
+                "under none. Only the ticket's OWNER may. Never together with "
+                "category."
             ),
         ),
     ],
@@ -338,9 +369,10 @@ list_tickets_catalogue_manifest = ToolManifest(
     description=(
         "Lists what is on the user's workboard, with the EXACT total beside "
         "the page. Filter by column, by who holds it, by priority, by what is "
-        "overdue, or by a fragment of the title. Use for 'what is on my "
-        "board', 'what is overdue', 'what LIA is working on', 'Marie's "
-        "tickets'."
+        "overdue, by category, or by a fragment of the title. Use for 'what is "
+        "on my board', 'what is overdue', 'what LIA is working on', 'Marie's "
+        "tickets', 'my tickets in Home', 'what is not categorized yet'. Each "
+        "ticket carries the name of its category."
     ),
     parameters=[
         ParameterSchema(
@@ -385,6 +417,21 @@ list_tickets_catalogue_manifest = ToolManifest(
             constraints=[
                 ParameterConstraint(kind="max_length", value=settings.workboard_title_max_chars)
             ],
+        ),
+        category_name_parameter(
+            "Only tickets filed under the category of this NAME (case and "
+            "accents do not matter). A name that is no category of the user's "
+            "board is refused, never answered with an empty page — read the "
+            "names with list_ticket_categories_tool."
+        ),
+        ParameterSchema(
+            name="uncategorized",
+            type="boolean",
+            required=False,
+            description=(
+                "true keeps only tickets filed under no category. Given with "
+                "category, both sets are returned."
+            ),
         ),
         ParameterSchema(
             name="limit",
@@ -434,10 +481,10 @@ get_ticket_catalogue_manifest = ToolManifest(
     context_key=CONTEXT_DOMAIN_TICKETS,
     agent="ticket_agent",
     description=(
-        "Reads ONE ticket in full: its description, its steps, its comment "
-        "thread, and what the last LIA run produced — its outcome, what it "
-        "cost, and the error code when it failed. Use before acting on a "
-        "ticket the user names, and to answer 'where does … stand'."
+        "Reads ONE ticket in full: its description, its category, its steps, "
+        "its comment thread, and what the last LIA run produced — its outcome, "
+        "what it cost, and the error code when it failed. Use before acting on "
+        "a ticket the user names, and to answer 'where does … stand'."
     ),
     parameters=[_TICKET_REFERENCE],
     outputs=[

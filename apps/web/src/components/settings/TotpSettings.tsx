@@ -160,7 +160,7 @@ export function TotpSettings() {
         <div className="flex flex-wrap items-center gap-2 self-start sm:shrink-0 sm:flex-col sm:items-end">
           <Switch
             checked={active}
-            disabled={busy}
+            busy={busy}
             aria-label={t('settings.security.totp.title')}
             onCheckedChange={value => {
               if (value) void handleEnroll();

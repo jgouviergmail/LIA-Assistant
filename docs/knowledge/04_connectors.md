@@ -475,6 +475,13 @@ it off for everyone, it has no platform Google key, or page browsing is
 disabled on it. For the weather, a personal **OpenWeatherMap** key you add in
 the settings takes precedence over Google Weather.
 
+The instance may also run its own **web search (SearXNG)** — LIA's installer
+turns it on by default. When it runs, it finds the web links of your searches,
+of the enrichment of LIA's answers, of your interests and of the Tools — unless
+you configured your own **Brave** key, which keeps priority. Without either,
+LIA searches the web on Wikipedia alone. Web results are not filtered, whether
+they come from Brave or from the instance's search.
+
 ## Can I connect several Google or Microsoft services with one authorization?
 Yes. In **Settings > Connectors**, select the Google or Microsoft services to
 connect or reconnect together, then sign in once to the provider account. LIA

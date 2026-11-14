@@ -307,6 +307,27 @@ describe('useWorkbenchPage', () => {
     });
   });
 
+  it('says which read of page one it shows: a refresh moves it, nothing else does', async () => {
+    // What is read apart for the rows shown (a mail listing's reply marks, ADR-379) is
+    // read again when page one is, and at no other time.
+    get.mockResolvedValueOnce(page(['m1'], 'p2'));
+    const { result } = renderHook(() => useWorkbenchPage<Row>('/workbench/mail/messages', {}));
+    expect(result.current.read).toBe(0);
+    await waitFor(() => expect(ids(result.current.items)).toEqual(['m1']));
+    const first = result.current.read;
+    expect(first).toBeGreaterThan(0);
+
+    get.mockResolvedValueOnce(page(['m2']));
+    await act(() => result.current.loadMore());
+    act(() => result.current.replaceItem('m1', { id: 'm1', title: 'changed' }));
+    expect(ids(result.current.items)).toEqual(['m1', 'm2']);
+    expect(result.current.read).toBe(first);
+
+    get.mockResolvedValueOnce(page(['m1']));
+    await act(() => result.current.refresh());
+    expect(result.current.read).toBeGreaterThan(first);
+  });
+
   it('reads nothing without a path', async () => {
     const { result } = renderHook(() => useWorkbenchPage<Row>(null, {}));
 

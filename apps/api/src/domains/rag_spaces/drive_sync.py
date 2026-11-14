@@ -52,7 +52,11 @@ from src.domains.rag_spaces.drive_provider import (
 )
 from src.domains.rag_spaces.drive_sync_outcome import DrivePreflight, sync_result_values
 from src.domains.rag_spaces.drive_walk import DriveWalkError, ancestor_ids, walk_drive_tree
-from src.domains.rag_spaces.jobs_repository import RAGJobsRepository, validate_source_worker_id
+from src.domains.rag_spaces.jobs_repository import (
+    DRIVE_SOURCE_TABLE,
+    RAGJobsRepository,
+    validate_source_worker_id,
+)
 from src.domains.rag_spaces.models import (
     RAGDriveSource,
     RAGDriveSyncStatus,
@@ -822,7 +826,10 @@ async def sync_folder_background(
                 # process_document opens its own DB session, so concurrent
                 # execution under the semaphore is session-safe.
                 synced, embed_failed = await process_queued(
-                    docs_to_process, processor=process_document
+                    docs_to_process,
+                    source_id=source_id,
+                    source_table=DRIVE_SOURCE_TABLE,
+                    processor=process_document,
                 )
                 # Count AFTER the processing oracle (audit F053): the
                 # result="synced" series and the synced counter only move once

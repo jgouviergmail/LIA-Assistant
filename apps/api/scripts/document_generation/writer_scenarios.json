@@ -1,0 +1,74 @@
+[
+  {
+    "key": "deck_presented",
+    "doc_type": "pptx",
+    "language": "fr",
+    "illustrations": "auto",
+    "instructions": "Prépare une présentation que je présenterai au conseil municipal mardi sur le projet de rénovation du port : le contexte, les trois problèmes, le plan en quatre phases, le budget et le calendrier, et les chiffres clés.",
+    "source_data": "Budget total : 12,4 M€ (État 40 %, Région 35 %, Ville 25 %). Durée : 18 mois. Phases : 1. étude (3 mois), 2. quais (6 mois), 3. bassin (6 mois), 4. accueil des visiteurs (3 mois). Problèmes : quais dégradés après quarante hivers ; aucun abri pour les visiteurs arrivant par la mer ; pêche et plaisance partagent un seul bassin. Fréquentation 2025 : 48 000 visiteurs (+12 % sur 2024). Citation de la maire : « Un port vivant est un port qui accueille. »",
+    "expect": {"delivery": "presented", "figures": true}
+  },
+  {
+    "key": "deck_to_read",
+    "doc_type": "pptx",
+    "language": "en",
+    "illustrations": "auto",
+    "instructions": "Make a short deck I will email to the board summarizing our third-quarter results.",
+    "source_data": "Q3 2026: revenue 4.2M USD (+9% vs Q2), gross margin 41%, new customers 312, churn 2.1%, cash 7.8M USD. Revenue by region: North America 1.9M, Europe 1.5M, Asia 0.8M. Hiring: 14 people joined, 3 left.",
+    "expect": {"delivery": "read", "figures": true}
+  },
+  {
+    "key": "deck_pictures_on_request",
+    "doc_type": "pptx",
+    "language": "en",
+    "illustrations": "on_request",
+    "instructions": "Create a five-slide training deck on the safe handling of chemicals in the lab.",
+    "source_data": "",
+    "expect": {"pictures": 0}
+  },
+  {
+    "key": "report_with_sources",
+    "doc_type": "docx",
+    "language": "fr",
+    "illustrations": "auto",
+    "instructions": "Rédige un rapport sur l'adoption des pompes à chaleur en Europe en 2025, en citant les sources fournies.",
+    "source_data": "[Web result 1] Title: Heat pump sales in Europe 2025 — URL: https://example.org/heat-pumps/2025-market-report — In 2025, 2.6 million heat pumps were sold in Europe, down 7% from 2024; Poland and Italy grew, Germany fell 18%.\n[Web result 2] Title: Heat pumps and electricity prices — URL: https://www.example.net/energy/heat-pump-prices — The ratio of electricity to gas prices remained the main barrier; where it is below 2, adoption doubles.\n[Web result 3] Title: Installer workforce survey — URL: https://example.com/survey/installers?year=2025 — Europe lacks about 60,000 qualified installers; training programs cover a third of the need.",
+    "expect": {"sources": true}
+  },
+  {
+    "key": "brief_without_sources",
+    "doc_type": "pdf",
+    "language": "en",
+    "illustrations": "auto",
+    "instructions": "Write a two-page brief for our team on the benefits and the risks of a four-day work week.",
+    "source_data": "",
+    "expect": {"sources": false}
+  },
+  {
+    "key": "annual_report_long",
+    "doc_type": "docx",
+    "language": "fr",
+    "illustrations": "auto",
+    "instructions": "Rédige le rapport d'activité annuel de l'association : synthèse, activités, finances (avec un tableau des recettes et des dépenses et leur total), bénévoles, perspectives.",
+    "source_data": "Association de jardins partagés. 2026 : 214 adhérents (+18 %), 6 jardins, 1 450 heures de bénévolat. Recettes : cotisations 10 700 €, subvention municipale 8 000 €, vente de plants 2 350 €. Dépenses : eau 3 100 €, outillage 4 200 €, assurances 1 300 €, animations 5 800 €. Projets 2027 : un septième jardin, un poulailler pédagogique.",
+    "expect": {"figures": true, "long": true}
+  },
+  {
+    "key": "budget_workbook",
+    "doc_type": "xlsx",
+    "language": "en",
+    "illustrations": "auto",
+    "instructions": "Build a household budget workbook for 2026 with each month's income and expenses by category, the monthly balance and the savings rate computed, yearly totals, and a chart of the expenses by category.",
+    "source_data": "Monthly net income: 3,200. Expenses per month: rent 1,050; food 520; transport 180; utilities 140; leisure 210; insurance 95. December bonus: 1,500.",
+    "expect": {"formulas": true, "chart": true, "complete": true}
+  },
+  {
+    "key": "meeting_note_md",
+    "doc_type": "md",
+    "language": "fr",
+    "illustrations": "auto",
+    "instructions": "Fais une note courte (une demi-page) de l'appel d'aujourd'hui avec le fournisseur.",
+    "source_data": "Appel avec le fournisseur de cartons. Hausse de prix de 4 % au 1er janvier. Délai de livraison ramené de 10 à 7 jours. Prochain point le 15 décembre. À faire : comparer avec deux autres fournisseurs avant le 10 décembre.",
+    "expect": {"pictures": 0}
+  }
+]

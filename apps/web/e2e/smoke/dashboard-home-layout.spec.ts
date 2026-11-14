@@ -238,7 +238,7 @@ async function assertAgendaRanges(page: Page, locale: Locale) {
 /** Label wrapping must not move a count relative to the other cells in its row. */
 async function assertWorkboardFigureAlignment(page: Page, locale: Locale, width: number) {
   const figures = briefingCard(page, 'workboard', locale)
-    .getByRole('list', { name: translated(locale, 'settings.workboard.glance'), exact: true })
+    .getByRole('list', { name: translated(locale, 'workboard.summary.title'), exact: true })
     .getByRole('listitem');
   await expect(figures).toHaveCount(5);
   const cells = await figures.evaluateAll(items =>
@@ -1225,6 +1225,66 @@ for (const sample of [
   });
 }
 
+/**
+ * Unread is not unanswered (ADR-379): a mail answered from a phone's notification stays
+ * unread, and the card the person reads to know what is left to do says it was answered
+ * instead of asking for the reply again.
+ */
+for (const sample of [
+  { width: 1280, theme: 'light' },
+  { width: 390, theme: 'dark' },
+] as const) {
+  test(`an unread mail already answered says so at ${sample.width}px in ${sample.theme}`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }, testInfo) => {
+    await page.setViewportSize({ width: sample.width, height: 900 });
+    await prepareTheme(page, sample.theme);
+    const user = await authenticate({ language: 'fr', timezone: HOME_TIMEZONE });
+    const briefing = homeBriefing();
+    const asking = {
+      version: 'email-event-v2-reply' as const,
+      kind: 'email' as const,
+      category: 'professional' as const,
+      priority: 'normal' as const,
+      reply_expected: true,
+      evidence_scope: 'snippet' as const,
+      evaluated_at: new Date().toISOString(),
+      valid_until: new Date(Date.now() + 3_600_000).toISOString(),
+    };
+    const mails = briefing.cards.mails.data!;
+    const [answered, waiting, ...others] = mails.items;
+    mails.items = [
+      {
+        ...answered,
+        classification: asking,
+        reply_state: { version: 'mail-reply-state-v1', status: 'answered' },
+      },
+      { ...waiting, classification: asking },
+      ...others,
+    ];
+    await mockApi(homeRoutes(user, briefing));
+    await readyHome(page, 'fr');
+
+    const card = briefingCard(page, 'mails', 'fr');
+    const rows = card.getByRole('list').getByRole('listitem');
+    const expected = translated('fr', 'classification.reply_expected');
+    await expect(
+      rows.nth(0).getByText(translated('fr', 'mail_reply_state.answered'), { exact: true })
+    ).toBeVisible();
+    await expect(rows.nth(0).getByText(expected, { exact: true })).toHaveCount(0);
+    await expect(rows.nth(1).getByText(expected, { exact: true })).toBeVisible();
+    await expectNoOverflow(page, `home answered mail ${sample.width}px ${sample.theme}`);
+    const accessibility = await scanPage(
+      page,
+      testInfo,
+      `home-answered-mail-${sample.width}-${sample.theme}`
+    );
+    expect(accessibility.blocking, accessibility.summary).toEqual([]);
+  });
+}
+
 test('network error retains its stale page and Retry refreshes cards once without navigation', async ({
   page,
   authenticate,
@@ -1498,7 +1558,7 @@ for (const cache of ['absent', 'null'] as const) {
     const card = briefingCard(page, 'workboard', 'fr');
     // The counts stay; no set is drawn from a page that is not every set.
     await expect(
-      card.getByRole('list', { name: translated('fr', 'settings.workboard.glance') })
+      card.getByRole('list', { name: translated('fr', 'workboard.summary.title') })
     ).toBeVisible();
     await expect(card.getByRole('heading', { level: 4 })).toHaveCount(0);
     for (const group of HOME_WORKBOARD_GROUPS) {

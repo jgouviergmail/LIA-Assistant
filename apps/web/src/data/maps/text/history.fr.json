@@ -1553,7 +1553,7 @@
     },
     "370": {
       "title": "Une page écrite par le modèle tourne dans le chat, dans le cadre le plus strict",
-      "summary": "Demander un jeu ou un petit outil donne une page qui tourne dans la conversation, avec son fichier ; demander le code donne le code, et le texte d’une personne reste du texte. La page s’exécute isolée, sans accès au compte ni à aucun site de son choix, sous une politique qui ne nomme aucun hôte. Relue depuis l’historique, elle attend un clic, car une boucle sans fin figerait l’onglet, et le modèle n’en lit jamais que le titre."
+      "summary": "Demander un jeu ou un petit outil donne une page qui tourne dans la conversation, avec son fichier ; demander le code donne le code, et le texte d’une personne reste du texte. La page s’exécute isolée, sans accès au compte ni à aucun site de son choix, sous une politique qui ne nomme aucun hôte, hormis les fonds de carte que l’opérateur autorise. Relue depuis l’historique, elle attend un clic, car une boucle sans fin figerait l’onglet, et le modèle n’en lit jamais que le titre."
     },
     "371": {
       "title": "Les postes des agents de domaine partent avec leurs nœuds",
@@ -1582,6 +1582,50 @@
     "377": {
       "title": "Le compte choisit comment l'interface est dessinée",
       "summary": "Toutes les icônes passent par une seule porte qui dessine le style choisi par le compte, Lucide, Fluent Color ou Streamline Flex, sans changer le sens d'aucun symbole, et le contraste élevé du système garde ses couleurs. Le thème peut aussi passer seul du clair au noir absolu aux heures choisies, à l'horloge du compte, sans qu'une minuterie écrive jamais le profil."
+    },
+    "378": {
+      "title": "Principale reste permanente et chaque discussion a son propre contexte d’exécution",
+      "summary": "Un badge ouvre Principale et les annexes nommées, avec leurs historiques et leurs compteurs. Les messages automatiques arrivent dans Principale, tandis que les réglages et les apprentissages sont communs au compte. Réinitialiser ou supprimer retire la génération visée et laisse un reçu qui suit son nettoyage."
+    },
+    "379": {
+      "title": "Un e-mail listé dit si l'on y a déjà répondu",
+      "summary": "Lu seul, un message ne peut pas dire s'il a reçu une réponse : celle-ci est un autre message de la même conversation. LIA lit désormais cette conversation quand elle liste du courrier, et dit partout le même fait : déjà répondu, réponse restée en brouillon, réponse reçue. Elle ne propose donc plus de répondre à un e-mail auquel la personne a déjà répondu, dans le chat comme dans les notifications, l'accueil, les relations et les Outils."
+    },
+    "380": {
+      "title": "Une heure que tu dis voyage avec son fuseau",
+      "summary": "« Neuf heures et demie » ne désigne un instant précis qu'avec le fuseau où tu le dis, et chaque heure que LIA a perdue l'a été quand l'un a voyagé sans l'autre : un rendez-vous déplacé à 9 h 30 se retrouvait à 10 h 30. L'heure et son fuseau forment désormais un seul objet, que LIA remet tel quel à Google, Microsoft et iCloud sans rien convertir en chemin, avec une seule règle pour les deux nuits où l'heure change. Et chaque trajet d'une heure, de l'écran à l'agenda puis de l'agenda à l'écran, est rejoué sur des agendas simulés d'après leur documentation, dans des fuseaux éloignés de l'heure universelle."
+    },
+    "381": {
+      "title": "Le modèle sait quand chaque message a été écrit",
+      "summary": "Le modèle connaissait l'heure présente, jamais celle des messages précédents : reprise des jours plus tard, une conversation se lisait comme si tout venait d'être dit, et « le dentiste demain », écrit un mardi, restait à venir le vendredi. Chacun de tes messages porte désormais le moment où tu l'as écrit, dans ton fuseau, et tout modèle qui relit la conversation le lit : la réponse, la boucle ReAct, l'analyse de ta demande, le résumé de compaction, l'appel téléphonique, et ce que LIA retient de toi (souvenirs, centres d'intérêt, engagements, journal), dont une échéance se lit désormais dans ton fuseau. Mesuré sur trois familles de modèles avant d'écrire le code, les questions qui en dépendent recevaient entre 3 et 7 bonnes réponses sur 21 ; elles en reçoivent 14, 16 et 20."
+    },
+    "382": {
+      "title": "L'instance cherche sur le web pour qui n'a pas de clé",
+      "summary": "Sans clé de recherche personnelle, LIA ne cherchait que sur Wikipédia. LIA fait désormais tourner à ses côtés SearXNG, un métamoteur sans clé, activé par défaut (l'exploitant peut le refuser) : la recherche du chat, l'enrichissement des réponses, la veille de tes centres d'intérêt et les Outils y trouvent alors leurs liens web, sans filtrage comme avec Brave, ta propre clé Brave restant prioritaire. Mesuré avant d'écrire le code : 58 recherches utiles sur 60 dans les six langues, la moitié en moins de 0,7 seconde. Et une source de la veille qui n'interrogerait rien n'est plus comptée comme consultée."
+    },
+    "383": {
+      "title": "Un brouillon parle avec la voix de la personne",
+      "summary": "Deux personnes qui répondaient au même mail recevaient la même réponse de LIA. La première fois que LIA écrit un mail pour toi, elle apprend désormais ta façon d'écrire dans tes derniers mails envoyés — formule d'appel, formule de fin, signature, ton, jamais ce dont tu parlais — et la suit dans chaque réponse et chaque nouveau message, y compris la réponse que tu confirmes, que LIA rédige maintenant elle-même quand tu n'en as pas dicté les mots. Tu la lis, la désactives ou la fais oublier dans les réglages. Mesuré sur des personnes fictives avant d'écrire le code : les réponses sont passées d'environ 42 à 63 marques du style de leur auteur sur 66, sans un seul fait recopié d'un ancien mail."
+    },
+    "384": {
+      "title": "Un message écrit pendant que LIA travaille attend son tour",
+      "summary": "Un message envoyé pendant que LIA répondait — ou pendant qu'une routine tournait sur ton compte — était refusé et perdu. Le serveur le garde désormais avec sa discussion, sous la conversation, où tu peux le modifier ou le retirer ; les mots écrits ensuite s'y ajoutent. Il part tout seul, comme ton message, dès que LIA a fini normalement ; si la réponse a été arrêtée ou a échoué, il attend ta décision. Il n'est jamais pris pour la réponse à une question que LIA te pose, et « Envoyer maintenant » arrête la réponse en cours puis l'envoie. Chaque exécution dit désormais comment elle s'est terminée, et c'est cette fin, écrite quand le compte se libère, qui décide."
+    },
+    "385": {
+      "title": "Une note rejoint la réponse en cours",
+      "summary": "Ce que tu écris pendant que LIA travaille est souvent une précision de ta demande (« seulement ceux ouverts le dimanche »), et l'envoyer après la réponse refaisait le travail. En mode ReAct, ton message en attente peut désormais rejoindre la réponse en cours : LIA le lit à sa prochaine étape, comme tes propres mots, et en tient compte pour la suite, sans rien réécrire de ce qui précède. Tant qu'elle ne l'a pas lu, tu peux le modifier ou le retirer ; si elle finit avant, il part juste après, comme d'habitude. Ta note reste dans la discussion, à sa place, et la demande que retiennent la réponse, la mémoire et les tours suivants l'inclut."
+    },
+    "386": {
+      "title": "Un autre système démarre une routine",
+      "summary": "Une routine peut désormais s'exécuter quand un autre système l'appelle : une box domotique, une forge de code, un service de formulaires. LIA donne à la routine sa propre adresse et un secret, montré une seule fois ; l'autre système signe chaque appel avec, et LIA sert l'appel dans la minute, en lisant ce qu'il a envoyé comme une donnée, jamais comme une instruction. Un appel sans signature valide est refusé, une rafale est bornée, un envoi répété compte une fois, et un secret perdu se remplace par un nouveau qui retire aussitôt l'ancien. Un administrateur peut fermer la capacité ; le démonstrateur la garde fermée."
+    },
+    "387": {
+      "title": "Une routine surveille une page web",
+      "summary": "Une routine peut désormais attendre qu'une page web change : un prix, un « en stock » qui revient, une annonce ajoutée. LIA lit elle-même la page publique, sans modèle, et ne lance la routine que pour les lignes qui y apparaissent, lues comme des données, jamais comme des instructions. Une ligne qui disparaît puis revient est annoncée à nouveau."
+    },
+    "388": {
+      "title": "Les documents utilisent ce que leurs formats savent faire",
+      "summary": "Un document que LIA génère utilise désormais les mécanismes de son format : un tableur calcule avec de vraies formules, un graphique se modifie dans Excel ou PowerPoint, une présentation que tu vas projeter s'anime sobrement, un rapport s'ouvre sur une page de garde avec ses chiffres clés, ses figures et ses sources cliquables. Le modèle dit ce que les choses sont et le moteur les dessine, dans une palette au contraste vérifié qui suit le ton du document. Les illustrations sont des images générées : elles ne viennent que si tu les autorises dans Réglages › Documents, dans un budget, et chacune est comptée dans tes coûts."
     }
   }
 }

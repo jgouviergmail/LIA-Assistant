@@ -616,3 +616,22 @@ describe('confirmed personality changes refresh observed OCEAN traits', () => {
     expect(usePsycheStore.getState().fullState).toEqual(two);
   });
 });
+
+describe('a psyche the instance has switched off', () => {
+  it('asks nothing of its closed routes: on mount, on a resource event, on a retained refetch', async () => {
+    const { result } = renderHook(() => usePsyche(false));
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 20));
+    });
+    act(() => publishApplicationResources('one', new Set(['psyche'])));
+    await act(async () => {
+      await result.current.refetchState().catch(() => {});
+      await result.current.refetchSettings().catch(() => {});
+      await new Promise(resolve => setTimeout(resolve, 20));
+    });
+
+    expect(get).not.toHaveBeenCalled();
+    expect(result.current.state).toBeUndefined();
+    expect(result.current.settings).toBeUndefined();
+  });
+});

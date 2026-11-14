@@ -40,8 +40,9 @@ from src.domains.meetings.schemas import (
     MeetingImportRequest,
     MeetingStartRequest,
 )
+from tests.helpers.account_file_writes import account_writer_sql_stub as account_writer_sql_stub
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("account_writer_sql_stub")]
 
 AT = datetime(2026, 10, 20, 9, 30, tzinfo=UTC)
 WAV_HEAD = b"RIFF\x24\x08\x00\x00WAVEfmt "

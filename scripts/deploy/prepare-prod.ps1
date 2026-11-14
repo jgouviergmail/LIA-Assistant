@@ -325,7 +325,12 @@ $infraDirs = @(
     # missing entrypoint and the API never starts — measured on production,
     # 2026-09-18. deploy-prod.Tests.ps1 now reads the compose files and
     # refuses any mounted infrastructure/ directory this list forgets.
-    "sandbox-egress"
+    "sandbox-egress",
+    # The instance's web search (ADR-382): the optional `searxng` service of
+    # docker-compose.prod.yml (profile `searxng`) bind-mounts its settings.yml
+    # read-only. Left out, an operator who opts in starts SearXNG on a
+    # directory Docker created empty, not on LIA's settings.
+    "searxng"
 )
 
 foreach ($dir in $infraDirs) {
@@ -653,6 +658,27 @@ docker compose -f docker-compose.prod.yml -f docker-compose.skill-sandbox.yml -f
 # echouer `up --wait`, mesure le 2026-09-30) : elle est construite ici, sous le
 # tag que lit SKILLS_SCRIPT_SANDBOX_IMAGE.
 docker build -t lia-skill-sandbox:local -f apps/api/Dockerfile.sandbox apps/api
+
+# The settings, judged by the NEW image, BEFORE anything is switched. On
+# 2026-11-09 a value above its bound in .env restarted the API in a loop for 53
+# minutes: nothing confronted the file with the code before the running version
+# was cut, and the rollback restores images, not the environment. Here the
+# image and the environment are both known and nothing has changed yet: a
+# refusal leaves the serving version untouched. The check builds the real
+# Settings (no database, no network), names the offending field and never its
+# value. Same compose files as the start: the environment and the mounts are
+# the service's own. The LIVE project (-p): started from the staging directory,
+# compose would otherwise create a network and volumes named after it.
+# </dev/null: a child reading stdin would eat the rest of a script fed by a
+# pipe.
+LIVE_PROJECT=$(basename "${PWD%.staging}" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_-')
+echo "  -> Controle des reglages par la nouvelle image..."
+if ! docker compose -p "$LIVE_PROJECT" -f docker-compose.prod.yml -f docker-compose.skill-sandbox.yml -f docker-compose.devops.yml run --rm --no-deps -T --entrypoint "" api python -m scripts.validate_settings </dev/null; then
+    echo "ERREUR: les reglages sont refuses par la nouvelle image -- deploiement interrompu." >&2
+    echo "        La version en service continue de tourner : rien n a ete bascule." >&2
+    echo "        Corriger .env.prod (les champs sont nommes ci-dessus), puis redeployer." >&2
+    exit 1
+fi
 
 # ---- SWAP_MARKER : bascule atomique staging -> vivant ----
 # Un bind mount est resolu vers un INODE a la creation du conteneur. `mv` est un

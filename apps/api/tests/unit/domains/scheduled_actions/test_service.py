@@ -56,6 +56,8 @@ def _action(**over: Any) -> SimpleNamespace:
         "status": "active",
         "consecutive_failures": 0,
         "last_error": None,
+        "requires_approval": False,
+        "notify_only_when_new": False,
     }
     base.update(over)
     return SimpleNamespace(**base)
@@ -210,6 +212,8 @@ class TestRevivingAClosedRoutine:
             "trigger_kind": "time",
             "condition_config": None,
             "condition_state": None,
+            "requires_approval": False,
+            "notify_only_when_new": False,
         }
         base.update(over)
         return SimpleNamespace(**base)
@@ -285,6 +289,8 @@ def _watch(**over: Any) -> SimpleNamespace:
         "next_trigger_at": PARIS_MORNING,
         "consecutive_failures": 0,
         "last_error": None,
+        "requires_approval": False,
+        "notify_only_when_new": False,
     }
     base.update(over)
     return SimpleNamespace(**base)
@@ -542,3 +548,55 @@ class TestAWatchOnTheSystemsClock:
         assert recalculated[watch.id] < datetime(2026, 9, 26, 4, 0, tzinfo=UTC)
         # Left in Paris, the same watch would have nothing left.
         assert TriggerPlan.of(watch).first(late) is None
+
+
+class TestARoutineIsToldOnlyOfSomethingNewOrProposesFirst:
+    """Two ways a routine reaches its owner, never both: a routine that proposes
+    first always notifies — its proposal IS the notification — so « only when
+    there is something new » has nothing to hold back (ADR-265 amendment
+    2026-11-12 c). Checked on the RESULTING row: the update schema sees one
+    half of the pair."""
+
+    async def test_the_option_is_stored(self) -> None:
+        action = _action()
+        service = _editing(action)
+
+        await service.update(
+            action.id, action.user_id, ScheduledActionUpdate(notify_only_when_new=True)
+        )
+
+        assert action.notify_only_when_new is True
+
+    async def test_it_is_refused_on_a_routine_that_proposes_first(self) -> None:
+        action = _action(requires_approval=True)
+        service = _editing(action)
+
+        with pytest.raises(ValidationError, match="notify_only_when_new"):
+            await service.update(
+                action.id, action.user_id, ScheduledActionUpdate(notify_only_when_new=True)
+            )
+        assert action.notify_only_when_new is False
+
+    async def test_proposing_first_is_refused_on_a_routine_told_only_of_something_new(
+        self,
+    ) -> None:
+        action = _action(notify_only_when_new=True)
+        service = _editing(action)
+
+        with pytest.raises(ValidationError, match="notify_only_when_new"):
+            await service.update(
+                action.id, action.user_id, ScheduledActionUpdate(requires_approval=True)
+            )
+        assert action.requires_approval is False
+
+    async def test_swapping_one_for_the_other_in_one_edit_is_accepted(self) -> None:
+        action = _action(requires_approval=True)
+        service = _editing(action)
+
+        await service.update(
+            action.id,
+            action.user_id,
+            ScheduledActionUpdate(requires_approval=False, notify_only_when_new=True),
+        )
+
+        assert (action.requires_approval, action.notify_only_when_new) == (False, True)

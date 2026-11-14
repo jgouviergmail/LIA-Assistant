@@ -38,7 +38,7 @@ That continuity is LIA's focus: the relationship, its sources and the next actio
 
 The command above starts the installer in [install.sh](install.sh). It asks how to expose the instance, creates the administrator account and walks you through provider keys. The first source build takes longer than starting an already installed instance.
 
-**Have these ready:** a supported Linux host, Git, Python and Docker Compose; see the [installer prerequisites](docs/guides/GUIDE_SELF_HOSTING.md) for versions and disk space. The current installer asks for **OpenAI and DeepSeek keys**. Add the optional **Gemini key** for memory recall, document search and image analysis.
+**Have these ready:** a supported Linux host, Git, Python and Docker Compose; see the [installer prerequisites](docs/guides/GUIDE_SELF_HOSTING.md) for versions and disk space. The current installer asks for **Anthropic and DeepSeek keys**. Add the optional **Gemini key** for memory recall and document search.
 
 1. Run the command above; choose **LAN** for a first installation on your local network.
 2. Follow the printed address, sign in and connect the services you want LIA to use.
@@ -59,7 +59,7 @@ The experimental speaking avatar is an optional choice, disabled by default; eac
 
 A complete source checkout builds the images locally; an official release directory uses prebuilt digests only when its adjacent manifest is qualified.
 
-The Google Gemini key is an optional question — memory recall, searches by meaning and image analysis wait for it — and the final report names every capability left waiting for a key.
+The Google Gemini key is an optional question — memory recall and searches by meaning wait for it — and the final report names every capability left waiting for a key.
 
 Two optional key pairs follow, each given whole or left empty: a Google Maps browser key with its Cloud map ID for interactive place maps, and, on an instance reached on a public domain, a Cloudflare Turnstile widget's keys for the anti-robot check on the password doors ([ADR-364](docs/architecture/ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md)).
 
@@ -222,7 +222,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 #### Long-term memory
 
 - Facts are extracted after each conversation, pinned or edited by hand, and injected by relevance with their scores visible in the debug panel ([LONG_TERM_MEMORY](docs/technical/LONG_TERM_MEMORY.md), [MEMORY_RESOLUTION](docs/technical/MEMORY_RESOLUTION.md)).
-- Newly learned standing instructions are pinned automatically. You can edit, unpin or delete them; automatic maintenance respects their protection.
+- Newly learned standing instructions are pinned automatically. You can edit, unpin or delete them; automatic maintenance respects their protection. An export of your memories (CSV or JSON) is imported back whole or not at all, with exact counts.
 - The planner, the ReAct loop and the phone look them up on purpose through one lookup door that answers what was asked, never just the latest memories ([ADR-313](docs/architecture/ADR-313-Long-Term-Memory-As-An-Active-Lookup.md)).
 
 #### Personal journals
@@ -233,7 +233,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 #### Knowledge spaces
 
-- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive and OneDrive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 553 questions cover every feature a person can use, in six languages.
+- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive and OneDrive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 566 questions cover every feature a person can use, in six languages.
 - A document that cannot be indexed says why in your language — a scanned PDF without a text layer names its remedy.
 - Search spaces by their name or a file's, sort them by name, recency, file count or activity, and keep favourites in their own group, right after Meetings in the menu: a favourite changes the list, never what retrieval reads.
 - Any indexed document, paused space or not, attaches to a chat message as a copy from the composer's « + » ([ADR-295](docs/architecture/ADR-295-Knowledge-Documents-As-Message-Attachments.md), [GUIDE_RAG_SPACES](docs/guides/GUIDE_RAG_SPACES.md), [ADR-055](docs/architecture/ADR-055-RAG-Spaces-Architecture.md), [ADR-058](docs/architecture/ADR-058-System-RAG-Spaces.md)).
@@ -287,9 +287,12 @@ activity registers, as in the provider's own application and on every provider:
   message in an isolated original layout. Outlook's automatic replies and rules stand beside
   Gmail's vacation and filters.
 - **Calendars** answer invitations, repeat events and change a whole series (RFC 5545 rules
-  on Google and iCloud, Graph patterns on Microsoft), in Day, Week, Month and Agenda views.
-- **Tasks** gather every list under Today, Overdue and Coming up; **contacts** hold photos,
-  groups, vCard export and import, and your latest exchanges.
+  on Google and iCloud, Graph patterns on Microsoft), in Day, Week, Month and Agenda views; a
+  time you set travels to the provider with its zone
+  ([ADR-380](docs/architecture/ADR-380-A-Persons-Time-Travels-With-Its-Zone.md)).
+- **Tasks** open on every open task of every list, each naming its list, with Today, Overdue
+  and Coming up views; **contacts** hold photos, groups, vCard export and import, and your
+  latest exchanges.
 - **Files** work on Google Drive and OneDrive, and documents read in the page: PDF, Word,
   Markdown, spreadsheets. **Ctrl+K** searches every tool at once.
 
@@ -364,9 +367,10 @@ the supported surfaces and secure continuation contract.
 
 - CSV, Excel, Word, PowerPoint, PDF, Markdown or text produced by local renderers with each format's native mechanisms (styles, fields, layouts, typed tables, bookmarks).
 - Format-specific renderers manage layout, and truncated structured model output is rejected instead of silently producing an incomplete file ([ADR-226](docs/architecture/ADR-226-Document-Generation-Agent.md), [ADR-274](docs/architecture/ADR-274-Document-Craft-Renderer-Owned-Model-Semantic.md), [ADR-275](docs/architecture/ADR-275-Truncated-Structured-Output-Is-A-Refusal.md)).
+- The writer says what a thing is, and the renderer uses what the format can do: a spreadsheet's formulas recalculate, with totals, named assumptions, key figures, drop-down lists and native charts; a presentation gains key-figure tiles, quotes, pictograms and editable charts; a report a cover page, numbered figures and cited sources. Illustrations are image generations you allow in the settings, each counted in your costs ([ADR-388](docs/architecture/ADR-388-Documents-Use-What-Their-Formats-Can-Do.md), [DOCUMENT_GENERATION](docs/technical/DOCUMENT_GENERATION.md)).
 - Image generation and natural-language editing on OpenAI GPT Image or Qwen Image 3.0 — a model family declares its offer, so nothing the configured model cannot serve is priced, offered or selected, the person's preference is resolved to that offer and every image arrives in the chosen format ([ADR-305](docs/architecture/ADR-305-Image-Model-Declares-Its-Offer.md), [IMAGE_GENERATION](docs/technical/IMAGE_GENERATION.md)).
 - On request, a new image's description is rewritten following the provider's own advice — a quoted text kept word for word, the original sent whenever in doubt, an edit never rewritten ([ADR-315](docs/architecture/ADR-315-Image-Prompt-Enhancement.md)).
-- A game, a quiz or a calculator asked in words runs in the conversation, in a sandboxed frame that reaches neither your account nor any site of its choosing, with its `.html` file below it; asking for the code still answers with the code ([ADR-370](docs/architecture/ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md)).
+- A game, a quiz or a calculator asked in words runs in the conversation, in a sandboxed frame that reaches neither your account nor any site of its choosing, with its `.html` file below it; a map is drawn from the tile sources the operator allows, and asking for the code still answers with the code ([ADR-370](docs/architecture/ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md)).
 
 #### Keep and send what LIA made
 
@@ -384,7 +388,7 @@ the supported surfaces and secure continuation contract.
 
 A ticket has a lifecycle, a holder and a result ([ADR-276](docs/architecture/ADR-276-Workboard.md), [WORKBOARD](docs/technical/WORKBOARD.md)):
 
-- One row per ticket, shared by its owner and its holder, across seven columns with sub-tickets, comments and a history that names both ends of every hand-over; the holder can be you, a connected peer, or LIA.
+- One row per ticket, shared by its owner and its holder, across seven columns with sub-tickets, comments and a history that names both ends of every hand-over; the holder can be you, a connected peer, or LIA. You sort your tickets into categories of your own, and the board draws one lane per category.
 - When LIA holds it, a sweep claims one ticket at a time, runs it in the execution mode the ticket declares, and settles from an explicit result — a quota ceiling or a busy conversation postpones the run, never fails it.
 - A run that needs a decision asks instead of refusing: the ticket lands in « To confirm » carrying the exact card the chat would show, and your comment _is_ the answer.
 
@@ -414,7 +418,9 @@ A ticket has a lifecycle, a holder and a result ([ADR-276](docs/architecture/ADR
 
 - A scheduled routine or reminder uses the timezone-aware recurrence engine ("every three days", "the 2nd Tuesday of the month").
 - A condition routine has no schedule: it is checked at the system's cadence for its source and records a run only when it fires. A weather condition always reads Google Weather and fires only on a change due within the next hours, above a published precipitation threshold, the run told the hour, the day and the source.
-- The studio offers one mode at a time, with a week view of actual runs ([ADR-268](docs/architecture/ADR-268-Generic-Recurrence-And-Reminder-Management.md), [ADR-322](docs/architecture/ADR-322-One-Clock-Per-Routine.md), [ADR-265](docs/architecture/ADR-265-Routine-Week-Timeline-And-Run-History.md), [SCHEDULED_ACTIONS](docs/technical/SCHEDULED_ACTIONS.md)).
+- A condition can watch a public web page: the system reads it with no model, at its own cadence, and the routine runs when new lines appear — a price, a stock notice, a date ([ADR-387](docs/architecture/ADR-387-A-Watched-Page-Is-Read-Without-A-Model.md)).
+- A third clock starts a routine on another system's signed call: its own address, a secret shown once, an HMAC-SHA256 signature, a call stored before it is acknowledged and read as another system's words, never as instructions ([ADR-386](docs/architecture/ADR-386-A-Signed-Call-Starts-A-Routine.md), [ROUTINE_WEBHOOKS](docs/technical/ROUTINE_WEBHOOKS.md)).
+- The studio offers one mode at a time, four templates that fill its form, and a week view of actual runs. A routine tells you when it failed, was skipped at a usage ceiling or missed its time, and can notify only when its run found something new ([ADR-268](docs/architecture/ADR-268-Generic-Recurrence-And-Reminder-Management.md), [ADR-322](docs/architecture/ADR-322-One-Clock-Per-Routine.md), [ADR-265](docs/architecture/ADR-265-Routine-Week-Timeline-And-Run-History.md), [SCHEDULED_ACTIONS](docs/technical/SCHEDULED_ACTIONS.md)).
 
 #### Interests and habits, learned with restraint
 
@@ -441,12 +447,15 @@ The home page opens on the date and LIA's living face, then aggregates your sour
 - Reply, forward, move an e-mail to the trash or adjust a reminder from its card: the request is prepared in the composer, and the server re-checks the original message, source and account grant. E-mail deletion still passes through approval before changing its original mailbox. A route opens as an interactive Google map whose estimated cost is announced first and every construction counted ([ADR-332](docs/architecture/ADR-332-Deterministic-Cards-Received-Facts-And-Message-Owned-Actions.md)).
 - MCP cards name the server's public origin and the called method above an accessible response disclosure; opening it reveals the received result without another call. Weather icons follow the provider's condition codes and day/night information, across current, daily and hourly forecasts.
 - In the rich HTML mode every data-bearing answer is a composed page — a lead sentence, one section per facet in the component that fits it, a closing callout — laid out on conversational turns too unless a voice is reading them ([ADR-177](docs/architecture/ADR-177-Rich-HTML-Response-Components.md)).
-- Images and PDFs can be attached (vision analysis, text extraction, strict per-user isolation).
+- Images and documents in fifteen formats can be attached — PDF, Word, Excel, PowerPoint, OpenDocument, EPUB, CSV, Markdown and more, each recognised by its content (vision analysis, text extraction, strict per-user isolation).
 - Long conversations are compacted by an LLM summary that preserves identifiers, the history scrolls back page by page without limit, and each answer is shared — to the device's sheet, or to a connection through an ordinary confirmed message — or downloaded as a dated Markdown file in one click. A formatted answer keeps its headings, lists, tables, links and code in that file, its cards summed up as a heading and a few bullets; copying stays plain text ([ADR-177](docs/architecture/ADR-177-Rich-HTML-Response-Components.md)).
 - The text size is a per-account preference from 14 to 20 px: only the text scales, panels, spacing and icons keep their dimensions.
 
-#### One conversation across devices and channels
+#### Discussions across devices and channels
 
+- The badge in the middle of the chat header opens your discussions: a permanent Main, which receives reminders, routines and unsolicited messages, and the side discussions you create for another subject, titled by you or by the beginning of your first message. Each has its own history, draft and session meter; rename, reset or delete one, export any as Markdown, and search your words across all of them. The account's preferences, memory and journal apply throughout, and one answer runs per account at a time ([ADR-378](docs/architecture/ADR-378-Permanent-Main-And-Isolated-Discussion-Runtimes.md), [discussion guide](docs/technical/SECONDARY_CONVERSATIONS.md)).
+- Words written while LIA works wait their turn: the composer stays open, the message is kept on the server, one per discussion, and leaves by itself after an answer that ended normally, never as the answer to a question LIA asked. In ReAct mode it can join the answer being written instead, read at the loop's next step ([ADR-384](docs/architecture/ADR-384-A-Message-Written-While-LIA-Works-Waits-Its-Turn.md), [ADR-385](docs/architecture/ADR-385-A-Note-Joins-The-Answer-Being-Written.md), [WAITING_MESSAGES](docs/technical/WAITING_MESSAGES.md)).
+- Every message carries the instant it was written, in your zone, and every model that reads the conversation reads it: a discussion resumed days later is not read as if everything had just been said ([ADR-381](docs/architecture/ADR-381-A-Model-Reads-When-Each-Message-Was-Written.md)).
 - Once a message is committed, the open chat learns of it and merges the new history without replacing older pages, moving the reader or interrupting an action. Other tabs, calls, routines and external channels become visible without a reload.
 - A reconnected tab catches up after an interruption ([ADR-320](docs/architecture/ADR-320-The-Chat-Follows-The-Server-Without-A-Reload.md)).
 
@@ -500,7 +509,7 @@ retain their native fallback. See the [volume guide](docs/technical/NATIVE_AVATA
 for projection and performance limits.
 
 - Psyche temperament, actual tool execution and the delivered answer's tone share one animation rig across the companion catalogue. Eyes lead a head with depth and weight.
-- Continuous mouth/brow contours, quiet thought and varied resting scenes keep transitions natural. Speech follows actual audio, and a prepared draft never earns an accomplished-action gesture. Fresh cached weather and the account clock add discreet ambience without a provider or LLM call.
+- Continuous mouth/brow contours, quiet thought and varied resting scenes keep transitions natural. The mouth opens on the voice actually heard, a speaking face looks at you, and a prepared draft never earns an accomplished-action gesture. The weather LIA already read at your place is played around the face — a first drop before the umbrella, a snowflake followed with the eyes — without a provider or LLM call of its own.
 - You place the companion — a drag, the arrow keys, or a fold into its restore dot — and on a phone nothing else moves it.
 - Reduced motion keeps static contextual poses ([ADR-240](docs/architecture/ADR-240-expressive-eyes-widget.md), [ADR-252](docs/architecture/ADR-252-Expressive-Eyes-Animation-Rig.md), [ADR-253](docs/architecture/ADR-253-Per-Turn-Expressivity-Annotation.md), [ADR-264](docs/architecture/ADR-264-Living-Brows-And-Mouth.md), [ADR-294](docs/architecture/ADR-294-A-Face-That-Never-Plays-The-Same-Twice.md)).
 
@@ -538,11 +547,14 @@ for projection and performance limits.
 - The assistant chooses how much to read from the question: headers to list, a body paginated by paragraph to read, or a digest per message to reason over many. A small model computes each digest once; it is cached thirty days and counted in your usage. If digest generation fails or is truncated, the original body remains available ([ADR-287](docs/architecture/ADR-287-Email-Content-First-Detail-Levels-Digests-And-Neutral-Message.md), [EMAIL_FORMATTER](docs/technical/EMAIL_FORMATTER.md)).
 - An attachment is read too — its text when it has one, the vision slot for a picture or a scan — bounded, paginated and treated as what a stranger sent ([ADR-296](docs/architecture/ADR-296-Mail-Attachments-Read-By-Text-Or-Vision.md)).
 - Your mailbox drafts — Gmail, Outlook, iCloud — are saved, listed, edited and trashed from the conversation without a confirmation, since nothing reaches anyone; sending one asks once, on a card that shows the draft as the mailbox holds it, and a draft edited elsewhere since is not sent ([ADR-344](docs/architecture/ADR-344-Mailbox-Drafts-Kept-Freely-Sent-After-One-Confirmation.md)).
+- A listed mail says whether it was answered: one read of the page's conversations, no model call, shown on the chat's cards, the home and the Tools. LIA stops offering to answer what you answered, and a state that could not be read is « not known », never « unanswered » ([ADR-379](docs/architecture/ADR-379-A-Listed-Mail-Says-Whether-It-Was-Answered.md), [MAIL_REPLY_STATE](docs/technical/MAIL_REPLY_STATE.md)).
+- E-mails are drafted in your own voice: a profile of how you write — greeting, sign-off, signature, register —, learned from your latest sent e-mails and never from what they said, stored encrypted, shown in the settings and forgotten on request ([ADR-383](docs/architecture/ADR-383-A-Draft-Speaks-In-The-Persons-Voice.md), [WRITING_STYLE](docs/technical/WRITING_STYLE.md)).
 
 #### Connected from the first day
 
 - The connectors that ask nothing of the person (Wikipedia, page browsing, Google Places, Weather and Environment) belong to the instance: no per-account row and no entry in « My connectors », always on unless the administrator switches one off for everyone or the instance has no platform key.
 - For the weather, a person's own OpenWeatherMap key takes precedence over the instance's default ([ADR-307](docs/architecture/ADR-307-Keyless-Connectors-Belong-To-The-Instance.md), [CONNECTORS_PATTERNS](docs/technical/CONNECTORS_PATTERNS.md)).
+- Where the operator runs the bundled SearXNG service, an account with no search key still gets web links in the chat, the interest watch and the Tools; a person's own Brave key keeps priority, and a failed search is said, never read as « nothing found » ([ADR-382](docs/architecture/ADR-382-The-Instance-Searches-The-Web-For-Who-Has-No-Key.md), [WEB_SEARCH](docs/technical/WEB_SEARCH.md)).
 
 #### Documents, places and weather
 
@@ -562,6 +574,7 @@ for projection and performance limits.
 - Conformant to the protocol's current revision on both halves and reading tool declarations to the letter of JSON Schema 2020-12 ([ADR-224](docs/architecture/ADR-224-Conformite-MCP-2026-07-28-SDK-v2.md), [ADR-255](docs/architecture/ADR-255-MCP-Tool-Declaration-Conformance.md)).
 - MCP Apps rendered as sandboxed widgets behind a CSP airlock ([ADR-098](docs/architecture/ADR-098-CSP-Widget-Airlock.md)).
 - An iterative mode where a dedicated agent reads a complex server's docs before calling it ([MCP_INTEGRATION](docs/technical/MCP_INTEGRATION.md)).
+- A gallery of known vendor-hosted servers opens the form already filled, each with its icon and how it signs in; the catalogue ships no credential, and the same key works from the chat.
 - Choose confirmations for your account, each server and each tool, and inspect **What it will do** before changing them. A dedicated agent asks once before a task when one of its tools needs approval, then completes that task. Only the settings page can reduce confirmations; an explicit “never ask” is suspended when the tool's declaration changes ([ADR-368](docs/architecture/ADR-368-The-Person-Decides-When-LIA-Asks-Before-An-MCP-Tool.md)).
 - A provider's cooldown is shared across workers for that person's server, so another concurrent request cannot restart a wait the service already imposed.
 - What a personal server offers is kept as a snapshot every worker shares and served while it is revalidated, so a message waits for none of your servers; one that must be asked again is prepared in parallel under a ceiling and named when it is slow, and a call checks the declaration it relies on before it is sent ([ADR-366](docs/architecture/ADR-366-Personal-MCP-Catalogue-Snapshot-Served-While-Revalidated-Verified-At-Use.md)).
@@ -572,6 +585,7 @@ for projection and performance limits.
 - A public skill library: search skills.sh, read a skill's every file, source, exact version and published audits before installing it at the commit that was read, and update it when its folder moves; a skill from the library, an address or a plugin is third-party — run in an isolated runner, never near a connector, its answer drawn without images or HTML ([ADR-327](docs/architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md)).
 - Skills that run their own commands — Python, Node, shell — in a throwaway copy of their folder, from a dedicated sandbox image with no Docker client and no application code; what they write comes back as generated files, and a command reaches only the hosts it declares, through the egress proxy.
 - Agent Plugins v1 packages — skills plus streamable-http MCP servers — installed in one step with an exhaustive per-component report ([ADR-225](docs/architecture/ADR-225-Standard-Agent-Plugins-v1.md)).
+- Each skill shows how often it was used; one left unused is proposed for switch-off, and replacing a skill of your own keeps one previous version to restore ([ADR-165](docs/architecture/ADR-165-Skill-Editing-By-Regeneration.md)).
 
 </details>
 
@@ -1075,7 +1089,7 @@ A panel embedded in the chat, organised into six groups; an empty section shows 
 
 ### Observability
 
-- **Prometheus**: 666 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric — and the reverse holds: every panel reads a series something produces.
+- **Prometheus**: 677 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric — and the reverse holds: every panel reads a series something produces.
 - **Grafana**: 33 dashboards, including product-value and radio cockpits · **Loki**: structured JSON logs that keep facts, never people's words, shipped by Grafana Alloy ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)) · **Tempo**: distributed tracing, spans named by the route template · **Langfuse**: LLM tracing with prompt versions. The whole stack runs on supported versions, pinned by digest.
 - **Linked signals, a pipeline that watches itself**: a log line opens its trace, a trace its logs and metrics, a latency point its exemplar; Loki, Alloy, Tempo and Grafana are scraped on closed keep-lists and `LogsNotDelivered` fires when lines go missing; every dashboard opens on seven days (logs and traces on four hours) behind one shared menu — [ADR-333](docs/architecture/ADR-333-Linked-Signals-And-A-Pipeline-That-Watches-Itself.md).
 - **Probes**: liveness (`GET /health`) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](docs/architecture/ADR-115-Liveness-Readiness-Probes.md).
@@ -1272,8 +1286,8 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 
 | Metric                  | Value                                                                                                                        |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Backend tests           | 60,666 collected over `tests/`, across 3,983 files (`pytest --collect-only -q --no-cov`, Windows/Python 3.14, 2026-11-10)    |
-| Frontend tests (vitest) | 20,587 across 1,494 files (`vitest list`, 2026-11-10), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
+| Backend tests           | 65,430 collected over `tests/`, across 4,246 files (`pytest --collect-only -q --no-cov`, Windows/Python 3.14, 2026-11-14)    |
+| Frontend tests (vitest) | 22,063 across 1,586 files (`vitest list`, 2026-11-14), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
 | Coverage floor          | 87% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                       |
 | Technical audit         | Method, evidence and open findings — [full public report & protocol](docs/audit/README.md)                                   |
 
@@ -1328,7 +1342,7 @@ Pre-push: secret scan           Security workflow (weekly)
 | OAuth / PKCE                                                                           | PKCE S256, single-use state and issuer/identity checks; grouped Google/Microsoft consent shares grants only within the verified provider account, and every token renews through one door ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md)); linking a federated identity never changes an account's status ([ADR-002](docs/architecture/ADR-002-BFF-Pattern-Authentication.md))                                                                                                                                                                                                                                          |
 | [MCP](https://modelcontextprotocol.io/) / plugins                                      | Model Context Protocol servers and apps, agentskills.io skills and Agent Plugins v1 packages use documented open interfaces, with separately reviewed trust and sandbox boundaries ([MCP](docs/technical/MCP_INTEGRATION.md), [plugins](docs/technical/PLUGINS_INTEGRATION.md))                                                                                                                                                                                                                                                                                                                                                                                 |
 | Supply chain                                                                           | Hash-verified universal lockfiles and every build input pinned by digest, pip-audit on the full transitive tree, a weekly watch of each dependency's own advisories and end-of-life dates, a refresh that never moves a version backwards ([ADR-331](docs/architecture/ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md)), a CycloneDX SBOM per release                                                                                                                                                                                                                                                                                           |
-| Untrusted code                                                                         | A page the model writes runs in a sandboxed frame with an opaque origin, under a policy that names no host ([ADR-370](docs/architecture/ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md)). Skill scripts execute in a throwaway container — no Docker socket, no network, read-only filesystem, unprivileged uid, all capabilities dropped — and no sandbox means no execution, never a weaker fallback; a script the assistant writes, or a skill's command that names its hosts, reaches the web only through one egress proxy holding the keys and the allowlist ([ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md)) |
+| Untrusted code                                                                         | A page the model writes runs in a sandboxed frame with an opaque origin, under a policy that names no host but the map tile sources the operator allows ([ADR-370](docs/architecture/ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md)). Skill scripts execute in a throwaway container — no Docker socket, no network, read-only filesystem, unprivileged uid, all capabilities dropped — and no sandbox means no execution, never a weaker fallback; a script the assistant writes, or a skill's command that names its hosts, reaches the web only through one egress proxy holding the keys and the allowlist ([ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md)) |
 
 These references describe implemented controls, not a GDPR/AI Act legal opinion, OWASP or ISO certification, or a security-audit score. The [public technical audit](docs/audit/README.md) measures 24 technical-quality areas against an ISO/IEC 25010:2023-inspired grid and explicitly excludes security.
 
@@ -1379,7 +1393,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-375 ADR files (ADR-001 through ADR-377 — ADR-008 has no separate file and ADR-349 remains reserved) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+386 ADR files (ADR-001 through ADR-388 — ADR-008 has no separate file and ADR-349 remains reserved) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded
@@ -1402,10 +1416,10 @@ The [full story](https://lia.jeyswork.com/story) covers the method, trade-offs a
 
 |                                |                                          |                                        |                                                      |
 | ------------------------------ | ---------------------------------------- | -------------------------------------- | ---------------------------------------------------- |
-| **62** backend domain packages | **1,165,741** source lines (excl. tests) | **81,253** inventoried automated tests | **375** ADRs                                         |
-| **296** versions shipped       | **6 languages**, parity enforced in CI   | **666** Prometheus metrics             | [Technical audit and protocol](docs/audit/README.md) |
+| **63** backend domain packages | **1,219,345** source lines (excl. tests) | **87,493** inventoried automated tests | **386** ADRs                                         |
+| **297** versions shipped       | **6 languages**, parity enforced in CI   | **677** Prometheus metrics             | [Technical audit and protocol](docs/audit/README.md) |
 
-Source-line figure: 1,165,741 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-11-09). The domain figure counts backend domain packages. Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
+Source-line figure: 1,219,345 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-11-14). The domain figure counts backend domain packages. Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — the method, executed evidence, open work and full report: [docs/audit/](docs/audit/README.md)
@@ -1416,7 +1430,7 @@ Source-line figure: 1,165,741 physical lines in Python, TypeScript, JavaScript a
 <summary><strong>Latest release — Everywhere, your way</strong></summary>
 
 <p align="center">
-  <strong>Version 4.6.0</strong> — <strong>Everywhere, your way.</strong> Select words anywhere in LIA, the chat included, and a small menu explains, translates, searches the web or turns them into a task, an event or a reminder through the form you know. A card in the chat opens its record in the Tools, what LIA learns from your use becomes proposals you accept in one click, the voice speaks in the personality you chose, and the screens follow your icon style and your hours — 10 November 2026.
+  <strong>Version 5.0.0</strong> — <strong>A discussion for every subject.</strong> LIA keeps a permanent Main discussion and as many side discussions as you have subjects, searched together, and you can write while it answers. A routine starts on another system's signed call or when a web page changes, a mail says whether you answered it and is drafted in your own voice, documents compute and chart themselves, and the web is searched without a key of your own — 14 November 2026.
 </p>
 
 [Full changelog](CHANGELOG.md)

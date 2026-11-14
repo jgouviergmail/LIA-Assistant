@@ -34,6 +34,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { PaneSeparator } from '@/components/ui/pane-separator';
 import { useAuth } from '@/hooks/useAuth';
 import { useDrillDownFocus } from '@/hooks/useDrillDownFocus';
+import { useMailReplyMarks } from '@/hooks/useMailReplyMarks';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useTaskListNames } from '@/hooks/useTaskListNames';
 import { useWorkbenchItem, type WorkbenchItemState } from '@/hooks/useWorkbenchItem';
@@ -50,6 +51,7 @@ import {
   EMPTY_MAIL_SEARCH,
   MAIL_DRAFTS,
   MAIL_INBOX,
+  MAIL_SPAM,
   MAIL_TRASH,
   listingParams,
   lineMembers,
@@ -776,6 +778,15 @@ function MessagesColumn({
   const { selected, select, toggle } = selection;
   const triage = useMailTriage(lng, listed, limits.page_size);
   const { lines } = triage;
+  // Read apart from the listing, which never waits for them; nobody answers junk or the trash.
+  const replyMarkOf = useMailReplyMarks(
+    tool.features.includes('reply_marks') &&
+      address.folder !== MAIL_SPAM &&
+      address.folder !== MAIL_TRASH,
+    mail.messages.read,
+    mail.messages.items,
+    limits.page_size
+  );
   // A selection ticks lines; every act below takes the messages they stand for.
   const lineIds = lines.map(line => line.message.id);
   const selectedRows = selectedMembers(lines, selected);
@@ -837,6 +848,7 @@ function MessagesColumn({
         searching={isSearching(search)}
         whenOf={whenOf}
         labelName={id => labels?.find(label => label.id === id)?.name ?? undefined}
+        replyMarkOf={replyMarkOf}
         hrefOf={address.messageHref}
         onOpen={address.openMessage}
         onToggle={(message, range) => toggle(message.id, range ? lineIds : undefined)}

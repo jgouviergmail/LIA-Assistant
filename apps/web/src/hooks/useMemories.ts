@@ -3,6 +3,7 @@ import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
 import { useApplicationAccountQuery } from './useApplicationAccountQuery';
 import { useApplicationResourceSync } from './useApplicationResourceSync';
+import type { MemoryImportReport } from '@/lib/memories/import-summary';
 
 const releaseMemoryOverride = () => {};
 
@@ -77,6 +78,10 @@ export interface MemoryLimits {
   content_max_chars: number;
   trigger_topic_max_chars: number;
   usage_nuance_max_chars: number;
+  /** Most memories one import of an export takes. */
+  import_max_memories: number;
+  /** Largest export file one import reads, in kilobytes. */
+  import_max_file_kb: number;
 }
 
 /**
@@ -125,6 +130,7 @@ export function useMemories() {
     loading,
     error,
     refetch,
+    refetchVerified,
     setData,
   } = useApplicationAccountQuery<MemoryListResponse>(
     categoryFilter ? `/memories?category=${categoryFilter}` : '/memories',
@@ -162,6 +168,15 @@ export function useMemories() {
   // Delete all mutation
   const { mutate: deleteAllMutate, loading: deletingAll } = useApiMutation({
     method: 'DELETE',
+    componentName: 'useMemories',
+  });
+
+  // Import mutation: one export file, sent as it is
+  const { mutate: importMutate, loading: importing } = useApiMutation<
+    FormData,
+    MemoryImportReport
+  >({
+    method: 'POST',
     componentName: 'useMemories',
   });
 
@@ -279,6 +294,25 @@ export function useMemories() {
   );
 
   /**
+   * Import a memories export. The list is read again once the API answered:
+   * what was created has identifiers and dates only the API knows. A re-read
+   * that fails leaves the list as it was and never turns a done import into
+   * a failed one — the report is still the import's.
+   */
+  const importMemories = useCallback(
+    async (file: File): Promise<MemoryImportReport | undefined> => {
+      if (!isCurrent()) return;
+      const form = new FormData();
+      form.append('file', file);
+      const report = await importMutate('/memories/import', form);
+      if (!isCurrent()) return;
+      if (report?.imported) await refetchVerified();
+      return report ?? undefined;
+    },
+    [importMutate, refetchVerified, isCurrent]
+  );
+
+  /**
    * Toggle pin state (optimistic update).
    */
   const togglePin = useCallback(
@@ -312,6 +346,7 @@ export function useMemories() {
     deleting,
     updating,
     deletingAll,
+    importing,
     categoryFilter,
     setCategoryFilter,
     refetch,
@@ -320,5 +355,6 @@ export function useMemories() {
     updateMemory,
     deleteAllMemories,
     togglePin,
+    importMemories,
   };
 }

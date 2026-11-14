@@ -76,6 +76,19 @@ async def test_metadata_fetch_is_bounded_and_tolerant() -> None:
     assert [m["id"] for m in messages] == [f"m{i}" for i in range(9)]
 
 
+async def test_metadata_is_read_fresh_so_an_opened_message_reads_opened() -> None:
+    """The pre-filter asks « still unread? »: a copy cached at arrival would lie."""
+    client = AsyncMock()
+
+    async def _get(message_id: str, *, use_cache: bool = True, **_: object) -> dict:
+        labels = ["INBOX", "UNREAD"] if use_cache else ["INBOX"]
+        return {"id": message_id, "labelIds": labels}
+
+    client.get_message = AsyncMock(side_effect=_get)
+
+    assert await fetch_mail_metadata(client, ["m1"]) == [{"id": "m1", "labelIds": ["INBOX"]}]
+
+
 async def test_wake_messages_replace_the_delta_and_advance_the_anchor() -> None:
     wake = _wake(
         "google_gmail",

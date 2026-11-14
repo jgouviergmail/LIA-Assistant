@@ -27,6 +27,7 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, LIVE_DIRECT_TRANSCRIPT_MAX_ROWS
+from src.core.reservation_work import require_reserved_work
 from src.domains.connectors.models import ConnectorType
 from src.domains.live.errors import (
     raise_live_instance_busy,
@@ -105,7 +106,7 @@ async def enter_standby(
     await store.register_standby(
         session_id, asleep.standby_deadline(settings.live_standby_max_seconds)
     )
-    relay = await _relay_kept_words(service, store, user, asleep, life, language=language)
+    relay = await _relay_kept_words(store, user, asleep, language=language)
     live_sessions_active.set(await store.count_active(now))
     live_sessions_standby.set(await store.count_standby(now))
     live_session_standby_total.labels(provider=record.provider, reason=payload.reason).inc()
@@ -120,18 +121,16 @@ async def enter_standby(
 
 
 async def _relay_kept_words(
-    service: LiveService,
     store: LiveSessionStore,
     user: User,
     asleep: LiveSessionRecord,
-    life: int,
     *,
     language: str,
 ) -> StandbyRelay:
     """A direct session's words since its last wake, relayed; None for a delegated one."""
     if asleep.mode != "direct":
         return None
-    rows = await store.drain_turns(user.id, max_rows=LIVE_DIRECT_TRANSCRIPT_MAX_ROWS)
+    rows = await store.drain_turns(asleep, max_rows=LIVE_DIRECT_TRANSCRIPT_MAX_ROWS)
     if not rows:
         return "empty"
     session = VoiceSession.browser(
@@ -139,15 +138,13 @@ async def _relay_kept_words(
         run_id=asleep.run_id,
         mode=as_voice_session_mode(asleep.mode),
         user_id=user.id,
-        conversation_id=await service._conversation_id(user.id, language=language),
+        conversation_id=require_reserved_work().admission.target.id,
+        reservation=require_reserved_work(),
         language=language,
         timezone=str(user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE),
     )
 
-    async def keep_fate(fate: str, recap: str | None) -> None:
-        await store.append_relay(user.id, fate, recap, ttl_seconds=life)
-
-    schedule_standby_relay(session, VoiceTranscript.from_rows(rows), keep_fate=keep_fate)
+    await schedule_standby_relay(session, VoiceTranscript.from_rows(rows))
     return "scheduled"
 
 

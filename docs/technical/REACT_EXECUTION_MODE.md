@@ -21,15 +21,16 @@
 5. [Nodes](#nodes)
 6. [Tool System](#tool-system)
 7. [HITL in ReAct](#hitl-in-react)
-8. [Response Synthesis](#response-synthesis)
-9. [Initiative enrichment on the nominal path](#initiative-enrichment-on-the-nominal-path-adr-070--adr-062)
-10. [Turn isolation & data-precision guidance](#turn-isolation--data-precision-guidance-2026-07)
-11. [Token Tracking](#token-tracking)
-12. [Skills Integration](#skills-integration)
-13. [Sandboxed Python](#sandboxed-python-adr-249)
-14. [Configuration](#configuration)
-15. [Streaming Step Visibility](#streaming-step-visibility-v1162)
-16. [Key Files](#key-files)
+8. [A note the person adds while the loop works](#a-note-the-person-adds-while-the-loop-works-adr-385)
+9. [Response Synthesis](#response-synthesis)
+10. [Initiative enrichment on the nominal path](#initiative-enrichment-on-the-nominal-path-adr-070--adr-062)
+11. [Turn isolation & data-precision guidance](#turn-isolation--data-precision-guidance-2026-07)
+12. [Token Tracking](#token-tracking)
+13. [Skills Integration](#skills-integration)
+14. [Sandboxed Python](#sandboxed-python-adr-249)
+15. [Configuration](#configuration)
+16. [Streaming Step Visibility](#streaming-step-visibility-v1162)
+17. [Key Files](#key-files)
 
 ---
 
@@ -324,7 +325,14 @@ allowed, a web search never tried). A turn is now judged on its result
   message closes with an `<unresolved>` block, one line per such fact still missing after the
   ladder, with the rungs tried, and carries no block when nothing is missing. A detail nobody
   asked for and nobody looked up is not a gap, nor is a fact obtained from another source: it
-  carries that source (`Source: … (fallback)`). `declared_unresolved` reads every block — from
+  carries that source (`Source: … (fallback)`). The mark says what the loop did: the fact came
+  from another source once the tool called for it did not deliver it (the ladder's second rung,
+  or the sandbox's rung when `run_python_tool` is bound and the capability on); a fact the tool
+  called for it delivered, a web search included, carries its source unmarked (ADR-310
+  amendment 2026-11-14: a first web search marked « fallback, aucune autre source
+  disponible » reached the person as a limit the turn never had). The prompt forbids no
+  sentence about the other sources: the one tried was measured to change nothing and was
+  withdrawn. `declared_unresolved` reads every block — from
   the LAST opening before each closing, because a model that names the tag in its reasoning
   opens nothing — case-insensitively, and ignores an empty one, the `...` placeholder or a lone
   « none » in six languages.
@@ -437,6 +445,13 @@ Tools are NOT stored in state (non-serializable). Tool names and HITL map are st
 - **The turn's context follows the question** (`nodes/react_turn_layout.py`, called by `react_call_model_node`). The leading system message is the static prompt ending on its `DYNAMIC CONTEXT` line — where the payload shapers cut their breakpoint and the OpenAI cache key stops (ADR-306) — and the context (that line, the prompt's dynamic part, then every context block) comes right after the question, before the loop's own messages. Its shape is declared per provider in `CONTEXT_PLACEMENT`, checked at boot: a system message after the question for OpenAI, DeepSeek and Qwen; the context appended to the question's own message, as text, for Anthropic (a system message that is not first is refused), Gemini (its client folds a later system message back into the system instruction), Ollama and Perplexity. Nothing of it reaches the checkpoint.
 - **The history drops by blocks**, anchored on the turn counter (below, ADR-309).
 
+Each message of the person reads with the moment it was written, in their zone
+(`[Tue 10 Nov 2026, 09:12] …`, `react_history.window_messages_for_react` through
+`message_view.with_written_at`, [ADR-381](../architecture/ADR-381-A-Model-Reads-When-Each-Message-Was-Written.md)) —
+the current question too: the next turn reads this one back through its question, so
+its bytes are the same while it is asked and once it is earlier. The static prompt says
+what a stamp is, and resolves a relative expression against the moment it was said.
+
 For a turn a person waits for, a fourth follows ([ADR-362](../architecture/ADR-362-Claude-Cross-Turn-Cache-History-Read-Point-Hour-Lifetime-And-Prior-Thinking.md)): on Claude the two points the next turn reads back — the static prefix and the history's end, which the payload policy marks inside a tool loop — are written for the provider's extended lifetime (one hour, a write billed 2x instead of 1.25x), because the next turn comes within the hour four times in five and within five minutes about half the time; the loop's rolling breakpoint keeps five minutes. A routine, a ticket or a relay keeps the default (`latency_sli.a_person_is_waiting`), and `PROMPT_CACHE_EXTENDED_TTL_ENABLED` withdraws the hour.
 
 Measured on real turns (2026-09-23), weighted by production's gaps between ReAct turns: −18 % per turn on Claude Sonnet 5, −34 % on gpt-5.6-luna, −42 % on deepseek-flash, −18 % on qwen3.7-plus; +18 % on qwen3.5-plus, which has no prompt cache at all on the Frankfurt endpoint. Binding every tool WITHOUT moving the context cost 44 % more on DeepSeek, whose cached prefix puts the system prompt before the tools — which is why the rhythm does both, and why the history blocks below travel with them: measured, the context after the question pays only when the tools before it stay the same, and the blocks only when the history is read again (ADR-311).
@@ -484,6 +499,17 @@ ReAct has two HITL paths, both reusing existing infrastructure (no ReAct-specifi
 2. **Draft confirmation** — draft-preparing mutation tools (`create_event_tool`, `send_email_tool`, `update_*`, `delete_*`, …) return `requires_confirmation=True` and prepare a **draft** instead of executing. `react_execute_tools` extracts the draft and sets `pending_draft_critique`; `route_from_react_execute_tools` then routes to `hitl_dispatch` (the shared `draft_critique` node) → `initiative` → `response_node` — exactly the path pipeline mode uses. The user confirms/edits/cancels, then `response_node` executes the confirmed draft via `execute_draft_if_confirmed` and synthesizes the real result. Because confirmation happens in a node **downstream** of `react_execute_tools`, resume re-enters `hitl_dispatch` only — the draft tool is never re-run (no duplicate drafts). Completion metrics are still emitted on this short-circuited path (`react_agent_executions_total{status="draft"}`).
 
 > Tools that execute directly without a draft (e.g. `create_reminder_tool`) are not draft-gated and behave identically in both modes.
+
+## A note the person adds while the loop works (ADR-385)
+
+What the person writes while LIA works waits for its turn ([ADR-384](../architecture/ADR-384-A-Message-Written-While-LIA-Works-Waits-Its-Turn.md)). In a ReAct turn a person waits for, the waiting message can instead **join the answer being written**: the loop reads it at its next model call and goes on with it. The whole mechanism, with its limits, is in [WAITING_MESSAGES.md](WAITING_MESSAGES.md); what the loop does:
+
+1. **Open, read, close** — `react_call_model_node` calls `take_turn_notes` before composing its messages: the door (`agents/api/turn_notes`) opens the run's notes at the first call (`conversation_executions.accepts_notes`, only when `a_person_is_waiting()`), then deletes and archives in ONE transaction the notes that joined (`turn_note: true`). The finalize node and the draft hand-off of `react_execute_tools` call `settle_turn_notes`, which closes them. Each step is a short transaction; none is held across a model call.
+2. **Shown in place, never written** — a note read becomes a record of the turn (`react_turn_notes`: the archived id, the words, when they were written, the id of the last message the loop had, the recovery passes already taken), reset at the turn's start. Every later call shows it as the person's message right after that message, stamped (ADR-381) and framed by `react_turn_note_lines`, beside the recovery passes it is ordered with (`nodes/react_shown`). Written into `messages`, it would be the turn's question for every reader that takes the last human message as such.
+3. **Nothing before it moves** — the note is inserted after the loop's existing messages, so a generation that binds its thinking to the conversation ([ADR-306](../architecture/ADR-306-Claude-Request-Surface-And-Billed-Prompt-Cache.md)) reads its loop unchanged, and the cached prefix holds up to the note.
+4. **Folded at the exit** — `settle_turn_notes` folds the notes after the turn's question (the same message, by its id, never a synthetic HITL scaffold), and the response node's `{user_query}` is completed the same way (`with_turn_notes`): the response, the extractions and the later turns read the request as the person completed it.
+
+The pipeline mode takes no note: its plan is decided before anything runs.
 
 ## Response Synthesis
 
@@ -688,6 +714,9 @@ During ReAct execution, the frontend displays accumulated execution steps in rea
 | `src/domains/agents/utils/react_budget.py` | The ONE stop predicate, its finalize reader, the turn-start reset |
 | `src/domains/agents/nodes/react_context.py` | Memory/context blocks, at pipeline parity (ADR-248) |
 | `src/domains/agents/nodes/react_recovery.py` | The recovery protocol: the declaration's reader, the predicate, the node, the transient directive, the outcome (ADR-310) |
+| `src/domains/agents/nodes/react_shown.py` | What a call is shown beside the thread, never written to it: recovery passes and notes, ordered by when they happened (ADR-310, ADR-385) |
+| `src/domains/agents/nodes/react_turn_notes.py` | The person's notes in a turn: recorded, shown in place, folded into the question at the exit (ADR-385) |
+| `src/domains/agents/api/turn_notes.py` | The door: open the notes, read and archive what joined, close them (ADR-385) |
 | `src/domains/agents/tools/python_sandbox_tools.py` | `run_python_tool` + per-turn run budget (ADR-249) |
 | `src/domains/agents/python_sandbox/catalogue_manifests.py` | Manifest: ReAct-only, published bounds |
 | `src/domains/agents/tools/react_tool_wrapper.py` | Tool wrapper: per-item projection under a token budget, stated cut, registry collection (ADR-286) |
@@ -695,6 +724,7 @@ During ReAct execution, the frontend displays accumulated execution steps in rea
 | `src/domains/agents/services/performed_actions_directive.py` | The turn's succeeded acts, from the register, stated to the response model as its own (ADR-263 §23) |
 | `src/domains/agents/prompts/v1/react_agent_prompt.txt` | System prompt |
 | `src/domains/agents/prompts/v1/react_recovery_directive.txt` | What a recovery pass tells the model (ADR-310) |
+| `src/domains/agents/prompts/v1/react_turn_note_lines.txt` | The line that frames the person's note (ADR-385) |
 | `src/domains/agents/nodes/routing.py` | `route_from_react_call_model()` |
 | `src/domains/agents/graph.py` | Graph wiring (edges + conditional) |
 | `src/domains/agents/models.py` | State fields (react_*, schema 1.2) |
@@ -703,4 +733,5 @@ During ReAct execution, the frontend displays accumulated execution steps in rea
 | `docs/architecture/ADR-248-React-Memory-Parity-And-Progress-Earned-Budget.md` | Memory parity, truncation honesty, earned budget |
 | `docs/architecture/ADR-249-Ephemeral-Python-In-The-Existing-Sandbox.md` | Sandboxed scripts |
 | `docs/architecture/ADR-310-ReAct-Turn-Judged-On-Its-Result.md` | The recovery pass, the ladder, absolute dates |
+| `docs/architecture/ADR-385-A-Note-Joins-The-Answer-Being-Written.md` | The person's note read by the loop at its next call |
 | `docs/architecture/ADR-275-Truncated-Structured-Output-Is-A-Refusal.md` | A cut output is a refusal — structured doors, and the loop (2026-09-27 amendment) |

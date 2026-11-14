@@ -75,7 +75,6 @@ const SETTINGS_TRANSLATION_SCOPES = [
   'settings.plugins',
   'settings.eyes_style',
   'settings.meetings',
-  'settings.workboard',
   'settings.generated_assets',
   'settings.bookmarks',
   'settings.live_mode',

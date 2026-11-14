@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from collections.abc import AsyncIterator
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -36,6 +36,7 @@ from src.core.exceptions import BaseAPIException, ConnectorAPIError
 from src.domains.connectors.active_client import ActiveClient
 from src.domains.connectors.clients.calendar_answers import NotInvitedError
 from src.domains.connectors.clients.calendar_options import EventOptions
+from src.domains.connectors.clients.event_bounds import DayBounds
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.preferences.owner_defaults import CALENDAR
 from src.domains.workbench import calendar_service
@@ -620,11 +621,11 @@ class TestACreate:
             await calendar_service.create_event(USER, _new(conference=True))
 
         kwargs = client.create_event.await_args.kwargs
-        assert (kwargs["start_datetime"], kwargs["end_datetime"], kwargs["timezone"]) == (
-            "2026-11-02T10:00:00",
-            "2026-11-02T11:00:00",
-            "Europe/Paris",
-        )
+        start, end = kwargs["bounds"].start, kwargs["bounds"].end
+        assert (start.iso(), end.iso()) == ("2026-11-02T10:00:00", "2026-11-02T11:00:00")
+        assert (start.zone.key, end.zone.key) == ("Europe/Paris", "Europe/Paris")
+        # Ten on a Paris wall in November is nine in UTC: the zone travels with the time.
+        assert start.instant() == datetime(2026, 11, 2, 9, 0, tzinfo=UTC)
         assert (kwargs["idempotency_key"], kwargs["add_conference"]) == (KEY, True)
 
     async def test_an_all_day_event_reaches_the_client_as_days(self) -> None:
@@ -640,12 +641,8 @@ class TestACreate:
                 USER, _new(all_day=True, start="2026-11-02", end="2026-11-05", timezone=None)
             )
 
-        kwargs = client.create_event.await_args.kwargs
-        assert (kwargs["start_datetime"], kwargs["end_datetime"], kwargs["all_day"]) == (
-            "2026-11-02",
-            "2026-11-05",
-            True,
-        )
+        bounds = client.create_event.await_args.kwargs["bounds"]
+        assert bounds == DayBounds(date(2026, 11, 2), date(2026, 11, 5), ZoneInfo("UTC"))
         assert (event.all_day, event.start, event.end) == (True, "2026-11-02", "2026-11-05")
 
     async def test_a_video_call_is_refused_unsent_where_the_provider_has_none(self) -> None:
@@ -746,12 +743,8 @@ class TestAChange:
             await calendar_service.update_event(
                 USER, _change(start="2026-11-02", end="2026-11-03", all_day=True)
             )
-        kwargs = client.update_event.await_args.kwargs
-        assert (kwargs["start_datetime"], kwargs["end_datetime"], kwargs["all_day"]) == (
-            "2026-11-02",
-            "2026-11-03",
-            True,
-        )
+        bounds = client.update_event.await_args.kwargs["bounds"]
+        assert bounds == DayBounds(date(2026, 11, 2), date(2026, 11, 3), ZoneInfo("UTC"))
 
     def test_a_change_naming_nothing_is_refused(self) -> None:
         with pytest.raises(ValidationError):

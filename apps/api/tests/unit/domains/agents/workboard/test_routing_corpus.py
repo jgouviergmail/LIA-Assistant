@@ -8,8 +8,8 @@ confused with, do the manifests carry the words a person actually says, and is
 every family's expected tool a tool that exists? A failure here is a defect
 nobody would otherwise see until a real sentence went to the wrong domain.
 
-**Provider half** — whether a real model picks the right tool for each of the
-72 utterances. That is a MEASUREMENT, not a test: it needs a key, it costs
+**Provider half** — whether a real model picks the right tool for each
+utterance of the corpus. That is a MEASUREMENT, not a test: it needs a key, it costs
 money, and a test that skips on a missing key is green and therefore rots
 (ADR-155). It lives in ``scripts/measure_workboard_routing.py``, run by
 ``task workboard:corpus:measure``, exactly like the recurrence corpus.
@@ -128,6 +128,9 @@ class TestTheManifestsCarryTheWords:
             list_tickets_catalogue_manifest,
             update_ticket_catalogue_manifest,
         )
+        from src.domains.agents.workboard.category_manifest import (
+            list_ticket_categories_catalogue_manifest,
+        )
 
         for manifest in (
             create_ticket_catalogue_manifest,
@@ -136,6 +139,7 @@ class TestTheManifestsCarryTheWords:
             list_tickets_catalogue_manifest,
             get_ticket_catalogue_manifest,
             delete_ticket_catalogue_manifest,
+            list_ticket_categories_catalogue_manifest,
         ):
             assert len(manifest.semantic_keywords) >= 3, manifest.name
 

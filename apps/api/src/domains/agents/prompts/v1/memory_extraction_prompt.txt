@@ -117,6 +117,8 @@ trends, events). NEVER copy raw sensor values. Example::
 
 Leave ``context_biometric`` omitted otherwise.
 
+A message may start with the date and time it was written, in brackets, in the person's time zone, the one named with the current date and time below: resolve a relative date it contains ("tomorrow", "on Friday") against the moment it was written, never against the present.
+
 --- DYNAMIC CONTEXT (all variable data below) ---
 
 ## CURRENT DATE AND TIME

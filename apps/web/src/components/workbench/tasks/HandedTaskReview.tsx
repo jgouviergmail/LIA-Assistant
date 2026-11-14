@@ -6,7 +6,8 @@
  *
  * The handoff is taken once the lists are read: the form it opens names where the task goes, so a
  * hand-over that arrives with the screen waits for them rather than landing in a list chosen
- * blind. A task made in another list than the open one says where it went.
+ * blind. A task made in another list than the one on screen says where it went; with a view
+ * on screen (« All tasks », where the screen opens) no list is, so it always says.
  */
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -28,8 +29,10 @@ export interface HandedTaskReviewProps {
   /** The tasks tool's provider: its gestures and bounds. */
   tool: WorkbenchToolAvailability;
   lists: readonly WorkbenchTaskList[];
-  /** The list open on screen; null while the lists are read. */
+  /** The list a task goes in when nothing names another; null while the lists are read. */
   listId: string | null;
+  /** The list on screen; null under a view, which shows every list. */
+  onScreen: string | null;
   /** The account's day, `YYYY-MM-DD`. */
   today: string;
   /** The account's zone, when it has one. */
@@ -43,6 +46,7 @@ export function HandedTaskReview({
   tool,
   lists,
   listId,
+  onScreen,
   today,
   timezone,
   addTask,
@@ -74,7 +78,7 @@ export function HandedTaskReview({
       onCreate={async body => {
         await addTask(body);
         const elsewhere = lists.find(list => list.id === body.list_id);
-        if (elsewhere && elsewhere.id !== listId) {
+        if (elsewhere && elsewhere.id !== onScreen) {
           toast.success(t('workbench.tasks.added_to', { list: elsewhere.title }));
         }
       }}

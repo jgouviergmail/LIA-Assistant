@@ -177,6 +177,8 @@ interface Played {
   replies: Record<string, unknown>[];
   drafts: Record<string, unknown>[];
   signature: string;
+  /** The rows each read of the reply marks named. */
+  marksAsked: { id: string; thread_id: string }[][];
 }
 
 async function playTheApi(
@@ -189,6 +191,8 @@ async function playTheApi(
     rows?: typeof ROWS;
     conversation?: { items: typeof ROWS; truncated: boolean };
     assists?: boolean;
+    /** The mailbox offers the reply marks, and these are the ones it answers (ADR-379). */
+    marks?: { id: string; status: string }[];
   } = {}
 ): Promise<Played> {
   const played: Played = {
@@ -198,6 +202,7 @@ async function playTheApi(
     replies: [],
     drafts: [],
     signature: '',
+    marksAsked: [],
   };
   await mockApi([
     {
@@ -228,8 +233,15 @@ async function playTheApi(
           assist_instruction_max_chars: 500,
         },
         tools: RAIL.tools.map(tool =>
-          tool.tool === 'mail' && options.html !== undefined
-            ? { ...tool, features: [...tool.features, 'html'] }
+          tool.tool === 'mail'
+            ? {
+                ...tool,
+                features: [
+                  ...tool.features,
+                  ...(options.html !== undefined ? ['html'] : []),
+                  ...(options.marks !== undefined ? ['reply_marks'] : []),
+                ],
+              }
             : tool
         ),
       },
@@ -255,6 +267,15 @@ async function playTheApi(
       url: /\/api\/v1\/workbench\/mail\/message\/html\?/,
       method: 'GET',
       json: { html: options.html ?? null, truncated: false },
+    },
+    {
+      url: /\/api\/v1\/workbench\/mail\/reply-marks$/,
+      method: 'POST',
+      handler: async route => {
+        const asked = route.request().postDataJSON() as { messages: Played['marksAsked'][number] };
+        played.marksAsked.push(asked.messages);
+        await route.fulfill({ json: { items: options.marks ?? [] } });
+      },
     },
     {
       url: /\/api\/v1\/workbench\/mail\/read-state$/,
@@ -661,6 +682,65 @@ const rowOf = (page: Page, subject: string) =>
   page.getByRole('listitem').filter({ has: page.getByText(subject, { exact: true }) });
 
 /**
+ * Read alone, a message cannot say whether it was answered (ADR-379). The marks of the rows
+ * shown are read apart from the listing, which never waits for them, and a row says what
+ * happened — answered, an answer drafted, a reply received — beside its other marks, laid out
+ * in full, narrowed by the open message or on a phone.
+ */
+for (const sample of [
+  { width: 1280, theme: 'light', address: '' },
+  { width: 1280, theme: 'dark', address: '?id=m1' },
+  { width: 390, theme: 'oled', address: '' },
+] as const) {
+  test(`a row says where it stands in its conversation at ${sample.width}px in ${sample.theme}`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width: sample.width, height: 900 });
+    await prepareTheme(page, sample.theme);
+    await authenticate({ timezone: 'Europe/Paris' });
+    const played = await playTheApi(mockApi, {
+      marks: [
+        { id: 'm2', status: 'answered' },
+        { id: 'm3', status: 'answer_drafted' },
+        { id: 'm4', status: 'reply_received' },
+      ],
+    });
+    await page.goto(`/en/dashboard/tools/mail${sample.address}`);
+    await waitForHydration(page, 'a[data-mail-row]');
+    if (sample.width >= 1280 && !sample.address) await closeTheFirstMessage(page);
+
+    const markOf = (subject: string, name: string | RegExp) =>
+      rowOf(page, subject).getByRole('img', { name });
+    await expect(markOf('Your October statement is available', 'Answered')).toBeVisible();
+    await expect(markOf('Minutes — sprint review 22', 'Reply drafted, not sent')).toBeVisible();
+    await expect(markOf('Re: Mountain weekend', 'Reply received')).toBeVisible();
+    await expect(markOf('Committee agenda for Thursday', /Answered|Reply/)).toHaveCount(0);
+    // One read for the page shown, each row named with its conversation.
+    expect(played.marksAsked).toEqual([
+      ROWS.map(row => ({ id: row.id, thread_id: row.thread_id })),
+    ]);
+    await expectNoOverflow(page, `reply marks ${sample.width}px ${sample.theme}`);
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+  });
+}
+
+test('a mailbox that offers no reply mark is asked for none', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await authenticate({ timezone: 'Europe/Paris' });
+  const played = await playTheApi(mockApi);
+  await page.goto('/en/dashboard/tools/mail');
+  await waitForHydration(page, 'a[data-mail-row]');
+  await expect(page.getByText('Your October statement is available')).toBeVisible();
+
+  expect(played.marksAsked).toEqual([]);
+});
+
+/**
  * Owner requests (2026-11-05): laid out in full, a row's acts start at its left, on the line of
  * its checkbox and above the sender, what the row says of itself after them.
  */
@@ -839,6 +919,112 @@ test('a selection is trashed and what could not be is said', async ({
   await expect(page.getByText('Done for 1, not for 1: those stay listed.')).toBeVisible();
   await expect(page.getByText('Committee agenda for Thursday')).toHaveCount(0);
   await expect(page.getByText('Your October statement is available')).toBeVisible();
+});
+
+/**
+ * The acts of a selection hold on ONE line (owner, 2026-11-11): nine buttons in words took the
+ * list's first screen once a message was open beside it. What a sorting uses most stands in the
+ * bar while the bar holds it; where the list is narrow it joins « … » instead of taking a line.
+ */
+test('the acts of a selection hold on one line, and fold behind « … » where the list is narrow', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  const played = await playTheApi(mockApi);
+
+  await page.goto('/en/dashboard/tools/mail');
+  await waitForHydration(page, 'a[data-mail-row]');
+  await closeTheFirstMessage(page);
+  for (const name of [
+    'Select the message from Camille Martin: Committee agenda for Thursday',
+    'Select the message from Product team: Minutes — sprint review 22',
+  ]) {
+    await page.getByRole('checkbox', { name }).check();
+  }
+
+  const bar = page.getByRole('region', { name: 'Selected messages' });
+  const count = bar.getByText('2 selected');
+  const out = bar.getByRole('button', { name: 'Clear the selection' });
+  const read = bar.getByRole('button', { name: 'Mark as read' });
+  const more = bar.getByRole('button', { name: 'More actions' });
+  const drop = bar.getByRole('button', { name: 'Delete' });
+  // One line of icons is a count's height and a little air, never a second row.
+  const oneLine = 56;
+
+  // The list alone is wide: marking read and archiving stand in the bar.
+  await expectOnOneLine(count, out, read, bar.getByRole('button', { name: 'Archive' }), more, drop);
+  expect((await boxOf(bar)).height).toBeLessThanOrEqual(oneLine);
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+
+  // A message opened beside it narrows the list: the icons join the list, the bar keeps its line.
+  await page.getByRole('link', { name: /Mountain weekend/ }).click();
+  await expect(page.getByRole('article')).toBeVisible();
+  await expect(read).toHaveCount(0);
+  await expectOnOneLine(count, out, more, drop);
+  await expectInside(bar, drop);
+  expect((await boxOf(bar)).height).toBeLessThanOrEqual(oneLine);
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+
+  await more.click();
+  await expect(page.getByRole('menuitem')).toHaveText([
+    'Mark as read',
+    'Mark as unread',
+    'Star',
+    'Archive',
+    'Move to…',
+    'Report as spam',
+    'Labels',
+  ]);
+  // The labels stand under their own line, each stating what is true of the selection.
+  await page.getByRole('menuitem', { name: 'Labels' }).click();
+  await expect(page.getByRole('menuitemcheckbox', { name: 'Work' })).toHaveAttribute(
+    'aria-checked',
+    'true'
+  );
+  await expect(page.getByRole('menuitemcheckbox', { name: 'Home' })).toHaveAttribute(
+    'aria-checked',
+    'false'
+  );
+  await expectNoOverflow(page, 'the labels of a selection, the list narrow');
+  await page.keyboard.press('ArrowLeft');
+  await page.getByRole('menuitem', { name: 'Archive' }).click();
+
+  await expect
+    .poll(() => played.moves.at(-1))
+    .toEqual({ message_ids: ['m1', 'm3'], to: 'system:archive', origin: 'system:inbox' });
+});
+
+test('a phone holds the acts of a selection on one line too', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+
+  await page.goto('/en/dashboard/tools/mail');
+  await waitForHydration(page, 'a[data-mail-row]');
+  await page.getByRole('button', { name: 'Select', exact: true }).click();
+  await page
+    .getByRole('checkbox', {
+      name: 'Select the message from Camille Martin: Committee agenda for Thursday',
+    })
+    .check();
+
+  const bar = page.getByRole('region', { name: 'Selected messages' });
+  await expectOnOneLine(
+    bar.getByText('1 selected'),
+    bar.getByRole('button', { name: 'Clear the selection' }),
+    bar.getByRole('button', { name: 'More actions' }),
+    bar.getByRole('button', { name: 'Delete' })
+  );
+  expect((await boxOf(bar)).height).toBeLessThanOrEqual(56);
+  await expectNoOverflow(page, 'a selection at 360px');
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
 });
 
 test('a message archived comes back by the toast, under the id it left with', async ({

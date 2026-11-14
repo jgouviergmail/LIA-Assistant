@@ -29,7 +29,6 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -40,6 +39,7 @@ from src.core.config import settings
 from src.domains.agents.constants import AGENT_IMAGE
 from src.domains.agents.context.runtime_context import (
     LiaRuntimeContext,
+    tool_runtime_context,
     tool_user_id_str,
 )
 from src.domains.agents.tools.common import ToolErrorCode, http_status_to_error_code
@@ -75,34 +75,14 @@ class _Caller:
     """Who asked, what they prefer, and what the configured model offers."""
 
     user_id: uuid.UUID
-    thread_id: str | None
+    conversation_id: str | None
+    delivery_runtime_id: str | None
     stored_quality: str | None
     stored_size: str | None
     options: ModelOptions
     output_format: str
     #: The person asked for their generation prompts to be enhanced (ADR-315).
     enhance_prompt: bool = False
-
-
-async def _write_image_file(image_bytes: bytes, relative_path: str) -> Path:
-    """Persist generated image bytes under the attachments storage root.
-
-    The (potentially multi-MB) disk write is offloaded to a worker thread so it
-    never blocks the event loop during a generation (CA-4). The parent
-    directory is created eagerly (a cheap single ``mkdir``).
-
-    Args:
-        image_bytes: The encoded image to persist.
-        relative_path: Path relative to ``attachments_storage_path``
-            (e.g. ``"<user_id>/<uuid>.png"``).
-
-    Returns:
-        The absolute path the bytes were written to.
-    """
-    absolute_path = Path(settings.attachments_storage_path) / relative_path
-    absolute_path.parent.mkdir(parents=True, exist_ok=True)
-    await asyncio.to_thread(absolute_path.write_bytes, image_bytes)
-    return absolute_path
 
 
 async def _resolve_caller(
@@ -170,11 +150,12 @@ async def _resolve_caller(
         logger.warning("image_tool_model_not_served", tool=tool)
         return UnifiedToolOutput.failure(message=str(e), error_code="TOOL_ERROR")
 
-    configurable = runtime.config.get("configurable", {}) if runtime else {}
-    thread_id = configurable.get("thread_id")
+    context = tool_runtime_context(runtime)
+    assert context is not None  # The typed user identity was required above.
     return _Caller(
         user_id=user_id,
-        thread_id=str(thread_id) if thread_id else None,
+        conversation_id=context.source_conversation_id,
+        delivery_runtime_id=context.delivery_runtime_id,
         stored_quality=stored_quality,
         stored_size=stored_size,
         options=options,
@@ -243,16 +224,13 @@ async def _call_provider(
         The image, or the failure to hand back to the model. A failure log
         carries codes, never the message (ADR-303).
     """
-    from src.domains.image_generation.client import create_image_client
+    from src.domains.image_generation.billed_call import call_billed
 
-    started = time.time()
     try:
-        async with create_image_client(options.provider) as client:
-            result = await call(client)
+        # The shared door bills what the vendor billed, a lost image included.
+        return await call_billed(options, call, bill=bill)
     except ImageGenerationError as e:
         billed = isinstance(e, ImageDeliveryError)
-        if billed:
-            bill((time.time() - started) * 1000)
         code = _failure_code(e)
         logger.warning(
             "image_tool_provider_failed",
@@ -281,8 +259,6 @@ async def _call_provider(
             message=f"Image {action} failed unexpectedly ({type(e).__name__}).",
             error_code=ToolErrorCode.INTERNAL_ERROR.value,
         )
-    bill((time.time() - started) * 1000)
-    return result
 
 
 async def _save_image(
@@ -299,12 +275,12 @@ async def _save_image(
     Returns:
         The image's URL, or the failure to hand back to the model.
     """
+    from src.domains.attachments.file_contracts import UploadMetadata
+    from src.domains.attachments.generated_publication import publish_generated_files
     from src.domains.attachments.models import (
         AttachmentContentType,
         AttachmentOrigin,
-        AttachmentStatus,
     )
-    from src.domains.attachments.repository import AttachmentRepository
     from src.domains.attachments.thread_id import conversation_uuid
     from src.domains.image_generation.encoding import encode_for_delivery_async
     from src.domains.image_generation.image_store import sanitize_alt_text, store_pending_image
@@ -312,38 +288,30 @@ async def _save_image(
 
     try:
         image = await encode_for_delivery_async(png, caller.output_format)
-        stored_filename = f"{uuid.uuid4()}.{image.extension}"
-        relative_path = f"{caller.user_id}/{stored_filename}"
-        await _write_image_file(image.data, relative_path)
-
         async with get_db_context() as db:
-            attachment = await AttachmentRepository(db).create(
-                {
-                    "user_id": caller.user_id,
-                    "original_filename": f"{filename_prefix}_{stored_filename}",
-                    "stored_filename": stored_filename,
-                    "mime_type": image.mime_type,
-                    "file_size": len(image.data),
-                    "file_path": relative_path,
-                    "content_type": AttachmentContentType.IMAGE,
-                    # Named, so the person finds it again in their gallery
-                    # after the conversation is reset (ADR-279).
-                    "origin": AttachmentOrigin.GENERATED_IMAGE.value,
-                    "title": sanitize_alt_text(prompt),
-                    "conversation_id": conversation_uuid(caller.thread_id),
-                    "status": AttachmentStatus.READY,
-                    "expires_at": datetime.now(UTC)
-                    + timedelta(hours=settings.attachments_ttl_hours),
-                }
-            )
-            # Serialized here, next to the value that produced it: what leaves
-            # this block is an ISO string, so no `datetime` ever reaches the SSE
-            # payload or the JSONB metadata. (The session is created with
-            # `expire_on_commit=False`, so reading before or after the commit is
-            # equivalent — the line below reads `attachment.id` after it.)
+            attachment = (
+                await publish_generated_files(
+                    db,
+                    owner_id=caller.user_id,
+                    files=[
+                        (
+                            UploadMetadata(
+                                filename=f"{filename_prefix}_{uuid.uuid4()}.{image.extension}",
+                                mime_type=image.mime_type,
+                                content_type=AttachmentContentType.IMAGE,
+                                suffix=f".{image.extension}",
+                                origin=AttachmentOrigin.GENERATED_IMAGE,
+                                title=sanitize_alt_text(prompt),
+                                conversation_id=conversation_uuid(caller.conversation_id),
+                            ),
+                            image.data,
+                        )
+                    ],
+                )
+            )[0]
             expires_at_iso = attachment.expires_at.isoformat() if attachment.expires_at else None
-            await db.commit()
             attachment_id = str(attachment.id)
+
     except Exception as e:
         logger.error(
             "image_tool_save_error",
@@ -359,12 +327,13 @@ async def _save_image(
     image_url = attachment_url(attachment_id)
     # Delivered to the frontend through the done chunk metadata, rendered as a
     # card below the assistant message.
-    store_pending_image(
-        conversation_id=caller.thread_id or "unknown",
-        url=image_url,
-        alt_text=prompt,
-        expires_at=expires_at_iso,
-    )
+    if caller.delivery_runtime_id is not None:
+        store_pending_image(
+            conversation_id=caller.delivery_runtime_id,
+            url=image_url,
+            alt_text=prompt,
+            expires_at=expires_at_iso,
+        )
     logger.info(
         "image_tool_attachment_saved",
         prefix=filename_prefix,

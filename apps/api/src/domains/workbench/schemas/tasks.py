@@ -50,8 +50,10 @@ TaskImportance = Literal["low", "normal", "high"]
 TaskRepeat = Literal["daily", "weekly", "monthly", "yearly"]
 #: What the screen reads: a pattern it has no word for stays ``custom``, and untouched.
 TaskRepeatRead = Literal["daily", "weekly", "monthly", "yearly", "custom"]
-#: A view across the lists, decided in the account's day.
-TaskView = Literal["today", "overdue", "upcoming"]
+#: A view across the lists, decided in the account's day: one stretch of days, the three
+#: together (``timeline``: what is late, today's and the days ahead), or every open task,
+#: dated or not (``all``, which the screen draws as a list of its own).
+TaskView = Literal["today", "overdue", "upcoming", "timeline", "all"]
 
 
 class TaskList(BaseModel):
@@ -137,6 +139,27 @@ class DueTasks(BaseModel):
     """The open tasks due over some days, from every list."""
 
     tasks: list[DueTask] = Field(description="Those read, the earliest first.")
+    truncated: bool = Field(description="Whether a list, or lists, were read in part.")
+    failed: list[str] = Field(description="The lists that could not be read.")
+
+
+class ViewTask(BaseModel):
+    """One open task of any list, as a view across the lists draws it."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: str = Field(description="The provider's id of the task.")
+    list_id: str = Field(description="Its list.")
+    title: str = Field(description="Its title (may be empty at the provider).")
+    due: date | None = Field(
+        description="The day it is due, in the account's calendar; None without one."
+    )
+
+
+class ViewTasks(BaseModel):
+    """What a view across the lists gathers, from every list."""
+
+    tasks: list[ViewTask] = Field(description="Those read: the earliest first, the undated last.")
     truncated: bool = Field(description="Whether a list, or lists, were read in part.")
     failed: list[str] = Field(description="The lists that could not be read.")
 

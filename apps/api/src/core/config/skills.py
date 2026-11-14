@@ -38,6 +38,7 @@ from src.core.constants import (
     SKILL_PROPOSAL_TTL_SECONDS_DEFAULT,
     SKILL_PROPOSALS_MAX_PER_USER_DEFAULT,
     SKILL_SCRIPT_ONLY_CUMULATES_NATIVE_PLAN_DEFAULT,
+    SKILLS_DORMANT_AFTER_DAYS_DEFAULT,
     SKILLS_MAX_PER_USER_DEFAULT,
     SKILLS_SCRIPT_DROP_PRIVILEGES,
     SKILLS_SCRIPT_MAX_CPU_SECONDS,
@@ -115,6 +116,17 @@ class SkillsSettings(BaseSettings):
         ge=1,
         le=100,
         description="Maximum number of imported skills per user.",
+    )
+
+    skills_dormant_after_days: int = Field(
+        default=SKILLS_DORMANT_AFTER_DAYS_DEFAULT,
+        ge=7,
+        le=365,
+        description=(
+            "Days without a use after which an active skill is proposed for switching "
+            "off in the settings (it still enters the analyzer's list on every turn). "
+            "Published with the skills list."
+        ),
     )
 
     # ========================================================================

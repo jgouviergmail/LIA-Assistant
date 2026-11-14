@@ -40,9 +40,8 @@ from src.core.constants import (
     GMAIL_TRASH_KEYWORDS,
 )
 from src.core.field_names import FIELD_SET_ASIDE_ON_PAGE, FIELD_SKIPPED_HITS
-from src.core.i18n import get_locale_for_language, resolve_language
-from src.core.i18n_api_messages import APIMessages, SupportedLanguage
-from src.core.validators import validate_email
+from src.core.i18n import get_locale_for_language
+from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.constants import AGENT_EMAIL, CONTEXT_DOMAIN_EMAILS
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.context.runtime_context import (
@@ -52,6 +51,8 @@ from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.emails.catalogue_manifests import (
     MAIL_DRIVE_FILES_DESCRIPTION,
     MAIL_FILE_NAMES_DESCRIPTION,
+    REPLY_BODY_DESCRIPTION,
+    REPLY_INSTRUCTION_DESCRIPTION,
 )
 from src.domains.agents.emails.content_generation import resolve_email_content
 from src.domains.agents.emails.detail_levels import (
@@ -62,9 +63,14 @@ from src.domains.agents.emails.detail_levels import (
 )
 from src.domains.agents.emails.get_emails_manifest import WHOLE_CONVERSATION_DESCRIPTION
 from src.domains.agents.emails.message_finishing import finish_messages
+from src.domains.agents.emails.previous_reply import answered_fields
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.decorators import connector_tool
+from src.domains.agents.tools.email_address_validation import (
+    validate_email_addresses,
+    validate_send_email_inputs,
+)
 from src.domains.agents.tools.email_files import card_files, original_files, signed_body
 from src.domains.agents.tools.email_reading import fetch_messages
 from src.domains.agents.tools.exceptions import (
@@ -77,13 +83,15 @@ from src.domains.agents.tools.mailbox_draft_base import (
 )
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.agents.tools.reply_writing import reply_words
 from src.domains.agents.tools.runtime_helpers import (
     get_user_preferences,
     resolve_recipients_to_emails,
 )
 from src.domains.agents.tools.validation_helpers import validate_positive_int_or_default
-from src.domains.connectors.clients.email_compose import reply_recipients
+from src.domains.connectors.clients.email_compose import reply_recipients, reply_subject
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
+from src.domains.connectors.mail_reply_states import attach_reply_states
 from src.domains.connectors.models import ConnectorType
 
 logger = structlog.get_logger(__name__)
@@ -92,60 +100,6 @@ logger = structlog.get_logger(__name__)
 # ============================================================================
 # VALIDATION HELPERS (DRY - centralized validation)
 # ============================================================================
-
-
-def _extract_email_from_address(address: str) -> str:
-    """
-    Extract email from address string.
-
-    Handles formats:
-    - "email@example.com" → "email@example.com"
-    - "Name <email@example.com>" → "email@example.com"
-
-    Args:
-        address: Email address (plain or RFC 5322 format)
-
-    Returns:
-        Extracted email address
-    """
-    import re
-
-    address = address.strip()
-    # Match "Name <email>" format (RFC 5322)
-    match = re.match(r".*<([^>]+)>", address)
-    if match:
-        return match.group(1).strip()
-    return address
-
-
-def _validate_email_addresses(
-    addresses: str,
-    field_name: str,
-    language: SupportedLanguage | None = None,
-) -> None:
-    """
-    Validate comma-separated email addresses.
-
-    Supports both plain emails and RFC 5322 format "Name <email>".
-
-    Args:
-        addresses: Comma-separated email addresses
-        field_name: Field name for error messages (to, cc, bcc)
-        language: User language for error messages
-
-    Raises:
-        EmailValidationError: If any email has invalid format
-    """
-    for email_addr in addresses.split(","):
-        email_addr = email_addr.strip()
-        if email_addr:
-            # Extract email from "Name <email>" format if needed
-            extracted = _extract_email_from_address(email_addr)
-            if not validate_email(extracted):
-                raise EmailValidationError(
-                    APIMessages.email_invalid_format(email_addr, resolve_language(language)),
-                    field=field_name,
-                )
 
 
 # ============================================================================
@@ -291,49 +245,6 @@ def normalize_gmail_query(
         )
 
     return query
-
-
-def _validate_send_email_inputs(
-    to: str | None,
-    subject: str | None,
-    body: str | None,
-    cc: str | None = None,
-    bcc: str | None = None,
-    language: SupportedLanguage | None = None,
-) -> None:
-    """
-    Validate send_email inputs (centralized validation).
-
-    Args:
-        to: Recipient email(s)
-        subject: Email subject
-        body: Email body
-        cc: CC recipients (optional)
-        bcc: BCC recipients (optional)
-        language: User language for error messages
-
-    Raises:
-        EmailValidationError: If validation fails
-    """
-    language = resolve_language(language)
-    # Required fields
-    if not to:
-        raise EmailValidationError(
-            APIMessages.email_field_required("to", language),
-            field="to",
-        )
-    if not subject or not body:
-        raise EmailValidationError(
-            APIMessages.email_fields_required(["subject", "body"], language),
-            field="subject,body",
-        )
-
-    # Email format validation
-    _validate_email_addresses(to, "to", language)
-    if cc:
-        _validate_email_addresses(cc, "cc", language)
-    if bcc:
-        _validate_email_addresses(bcc, "bcc", language)
 
 
 # ============================================================================
@@ -487,6 +398,8 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             )
         if "error_code" in result:
             return result
+        # Where each message stands in its conversation (ADR-379): one read for the page.
+        await attach_reply_states(client, result["emails"], user_timezone=user_timezone)
         await self._shape_for_detail(result["emails"], user_id, detail, part, locale)
         from src.domains.agents.tools.email_card_binding import bind_email_card_accounts
 
@@ -547,7 +460,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         them again — N+1 requests for N hits — and one that lists a preview
         (Graph) is asked once per hit.
         """
-        query = self._normalize_query(query)
+        query = normalize_gmail_query(query)
 
         # Determine max_results: the published default (ADR-184: one contract),
         # not the maximum.
@@ -696,14 +609,6 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         """
         return await fetch_messages(client, message_ids, use_cache=use_cache)
 
-    def _normalize_query(self, query: str) -> str:
-        """
-        Normalize query with defense-in-depth patterns.
-
-        Delegates to shared normalize_gmail_query() function (DRY).
-        """
-        return normalize_gmail_query(query)
-
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
         """
         Format as Data Registry UnifiedToolOutput with full email details.
@@ -817,7 +722,13 @@ async def get_emails_tool(
         UnifiedToolOutput with registry items containing the messages;
         ``set_aside_on_page``, when present, counts messages of the page a date
         or read-state condition set aside after the provider's search — fewer
-        than asked, and ``next_page_token`` may hold more matches.
+        than asked, and ``next_page_token`` may hold more matches. And
+        each message carries `reply_state` when its mailbox could tell where it
+        stands in its conversation: `answered` (the person already replied;
+        `summary` says when, to whom and their first words), `answer_drafted`
+        (an unsent reply sits in their drafts), `unanswered`, and for a message
+        the person sent `reply_received` or `awaiting_reply`; `not_checked` or
+        no `reply_state` means not known.
     """
     # Get user timezone/locale for formatting (cached per user, valid BCP 47)
     user_timezone, _, locale = await get_user_preferences(runtime)
@@ -955,7 +866,7 @@ class SendEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         is_html: bool = kwargs.get("is_html", False)
 
         # Centralized validation (DRY)
-        _validate_send_email_inputs(to, subject, body, cc, bcc)
+        validate_send_email_inputs(to, subject, body, cc, bcc)
         files = await card_files(
             client, user_id, kwargs.get("file_names"), kwargs.get("drive_file_ids")
         )
@@ -1127,7 +1038,8 @@ class ReplyEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         The actual reply happens after user confirms via HITL.
         """
         message_id: str = kwargs["message_id"]
-        body: str = kwargs["body"]
+        # A blank text is no text: LIA's writer writes the reply (ADR-344, ADR-383).
+        body = str(kwargs.get("body") or "").strip()
         reply_all: bool = kwargs.get("reply_all", False)
 
         if not message_id:
@@ -1135,15 +1047,23 @@ class ReplyEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
                 APIMessages.email_field_required("message_id"),
                 field="message_id",
             )
-        if not body:
-            raise EmailValidationError(
-                APIMessages.email_field_required("body"),
-                field="body",
-            )
 
         # The original, in the provider-neutral vocabulary (ADR-287): Outlook and
         # iCloud carry no Gmail header tree, and their cards used to name nobody.
         original = await client.get_message(message_id)
+        # The person's words, else LIA's writer's; and what they already answered (ADR-379).
+        words, previous = await reply_words(
+            client,
+            original,
+            body=body,
+            instruction=kwargs.get("content_instruction"),
+            runtime=self.runtime,
+            user_id=user_id,
+            language=self.get_user_language(),
+        )
+        if isinstance(words, dict):
+            return words
+        body = words
         original_subject = str(original.get("subject") or "")
         original_from = str(original.get("from") or "")
         # The card shows whom the reply reaches, by the clients' own rule (ADR-344):
@@ -1177,6 +1097,8 @@ class ReplyEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             "cc": cc,
             "thread_id": original.get("threadId"),
             "files": files,
+            # Whether the person already answered it (ADR-379): the card says so.
+            **answered_fields(previous),
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -1189,27 +1111,30 @@ class ReplyEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         from src.domains.agents.drafts import DraftService
         from src.domains.agents.drafts.models import EmailReplyDraftInput
 
+        if "error_code" in result:
+            # What LIA's writer could not do, said as the tool's refusal (ADR-303).
+            return UnifiedToolOutput.failure(
+                message=str(result["message"]), error_code=str(result["error_code"])
+            )
         service = DraftService()
 
-        # Build subject with Re: prefix for preview
         original_subject = result.get("original_subject", "")
-        if original_subject and not original_subject.lower().startswith("re:"):
-            subject = f"Re: {original_subject}"
-        else:
-            subject = original_subject
 
         # Create typed draft input for email reply
         draft_input = EmailReplyDraftInput(
             message_id=result["message_id"],
             to=result["to"],
             cc=result["cc"],
-            subject=subject,  # Include subject for draft preview
+            # The clients' own rule for a reply's subject; no subject stays none.
+            subject=reply_subject(original_subject) if original_subject else "",
             body=result["body"],
             reply_all=result["reply_all"],
             original_subject=result.get("original_subject", ""),
             original_from=result.get("original_from", ""),
             thread_id=result.get("thread_id"),
             files=result.get("files", []),
+            already_answered=result.get("already_answered", False),
+            answered_at=result.get("answered_at"),
             user_language=self.get_user_language(),
         )
 
@@ -1231,10 +1156,11 @@ _reply_email_draft_tool_instance = ReplyEmailDraftTool()
 )
 async def reply_email_tool(
     message_id: Annotated[str, "Original message ID to reply to (required)"],
-    body: Annotated[str, "Reply message body (required)"],
+    body: Annotated[str | None, REPLY_BODY_DESCRIPTION] = None,
     reply_all: Annotated[bool, "Reply to all recipients (default False)"] = False,
     file_names: Annotated[list[str] | None, MAIL_FILE_NAMES_DESCRIPTION] = None,
     drive_file_ids: Annotated[list[str] | None, MAIL_DRIVE_FILES_DESCRIPTION] = None,
+    content_instruction: Annotated[str | None, REPLY_INSTRUCTION_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -1247,10 +1173,12 @@ async def reply_email_tool(
 
     Args:
         message_id: Original message ID to reply to (required)
-        body: Reply message body (required)
+        body: The person's own words, exactly as they dictated them; absent, LIA writes
+            the reply from the received e-mail, in the person's voice (ADR-383)
         reply_all: Reply to all recipients (default False)
         file_names: Files LIA holds, by name, to attach
         drive_file_ids: Files of the person's drive, by id, to attach
+        content_instruction: What the reply must say, when LIA writes it
         runtime: Tool runtime (injected)
 
     Returns:
@@ -1263,6 +1191,7 @@ async def reply_email_tool(
         reply_all=reply_all,
         file_names=file_names,
         drive_file_ids=drive_file_ids,
+        content_instruction=content_instruction,
     )
 
 
@@ -1345,9 +1274,9 @@ class ForwardEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             )
 
         # Email format validation (centralized helpers)
-        _validate_email_addresses(to, "to")
+        validate_email_addresses(to, "to")
         if cc:
-            _validate_email_addresses(cc, "cc")
+            validate_email_addresses(cc, "cc")
 
         # The original, in the provider-neutral vocabulary (ADR-287): Outlook and
         # iCloud carry no Gmail header tree.

@@ -16,13 +16,18 @@ import pytest
 from redis.asyncio import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 
+from src.core.browser_scope import BrowserScope
 from src.core.config import settings
 from src.core.constants import REDIS_KEY_BROWSER_POOL_REGISTRY
+from src.domains.agents.context.runtime_context import LiaRuntimeContext, derive_sub_agent_context
+from src.domains.agents.tools.browser_tools import _get_session
 from src.infrastructure.browser import coordination
 from src.infrastructure.browser import pool as module
 from src.infrastructure.browser.errors import BrowserRefusal, BrowserRefusalReason
 from src.infrastructure.browser.models import BrowserSessionInfo
 from src.infrastructure.cache import redis as cache_module
+from tests.fixtures.browser_scope import browser_scope
+from tests.helpers.runtime_context import make_tool_runtime
 
 pytestmark = pytest.mark.integration
 
@@ -61,8 +66,9 @@ class _Namespace:
 class _Session:
     is_busy = False
 
-    def __init__(self, *, user_id: str, context: Any, security: Any) -> None:
-        self.user_id = user_id
+    def __init__(self, *, scope: BrowserScope, context: Any, security: Any) -> None:
+        self.scope = scope
+        self.user_id = str(scope.owner_id)
         self.context = context
         self.last_activity = time.monotonic()
         self.navigation_count = 0
@@ -113,7 +119,7 @@ async def world(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[_World]:
         await redis.aclose()
 
 
-async def _acquire(pool: module.BrowserPool, user: str) -> Any:
+async def _acquire(pool: module.BrowserPool, user: BrowserScope) -> Any:
     try:
         return await pool.acquire_session(user)
     except BrowserRefusal as exc:
@@ -131,10 +137,10 @@ async def test_an_allocating_context_already_occupies_the_last_global_slot(world
         return context
 
     first._browser.new_context.side_effect = allocating
-    creating = asyncio.create_task(first.acquire_session(uuid4().hex))
+    creating = asyncio.create_task(first.acquire_session(browser_scope()))
     try:
         await asyncio.wait_for(entered.wait(), timeout=2)
-        outcome = await asyncio.wait_for(_acquire(second, uuid4().hex), timeout=2)
+        outcome = await asyncio.wait_for(_acquire(second, browser_scope()), timeout=2)
     finally:
         release.set()
         await creating
@@ -149,7 +155,7 @@ async def test_a_previous_owner_cannot_erase_or_overwrite_the_recovered_session(
     world: _World, late_action: str
 ) -> None:
     first, second, third = world.pools
-    user = uuid4().hex
+    user = browser_scope()
     await first.acquire_session(user)
     await first.update_session_redis(user, "https://first.example/page", "First")
     await second.acquire_session(user)
@@ -167,7 +173,7 @@ async def test_a_previous_owner_cannot_erase_or_overwrite_the_recovered_session(
 async def test_a_worker_pid_reused_after_restart_does_not_hide_recovery(world: _World) -> None:
     first, second, _ = world.pools
     second._pid = first._pid
-    user = uuid4().hex
+    user = browser_scope()
     await first.acquire_session(user)
     await first.update_session_redis(user, "https://current.example/page", "Current")
 
@@ -179,7 +185,7 @@ async def test_a_worker_pid_reused_after_restart_does_not_hide_recovery(world: _
 async def test_redis_outage_preserves_availability_with_a_local_bound(world: _World) -> None:
     world.namespace.down = True
     first = world.pools[0]
-    assert isinstance(await first.acquire_session(uuid4().hex), _Session)
+    assert isinstance(await first.acquire_session(browser_scope()), _Session)
 
     outcome = await _acquire(first, uuid4().hex)
 
@@ -201,7 +207,7 @@ async def test_shutdown_drains_a_context_whose_allocation_was_already_in_flight(
         return context
 
     pool._browser.new_context.side_effect = allocating
-    creating = asyncio.create_task(pool.acquire_session(uuid4().hex))
+    creating = asyncio.create_task(pool.acquire_session(browser_scope()))
     await asyncio.wait_for(entered.wait(), timeout=2)
     closing = asyncio.create_task(pool.close())
     try:
@@ -224,7 +230,7 @@ async def test_an_allocation_that_lost_ownership_is_closed_before_it_can_be_lent
         # Scale the real Redis deadline down, preserving its integer-second shape.
         monkeypatch.setattr(settings, "browser_session_timeout_seconds", 1)
     first, second, _ = world.pools
-    user = uuid4().hex
+    user = browser_scope()
     entered, release = asyncio.Event(), asyncio.Event()
     context = first._browser.new_context.return_value
 
@@ -239,7 +245,7 @@ async def test_an_allocation_that_lost_ownership_is_closed_before_it_can_be_lent
         await asyncio.wait_for(entered.wait(), timeout=2)
         if loss == "expiry":
             await asyncio.sleep(1.1)
-        await second.acquire_session(user if loss == "takeover" else uuid4().hex)
+        await second.acquire_session(user if loss == "takeover" else browser_scope())
     finally:
         release.set()
         outcome = await creating
@@ -254,7 +260,7 @@ async def test_hostile_page_metadata_stays_bounded_without_recovering_a_cut_url(
     world: _World,
 ) -> None:
     first, second, _ = world.pools
-    user = uuid4().hex
+    user = browser_scope()
     await first.acquire_session(user)
     await first.update_session_redis(
         user, "https://current.example/" + "a" * 1_000_000, "T" * 1_000_000
@@ -273,7 +279,7 @@ async def test_each_worker_retires_its_own_idle_context_and_joins_maintenance(
 ) -> None:
     monkeypatch.setattr(module, "BROWSER_SESSION_MAINTENANCE_INTERVAL_SECONDS", 0.01)
     pool = world.pools[1]
-    user = uuid4().hex
+    user = browser_scope()
     session = await pool.acquire_session(user)
     maintenance = pool._maintenance_task
     assert maintenance is not None
@@ -289,7 +295,7 @@ async def test_each_worker_retires_its_own_idle_context_and_joins_maintenance(
 
 async def test_a_superseded_context_is_retired_without_erasing_the_new_owner(world: _World) -> None:
     first, second, third = world.pools
-    user = uuid4().hex
+    user = browser_scope()
     old = await first.acquire_session(user)
     await second.acquire_session(user)
     await second.update_session_redis(user, "https://current.example/page", "Current")
@@ -307,10 +313,10 @@ async def test_redis_recovery_retires_an_offline_context_without_claiming_anothe
 ) -> None:
     first, second, _ = world.pools
     world.namespace.down = True
-    user = uuid4().hex
+    user = browser_scope()
     offline = await first.acquire_session(user)
     world.namespace.down = False
-    current_user = uuid4().hex
+    current_user = browser_scope()
     current = await second.acquire_session(current_user)
 
     await first.cleanup_expired()
@@ -325,7 +331,7 @@ async def test_cancelled_admission_releases_its_unpublished_global_slot(
     world: _World, monkeypatch: pytest.MonkeyPatch, stage: str
 ) -> None:
     first, second, _ = world.pools
-    user = uuid4().hex
+    user = browser_scope()
     entered = asyncio.Event()
 
     async def blocked(*args: Any, **kwargs: Any) -> Any:
@@ -346,7 +352,7 @@ async def test_cancelled_admission_releases_its_unpublished_global_slot(
 
     assert user not in first._sessions
     assert user not in first._session_info
-    assert isinstance(await second.acquire_session(uuid4().hex), _Session)
+    assert isinstance(await second.acquire_session(browser_scope()), _Session)
 
 
 @pytest.mark.parametrize("access", ["renew", "no_request"])
@@ -356,7 +362,7 @@ async def test_expired_private_metadata_does_not_survive_another_users_activity(
     monkeypatch.setattr(settings, "browser_max_concurrent_sessions", 2)
     monkeypatch.setattr(settings, "browser_session_timeout_seconds", 1)
     first, second, _ = world.pools
-    old_user, current_user = uuid4().hex, uuid4().hex
+    old_user, current_user = browser_scope(), browser_scope()
     await first.acquire_session(old_user)
     await first.update_session_redis(old_user, "https://private.example/expired", "Expired")
     maintenance = first._maintenance_task
@@ -366,13 +372,15 @@ async def test_expired_private_metadata_does_not_survive_another_users_activity(
         await maintenance
     client = world.namespace.client
     key = world.namespace.prefix + REDIS_KEY_BROWSER_POOL_REGISTRY
-    deadline = json.loads(await client.hget(key, old_user))["expires_ms"]
-    assert await client.execute_command("HPEXPIRETIME", key, "FIELDS", 1, old_user) == [deadline]
+    deadline = json.loads(await client.hget(key, old_user.key))["expires_ms"]
+    assert await client.execute_command("HPEXPIRETIME", key, "FIELDS", 1, old_user.key) == [
+        deadline
+    ]
     monkeypatch.setattr(settings, "browser_session_timeout_seconds", 300)
     await second.acquire_session(current_user)
     # Another user's activity must preserve the original field deadline. An
     # already-expired field is also valid if context allocation took longer.
-    assert await client.execute_command("HPEXPIRETIME", key, "FIELDS", 1, old_user) in (
+    assert await client.execute_command("HPEXPIRETIME", key, "FIELDS", 1, old_user.key) in (
         [deadline],
         [-2],
     )
@@ -389,14 +397,15 @@ async def test_expired_private_metadata_does_not_survive_another_users_activity(
     if access == "renew":
         assert await second._owns_session(current_user) is True
 
-    assert await client.hexists(key, old_user) == 0
+    assert await client.hexists(key, old_user.key) == 0
 
 
 async def test_recovery_round_trips_every_serialized_metadata_field(world: _World) -> None:
-    user = uuid4().hex
+    user = browser_scope()
     previous = BrowserSessionInfo(
         session_id=uuid4().hex,
-        user_id=user,
+        user_id=str(user.owner_id),
+        runtime_id=user.runtime_id,
         created_at=datetime.now(UTC),
         current_url="https://example.test/page?q=%E4%B8%AD#part",
         page_title="标题 – Café",
@@ -407,3 +416,168 @@ async def test_recovery_round_trips_every_serialized_metadata_field(world: _Worl
     following = previous.model_copy(update={"session_id": uuid4().hex, "worker_pid": 456})
 
     assert await coordination.reserve(user, following) == previous
+
+
+async def test_two_discussions_get_distinct_browser_contexts_and_child_reuses_root(
+    world: _World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Tool-result isolation must extend to the actual browser-session allocation."""
+    monkeypatch.setattr(settings, "browser_max_concurrent_sessions", 3)
+    pool = world.pools[0]
+    monkeypatch.setattr(module, "get_browser_pool", AsyncMock(return_value=pool))
+    pool._browser.new_context.side_effect = [AsyncMock(), AsyncMock()]
+    owner, runtime_a, runtime_b = uuid4(), uuid4(), uuid4()
+    context_a = LiaRuntimeContext(
+        user_id=owner,
+        conversation_id=str(uuid4()),
+        thread_id=str(runtime_a),
+        runtime_id=runtime_a,
+        conversation_revision=1,
+    )
+    context_b = LiaRuntimeContext(
+        user_id=owner,
+        conversation_id=str(uuid4()),
+        thread_id=str(runtime_b),
+        runtime_id=runtime_b,
+        conversation_revision=1,
+    )
+    _, first = await _get_session(make_tool_runtime(context=context_a), str(owner))
+    _, second = await _get_session(make_tool_runtime(context=context_b), str(owner))
+    _, child = await _get_session(
+        make_tool_runtime(context=derive_sub_agent_context(context_a, thread_id="browser-child")),
+        str(owner),
+    )
+    assert first is not second
+    assert isinstance(first, _Session) and isinstance(second, _Session)
+    assert first.context is not second.context
+    assert child is first
+    assert pool._browser.new_context.await_count == 2
+
+
+async def test_browser_without_declared_runtime_cannot_fall_back_to_account_session(
+    world: _World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pool = world.pools[0]
+    monkeypatch.setattr(module, "get_browser_pool", AsyncMock(return_value=pool))
+    context = LiaRuntimeContext(user_id=uuid4(), thread_id="unknown", conversation_id="unknown")
+    with pytest.raises(BrowserRefusal):
+        await _get_session(make_tool_runtime(context=context), str(context.user_id))
+    pool._browser.new_context.assert_not_awaited()
+
+
+async def test_another_discussion_of_same_account_consumes_global_capacity(world: _World) -> None:
+    owner = uuid4()
+    await world.pools[0].acquire_session(BrowserScope(owner, uuid4()))
+    with pytest.raises(BrowserRefusal) as caught:
+        await world.pools[1].acquire_session(BrowserScope(owner, uuid4()))
+    assert caught.value.reason is BrowserRefusalReason.CAPACITY
+    world.pools[1]._browser.new_context.assert_not_awaited()
+
+
+@pytest.mark.parametrize("whole_account", [False, True])
+async def test_retirement_erases_only_selected_browser_recovery_and_workers_retire_contexts(
+    world: _World, monkeypatch: pytest.MonkeyPatch, whole_account: bool
+) -> None:
+    monkeypatch.setattr(settings, "browser_max_concurrent_sessions", 3)
+    owner = uuid4()
+    first_scope, second_scope = BrowserScope(owner, uuid4()), BrowserScope(owner, uuid4())
+    foreign_scope = browser_scope()
+    first, second, foreign = world.pools
+    first_session = await first.acquire_session(first_scope)
+    second_session = await second.acquire_session(second_scope)
+    foreign_session = await foreign.acquire_session(foreign_scope)
+    monkeypatch.setattr(module, "_browser_pool", first)
+
+    await module.forget_browser_sessions(owner, None if whole_account else first_scope.runtime_id)
+    await second.cleanup_expired()
+    await foreign.cleanup_expired()
+
+    assert not first._sessions
+    first_session.context.close.assert_awaited_once()
+    if whole_account:
+        assert not second._sessions
+        second_session.context.close.assert_awaited_once()
+    else:
+        assert await second.acquire_session(second_scope) is second_session
+        second_session.context.close.assert_not_awaited()
+    assert await foreign.acquire_session(foreign_scope) is foreign_session
+    foreign_session.context.close.assert_not_awaited()
+    assert await coordination.renew(first_scope, uuid4().hex) is False
+
+
+@pytest.mark.parametrize("unchanged_main", [False, True])
+async def test_legacy_recovery_is_inherited_only_by_unchanged_historical_main(
+    world: _World, monkeypatch: pytest.MonkeyPatch, unchanged_main: bool
+) -> None:
+    monkeypatch.setattr(settings, "browser_max_concurrent_sessions", 2)
+    owner = uuid4()
+    scope = BrowserScope(owner, owner if unchanged_main else uuid4())
+    info = BrowserSessionInfo(
+        session_id=uuid4().hex,
+        user_id=str(owner),
+        created_at=datetime.now(UTC),
+        current_url="https://legacy.example/page",
+        page_title="Legacy",
+        worker_pid=123,
+    )
+    client = world.namespace.client
+    key = world.namespace.prefix + REDIS_KEY_BROWSER_POOL_REGISTRY
+    seconds, microseconds = await client.time()
+    await client.hset(
+        key,
+        str(owner),
+        json.dumps(
+            {
+                "expires_ms": seconds * 1000 + microseconds // 1000 + 60_000,
+                "info": info.model_dump(mode="json"),
+            }
+        ),
+    )
+
+    session = await world.pools[0].acquire_session(scope)
+
+    assert session.navigations == (["https://legacy.example/page"] if unchanged_main else [])
+    assert bool(await client.hexists(key, str(owner))) is not unchanged_main
+    assert await client.hexists(key, scope.key)
+
+
+@pytest.mark.parametrize("wrong", ["owner", "runtime"])
+async def test_recovery_writer_cannot_misattribute_metadata(world: _World, wrong: str) -> None:
+    scope = browser_scope()
+    info = BrowserSessionInfo(
+        session_id=uuid4().hex,
+        user_id=str(uuid4() if wrong == "owner" else scope.owner_id),
+        runtime_id=uuid4() if wrong == "runtime" else scope.runtime_id,
+        created_at=datetime.now(UTC),
+        worker_pid=123,
+    )
+    with pytest.raises(BrowserRefusal):
+        await coordination.reserve(scope, info)
+    assert (
+        await world.namespace.client.hlen(world.namespace.prefix + REDIS_KEY_BROWSER_POOL_REGISTRY)
+        == 0
+    )
+
+
+async def test_account_retirement_attempts_every_context_even_after_one_closer_fails(
+    world: _World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "browser_max_concurrent_sessions", 2)
+    pool = world.pools[0]
+    monkeypatch.setattr(module, "_browser_pool", pool)
+    first_context = AsyncMock(close=AsyncMock(side_effect=OSError("closed pipe")))
+    second_context = AsyncMock()
+    pool._browser.new_context.side_effect = [first_context, second_context]
+    owner = uuid4()
+    await pool.acquire_session(BrowserScope(owner, uuid4()))
+    await pool.acquire_session(BrowserScope(owner, uuid4()))
+
+    with pytest.raises(OSError):
+        await module.forget_browser_sessions(owner)
+
+    second_context.close.assert_awaited_once()
+    assert not pool._sessions
+    assert (
+        await world.namespace.client.hlen(world.namespace.prefix + REDIS_KEY_BROWSER_POOL_REGISTRY)
+        == 0
+    )

@@ -8,6 +8,11 @@
  * the product's most distinctive artifacts, buried three levels deep until
  * now. Rendered ONLY when a compiled portrait exists (arbitration #6: no
  * teaser for users without one) — so it never advertises an empty page.
+ *
+ * The portrait is asked for only where the journals are offered: under the
+ * operator's switch the route refuses, and the section this opens is absent.
+ * The page says so (`journalsOffered`) from the verdict that lists the section;
+ * reading `/config` here would cost one more request on every visit.
  */
 
 import { ChevronRight, UserSquare2 } from '@/lib/icons';
@@ -17,13 +22,15 @@ import { useJournalPortrait } from '@/hooks/useJournalPortrait';
 import { Card } from '@/components/ui/card';
 
 export interface PortraitShortcutProps {
+  /** Whether the instance offers the journals now: the portrait is asked for only then. */
+  journalsOffered: boolean;
   /** Opens (tab + accordion + scroll) the Journals section holding the portrait. */
   onOpen: () => void;
 }
 
-export function PortraitShortcut({ onOpen }: PortraitShortcutProps) {
+export function PortraitShortcut({ journalsOffered, onOpen }: PortraitShortcutProps) {
   const { t } = useTranslation();
-  const { hasPortrait } = useJournalPortrait();
+  const { hasPortrait } = useJournalPortrait(journalsOffered);
 
   if (!hasPortrait) return null;
 

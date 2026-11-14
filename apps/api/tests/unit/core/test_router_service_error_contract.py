@@ -38,7 +38,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, status
 from fastapi.testclient import TestClient
 
 from src.core.config import settings
@@ -602,62 +602,12 @@ class TestHeartbeatRouterContract:
 
 
 # =============================================================================
-# 7. agents/api/router.py — 2 sites (409 run lock, 429 HITL in SSE generator)
+# 7. agents/api/router.py — HTTP admission refusals (409 busy, 429 HITL)
 # =============================================================================
 
 
-class TestAgentsRunLockContract:
-    """Pins the ADR-117 active-run lock 409 (raised BEFORE the SSE stream)."""
-
-    @pytest.mark.asyncio
-    async def test_run_lock_conflict_409_with_active_run_payload(self, monkeypatch):
-        """Site: second run on a locked conversation -> 409 + active_run dict."""
-        from src.domains.agents.api.router import stream_chat
-        from src.domains.agents.api.schemas import ChatRequest
-
-        user_id = uuid4()
-        request = ChatRequest(message="hello", user_id=user_id, session_id="s-1")
-        current_user = SimpleNamespace(id=user_id)
-        active = {"run_id": "r-0", "stream_id": "s-0"}
-
-        monkeypatch.setattr(settings, "usage_limits_enabled", False, raising=False)
-        monkeypatch.setattr(settings, "background_runs_enabled", True, raising=False)
-
-        with (
-            patch(
-                "src.infrastructure.cache.get_conversation_id_cached",
-                new=AsyncMock(return_value="conv-1"),
-            ),
-            patch(
-                "src.infrastructure.cache.redis.get_redis_cache",
-                new=AsyncMock(return_value=Mock()),
-            ),
-            patch(
-                "src.infrastructure.streaming.run_stream_broker.register_active_run",
-                new=AsyncMock(return_value=False),
-            ),
-            patch(
-                "src.infrastructure.streaming.run_stream_broker.get_active_run",
-                new=AsyncMock(return_value=active),
-            ),
-            # The operator's daily ceiling is unset (its declared default): the
-            # instance check never reaches the settings store.
-            patch(
-                "src.domains.system_settings.service.get_instance_daily_budget_eur",
-                new=AsyncMock(return_value=None),
-            ),
-        ):
-            with pytest.raises(ResourceConflictError) as exc_info:
-                await stream_chat(
-                    http_request=Request({"type": "http", "headers": []}),
-                    request=request,
-                    current_user=current_user,
-                )
-
-        exc = exc_info.value
-        assert isinstance(exc, HTTPException)  # external contract preserved
-        assert exc.status_code == 409
-        assert exc.detail == {"error": "run_in_progress", "active_run": active}
+# Account-wide busy admission is exercised against real SQL in
+# tests/integration/domains/conversations/test_chat_http_admission.py.
 
 
 def _hitl_429_detail() -> dict:
@@ -672,90 +622,11 @@ def _hitl_429_detail() -> dict:
 
 
 class TestHitlRateLimitContract:
-    """Pins the HITL rate-limit site's REAL contract.
+    """Typed limiter taxonomy and HTTP rendering remain stable.
 
-    The raise lives inside the SSE ``event_generator``, AFTER the response has
-    started — so it has never reached the client as an HTTP 429: the
-    generator's ``except Exception`` converts it into an SSE ``error`` event
-    (message from ``SSEErrorMessages.stream_error``, classified "transient")
-    followed by a ``done`` chunk. The tests below pin (1) that real SSE
-    contract end-to-end through the actual generator, and (2) that the
-    classification driving the SSE message is identical for the legacy raw
-    ``HTTPException`` and the migrated ``RateLimitError`` (same ``str(e)`` by
-    Starlette ``__str__`` inheritance; the typed name is additionally a
-    transient type itself).
+    Real admission and pre-header 429 behavior are covered with PostgreSQL and
+    Redis in test_chat_http_admission.py; the old mid-SSE refusal is retired.
     """
-
-    @pytest.mark.asyncio
-    async def test_hitl_rate_limit_emits_transient_sse_error_through_real_generator(
-        self, monkeypatch
-    ):
-        """Real path: pending HITL + exhausted counter -> SSE error + done."""
-        from src.domains.agents.api.error_messages import SSEErrorMessages
-        from src.domains.agents.api.router import stream_chat
-        from src.domains.agents.api.schemas import ChatRequest
-
-        user_id = uuid4()
-        request = ChatRequest(message="ok", user_id=user_id, session_id="s-1")
-        current_user = SimpleNamespace(id=user_id, language="en", timezone="UTC")
-
-        monkeypatch.setattr(settings, "usage_limits_enabled", False, raising=False)
-        monkeypatch.setattr(settings, "background_runs_enabled", False, raising=False)
-
-        pending_hitl = {
-            "interrupt_ts": "2026-07-10T20:00:00Z",  # freshness handled below
-            "action_requests": [{"action": "send_email"}],
-        }
-        # Keep the pending interrupt fresh regardless of wall clock.
-        monkeypatch.setattr(settings, "hitl_pending_data_ttl_seconds", 10**9, raising=False)
-
-        redis = Mock()
-        redis.incr = AsyncMock(return_value=HITL_RATE_LIMIT_REQUESTS + 1)
-        redis.expire = AsyncMock()
-
-        with (
-            patch(
-                "src.infrastructure.cache.get_conversation_id_cached",
-                new=AsyncMock(return_value="conv-1"),
-            ),
-            patch(
-                "src.domains.agents.api.router.check_pending_hitl",
-                new=AsyncMock(return_value=pending_hitl),
-            ),
-            patch("src.domains.agents.api.router.get_agent_service", return_value=Mock()),
-            patch(
-                "src.infrastructure.cache.redis.get_redis_cache",
-                new=AsyncMock(return_value=redis),
-            ),
-            # The operator's daily ceiling is unset (its declared default).
-            patch(
-                "src.domains.system_settings.service.get_instance_daily_budget_eur",
-                new=AsyncMock(return_value=None),
-            ),
-        ):
-            response = await stream_chat(
-                http_request=Request({"type": "http", "headers": []}),
-                request=request,
-                current_user=current_user,
-            )
-            chunks = [chunk async for chunk in response.body_iterator]
-
-        assert chunks[0] == "retry: 5000\n\n"
-        events = [json.loads(c.removeprefix("data: ")) for c in chunks[1:] if c.strip()]
-        assert [e["type"] for e in events] == ["error", "done"]
-
-        # The SSE error message is the classifier's output for the raised
-        # exception — capture the exact exception the migrated site raises.
-        with pytest.raises(RateLimitError) as exc_info:
-            raise_rate_limit_exceeded(
-                limit=HITL_RATE_LIMIT_REQUESTS,
-                window_seconds=HITL_RATE_LIMIT_WINDOW_SECONDS,
-                retry_after=HITL_RATE_LIMIT_WINDOW_SECONDS,
-                detail=_hitl_429_detail(),
-                headers={"Retry-After": str(HITL_RATE_LIMIT_WINDOW_SECONDS)},
-            )
-        assert events[0]["content"] == SSEErrorMessages.stream_error(exc_info.value, language="en")
-        assert events[1]["metadata"]["error"] is True
 
     def test_sse_classification_identical_to_legacy_raw_raise(self):
         """stream_error yields the SAME message for the legacy raw
@@ -785,9 +656,7 @@ class TestHitlRateLimitContract:
             ) == SSEErrorMessages.stream_error(legacy, language=language)
 
     def test_hitl_429_typed_raiser_renders_like_legacy_raw_raise_at_http_edge(self):
-        """Edge parity kept for completeness: IF a RateLimitError with this
-        payload reached the FastAPI edge (it does not on this site), it would
-        render byte-identically to the legacy raw raise."""
+        """The admitted HTTP path retains the typed raiser's structured 429 contract."""
         app = FastAPI()
         expected_detail = _hitl_429_detail()
 

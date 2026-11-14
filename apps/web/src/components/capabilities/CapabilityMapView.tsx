@@ -28,7 +28,7 @@ import { CapabilityConstellation } from './CapabilityConstellation';
 import { CapabilityList } from './CapabilityList';
 import { useCapabilities } from '@/hooks/useCapabilities';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { sectionOfCapability, tabOfCapability } from '@/lib/capability-sections';
+import { pageOfCapability, sectionOfCapability, tabOfCapability } from '@/lib/capability-sections';
 import { settingsSectionHref } from '@/lib/settings-sections';
 
 export function CapabilityMapView({ lng }: { lng: string }) {
@@ -60,13 +60,14 @@ export function CapabilityMapView({ lng }: { lng: string }) {
   }
 
   const hrefOf = (key: string) => {
-    // A capability with no section of its own (document generation: nothing to
-    // configure per account) points at the settings root rather than nowhere —
-    // a dead link is worse than a general one.
     const token = sectionOfCapability(key);
-    return token
-      ? settingsSectionHref(lng, token, tabOfCapability(key))
-      : `/${lng}/dashboard/settings`;
+    if (token) return settingsSectionHref(lng, token, tabOfCapability(key));
+    // A capability that lives on a page (the relations, the workboard) leads
+    // to that page.
+    // One with neither (document generation: nothing to configure per account)
+    // points at the settings root rather than nowhere — a dead link is worse
+    // than a general one.
+    return `/${lng}${pageOfCapability(key) ?? '/dashboard/settings'}`;
   };
 
   return wide ? (

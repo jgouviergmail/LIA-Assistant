@@ -2,6 +2,7 @@
 
 import { BellPlus, CalendarClock, Check, ListTodo, Sparkles } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
+import { TaskListBadge } from '@/components/workbench/tasks/TaskListBadge';
 import { BriefingCard } from '../BriefingCard';
 import type { CardItemAction } from './CardItemActions';
 import { CardItemRow } from './CardItemRow';
@@ -25,8 +26,10 @@ interface TasksCardProps {
 /**
  * Tasks card (P15 extension, 2026-07-22).
  *
- * Strictly pending/overdue tasks from the active provider (Google Tasks /
- * Microsoft To Do). Overdue rows lead with a rose accent. Where the instance
+ * Strictly pending/overdue tasks of EVERY list of the active provider (Google
+ * Tasks / Microsoft To Do), each naming its list in a badge (owner, 2026-11-10);
+ * a list that could not be read in full is said under the tasks, never passed
+ * over. Overdue rows lead with a rose accent. Where the instance
  * offers the « Tools », a task opens in its own list there, and « done » and
  * « tomorrow » are one press each through the Tools' routes, the card read again
  * after (owner, 2026-11-07); a task whose list could not be read, or an instance
@@ -212,10 +215,17 @@ function TasksContent({
               contentClassName="flex flex-col gap-1.5 leading-snug"
               actions={actsOf(task)}
             >
-              {task.days_until_due !== null && (
-                <span className="flex items-center gap-1.5 text-teal-700 dark:text-teal-300">
-                  <ListTodo className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  <DueBadge task={task} />
+              {(task.days_until_due !== null || task.list_name) && (
+                <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                  {task.days_until_due !== null && (
+                    <span className="flex items-center gap-1.5 text-teal-700 dark:text-teal-300">
+                      <ListTodo className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      <DueBadge task={task} />
+                    </span>
+                  )}
+                  {task.list_name && (
+                    <TaskListBadge name={task.list_name} label={t('workbench.tasks.list_label')} />
+                  )}
                 </span>
               )}
               <span
@@ -231,6 +241,11 @@ function TasksContent({
           );
         })}
       </ul>
+      {data.partial && (
+        <p role="status" className="pt-2 text-xs text-muted-foreground">
+          {t('dashboard.briefing.cards.tasks.partial')}
+        </p>
+      )}
     </>
   );
 }

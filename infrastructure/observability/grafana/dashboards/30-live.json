@@ -929,6 +929,47 @@
           "mode": "multi"
         }
       }
+    },
+    {
+      "id": 25,
+      "title": "Agent tools repaired before a conversation (1h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 72
+      },
+      "targets": [
+        {
+          "expr": "sum by (surface, reason) (increase(live_agent_tools_repaired_total[1h])) or vector(0)",
+          "legendFormat": "{{surface}} · {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          },
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Tools of LIA's found wrong in the person's ElevenLabs workspace when a voice conversation was about to open (ADR-373 amendment 2026-11-11): drifted = rewritten in place, lost = re-created. A conversation whose tools could not be repaired never opened."
     }
   ]
 }

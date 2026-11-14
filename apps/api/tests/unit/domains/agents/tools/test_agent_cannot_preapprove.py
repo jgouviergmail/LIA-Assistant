@@ -66,6 +66,7 @@ def _row(**over: Any) -> SimpleNamespace:
         "trigger_kind": "time",
         "condition_config": None,
         "requires_approval": False,
+        "notify_only_when_new": False,
         "execution_mode": "react",
         "is_enabled": True,
         "user_timezone": "Europe/Paris",

@@ -26,6 +26,29 @@ export function isConditionRoutine(action: Pick<ScheduledAction, 'trigger_kind'>
   return action.trigger_kind === 'condition';
 }
 
+/**
+ * Whether another system's signed call starts the routine (ADR-386).
+ *
+ * @param action - The routine, or the little of it the answer depends on.
+ */
+export function isWebhookRoutine(action: Pick<ScheduledAction, 'trigger_kind'>): boolean {
+  return action.trigger_kind === 'webhook';
+}
+
+/**
+ * Whether a routine has nothing left to run: its series or its watch is over.
+ *
+ * A null trigger says so for a schedule and a condition; a routine started by
+ * calls sleeps with a null trigger until a call wakes it — never « finished ».
+ *
+ * @param action - The routine's clock and its armed instant.
+ */
+export function hasNoFutureLeft(
+  action: Pick<ScheduledAction, 'trigger_kind' | 'next_trigger_at'>
+): boolean {
+  return !isWebhookRoutine(action) && action.next_trigger_at === null;
+}
+
 /** The kinds a weather routine may watch, in the order the studio names them. */
 const WEATHER_KINDS = ['rain', 'drizzle', 'snow', 'thunderstorm'] as const;
 
@@ -74,6 +97,21 @@ export function weatherRuleSentence(
   });
 }
 
+/** Longest address a page watch keeps — the API's own bound (ADR-387). */
+export const PAGE_URL_MAX_CHARS = 2048;
+
+/**
+ * What stops a watched page's address before it is sent (ADR-387): none, or
+ * one that is not an http(s) address with a host and no credentials. Where it
+ * resolves is the server's to judge, at every read.
+ */
+export function pageUrlProblem(raw: string): 'url_required' | 'url_invalid' | null {
+  const url = raw.trim();
+  if (!url) return 'url_required';
+  if (!/^https?:\/\/[^\s/?#@]+(?:[/?#]\S*)?$/i.test(url)) return 'url_invalid';
+  return null;
+}
+
 /**
  * Whether two conditions watch the same thing until the same day.
  *
@@ -92,6 +130,8 @@ export function sameCondition(a: ConditionConfig | null, b: ConditionConfig | nu
     c.query ?? '',
     c.until ?? '',
     c.within_hours ?? null,
+    c.url ?? '',
+    c.contains ?? '',
     // A set: the server stores the kinds sorted, each once.
     [...new Set(c.kinds ?? [])].sort().join(','),
   ];
@@ -310,7 +350,12 @@ function placedSlots(
 export type ChipTone = 'idle' | 'success' | 'failure' | 'proposed' | 'paused';
 
 /** Why an idle chip is idle, when there is a reason worth stating. */
-export type ChipReason = 'skipped_condition' | 'skipped_hitl';
+export type ChipReason =
+  | 'skipped_condition'
+  | 'skipped_hitl'
+  | 'skipped_busy'
+  | 'skipped_quota'
+  | 'skipped_late';
 
 export interface ChipState {
   tone: ChipTone;
@@ -325,8 +370,9 @@ export interface ChipState {
  * Paused outranks everything: a routine that is switched off is inert, and
  * greying it says so before any history does. Then the last run of the slot:
  * success, failure, or a proposal waiting for the reader's click. A skip keeps
- * the idle colour — nothing ran — but carries its reason, because "not run"
- * and "the condition was not met" are different answers to "why is it white?".
+ * the idle colour — nothing ran — but carries its reason, because "not run",
+ * "the condition was not met", "the usage limit stood it aside" and "its hour
+ * had passed for too long" are different answers to "why is it white?".
  */
 export function chipState(
   action: ScheduledAction,
@@ -343,6 +389,9 @@ export function chipState(
       return { tone: 'proposed', reason: null, executing };
     case 'skipped_condition':
     case 'skipped_hitl':
+    case 'skipped_busy':
+    case 'skipped_quota':
+    case 'skipped_late':
       return { tone: 'idle', reason: cell.outcome, executing };
     default:
       return { tone: 'idle', reason: null, executing };

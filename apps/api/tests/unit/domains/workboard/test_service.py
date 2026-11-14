@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -26,6 +27,7 @@ from src.core.config import settings
 from src.core.exceptions import BaseAPIException, ResourceNotFoundError
 from src.domains.users.models import User
 from src.domains.workboard.assignment_notifications import dispatch_assignment_notices
+from src.domains.workboard.board_queries import BoardFilters
 from src.domains.workboard.constants import (
     ActorKind,
     AssigneeKind,
@@ -34,8 +36,9 @@ from src.domains.workboard.constants import (
     WorkboardError,
 )
 from src.domains.workboard.models import WorkboardTicket
-from src.domains.workboard.schemas import CommentCreate, TicketCreate, TicketUpdate
+from src.domains.workboard.schemas import CommentCreate, LaneRow, TicketCreate, TicketUpdate
 from src.domains.workboard.service import WorkboardService
+from src.domains.workboard.summary_queries import BoardSummaryFigures
 
 pytestmark = pytest.mark.unit
 
@@ -1241,3 +1244,175 @@ class TestTheModeBelongsToTheTicket:
         await service.update(_user(OWNER), ticket.id, TicketUpdate(priority="high"))
 
         assert ticket.execution_mode == "pipeline"
+
+
+def _with_category(service: WorkboardService, category_id: uuid.UUID | None) -> None:
+    """Let the category rules find — or not find — one category of the owner's."""
+    service.categories.repo = AsyncMock()
+    service.categories.repo.get_owned.return_value = (
+        None if category_id is None else SimpleNamespace(id=category_id)
+    )
+
+
+class TestFilingUnderACategory:
+    """The ticket service files a ticket; the category rules decide where it
+    may go. What is pinned here is the WIRING — every write that can carry a
+    lane hands it to those rules, and none decides it again."""
+
+    async def test_a_ticket_is_created_in_the_category_named(self) -> None:
+        service = _service()
+        category = uuid.uuid4()
+        _with_category(service, category)
+        service.repo.create = AsyncMock(return_value=_ticket())
+
+        await service.create(_user(OWNER), TicketCreate(title="t", category_id=category))
+
+        assert service.repo.create.await_args.args[0]["category_id"] == category
+
+    async def test_a_category_that_is_not_the_owners_creates_nothing(self) -> None:
+        service = _service()
+        _with_category(service, None)
+        service.repo.create = AsyncMock()
+
+        with pytest.raises(BaseAPIException) as exc:
+            await service.create(_user(OWNER), TicketCreate(title="t", category_id=uuid.uuid4()))
+
+        assert _code(exc.value) == WorkboardError.CATEGORY_UNKNOWN.value
+        service.repo.create.assert_not_awaited()
+
+    async def test_a_step_is_created_in_its_parents_lane(self) -> None:
+        service = _service()
+        lane = uuid.uuid4()
+        parent = _ticket(category_id=lane)
+        service.repo.get_visible.return_value = parent
+        service.repo.create = AsyncMock(return_value=_ticket())
+
+        await service.create(_user(OWNER), TicketCreate(title="step", parent_id=parent.id))
+
+        assert service.repo.create.await_args.args[0]["category_id"] == lane
+
+    async def test_the_normalised_request_states_the_lane_and_replays_to_itself(self) -> None:
+        """The assistant's confirmation compares the stored row to the
+        NORMALISED request, field by field, then normalises it AGAIN before
+        writing: an inherited lane has to be in that copy, and stay put."""
+        service = _service()
+        lane = uuid.uuid4()
+        parent = _ticket(category_id=lane)
+        service.repo.get_visible.return_value = parent
+        _with_category(service, lane)
+        owner = _user(OWNER)
+
+        first, _, _ = await service.validate_creation(
+            owner, TicketCreate(title="step", parent_id=parent.id)
+        )
+        second, _, _ = await service.validate_creation(owner, first)
+
+        assert first.category_id == lane
+        assert second == first
+
+    async def test_the_owner_refiles_a_ticket(self) -> None:
+        service = _service()
+        category = uuid.uuid4()
+        _with_category(service, category)
+        ticket = _ticket()
+        service.repo.get_visible.return_value = ticket
+
+        await service.update(_user(OWNER), ticket.id, TicketUpdate(category_id=category))
+
+        assert ticket.category_id == category
+        assert _events(service) == [], "a lane is a reading aid, never a line of history"
+
+    async def test_the_owner_takes_a_ticket_out_of_its_lane(self) -> None:
+        service = _service()
+        ticket = _ticket(category_id=uuid.uuid4())
+        service.repo.get_visible.return_value = ticket
+
+        await service.update(_user(OWNER), ticket.id, TicketUpdate(clear_category=True))
+
+        assert ticket.category_id is None
+
+    async def test_a_holder_cannot_refile_the_owners_ticket(self) -> None:
+        service = _service()
+        lane = uuid.uuid4()
+        ticket = _ticket(assignee_user_id=PEER, category_id=lane)
+        service.repo.get_visible.return_value = ticket
+
+        with pytest.raises(BaseAPIException) as exc:
+            await service.update(_user(PEER), ticket.id, TicketUpdate(clear_category=True))
+
+        assert _code(exc.value) == WorkboardError.PEER_CANNOT_EDIT_FIELD.value
+        assert ticket.category_id == lane
+
+    async def test_a_drop_in_another_lane_refiles_in_the_same_write(self) -> None:
+        service = _service()
+        category = uuid.uuid4()
+        _with_category(service, category)
+        ticket = _ticket(status=TicketStatus.TODO.value)
+        service.repo.get_visible.return_value = ticket
+
+        await service.move(_user(OWNER), ticket.id, "in_progress", 0, category_id=category)
+
+        assert (ticket.status, ticket.category_id) == ("in_progress", category)
+
+    async def test_a_drop_that_names_no_lane_leaves_the_ticket_filed(self) -> None:
+        service = _service()
+        lane = uuid.uuid4()
+        ticket = _ticket(category_id=lane)
+        service.repo.get_visible.return_value = ticket
+
+        await service.move(_user(OWNER), ticket.id, "done", 0)
+
+        assert ticket.category_id == lane
+
+    async def test_a_holder_moves_the_column_but_a_refused_lane_moves_nothing(self) -> None:
+        """Refused BEFORE the column changes: a drop the server half-applied
+        would leave the card somewhere the person never put it."""
+        service = _service()
+        ticket = _ticket(assignee_user_id=PEER, status=TicketStatus.TODO.value)
+        service.repo.get_visible.return_value = ticket
+
+        with pytest.raises(BaseAPIException) as exc:
+            await service.move(_user(PEER), ticket.id, "done", 0, clear_category=True)
+
+        assert _code(exc.value) == WorkboardError.PEER_CANNOT_EDIT_FIELD.value
+        assert ticket.status == TicketStatus.TODO.value
+        service.repo.renumber_column.assert_not_awaited()
+
+
+class TestTheBoardAtAGlanceCountsEachCategory:
+    """The settings page links into the board narrowed to one lane: the count
+    beside each link is an aggregate over the SAME whole set as the columns'."""
+
+    async def test_the_lanes_are_read_over_the_whole_board_never_a_page(self) -> None:
+        service = _service()
+        home = LaneRow(
+            category_id=uuid.uuid4(),
+            name="Home",
+            owner_user_id=OWNER,
+            counts_by_status={"todo": 3, "done": 1},
+        )
+        service.categories.lanes = AsyncMock(return_value=[home])  # type: ignore[method-assign]
+        figures = BoardSummaryFigures(
+            counts_by_status={"todo": 4, "done": 1},
+            overdue=0,
+            held_by_lia=0,
+            held_by_me=5,
+            needs_me=0,
+            owned=5,
+            runs_total=0,
+            tokens_in=0,
+            tokens_out=0,
+            tokens_cache=0,
+            google_requests=0,
+            cost_eur=Decimal("0"),
+        )
+        actor = _user(OWNER)
+        with patch(
+            "src.domains.workboard.service.read_board_summary", AsyncMock(return_value=figures)
+        ):
+            summary = await service.summary(actor)
+
+        assert summary.lanes == [home]
+        # The UNFILTERED board: the same set the column counts are read over.
+        service.categories.lanes.assert_awaited_once_with(actor, BoardFilters())
+        assert summary.total == 5

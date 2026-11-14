@@ -21,8 +21,8 @@ import pytest
 from pydantic import ValidationError
 
 from src.core.constants import (
+    TASK_LISTS_READ_CONCURRENCY,
     WORKBENCH_CALENDAR_WINDOW_MAX_DAYS,
-    WORKBENCH_DUE_TASKS_CONCURRENCY,
     WORKBENCH_DUE_TASKS_PAGES_MAX,
 )
 from src.core.exceptions import BaseAPIException, ConnectorAPIError
@@ -216,7 +216,7 @@ class TestTheLoad:
         with _door(client):
             await tasks_service.read_due_tasks(USER, PARIS, DAYS)
 
-        assert 1 < peak <= WORKBENCH_DUE_TASKS_CONCURRENCY
+        assert 1 < peak <= TASK_LISTS_READ_CONCURRENCY
 
 
 class TestTheDays:

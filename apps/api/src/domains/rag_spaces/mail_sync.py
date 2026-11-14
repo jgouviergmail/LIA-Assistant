@@ -351,7 +351,12 @@ async def sync_source(
     # The loop's reads and writes end before the threads embed (ADR-304):
     # each document embeds on a session of its own, for seconds to minutes.
     await db.commit()
-    synced, embed_failed = await process_queued(queued, counter=rag_mail_sync_threads_total)
+    synced, embed_failed = await process_queued(
+        queued,
+        source_id=source.id,
+        source_table=MAIL_SOURCE_TABLE,
+        counter=rag_mail_sync_threads_total,
+    )
     completed = await _finish_full_sync(db, source, len(thread_ids), listing.complete, anchor)
     logger.info(
         "rag_mail_sync_complete" if completed else "rag_mail_sync_partial",
@@ -561,7 +566,12 @@ async def apply_history(
         ):
             changed += 1
     await db.commit()  # nothing held while the threads embed (ADR-304)
-    await process_queued(queued, counter=rag_mail_sync_threads_total)
+    await process_queued(
+        queued,
+        source_id=source.id,
+        source_table=MAIL_SOURCE_TABLE,
+        counter=rag_mail_sync_threads_total,
+    )
     await _complete_source(db, source, last_history_id=new_id or source.last_history_id)
     return "indexed" if changed else "nothing"
 
@@ -579,6 +589,13 @@ async def _serve_source(
     if not await service.try_acquire_sync_lock(source.id):
         return "locked"
     try:
+        # The lease was written by SQL the session never saw, on a row loaded
+        # before it. Read the row we now own: the release only writes what
+        # differs from the loaded state, and against the stale one it would
+        # leave the source SYNCING for the reaper to "recover" with a full sync
+        # after every push. It is also the anchor to resume from, should
+        # another worker have advanced it. Inside the try: the lease is held.
+        await db.refresh(source)
         result = await apply_history(db, client, source, user_id=user_id)
         if result in {"no_anchor", "expired"}:
             completed = await sync_source(db, client, source, user_id=user_id)

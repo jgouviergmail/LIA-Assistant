@@ -14,10 +14,13 @@
  * - `useRadioCommand`: that one command, for any other surface that offers it
  *   (the dashboard's card).
  *
+ * The radio's icon is the set itself (`RadioSet`), here as on every surface
+ * that names it: the broadcast glyph marks the live voice beside it in the header.
+ *
  * None renders where the instance does not offer the radio.
  */
 
-import { Radio } from '@/lib/icons';
+import { RadioSet } from '@/lib/icons';
 
 import type { MobileNavAction } from '@/components/dashboard/MobileNavMenu';
 import { Button } from '@/components/ui/button';
@@ -63,7 +66,7 @@ export function useRadioMenuAction(lng: Language, enabled: boolean): MobileNavAc
   if (command === null) return null;
   return {
     label: t(command.onAir ? 'radio.header.stop' : 'radio.header.start'),
-    icon: Radio,
+    icon: RadioSet,
     tone: command.onAir ? 'destructive' : 'default',
     disabled: command.busy,
     onSelect: command.run,
@@ -107,7 +110,7 @@ export function RadioControl({
       aria-label={label}
       title={label}
     >
-      <Radio
+      <RadioSet
         className={cn(
           'h-[1.2rem] w-[1.2rem]',
           command.onAir && 'text-primary motion-safe:animate-pulse'

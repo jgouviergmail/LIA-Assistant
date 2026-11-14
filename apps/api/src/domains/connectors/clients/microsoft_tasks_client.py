@@ -258,6 +258,8 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
             due_max: Filter tasks due before this RFC 3339 timestamp.
             completed_min: Filter tasks completed after this RFC 3339 timestamp
                 (the due filters' own shape; the radio's journal reads a day's).
+                The three leave in UTC, whatever offset they came with: Graph
+                refuses a numeric offset in a filter.
             page_token: The ``next_page_token`` of the previous page (ADR-369).
 
         Returns:
@@ -277,11 +279,11 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
         if not show_completed:
             filters.append("status ne 'completed'")
         if due_min:
-            filters.append(f"dueDateTime/dateTime ge '{due_min}'")
+            filters.append(f"dueDateTime/dateTime ge '{_filter_instant(due_min)}'")
         if due_max:
-            filters.append(f"dueDateTime/dateTime le '{due_max}'")
+            filters.append(f"dueDateTime/dateTime le '{_filter_instant(due_max)}'")
         if completed_min:
-            filters.append(f"completedDateTime/dateTime ge '{completed_min}'")
+            filters.append(f"completedDateTime/dateTime ge '{_filter_instant(completed_min)}'")
 
         if filters:
             params["$filter"] = " and ".join(filters)
@@ -627,6 +629,30 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
 
         self._default_list_id = lists[0]["id"]
         return self._default_list_id
+
+
+def _filter_instant(raw: str) -> str:
+    """An instant as a To Do ``$filter`` accepts it: in UTC, never with a numeric offset.
+
+    Measured on Graph (2026-11-10): ``dueDateTime/dateTime ge '2026-11-10T00:00:00+01:00'``
+    is refused (HTTP 400), on ``completedDateTime`` alike, while the same instant in UTC is
+    accepted. Google Tasks takes an RFC 3339 offset, so the asymmetry is this client's to
+    absorb: a caller hands both providers the same instant.
+
+    Args:
+        raw: An RFC 3339 instant, whatever its offset.
+
+    Returns:
+        The same instant in UTC (``…Z``); ``raw`` itself when it names no offset or cannot
+        be read as an instant, which Graph then answers for.
+    """
+    try:
+        instant = datetime.fromisoformat(raw)
+    except ValueError:
+        return raw
+    if instant.tzinfo is None:
+        return raw
+    return instant.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _list_path(task_list_id: str) -> str:

@@ -82,6 +82,9 @@ def request(source: SourceKey, *, operation="recent", query=None) -> SourceReadR
 
 
 class NativeClient:
+    #: A mailbox whose listing already carries each message whole (Gmail, IMAP).
+    SEARCH_HITS_ARE_WHOLE = True
+
     async def list_events(self, **kwargs):
         assert (
             kwargs["max_results"] <= 3
@@ -106,7 +109,11 @@ class NativeClient:
             "next_page_token": None,
         }
 
-    async def list_tasks(self, **kwargs):
+    async def list_task_lists(self, max_results):
+        return {"items": [{"id": "list", "title": "Fictional list"}]}
+
+    async def list_tasks(self, task_list_id, **kwargs):
+        assert task_list_id == "list"
         assert kwargs["show_completed"] is True and kwargs["show_hidden"] is False
         return {
             "items": [
@@ -158,12 +165,18 @@ def native_clients(monkeypatch):
     async def authority(owner, kind, opened, *, container=""):
         return f"{kind.value}:fictional-account:{container}"
 
+    async def authorities(owner, kind, opened, containers):
+        return {name: f"{kind.value}:fictional-account:{name}" for name in containers}
+
     monkeypatch.setattr(
         "src.domains.connectors.discussion_sources.open_active_calendar", open_calendar
     )
     monkeypatch.setattr("src.domains.connectors.discussion_sources.open_active_client", open_client)
     monkeypatch.setattr(
         "src.domains.connectors.discussion_sources.require_reader_authority", authority
+    )
+    monkeypatch.setattr(
+        "src.domains.connectors.discussion_tasks.require_reader_authorities", authorities
     )
     return client
 

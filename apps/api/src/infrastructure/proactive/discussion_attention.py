@@ -10,6 +10,7 @@ from src.core.config import settings
 from src.core.exceptions import AuthorizationError
 from src.domains.agents.utils import HITLStore
 from src.domains.conversations.activity_probe import fetch_last_user_activity_at
+from src.domains.conversations.execution_repository import ConversationExecutionRepository
 from src.domains.conversations.repository import ConversationRepository
 from src.domains.feature_switches.guard import require_capability_fresh
 from src.domains.feature_switches.registry import PlatformCapability
@@ -25,7 +26,6 @@ from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.proactive.discussion_bounds import discussion_lease_seconds
 from src.infrastructure.proactive.discussion_control import load_controls
-from src.infrastructure.streaming.run_stream_broker import get_active_run
 
 
 class InitiativeStopped(ValueError):
@@ -80,22 +80,19 @@ async def unanswered_opening(
     )
 
 
-async def attention_hold(
-    db: AsyncSession, owner: UUID, *, now: datetime, lease_owner: str | None = None
-) -> AttentionHold | None:
+async def attention_hold(db: AsyncSession, owner: UUID, *, now: datetime) -> AttentionHold | None:
     """What holds the person's attention now, or None when a personal initiative may start.
 
     In this order: the person wrote recently, an opening still awaits their reply
     (:func:`unanswered_opening`), a proactive notification or an interest alert came
     recently (only when the operator sets a gap), an opening came recently, a reminder
-    is about to ring, a turn is streaming (other than the run's own), an approval is
+    is about to ring, a graph occupies the account, an approval is
     waiting. Every delay is a setting; the first hold met is the one named.
 
     Args:
         db: The caller's session; committed before the Redis checks.
         owner: The account.
         now: The current instant.
-        lease_owner: The stream id that is the run's own, ignored as a busy turn.
 
     Returns:
         The first hold met, or None when nothing claims the person's attention.
@@ -152,19 +149,18 @@ async def attention_hold(
         is not None
     ):
         return "reminder_due"
+    if await ConversationExecutionRepository(db).active_for_owner(owner) is not None:
+        return "turn_streaming"
     conversation = await ConversationRepository(db).get_active_for_user(owner)
-    conversation_id = str(conversation.id) if conversation is not None else None
+    runtime_id = str(conversation.runtime_id) if conversation is not None else None
     # Release SQL connections before Redis work: the caller performs only short
     # reads here; no provider or model is entered from this function.
-    if conversation_id is not None:
+    if runtime_id is not None:
         await db.commit()
         redis = await get_redis_cache()
-        active = await get_active_run(redis, conversation_id)
-        if active is not None and (lease_owner is None or active.get("stream_id") != lease_owner):
-            return "turn_streaming"
         if await HITLStore(
             redis_client=redis, ttl_seconds=settings.hitl_pending_data_ttl_seconds
-        ).has_interrupt(conversation_id):
+        ).has_interrupt(runtime_id):
             return "approval_pending"
     return None
 
@@ -183,11 +179,8 @@ class DiscussionAuthority:
         self.claim, self.directives_revision = claim, directives_revision
         self.context_only = context_only
 
-    async def check(self, *, lease_owner: str | None = None) -> None:
+    async def check(self) -> None:
         """Raise unless the run may still act now; renew its lease.
-
-        Args:
-            lease_owner: The stream id that is the run's own, if any.
 
         Raises:
             InitiativeStopped: The producer is off, attention is busy, the controls
@@ -203,10 +196,7 @@ class DiscussionAuthority:
                 raise InitiativeStopped("producer_disabled") from exc
             repo = DiscussionRepository(db)
             if not self.context_only and (
-                await attention_hold(
-                    db, self.claim.owner_id, now=datetime.now(UTC), lease_owner=lease_owner
-                )
-                is not None
+                await attention_hold(db, self.claim.owner_id, now=datetime.now(UTC)) is not None
             ):
                 raise InitiativeStopped("attention_busy")
             directives = await load_controls(db, self.claim.owner_id, now=datetime.now(UTC))

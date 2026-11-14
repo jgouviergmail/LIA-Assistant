@@ -104,7 +104,7 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
           aria-describedby="image-generation-enable-description"
           checked={user?.image_generation_enabled ?? false}
           onCheckedChange={checked => updatePreference('image_generation_enabled', checked)}
-          disabled={updating}
+          busy={updating}
         />
       </div>
 
@@ -138,7 +138,7 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
           <Select
             value={shownQuality}
             onValueChange={value => updatePreference('image_generation_default_quality', value)}
-            disabled={updating}
+            busy={updating}
           >
             <SelectTrigger className="w-full bg-card" aria-labelledby={`${fieldId}-quality`}>
               <SelectValue />
@@ -164,7 +164,7 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
           <Select
             value={shownSize}
             onValueChange={value => updatePreference('image_generation_default_size', value)}
-            disabled={updating}
+            busy={updating}
           >
             <SelectTrigger className="w-full bg-card" aria-labelledby={`${fieldId}-size`}>
               <SelectValue />
@@ -188,7 +188,7 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
         <Select
           value={user?.image_generation_output_format ?? 'png'}
           onValueChange={value => updatePreference('image_generation_output_format', value)}
-          disabled={updating}
+          busy={updating}
         >
           <SelectTrigger className="w-full bg-card" aria-labelledby={`${fieldId}-format`}>
             <SelectValue />
@@ -205,7 +205,7 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
         lng={lng}
         offered={enhancementOffered({ loading, error, options })}
         user={user}
-        disabled={updating}
+        busy={updating}
         onChange={checked => updatePreference('image_generation_prompt_enhancement', checked)}
       />
     </div>
@@ -241,14 +241,15 @@ function PromptEnhancementRow({
   lng,
   offered,
   user,
-  disabled,
+  busy,
   onChange,
 }: {
   lng: BaseSettingsProps['lng'];
   offered: boolean;
   /** Whose opt-in — read here so the section's render stays flat (the CC ratchet). */
   user: User | null;
-  disabled: boolean;
+  /** The section is saving: the switch stays focusable (`Switch`'s `busy`). */
+  busy: boolean;
   onChange: (checked: boolean) => void;
 }) {
   const { t } = useTranslation(lng);
@@ -268,7 +269,7 @@ function PromptEnhancementRow({
         aria-describedby="image-generation-enhancement-description"
         checked={user?.image_generation_prompt_enhancement ?? false}
         onCheckedChange={onChange}
-        disabled={disabled}
+        busy={busy}
       />
     </div>
   );

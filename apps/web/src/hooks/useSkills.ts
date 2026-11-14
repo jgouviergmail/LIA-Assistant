@@ -53,7 +53,19 @@ export interface Skill {
   shared_origin?: import('@/lib/capability-sharing').CapabilityOrigin | null;
   /** Sender side: the connections this item was shared with (newest share each). */
   shared_with?: import('@/lib/capability-sharing').CapabilityShare[];
+  /** Runs that used it since `counted_since` (lot 14); absent from an older API. */
+  use_count?: number;
+  last_used_at?: string | null;
+  /** When counting began: nothing before it was counted. */
+  counted_since?: string;
+  /** On, observable, and unused for `dormant_after_days`: proposed for switching off. */
+  dormant?: boolean;
+  /** When the version its last replacement replaced was put aside — restorable. */
+  previous_version_at?: string | null;
 }
+
+/** The person's answer to the unused-skills proposal (lot 14). */
+export type DormantDecision = 'switch_off' | 'keep';
 
 /**
  * API list response shape.
@@ -61,6 +73,8 @@ export interface Skill {
 export interface SkillListResponse {
   skills: Skill[];
   total: number;
+  /** `SKILLS_DORMANT_AFTER_DAYS`, published beside the list (lot 14). */
+  dormant_after_days?: number;
 }
 
 /**
@@ -101,8 +115,12 @@ export function skillPreviewUrl(skillName: string): string {
  *
  * @param adminView - If true, fetches from /skills/admin/list (all system skills
  *   with admin_enabled flag). Used by AdminSkillsSection only.
+ * @param enabled - Whether the instance offers the skills now. Their router
+ *   refuses every route under the operator's switch (ADR-280): a caller that
+ *   mounts outside the settings index — the chat composer — says so, and
+ *   nothing is asked.
  */
-export function useSkills(adminView = false) {
+export function useSkills(adminView = false, enabled = true) {
   const revision = useResourceRevision('skills');
   const listEndpoint = adminView ? `${ENDPOINT}/admin/list` : ENDPOINT;
   const {
@@ -112,7 +130,7 @@ export function useSkills(adminView = false) {
     refetch,
     setData,
     ownerId,
-  } = useApplicationAccountQuery<SkillListResponse>(listEndpoint, 'Skills');
+  } = useApplicationAccountQuery<SkillListResponse>(listEndpoint, 'Skills', enabled);
   useApplicationResourceSync(ownerId, 'skills', refetch);
   // Library/chat installations publish the existing revision as well.
   const seenRevision = useRef(revision);
@@ -124,6 +142,7 @@ export function useSkills(adminView = false) {
 
   const skills = listData?.skills ?? [];
   const total = listData?.total ?? 0;
+  const dormantAfterDays = listData?.dormant_after_days;
 
   // Mutations
   const deleteMutation = useApiMutation<void, void>({
@@ -394,11 +413,83 @@ export function useSkills(adminView = false) {
     [deleteAdminMutation, setData]
   );
 
+  // Lot 14 — declared after every older mutation (their order is what tests mock).
+  const restorePreviousMutation = useApiMutation<void, Skill>({
+    method: 'POST',
+    componentName: 'Skills',
+  });
+
+  const dormantDecisionMutation = useApiMutation<
+    { skill_ids: string[]; decision: DormantDecision },
+    { decision: DormantDecision; settled: string[] }
+  >({
+    method: 'POST',
+    componentName: 'Skills',
+  });
+
+  /**
+   * Put back the version the last replacement of the person's own skill
+   * replaced. The answer is the restored skill; its use and its new way back
+   * (the replaced version, restorable in turn) come from a fresh read — taken
+   * after a refusal too, so a way back that vanished leaves the screen.
+   */
+  const restorePreviousSkill = useCallback(
+    async (skillName: string) => {
+      try {
+        return await restorePreviousMutation.mutate(
+          `${ENDPOINT}/${encodeURIComponent(skillName)}/restore-previous`
+        );
+      } finally {
+        await refetch().catch(() => undefined);
+      }
+    },
+    [restorePreviousMutation, refetch]
+  );
+
+  /**
+   * Answer the unused-skills proposal for the skills it showed. The server
+   * settles only those still dormant: the screen follows its answer. A skill
+   * it left as it was changed since the screen was drawn (used, switched off,
+   * deleted): a fresh read says what it is now, so it is not proposed again.
+   */
+  const settleDormant = useCallback(
+    async (skillIds: string[], decision: DormantDecision) => {
+      const result = await dormantDecisionMutation.mutate(`${ENDPOINT}/dormant-decision`, {
+        skill_ids: skillIds,
+        decision,
+      });
+      if (result) {
+        const settled = new Set(result.settled);
+        setData(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            skills: prev.skills.map(s =>
+              settled.has(s.name)
+                ? {
+                    ...s,
+                    dormant: false,
+                    enabled_for_user: decision === 'switch_off' ? false : s.enabled_for_user,
+                  }
+                : s
+            ),
+          };
+        });
+        if (result.settled.length < skillIds.length) {
+          await refetch().catch(() => undefined);
+        }
+      }
+      return result;
+    },
+    [dormantDecisionMutation, setData, refetch]
+  );
+
   return {
     // Data
     ownerId,
     skills,
     total,
+    dormantAfterDays,
     loading,
     error,
     refetch,
@@ -415,6 +506,8 @@ export function useSkills(adminView = false) {
     translateSkillDescription,
     updateAdminSkillDescription,
     downloadSkill,
+    restorePreviousSkill,
+    settleDormant,
 
     // Mutation states
     importingFromUrl: importFromUrlMutation.loading,
@@ -425,5 +518,7 @@ export function useSkills(adminView = false) {
     reloading: reloadMutation.loading,
     translating: translateMutation.loading,
     updatingDescription: updateDescriptionMutation.loading,
+    restoringPrevious: restorePreviousMutation.loading,
+    settlingDormant: dormantDecisionMutation.loading,
   };
 }

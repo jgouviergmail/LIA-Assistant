@@ -51,8 +51,14 @@ const h = vi.hoisted(() => ({
   models: null as unknown,
   put: vi.fn(),
 }));
+/** What the operator switched off: absent, the deployment flag alone decides. */
+const operator = vi.hoisted(() => ({
+  capabilities: undefined as Record<string, { enabled: boolean; family: string }> | undefined,
+}));
 vi.mock('@/hooks/useAppConfig', () => ({
-  useAppConfig: () => ({ config: { features: { live_enabled: h.liveEnabled } } }),
+  useAppConfig: () => ({
+    config: { features: { live_enabled: h.liveEnabled }, capabilities: operator.capabilities },
+  }),
 }));
 const sample = vi.hoisted(() => ({ play: vi.fn(async () => {}), playing: false }));
 vi.mock('@/hooks/useVoiceSample', () => ({ useVoiceSample: () => sample }));
@@ -462,6 +468,21 @@ describe('LiveModeSettings', () => {
     ).toBeVisible();
   });
 
+  it('keeps a preference list focusable while its choice is saved: busy, never disabled', async () => {
+    let answer!: (body: unknown) => void;
+    h.put.mockImplementationOnce(() => new Promise(resolve => (answer = resolve)));
+    const { user } = renderWithProviders(<LiveModeSettings lng="fr" />);
+    const list = screen.getByRole('combobox', { name: 'settings.live_mode.result_delivery' });
+    await user.click(list);
+    await user.click(
+      await screen.findByRole('option', { name: 'settings.live_mode.result_delivery_when_idle' })
+    );
+    await waitFor(() => expect(list).toHaveAttribute('aria-busy', 'true'));
+    expect(list).not.toBeDisabled();
+    answer({ ...PREFS, result_delivery: 'when_idle' });
+    await waitFor(() => expect(list).not.toHaveAttribute('aria-busy'));
+  });
+
   it('replaces the whole preferences object on each change', async () => {
     const { user } = renderWithProviders(<LiveModeSettings lng="fr" />);
     await user.click(screen.getByRole('switch', { name: 'settings.live_mode.interruptions' }));
@@ -481,5 +502,16 @@ describe('LiveModeSettings', () => {
     expect(
       screen.getByRole('combobox', { name: 'settings.live_mode.end_of_speech' })
     ).toHaveAccessibleDescription('settings.live_mode.end_of_speech_help');
+  });
+});
+
+describe('LiveModeSettings under the operator switch', () => {
+  it('renders nothing once the operator switched the live mode off', () => {
+    h.liveEnabled = true;
+    operator.capabilities = { live: { enabled: false, family: 'media' } };
+    const { container } = renderWithProviders(<LiveModeSettings lng="fr" />);
+    operator.capabilities = undefined;
+
+    expect(container).toBeEmptyDOMElement();
   });
 });

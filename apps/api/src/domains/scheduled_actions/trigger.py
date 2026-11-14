@@ -1,12 +1,15 @@
-"""When a routine next needs the executor — one answer for both kinds (ADR-322).
+"""When a routine next needs the executor — one answer for every kind (ADR-322).
 
-A routine runs on ONE of two clocks, never both:
+A routine runs on ONE of three clocks, never two:
 
 - a **time** routine follows its ``RecurrenceSpec`` — the person's own
   schedule, armed by the recurrence engine;
 - a **condition** routine has no schedule at all. It waits for something, and
   the SYSTEM checks whether that something happened, at a cadence declared per
-  condition type, day and night, until the optional last day it watches.
+  condition type, day and night, until the optional last day it watches;
+- a **webhook** routine has neither: another system calls its address, and the
+  call arms it for the next pass (ADR-386). The plan only says when to look
+  again; whether calls wait is the executor's gate to read.
 
 The second clock replaces what used to be a schedule on BOTH kinds: a condition
 was only evaluated at the hours its recurrence named, so a mail watch set up
@@ -45,12 +48,17 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from src.core.config import settings
-from src.core.i18n_routine_triggers import condition_cadence
+from src.core.constants import (
+    ROUTINE_WEBHOOK_FAILURE_RETRY_SECONDS,
+    SCHEDULED_ACTIONS_CATCH_UP_LOOKBACK_DAYS,
+)
+from src.core.i18n_routine_triggers import condition_cadence, webhook_trigger
 from src.core.recurrence import (
     RecurrenceSpec,
     describe,
     describe_until,
     join_clauses,
+    latest_occurrence,
     next_occurrence,
     rearm_after,
 )
@@ -58,6 +66,7 @@ from src.domains.scheduled_actions.models import (
     CONDITION_TYPE_CALENDAR_EVENT,
     CONDITION_TYPE_DOCUMENT_ADDED,
     CONDITION_TYPE_MAIL_MATCH,
+    CONDITION_TYPE_PAGE_CHANGE,
     CONDITION_TYPE_TASK_OVERDUE,
     CONDITION_TYPE_WEATHER_CHANGE,
     CONDITION_TYPES,
@@ -98,6 +107,8 @@ CONDITION_CHECKS: Final[Mapping[str, ConditionCheck]] = MappingProxyType(
         CONDITION_TYPE_DOCUMENT_ADDED: ConditionCheck("scheduled_actions_condition_check_minutes"),
         CONDITION_TYPE_CALENDAR_EVENT: ConditionCheck("scheduled_actions_condition_check_minutes"),
         CONDITION_TYPE_WEATHER_CHANGE: ConditionCheck("scheduled_actions_weather_check_minutes"),
+        # A public page, read at its own pace (ADR-387).
+        CONDITION_TYPE_PAGE_CHANGE: ConditionCheck("scheduled_actions_page_check_minutes"),
     }
 )
 
@@ -233,12 +244,32 @@ class _RoutineRow(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
+class DueOccurrence:
+    """An occurrence the scheduler found due, and how long it may still be served.
+
+    Attributes:
+        at: The occurrence (UTC).
+        late_after: Past this instant it no longer starts; ``None`` when
+            nothing follows it — it is then never given up.
+        retry_until: Until when it stays armed for an account found busy.
+    """
+
+    at: datetime
+    late_after: datetime | None
+    retry_until: datetime
+
+    def is_late(self, now: datetime) -> bool:
+        """Whether ``now`` is past the catch-up window of this occurrence."""
+        return self.late_after is not None and now > self.late_after
+
+
+@dataclass(frozen=True, slots=True)
 class TriggerPlan:
     """Everything that decides when one routine runs, and nothing else.
 
     Attributes:
         action_id: The routine — the phase of its checks.
-        trigger_kind: ``time`` or ``condition``.
+        trigger_kind: ``time``, ``condition`` or ``webhook``.
         recurrence: The schedule of a time routine; ``None`` for a condition.
         condition_config: The condition of a condition routine, ``until``
             included; ``None`` for a time routine.
@@ -276,8 +307,17 @@ class TriggerPlan:
         """Whether the system's clock, rather than a schedule, drives it."""
         return self.trigger_kind == TriggerKind.CONDITION.value
 
+    @property
+    def is_webhook(self) -> bool:
+        """Whether another system's signed call drives it (ADR-386)."""
+        return self.trigger_kind == TriggerKind.WEBHOOK.value
+
     def first(self, now: datetime) -> datetime | None:
         """The instant to arm when the routine is created, edited, re-enabled or moved.
+
+        A webhook routine looks at once: the next pass serves the calls that
+        waited (a pause keeps them), and finding none it sleeps until a call
+        wakes it (ADR-386).
 
         Args:
             now: Reference instant (UTC).
@@ -285,21 +325,116 @@ class TriggerPlan:
         Returns:
             The instant, or ``None`` when nothing follows.
         """
+        if self.is_webhook:
+            return now
         if self.is_condition:
             return self._check_after(now)
         if self.recurrence is None:
             return None
         return next_occurrence(self.recurrence, self.timezone, after=now)
 
-    def after_tick(self, *, due_at: datetime | None, now: datetime) -> datetime | None:
-        """The instant to arm once a tick has ended, whatever its outcome.
+    def after_tick(
+        self, *, due_at: datetime | None, now: datetime, failed: bool = False
+    ) -> datetime | None:
+        """The instant to arm once a tick has ended.
 
         A condition re-arms from NOW: a missed check is missed, three days of
         downtime replay nothing. A schedule keeps ``rearm_after``'s rule — a
-        manual run ahead of its slot leaves the slot armed.
+        manual run ahead of its slot leaves the slot armed. A webhook routine
+        looks again at the next pass, where its gate serves what still waits or
+        settles with nothing armed; after a FAILED run it backs off first, the
+        run having already retried inside itself (ADR-386).
 
         Args:
             due_at: The pending due instant when the tick started, or ``None``.
+            now: Reference instant (UTC).
+            failed: Whether the tick's run failed. Only a webhook routine reads
+                it: the other clocks re-arm the same way whatever the outcome.
+
+        Returns:
+            The instant, or ``None`` when nothing follows.
+        """
+        if self.is_webhook:
+            return now + timedelta(seconds=ROUTINE_WEBHOOK_FAILURE_RETRY_SECONDS) if failed else now
+        if self.is_condition:
+            return self._check_after(now)
+        if self.recurrence is None:
+            return None
+        return rearm_after(self.recurrence, self.timezone, due_at=due_at, now=now)
+
+    def catch_up_deadline(self, due_at: datetime) -> datetime | None:
+        """The last instant an occurrence due at ``due_at`` may still start.
+
+        Half the gap to the occurrence that follows it, capped by the
+        operator's maximum (ADR-265 amendment 2026-11-12 b): the routine's own
+        rhythm says when its occurrence is stale. An occurrence whose successor
+        has already come is therefore ALWAYS past its deadline — only the most
+        recent occurrence can still start.
+
+        Args:
+            due_at: The occurrence (UTC).
+
+        Returns:
+            The deadline, or ``None`` when the occurrence is never given up: a
+            condition routine has no occurrence, and one nothing follows is all
+            that is left of what the person asked for.
+        """
+        if self.is_condition or self.recurrence is None:
+            return None
+        following = next_occurrence(self.recurrence, self.timezone, after=due_at)
+        if following is None:
+            return None
+        return due_at + min((following - due_at) / 2, _catch_up_maximum())
+
+    def retry_deadline(self, due_at: datetime) -> datetime | None:
+        """Until when an occurrence that found its account busy stays armed.
+
+        As long as it may still start. The last occurrence of a series is
+        never given up for lateness, but an account busy for hours is not a
+        turn under way: its wait is bounded by the same maximum.
+
+        Args:
+            due_at: The occurrence (UTC).
+
+        Returns:
+            The instant, or ``None`` for a routine with no occurrence.
+        """
+        if self.is_condition or self.recurrence is None:
+            return None
+        return self.catch_up_deadline(due_at) or due_at + _catch_up_maximum()
+
+    def due_occurrence(
+        self, *, due_at: datetime | None, started_at: datetime
+    ) -> DueOccurrence | None:
+        """The occurrence a tick was due for, with its catch-up bounds.
+
+        Args:
+            due_at: The pending due instant when the tick started.
+            started_at: When the tick started (UTC).
+
+        Returns:
+            The occurrence, or ``None`` when none was due: a run the person
+            started ahead of its slot, a finished series, a watch.
+        """
+        if due_at is None or due_at > started_at:
+            return None
+        retry_until = self.retry_deadline(due_at)
+        if retry_until is None:
+            return None
+        return DueOccurrence(
+            at=due_at, late_after=self.catch_up_deadline(due_at), retry_until=retry_until
+        )
+
+    def after_missed(self, *, due_at: datetime, now: datetime) -> datetime | None:
+        """The instant to arm once the occurrence due at ``due_at`` is given up.
+
+        The most recent occurrence that came since, when it may still start —
+        an outage ending twenty minutes after today's slot serves TODAY — else
+        the next one to come. Never an occurrence in between: a missed slot is
+        missed, and three days of outage replay nothing (``rearm_after``'s rule).
+
+        Args:
+            due_at: The occurrence given up (UTC).
             now: Reference instant (UTC).
 
         Returns:
@@ -309,7 +444,18 @@ class TriggerPlan:
             return self._check_after(now)
         if self.recurrence is None:
             return None
-        return rearm_after(self.recurrence, self.timezone, due_at=due_at, now=now)
+        latest = latest_occurrence(
+            self.recurrence,
+            self.timezone,
+            after=due_at,
+            until=now,
+            max_days=SCHEDULED_ACTIONS_CATCH_UP_LOOKBACK_DAYS,
+        )
+        if latest is not None:
+            deadline = self.catch_up_deadline(latest)
+            if deadline is None or now <= deadline:
+                return latest
+        return next_occurrence(self.recurrence, self.timezone, after=now)
 
     @property
     def condition_type(self) -> str:
@@ -325,6 +471,11 @@ class TriggerPlan:
         if end is not None and armed >= end:
             return None
         return armed
+
+
+def _catch_up_maximum() -> timedelta:
+    """The longest an occurrence may start late, read at each call."""
+    return timedelta(minutes=settings.scheduled_actions_catch_up_max_minutes)
 
 
 def check_minutes(plan: TriggerPlan) -> int | None:
@@ -375,8 +526,11 @@ def schedule_sentence(plan: TriggerPlan, language: str) -> str:
 
     Returns:
         The recurrence sentence of a time routine; the check cadence of a
-        condition routine, followed by its last day when it has one.
+        condition routine, followed by its last day when it has one; what
+        starts a webhook routine.
     """
+    if plan.is_webhook:
+        return webhook_trigger(language)
     if not plan.is_condition:
         return describe(plan.recurrence, language) if plan.recurrence is not None else ""
     minutes = check_minutes(plan)
@@ -396,6 +550,7 @@ __all__ = [
     "CONDITION_CHECKS",
     "CONDITION_UNTIL_KEY",
     "ConditionCheck",
+    "DueOccurrence",
     "TriggerPlan",
     "check_interval",
     "check_minutes",

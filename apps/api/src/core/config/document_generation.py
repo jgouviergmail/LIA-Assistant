@@ -10,7 +10,9 @@ Note: the model is managed via the admin LLM Config system (LLM type
 
 There is **no per-user opt-in**: an instance that offers document generation
 offers it to every account, and the only bounds are this deployment flag and
-the administrator's capability switch. (This docstring claimed such a column
+the administrator's capability switch. The person's own choices (illustrations,
+animations — ``core/document_preferences.py``) shape a document, never whether
+one is made; this module only bounds how many pictures one document may carry. (This docstring claimed such a column
 existed on the User model until 2026-08-18; it never did, and the capability
 map was about to report a dormant state nobody could ever turn on.)
 """
@@ -19,7 +21,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
@@ -32,11 +34,14 @@ from src.core.constants import (
     DOCUMENT_GENERATION_SLIDE_MAX_BULLETS_DEFAULT,
     DOCUMENT_GENERATION_TOC_MIN_HEADINGS_DEFAULT,
     DOCUMENT_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT,
+    DOCUMENT_ILLUSTRATIONS_MAX_DEFAULT,
     INTERACTIVE_PAGE_ENABLED_DEFAULT,
+    INTERACTIVE_PAGE_MAP_PROVIDERS_DEFAULT,
     INTERACTIVE_PAGE_MAX_BYTES_DEFAULT,
     INTERACTIVE_PAGE_SOURCE_LOOKBACK_MESSAGES_DEFAULT,
     MAX_DOCUMENT_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT,
 )
+from src.core.map_tile_providers import parse_map_provider_keys
 
 
 class DocumentGenerationSettings(BaseSettings):
@@ -154,6 +159,35 @@ class DocumentGenerationSettings(BaseSettings):
         ),
     )
 
+    interactive_page_map_providers: str | list[str] = Field(
+        default=",".join(INTERACTIVE_PAGE_MAP_PROVIDERS_DEFAULT),
+        validate_default=True,
+        description=(
+            "Map tile sources a page may load, by key of core/map_tile_providers.py "
+            "(comma-separated; empty for none). The page's content policy names "
+            "their origins for images only, and the writer is told the same list."
+        ),
+    )
+
+    @field_validator("interactive_page_map_providers", mode="after")
+    @classmethod
+    def declared_map_providers(cls, value: str | list[str]) -> list[str]:
+        """Read the map sources, in the table's order, refusing an undeclared one.
+
+        A host never reaches a content policy from the environment: the setting
+        names keys, and the table owns what each key means.
+
+        Args:
+            value: The configured list, or its comma-separated spelling.
+
+        Returns:
+            The declared keys, in the table's order, without duplicates.
+
+        Raises:
+            ValueError: An entry names no declared source.
+        """
+        return parse_map_provider_keys(value)
+
     # ========================================================================
     # Rendering craft (ADR-274)
     # ========================================================================
@@ -194,5 +228,16 @@ class DocumentGenerationSettings(BaseSettings):
         description=(
             "Characters per bullet published to the writer; beyond it the "
             "renderer shrinks the text, then splits the slide."
+        ),
+    )
+
+    document_illustrations_max: int = Field(
+        default=DOCUMENT_ILLUSTRATIONS_MAX_DEFAULT,
+        ge=0,
+        le=12,
+        description=(
+            "Pictures one generated document may carry, published to the writer "
+            "and enforced; each is an image generation billed to the turn. 0 "
+            "switches illustrations off for the instance."
         ),
     )

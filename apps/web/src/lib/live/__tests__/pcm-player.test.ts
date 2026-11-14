@@ -23,6 +23,16 @@ import {
   buildPcmPlayerWorkletSource,
 } from '../pcm-player';
 
+const { tapVoice, tapVoiceStream, releaseVoice } = vi.hoisted(() => {
+  const releaseVoice = vi.fn();
+  return {
+    releaseVoice,
+    tapVoice: vi.fn(() => releaseVoice),
+    tapVoiceStream: vi.fn(() => releaseVoice),
+  };
+});
+vi.mock('../../audio/voice-envelope', () => ({ tapVoice, tapVoiceStream }));
+
 // -- the worklet, run outside any AudioWorklet global ---------------------------
 
 interface ProcessorLike {
@@ -388,5 +398,40 @@ describe('PcmStreamPlayer', () => {
     player.enqueue(new Int16Array(240).buffer, 24000);
     expect(edges).not.toHaveBeenCalled();
     expect(player.isSpeaking).toBe(false);
+  });
+
+  it('lends the voice it plays to the face, from its wired node until dispose', async () => {
+    tapVoice.mockClear();
+    releaseVoice.mockClear();
+    const player = new PcmStreamPlayer();
+    await player.warmup();
+    expect(tapVoice).toHaveBeenCalledTimes(1);
+    expect(tapVoice).toHaveBeenCalledWith(FakeWorkletNode.instances[0]);
+    await player.warmup();
+    expect(tapVoice).toHaveBeenCalledTimes(1);
+    // An interruption empties the queue; the node, and the face's tap on it, stay.
+    player.flush();
+    expect(releaseVoice).not.toHaveBeenCalled();
+    player.dispose();
+    expect(releaseVoice).toHaveBeenCalledTimes(1);
+    player.dispose();
+    expect(releaseVoice).toHaveBeenCalledTimes(1);
+  });
+
+  it('lends its context, resumed on the gesture, to a voice another sink plays', async () => {
+    tapVoiceStream.mockClear();
+    vi.stubGlobal('MediaStream', class {});
+    const player = new PcmStreamPlayer();
+    const stream = new MediaStream();
+    // Before the gesture there is no running context to lend: nothing is tapped.
+    player.tapStream(stream)();
+    expect(tapVoiceStream).not.toHaveBeenCalled();
+    await player.warmup();
+    expect(player.tapStream(stream)).toBe(releaseVoice);
+    expect(tapVoiceStream).toHaveBeenCalledWith(FakeAudioContext.instances[0], stream);
+    player.dispose();
+    player.tapStream(stream);
+    expect(tapVoiceStream).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
   });
 });

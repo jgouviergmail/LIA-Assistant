@@ -10,6 +10,8 @@ Classification is by flag, never by matching the text — the scaffolding exists
 in six languages.
 """
 
+from datetime import UTC
+
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
@@ -159,7 +161,8 @@ class TestExtractorsHonourTheFlag:
             [
                 HumanMessage(content="je déménage à Lyon"),
                 _synthetic("[REFUS UTILISATEUR] IMPORTANT ne mentionne aucun problème technique"),
-            ]
+            ],
+            zone=UTC,
         )
 
         assert "je déménage à Lyon" in formatted

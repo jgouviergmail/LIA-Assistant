@@ -30,7 +30,8 @@ flowchart TD
 | Module | Role |
 |---|---|
 | `domains/interactive_pages/document.py` | The policy, the frame runtime, the checks; `page_frame`, `page_file`, `refusal_of` |
-| `domains/interactive_pages/service.py` | `produce_page`: writes or fetches, checks, files |
+| `core/map_tile_providers.py` | The map tile sources a page may load, and what each must be |
+| `domains/interactive_pages/service.py` | `produce_page`: writes or fetches, checks, files; `map_tile_sources`: the list the writer reads |
 | `domains/interactive_pages/schemas.py` | `PageMode`, `PageContent`, `PageSource` |
 | `domains/agents/interactive_page/page_sources.py` | Finds the page a mode works from, in the messages |
 | `domains/agents/interactive_page/catalogue_manifests.py` | The wording shared by the manifest and the `@tool` schema |
@@ -49,7 +50,7 @@ spend belongs to the turn (`SpendRoad.TURN`); `node_name` tells it apart in the 
 | Module | Role |
 |---|---|
 | `components/chat/PageAppWidget.tsx` | The frame, the poster, the code view, restart |
-| `hooks/usePageFrameBridge.ts` | Hears two notifications from one frame, and nothing else |
+| `hooks/usePageFrameBridge.ts` | Hears three notifications from one frame, and nothing else |
 | `lib/frame-height.ts` | The height a frame reports, bounded; shared with the skills' bridge |
 | `lib/message-widgets.ts` | Marks a widget read back from history as `restored` |
 | `lib/markdown-source.ts` | Keeps the lines of a `<pre>` through Markdown |
@@ -60,13 +61,48 @@ spend belongs to the turn (`SpendRoad.TURN`); `node_name` tells it apart in the 
 The payload of a `PAGE_APP` item: `title`, `html_content` (policy, runtime, page), `source_offset`
 (where the page's own bytes start, ASCII before it) and `initial_view` (`page` or `code`).
 
-The runtime posts `ui/notifications/size-changed` with `{height}` and `ui/notifications/error` with
-`{message}`. The host accepts them from `event.origin === 'null'` and from its own frame's window
-only, and bounds what it is told.
+The runtime posts `ui/notifications/size-changed` with `{height}`, `ui/notifications/error` with
+`{message}` and `ui/notifications/blocked` with `{directive}`. The host accepts them from
+`event.origin === 'null'` and from its own frame's window only, and bounds what it is told.
+
+A refusal of the policy is silent in a browser: a blank where the page meant something. The
+runtime tells the DIRECTIVE that refused, once each and never the address, and the widget reads it
+as one of three kinds (`frame`, `image`, `resource`) to say it in the person's language.
 
 `apps/api/tests/unit/domains/interactive_pages/page_frame_prefix.json` is the prefix the browser
-journey runs. `test_document.py` holds it equal to `page_frame`: after a change to the policy or
-the runtime, regenerate it from `page_frame("").document`.
+journey runs, composed for the default map sources. `test_document.py` holds it equal to
+`page_frame`: after a change to the policy, the runtime or the default sources, regenerate it from
+`page_frame("").document` under `INTERACTIVE_PAGE_MAP_PROVIDERS_DEFAULT`.
+
+## What a page may load: map tiles, and nothing else
+
+A page holds everything it shows, with one exception: the tiles of a map, which no page can
+carry. They load as images, from the sources `core/map_tile_providers.py` declares and
+`INTERACTIVE_PAGE_MAP_PROVIDERS` allows.
+
+```mermaid
+flowchart LR
+    S[INTERACTIVE_PAGE_MAP_PROVIDERS] --> T[core/map_tile_providers.py]
+    T -->|origins| P[page_frame: img-src of the policy]
+    T -->|name, pattern, zoom, credit| W[map_tile_sources: the writer's list]
+    W --> G[The page draws its map]
+    P --> G
+```
+
+- **One setting, two readers.** The policy and the writer's prompt are built from the same
+  list, so a source the writer is told about loads, and no other does.
+- **Keys, never hosts.** The setting names entries of the table. An unknown key refuses the
+  settings, which a deployment validates before it switches.
+- **Images only.** `img-src` gains the origins; `connect-src`, `frame-src` and `script-src` gain
+  nothing. A page still makes no request of its own and embeds no document.
+- **The page draws the map.** No library loads: the prompt carries the Web Mercator recipe, and
+  a place is drawn only from coordinates the loop handed over in `source_data`.
+- **An empty list** leaves the policy naming no host, and tells the writer that no tile loads.
+
+A page that embeds another document (`iframe`, `frame`, `frameset`, `object`, `embed`) is refused
+by `refusal_of` (`PageRefusal.EMBEDDED_DOCUMENT`): the policy would show a blank in its place.
+Adding a source is one entry of the table, held by `tests/unit/core/test_map_tile_providers.py`
+to what a policy and a prompt can read.
 
 ## Configuration
 
@@ -75,6 +111,7 @@ the runtime, regenerate it from `page_frame("").document`.
 | `INTERACTIVE_PAGE_ENABLED` | The deployment offers pages; the administrator's switch is `PlatformCapability.INTERACTIVE_PAGES` |
 | `INTERACTIVE_PAGE_MAX_BYTES` | Ceiling of a page, published to the writer |
 | `INTERACTIVE_PAGE_SOURCE_LOOKBACK_MESSAGES` | How far back a mode looks for a page |
+| `INTERACTIVE_PAGE_MAP_PROVIDERS` | Map tile sources a page may load, by key (comma-separated; empty for none) |
 
 The writer's model is the **Interactive Page** entry of the LLM configuration, whose code default
 is a document's. Its reasoning depth decides how long a person waits: at `high`, two models out of three spent 30,000 output tokens
@@ -83,7 +120,7 @@ on a page of 8,000.
 ## Checking a change
 
 ```bash
-cd apps/api && .venv/Scripts/pytest tests/unit/domains/interactive_pages tests/unit/domains/agents/interactive_page -v
+cd apps/api && .venv/Scripts/pytest tests/unit/domains/interactive_pages tests/unit/domains/agents/interactive_page tests/unit/core/test_map_tile_providers.py -v
 cd apps/web && npx vitest run src/components/chat/__tests__/PageAppWidget.test.tsx
 ```
 

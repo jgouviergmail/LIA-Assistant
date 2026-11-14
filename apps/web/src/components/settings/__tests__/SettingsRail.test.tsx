@@ -28,6 +28,15 @@ const AVAILABLE: SettingsSearchAvailability = {
   sandboxEgressEnabled: true,
   liveEnabled: true,
   radioEnabled: true,
+  channelsEnabled: true,
+  psycheEnabled: true,
+  journalsEnabled: true,
+  skillsEnabled: true,
+  mcpEnabled: true,
+  ragSpacesEnabled: true,
+  imageGenerationEnabled: true,
+  telephonyEnabled: true,
+  hapticsSupported: true,
   debugUserAccess: true,
 };
 

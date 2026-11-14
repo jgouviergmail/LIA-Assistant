@@ -109,8 +109,9 @@ OLLAMA_BASE_URL=http://localhost:11434  # URL du serveur Ollama local (pas une c
 ### Anthropic
 
 Modèles du catalogue (`llm_models`, tarifs dans `llm_model_pricing` : seed de
-référence + migrations `c3e7a1f5d9b2`, `fc0147eeb095` et `36ecac9a51ea` pour les instances
-déjà en place) : `claude-fable-5-1`, `claude-fable-5`, `claude-opus-5-5`, `claude-opus-5`,
+référence + migrations `c3e7a1f5d9b2`, `fc0147eeb095`, `36ecac9a51ea` et `5cccb7a8d77f` pour
+les instances déjà en place) : `claude-fable-5-2`, `claude-fable-5-1`, `claude-fable-5`,
+`claude-opus-5-5`, `claude-opus-5`,
 `claude-sonnet-5-5`, `claude-sonnet-5`, `claude-haiku-5-5`, `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`,
 `claude-sonnet-4-6`, `claude-opus-4-5`, `claude-sonnet-4-5`, `claude-haiku-4-5` — plus
 les deux `claude-3-5-*`, retirés par l'éditeur et encore actifs au catalogue (leur
@@ -132,7 +133,10 @@ pas.
   température n'est pas envoyée à partir d'Opus 4.7 (l'API la refuse) ni pendant une
   réflexion.
 - **Réflexion** : par le niveau de raisonnement du poste (ADR-245), jamais par
-  `PROVIDER_CONFIG`. Elle ne se désactive pas sur Fable 5, Fable 5.1 et Opus 5.5 ; elle
+  `PROVIDER_CONFIG`. Elle ne se désactive pas sur Fable 5, Fable 5.1, Fable 5.2 et
+  Opus 5.5 (Fable 5.2 garde la surface de Fable 5.1 — `tool_choice` forcé refusé,
+  réflexion liée à sa conversation, sur tout compte quel que soit son âge ; mesuré sur
+  l'API le 2026-11-11) ; elle
   est active quand aucun niveau n'est choisi sur Opus 5, Sonnet 5, Sonnet 5.5 et
   Haiku 5.5 (profondeur implicite `medium` sur ce dernier, qui accepte `disabled`
   jusqu'à l'effort `high` et, seul parmi les générations qui lient leur réflexion, un

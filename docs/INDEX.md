@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 48 |
-| ADRs | 375 ADR files (ADR-377 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
+| ADRs | 386 ADR files (ADR-388 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
 | Fiches knowledge (RAG système) | [Fichiers de la FAQ système](knowledge/) |
 
 ---
@@ -50,7 +50,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence (les reducers font autorité ici) |
 | [TELEPHONY.md](./technical/TELEPHONY.md) | Téléphonie agentique (appels sortants, ADR-127) ; le téléphone comme canal — numéro vérifié, appel du titulaire sans carte, relais en tour, outils en direct dérivés du catalogue avec projection vocale, une dépense par appel, domaines et personnalité de la personne, périmètre du portail (ADR-290) ; le mode Live du téléphone — la session Live du navigateur sur la ligne, chaque demande un tour de chat pendant l'appel par un pont serveur, Live / Live direct au choix de la personne, disponible seulement où le vendeur peut rappeler l'API (ADR-301) ; calcul, journal et activité offerts à la voix, pas les fichiers générés (ADR-318) |
 | [MEETINGS.md](./technical/MEETINGS.md) | Enregistrement de réunions et comptes rendus structurés (ADR-258), bibliothèque de modèles et changement de format (ADR-259) |
-| [WORKBOARD.md](./technical/WORKBOARD.md) | Le tableau de tickets (ADR-276) : sept colonnes, un porteur, un résultat ; LIA exécute les tickets qui lui sont affectés |
+| [WORKBOARD.md](./technical/WORKBOARD.md) | Le tableau de tickets (ADR-276) : sept colonnes, un porteur, un résultat ; LIA exécute les tickets qui lui sont affectés ; des catégories, et un couloir par catégorie |
 | [LIVE_MODE.md](./technical/LIVE_MODE.md) | Le mode Live vocal (ADR-299, ADR-300, ADR-301) : parole à parole sur la clé de la personne, Gemini Live, GPT-Live ET ElevenLabs Agents (catégorie additive, deux fils sous une couture — jeton ou offre SDP, fonction ou délégation native), la voix délègue toute demande au moteur du chat, la session DIRECTE qui tient les outils de lecture elle-même, une session par compte, silence et plafond par modèle, le compteur indicatif du fournisseur (facturation `vendor` : montrée, jamais enregistrée), la dépense de LIA sur la carte de clôture, le mode direct relayé à la fin comme au téléphone |
 | [RADIO.md](./technical/RADIO.md) | La radio personnelle (ADR-324) : une rédaction d'instance sans modèle et une antenne par auditeur qui ne tourne que pendant qu'il écoute ; grille déterministe, modèles qui n'écrivent que ce que des faits citent, voix et mixage, coût en direct ; routes et refus codés, réglages, tâches de fond, métriques et alerte |
 | [WORLD_PROTOTYPE.md](./technical/WORLD_PROTOTYPE.md) | Monde isométrique natif (ADR-365) : admission et mouvements sous autorité Redis, panneaux privés, correspondance humaine et traduction consentie, présence entre pairs, bornes d’arcade sous autorité serveur, gestes, photos privées, tableau de bord à table ; activation et qualification matérielle séparées ([registre interactions et jeux](./superpowers/qualification/2026-10-27-world-interactions-and-play.md)) |
@@ -62,7 +62,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (375 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (386 ADR files) |
 
 ### Pour les Product Managers
 
@@ -72,6 +72,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [LLM_PRICING_MANAGEMENT.md](./technical/LLM_PRICING_MANAGEMENT.md) | Gestion des coûts LLM |
 | [JEV_INTEGRATION.md](./technical/JEV_INTEGRATION.md) | Décisions natives TypeSafe, bascule à chaud par usage, repli et comptabilité |
 | [EMAIL_EVENT_CLASSIFICATION.md](./technical/EMAIL_EVENT_CLASSIFICATION.md) | Qualifications natives email/agenda, preuves fictives et statut de validation |
+| [MAIL_REPLY_STATE.md](./technical/MAIL_REPLY_STATE.md) | Situation d'un mail dans sa conversation (ADR-379) : déjà répondu, réponse en brouillon, réponse reçue ; un décideur, une lecture par page et par fournisseur, une porte à échec ouvert, ce que fait chaque surface (chat, heartbeat, briefing, relations, Outils), le registre des listeurs et sa garde |
 | [Qualification locale v3.3.0](./superpowers/qualification/v3.3.0-2026-10-19/README.md) | Matrice de validation, revue adversariale, installabilité, coûts et limites explicites |
 | [PEER_CAPABILITY_TRANSFERS.md](./technical/PEER_CAPABILITY_TRANSFERS.md) | Copies de skills/MCP/plugins entre peers, désactivation initiale, confiance et rétention |
 | [JEV_SEMANTIC_QUALIFICATION.md](./technical/JEV_SEMANTIC_QUALIFICATION.md) | Qualification mesurée de JEV pour le typage sémantique, et réalignement des questions livrées |
@@ -176,12 +177,17 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [SPEAKING_AVATAR.md](./technical/SPEAKING_AVATAR.md) | Experimental personal Simli connector, API-controlled relay with single-use tickets, verified stop and presence, paced Live output and mobile floating placement; [ADR-334](./architecture/ADR-334-Personal-Speaking-Avatar-And-One-Audible-Output.md) remains Proposed pending real provider/device acceptance | ✅ |
 | [ROUTES.md](./technical/ROUTES.md) | Google Routes API, directions | ✅ |
 | [WEB_FETCH.md](./technical/WEB_FETCH.md) | Extraction contenu pages web (URL → Markdown), SSRF prevention | ✅ |
+| [WEB_SEARCH.md](./technical/WEB_SEARCH.md) | Recherche web : qui trouve les liens (clé de la personne, puis SearXNG de l'instance, ADR-382), la porte unique, l'exploitation et la mesure | ✅ |
+| [WRITING_STYLE.md](./technical/WRITING_STYLE.md) | Style d'écriture : le profil appris des mails envoyés (ADR-383), la porte unique lue par chaque rédacteur, l'interrupteur, l'oubli et la mesure | ✅ |
+| [WAITING_MESSAGES.md](./technical/WAITING_MESSAGES.md) | Message en attente : les mots écrits pendant que LIA travaille, gardés par le serveur, leur départ après une fin normale, leur retenue sinon, la bulle du chat (ADR-384) et la note jointe à la réponse en cours (ADR-385) | ✅ |
+| [MODEL_OUTPUT_HEALTH.md](./technical/MODEL_OUTPUT_HEALTH.md) | Santé des sorties de modèle : boucles de répétition, flux figés et comptage des jetons de l'historique, mesurés en production avant tout détecteur (lot 26) | ✅ |
 | [BROWSER_CONTROL.md](./technical/BROWSER_CONTROL.md) | Browser automation (Playwright) — navigation, interaction, extraction JS, progressive screenshots (SSE side-channel) — evolution F7 | ✅ |
 | [MCP_INTEGRATION.md](./technical/MCP_INTEGRATION.md) | MCP (Model Context Protocol) — Serveurs d'outils externes, MCP Apps, Excalidraw; public server origin/called method and shared personal-server quota cooldown | ✅ |
 | [CHANNELS_INTEGRATION.md](./technical/CHANNELS_INTEGRATION.md) | Canaux de messagerie externes (Telegram) — evolution F3 | ✅ |
 | [ATTACHMENTS_INTEGRATION.md](./technical/ATTACHMENTS_INTEGRATION.md) | Pièces jointes (images, PDF) avec analyse vision LLM — evolution F4 ; la galerie des fichiers produits (ADR-279), retrouvée depuis la conversation et montrée en cartes (`find_generated_files_tool`, ADR-318) ; conserver un fichier au-delà de son échéance, sous deux plafonds par compte, et des cartes du chat restituées depuis la ligne du fichier (ADR-319) ; l'envoi d'un fichier généré ou d'une réponse par e-mail (ADR-321) | ✅ |
-| [IMAGE_GENERATION.md](./technical/IMAGE_GENERATION.md) | AI Image Generation — multi-provider (OpenAI GPT Image, Qwen Image 3.0) : une famille déclare l'offre d'un modèle, un client par fournisseur la sert, la préférence résolue comme intention, l'image de référence tarifée (ADR-305) ; amélioration facultative du prompt par un créneau dédié, jamais une barrière (ADR-315) ; partage d'une image avec une connexion, en copie dans sa galerie et son chat (ADR-316) ; cost tracking, attachment storage | ✅ |
-| [DOCUMENT_GENERATION.md](./technical/DOCUMENT_GENERATION.md) | AI Document Generation (ADR-226, ADR-274) — dedicated LLM slot, crafted renderers (csv/xlsx/docx/pptx/pdf/md/txt), TTL attachment cards | ✅ |
+| [SECONDARY_CONVERSATIONS.md](./technical/SECONDARY_CONVERSATIONS.md) | Principale, discussions annexes, contexte isolé, comptabilité et reprise du nettoyage (ADR-378) | ✅ |
+| [IMAGE_GENERATION.md](./technical/IMAGE_GENERATION.md) | AI Image Generation — multi-provider (OpenAI GPT Image, Qwen Image 3.0) : une famille déclare l'offre d'un modèle, un client par fournisseur la sert, la préférence résolue comme intention, l'image de référence tarifée (ADR-305) ; amélioration facultative du prompt par un créneau dédié, jamais une barrière (ADR-315) ; partage d'une image avec une connexion, en copie dans sa galerie et son chat (ADR-316) ; un appel facturé partagé avec les illustrations des documents (ADR-388) ; cost tracking, attachment storage | ✅ |
+| [DOCUMENT_GENERATION.md](./technical/DOCUMENT_GENERATION.md) | AI Document Generation (ADR-226, ADR-274, ADR-388) — dedicated LLM slot, crafted renderers (csv/xlsx/docx/pptx/pdf/md/txt): live formulas, native charts, a palette by tone, decks that move when presented, reports with a cover, key figures and linked sources, illustrations the person allows (billed per picture); TTL attachment cards; the writer's paid measurement | ✅ |
 | [TABULAR_ADMIN_IO.md](./technical/TABULAR_ADMIN_IO.md) | Import/export tabulaire des administrations (ADR-228) — socle déclaratif, classeur Excel, aperçu obligatoire, verrou optimiste par ligne | ✅ |
 | [HEARTBEAT_AUTONOME.md](./technical/HEARTBEAT_AUTONOME.md) | Notifications proactives LLM-driven (Heartbeat) — evolution F5 | ✅ |
 | [HEALTH_METRICS.md](./technical/HEALTH_METRICS.md) | Health Metrics — iPhone Shortcuts ingestion, per-user tokens, charts, aggregation; assistant integrations (agents + Heartbeat + journal + memory) + `HEALTH_KINDS` registry (v1.17.2) | ✅ |
@@ -237,10 +243,11 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | Document | Description | Statut |
 |----------|-------------|--------|
-| [LONG_TERM_MEMORY.md](./technical/LONG_TERM_MEMORY.md) | Mémoire long-terme, profil psychologique, recherche active par une seule porte (`search_memories_tool`, ADR-313); new procedural directives pinned at creation, with manual edit/unpin and existing category protection | ✅ |
+| [LONG_TERM_MEMORY.md](./technical/LONG_TERM_MEMORY.md) | Mémoire long-terme, profil psychologique, recherche active par une seule porte (`search_memories_tool`, ADR-313); what was said, word for word, in every discussion (`search_conversations_tool`, ADR-378 amendment); new procedural directives pinned at creation, with manual edit/unpin and existing category protection | ✅ |
 | [MEMORY_RESOLUTION.md](./technical/MEMORY_RESOLUTION.md) | Résolution références, relations — architecture 3 phases (LLM extraction + recherche ciblée + résolution) | ✅ |
 | [INTERESTS.md](./technical/INTERESTS.md) | Système apprentissage centres d'intérêt | ✅ |
-| [SCHEDULED_ACTIONS.md](./technical/SCHEDULED_ACTIONS.md) | Actions planifiées récurrentes ; une horloge par routine — une planification, ou les vérifications du système pour une routine sur condition (ADR-322) | ✅ |
+| [SCHEDULED_ACTIONS.md](./technical/SCHEDULED_ACTIONS.md) | Actions planifiées récurrentes ; une horloge par routine — une planification, les vérifications du système pour une routine sur condition (ADR-322) — une page web surveillée comprise, lue sans modèle (ADR-387) —, ou l'appel signé d'un autre système (ADR-386) | ✅ |
+| [ROUTINE_WEBHOOKS.md](./technical/ROUTINE_WEBHOOKS.md) | Routines started by another system's signed call: the address and its secret shown once, the HMAC-SHA256 signature, the calls kept and served at the next pass, what the run reads, the limits (ADR-386) | ✅ |
 | [SUB_AGENTS.md](./technical/SUB_AGENTS.md) | Sub-agents éphémères — délégation via `delegate_to_sub_agent_tool` (ADR-083, F6 legacy supprimé) | ✅ |
 | [HYBRID_SEARCH.md](./technical/HYBRID_SEARCH.md) | Recherche hybride BM25 + sémantique (**historique** — supprimé en ADR-168 ; le BM25 vivant est celui des RAG Spaces) | 🗄️ |
 | [JOURNALS.md](./technical/JOURNALS.md) | Personal Journals — carnets de bord introspectifs, injection sémantique ; recherche active dans le journal sur le seuil configuré (`search_journal_tool`, ADR-318) | ✅ |
@@ -345,7 +352,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_SCHEDULED_ACTIONS.md](./guides/GUIDE_SCHEDULED_ACTIONS.md) | Guide pratique Actions Planifiees (recurrentes, timezone, retry) | ✅ |
 | [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) | Guide RAG Spaces (espaces de connaissances, upload, hybrid search) | ✅ |
 | [GUIDE_DEVOPS_CLAUDE_CLI.md](./guides/GUIDE_DEVOPS_CLAUDE_CLI.md) | Guide DevOps Claude CLI (remote server management, setup, security) | ✅ |
-| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (41 files, 200+ Q/A) | ✅ |
+| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation, one per subject of the in-app FAQ | ✅ |
 
 ### Operations
 
@@ -385,6 +392,17 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| [ADR-388](./architecture/ADR-388-Documents-Use-What-Their-Formats-Can-Do.md) | **Les documents exploitent ce que leurs formats savent faire** : formules recalculées, graphiques natifs, chiffres clés, palette par ton, illustrations sur accord ; le rédacteur dit ce qu'une chose EST, le moteur de rendu la dessine | 2026-11 |
+| [ADR-387](./architecture/ADR-387-A-Watched-Page-Is-Read-Without-A-Model.md) | **Une page surveillée est lue sans modèle** : sixième condition `page_change`, lecture bornée par la porte publique, registre instantané par ligne ; une ligne qui revient est de nouveau une nouvelle | 2026-11 |
+| [ADR-386](./architecture/ADR-386-A-Signed-Call-Starts-A-Routine.md) | **Un appel signé démarre une routine** : troisième horloge, adresse et secret tenus par le serveur, signature HMAC-SHA256, appel écrit avant d'être acquitté et lu comme contenu externe | 2026-11 |
+| [ADR-385](./architecture/ADR-385-A-Note-Joins-The-Answer-Being-Written.md) | **Une note rejoint la réponse en cours d'écriture** : au choix de la personne, en mode ReAct seulement, lue au prochain appel du modèle et jamais écrite dans `messages` | 2026-11 |
+| [ADR-384](./architecture/ADR-384-A-Message-Written-While-LIA-Works-Waits-Its-Turn.md) | **Un message écrit pendant que LIA travaille attend son tour** : gardé par le serveur, un par discussion, parti seul après une fin normale, retenu sinon, jamais lu comme la réponse à une question | 2026-11 |
+| [ADR-383](./architecture/ADR-383-A-Draft-Speaks-In-The-Persons-Voice.md) | **Un brouillon parle avec la voix de la personne** : profil de style appris des mails envoyés, jamais de leurs faits, chiffré au repos, une seule porte lue par chaque rédacteur | 2026-11 |
+| [ADR-382](./architecture/ADR-382-The-Instance-Searches-The-Web-For-Who-Has-No-Key.md) | **L'instance cherche sur le web pour qui n'a pas de clé** : SearXNG, connecteur sans clé tenu par l'opérateur ; la clé Brave de la personne prime, et un échec se dit | 2026-11 |
+| [ADR-381](./architecture/ADR-381-A-Model-Reads-When-Each-Message-Was-Written.md) | **Un modèle lit quand chaque message a été écrit** : l'instant porté par le message de la personne, rendu par une seule porte dans son fuseau, lu par chaque lecteur de la conversation | 2026-11 |
+| [ADR-380](./architecture/ADR-380-A-Persons-Time-Travels-With-Its-Zone.md) | **L'heure d'une personne voyage avec son fuseau** : `WallTime`, bornes typées des clients d'agenda, preuve par aller-retour dans un fuseau hors UTC | 2026-11 |
+| [ADR-379](./architecture/ADR-379-A-Listed-Mail-Says-Whether-It-Was-Answered.md) | **Un mail listé dit s'il a reçu une réponse** : une lecture par page, sans modèle, une seule porte ; l'absence d'état se lit « non connu », jamais « sans réponse » | 2026-11 |
+| [ADR-378](./architecture/ADR-378-Permanent-Main-And-Isolated-Discussion-Runtimes.md) | **Une Principale permanente et des annexes isolées** : une cible immuable par acte, une exécution par compte tenue en base, réinitialisation et suppression par transition SQL avec reçu | 2026-11 |
 | [ADR-377](./architecture/ADR-377-The-Account-Chooses-How-The-Interface-Is-Drawn.md) | **Le compte choisit comment l'interface est dessinée** : une seule porte pour les icônes, trois styles (Lucide, Fluent Color, Streamline Flex) au sens préservé, et le noir absolu aux heures choisies | 2026-11 |
 | [ADR-376](./architecture/ADR-376-A-Card-Opens-Its-Record-In-The-Tools-On-A-Signed-Proof-Of-Its-Source.md) | **Une carte ouvre sa fiche dans les Outils** : destination signée, liée au compte et à la source, revérifiée au clic ; une contrainte, jamais une permission | 2026-11 |
 | [ADR-375](./architecture/ADR-375-Learned-Usage-Becomes-Proposals.md) | **Ce que LIA apprend de l'usage devient des propositions** : un besoin se reconnaît aux jours où il revient, l'heure ne fait que décrire ; six sortes de propositions acceptées, reportées ou refusées d'un clic | 2026-11 |
@@ -503,6 +521,7 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 |---------|-------------|
 | [DATABASE_BACKUP_RESTORE.md](./runbooks/DATABASE_BACKUP_RESTORE.md) | Backup PostgreSQL automatisé (sidecar pg_dump, ADR-109) — backup manuel, restauration testée, vérification d'intégrité |
 | [LAST_KNOWN_LOCATION.md](./runbooks/LAST_KNOWN_LOCATION.md) | Persistance last-known location (météo proactive) |
+| [CONVERSATION_EXECUTION_RECOVERY.md](./runbooks/CONVERSATION_EXECUTION_RECOVERY.md) | Explicit recovery after a graph worker has verifiably stopped; no TTL takeover or replay |
 
 ### Alertes Générales
 
@@ -516,10 +535,14 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 | [GoogleApiCallsUnaccounted.md](./runbooks/alerts/GoogleApiCallsUnaccounted.md) | Appels Google Maps Platform payants faits sans contexte de comptabilité (ADR-272) |
 | [LLMCacheWriteLifetimeUnreported.md](./runbooks/alerts/LLMCacheWriteLifetimeUnreported.md) | Écritures de cache Claude reçues en flux sans leur durée, facturées au tarif de cinq minutes (ADR-362) |
 | [PushWakeSweepStalled.md](./runbooks/alerts/PushWakeSweepStalled.md) | Réveils poussés mis en file et jamais servis — le balayage ne rend plus la main (ADR-304) |
+| [ConversationLifecycle.md](./runbooks/alerts/ConversationLifecycle.md) | Nettoyage en attente et reprise ciblée des exécutions de discussion |
 | [PasswordResetAbuse.md](./runbooks/alerts/PasswordResetAbuse.md) | Demandes de réinitialisation refusées au budget d'un compte, ou visant un administrateur (ADR-363) |
 | [RegistrationBurst.md](./runbooks/alerts/RegistrationBurst.md) | Inscriptions au-delà du seuil horaire, mot de passe et Google réunis (ADR-363) |
 | [TurnstileUnavailable.md](./runbooks/alerts/TurnstileUnavailable.md) | Vérification anti-robot sans réponse exploitable de Cloudflare : inscriptions et réinitialisations refusées, connexion maintenue (ADR-364) |
 | [DatabaseBoundReached.md](./runbooks/alerts/DatabaseBoundReached.md) | Une attente de verrou ou une transaction inactive terminée par les bornes PostgreSQL du moteur (AC-028) |
+| [RagSourceRecoveryLoop.md](./runbooks/alerts/RagSourceRecoveryLoop.md) | Une source RAG (dossier Drive, libellé Gmail) « récupérée » en boucle par le reaper : un bail jamais rendu rejoue une synchronisation complète (ADR-262) |
+| [OOMKillDetected.md](./runbooks/alerts/OOMKillDetected.md) | Un processus tué par le noyau faute de mémoire, compté là où le noyau le compte (ADR-119) |
+| [AlertNotificationsFailing.md](./runbooks/alerts/AlertNotificationsFailing.md) | Alertmanager n'arrive plus à livrer sur un canal humain (e-mail, Slack, PagerDuty) (ADR-119) |
 | [ProductAggregatesStale.md](./runbooks/alerts/ProductAggregatesStale.md) | Aucun rollup produit horaire mené à son terme : le tableau 26 est figé (ADR-178, AC-006) |
 | [RadioNewsroomStalled.md](./runbooks/alerts/RadioNewsroomStalled.md) | Rédaction de la radio sans passe menée à son terme — passes en échec ou tâche arrêtée (ADR-324) |
 | [CriticalLatencyP99.md](./runbooks/alerts/CriticalLatencyP99.md) | Latence P99 critique |

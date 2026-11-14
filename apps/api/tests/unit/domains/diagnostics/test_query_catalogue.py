@@ -245,3 +245,31 @@ class TestBreakdownQueriesForTheDiagnosisContext:
         assert QUERY_CATALOGUE["embedding_errors_by_reason"].lia_metrics == (
             "embedding_provider_errors_total",
         )
+
+
+@pytest.mark.unit
+class TestDiskUsageReadsWhatCanFill:
+    """The disk the diagnostician reads is the disk the alert watches.
+
+    A read-only filesystem is full by construction (WSL's read-only system image
+    reads 100%): the core alert stopped watching it, and the self-diagnostics check
+    and the evidence pack of that alert read this query — so they stop too.
+    """
+
+    _EXCLUSION = "unless node_filesystem_readonly == 1"
+
+    def test_the_query_leaves_read_only_filesystems_out(self) -> None:
+        query = QUERY_CATALOGUE["disk_usage_percent"]
+        assert self._EXCLUSION in render_query("disk_usage_percent")
+        assert "node_filesystem_readonly" in query.external_metrics
+        assert "node_filesystem_readonly" in EXTERNAL_METRICS_ALLOWLIST
+
+    def test_the_core_alert_says_the_same(self) -> None:
+        from pathlib import Path
+
+        template = (
+            Path(__file__).resolve().parents[6]
+            / "infrastructure/observability/prometheus/alerts-core.yml.template"
+        ).read_text(encoding="utf-8")
+        rule = template.split("- alert: DiskSpaceCritical", 1)[1].split("- alert:", 1)[0]
+        assert self._EXCLUSION in rule

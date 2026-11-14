@@ -31,4 +31,21 @@ describe('the skill library is offered', () => {
   it('never while the configuration loads', () => {
     expect(skillLibraryAvailable(null)).toBe(false);
   });
+
+  it('never from the library flag alone where the map closes the skills', () => {
+    // The two halves are read apart: a map that carries the skills and not the
+    // library must not let the library's deployment flag answer for both.
+    expect(
+      skillLibraryAvailable({
+        features: { skills_enabled: true, skill_library_enabled: true },
+        capabilities: { skills: off },
+      })
+    ).toBe(false);
+    expect(
+      skillLibraryAvailable({
+        features: { skills_enabled: true, skill_library_enabled: true },
+        capabilities: { skills: on },
+      })
+    ).toBe(true);
+  });
 });

@@ -1,7 +1,7 @@
 /**
  * useChat — end-to-end hook tests over a scripted SSE chunk driver.
  *
- * The chatSSEClient is mocked at module level: each test scripts the exact
+ * The per-discussion ChatSSEClient is mocked at module level: each test scripts the exact
  * chunk sequence the backend would stream and drives it through the REAL
  * processSSEChunk / chat-reducer pipeline, asserting the resulting hook
  * state. requestAnimationFrame is stubbed so token batching only flushes
@@ -14,6 +14,8 @@ import { renderHook, act } from '@testing-library/react';
 import { toast } from 'sonner';
 
 import type { ChatStreamChunk } from '@/types/chat';
+import type { ConversationSelection } from '@/types/conversation';
+import type { ActiveRunStatus } from '@/lib/api/chat';
 
 // ---------------------------------------------------------------------------
 // Hoisted mutable state consumed by the module mocks below
@@ -23,9 +25,15 @@ const h = vi.hoisted(() => {
   const streamChat = vi.fn();
   const cancel = vi.fn();
   const reattachStream = vi.fn();
-  const fetchActiveRun = vi.fn(async () => ({ active: false }) as Record<string, unknown>);
-  const cancelActiveRun = vi.fn(async () => ({ cancelled: false }));
-  const fetchPendingHitl = vi.fn(async (_signal?: AbortSignal) => null as unknown);
+  const fetchActiveRun = vi.fn(
+    async (_selection?: ConversationSelection): Promise<ActiveRunStatus> => ({ active: false })
+  );
+  const cancelActiveRun = vi.fn(async (_selection?: ConversationSelection) => ({
+    cancelled: false,
+  }));
+  const fetchPendingHitl = vi.fn(
+    async (_signal?: AbortSignal, _selection?: ConversationSelection) => null as unknown
+  );
   return {
     streamChat,
     cancel,
@@ -62,13 +70,14 @@ vi.mock('@/lib/api/chat', async importOriginal => {
   const actual = await importOriginal<typeof import('@/lib/api/chat')>();
   return {
     ...actual,
-    fetchActiveRun: () => h.fetchActiveRun(),
-    cancelActiveRun: () => h.cancelActiveRun(),
-    fetchPendingHitl: (signal?: AbortSignal) => h.fetchPendingHitl(signal),
-    chatSSEClient: {
-      streamChat: (...args: unknown[]) => h.streamChat(...args),
-      cancel: (...args: unknown[]) => h.cancel(...args),
-      reattachStream: (...args: unknown[]) => h.reattachStream(...args),
+    fetchActiveRun: (selection?: ConversationSelection) => h.fetchActiveRun(selection),
+    cancelActiveRun: (selection?: ConversationSelection) => h.cancelActiveRun(selection),
+    fetchPendingHitl: (signal?: AbortSignal, selection?: ConversationSelection) =>
+      h.fetchPendingHitl(signal, selection),
+    ChatSSEClient: class {
+      streamChat = (...args: unknown[]) => h.streamChat(...args);
+      cancel = (...args: unknown[]) => h.cancel(...args);
+      reattachStream = (...args: unknown[]) => h.reattachStream(...args);
     },
   };
 });
@@ -191,6 +200,80 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('useChat — nominal send/stream/done cycle', () => {
+  it('does not subscribe after a slow occupancy check outlives its view', async () => {
+    const status = Promise.withResolvers<ActiveRunStatus>();
+    h.fetchActiveRun.mockReturnValueOnce(status.promise);
+    const hook = renderHook(() => useChat());
+    const checking = hook.result.current.checkAndResumeActiveRun();
+    hook.unmount();
+    status.resolve({ active: true, stream_id: 'late' });
+    expect(await checking).toBe(false);
+    expect(h.reattachStream).not.toHaveBeenCalled();
+  });
+  it('carries the mounted discussion and revision through send, HITL and cancellation', async () => {
+    const selection = { conversation_id: 'annex', conversation_revision: 7 };
+    scriptStream([token('answer'), done()]);
+    const { result } = renderHook(() => useChat({ selection }));
+    await act(async () => {
+      await result.current.sendMessage('hello');
+    });
+    expect(h.streamChat.mock.calls[0][0]).toMatchObject(selection);
+    await act(async () => {
+      await result.current.hydratePendingHitl();
+      await result.current.stopGeneration();
+    });
+    expect(h.fetchPendingHitl).toHaveBeenCalledWith(expect.any(AbortSignal), selection);
+    expect(h.cancelActiveRun).toHaveBeenCalledWith(selection);
+  });
+
+  it.each([
+    { conversation_id: 'another', conversation_revision: 7 },
+    { conversation_id: 'annex', conversation_revision: 6 },
+  ])('cannot resume occupancy from another target: %j', async occupied => {
+    const selection = { conversation_id: 'annex', conversation_revision: 7 };
+    h.fetchActiveRun.mockResolvedValueOnce({
+      active: true,
+      stream_id: 'foreign',
+      can_resume: true,
+      ...occupied,
+    });
+    const { result } = renderHook(() => useChat({ selection }));
+    await act(async () => {
+      expect(await result.current.checkAndResumeActiveRun()).toBe(false);
+    });
+    expect(h.fetchActiveRun).toHaveBeenCalledWith(selection);
+    expect(h.reattachStream).not.toHaveBeenCalled();
+  });
+
+  it('does not attach a 409 response belonging to a different discussion', async () => {
+    const { ChatStreamError } =
+      await vi.importActual<typeof import('@/lib/api/chat')>('@/lib/api/chat');
+    h.streamChat.mockImplementation(async (_request: unknown, _chunk: OnChunk, error: OnError) => {
+      error(
+        new ChatStreamError(
+          'RunInProgressError',
+          'errors.chat.run_in_progress',
+          'busy',
+          undefined,
+          'other-stream',
+          {
+            active: true,
+            conversation_id: 'other',
+            conversation_revision: 0,
+            can_resume: true,
+          }
+        )
+      );
+    });
+    const { result } = renderHook(() =>
+      useChat({ selection: { conversation_id: 'annex', conversation_revision: 7 } })
+    );
+    await act(async () => {
+      await result.current.sendMessage('hello');
+    });
+    expect(h.reattachStream).not.toHaveBeenCalled();
+    expect(result.current.chatStatus).toBe('error');
+  });
   it('routes an addressed saved-setting event through the real SSE driver without restarting the turn', async () => {
     const actorId = '00000000-0000-4000-8000-000000000001';
     h.user = { id: actorId, email: 'u@test.local', picture_url: null };
@@ -567,7 +650,8 @@ describe('useChat — error paths', () => {
       expect.anything(),
       expect.anything(),
       expect.anything(),
-      expect.anything()
+      expect.anything(),
+      undefined
     );
   });
 
@@ -1108,6 +1192,97 @@ describe('useChat — background-run reattachment (ADR-117 Lot 2)', () => {
 // ---------------------------------------------------------------------------
 // Stop button (ADR-117 Lot 3)
 // ---------------------------------------------------------------------------
+
+describe('useChat — words a busy account refused wait their turn (ADR-384)', () => {
+  const ACTIVE_RUN: ActiveRunStatus = {
+    active: true,
+    conversation_id: 'c1',
+    conversation_revision: 0,
+    stream_id: 'run-9',
+    can_resume: true,
+  };
+
+  function refuseAsBusy(): void {
+    h.streamChat.mockImplementation(
+      async (_req: unknown, _onChunk: OnChunk, onError: OnError, _onDone: OnDone) => {
+        onError(
+          new ChatStreamError(
+            'RunInProgressError',
+            'errors.chat.run_in_progress',
+            'already running',
+            undefined,
+            'run-9',
+            ACTIVE_RUN
+          )
+        );
+      }
+    );
+  }
+
+  it('hands a plain send to the waiting message and takes back the unsent bubble', async () => {
+    refuseAsBusy();
+    const handler = vi.fn(() => true);
+    const { result } = renderHook(() => useChat());
+    act(() => result.current.registerBusyRefusal(handler));
+
+    await act(async () => {
+      await result.current.sendMessage('and the bakery');
+    });
+
+    expect(handler).toHaveBeenCalledWith({ content: 'and the bakery', activeRun: ACTIVE_RUN });
+    expect(result.current.messages.some(m => m.content === 'and the bakery')).toBe(false);
+    expect(h.reattachStream).not.toHaveBeenCalled();
+  });
+
+  it('keeps the 409 path for a send carrying what only the live request holds', async () => {
+    refuseAsBusy();
+    scriptReattach([token('ongoing answer')], [done()]);
+    const handler = vi.fn(() => true);
+    const { result } = renderHook(() => useChat());
+    act(() => result.current.registerBusyRefusal(handler));
+
+    await act(async () => {
+      await result.current.sendMessage('with a photo', ['att-1']);
+    });
+    await act(async () => {});
+
+    expect(handler).not.toHaveBeenCalled();
+    expect(toast.info).toHaveBeenCalledWith('chat.resume.in_progress');
+  });
+
+  it('keeps the 409 path once the waiting message is unregistered', async () => {
+    refuseAsBusy();
+    scriptReattach([token('ongoing answer')], [done()]);
+    const handler = vi.fn(() => true);
+    const { result } = renderHook(() => useChat());
+    act(() => result.current.registerBusyRefusal(handler));
+    act(() => result.current.registerBusyRefusal(undefined));
+
+    await act(async () => {
+      await result.current.sendMessage('later words');
+    });
+    await act(async () => {});
+
+    expect(handler).not.toHaveBeenCalled();
+    expect(h.reattachStream).toHaveBeenCalledTimes(1);
+  });
+
+  it('names the run the page streams, from the chunks that carry it', async () => {
+    scriptStream([
+      { ...ROUTER_CHUNK, metadata: { ...ROUTER_CHUNK.metadata, stream_id: 'run-1' } },
+      token('Hello'),
+      done(),
+    ]);
+    const { result } = renderHook(() => useChat());
+    expect(result.current.runStreamId()).toBeNull();
+
+    await act(async () => {
+      await result.current.sendMessage('Hi');
+    });
+
+    expect(result.current.runStreamId()).toBe('run-1');
+  });
+});
 
 describe('useChat — stopGeneration (ADR-117 Lot 3)', () => {
   it('server-side cancel: keeps the subscription open for the synthesized done', async () => {

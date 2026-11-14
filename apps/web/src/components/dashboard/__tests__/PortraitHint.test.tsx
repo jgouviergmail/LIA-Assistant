@@ -26,9 +26,16 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'fr' } }),
 }));
 
+/** What the operator switched off: absent, the deployment flag alone decides. */
+const operator = vi.hoisted(() => ({
+  capabilities: undefined as Record<string, { enabled: boolean; family: string }> | undefined,
+}));
 vi.mock('@/hooks/useAppConfig', () => ({
   useAppConfig: () => ({
-    config: { features: { journals_enabled: journalsEnabled } },
+    config: {
+      features: { journals_enabled: journalsEnabled },
+      capabilities: operator.capabilities,
+    },
     loading: false,
   }),
 }));
@@ -92,6 +99,14 @@ describe('PortraitHint', () => {
   it('renders nothing for a stale compilation', () => {
     portraitValue = { full: 'portrait', brief: null, compiled_at: recentIso(30), sources: null };
     render(<PortraitHint />);
+    expect(screen.queryByText('dashboard.portrait_hint.text')).toBeNull();
+  });
+
+  it('reads no portrait once the operator switched the journals off', () => {
+    operator.capabilities = { journals: { enabled: false, family: 'knowledge' } };
+    render(<PortraitHint />);
+    operator.capabilities = undefined;
+
     expect(screen.queryByText('dashboard.portrait_hint.text')).toBeNull();
   });
 

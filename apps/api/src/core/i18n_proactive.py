@@ -332,6 +332,102 @@ class ProactiveMessages:
         "zh-CN": "你的例行任务“{title}”已准备好执行。[立即执行]({intent_url})",
     }
 
+    # What a routine tells its owner when it did NOT run as planned, keyed by
+    # the notice kind (the executor's ``RoutineNotice`` values, held complete
+    # by its own test). The threshold is a placeholder, never a figure in
+    # prose: the sentence states what the repository enforces.
+    _ROUTINE_NOTICE_BODIES: dict[str, dict[str, str]] = {
+        "failed": {
+            "fr": (
+                "Ta routine « {title} » a échoué. Après {max_failures} échecs d'affilée, "
+                "elle sera mise en pause. [Voir mes routines]({routines_url})"
+            ),
+            "en": (
+                "Your routine “{title}” failed. After {max_failures} failures in a row "
+                "it will be paused. [See my routines]({routines_url})"
+            ),
+            "es": (
+                "Tu rutina «{title}» ha fallado. Tras {max_failures} fallos seguidos, "
+                "se pondrá en pausa. [Ver mis rutinas]({routines_url})"
+            ),
+            "de": (
+                "Deine Routine „{title}“ ist fehlgeschlagen. Nach {max_failures} "
+                "Fehlschlägen in Folge wird sie pausiert. "
+                "[Meine Routinen ansehen]({routines_url})"
+            ),
+            "it": (
+                "La tua routine «{title}» non è riuscita. Dopo {max_failures} errori "
+                "consecutivi verrà messa in pausa. [Vedi le mie routine]({routines_url})"
+            ),
+            "zh-CN": (
+                "你的例行任务“{title}”执行失败。连续失败 {max_failures} 次后将被暂停。"
+                "[查看我的例行任务]({routines_url})"
+            ),
+        },
+        "disabled": {
+            "fr": (
+                "Ta routine « {title} » a été mise en pause après {max_failures} échecs "
+                "d'affilée. Réactive-la une fois le problème réglé. "
+                "[Voir mes routines]({routines_url})"
+            ),
+            "en": (
+                "Your routine “{title}” was paused after {max_failures} failures in a row. "
+                "Turn it back on once the problem is fixed. "
+                "[See my routines]({routines_url})"
+            ),
+            "es": (
+                "Tu rutina «{title}» se ha puesto en pausa tras {max_failures} fallos "
+                "seguidos. Reactívala cuando el problema esté resuelto. "
+                "[Ver mis rutinas]({routines_url})"
+            ),
+            "de": (
+                "Deine Routine „{title}“ wurde nach {max_failures} Fehlschlägen in Folge "
+                "pausiert. Aktiviere sie wieder, sobald das Problem behoben ist. "
+                "[Meine Routinen ansehen]({routines_url})"
+            ),
+            "it": (
+                "La tua routine «{title}» è stata messa in pausa dopo {max_failures} errori "
+                "consecutivi. Riattivala quando il problema è risolto. "
+                "[Vedi le mie routine]({routines_url})"
+            ),
+            "zh-CN": (
+                "你的例行任务“{title}”在连续失败 {max_failures} 次后已被暂停。"
+                "问题解决后请重新启用。[查看我的例行任务]({routines_url})"
+            ),
+        },
+        "quota": {
+            "fr": (
+                "Ta routine « {title} » n'a pas été exécutée : la limite d'utilisation est "
+                "atteinte. Tes routines reprendront d'elles-mêmes dès qu'elle sera levée. "
+                "[Voir mes routines]({routines_url})"
+            ),
+            "en": (
+                "Your routine “{title}” did not run: the usage limit has been reached. "
+                "Your routines will resume on their own once it is lifted. "
+                "[See my routines]({routines_url})"
+            ),
+            "es": (
+                "Tu rutina «{title}» no se ha ejecutado: se ha alcanzado el límite de uso. "
+                "Tus rutinas se reanudarán solas cuando se levante. "
+                "[Ver mis rutinas]({routines_url})"
+            ),
+            "de": (
+                "Deine Routine „{title}“ wurde nicht ausgeführt: Das Nutzungslimit ist "
+                "erreicht. Deine Routinen laufen von selbst weiter, sobald es aufgehoben "
+                "ist. [Meine Routinen ansehen]({routines_url})"
+            ),
+            "it": (
+                "La tua routine «{title}» non è stata eseguita: il limite di utilizzo è "
+                "stato raggiunto. Le tue routine riprenderanno da sole quando verrà "
+                "rimosso. [Vedi le mie routine]({routines_url})"
+            ),
+            "zh-CN": (
+                "你的例行任务“{title}”未执行：已达到使用限制。限制解除后，"
+                "你的例行任务会自动恢复。[查看我的例行任务]({routines_url})"
+            ),
+        },
+    }
+
     @staticmethod
     def notification_title(task_type: str, language: str) -> str:
         """Localized push/chat title for a proactive task type.
@@ -436,6 +532,37 @@ class ProactiveMessages:
             normalize_language(language), ProactiveMessages._ROUTINE_APPROVAL_BODIES["en"]
         )
         return template.format(title=title, intent_url=intent_url)
+
+    @staticmethod
+    def routine_notice_body(
+        kind: str,
+        title: str,
+        language: str,
+        *,
+        routines_url: str,
+        max_failures: int,
+    ) -> str:
+        """Localized body telling the owner a routine did not run as planned.
+
+        Args:
+            kind: A ``RoutineNotice`` value — bounded, never user text.
+            title: The routine's user-facing title.
+            language: Any locale spelling; normalized internally.
+            routines_url: Where the routines live, for the link.
+            max_failures: How many failures in a row pause a routine — the
+                threshold the repository enforces, stated by the sentence.
+
+        Returns:
+            The localized Markdown body; an unknown kind yields an empty
+            string rather than a placeholder sentence.
+        """
+        from src.core.i18n import normalize_language
+
+        table = ProactiveMessages._ROUTINE_NOTICE_BODIES.get(kind)
+        if table is None:
+            return ""
+        template = table.get(normalize_language(language), table["en"])
+        return template.format(title=title, routines_url=routines_url, max_failures=max_failures)
 
     @staticmethod
     def workboard_body(

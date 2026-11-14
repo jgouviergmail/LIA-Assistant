@@ -422,10 +422,10 @@ Increase `MCP_TOOL_TIMEOUT_SECONDS` globally or set per-server `timeout_seconds`
 
 If `list_tools` succeeds but `call_tool` returns `403 Forbidden`:
 1. The OAuth token lacks required scopes
-2. Edit the server → add OAuth scopes (e.g., `repo project read:org` for GitHub)
-3. Click "Disconnect OAuth" to purge the existing token
-4. Click "Connect OAuth" to re-authorize with the new scopes
-5. Check the provider's documentation for required scopes
+2. Edit the server → add OAuth scopes (e.g., `repo project read:org` for GitHub) and save:
+   new scopes withdraw the token and set the server `auth_required`
+3. Click "Connect via OAuth" on the card to re-authorize with the new scopes
+4. Check the provider's documentation for required scopes
 
 ---
 
@@ -459,7 +459,7 @@ A: Not in V1. Only Tools are supported. Resources and Prompts are YAGNI for now.
 A: Text content is returned as-is. Image content shows `[Binary data]`. Multiple content parts are joined with newlines.
 
 **Q: My OAuth MCP server returns 403 Forbidden on tool calls, but `list_tools` works. Why?**
-A: The OAuth token was granted without sufficient scopes. `list_tools` is metadata-only (no scope required), but `call_tool` needs actual API permissions. Edit the server, add the required OAuth scopes (e.g., `repo project read:org` for GitHub), then re-authorize via "Connect OAuth". See the "OAuth 2.1 Scopes" section above.
+A: The OAuth token was granted without sufficient scopes. `list_tools` is metadata-only (no scope required), but `call_tool` needs actual API permissions. Edit the server, add the required OAuth scopes (e.g., `repo project read:org` for GitHub) and save — the token is withdrawn and the server awaits a new authorization — then re-authorize via "Connect via OAuth". See the "OAuth 2.1 Scopes" section above.
 
 **Q: How does domain description auto-generation work?**
 A: When you test a connection (`POST /mcp/servers/{id}/test`) and the server has no manual `domain_description`, an LLM (configurable via `MCP_DESCRIPTION_LLM_*` env vars) analyzes the discovered tools and generates a description optimized for query routing. The prompt is in `domains/agents/prompts/v1/mcp_description_prompt.txt`. You can force-(re)generate a description at any time via `POST /mcp/servers/{id}/generate-description` or the "Generate description" button in the UI. If the LLM call fails, an algorithmic fallback produces a basic concatenation.
@@ -578,6 +578,15 @@ changes, and `application_type` declared during Dynamic Client Registration
 OAuth callback also handles user denial (`error=access_denied`) with a
 dedicated `mcp_oauth=denied` frontend marker instead of a bare 422.
 
+A consent takes minutes, and the server can be edited meanwhile in another tab.
+The flow records the row's binding when it starts (`user_mcp/oauth_binding.py`:
+type, address, stored client, requested scopes, kept in the single-use state),
+and the callback stores the tokens only while the row still has it, under a
+lock on that row, the way a token refresh conditions its write. A row changed
+during the consent keeps what it has (a new API key is never overwritten, a
+moved server never receives a grant issued for its old address), and the
+person is told to authorize again (`mcp_oauth=changed`).
+
 ### Module Structure
 
 ```
@@ -587,10 +596,11 @@ apps/api/src/domains/user_mcp/
 ├── schemas.py         # Pydantic CRUD schemas
 ├── repository.py      # SQLAlchemy repository
 ├── service.py         # Business logic (CRUD, encryption, pool coordination)
-└── router.py          # FastAPI endpoints (10 routes)
+└── router.py          # FastAPI endpoints
 
 apps/api/src/infrastructure/mcp/
 ├── auth.py            # MCPNoAuth, MCPStaticTokenAuth, MCPOAuth2Auth, build_auth_for_server()
+├── known_servers.py   # The known servers: what a person may add without typing an address
 ├── oauth_flow.py      # MCPOAuthFlowHandler (RFC 9728/8414 discovery, PKCE, callback)
 ├── user_pool.py       # UserMCPClientPool (tool metadata cache, ephemeral connections, rate limiting)
 ├── user_tool_adapter.py # UserMCPToolAdapter (BaseTool wrapper for per-user tools)
@@ -602,6 +612,7 @@ apps/api/src/infrastructure/mcp/
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/api/v1/mcp/servers` | List user MCP servers |
+| `GET` | `/api/v1/mcp/servers/known` | List the known servers (public facts, the same for every account) and the instance's OAuth callback |
 | `POST` | `/api/v1/mcp/servers` | Create server |
 | `PATCH` | `/api/v1/mcp/servers/{id}` | Update server |
 | `DELETE` | `/api/v1/mcp/servers/{id}` | Delete server |
@@ -611,6 +622,90 @@ apps/api/src/infrastructure/mcp/
 | `POST` | `/api/v1/mcp/servers/{id}/oauth/authorize` | Start OAuth 2.1 flow |
 | `POST` | `/api/v1/mcp/servers/{id}/oauth/disconnect` | Purge OAuth tokens (force re-auth) |
 | `GET` | `/api/v1/mcp/servers/oauth/callback` | OAuth callback (no auth) |
+
+### Known servers
+
+A person adds a known server without typing its address: the MCP settings offer a
+**Known MCPs** button beside **Add server**, which opens a gallery of tiles of one size —
+the vendor's own icon, the server's name, how it signs in and what it is for, in the
+person's language. A server the person already has is greyed and badged **Installed**,
+and stays in the tab order (`aria-disabled`, guarded in its handler); a tile opens the
+create form already filled with the server's name, address, sign-in method, the header a
+key is read from and the scopes an OAuth vendor needs. The list is declared ONCE, in
+`infrastructure/mcp/known_servers.py` (`KNOWN_MCP_SERVERS`), and has two readers:
+
+- **the screen** — `GET /mcp/servers/known`, read by `useKnownMCPServers`: the gallery
+  (`MCPKnownServersDialog`, mounted by `MCPServersSettings`) and the notice of the create
+  form (`MCPKnownServerNotice` inside `MCPServerFormFields`, the field block the settings
+  dialog and the chat's private form share). Which known server a form holds is read off
+  its address, never stored: an address edited by hand is no known server any more. The
+  form starts from `applyKnownServer`, which empties every credential field — whatever
+  was typed before was typed for another host;
+- **the assistant** — `configure_lia_personal_mcp_server_tool` takes `known_server`,
+  whose accepted keys the tool schema publishes (ADR-184). Only the KEY travels in the
+  call: after the person's confirmation the private form opens filled from the API by
+  that key, and the person still saves it there. A catalogue that cannot be read costs
+  the prefill, never the form.
+
+**Installed** is decided by address (`mcpServerIdentity`): scheme and host in lower case,
+no default port, no credentials, query or fragment, no trailing slash — a server added
+with its key in the query (`?token=…`) or with a trailing slash is the catalogue's entry.
+
+A known server is a public fact and confers nothing: it goes through the create door
+every typed address goes through (HTTPS, SSRF checks, the per-account quota, a unique
+name), and a guard holds every entry to that door's schema
+(`tests/unit/infrastructure/mcp/test_known_servers.py`). It carries no credential: its
+address is public whole (no query string, no user-info), and a key or a token is the
+person's to type — the catalogue names the scheme (`none`, `oauth2`, `api_key`,
+`bearer`) and, for a key, the header it is sent in (`header_name`). An OAuth vendor that
+registers no client for LIA is marked `own_oauth_client`: the person brings their own
+OAuth application, and the create form shows the callback to declare in it — the
+instance's `MCP_USER_OAUTH_CALLBACK_BASE_URL` plus the callback path, which the list
+publishes as `oauth_redirect_uri` through the same door the OAuth flow sends
+(`oauth_flow.oauth_redirect_uri`).
+
+**Admission is measured, never read off a vendor's page.** An entry is listed when
+(1) the vendor hosts the server itself on a fixed HTTPS address over Streamable HTTP;
+(2) LIA reaches it as it is — with no account; through an authorization server that
+publishes a registration endpoint (RFC 7591) and PKCE `S256`, i.e. what
+`MCPOAuthFlowHandler.discover_auth_server` finds with no client to pre-register; with the
+person's own OAuth application where the vendor registers none, the authorization and
+token endpoints being discovered; or with a key or token the vendor issues, an invalid
+one placed where the catalogue says being refused (`401`/`403`); (3) for a server that
+needs no account, what its tools weigh in a prompt was read and stays moderate. Measured
+on 2026-11-12 against thirty-four candidates: two publish no registration endpoint (a
+client would have to be pre-registered), two publish their authorization metadata under
+an issuer PATH that LIA's discovery does not read, and one account-free server lists five
+tools weighing about seventeen thousand tokens — none of the five is listed; each can
+still be added by hand. On 2026-11-13 seventeen servers the owner's account uses were
+added with the scheme that account uses (none, `oauth2`, a key or a token): Bright Data,
+whose token the owner's address carried in its query, is listed as `bearer` — measured,
+it reads the token from `Authorization` as well, and a catalogue address carries no
+secret.
+
+`task mcp:known-servers:check` re-measures (1) and (2) for every entry (network,
+read-only, nothing registered, nobody signed in, no secret of anyone sent). Run it before
+a release: an address a vendor moved is a dead card. What it cannot prove is a completed
+sign-in or an accepted key, which need an account at the vendor. Some key servers open a
+session without one (the key then adds the person's account): the check reports it, and
+proves the key is read by the refusal of an invalid one.
+
+The wording a person reads about each server lives in the web locales, by key
+(`settings.mcp.known.servers`); the same guard holds the six locales to the declared
+keys. `domain_description` is what the assistant reads to route a request (technical
+English): it names the subject, never a tool nobody listed, and the settings screen
+can rewrite it from the real tools once the server is connected.
+
+**Icons.** Each entry names its vendor's icon (`icon`), a file of
+`apps/web/public/mcp-icons/` served by the application itself — no icon is fetched from a
+vendor at run time. The files were taken from each vendor's own website (an SVG favicon
+or logo, else the largest application icon), then reduced: SVGs keep their drawing only
+(no script, handler, foreign content, external reference or `prefers-color-scheme`
+block — an icon stands on a fixed white chip, so it draws its light variant), raster
+icons are PNGs of at most 128 px (a 16 px favicon is enlarged without smoothing). The
+guard refuses an entry whose file is missing, a file no entry names, a file over 32 KB
+and an SVG carrying anything but drawing. The marks remain their owners' trademarks
+(`NOTICE.md`).
 
 ### Authentication Strategy
 
@@ -646,24 +741,30 @@ OAuth scopes define the permissions requested during the authorization flow. Man
 
 **Why user-specified scopes?** Many providers (GitHub notably) don't advertise supported scopes via OAuth metadata discovery. The heuristic fallback constructs endpoints but returns `scopes_supported: []`. Without explicit scopes, the authorization server grants a minimal token insufficient for actual API calls.
 
-**Disconnect & re-authorize flow**: When scopes change, the existing token is invalidated. Click "Disconnect OAuth" on an active OAuth server to purge tokens (preserving client_id/client_secret), then "Connect OAuth" to re-authorize with the updated scopes. Endpoint: `POST /api/v1/mcp/servers/{id}/oauth/disconnect`.
+**Re-authorize flow**: saving new scopes withdraws the tokens (the client registration stays) and sets the server `auth_required`, so its card offers "Connect via OAuth" at once (see *Credential transition on update* below). "Disconnect OAuth" remains for an explicit revocation of an active server: it purges the tokens, keeps `client_id`/`client_secret`, and sets `auth_required`. Endpoint: `POST /api/v1/mcp/servers/{id}/oauth/disconnect`.
 
 ### Frontend UI
 
 Settings > Features > MCP Servers (`MCPServersSettings.tsx`):
 
-- **Create dialog**: Add a new server (name, URL, auth type, credentials). No test button — server must exist first.
+- **Create dialog**: Add a new server (name, URL, auth type, credentials), or open it from a tile of the **Known MCPs** gallery, already filled (see *Known servers*). No test button — server must exist first.
 - **Edit dialog**: Update server configuration + **Test Connection** button. The test calls `POST /mcp/servers/{id}/test` and displays:
   - Success/error badge with tool count
   - Error details if connection fails
   - **Discovered tools list** (tool name + description) in a scrollable area
-- **Server cards**: Toggle enable/disable, edit, delete. Status badges (active, error, auth_required).
+- **Server cards**: Toggle enable/disable, edit, delete. Status badges (active, error, auth_required). An OAuth server in `auth_required` **or `error`** offers "Connect via OAuth" — the one remedy the card can give, so a failing OAuth server always has a way back (2026-11-13: a server switched to OAuth by an edit fell to `error` on its first test and could only be deleted). Every answered test re-reads the list, a failed one included: the server stored a new status.
 - Test is **not** a prerequisite for saving — the Save button is always active.
 - **Credential merge on refresh**: a successful token refresh rewrites only the token fields (`access_token`, `refresh_token`, `expires_at`, `token_type`, `scope`) and preserves everything else in the blob (`client_id`, `client_secret`, `issuer`). Rebuilding the blob from the token response alone used to drop `client_id`, so every SECOND refresh posted without it and died on `400 invalid_request` (measured on Era, 2026-09-02).
 - **auth_required fast-fail**: once a server is marked `auth_required`, every tool call fails immediately with a self-contained remedy message (reconnect the server in Settings → MCP servers) instead of replaying the 401 → refresh → 400 dance on each call — the message is what the model relays to the user. A UI re-auth sets the status back to `active`, which re-opens the path with no cache to invalidate (`MCPAuthRequiredError`, `load_user_mcp_creds` in `infrastructure/mcp/auth.py`).
 - **Iterative task tools speak their server's domain**: `bind_tools` serializes the tool INSTANCE — the rich per-server description in the catalogue manifest only reaches the planner and the selector. A per-server task tool is therefore created with `iterative_task_tool_description()` (`agents/tools/mcp_react_tools.py`): domain first, delegation mechanics, then the exact parameter constants. A name-only `model_copy` left the ReAct model staring at "Execute a multi-step task on a user MCP server" for the user's bank, and it honestly answered "I have no access" while the pipeline planned the same tool fine (2026-09-02).
 - **auth_required visibility on later turns**: tool registration only loads `active` servers, so a disconnected server would otherwise vanish from the model's world and "reconnect me" would degrade into "this capability does not exist". The ReAct context block `build_mcp_auth_notices_block` (`nodes/react_context.py`) names the servers awaiting re-authentication and the remedy — best-effort, zero tokens when everything is connected.
-- **Credential merge on update**: When updating OAuth credentials (client_id/client_secret), the service merges new values into the existing encrypted blob, preserving OAuth tokens (access_token, refresh_token). Same merge pattern for API key (header_name + api_key) and Bearer (token). The `has_oauth_credentials` flag in the API response tells the frontend that saved OAuth client credentials exist, so the edit form shows "Credentials saved" placeholders.
+- **Credential transition on update** (`domains/user_mcp/credential_transition.py`, one decision for the settings form and the assistant's private form, which both reach `update_server`):
+  - a **different authentication type starts from nothing**: no secret of the previous type is carried over (an API key never becomes OAuth credentials, tokens never outlive the switch), and switching to an API key or a bearer token requires that secret (`ValidationError` otherwise; the form requires it too);
+  - an OAuth server **keeps its tokens only while the type, the client, the requested scopes and the address stay the ones they were issued for** — a token is bound to its client, its scopes and its resource, and a new address would otherwise receive the old token. Otherwise the client registration (`client_id`, `client_secret`, `issuer`) is kept unless the client itself changes, and the server becomes `auth_required`;
+  - the discovery cached in `oauth_metadata` (endpoints, issuer) is found again when an OAuth server gets a new address and when a server becomes OAuth: the address may have changed while the server used another type, and the flow reuses a cached discovery as it stands. The requested scopes stay;
+  - a type change gets the status creation would give (`auth_required` for OAuth, `active` otherwise), an OAuth server awaiting a new authorization gets `auth_required`, and both drop `last_error`; any other update leaves status and verdict alone. Within an unchanged static type, a blank secret keeps the stored one (same merge as before: `header_name` + `api_key`, or `token`).
+  The `has_oauth_credentials` flag in the API response tells the frontend that saved OAuth client credentials exist; the edit form shows "Credentials saved" placeholders only while the type is unchanged.
+- **Testing an OAuth server awaiting its authorization**: `test_connection` never contacts an OAuth server that is `auth_required` or holds no access token. It answers `error_code: "oauth_authorization_required"` (`UserMCPTestErrorCode`), which the web states in the person's language and the assistant reports as `error_kind: "authorization_required"`, and the row stays `auth_required`. A token refresh that gives up during a test (`MCPAuthRequiredError`) ends the same way, never in `error`, which would hide "Connect via OAuth".
 
 ### Pipeline Integration (2-Level Architecture)
 

@@ -7,15 +7,18 @@
  * the only way to a folder's, and a copy for one file: Drive copies no folder. In the
  * trash, what comes back and what leaves for good, and nothing else. A selection past
  * the published bound is said and sends nothing (`limits.bulk_max_items`, ADR-184).
+ *
+ * It only declares what it offers: `ToolSelectionBar` draws it on one line (amendment
+ * 2026-11-11).
  */
 import { Copy, FolderInput, Pencil, RotateCcw, Trash2 } from '@/lib/icons';
 
-import { Button } from '@/components/ui/button';
-import { SelectionBar } from '@/components/ui/selection-bar';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { pageSelectionState } from '@/lib/selection';
 import type { WorkbenchDriveItem } from '@/lib/workbench/types';
+
+import { ToolSelectionBar, type SelectionAct } from '../ToolSelectionBar';
 
 export interface FileSelectionBarProps {
   lng: Language;
@@ -36,6 +39,12 @@ export interface FileSelectionBarProps {
   onCopy: (item: WorkbenchDriveItem) => void;
 }
 
+/** One act the bar may offer: its word, and whether this list and this selection have it. */
+interface Offered extends Omit<SelectionAct, 'label'> {
+  key: string;
+  on: boolean;
+}
+
 export function FileSelectionBar({
   lng,
   rows,
@@ -53,91 +62,69 @@ export function FileSelectionBar({
 }: FileSelectionBarProps) {
   const { t } = useTranslation(lng);
   const over = selected.size > bulkMax;
+  const offered: Offered[] = [
+    {
+      id: 'restore',
+      key: 'workbench.files.restore',
+      icon: RotateCcw,
+      onSelect: onRestore,
+      quick: true,
+      on: inTrash,
+    },
+    {
+      id: 'move',
+      key: 'workbench.files.move',
+      icon: FolderInput,
+      onSelect: onMove,
+      quick: true,
+      on: !inTrash,
+    },
+    {
+      id: 'rename',
+      key: 'workbench.files.rename',
+      icon: Pencil,
+      onSelect: () => only && onRename(only),
+      on: !inTrash && only !== null,
+    },
+    {
+      id: 'copy',
+      key: 'workbench.files.copy',
+      icon: Copy,
+      onSelect: () => only && onCopy(only),
+      on: !inTrash && only?.kind === 'file',
+    },
+    {
+      id: 'forever',
+      key: 'workbench.files.delete_forever',
+      icon: Trash2,
+      onSelect: onDeleteForever,
+      danger: true,
+      on: inTrash,
+    },
+    {
+      id: 'trash',
+      key: 'workbench.files.trash',
+      icon: Trash2,
+      onSelect: onTrash,
+      danger: true,
+      on: !inTrash,
+    },
+  ];
   return (
-    <div className="border-b px-3 py-2">
-      <SelectionBar
-        regionLabel={t('workbench.files.selection_region')}
-        countLabel={t('workbench.files.selected', { count: selected.size })}
-        selectAllLabel={t('workbench.files.select_page')}
-        clearLabel={t('workbench.files.clear_selection')}
-        pageState={pageSelectionState(rows, selected)}
-        onSelectAll={() => onSelect(new Set(rows))}
-        onClear={() => onSelect(new Set())}
-      >
-        {inTrash && (
-          <Button
-            size="sm"
-            variant="outline"
-            aria-disabled={over || undefined}
-            onClick={() => {
-              if (!over) onRestore();
-            }}
-            className="gap-1.5"
-          >
-            <RotateCcw className="h-4 w-4" aria-hidden="true" />
-            {t('workbench.files.restore')}
-          </Button>
-        )}
-        {inTrash && (
-          <Button
-            size="sm"
-            variant="destructive"
-            aria-disabled={over || undefined}
-            onClick={() => {
-              if (!over) onDeleteForever();
-            }}
-            className="gap-1.5"
-          >
-            <Trash2 className="h-4 w-4" aria-hidden="true" />
-            {t('workbench.files.delete_forever')}
-          </Button>
-        )}
-        {!inTrash && only && (
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => onRename(only)}>
-            <Pencil className="h-4 w-4" aria-hidden="true" />
-            {t('workbench.files.rename')}
-          </Button>
-        )}
-        {!inTrash && only?.kind === 'file' && (
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => onCopy(only)}>
-            <Copy className="h-4 w-4" aria-hidden="true" />
-            {t('workbench.files.copy')}
-          </Button>
-        )}
-        {!inTrash && (
-          <Button
-            size="sm"
-            variant="outline"
-            aria-disabled={over || undefined}
-            onClick={() => {
-              if (!over) onMove();
-            }}
-            className="gap-1.5"
-          >
-            <FolderInput className="h-4 w-4" aria-hidden="true" />
-            {t('workbench.files.move')}
-          </Button>
-        )}
-        {!inTrash && (
-          <Button
-            size="sm"
-            variant="destructive"
-            aria-disabled={over || undefined}
-            onClick={() => {
-              if (!over) onTrash();
-            }}
-            className="gap-1.5"
-          >
-            <Trash2 className="h-4 w-4" aria-hidden="true" />
-            {t('workbench.files.trash')}
-          </Button>
-        )}
-      </SelectionBar>
-      {over && (
-        <p role="status" className="px-1 pt-2 text-sm text-destructive">
-          {t('workbench.files.over_bulk', { count: bulkMax })}
-        </p>
-      )}
-    </div>
+    <ToolSelectionBar
+      lng={lng}
+      regionLabel={t('workbench.files.selection_region')}
+      countLabel={t('workbench.files.selected', { count: selected.size })}
+      selectAllLabel={t('workbench.files.select_page')}
+      clearLabel={t('workbench.files.clear_selection')}
+      pageState={pageSelectionState(rows, selected)}
+      onSelectAll={() => onSelect(new Set(rows))}
+      onClear={() => onSelect(new Set())}
+      acts={offered
+        .filter(item => item.on)
+        .map(({ key, on: _on, ...act }) => ({ ...act, label: t(key) }))}
+      held={over}
+      note={over ? t('workbench.files.over_bulk', { count: bulkMax }) : undefined}
+    />
   );
 }

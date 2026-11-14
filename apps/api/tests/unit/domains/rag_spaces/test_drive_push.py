@@ -341,6 +341,9 @@ async def test_changes_under_a_linked_tree_are_applied_and_the_token_advances() 
     assert [c.kwargs["drive_file"]["id"] for c in harness.ingest.await_args_list] == ["f1"]
     assert sorted(c.kwargs["file_id"] for c in harness.remove.await_args_list) == ["f3", "f4"]
     harness.process.assert_awaited_once()
+    # The window's documents embed under THIS source's lease.
+    assert harness.process.await_args.kwargs["source_id"] == source.id
+    assert harness.process.await_args.kwargs["source_table"] == "rag_drive_sources"
     harness.channel_repo.advance_page_token.assert_awaited_once_with(
         harness.channel.id, expected="t0", new="t1"
     )

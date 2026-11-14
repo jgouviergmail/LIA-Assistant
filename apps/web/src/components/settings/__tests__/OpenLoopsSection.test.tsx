@@ -34,9 +34,16 @@ const state = {
   loops: [] as OpenLoop[],
 };
 
+/** What the operator switched off: absent, the deployment flag alone decides. */
+const operator = vi.hoisted(() => ({
+  capabilities: undefined as Record<string, { enabled: boolean; family: string }> | undefined,
+}));
 vi.mock('@/hooks/useAppConfig', () => ({
   useAppConfig: () => ({
-    config: { features: { open_loops_enabled: state.flagOn } },
+    config: {
+      features: { open_loops_enabled: state.flagOn },
+      capabilities: operator.capabilities,
+    },
   }),
 }));
 vi.mock('@/hooks/useOpenLoops', async importOriginal => {
@@ -200,5 +207,16 @@ describe('correcting a commitment the extractor got wrong', () => {
 
     await waitFor(() => expect(screen.queryByDisplayValue('rappeler le plombier')).toBeNull());
     expect(update).not.toHaveBeenCalled();
+  });
+});
+
+describe('OpenLoopsSection under the operator switch', () => {
+  it('renders nothing once the operator switched the open loops off', () => {
+    state.flagOn = true;
+    operator.capabilities = { open_loops: { enabled: false, family: 'work' } };
+    const { container } = renderSection();
+    operator.capabilities = undefined;
+
+    expect(container).toBeEmptyDOMElement();
   });
 });

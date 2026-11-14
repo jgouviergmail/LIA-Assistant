@@ -9,7 +9,7 @@
 > [GUIDE_DEPLOYMENT.md](./GUIDE_DEPLOYMENT.md) remains fully supported and is
 > the reference for anything this guide does not cover.
 
-**Last Updated**: 2026-11-01
+**Last Updated**: 2026-11-14
 
 ---
 
@@ -79,7 +79,9 @@ flowchart LR
 ### What the installer does in one pass
 
 1. Checks your machine (OS, architecture, Docker, disk).
-2. Asks a short questionnaire — nothing else is ever asked later.
+2. Asks a short questionnaire — nothing else is ever asked later — and
+   checks each required provider key with its provider: a rejected key is
+   reported at once and stops nothing.
 3. Generates a private `.env` and a Compose overlay; creates the host
    directories it needs.
 4. Builds (or pulls) the images and validates the settings **before** starting
@@ -125,11 +127,11 @@ x86 server or workstation works equally well.
 
 ### What to have ready
 
-- **Two model provider keys** — one for **DeepSeek** and one for **OpenAI**.
+- **Two model provider keys** — one for **Anthropic** and one for **DeepSeek**.
   These two are required because the reference configuration shipped with LIA
-  (the maintainer's own proven production setup) routes the chat pipeline to
-  DeepSeek and the remaining slots to OpenAI. You can change every model
-  afterwards in the Admin UI.
+  (the maintainer's own proven production setup) answers the chat and runs the
+  ReAct loop on DeepSeek, and analyses, plans and validates on Anthropic. You
+  can change every model afterwards in the Admin UI.
 - **An administrator email address** — this becomes your login.
 - **A password** meeting the backend policy: at least 10 characters, 2
   uppercase letters, 2 digits, and 2 special characters. An administrator is
@@ -146,11 +148,10 @@ report names every capability an install leaves without its key:
 
 | Capability                | Provider   | Without its key                       |
 | ------------------------- | ---------- | ------------------------------------- |
-| Image/vision analysis, memory recall, search in documents, journals and interests | Gemini | Image understanding and every search by meaning are unavailable |
+| Memory recall, search in documents, journals and interests | Gemini | Every search by meaning is unavailable |
+| Image generation and the LLM-as-judge evaluator | OpenAI | No image is generated and no evaluation runs |
 | Premium voice output (TTS) and remote dictation | ElevenLabs | ElevenLabs speech and remote dictation are unavailable; Edge TTS and local dictation remain available |
 | Premium voice output, transcription and voice library | Fish Audio | Fish Audio speech, transcription and the voice library are unavailable; Edge TTS remains available |
-| MCP App interactive widgets | Anthropic | Widgets fall back to plain responses |
-| Proactive discussions | Qwen | The three seeded discussion slots cannot answer, so LIA opens no discussion until they have a key or another model |
 | Native bounded decisions | TypeSafe (JEV) | Each JEV use stays off; LIA keeps its existing decision paths |
 
 ---
@@ -230,15 +231,23 @@ anything sensitive. Each prompt is prefixed with its key (for example
 | `personal_radio`       | always                | `yes` / `no` — on-demand personal radio (ADR-324); uses the instance's writing and voice providers and charges its cost to the listener | `no`    |
 | `speaking_avatar`      | always                | `yes` / `no` — offer a speaking avatar; each person connects their own Simli key and opts in in Settings | `no`    |
 | `world`               | always                | `yes` / `no` — offer LIA World, its shared presence and written exchanges; native activities remain private | `no`    |
+| `web_search`           | always                | `yes` / `no` — the instance's web search (SearXNG, ADR-382) for every person with no search key of their own; a person's own Brave key always wins | `yes`   |
 | `admin_password`       | always *(hidden)*     | 10+ chars, 2 uppercase, 2 digits, 2 specials   | —       |
+| `provider_key_anthropic`| always *(hidden)*    | your Anthropic API key                         | —       |
 | `provider_key_deepseek`| always *(hidden)*     | your DeepSeek API key                          | —       |
-| `provider_key_openai`  | always *(hidden)*     | your OpenAI API key                            | —       |
-| `provider_key_gemini`  | always *(hidden, optional)* | your Google Gemini API key — memory recall, searches by meaning and image analysis; an empty answer skips it | — |
+| `provider_key_gemini`  | always *(hidden, optional)* | your Google Gemini API key — memory recall and searches by meaning; an empty answer skips it | — |
 
 Secrets are read through a hidden prompt, never echoed, and never written to
 `.env`, to the installer state, or to the log. The Gemini key, like the two
 others, is stored encrypted in the database and can be added later in
 **Settings → Administration → LLM Configuration**.
+
+As soon as the keys are entered, the installer asks each required provider
+whether it accepts its key: one read-only request to the provider's model
+list, the key in a request header. A rejected key is reported at once, and so
+is a provider that could not be reached; neither stops the installation, and
+the key can be corrected afterwards in the Admin UI. The optional Gemini key
+is not checked.
 
 ### 4.2 Choosing an exposure
 
@@ -304,6 +313,7 @@ when needed.
 | `DIAGNOSTICS_ENABLED`, `LIVE_ENABLED`, `RADIO_ENABLED` | Your `self_diagnostics` / `live_mode` / `personal_radio` answers |
 | `AVATAR_ENABLED`        | Your `speaking_avatar` answer; each account still needs its own opt-in and Simli connector |
 | `WORLD_ENABLED`         | Your `world` answer; the administrator capability switch and each participant's presence consent remain effective |
+| `SEARXNG_URL`, `SEARXNG_SECRET` | Your `web_search` answer: `http://searxng:8080` and a generated 64-hex secret, kept across reconfigurations (an empty URL when `no`); the `searxng` Compose profile follows the same answer |
 | `AVATAR_MINTS_PER_HOUR`, `AVATAR_SESSION_LENGTH_SECONDS`, `AVATAR_IDLE_SECONDS`, `AVATAR_HTTP_TIMEOUT_SECONDS`, `AVATAR_CONNECT_TIMEOUT_SECONDS`, `AVATAR_PRESENCE_TIMEOUT_SECONDS` | Finite defaults aligned with [the API's avatar settings](../../apps/api/src/core/config/avatars.py), including the server-controlled relay's validated-presence bound |
 | `ELEVENLABS_TTS_MAX_CONCURRENCY` | The application default; lower it to your ElevenLabs account allowance before enabling its speech synthesis |
 | `FISHAUDIO_MAX_CONCURRENCY` | The application default; lower it to your Fish Audio account allowance before enabling its speech or transcription |
@@ -413,6 +423,32 @@ docker compose -f docker-compose.prod.yml -f docker-compose.install.yml \
   --profile observability ps
 ```
 
+**Instance web search** (`web_search = yes`, the default). Without it, a person
+with no Brave key of their own is searched on Wikipedia alone; the `searxng`
+service that ships in `docker-compose.prod.yml` gives them web links instead, in
+the chat, the enrichment of answers, their interests and the Tools
+([ADR-382](../architecture/ADR-382-The-Instance-Searches-The-Web-For-Who-Has-No-Key.md),
+[WEB_SEARCH.md](../technical/WEB_SEARCH.md)). It asks public search engines
+(Google, Brave's site, DuckDuckGo, Bing News…) from your server's address,
+unfiltered, is never published, and takes about 150 MiB. The wizard starts the
+`searxng` profile, writes `SEARXNG_URL` and generates `SEARXNG_SECRET`, which it
+keeps; answering `no`, now or in a later reconfiguration, stops the container. A
+person who configured Brave keeps being searched with Brave. An installation made
+before this question keeps what it runs until a reconfiguration asks it.
+
+Without the wizard, add `searxng` to `COMPOSE_PROFILES` in `.env`
+(comma-separated, e.g. `COMPOSE_PROFILES=observability,searxng`), then set:
+
+```bash
+SEARXNG_SECRET=$(openssl rand -hex 32)   # SearXNG refuses to start without it
+SEARXNG_URL=http://searxng:8080
+```
+
+and restart. To stop it by hand, remove the profile, empty `SEARXNG_URL` and stop
+the container by name
+(`docker compose -f docker-compose.prod.yml --profile searxng stop searxng`):
+Compose never counts a disabled profile's container as an orphan.
+
 **Script sandbox** (`skill_sandbox = yes`) lets skills execute their scripts
 and commands in a throwaway container, and lets the assistant run the short
 script it writes when a step needs a computation. This **mounts the Docker
@@ -483,8 +519,8 @@ personal_radio=no
 speaking_avatar=no
 world=no
 admin_password=CHANGE_ME_Ab12!!cdEf
+provider_key_anthropic=CHANGE_ME_ANTHROPIC_KEY
 provider_key_deepseek=CHANGE_ME_DEEPSEEK_KEY
-provider_key_openai=CHANGE_ME_OPENAI_KEY
 # Optional — leave it out to skip:
 # provider_key_gemini=CHANGE_ME_GEMINI_KEY
 ```
@@ -634,7 +670,8 @@ infrastructure/caddy/Caddyfile  generated vhosts (Caddy mode only)
 2. Sign in with the administrator email and password you chose.
 3. Go to **Settings → Administration → LLM Configuration** to change any
    model, adjust its parameters, or add an optional provider key (Gemini for
-   vision, ElevenLabs for voice, Anthropic for MCP App widgets).
+   searches by meaning, OpenAI for image generation, Fish Audio or ElevenLabs
+   for voice).
 
 The models LIA ships with are the maintainer's own production configuration.
 They work as-is; treat them as a starting point, not a constraint.
@@ -712,6 +749,41 @@ set it to `24` if it still carries the former template's `5`. The peer-delivery 
 expects no delivery worker of the previous release to be running: step 3 already ensures it. The SMS display index is not backfilled: older texts stay searchable,
 checked one by one, within the published limits.
 
+**From a release before 5.0.0:** twenty-nine migrations run at boot. Every existing
+discussion becomes its account's **Main**, the files a message used are recorded per
+discussion from the archive, and the history indexes are rebuilt, so the first start takes
+longer on a large database. The first migration expects no worker of the previous release
+to be running (step 3 ensures it), and several downgrades refuse once the new tables hold
+data: the dump of step 1 is the way back
+([ADR-378](../architecture/ADR-378-Permanent-Main-And-Isolated-Discussion-Runtimes.md)).
+
+- **Web search for accounts with no key stays off** after the upgrade: turn it on with
+  `./install.sh --reconfigure` (answer `yes` to `web_search`) or by hand, as described under
+  « Instance web search » in [Optional capabilities](#46-optional-capabilities). The first
+  reconfiguration lists
+  `SEARXNG_SECRET` and `SEARXNG_URL` as going from absent to empty even when you change
+  nothing: an older `.env` does not hold these keys yet.
+- **Routines started by a signed call** are served as soon as the new release runs, at
+  `…/api/v1/hooks/routines/<key>`: add `ROUTINE_WEBHOOKS_ENABLED=false` to your `.env` before
+  step 6 to keep that address closed
+  ([ADR-386](../architecture/ADR-386-A-Signed-Call-Starts-A-Routine.md)).
+- **Attachments**: the chat's composer now takes every document format a knowledge space
+  reads. An `.env` made from the full template still holds
+  `ATTACHMENTS_ALLOWED_DOC_TYPES=application/pdf` and keeps PDFs alone until you remove or
+  update that line.
+- **`SUMMARIZATION_MODEL` is ignored**: the history summary now runs on the **Context
+  Compaction** slot of **LLM Configuration**.
+- **A new check at boot** refuses an `.env` whose embedding retries could outlast a document's
+  lease: with the defaults nothing changes; if you raised `EMBEDDING_RETRY_MAX_ATTEMPTS` or
+  lowered `RAG_JOB_LEASE_TTL_SECONDS`, the pre-flight of step 6 names the field to adjust.
+- **One answer runs per account at a time, held in the database.** A worker killed in the
+  middle of an answer (out of memory, power loss) leaves its account occupied until you close
+  that execution by hand, with the commands of the
+  [recovery runbook](../runbooks/CONVERSATION_EXECUTION_RECOVERY.md): nothing replays an
+  instruction whose outcome is unknown, and nothing infers a stop from a silence.
+- The reference seeds are not replayed: your slots keep the models you chose, and the new
+  installer requirement (an Anthropic and a DeepSeek key) concerns new installations only.
+
 #### 1. Back up — before anything else
 
 ```bash
@@ -759,9 +831,10 @@ install.sh                          docker-compose.prod.yml
 docker-compose.skill-sandbox.yml    .env.min.prod.example
 LICENSE                             infrastructure/caddy/Caddyfile.template
 infrastructure/docker/postgres-init.sql
+infrastructure/searxng/settings.yml infrastructure/sandbox-egress/
 scripts/install/                    infrastructure/observability/
 infrastructure/database/seeds/      data/skills/system/
-docs/knowledge/
+docs/knowledge/                     docs/runbooks/
 ```
 
 That list is the bundle's own contents (`BUNDLE_FILES` and `BUNDLE_DIRS` in
@@ -771,6 +844,16 @@ wholesale gives you exactly it, which is simpler and cannot go stale:
 ```bash
 cp -r ~/lia-upgrade/* /path/to/your/install/
 ```
+
+A prebuilt installation also remembers the manifest it was made from (the
+`--manifest` path): put the new `lia-self-host-manifest.json` there, in place of
+the previous one. A later `./install.sh --reconfigure` reads it, and stops on
+`manifest_unreadable` when it names no image for a service the new release ships.
+
+If you run the observability profile, its configuration files changed too and
+are bind-mounted: Compose does not recreate a container for a changed file, so
+restart Prometheus once the stack is up
+(`liac --profile observability restart prometheus`).
 
 **Never overwrite** `.env`, `docker-compose.install.yml`,
 `infrastructure/caddy/Caddyfile`, or `.install-state.json` — those are yours.
@@ -795,15 +878,21 @@ pathlib.Path('docker-compose.images.yml').write_text(
 " ~/lia-upgrade/lia-self-host-manifest.json
 ```
 
-Add `'caddy'` to `services` if you installed behind Caddy, and the twelve
-observability services if you enabled that profile — pin exactly the services
-your Compose layers start, no more. The command refuses a manifest that is not
+Add `'caddy'` to `services` if you installed behind Caddy, `'searxng'` if the
+instance's web search is on, and the twelve observability services if you
+enabled that profile — pin exactly the services your Compose layers start, no
+more. The command refuses a manifest that is not
 `passed`, so an unqualified build cannot be pinned by accident.
 
 #### 6. Start, and let the migrations run
 
 ```bash
 liac -f docker-compose.images.yml pull
+# Your settings, judged by the NEW image before anything starts: it builds the
+# real configuration (no database, no network) and names a refused field, never
+# its value. A refusal here costs nothing: fix `.env`, then run it again.
+liac -f docker-compose.images.yml run --rm --no-deps -T --entrypoint "" api \
+  python -m scripts.validate_settings
 liac -f docker-compose.images.yml up -d --no-build --wait
 ```
 

@@ -181,10 +181,10 @@ describe('ProviderEmailsSection', () => {
   });
 
   /** Renders the section and OPENS it — the panel starts folded. */
-  async function renderEmails() {
+  async function renderEmails(shown: ContextSection = emails) {
     const utils = renderWithProviders(
       <ProviderEmailsSection
-        section={emails}
+        section={shown}
         personName="Gérard Dupont"
         windowDays={365}
         lng="fr"
@@ -201,6 +201,23 @@ describe('ProviderEmailsSection', () => {
     expect(screen.getByText('Devis chantier')).toBeInTheDocument();
     expect(screen.getByText('relations.peer_message_received')).toBeInTheDocument();
     expect(screen.getByText('relations.peer_message_sent')).toBeInTheDocument();
+  });
+
+  it('says where a message stands in its conversation (ADR-379)', async () => {
+    // A mail of theirs already answered, a mail sent that got a reply: read alone, a
+    // message says neither.
+    const [theirs, mine] = emails.emails;
+    await renderEmails(
+      section({
+        status: 'ok',
+        emails: [
+          { ...theirs, reply_state: { version: 'mail-reply-state-v1', status: 'answered' } },
+          { ...mine, reply_state: { version: 'mail-reply-state-v1', status: 'reply_received' } },
+        ],
+      })
+    );
+    expect(screen.getByText('mail_reply_state.answered')).toBeInTheDocument();
+    expect(screen.getByText('mail_reply_state.reply_received')).toBeInTheDocument();
   });
 
   it('states the window it searched instead of a total it cannot prove', async () => {

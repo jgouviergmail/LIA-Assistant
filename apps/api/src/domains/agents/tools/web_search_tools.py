@@ -1,7 +1,15 @@
 """
 LangChain v1 tools for Unified Web Search operations.
 
-Unified Triple Source Search: Perplexity AI + Brave Search + Wikipedia.
+Unified Triple Source Search: Perplexity AI + page links + Wikipedia.
+
+The page links come from the person's own Brave key when they configured one,
+else from the instance's SearXNG when the operator runs one (lot 18, ADR-307:
+the person's choice wins, the instance serves who made none) — chosen in ONE
+place, :func:`_search_links`. A link search that failed, whichever service it
+asked, is said in what the model reads, never shown as « no links », and that
+answer is not kept for the next call. What a search returns, and the text the
+model reads of it, live in :mod:`web_search_output`.
 
 Architecture:
     - Parallel execution via asyncio.gather() with return_exceptions=True
@@ -15,20 +23,21 @@ Data Registry Integration:
     - Data persistence for response_node
     - Cross-domain queries with LocalQueryEngine
 
-Fallback Matrix:
-    | P | B | W | Result                     |
+Fallback Matrix (L = the page links, Brave or the instance's SearXNG):
+    | P | L | W | Result                     |
     |---|---|---|----------------------------|
     | Y | Y | Y | Triple source consolidated |
-    | Y | Y | N | Perplexity + Brave         |
+    | Y | Y | N | Perplexity + links         |
     | Y | N | Y | Perplexity + Wikipedia     |
-    | N | Y | Y | Brave + Wikipedia          |
+    | N | Y | Y | Links + Wikipedia          |
     | Y | N | N | Perplexity only            |
-    | N | Y | N | Brave only                 |
+    | N | Y | N | Links only                 |
     | N | N | Y | Wikipedia only             |
 """
 
 import asyncio
-from typing import Annotated, Any
+from dataclasses import dataclass, field
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 import structlog
@@ -42,9 +51,9 @@ from src.core.time_utils import get_current_datetime_context
 from src.domains.agents.constants import (
     AGENT_WEB_SEARCH,
     CONTEXT_DOMAIN_WEB_SEARCH,
-    WEB_SEARCH_ALL_SOURCES,
     WEB_SEARCH_SOURCE_BRAVE,
     WEB_SEARCH_SOURCE_PERPLEXITY,
+    WEB_SEARCH_SOURCE_SEARXNG,
     WEB_SEARCH_SOURCE_WIKIPEDIA,
 )
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
@@ -57,10 +66,22 @@ from src.domains.agents.data_registry.models import (
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import get_user_preferences, parse_user_id
-from src.domains.agents.utils.content_wrapper import wrap_external_content
+from src.domains.agents.tools.web_search_output import (
+    UnifiedWebSearchOutput,
+    WebSearchResult,
+    WikipediaResult,
+    failure_line,
+    render_summary,
+)
 from src.domains.connectors.clients.brave_search_client import BraveSearchClient
 from src.domains.connectors.clients.perplexity_client import PerplexityClient
+from src.domains.connectors.clients.searxng_client import SearXNGRecency
 from src.domains.connectors.clients.wikipedia_client import WikipediaClient, wikipedia_edition
+from src.domains.connectors.instance_search import (
+    WebLink,
+    instance_search_available,
+    search_instance,
+)
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials
 from src.domains.connectors.service import ConnectorService
@@ -80,6 +101,13 @@ _BRAVE_FRESHNESS_MAP: dict[str, str] = {"day": "pd", "week": "pw", "month": "pm"
 
 # Valid recency values accepted by the tool
 _VALID_RECENCY = {"day", "week", "month", "year"}
+# The same words are SearXNG's ``time_range`` (lot 18).
+_INSTANCE_RECENCY: dict[str, SearXNGRecency] = {
+    "day": "day",
+    "week": "week",
+    "month": "month",
+    "year": "year",
+}
 
 # Normalization map for non-standard recency values the planner may generate
 _RECENCY_NORMALIZE_MAP: dict[str, str] = {
@@ -131,36 +159,6 @@ def _normalize_recency(recency: str | None) -> str | None:
 # ============================================================================
 # DATA MODELS
 # ============================================================================
-
-
-class WebSearchResult(BaseModel):
-    """Individual web search result from Brave."""
-
-    title: str
-    url: str
-    snippet: str
-    source: str = WEB_SEARCH_SOURCE_BRAVE
-
-
-class WikipediaResult(BaseModel):
-    """Wikipedia article summary."""
-
-    title: str
-    summary: str
-    url: str
-
-
-class UnifiedWebSearchOutput(BaseModel):
-    """Output schema for unified web search."""
-
-    query: str
-    synthesis: str | None = None  # From Perplexity
-    results: list[WebSearchResult] = []  # From Brave
-    wikipedia: WikipediaResult | None = None
-    sources: list[str] = []  # All configured sources
-    sources_used: list[str] = []  # Sources that returned results
-    related_questions: list[str] = []  # From Perplexity
-    citations: list[str] = []  # From Perplexity
 
 
 class WebSearchItem(BaseModel):
@@ -221,146 +219,335 @@ async def _search_perplexity(
     recency: str | None,
 ) -> dict[str, Any] | None:
     """
-    Execute Perplexity search if API key is configured.
+    Execute Perplexity search with the person's own key.
 
-    Returns dict with answer, citations, related_questions or None if not available.
+    Returns:
+        A dict with answer, citations and related_questions, or None when the
+        person has no Perplexity key (nobody was asked).
+
+    Raises:
+        Exception: The search failed. The caller says so (ADR-303): a None here
+            would read as « no key ».
     """
-    try:
-        credentials = await _api_key_credentials(user_uuid, ConnectorType.PERPLEXITY)
-
-        if not credentials:
-            logger.debug("perplexity_not_configured", user_id=str(user_uuid))
-            return None
-
-        client = PerplexityClient(
-            api_key=credentials.api_key,
-            user_id=user_uuid,
-            model=settings.perplexity_search_model,
-        )
-
-        try:
-            # Build system prompt with datetime context
-            current_datetime = get_current_datetime_context(
-                timezone_str=user_timezone,
-                language=user_language,
-            )
-            system_prompt = f"Current date and time: {current_datetime}"
-
-            # Convert recency filter
-            recency_filter = None
-            if recency in {"day", "week", "month", "year"}:
-                recency_filter = recency
-
-            result = await client.search(
-                query=query,
-                search_recency_filter=recency_filter,
-                return_citations=True,
-                return_related_questions=True,
-                system_prompt=system_prompt,
-            )
-        finally:
-            # Deterministic close of the pooled httpx client (leak fix)
-            await client.close()
-
-        logger.info(
-            "perplexity_search_success",
-            user_id=str(user_uuid),
-            query_length=len(query),
-            citations_count=len(result.get("citations", [])),
-        )
-
-        return {
-            "answer": result.get("answer", ""),
-            "citations": result.get("citations", []),
-            "related_questions": result.get("related_questions", []),
-        }
-
-    except Exception as e:
-        logger.warning(
-            "perplexity_search_failed",
-            user_id=str(user_uuid),
-            error=str(e),
-        )
+    credentials = await _api_key_credentials(user_uuid, ConnectorType.PERPLEXITY)
+    if not credentials:
+        logger.debug("perplexity_not_configured", user_id=str(user_uuid))
         return None
+
+    client = PerplexityClient(
+        api_key=credentials.api_key,
+        user_id=user_uuid,
+        model=settings.perplexity_search_model,
+    )
+    try:
+        # Build system prompt with datetime context
+        current_datetime = get_current_datetime_context(
+            timezone_str=user_timezone,
+            language=user_language,
+        )
+        result = await client.search(
+            query=query,
+            search_recency_filter=recency if recency in _VALID_RECENCY else None,
+            return_citations=True,
+            return_related_questions=True,
+            system_prompt=f"Current date and time: {current_datetime}",
+        )
+    finally:
+        # Deterministic close of the pooled httpx client (leak fix)
+        await client.close()
+
+    logger.info(
+        "perplexity_search_success",
+        user_id=str(user_uuid),
+        query_length=len(query),
+        citations_count=len(result.get("citations", [])),
+    )
+
+    return {
+        "answer": result.get("answer", ""),
+        "citations": result.get("citations", []),
+        "related_questions": result.get("related_questions", []),
+    }
 
 
 async def _search_brave(
     query: str,
+    credentials: APIKeyCredentials,
+    *,
     user_uuid: UUID,
     count: int = 5,
     freshness: str | None = None,
-    endpoint: str = "web",
+    endpoint: Literal["web", "news"] = "web",
 ) -> list[WebSearchResult]:
     """
-    Execute Brave Search if API key is configured.
+    Execute Brave Search with the person's own key.
 
     Args:
         query: Search query
-        user_uuid: User ID for API key lookup
+        credentials: The person's Brave key
+        user_uuid: Whose search (logging, rate-limit scope)
         count: Number of results
         freshness: Brave freshness filter (pd, pw, pm, py)
         endpoint: "web" for general search, "news" for news-specific results
 
-    Returns list of WebSearchResult or empty list if not available.
+    Returns:
+        The links Brave found; none is an answer.
+
+    Raises:
+        Exception: The search failed. The caller says so (ADR-303): the client's
+            None-on-error door would read as « no links ».
+    """
+    client = BraveSearchClient(
+        api_key=credentials.api_key,
+        user_id=user_uuid,
+    )
+    try:
+        result = await client.search_or_raise(
+            query=query,
+            endpoint=endpoint,
+            count=count,
+            freshness=freshness,
+        )
+    finally:
+        # Deterministic close of the pooled httpx client (leak fix)
+        await client.close()
+
+    # Extract results based on endpoint (different response formats)
+    if endpoint == "web":
+        raw_results = result.get("web", {}).get("results", [])
+    else:
+        raw_results = result.get("results", [])
+
+    logger.info(
+        "brave_search_success",
+        user_id=str(user_uuid),
+        query_length=len(query),
+        endpoint=endpoint,
+        results_count=len(raw_results),
+    )
+
+    return [
+        WebSearchResult(
+            title=item.get("title", ""),
+            url=item.get("url", ""),
+            snippet=item.get("description", ""),
+            source=WEB_SEARCH_SOURCE_BRAVE,
+        )
+        for item in raw_results[:count]
+    ]
+
+
+@dataclass(frozen=True)
+class _LinkSearch:
+    """The page links of one search, and which service was asked for them.
+
+    Attributes:
+        source: ``brave``, ``searxng``, or None when this account has neither.
+        results: The links found.
+        failed: The service was asked and did not answer.
+    """
+
+    source: str | None
+    results: list[WebSearchResult] = field(default_factory=list)
+    failed: bool = False
+
+
+def _instance_result(link: WebLink) -> WebSearchResult:
+    """A link of the instance's search, its engine line (a news item's age and outlet) first."""
+    return WebSearchResult(
+        title=link.title, url=link.url, snippet=link.excerpt, source=WEB_SEARCH_SOURCE_SEARXNG
+    )
+
+
+async def _search_links(
+    query: str,
+    user_uuid: UUID,
+    user_language: str,
+    recency: str | None,
+) -> _LinkSearch:
+    """The page links of a search: the person's Brave key wins, else the instance's search.
+
+    Args:
+        query: Search query.
+        user_uuid: Whose search.
+        user_language: The person's language (the instance's search reads it).
+        recency: Normalized freshness (day/week/month/year) or None.
+
+    Returns:
+        The links and the service that found them — or why there are none.
+    """
+    # Recent queries (news, current events) read each service's news side
+    recent = recency in ("day", "week")
+    credentials = await _api_key_credentials(user_uuid, ConnectorType.BRAVE_SEARCH)
+    if credentials is not None:
+        try:
+            results = await _search_brave(
+                query,
+                credentials,
+                user_uuid=user_uuid,
+                count=5,
+                freshness=_BRAVE_FRESHNESS_MAP.get(recency or ""),
+                endpoint="news" if recent else "web",
+            )
+        except Exception as error:
+            # The person's choice stands: nobody answers in its place (ADR-382),
+            # and its failure is one the model is told. The type, never the
+            # message, which can quote the query (ADR-317).
+            logger.warning(
+                "brave_search_failed",
+                user_id=str(user_uuid),
+                error_type=type(error).__name__,
+            )
+            return _LinkSearch(WEB_SEARCH_SOURCE_BRAVE, failed=True)
+        return _LinkSearch(WEB_SEARCH_SOURCE_BRAVE, results)
+    if not await instance_search_available():
+        logger.debug("web_links_no_source", user_id=str(user_uuid))
+        return _LinkSearch(None)
+    try:
+        links = await search_instance(
+            query,
+            user_id=user_uuid,
+            language=user_language,
+            count=5,
+            recency=_INSTANCE_RECENCY.get(recency or ""),
+            news=recent,
+        )
+    except Exception:
+        # Counted and logged by the door; here it is a failure the model is told.
+        return _LinkSearch(WEB_SEARCH_SOURCE_SEARXNG, failed=True)
+    return _LinkSearch(WEB_SEARCH_SOURCE_SEARXNG, [_instance_result(link) for link in links])
+
+
+@dataclass(frozen=True)
+class _Gathered:
+    """What the three searches of one query brought back, and each source's part.
+
+    Attributes:
+        perplexity: Perplexity's answer, or None (no key, nothing, or it raised).
+        links: The page-link search; a search that raised reads as failed.
+        wikipedia: The Wikipedia article, or None (no article, or it raised).
+        link_source: The service that holds the links (Brave when none answered).
+        asked: Every source the search stands for, links included.
+        used: The sources that brought something.
+        failed: The sources that were asked and did not answer, in asking order.
+    """
+
+    perplexity: dict[str, Any] | None
+    links: _LinkSearch
+    wikipedia: WikipediaResult | None
+    link_source: str
+    asked: list[str]
+    used: list[str]
+    failed: list[str]
+
+
+def _gathered(outcomes: list[Any]) -> _Gathered:
+    """Type the three outcomes of ``asyncio.gather`` and account for each source.
+
+    A source that raised is logged by its type, never its message, which can quote
+    the query (ADR-317), and it FAILED: never « no key », « no links » or « no
+    article » (ADR-303).
+
+    Args:
+        outcomes: Perplexity's, the links' and Wikipedia's results, in that order.
+
+    Returns:
+        The typed results and which sources were asked, used and failed.
+    """
+    raised = [isinstance(outcome, BaseException) for outcome in outcomes]
+    for source_name, outcome in zip(("perplexity", "links", "wikipedia"), outcomes, strict=True):
+        if isinstance(outcome, BaseException):
+            logger.warning(
+                "web_search_source_exception",
+                source=source_name,
+                error_type=type(outcome).__name__,
+            )
+    perplexity, raw_links, wikipedia = (
+        None if isinstance(outcome, BaseException) else outcome for outcome in outcomes
+    )
+    links = raw_links if isinstance(raw_links, _LinkSearch) else _LinkSearch(None, failed=True)
+    link_source = links.source or WEB_SEARCH_SOURCE_BRAVE
+    brought = (
+        (WEB_SEARCH_SOURCE_PERPLEXITY, perplexity, raised[0]),
+        (link_source, links.results, links.failed),
+        (WEB_SEARCH_SOURCE_WIKIPEDIA, wikipedia, raised[2]),
+    )
+    return _Gathered(
+        perplexity=perplexity,
+        links=links,
+        wikipedia=wikipedia,
+        link_source=link_source,
+        asked=[source for source, _found, _failed in brought],
+        used=[source for source, found, _failed in brought if found],
+        failed=[source for source, _found, failed in brought if failed],
+    )
+
+
+async def _kept_search(
+    user_uuid: UUID, query: str, recency: str | None
+) -> UnifiedToolOutput | None:
+    """The answer kept for this question, when it was asked shortly before (best effort).
+
+    The registry items are not kept (they cannot be rebuilt from plain data
+    without loss): the message holds everything the agent needs.
+
+    Args:
+        user_uuid: Whose search.
+        query: Search query.
+        recency: Normalized freshness, part of the key.
+
+    Returns:
+        The kept answer marked as such, or None when there is none to serve.
     """
     try:
-        credentials = await _api_key_credentials(user_uuid, ConnectorType.BRAVE_SEARCH)
-
-        if not credentials:
-            logger.debug("brave_not_configured", user_id=str(user_uuid))
-            return []
-
-        client = BraveSearchClient(
-            api_key=credentials.api_key,
-            user_id=user_uuid,
-        )
-
-        try:
-            result = await client.search(
-                query=query,
-                endpoint=endpoint,
-                count=count,
-                freshness=freshness,
-            )
-        finally:
-            # Deterministic close of the pooled httpx client (leak fix)
-            await client.close()
-
-        if not result:
-            return []
-
-        # Extract results based on endpoint (different response formats)
-        if endpoint == "web":
-            raw_results = result.get("web", {}).get("results", [])
-        else:
-            raw_results = result.get("results", [])
-
-        logger.info(
-            "brave_search_success",
-            user_id=str(user_uuid),
-            query_length=len(query),
-            endpoint=endpoint,
-            results_count=len(raw_results),
-        )
-
-        return [
-            WebSearchResult(
-                title=item.get("title", ""),
-                url=item.get("url", ""),
-                snippet=item.get("description", ""),
-                source=WEB_SEARCH_SOURCE_BRAVE,
-            )
-            for item in raw_results[:count]
-        ]
-
+        found = await WebSearchCache(await get_redis_cache()).get_search(user_uuid, query, recency)
     except Exception as e:
-        logger.warning(
-            "brave_search_failed",
-            user_id=str(user_uuid),
-            endpoint=endpoint,
-            error=str(e),
+        logger.warning("web_search_cache_check_failed", error=str(e))
+        return None
+    if not (found.from_cache and found.data):
+        return None
+    logger.info(
+        "unified_web_search_from_cache",
+        user_id=str(user_uuid),
+        query_length=len(query),
+        cache_age_seconds=found.cache_age_seconds,
+    )
+    return UnifiedToolOutput.data_success(
+        message=found.data.get("message", ""),
+        metadata={
+            **found.data.get("metadata", {}),
+            "from_cache": True,
+            "cache_age_seconds": found.cache_age_seconds,
+        },
+    )
+
+
+async def _keep_search(
+    user_uuid: UUID,
+    query: str,
+    recency: str | None,
+    summary: str,
+    metadata: dict[str, Any],
+) -> None:
+    """Keep a search's answer for the same question asked again shortly (best effort).
+
+    Args:
+        user_uuid: Whose search.
+        query: Search query.
+        recency: Normalized freshness, part of the key.
+        summary: What the model read.
+        metadata: What the tool returned beside it.
+    """
+    try:
+        cache = WebSearchCache(await get_redis_cache())
+        await cache.set_search(
+            user_id=user_uuid,
+            query=query,
+            data={"message": summary, "metadata": metadata},
+            recency=recency,
         )
-        return []
+    except Exception as e:
+        logger.warning("web_search_cache_store_failed", error=str(e))
 
 
 async def _search_wikipedia(
@@ -370,59 +557,55 @@ async def _search_wikipedia(
     """
     Execute Wikipedia search - always available (no auth).
 
-    Returns WikipediaResult or None if no relevant article found.
+    Returns:
+        The most relevant article, or None when the encyclopedia has none.
+
+    Raises:
+        Exception: The search failed. The caller says so (ADR-303): a None here
+            would read as « no article ».
     """
     language = wikipedia_edition(language)
-    try:
-        client = WikipediaClient(language=language)
+    client = WikipediaClient(language=language)
 
-        # First search for the most relevant article
-        search_results = await client.search(query=query, limit=1)
+    # First search for the most relevant article
+    search_results = await client.search(query=query, limit=1)
 
-        if not search_results:
-            logger.debug("wikipedia_no_results", query=query)
-            return None
-
-        # Get summary of the first result
-        title = search_results[0].get("title", "")
-        if not title:
-            return None
-
-        # Get article summary (longer than default summary)
-        result = await client.get_article(
-            title=title,
-            extract_chars=settings.wikipedia_summary_max_chars,
-        )
-
-        if not result or "error" in result:
-            return None
-
-        article_title = result.get("title", title)
-        extract = result.get("extract", "")
-        url = result.get(
-            "fullurl",
-            f"https://{language}.wikipedia.org/wiki/{title.replace(' ', '_')}",
-        )
-
-        logger.info(
-            "wikipedia_search_success",
-            query_length=len(query),
-            summary_length=len(extract),
-        )
-
-        return WikipediaResult(
-            title=article_title,
-            summary=extract,
-            url=url,
-        )
-
-    except Exception as e:
-        logger.warning(
-            "wikipedia_search_failed",
-            query_length=len(query),
-            error=str(e),
-        )
+    if not search_results:
+        logger.debug("wikipedia_no_results", query=query)
         return None
+
+    # Get summary of the first result
+    title = search_results[0].get("title", "")
+    if not title:
+        return None
+
+    # Get article summary (longer than default summary)
+    result = await client.get_article(
+        title=title,
+        extract_chars=settings.wikipedia_summary_max_chars,
+    )
+
+    if not result or "error" in result:
+        return None
+
+    article_title = result.get("title", title)
+    extract = result.get("extract", "")
+    url = result.get(
+        "fullurl",
+        f"https://{language}.wikipedia.org/wiki/{title.replace(' ', '_')}",
+    )
+
+    logger.info(
+        "wikipedia_search_success",
+        query_length=len(query),
+        summary_length=len(extract),
+    )
+
+    return WikipediaResult(
+        title=article_title,
+        summary=extract,
+        url=url,
+    )
 
 
 # ============================================================================
@@ -501,38 +684,10 @@ async def unified_web_search_tool(
     # Normalize recency to valid values (planner may pass non-standard values like "7d")
     recency = _normalize_recency(recency)
 
-    # --- Cache check (before external API calls) ---
-    if not force_refresh:
-        try:
-            redis_client = await get_redis_cache()
-            cache = WebSearchCache(redis_client)
-            cache_result = await cache.get_search(user_uuid, query, recency)
-            if cache_result.from_cache and cache_result.data:
-                logger.info(
-                    "unified_web_search_from_cache",
-                    user_id=str(user_uuid),
-                    query_length=len(query),
-                    cache_age_seconds=cache_result.cache_age_seconds,
-                )
-                # Note: registry_updates not restored from cache (RegistryItem
-                # objects cannot be reconstructed from plain dicts without loss).
-                # The text message contains all information the agent needs.
-                return UnifiedToolOutput.data_success(
-                    message=cache_result.data.get("message", ""),
-                    metadata={
-                        **cache_result.data.get("metadata", {}),
-                        "from_cache": True,
-                        "cache_age_seconds": cache_result.cache_age_seconds,
-                    },
-                )
-        except Exception as e:
-            logger.warning("web_search_cache_check_failed", error=str(e))
-
-    # Convert freshness for Brave API format (pd=24h, pw=7d, pm=31d)
-    brave_freshness = _BRAVE_FRESHNESS_MAP.get(recency)
-
-    # Use Brave News endpoint for recent queries (more relevant for news/current events)
-    brave_endpoint = "news" if recency in ("day", "week") else "web"
+    # The same question asked again shortly is answered from what was kept
+    kept = None if force_refresh else await _kept_search(user_uuid, query, recency)
+    if kept is not None:
+        return kept
 
     # Execute all three searches in parallel
     perplexity_task = _search_perplexity(
@@ -542,12 +697,12 @@ async def unified_web_search_tool(
         user_language=user_language,
         recency=recency,
     )
-    brave_task = _search_brave(
+    # The page links: the person's Brave key, else the instance's search (lot 18)
+    links_task = _search_links(
         query=query,
         user_uuid=user_uuid,
-        count=5,
-        freshness=brave_freshness,
-        endpoint=brave_endpoint,
+        user_language=user_language,
+        recency=recency,
     )
     wikipedia_task = _search_wikipedia(
         query=query,
@@ -557,59 +712,45 @@ async def unified_web_search_tool(
     # Gather with return_exceptions to handle partial failures
     results = await asyncio.gather(
         perplexity_task,
-        brave_task,
+        links_task,
         wikipedia_task,
         return_exceptions=True,
     )
 
-    # Process results (handle exceptions gracefully)
-    perplexity_result = results[0] if not isinstance(results[0], Exception) else None
-    brave_results = results[1] if not isinstance(results[1], Exception) else []
-    wikipedia_result = results[2] if not isinstance(results[2], Exception) else None
-
-    # Handle exception cases
-    if isinstance(results[0], Exception):
-        logger.warning("perplexity_exception", error=str(results[0]))
-    if isinstance(results[1], Exception):
-        logger.warning("brave_exception", error=str(results[1]))
-    if isinstance(results[2], Exception):
-        logger.warning("wikipedia_exception", error=str(results[2]))
-
-    # Track which sources were used
-    all_sources = WEB_SEARCH_ALL_SOURCES
-    sources_used = []
-
-    if perplexity_result:
-        sources_used.append(WEB_SEARCH_SOURCE_PERPLEXITY)
-    if brave_results:
-        sources_used.append(WEB_SEARCH_SOURCE_BRAVE)
-    if wikipedia_result:
-        sources_used.append(WEB_SEARCH_SOURCE_WIKIPEDIA)
+    # The three outcomes, typed, and which sources were asked, used and failed
+    gathered = _gathered(list(results))
+    perplexity_result, link_search = gathered.perplexity, gathered.links
+    wikipedia_result = gathered.wikipedia
+    all_sources, sources_used = gathered.asked, gathered.used
+    sources_failed = gathered.failed
 
     # Check if we have any results
     if not sources_used:
+        message = _("No search results found from any source for '{query}'").format(query=query)
+        # « Nothing found » and « nobody answered » are two answers: each failure is said.
+        message = " ".join([message, *(failure_line(source) for source in sources_failed)])
         return UnifiedToolOutput.failure(
-            message=_("No search results found from any source for '{query}'").format(query=query),
+            message=message,
             error_code="NO_RESULTS",
             metadata={
                 "query": query,
                 "sources": all_sources,
                 "sources_used": [],
+                "sources_failed": sources_failed,
             },
         )
 
     # Build unified output
+    answer = perplexity_result or {}
     unified_output = UnifiedWebSearchOutput(
         query=query,
-        synthesis=perplexity_result.get("answer") if perplexity_result else None,
-        results=brave_results or [],
+        synthesis=answer.get("answer"),
+        results=link_search.results,
         wikipedia=wikipedia_result,
         sources=all_sources,
         sources_used=sources_used,
-        related_questions=(
-            perplexity_result.get("related_questions", []) if perplexity_result else []
-        ),
-        citations=perplexity_result.get("citations", []) if perplexity_result else [],
+        related_questions=answer.get("related_questions", []),
+        citations=answer.get("citations", []),
     )
 
     # Create registry item
@@ -621,19 +762,8 @@ async def unified_web_search_tool(
     registry_item = RegistryItem(
         id=item_id,
         type=RegistryItemType.WEB_SEARCH,
-        payload={
-            "query": query,
-            "synthesis": unified_output.synthesis,
-            "results": [r.model_dump() for r in unified_output.results],
-            "wikipedia": (
-                unified_output.wikipedia.model_dump() if unified_output.wikipedia else None
-            ),
-            "sources": unified_output.sources,
-            "sources_used": unified_output.sources_used,
-            "related_questions": unified_output.related_questions,
-            "citations": unified_output.citations,
-            "type": "unified_web_search",
-        },
+        # The output's own fields, in their order, then what kind of item this is
+        payload={**unified_output.model_dump(), "type": "unified_web_search"},
         meta=RegistryItemMeta(
             source="web_search",
             domain=CONTEXT_DOMAIN_WEB_SEARCH,
@@ -641,71 +771,8 @@ async def unified_web_search_tool(
         ),
     )
 
-    # Check wrapping setting
-    wrapping_enabled = getattr(settings, "external_content_wrapping_enabled", True)
-
-    # Build summary for LLM
-    summary_parts = [
-        f"Web search results for '{query}' ({len(sources_used)}/{len(all_sources)} sources):\n"
-    ]
-
-    # Perplexity synthesis section
-    if unified_output.synthesis:
-        summary_parts.append("### Synthesis (Perplexity AI)")
-        synthesis_text = unified_output.synthesis
-        if wrapping_enabled:
-            synthesis_text = wrap_external_content(
-                content=synthesis_text,
-                source_url="perplexity.ai",
-                source_type="search_synthesis",
-            )
-        summary_parts.append(synthesis_text)
-        if unified_output.citations:
-            summary_parts.append(f"\nSources: {', '.join(unified_output.citations[:3])}")
-        summary_parts.append("")
-
-    # Brave results section
-    if unified_output.results:
-        summary_parts.append(f"### Web Results ({len(unified_output.results)} links)")
-        for i, result in enumerate(unified_output.results[:5], 1):
-            summary_parts.append(f"  [{i}] {result.title}")
-            summary_parts.append(f"      {result.url}")
-            if result.snippet:
-                snippet = (
-                    result.snippet[:100] + "..." if len(result.snippet) > 100 else result.snippet
-                )
-                if wrapping_enabled:
-                    snippet = wrap_external_content(
-                        content=snippet,
-                        source_url=result.url,
-                        source_type="search_snippet",
-                    )
-                summary_parts.append(f"      {snippet}")
-        summary_parts.append("")
-
-    # Wikipedia section
-    if unified_output.wikipedia:
-        summary_parts.append(f"### Wikipedia: {unified_output.wikipedia.title}")
-        wiki_summary = unified_output.wikipedia.summary
-        if len(wiki_summary) > 500:
-            wiki_summary = wiki_summary[:500] + "..."
-        if wrapping_enabled:
-            wiki_summary = wrap_external_content(
-                content=wiki_summary,
-                source_url=unified_output.wikipedia.url,
-                source_type="search_snippet",
-            )
-        summary_parts.append(wiki_summary)
-        summary_parts.append(f"\n🔗 {unified_output.wikipedia.url}")
-        summary_parts.append("")
-
-    # Related questions
-    if unified_output.related_questions:
-        summary_parts.append("### Related questions")
-        for q in unified_output.related_questions[:3]:
-            summary_parts.append(f"  - {q}")
-
-    summary = "\n".join(summary_parts)
+    # What the model reads: each provider's words wrapped, each source's failure said
+    summary = render_summary(unified_output, failed_sources=sources_failed)
 
     logger.info(
         "unified_web_search_success",
@@ -721,27 +788,17 @@ async def unified_web_search_tool(
         "query": query,
         "sources_used": sources_used,
         "results_count": len(unified_output.results),
+        "sources_failed": sources_failed,
         "has_wikipedia": unified_output.wikipedia is not None,
         "has_synthesis": unified_output.synthesis is not None,
         "web_search": unified_output.model_dump(),
         "from_cache": False,
     }
 
-    # --- Cache store (after successful results) ---
-    try:
-        redis_client = await get_redis_cache()
-        cache = WebSearchCache(redis_client)
-        await cache.set_search(
-            user_id=user_uuid,
-            query=query,
-            data={
-                "message": summary,
-                "metadata": result_metadata,
-            },
-            recency=recency,
-        )
-    except Exception as e:
-        logger.warning("web_search_cache_store_failed", error=str(e))
+    # A search one of whose sources failed is not kept: the next identical call is
+    # the retry, and « did not answer this time » is not true of a later one.
+    if not sources_failed:
+        await _keep_search(user_uuid, query, recency, summary, result_metadata)
 
     return UnifiedToolOutput.data_success(
         message=summary,

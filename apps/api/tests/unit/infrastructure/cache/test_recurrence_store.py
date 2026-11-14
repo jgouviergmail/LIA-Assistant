@@ -26,6 +26,10 @@ class _FakeRedis:
     def __init__(self, keys: list[str]) -> None:
         self.data = dict.fromkeys(keys, "1")
 
+    async def eval(self, script: str, numkeys: int, /, *args: str) -> int:
+        self.data[args[0]] = args[1]
+        return 1
+
     def scan_iter(self, match: str) -> object:
         async def _iter() -> object:
             for key in list(self.data):
@@ -59,12 +63,16 @@ async def test_delete_user_ledger_removes_only_that_user() -> None:
     assert set(redis.data) == {
         recurrence_store.redis_key(OTHER, "event"),
         f"presence:{UID}:2026-09-03:14",
+        recurrence_store.writer_key(UID),
     }
 
 
 async def test_delete_user_ledger_on_empty_ledger_is_zero_without_a_delete_call() -> None:
     redis = _FakeRedis([])
     assert await recurrence_store.delete_user_ledger(redis, UID) == 0
+    token = redis.data[recurrence_store.writer_key(UID)]
+    assert await recurrence_store.delete_user_ledger(redis, UID) == 0
+    assert redis.data[recurrence_store.writer_key(UID)] != token
 
 
 def test_add_day_hour_keeps_one_hour_per_clock_hour() -> None:

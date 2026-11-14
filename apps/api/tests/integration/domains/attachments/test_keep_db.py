@@ -344,9 +344,8 @@ class TestUnderConcurrency:
     async def test_a_keep_holding_the_row_wins_over_a_sweep_already_running(
         self, committed: Any
     ) -> None:
-        # The sweep's DELETE meets the row locked by the keep's UPDATE, waits,
-        # then re-evaluates its condition on the committed row: NULL never
-        # matches ``expires_at <= now()``, so the kept file survives.
+        # A bounded sweep skips a keeper's locked row. After commit the NULL
+        # deadline no longer matches, so neither this pass nor the next retires it.
         maker, marker, storage = committed
         async with maker() as session:
             owner = await _user(session, f"k_{marker}@test.local")
@@ -360,10 +359,9 @@ class TestUnderConcurrency:
                 update(Attachment).where(Attachment.id == file.id).values(expires_at=None)
             )  # row locked, not committed
             sweep = asyncio.create_task(AttachmentService(sweeper).cleanup_expired())
-            await asyncio.sleep(0.5)
-            assert not sweep.done()  # the DELETE waits on the keep's row lock
+            stats = await asyncio.wait_for(sweep, timeout=5)
             await keeper.commit()
-            stats = await sweep
+            assert await AttachmentService(sweeper).cleanup_expired() == {"deleted": 0, "errors": 0}
 
         assert stats["deleted"] == 0
         async with maker() as session:

@@ -64,6 +64,12 @@ from src.domains.agents.drafts.card_spec import (
 )
 from src.domains.agents.drafts.dates import draft_datetime_formatter
 from src.domains.agents.drafts.models import DraftType
+from src.domains.agents.drafts.preview_email import render_email_delete as _render_email_delete
+from src.domains.agents.drafts.preview_email import (
+    render_email_forward as _render_email_forward,
+)
+from src.domains.agents.drafts.preview_email import render_email_reply as _render_email_reply
+from src.domains.agents.drafts.preview_email import render_email_send as _render_email_send
 from src.domains.agents.drafts.preview_event import render_event as _render_event
 from src.domains.agents.drafts.preview_event import render_event_answer as _render_event_answer
 from src.domains.agents.drafts.preview_event import render_event_delete as _render_event_delete
@@ -100,69 +106,6 @@ _first_block_index = first_block_index
 # =============================================================================
 # PER-TYPE RENDERERS
 # =============================================================================
-
-
-def _render_email_send(
-    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[PreviewLine]:
-    """Render email send/reply previews (to, cc, bcc, subject, body)."""
-    lines: list[PreviewLine] = []
-    to = content.get("to", "")
-    cc = content.get("cc", "")
-    bcc = content.get("bcc", "")
-    subject = content.get("subject", "")
-    # `or ""`: a body explicitly stored as None (forward without an added
-    # message) must render empty, not as the literal string "None".
-    body = content.get("body") or ""
-
-    files = content.get("files") or []
-
-    # Every field is optional to SHOW: a draft the model left half-filled is
-    # still confirmed on what it holds, not on « Destinataire : » over nothing.
-    if to:
-        lines.append(_row(lbl, "to", to))
-    if cc:
-        lines.append(_row(lbl, "cc", cc))
-    if bcc:
-        lines.append(_row(lbl, "bcc", bcc))
-    if subject:
-        lines.append(_row(lbl, "subject", subject))
-    # Before the message: the body is a block that ends the preview, and a list item
-    # following it would open a second list under the words being approved.
-    if files:
-        names = [item.get("filename", item.get("name", "?")) for item in files]
-        lines.append(_row(lbl, "attachments", ", ".join(names)))
-    if body:
-        lines.append(_block(lbl, "body", body))
-    return lines
-
-
-def _render_email_forward(
-    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[PreviewLine]:
-    """Render an email forward preview: the original's files, then the person's."""
-    files = [*(content.get("attachments") or []), *(content.get("files") or [])]
-    return _render_email_send({**content, "files": files}, lbl, format_dt)
-
-
-def _render_email_delete(
-    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[PreviewLine]:
-    """Render an email delete preview (sender, subject, date)."""
-    # The stored subject is the raw truth ("" when the email has none); the
-    # localized fallback is applied here, at render time.
-    subject = content.get("subject") or lbl["no_subject"]
-    from_addr = content.get("from", content.get("from_addr", "?"))
-    date_raw = content.get("date", "")
-    date = format_dt(date_raw) if date_raw else ""
-
-    lines: list[PreviewLine] = [
-        _row(lbl, "from", from_addr),
-        _row(lbl, "subject", subject),
-    ]
-    if date:
-        lines.append(_row(lbl, "date", date))
-    return lines
 
 
 def _render_ticket_delete(
@@ -334,7 +277,7 @@ def _render_contact_delete(
 def _render_task(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
 ) -> list[PreviewLine]:
-    """Render a task creation preview (title, due date, notes)."""
+    """Render a task creation preview (title, due date, the list it goes in, notes)."""
     title = content.get("title", "")
     notes = content.get("notes", "")
     due_raw = content.get("due", "")
@@ -343,6 +286,9 @@ def _render_task(
     lines: list[PreviewLine] = [_row(lbl, "task", title)]
     if due:
         lines.append(_row(lbl, "due", due))
+    if task_list := content.get("task_list_name"):
+        # Where it goes is confirmed with the rest: the default list, or the one named.
+        lines.append(_row(lbl, "task_list", task_list))
     if notes:
         lines.append(_block(lbl, "body", notes))
     return lines + _task_extra_rows(content, lbl, format_dt)
@@ -779,7 +725,7 @@ def _render_scheduled_action(
 _PREVIEW_RENDERERS: dict[DraftType, _PreviewRenderer] = {
     DraftType.APPLICATION_ACTION: render_application_preview,
     DraftType.EMAIL: _render_email_send,
-    DraftType.EMAIL_REPLY: _render_email_send,
+    DraftType.EMAIL_REPLY: _render_email_reply,
     DraftType.EMAIL_FORWARD: _render_email_forward,
     DraftType.EMAIL_DELETE: _render_email_delete,
     # A mailbox draft as it stands: the forward's card shows its files (ADR-344).

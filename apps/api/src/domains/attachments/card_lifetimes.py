@@ -31,7 +31,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.attachments.models import Attachment
+from src.domains.attachments.models import Attachment, AttachmentStatus
 from src.domains.attachments.urls import ATTACHMENT_PATH_PREFIX
 
 __all__ = ["card_attachment_ids", "current_lifetimes", "with_current_lifetimes"]
@@ -106,7 +106,9 @@ async def current_lifetimes(
         return {}
     rows = await db.execute(
         select(Attachment.id, Attachment.expires_at).where(
-            Attachment.id.in_(ids), Attachment.user_id == user_id
+            Attachment.id.in_(ids),
+            Attachment.user_id == user_id,
+            Attachment.status == AttachmentStatus.READY,
         )
     )
     return {row.id: row.expires_at for row in rows}

@@ -16,7 +16,7 @@ import pytest
 
 from src.core.config import settings
 from src.domains.llm_config.constants import LLM_DEFAULTS, LLM_TYPES_REGISTRY
-from tests._routes import served_routes
+from tests._routes import capabilities_closing, served_routes
 
 
 @pytest.mark.unit
@@ -63,6 +63,52 @@ def test_the_telephony_routes_stay_unmounted_when_the_flag_is_off() -> None:
     paths = _paths_with_telephony(enabled=False)
 
     assert not any(p.endswith("/telephony/webhook") for p in paths)
+
+
+def _telephony_guards(enabled: bool) -> dict[str, frozenset[str]]:
+    """``METHOD path`` → the capability guards of every served telephony operation."""
+    from src.api.v1 import routes as routes_module
+
+    try:
+        with patch.object(settings, "telephony_enabled", enabled):
+            router = importlib.reload(routes_module).api_router
+            return {
+                f"{method} {route.path}": capabilities_closing(route)
+                for route in served_routes(router)
+                if route.path.startswith("/telephony/")
+                for method in route.methods or ()
+            }
+    finally:
+        importlib.reload(routes_module)
+
+
+@pytest.mark.unit
+def test_the_key_removal_is_served_under_the_flag_and_outside_the_switch() -> None:
+    """A stored key is the person's record (ADR-280): the operator's switch
+    closes calling, the wizard, the history and the identity — never the way
+    to take one's own key back. Read on the SERVED operations, where a guard
+    declared on any including router would show."""
+    served = _telephony_guards(enabled=True)
+
+    records = {
+        "DELETE /telephony/connector",
+        "GET /telephony/calls",
+        "GET /telephony/calls/{call_id}",
+        "GET /telephony/identity",
+        "DELETE /telephony/identity/number",
+        "POST /telephony/webhook",
+    }
+    assert {operation for operation, guards in served.items() if not guards} == records
+    others = {operation: guards for operation, guards in served.items() if operation not in records}
+    # The walk read the router: it did not pass on an empty table.
+    assert len(others) >= 8
+    assert {operation for operation, guards in others.items() if "telephony" not in guards} == set()
+
+
+@pytest.mark.unit
+def test_the_key_removal_stays_unmounted_when_the_flag_is_off() -> None:
+    """The deployment flag still mounts the whole surface, this door included."""
+    assert _telephony_guards(enabled=False) == {}
 
 
 def test_notification_reaper_is_wired_into_the_scheduler() -> None:

@@ -46,9 +46,9 @@ from src.core.constants import (
     BOOKMARKS_DOCUMENT_NAME_EXCERPT_CHARS,
     BOOKMARKS_SPACE_KIND,
 )
+from src.core.html_markdown import as_markdown
 from src.core.i18n import normalize_language
 from src.core.i18n_bookmarks import get_document_labels, get_space_description, get_space_name
-from src.core.markup_detection import looks_like_html
 from src.core.time_utils import format_datetime_for_display, resolve_user_timezone
 from src.domains.bookmarks.models import BookmarkIndexState, MessageBookmark
 from src.domains.bookmarks.projection_deletion import require_owned_projection
@@ -58,7 +58,7 @@ from src.domains.rag_spaces.document_access import document_file_path
 from src.domains.rag_spaces.document_names import sanitize_document_name
 from src.domains.rag_spaces.drive_ingest import create_pending_document
 from src.domains.rag_spaces.models import RAGDocument, RAGDocumentSourceType, RAGSpace
-from src.domains.rag_spaces.processing import html_to_markdown, process_document
+from src.domains.rag_spaces.processing import process_document
 from src.domains.rag_spaces.repository import (
     RAGChunkRepository,
     RAGDocumentRepository,
@@ -145,11 +145,6 @@ class KeptAnswer(Protocol):
     answered_at: datetime
 
 
-def _answer_as_markdown(content: str) -> str:
-    """The answer's text: Markdown verbatim, an HTML document converted."""
-    return html_to_markdown(content) if looks_like_html(content) else content
-
-
 def render_bookmark(bookmark: KeptAnswer, *, language: str, timezone: str) -> str:
     """The Markdown document a kept answer becomes — pure.
 
@@ -182,7 +177,7 @@ def render_bookmark(bookmark: KeptAnswer, *, language: str, timezone: str) -> st
     else:
         lines.append(f"_{labels['no_request']}_")
     lines.extend(["", f"**{labels['answered_on']}** {stamp}", "", "---", ""])
-    lines.append(_answer_as_markdown(bookmark.content).strip())
+    lines.append(as_markdown(bookmark.content).strip())
     return "\n".join(lines) + "\n"
 
 

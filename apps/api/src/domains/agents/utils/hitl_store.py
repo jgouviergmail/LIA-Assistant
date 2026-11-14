@@ -2,7 +2,7 @@
 HITL Store Helper.
 
 Centralized helper for storing and retrieving HITL interrupt data
-with Redis schema versioning and fallback migration.
+with Redis schema versioning and read-only legacy decoding.
 
 This module provides a clean abstraction over Redis for HITL-specific
 data, with proper timestamp tracking and schema evolution support.
@@ -12,11 +12,20 @@ import json
 from collections.abc import Awaitable
 from datetime import UTC, datetime
 from typing import Any, Protocol
+from uuid import UUID
 
 from src.core.constants import REDIS_KEY_HITL_PENDING_PREFIX
-from src.core.field_names import FIELD_ACTION_REQUESTS, FIELD_INTERRUPT_DATA, FIELD_RUN_ID
+from src.core.conversation_execution import ExecutionRevoked
+from src.core.field_names import (
+    FIELD_ACTION_REQUESTS,
+    FIELD_ACTIVITY_ID,
+    FIELD_INTERRUPT_DATA,
+    FIELD_RUN_ID,
+)
+from src.core.run_authority import current_run_authority, require_runtime_authority
 from src.domains.agents.utils.hitl_cache import invalidate as invalidate_detection_cache
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.streaming.runtime_redis import delete_runtime_question, write_runtime_string
 
 logger = get_logger(__name__)
 
@@ -36,8 +45,33 @@ local ok, record = pcall(cjson.decode, raw)
 if not ok or type(record) ~= 'table' then return 0 end
 local data = record[ARGV[2]]
 if type(data) ~= 'table' or data[ARGV[3]] ~= ARGV[1] then return 0 end
+local activity = record[ARGV[4]]
+if activity and activity ~= ARGV[5] then return 0 end
 return redis.call('DEL', KEYS[1])
 """
+
+_CLEAR_OBSERVED_LUA = """
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+return redis.call('DEL', KEYS[1])
+"""
+
+
+def _decode_record(raw: bytes | str) -> dict[str, Any]:
+    """Malformed data is a refusal, never evidence that no question exists."""
+    data = json.loads(raw)
+    if not isinstance(data, dict):
+        raise ValueError("Invalid HITL record")
+    if "schema_version" not in data:
+        data = {"schema_version": SCHEMA_VERSION, "interrupt_ts": None, FIELD_INTERRUPT_DATA: data}
+    if type(data["schema_version"]) is not int or data["schema_version"] != SCHEMA_VERSION:
+        raise ValueError("Invalid HITL record")
+    payload = data.get(FIELD_INTERRUPT_DATA)
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid HITL record")
+    actions = payload.get(FIELD_ACTION_REQUESTS, [])
+    if not isinstance(actions, list) or not all(isinstance(action, dict) for action in actions):
+        raise ValueError("Invalid HITL actions")
+    return data
 
 
 def _pending_key(thread_id: str) -> str:
@@ -70,7 +104,7 @@ class HitlStoreClient(Protocol):
         """How many of the keys exist."""
         ...
 
-    def eval(self, script: str, numkeys: int, /, *keys_and_args: str) -> Awaitable[Any]:
+    def eval(self, script: str, numkeys: int, /, *keys_and_args: str) -> Awaitable[object]:
         """Run ``script`` atomically on the server."""
         ...
 
@@ -79,7 +113,7 @@ class HITLStore:
     """
     Helper class for storing and retrieving HITL interrupt data.
 
-    Provides schema versioning and automatic migration from old formats.
+    Provides schema versioning and read-only decoding of old formats.
     Tracks interrupt timestamps for response time metrics.
 
     Example:
@@ -117,15 +151,30 @@ class HITLStore:
             ...     "run_id": "run_456"
             ... })
         """
-        # Add schema version and interrupt timestamp
+        authority = current_run_authority()
+        if authority is None:
+            raise ExecutionRevoked()
+        runtime_id = UUID(thread_id)
+        require_runtime_authority(authority.admission.target.owner_id, runtime_id)
+        if interrupt_data.get(FIELD_RUN_ID) != authority.admission.run_id:
+            raise ExecutionRevoked()
+        # The invocation is server-owned; a resumed turn can reuse a billing
+        # run id but may never inherit its predecessor's cleanup authority.
         versioned_data = {
             "schema_version": SCHEMA_VERSION,
             "interrupt_ts": datetime.now(UTC).isoformat(),
             FIELD_INTERRUPT_DATA: interrupt_data,
+            FIELD_ACTIVITY_ID: str(authority.admission.activity_id),
         }
 
         key = _pending_key(thread_id)
-        await self.redis.set(key, json.dumps(versioned_data), ex=self.ttl_seconds)
+        await write_runtime_string(
+            self.redis,
+            runtime_id,
+            key=key,
+            value=json.dumps(versioned_data),
+            ttl_seconds=self.ttl_seconds,
+        )
         # The detection cache may hold a fresh "nothing pending" answer for
         # this conversation — drop it so a reply faster than the cache TTL
         # (one-click approvals) is routed as a resumption, not a new turn.
@@ -140,9 +189,7 @@ class HITLStore:
 
     async def get_interrupt(self, thread_id: str) -> dict[str, Any] | None:
         """
-        Retrieve HITL interrupt data with fallback migration.
-
-        Automatically migrates old schema (plain dict) to new schema (versioned).
+        Retrieve versioned data, decoding legacy records without writing or extending TTL.
 
         Args:
             thread_id: Thread ID to retrieve data for.
@@ -162,35 +209,7 @@ class HITLStore:
         if data_json is None:
             return None
 
-        # Parse JSON
-        try:
-            data = json.loads(data_json)
-        except json.JSONDecodeError as e:
-            logger.error(
-                "hitl_interrupt_invalid_json",
-                thread_id=thread_id,
-                error=str(e),
-            )
-            return None
-
-        # Handle old schema (plain dict without versioning)
-        if "schema_version" not in data:
-            logger.warning(
-                "hitl_interrupt_old_schema",
-                thread_id=thread_id,
-                message="Migrating old schema to v1",
-            )
-            # Migrate: old schema was the raw interrupt_data
-            migrated_data = {
-                "schema_version": SCHEMA_VERSION,
-                "interrupt_ts": datetime.now(UTC).isoformat(),  # Best effort
-                FIELD_INTERRUPT_DATA: data,
-            }
-            # Save migrated version back to Redis
-            await self.redis.set(key, json.dumps(migrated_data), ex=self.ttl_seconds)
-            return migrated_data
-
-        return data
+        return _decode_record(data_json)
 
     async def get_pending(self, thread_id: str) -> dict[str, Any] | None:
         """The pending question, flattened as every door that resumes it reads it.
@@ -227,8 +246,7 @@ class HITLStore:
         Example:
             >>> await store.delete_interrupt("thread_123")
         """
-        key = _pending_key(thread_id)
-        await self.redis.delete(key)
+        await delete_runtime_question(self.redis, UUID(thread_id))
         # Mirror of save_interrupt: a fresh "pending" answer must not outlive
         # the deletion, or the next message resumes a phantom HITL.
         invalidate_detection_cache(thread_id)
@@ -250,7 +268,13 @@ class HITLStore:
         """
         await self.delete_interrupt(thread_id)
 
-    async def clear_interrupt_for_run(self, thread_id: str, run_id: str) -> bool:
+    async def clear_interrupt_for_run(
+        self,
+        thread_id: str,
+        run_id: str,
+        *,
+        activity_id: UUID | None = None,
+    ) -> bool:
         """Clear the pending question only when ``run_id`` asked it (N10).
 
         A run that stopped on a question nobody can answer must not leave it on
@@ -261,6 +285,8 @@ class HITLStore:
         Args:
             thread_id: Thread ID (conversation_id).
             run_id: The run whose question may be cleared.
+            activity_id: The invocation that wrote the record. Without it only
+                pre-migration records can be cleared; new questions are kept.
 
         Returns:
             True when the question was that run's and is gone; False otherwise.
@@ -272,8 +298,10 @@ class HITLStore:
             run_id,
             FIELD_INTERRUPT_DATA,
             FIELD_RUN_ID,
+            FIELD_ACTIVITY_ID,
+            str(activity_id) if activity_id is not None else "",
         )
-        if not cleared:
+        if cleared != 1:
             return False
         # Mirror of delete_interrupt: a fresh "pending" answer must not outlive it.
         invalidate_detection_cache(thread_id)
@@ -312,83 +340,32 @@ class HITLStore:
             >>> if was_cleared:
             ...     logger.info("Stale HITL state cleaned up")
         """
-        pending_data = await self.get_interrupt(thread_id)
-
-        if not pending_data:
+        key = _pending_key(thread_id)
+        raw = await self.redis.get(key)
+        if raw is None:
             return False
-
-        # Check if interrupt_data has action_requests
-        interrupt_data = pending_data.get(FIELD_INTERRUPT_DATA, {})
-        action_requests = interrupt_data.get(FIELD_ACTION_REQUESTS, [])
-
-        if not action_requests:
+        try:
+            pending_data = _decode_record(raw)
+            action_requests = pending_data[FIELD_INTERRUPT_DATA].get(FIELD_ACTION_REQUESTS, [])
+            valid = isinstance(action_requests, list) and bool(action_requests)
+        except ValueError, UnicodeError:
+            valid = False
+        if valid:
+            return False
+        try:
+            observed = raw.decode() if isinstance(raw, bytes) else raw
+        except UnicodeError:
+            logger.warning(
+                "hitl_invalid_state_kept", thread_id=thread_id, reason="unreadable_bytes"
+            )
+            return False
+        cleared = await self.redis.eval(_CLEAR_OBSERVED_LUA, 1, key, observed)
+        if cleared:
+            invalidate_detection_cache(thread_id)
             logger.warning(
                 "hitl_invalid_state_cleared",
                 thread_id=thread_id,
-                reason="pending_hitl without action_requests",
-                pending_keys=list(pending_data.keys()),
+                reason="invalid_record",
             )
-            await self.clear_interrupt(thread_id)
             return True
-
         return False
-
-    async def set_request_timestamp(self, thread_id: str, timestamp: float) -> None:
-        """
-        Store HITL request timestamp for response time metrics.
-
-        Called when HITL interrupt is sent to user to track how long
-        they take to respond (approve/reject/edit).
-
-        Args:
-            thread_id: Thread ID (conversation_id).
-            timestamp: Unix timestamp (from time.time()).
-
-        Example:
-            >>> import time
-            >>> await store.set_request_timestamp("thread_123", time.time())
-        """
-        key = f"hitl:request_ts:{thread_id}"
-        # Store as string to avoid Redis serialization issues
-        await self.redis.set(key, str(timestamp), ex=self.ttl_seconds)
-
-        logger.debug(
-            "hitl_request_timestamp_stored",
-            thread_id=thread_id,
-            timestamp=timestamp,
-            ttl_seconds=self.ttl_seconds,
-        )
-
-    async def get_request_timestamp(self, thread_id: str) -> float | None:
-        """
-        Retrieve HITL request timestamp for response time calculation.
-
-        Called when user responds to HITL interrupt to measure response time.
-
-        Args:
-            thread_id: Thread ID (conversation_id).
-
-        Returns:
-            Unix timestamp as float, or None if not found/expired.
-
-        Example:
-            >>> ts = await store.get_request_timestamp("thread_123")
-            >>> if ts:
-            ...     response_time = time.time() - ts
-        """
-        key = f"hitl:request_ts:{thread_id}"
-        timestamp_str = await self.redis.get(key)
-
-        if timestamp_str is None:
-            return None
-
-        try:
-            return float(timestamp_str)
-        except (ValueError, TypeError) as e:
-            logger.error(
-                "hitl_request_timestamp_invalid",
-                thread_id=thread_id,
-                timestamp_str=timestamp_str,
-                error=str(e),
-            )
-            return None

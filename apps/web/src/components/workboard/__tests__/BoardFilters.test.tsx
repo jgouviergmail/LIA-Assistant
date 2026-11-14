@@ -10,7 +10,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { act, renderWithProviders, screen } from '@/__tests__/test-utils';
-import { BoardFilters } from '@/components/workboard/BoardFilters';
+import { BoardFilters, type LaneOption } from '@/components/workboard/BoardFilters';
 import type { BoardFilters as Filters } from '@/types/workboard';
 
 const onChange = vi.fn();
@@ -218,5 +218,104 @@ describe('above lg the block is unchanged', () => {
     expect(container.querySelector('details')).toBeNull();
     expect(screen.getByRole('region', { name: 'workboard.filters.title' })).toBeInTheDocument();
     expect(screen.getByLabelText('workboard.filters.search')).toBeInTheDocument();
+  });
+});
+
+describe('narrowing to a lane', () => {
+  // A category is a lane of the board; the filter offers the lanes in sight —
+  // the reader's own and those of the tickets they hold — plus the unfiled one.
+  const LANES: LaneOption[] = [
+    { id: '11111111-1111-4111-8111-111111111111', name: 'Maison' },
+    { id: '22222222-2222-4222-8222-222222222222', name: 'Chantier · Marie' },
+  ];
+  const [HOME, SHARED] = LANES;
+  const base: Filters = { assignee: 'all', sort: 'position' };
+  const control = () => screen.queryByRole('combobox', { name: 'workboard.filters.category' });
+
+  function renderLanes(filters: Filters = base, collapsible = false) {
+    return renderWithProviders(
+      <BoardFilters
+        lng="fr"
+        filters={filters}
+        onChange={onChange}
+        lanes={LANES}
+        collapsible={collapsible}
+      />
+    );
+  }
+
+  it('is not offered on a board with no lane', () => {
+    render();
+
+    expect(control()).toBeNull();
+  });
+
+  it('offers every lane in sight, « all » first and the unfiled lane before the categories', async () => {
+    const { user } = renderLanes();
+
+    expect(control()).toHaveTextContent('workboard.filters.category_any');
+    await user.click(screen.getByRole('combobox', { name: 'workboard.filters.category' }));
+    const options = await screen.findAllByRole('option');
+    expect(options.map(option => option.textContent)).toEqual([
+      'workboard.filters.category_any',
+      'workboard.lanes.unfiled',
+      'Maison',
+      'Chantier · Marie',
+    ]);
+    // « Any » wears the one sign it wears on every filter.
+    expect(options[0].querySelector('.lucide-asterisk')).not.toBeNull();
+  });
+
+  it('narrows to one category, as a LIST', async () => {
+    const { user } = renderLanes();
+    await user.click(screen.getByRole('combobox', { name: 'workboard.filters.category' }));
+    await user.click(await screen.findByRole('option', { name: 'Maison' }));
+
+    expect(onChange).toHaveBeenCalledWith({
+      ...base,
+      category: [HOME.id],
+      uncategorized: undefined,
+    });
+  });
+
+  it('narrows to what is not filed yet, which is not a category', async () => {
+    const { user } = renderLanes({ ...base, category: [HOME.id] });
+    await user.click(screen.getByRole('combobox', { name: 'workboard.filters.category' }));
+    await user.click(await screen.findByRole('option', { name: 'workboard.lanes.unfiled' }));
+
+    expect(onChange).toHaveBeenCalledWith({ ...base, category: undefined, uncategorized: true });
+  });
+
+  it('clears back to undefined, never to an empty list', async () => {
+    const { user } = renderLanes({ ...base, uncategorized: true });
+
+    expect(control()).toHaveTextContent('workboard.lanes.unfiled');
+    await user.click(screen.getByRole('combobox', { name: 'workboard.filters.category' }));
+    await user.click(await screen.findByRole('option', { name: 'workboard.filters.category_any' }));
+
+    expect(onChange).toHaveBeenCalledWith({
+      ...base,
+      category: undefined,
+      uncategorized: undefined,
+    });
+  });
+
+  it('reads the lane back from the filters, a link from elsewhere included', () => {
+    renderLanes({ ...base, category: [SHARED.id] });
+
+    expect(control()).toHaveTextContent('Chantier · Marie');
+  });
+
+  it('shows « all » for a lane the board no longer carries, rather than nothing', () => {
+    renderLanes({ ...base, category: ['33333333-3333-4333-8333-333333333333'] });
+
+    expect(control()).toHaveTextContent('workboard.filters.category_any');
+  });
+
+  it('names the lane in the folded summary, and counts it once', () => {
+    renderLanes({ ...base, category: [HOME.id], uncategorized: true }, true);
+
+    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getByText('Maison, workboard.lanes.unfiled')).toBeInTheDocument();
   });
 });

@@ -2,14 +2,16 @@
  * Resolution of the `mcp_oauth` callback marker appended by the backend
  * OAuth callback redirect (user MCP servers).
  *
- * Three outcomes exist on the wire: `success`, `denied` (the user refused
- * consent on the authorization server — not a system error) and `error`.
- * Any unknown value degrades to `error` because the URL is user-editable.
+ * The outcomes on the wire: `success`, `denied` (the user refused consent on
+ * the authorization server — not a system error), `changed` (the server was
+ * edited while the person consented, so the tokens were not stored), `error`,
+ * and `pending` for a consent the assistant staged. Any unknown value degrades
+ * to `error` because the URL is user-editable.
  */
 
 import { z } from '@/lib/zod';
 
-export type McpOAuthOutcome = 'success' | 'denied' | 'error' | 'pending';
+export type McpOAuthOutcome = 'success' | 'denied' | 'changed' | 'error' | 'pending';
 
 /** Native MCP callbacks land in settings; a staged application command returns to its chat. */
 export function resumeApplicationMCPOAuthReturn(
@@ -22,7 +24,8 @@ export function resumeApplicationMCPOAuthReturn(
 
 export function resolveMcpOAuthOutcome(param: string | null): McpOAuthOutcome | null {
   if (!param) return null;
-  if (param === 'success' || param === 'denied' || param === 'pending') return param;
+  if (param === 'success' || param === 'denied' || param === 'changed' || param === 'pending')
+    return param;
   return 'error';
 }
 
@@ -38,5 +41,6 @@ export const MCP_OAUTH_TOAST: Record<
   pending: { kind: 'info', key: 'settings.mcp.oauth_pending' },
   success: { kind: 'success', key: 'settings.mcp.oauth_success' },
   denied: { kind: 'info', key: 'settings.mcp.oauth_denied' },
+  changed: { kind: 'error', key: 'settings.mcp.oauth_changed' },
   error: { kind: 'error', key: 'settings.mcp.oauth_error' },
 };

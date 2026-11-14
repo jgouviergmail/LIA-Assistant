@@ -1,9 +1,11 @@
 """Every corpus document renders in every applicable format (ADR-274).
 
-Thirteen deterministic documents — a short memo, a long report, a twelve-column
-table, six decks (one of them Chinese, where a full-width glyph is one em), a
-Chinese report, edge cases, typed and empty workbooks, and a minutes-shaped
-document — rendered here through the format's OWN reader.
+Deterministic documents — a short memo, a long report, a twelve-column table,
+decks (one of them Chinese, where a full-width glyph is one em), a Chinese
+report, edge cases, typed, computed and empty workbooks, a minutes-shaped
+document, charts in a report, a workbook and a deck, decks of figures and of
+pictures, and a rich report (key figures, pictures, a landscape table, sources)
+— rendered here through the format's OWN reader.
 The same fixtures feed ``task documents:corpus:render``, whose output a human
 looks at and Word / PowerPoint / Excel measure.
 """
@@ -26,6 +28,7 @@ from src.domains.document_generation.schemas import (
     DocumentContent,
     DocumentType,
 )
+from tests.helpers.document_pictures import fixture_context
 
 from .pptx_oracles import assert_nothing_overflows
 
@@ -40,10 +43,7 @@ def load(path: Path) -> tuple[list[DocumentType], DocumentContent, RenderContext
     raw = json.loads(path.read_text(encoding="utf-8"))
     doc_types = [DocumentType(value) for value in raw["doc_types"]]
     content = SCHEMA_BY_DOC_TYPE[doc_types[0]].model_validate(raw["content"])
-    context = RenderContext(
-        language=raw.get("language", "en"), structure=raw.get("structure", "auto")
-    )
-    return doc_types, content, context
+    return doc_types, content, fixture_context(raw, content)
 
 
 def _open_docx(data: bytes) -> object:

@@ -288,6 +288,7 @@ def collect_reconfiguration(
         personal_radio=bool(collected["personal_radio"]),
         speaking_avatar=bool(collected["speaking_avatar"]),
         world=bool(collected["world"]),
+        web_search=bool(collected["web_search"]),
         server_host=_text("server_host"),
         web_domain=_text("web_domain"),
         api_domain=_text("api_domain"),
@@ -363,6 +364,8 @@ def collect_answers(
         personal_radio=bool(collected.get("personal_radio", False)),
         speaking_avatar=bool(collected.get("speaking_avatar", False)),
         world=bool(collected.get("world", False)),
+        # Always asked, so an answers file without it holds the default (on).
+        web_search=bool(collected["web_search"]),
         skill_sandbox=bool(collected["skill_sandbox"]),
         server_host=(str(collected["server_host"]) if "server_host" in collected else None),
         web_domain=(str(collected["web_domain"]) if "web_domain" in collected else None),

@@ -53,7 +53,6 @@ from src.domains.telephony.schemas import SelfCallData, SelfCallRelay
 from src.domains.telephony.synthesis_usage import SynthUsage, capture_to_usage
 from src.domains.voice_sessions.session import VoiceCarrier, VoiceSession
 from src.domains.voice_sessions.transcript import VoiceTranscript
-from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import get_structured_output_with_retry
@@ -63,11 +62,9 @@ from src.infrastructure.scheduler.out_of_turn_run import (
     RunContext,
     RunOutcome,
     StreamRequest,
-    conversation_has_pending_hitl,
     resolve_run_context,
     stream_instruction,
 )
-from src.infrastructure.streaming.run_stream_broker import ActiveRunLockLost, active_run_lease
 
 logger = structlog.get_logger(__name__)
 
@@ -113,6 +110,8 @@ _RUN_TO_RELAY: Final[dict[RunOutcome, RelayOutcome]] = {
     RunOutcome.WAITING: RelayOutcome.WAITING,
     RunOutcome.QUOTA_BLOCKED: RelayOutcome.QUOTA_BLOCKED,
     RunOutcome.FAILED: RelayOutcome.FAILED,
+    RunOutcome.BUSY: RelayOutcome.BUSY,
+    RunOutcome.PENDING_QUESTION: RelayOutcome.PENDING_QUESTION,
 }
 
 
@@ -228,6 +227,7 @@ async def synthesize_relay(
     task_type: str = "voice_session",
     target_id: str = "synthesis",
     run_id: str | None = None,
+    conversation_id: UUID | None = None,
 ) -> tuple[SelfCallRelay, SynthUsage | None]:
     """One structured call: the transcript in, the relay message out.
 
@@ -243,6 +243,10 @@ async def synthesize_relay(
         user_language: Backend-canonical language of the output.
         user_timezone: The person's IANA zone, for the clock.
         user_id: The session's owner, so the account's ceiling applies.
+        task_type: The surface that requested the synthesis.
+        target_id: The surface's own identifier.
+        run_id: The run under which all paid attempts are filed.
+        conversation_id: The browser session's discussion, when pinned.
 
     Returns:
         The relay and the token usage (None when the provider reported none);
@@ -277,6 +281,7 @@ async def synthesize_relay(
         source="user",
         run_id=run_id,
         llm_type=_LLM_TYPE,
+        conversation_id=conversation_id,
     ):
         relay = await get_structured_output_with_retry(
             llm=llm,
@@ -296,6 +301,7 @@ async def synthesize_relay(
             source="user",
             run_id=run_id,
             llm_type=_LLM_TYPE,
+            conversation_id=conversation_id,
         )
     return relay, capture_to_usage(token_capture)
 
@@ -323,6 +329,12 @@ async def _drive(request: VoiceRelayRequest, context: RunContext) -> RelayOutcom
     session = request.session
     stream = StreamRequest(
         user_id=session.user_id,
+        conversation_id=session.conversation_id if session.reservation is not None else None,
+        conversation_revision=(
+            session.reservation.admission.target.revision
+            if session.reservation is not None
+            else None
+        ),
         prompt=request.relay.relay_message.strip(),
         session_id=f"{session.origin_kind}_{session.origin_id}",
         language=context.language,
@@ -349,27 +361,12 @@ async def _drive(request: VoiceRelayRequest, context: RunContext) -> RelayOutcom
     return _RUN_TO_RELAY.get(result.outcome, RelayOutcome.FAILED)
 
 
-async def _drive_under_lease(
-    request: VoiceRelayRequest, context: RunContext, conversation_id: UUID
-) -> RelayOutcome:
-    """Take the conversation's lock, with bounded retries; BUSY when never taken."""
-    redis = await get_redis_cache()
-    session = request.session
+async def _drive_when_available(request: VoiceRelayRequest, context: RunContext) -> RelayOutcome:
+    """Wait only for admission; a turn that actually started is never replayed."""
     for attempt in range(1, settings.telephony_relay_busy_retries + 1):
-        try:
-            async with active_run_lease(
-                redis,
-                str(conversation_id),
-                run_id=session.run_id,
-                stream_id=f"{session.origin_kind}:{session.run_id}",
-            ) as acquired:
-                if acquired:
-                    return await _drive(request, context)
-        except ActiveRunLockLost:
-            # The person started talking while the relay ran: their turn wins,
-            # and the relay's words are still in the fallback notification.
-            logger.info("voice_relay_conversation_taken_over", origin_id=session.origin_id)
-            return RelayOutcome.BUSY
+        result = await _drive(request, context)
+        if result is not RelayOutcome.BUSY:
+            return result
         if attempt < settings.telephony_relay_busy_retries:
             await asyncio.sleep(settings.telephony_relay_busy_delay_seconds)
     return RelayOutcome.BUSY
@@ -409,16 +406,7 @@ async def run_voice_relay(
             context = await resolve_run_context(db, user_id)
         if context is None:
             return RelayOutcome.FAILED
-        pending, conversation_id = await conversation_has_pending_hitl(
-            db, user_id, context.language
-        )
-    if pending:
-        return RelayOutcome.PENDING_QUESTION
-
-    if conversation_id is None:
-        logger.warning("voice_relay_unlocked_thread", origin_id=request.session.origin_id)
-        return await _drive(request, context)
-    return await _drive_under_lease(request, context, conversation_id)
+    return await _drive_when_available(request, context)
 
 
 __all__ = [

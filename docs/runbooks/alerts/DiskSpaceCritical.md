@@ -11,30 +11,38 @@
 
 **Alert Name**: `DiskSpaceCritical`
 
-**PromQL Query**:
+**PromQL Query** (`infrastructure/observability/prometheus/alerts-core.yml.template`, the
+only rules Prometheus loads — ADR-119):
 ```promql
-(node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < <<<ALERT_DISK_SPACE_CRITICAL_THRESHOLD_PERCENT>>>
+(
+  (
+    1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})
+  ) * 100 > <<<ALERT_CORE_DISK_CRITICAL_PERCENT>>>
+)
+unless node_filesystem_readonly == 1
 ```
 
-**Thresholds**:
-- **Production**: <10% free space (Critical - immediate action required)
-- **Staging**: <5% free space (Acceptable for testing)
-- **Development**: <3% free space (Not critical in dev)
+**Threshold**: `ALERT_CORE_DISK_CRITICAL_PERCENT` = 90 % used in every environment
+(`thresholds/*.env`), on every writable filesystem except tmpfs and overlay.
 
-**Duration**: For 2 minutes
+**Not watched**: a read-only filesystem. It is full by construction — WSL's read-only
+system image reads 100 % on a development host — and nothing can fill it. The
+self-diagnostics check « Host disk usage » and this alert's evidence pack read the same
+query (`disk_usage_percent`, `apps/api/src/domains/diagnostics/query_catalogue.py`).
+
+**Duration**: For 5 minutes
 
 **Labels**:
 ```yaml
 severity: critical
-component: infrastructure
-alert_type: disk_space
-impact: availability
+component: storage
+tier: core
 ```
 
 **Annotations**:
 ```yaml
-summary: "Critical disk space on {{ $labels.instance }}"
-description: "Disk space critical on {{ $labels.instance }}: {{ $value | humanizePercentage }} free (threshold: <<<ALERT_DISK_SPACE_CRITICAL_THRESHOLD_PERCENT>>>%)"
+summary: "Disk space critical on {{ $labels.mountpoint }}"
+description: "{{ $value | humanize }}% of {{ $labels.mountpoint }} is used (threshold: <<<ALERT_CORE_DISK_CRITICAL_PERCENT>>>%). Prometheus TSDB, PostgreSQL and backups share this disk."
 ```
 
 ---

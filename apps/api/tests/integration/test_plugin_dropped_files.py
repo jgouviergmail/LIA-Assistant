@@ -2,16 +2,21 @@
 
 import io
 import json
+from pathlib import Path
 from unittest.mock import AsyncMock
 from zipfile import ZipFile
 
 import pytest
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import AGENT_PLUGINS_PLUGIN_SCHEMA_ID
 from src.domains.plugins.import_service import PluginImportService
+from src.domains.plugins.removal_disk import RemovalMove, stage_moves
 from src.domains.plugins.root_commit import PluginImportCompletionUnknown
+from src.domains.users.models import User
+from tests.helpers.committed_account_session import async_session as async_session
 from tests.integration.domains.skills.test_per_account_skill_names import _skill
 from tests.integration.test_application_plugin_read import _plugin
 
@@ -23,8 +28,12 @@ pytestmark = pytest.mark.integration
     ["success", "rejected", "lost_ack", "cleanup_pending", "stage_refused", "observer_failed"],
 )
 async def test_dropped_skill_files_follow_acknowledged_update_commit(
-    async_session, test_user, monkeypatch, tmp_path, outcome
-):
+    async_session: AsyncSession,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    outcome: str,
+) -> None:
     monkeypatch.setattr(settings, "plugins_users_path", str(tmp_path / "plugins"))
     monkeypatch.setattr(settings, "skills_users_path", str(tmp_path / "skills"))
     monkeypatch.setattr("src.domains.skills.cache.SkillsCache.invalidate_and_reload", AsyncMock())
@@ -47,7 +56,7 @@ async def test_dropped_skill_files_follow_acknowledged_update_commit(
         )
     commit = async_session.commit
 
-    async def controlled_commit():
+    async def controlled_commit() -> None:
         if outcome == "rejected":
             raise IntegrityError("commit", {}, ValueError("refused"))
         await commit()
@@ -59,7 +68,7 @@ async def test_dropped_skill_files_follow_acknowledged_update_commit(
     if outcome == "observer_failed":
         from src.domains.plugins.import_hooks import PluginImportHooks
 
-        def observer_refused(_row):
+        def observer_refused(_row: object) -> None:
             raise RuntimeError("post-commit observer failed")
 
         with pytest.raises(RuntimeError):
@@ -74,7 +83,7 @@ async def test_dropped_skill_files_follow_acknowledged_update_commit(
         assert len(retained) == 1 and ".lia-removal" in retained[0].parts
     elif outcome == "cleanup_pending":
 
-        def cleanup_refused(_moves):
+        def cleanup_refused(_moves: tuple[RemovalMove, ...]) -> None:
             raise PermissionError("private quarantine cleanup refused")
 
         monkeypatch.setattr("src.domains.plugins.dropped_files.cleanup_quarantine", cleanup_refused)
@@ -85,9 +94,8 @@ async def test_dropped_skill_files_follow_acknowledged_update_commit(
         assert len(retained) == 1 and ".lia-removal" in retained[0].parts
         assert await async_session.get(type(skill), skill_id) is None
     elif outcome == "stage_refused":
-        from src.domains.plugins.dropped_files import stage_moves
 
-        def stage_then_refuse(moves):
+        def stage_then_refuse(moves: tuple[RemovalMove, ...]) -> None:
             stage_moves(moves)
             raise PermissionError("stage failed after moving a member")
 

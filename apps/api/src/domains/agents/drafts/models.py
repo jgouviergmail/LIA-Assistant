@@ -183,6 +183,14 @@ class EmailReplyDraftInput(_EmailWithFiles):
     original_subject: str = Field(default="", description="Original email subject")
     original_from: str = Field(default="", description="Original sender")
     thread_id: str | None = Field(default=None, description="Thread ID to maintain")
+    already_answered: bool = Field(
+        default=False,
+        description="The mailbox says the person already answered the original (ADR-379)",
+    )
+    answered_at: str | None = Field(
+        default=None,
+        description="When they did (ISO 8601 with its offset), when the mailbox dates it",
+    )
 
 
 class EmailForwardDraftInput(_EmailWithFiles):
@@ -530,6 +538,9 @@ class TaskDraftInput(BaseDraftInput):
     notes: str | None = Field(default=None, description="Task notes/description")
     due: str | None = Field(default=None, description="Due date (RFC 3339 format)")
     task_list_id: str = Field(default="@default", description="Task list ID")
+    task_list_name: str | None = Field(
+        default=None, description="The name of that list, which the card shows"
+    )
     importance: str | None = Field(default=None, description="How much it matters (To Do)")
     reminder: str | None = Field(default=None, description="When it reminds (To Do)")
     repeat: str | None = Field(default=None, description="How it repeats (To Do)")

@@ -6,14 +6,14 @@ Word file's archive is held to its budget first. A Markdown says it is one, and 
 out. A slide deck reads as its text, a workbook and a CSV as tables: rows of words the page lays
 out, nothing it runs. The peek a generated document shows stops at 24 paragraphs and 7 rows; a
 person consulting a file reads it up to the bounds below, the cut said. A text that is no UTF-8 is
-read in Windows' own letters, which is what a spreadsheet exports here: reading it wrong costs a
-wrong letter on the screen, and it is never written back (``drive_text`` refuses it).
+read in Windows' own letters, which is what a spreadsheet exports here (``core.text_decoding``,
+the door the knowledge spaces' readers ask too): reading it wrong costs a wrong letter on the
+screen, and it is never written back (``drive_text`` refuses it).
 """
 
 from __future__ import annotations
 
 import asyncio
-import codecs
 import csv
 import json
 from dataclasses import asdict, replace
@@ -39,6 +39,7 @@ from src.core.document_types import (
     plain_type,
     reading_type,
 )
+from src.core.text_decoding import decode_text
 from src.domains.attachments.preview import DocumentPreview, PreviewUnavailable
 from src.domains.connectors.clients.office_files import (
     OfficeContentRefusedError,
@@ -52,8 +53,6 @@ from src.domains.workbench.errors import NOT_SUPPORTED_BY_PROVIDER, refuse
 
 #: What a page draws; an SVG is a document that runs where it is opened, HEIC no browser reads.
 _SHOWN_IMAGES: Final = frozenset({"image/png", "image/jpeg", "image/gif", "image/webp"})
-#: Windows' own letters, what a French spreadsheet exports as CSV.
-_WINDOWS_LETTERS: Final = "cp1252"
 #: What tables travel as: the page lays them out, and only this type says it may.
 _SHEETS_MEDIA_TYPE: Final = "application/json"
 _TEXT_MEDIA_TYPE: Final = "text/plain"
@@ -142,20 +141,11 @@ async def _read(data: bytes, kind: str) -> DocumentPreview:
         )
         return _tables(sheets, more)
     kept = data[:WORKBENCH_READING_TEXT_MAX_BYTES]
-    read = _words(_letters_of(kept), cut=len(data) > len(kept))
+    # A letter the bound cut is no reason to read the text otherwise: `cut`.
+    read = _words(decode_text(kept, cut=True), cut=len(data) > len(kept))
     if kind == CSV_TYPE:
         return _table_of(read)
     return replace(read, media_type=MARKDOWN_TYPE) if kind == MARKDOWN_TYPE else read
-
-
-def _letters_of(data: bytes) -> str:
-    """What a text says: a letter the bound cut is no reason to read it otherwise."""
-    if data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
-        return codecs.getincrementaldecoder("utf-16")("replace").decode(data, final=False)
-    try:
-        return codecs.getincrementaldecoder("utf-8-sig")("strict").decode(data, final=False)
-    except UnicodeDecodeError:
-        return data.decode(_WINDOWS_LETTERS, errors="replace")
 
 
 def _words(text: str, *, cut: bool = False) -> DocumentPreview:

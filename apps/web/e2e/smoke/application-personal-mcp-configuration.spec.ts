@@ -27,6 +27,9 @@ for (const { width, lost } of [{ width: 1280, lost: false }, { width: 320, lost:
             : { server_id: null, creating: true, requires_private_browser_form: true } } } };
     }
     await mockApi([
+      // The create form offers the known servers; this journey types its own address beside them.
+      { url: '**/api/v1/mcp/servers/known', json: { servers: [{ key: 'notion', name: 'Notion',
+        url: 'https://mcp.notion.com/mcp', auth_type: 'oauth2', domain_description: 'Notion workspace.' }] } },
       { url: '**/api/v1/agents/hitl/pending', handler: async route => {
         await route.fulfill({ json: confirmed ? null : {
           message_id: 'mcp-configuration-hitl', interrupt_ts: new Date().toISOString(),

@@ -5,8 +5,9 @@ reconnections, the turns and the end may each land on a different one, so the
 record is in Redis. The claim is the codebase's one claim primitive
 (``infrastructure/locks/redis_claim``: ``SET NX`` to take, compare-and-delete
 on the OWNER token to release — never an unconditional ``DELETE``). The record
-travels under a sibling key with the same TTL, and the claim is the authority:
-a record whose claim expired is no session.
+travels under a sibling key with the same TTL. Every Redis transition is
+atomic and owner-checked. SQL retains the discussion reservation even when
+the Redis claim expires; expiry never proves a writer has stopped.
 
 The instance cap is a sorted set scored by expiry, pruned on read: a soft
 bound sized for the delegated-turn load, never a security boundary.
@@ -35,7 +36,8 @@ from src.core.constants import (
     REDIS_KEY_LIVE_STANDBY,
     REDIS_KEY_LIVE_TOOL_BUDGET_PREFIX,
 )
-from src.infrastructure.locks.redis_claim import refresh_claim, release_claim, try_claim
+from src.core.conversation_execution import ExecutionRevoked
+from src.domains.live import session_scripts
 
 _RECORD_SUFFIX: Final = ":record"
 #: The turns of a DIRECT session, kept until its end (ADR-301): a Redis LIST
@@ -105,11 +107,35 @@ class LiveSessionRecord:
     awake_seconds: int = 0
     standbys: int = 0
     provider_conversation_ids: tuple[str, ...] = ()
+    #: LIA's business target, distinct from the provider's conversation ids.
+    #: All absent on a legacy record; binding it to Main is a server operation.
+    lia_conversation_id: uuid.UUID | None = None
+    lia_conversation_revision: int | None = None
+    lia_activity_id: uuid.UUID | None = None
+    record_revision: int = 0
+
+    def __post_init__(self) -> None:
+        """A partial or malformed durable binding never silently becomes Main."""
+        if type(self.record_revision) is not int or self.record_revision < 0:
+            raise ValueError("Invalid Live record revision")
+        binding = (self.lia_conversation_id, self.lia_conversation_revision, self.lia_activity_id)
+        if all(value is None for value in binding):
+            return
+        if (
+            not isinstance(self.lia_conversation_id, uuid.UUID)
+            or not isinstance(self.lia_activity_id, uuid.UUID)
+            or type(self.lia_conversation_revision) is not int
+            or self.lia_conversation_revision < 0
+        ):
+            raise ValueError("Invalid Live discussion binding")
 
     def to_json(self) -> str:
         """The record as stored."""
         payload: dict[str, Any] = asdict(self)
         payload["user_id"] = str(self.user_id)
+        for name in ("lia_conversation_id", "lia_activity_id"):
+            value = getattr(self, name)
+            payload[name] = str(value) if value is not None else None
         for name in ("started_at", "expires_at", "nonce_until", "standby_since", "awake_since"):
             value = getattr(self, name)
             payload[name] = value.isoformat() if value else None
@@ -222,6 +248,18 @@ class LiveSessionRecord:
             provider_conversation_ids=tuple(
                 str(item) for item in payload.get("provider_conversation_ids") or ()
             ),
+            lia_conversation_id=(
+                uuid.UUID(payload["lia_conversation_id"])
+                if payload.get("lia_conversation_id") is not None
+                else None
+            ),
+            lia_conversation_revision=payload.get("lia_conversation_revision"),
+            lia_activity_id=(
+                uuid.UUID(payload["lia_activity_id"])
+                if payload.get("lia_activity_id") is not None
+                else None
+            ),
+            record_revision=payload.get("record_revision", 0),
         )
 
 
@@ -252,12 +290,17 @@ class LiveSessionStore:
         return f"{REDIS_KEY_LIVE_TOOL_BUDGET_PREFIX}{session_id}"
 
     async def append_turns(
-        self, user_id: uuid.UUID, rows: list[tuple[str, str]], *, ttl_seconds: int, max_rows: int
+        self,
+        record: LiveSessionRecord,
+        rows: list[tuple[str, str]],
+        *,
+        ttl_seconds: int,
+        max_rows: int,
     ) -> int:
         """Keep the exchange of a DIRECT session for its closing (ADR-301).
 
         Args:
-            user_id: The account.
+            record: The original session and its private owner token.
             rows: ``(role, text)`` in order.
             ttl_seconds: The record's remaining life — the list dies with it.
             max_rows: The bound; rows past it are dropped and counted.
@@ -267,49 +310,64 @@ class LiveSessionStore:
         """
         if not rows:
             return 0
-        key = self._turns_key(user_id)
-        held = int(await self._redis.llen(key))
-        room = max(0, max_rows - held)
-        kept = rows[:room]
-        if kept:
-            await self._redis.rpush(key, *(json.dumps([role, text]) for role, text in kept))
-            await self._redis.expire(key, max(1, ttl_seconds))
-        return len(kept)
+        kept = int(
+            await self._redis.eval(
+                session_scripts.APPEND,
+                2,
+                self._claim_key(record.user_id),
+                self._turns_key(record.user_id),
+                record.token,
+                str(max(1, ttl_seconds)),
+                str(max_rows),
+                *(json.dumps([role, text]) for role, text in rows),
+            )
+        )
+        if kept < 0:
+            raise ExecutionRevoked()
+        return kept
 
-    async def turns(self, user_id: uuid.UUID) -> list[tuple[str, str]]:
+    async def turns(self, record: LiveSessionRecord) -> list[tuple[str, str]]:
         """The turns a DIRECT session kept, in order."""
-        raw = await self._redis.lrange(self._turns_key(user_id), 0, -1)
+        raw = await self._read_list(record, self._turns_key(record.user_id))
         return [_turn(item) for item in raw]
 
-    async def drain_turns(self, user_id: uuid.UUID, *, max_rows: int) -> list[tuple[str, str]]:
+    async def drain_turns(
+        self, record: LiveSessionRecord, *, max_rows: int
+    ) -> list[tuple[str, str]]:
         """Take the kept turns and remove them, in ONE command (ADR-329).
 
-        ``LMPOP`` takes and removes atomically: a turn kept after the drain
+        The owner-checked script takes and removes atomically: a turn kept after the drain
         belongs to the next connection, and two standbys racing never relay
         a row twice. The list never holds more than ``max_rows``.
         """
-        popped = await self._redis.lmpop(
-            1, self._turns_key(user_id), direction="LEFT", count=max(1, max_rows)
+        raw = await self._redis.eval(
+            session_scripts.DRAIN,
+            2,
+            self._claim_key(record.user_id),
+            self._turns_key(record.user_id),
+            record.token,
+            str(max(1, max_rows)),
         )
-        # ``[key, [items]]``, or None on an empty list.
-        items = popped[1] if popped else []
-        return [_turn(item) for item in items] if isinstance(items, list) else []
+        if not isinstance(raw, list):
+            raise ExecutionRevoked()
+        return [_turn(item) for item in raw]
 
-    async def append_relay(
-        self, user_id: uuid.UUID, fate: str, recap: str | None, *, ttl_seconds: int
-    ) -> None:
-        """Keep the fate of a standby's relay for the closing card (ADR-329)."""
-        key = self._relays_key(user_id)
-        await self._redis.rpush(key, json.dumps([fate, recap]))
-        await self._redis.expire(key, max(1, ttl_seconds))
-
-    async def relays(self, user_id: uuid.UUID) -> list[tuple[str, str | None]]:
-        """The fates of the standbys' relays, in order."""
+    async def relays(self, record: LiveSessionRecord) -> list[tuple[str, str | None]]:
+        """Read older standby results already present in this record's Redis list."""
         rows: list[tuple[str, str | None]] = []
-        for item in await self._redis.lrange(self._relays_key(user_id), 0, -1):
+        for item in await self._read_list(record, self._relays_key(record.user_id)):
             fate, recap = json.loads(item.decode() if isinstance(item, bytes) else item)
             rows.append((str(fate), str(recap) if recap else None))
         return rows
+
+    async def _read_list(self, record: LiveSessionRecord, key: str) -> list[bytes | str]:
+        """Read the named session's side list atomically with its ownership check."""
+        raw = await self._redis.eval(
+            session_scripts.READ_LIST, 2, self._claim_key(record.user_id), key, record.token
+        )
+        if not isinstance(raw, list) or not all(isinstance(item, (str, bytes)) for item in raw):
+            raise ExecutionRevoked()
+        return raw
 
     async def claim(self, record: LiveSessionRecord, *, ttl_seconds: int) -> bool:
         """Hold the account's one session slot; False when it is already held.
@@ -326,17 +384,19 @@ class LiveSessionStore:
             Exception: Whatever the cache raised — a session must not open on
                 an unknown claim state.
         """
-        taken = await try_claim(
-            self._redis, self._claim_key(record.user_id), record.token, ttl_seconds=ttl_seconds
+        return bool(
+            await self._redis.eval(
+                session_scripts.CLAIM,
+                4,
+                self._claim_key(record.user_id),
+                self._record_key(record.user_id),
+                self._turns_key(record.user_id),
+                self._relays_key(record.user_id),
+                record.token,
+                record.to_json(),
+                str(ttl_seconds),
+            )
         )
-        if not taken:
-            return False
-        await self._redis.set(self._record_key(record.user_id), record.to_json(), ex=ttl_seconds)
-        # A session that died without its end (a killed tab) may have left
-        # its turns and its relays' fates behind until their TTL: this session
-        # starts with none.
-        await self._redis.delete(self._turns_key(record.user_id), self._relays_key(record.user_id))
-        return True
 
     async def extend(self, record: LiveSessionRecord, *, ttl_seconds: int) -> bool:
         """Rewrite the record under its claim, owner-checked, with a new life.
@@ -354,24 +414,21 @@ class LiveSessionStore:
             Exception: Whatever the cache raised — an extension on an unknown
                 claim state is refused, never assumed.
         """
-        refreshed = await refresh_claim(
-            self._redis, self._claim_key(record.user_id), record.token, ttl_seconds=ttl_seconds
+        return bool(
+            await self._redis.eval(
+                session_scripts.EXTEND,
+                5,
+                self._claim_key(record.user_id),
+                self._record_key(record.user_id),
+                self._turns_key(record.user_id),
+                self._relays_key(record.user_id),
+                self._tool_budget_key(record.session_id),
+                record.token,
+                replace(record, record_revision=record.record_revision + 1).to_json(),
+                str(ttl_seconds),
+                str(record.record_revision),
+            )
         )
-        if not refreshed:
-            return False
-        await self._redis.set(self._record_key(record.user_id), record.to_json(), ex=ttl_seconds)
-        # Every key of the session follows the record's new life (a no-op on a
-        # key the session never wrote): the kept turns, the relays' fates and
-        # the lookup budget were given the life the record had when they were
-        # written, and a session extended — or asleep — past it would lose
-        # its words, its fates, or find its budget reset to zero.
-        for key in (
-            self._turns_key(record.user_id),
-            self._relays_key(record.user_id),
-            self._tool_budget_key(record.session_id),
-        ):
-            await self._redis.expire(key, ttl_seconds)
-        return True
 
     async def rewrite(self, record: LiveSessionRecord, *, now: datetime) -> bool:
         """Rewrite the record under its claim with the life it still has (a nonce written or consumed).
@@ -387,11 +444,10 @@ class LiveSessionStore:
 
     async def get(self, user_id: uuid.UUID) -> LiveSessionRecord | None:
         """The account's session, or None when no claim is held."""
-        claim = await self._redis.get(self._claim_key(user_id))
-        if claim is None:
-            return None
-        raw = await self._redis.get(self._record_key(user_id))
-        if raw is None:
+        raw = await self._redis.eval(
+            session_scripts.READ, 2, self._claim_key(user_id), self._record_key(user_id)
+        )
+        if not isinstance(raw, (str, bytes)):
             return None
         return LiveSessionRecord.from_json(raw.decode() if isinstance(raw, bytes) else raw)
 
@@ -406,12 +462,17 @@ class LiveSessionStore:
             True when the claim was this caller's and is now released (the
             record goes with it); False when a successor holds it.
         """
-        released = await release_claim(self._redis, self._claim_key(user_id), token)
-        if released:
-            await self._redis.delete(
-                self._record_key(user_id), self._turns_key(user_id), self._relays_key(user_id)
+        return bool(
+            await self._redis.eval(
+                session_scripts.RELEASE,
+                4,
+                self._claim_key(user_id),
+                self._record_key(user_id),
+                self._turns_key(user_id),
+                self._relays_key(user_id),
+                token,
             )
-        return released
+        )
 
     async def consume_tool_budget(self, session_id: str, *, limit: int, ttl_seconds: int) -> bool:
         """Count one lookup of a DIRECT session against its budget (ADR-300 wave 4).

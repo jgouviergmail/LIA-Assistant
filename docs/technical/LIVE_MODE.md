@@ -109,14 +109,18 @@ from its configuration at the listing, for information), **`VendorBilling`**
 the models charged for and the duration under the conversation id the wire
 named; the end response carries it as `vendor_bill`, the banner tells it
 ONCE and it is recorded nowhere) and **`AgentSyncing`** (a provider whose sessions run
-on an AGENT of the person's prepares it before the mint: the prompt-override
-permission merged into the agent's own overrides block, LIA's client tools
-created once per fingerprint of the declarations and attached as EXACTLY the
-session's set — the person's own tools and the other set of LIA's detached,
-never deleted (ADR-373) — what LIA holds is kept on the connector's metadata,
-a NEW dict). **At most one set per KIND lives in the
+on an AGENT of the person's prepares it before the mint — at the start, at
+every wake and at every reconnection (`_remint`, the session's own setup):
+the prompt-override permission merged into the agent's own overrides block,
+LIA's client tools recorded once per fingerprint of the BODIES the workspace
+is sent (`set_bodies`: the timeout included), held against what the workspace
+serves before they are attached, and attached as EXACTLY the session's set —
+the person's own tools and the other set of LIA's detached, never deleted
+(ADR-373) — what LIA holds is kept on the connector's metadata, a NEW dict).
+**At most one set per KIND lives in the
 workspace** (review 2026-09-20): a new fingerprint of the delegation set or
-of the direct set — a renamed description, a tool a release added — retires
+of the direct set — a renamed description, a tool a release added, a raised
+timeout — retires
 the set that kind held before, taken off the agent then released without
 force (ADR-373's sweep, below), the phone's own rule on drift; the sets used to accumulate for ever,
 fifty-odd tools per change, which is the orphan problem in another form. And a
@@ -350,14 +354,23 @@ instance's) — is released WITHOUT force once detached (`_sweep` →
 `client.release_tool`): a tool another agent still holds answers 409 and is
 kept; `live_agent_tools_swept_total{outcome}` counts freed, in_use and refused.
 Scoped to what the agent carried, never a workspace scan by name, which would
-free the set a sibling instance on the same key holds detached. The workspace
-is listed (`client.list_tools`: client tools, paginated, bounded by
-`ELEVENLABS_TOOLS_LIST_MAX_PAGES`) only when something was left, and an
-unreadable one skips the sweep, never the session. An attach refused because
-the workspace lost a tool of the set (a portal deletion, a sibling's sweep, a
-hand cleanup) is healed once (`_attach`): the lost tools are re-created in
-their place and the attach retried; any other refusal still refuses the start,
-the set the call created removed first.
+free the set a sibling instance on the same key holds detached.
+
+**Every opening finds the tools exact** (ADR-373 amendment 2026-11-11, owner
+decision: never an agent with tools out of date or incomplete). A recorded
+set is held against the workspace's client tools (`client.list_tools("client")`,
+paginated, bounded by `ELEVENLABS_TOOLS_LIST_MAX_PAGES`) BEFORE it is attached,
+through the door the phone shares (`telephony/workspace_tools.py`): a tool
+edited on the portal is rewritten in place under its id (`PATCH /tools/{id}`
+replaces the config, measured), a tool the workspace lost — a portal deletion,
+a sibling's sweep, a hand cleanup; a forced delete even takes it off the agent
+silently — is re-created in its position, and every repair is counted
+(`live_agent_tools_repaired_total{surface="live", reason}`). A workspace that
+cannot be read, or a repair the vendor refuses, refuses the opening; a refused
+attach removes the tools the call created. The verification's listing serves
+the sweep; a set created by the call itself is exact by construction and lists
+nothing, its sweep reads the workspace only when something was left, and an
+unreadable one there skips the sweep, never the session.
 
 **No cue reaches the conversation** (ADR-373 § 7). The vendor keeps in its
 transcript the tags its model wrote, unspoken. On a `cues` session
@@ -445,7 +458,7 @@ stateDiagram-v2
 | `providers/protocol.py` | `LiveProvider` (`connection`, `delegation_wire`, `billing` — `tariff` or `vendor` —, `default_model`, models, voices, `knows_voice`, `thinking_levels_of`, `capabilities_of`, `build_setup`, `mint`, `sample_voice`, `probe`), `OfferExchanging` (`exchange_offer`) for `offer` connections, `VendorBilling` (`conversation_bill`) for a `vendor`-billed provider, `AgentSyncing` (`sync_agent`) for a provider whose sessions run on the person's agent, and the setup-inputs pair (`setup_inputs_to_dict` / `setup_inputs_from_dict`, pinned by a round-trip equality test — a DIRECT session keeps `direct_tools` and no `tool_declaration`). `LiveModelCapabilities` gained `direct_tools` and `portal_voice` (wave 4), then `vendor_billed` (2026-09-20). |
 | `providers/gemini.py` | Gemini: the ephemeral token (`uses=1`, constrained), the documented capability rows per family, the vendored voices, the TTS sample. The listing lives in `infrastructure/llm/providers/gemini_live_listing.py`, shared with the API-key verifier so `connectors` never imports `live`. **No `enableAffectiveDialog`, on purpose** (measured 2026-09-19, see below; a negative test pins it). |
 | `providers/openai_live.py`, `providers/openai_live_socket.py` | GPT-Live: the `session` object with `delegation: {type: client}`, the nonce as credential, the offer exchange (`POST /v1/live/sessions`), the twelve vendored voices, the probe and the sample over a server-side WebSocket (input silence at real-time pace, the sentence through an instruction append, the continuous output trimmed by `infrastructure/media/pcm.py`). The listing lives in `infrastructure/llm/providers/openai_live_listing.py` (a transcription model under the live prefix is dropped). |
-| `providers/elevenlabs_live.py` | ElevenLabs Agents (wave 4): the agents as models (`label` = the agent's name; the listing in `infrastructure/llm/providers/elevenlabs_live_listing.py`, shared with the key verifier so `connectors` imports neither `live` nor `telephony`), the initiation frame with the prompt and an empty greeting, the signed URL as credential, `expression_dialect` (the agent's speaking engine), `sync_agent` (the frame's permission merged, the default persona off and the palette where they drifted, client tools by fingerprint, `tool_ids` = EXACTLY this session's set, what LIA left released without force, a lost set healed once), the probe over aiohttp after granting the frame's permission, no sample (`portal_voice`). The agent doors it needs (`get_agent`, `signed_url`, `patch_agent`, `create_tool`, `set_agent_tool_ids`, `list_tools`, `release_tool`) are the phone's `telephony/client.py`. |
+| `providers/elevenlabs_live.py` | ElevenLabs Agents (wave 4): the agents as models (`label` = the agent's name; the listing in `infrastructure/llm/providers/elevenlabs_live_listing.py`, shared with the key verifier so `connectors` imports neither `live` nor `telephony`), the initiation frame with the prompt and an empty greeting, the signed URL as credential, `expression_dialect` (the agent's speaking engine), `sync_agent` (the frame's permission merged, the default persona off and the palette where they drifted, client tools by fingerprint of their bodies, a recorded set held against the workspace and repaired before the attach, `tool_ids` = EXACTLY this session's set, what LIA left released without force), the probe over aiohttp after granting the frame's permission, no sample (`portal_voice`). The agent doors it needs (`get_agent`, `signed_url`, `patch_agent`, `create_tool`, `update_tool`, `set_agent_tool_ids`, `list_tools`, `release_tool`) are the phone's `telephony/client.py`, and the verification of a set the phone's `telephony/workspace_tools.py`. |
 | `direct_mandate.py`, `tool_door.py` | The DIRECT session (wave 4, above): the mandate, the declarations, the context block; the tool door. |
 | `session_store.py` | `LiveSessionRecord` (claim + record, `live:session`, USER_RUNTIME; TTL = cap + `LIVE_SESSION_RECORD_GRACE_SECONDS` awake, the standby bound + the same grace asleep — `life_seconds`; `nonce` / `nonce_until` for an offer connection; `mode`; the standby fields `standby_since`, `awake_since`, `awake_seconds`, `standbys`, `provider_conversation_ids`, pinned by the round-trip test; `rewrite` under the claim), the active set (`live:active`, GLOBAL), the standby set (`live:standby`, GLOBAL, the gauge's source), the lookup budget of a direct session (`live_tools:<session>`, USER_RUNTIME), a direct session's kept turns (drained atomically at a standby) and the fates of its standby relays (a list of its own). |
 | `standby.py`, `session_end.py`, `setup_render.py` | The standby and the wake (ADR-329, above); the end, measured on the time awake with the sleeps named; the setup rendered at an instant, ONE function for the start and every wake. Extracted from `service.py`, which only routes to them. |
@@ -531,6 +544,40 @@ can end on: `ended`, `expired`, `idle_timeout`, `hidden`, `provider_closed`, `re
 the web types and the six locales, held
 equal by `tests/unit/domains/live/test_vocabulary_crosses_the_stack.py` and
 `lib/live/__tests__/live-labels.test.ts`.
+
+## Discussion binding and recovery
+
+The opening reserves its discussion and revision in PostgreSQL before contacting
+the voice provider. Redis retains the same binding; a record from an earlier
+release binds to Main once. The provider's conversation identifiers never name
+a LIA discussion. Direct-session context, voice archives and delegated turns
+use that original binding throughout reconnect, standby, wake and closing.
+
+Each request and background relay owns a separate durable contribution. Closing
+refuses new requests but retains the discussion until every contribution has
+actually joined. A reset or deletion cannot retire that source in the meantime.
+A missing Redis record releases an idle reservation only when SQL confirms no
+unfinished work. A completed SQL close can retry removal of its exact Redis
+record. Neither a TTL nor the original worker's absence proves that other
+workers have stopped.
+
+A standby relay commits its result under the same reservation lock as closing. A recap waiting for the card is encrypted and removed from the work record when the card takes it. A relay that finishes later redraws that same card with the recap and its recorded cost. The work record makes a lost commit acknowledgment safe to retry. Browser synthesis and direct lookups bill the original discussion through the [discussion accounting contract](SECONDARY_CONVERSATIONS.md#target-and-storage).
+
+An unanswered provider operation enters recovery; it is never replayed. From
+`apps/api`, operators can inspect its private activity UUID and original worker
+boot UUID using `python -m scripts.data.recover_live_session inspect --activity
+<activity-uuid> --worker <original-boot-uuid>`. The same command with `quarantine`
+withdraws new work. Inspect lists every unfinished worker boot. Only after each
+listed worker has been stopped and verified may `close` be used, supplying one
+`--confirm-worker-stopped <boot-uuid>` for every listed boot. Closing releases
+the reservation, not a claim that the provider succeeded; unknown external
+results and an interrupted transcript are not reconstructed or replayed.
+
+Upgrade rollout must drain workers running the earlier code before activating
+the new lifecycle: those workers do not register durable contributions. Apply
+the migration before starting the new API workers. Rolling back the work table
+is refused while a Live reservation is open (even idle) or any contribution
+remains unfinished.
 
 ## What the live mode does NOT do
 

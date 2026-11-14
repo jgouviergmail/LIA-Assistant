@@ -83,7 +83,9 @@ l'endroit où l'on choisit les raccourcis n'aidant personne.
 d'administration épinglée par un super-utilisateur qui ne l'est plus serait un
 lien vers un panneau absent : filtrée sur `is_superuser`. Les autres portes
 (drapeaux d'instance) restent celles du panneau — le dock ne consulte pas
-`/config` pour ne pas doubler une requête sur chaque écran.
+`/config` pour ne pas doubler une requête sur chaque écran. *(Amendée le
+2026-11-12, en fin de document : le dock applique toutes les portes du shell,
+toujours sans requête.)*
 
 **D8 — Esthétique et cibles.** Une capsule verre (`bg-background/85
 backdrop-blur-xl`, bord `border-border/60`), 44 px par lien, l'icône de la
@@ -167,3 +169,41 @@ Mesurées le 2026-09-09 sur l'instantané livré, du plus proche au plus large :
   `/auth/me` et par la route comme `["theme"]`, jamais un 500. ALL PASS.
 - **Documentation** — `task lint:docs:preview` sans dérive, index et
   décomptes réalignés par `task release:sync-counts`, `AGENTS.md` régénéré.
+
+## Amendement 2026-11-12 — le dock ne dessine que ce que le compte peut ouvrir
+
+D7 laissait au volet les portes de capacité, pour ne pas doubler une requête
+sur chaque écran. Depuis qu'une section fermée par l'interrupteur de l'opérateur
+n'est plus listée nulle part (ADR-280), ce reste se voyait : un raccourci
+épinglé avant la coupure restait dans le dock, menait au message d'absence, et
+le sélecteur — qui liste ce que le shell montre — n'offrait aucune case pour le
+retirer tout en le comptant dans « N / 5 ».
+
+- **Le dock applique les portes du shell** (`openableShortcutTokens`, donc
+  `isSectionAvailable`) : le rôle du compte, les capacités, l'appareil. La
+  raison de D7 tient toujours — il ne fait AUCUNE requête : il lit la
+  configuration que la mise en page a déjà lue (`AppConfigSeedContext`,
+  `usePassiveSettingsAvailability`), par la fonction même que la page applique
+  à sa propre lecture (`settingsCapabilityVerdicts`).
+- **Ce qu'il ne peut pas savoir reste ouvert** : tant que cette configuration
+  n'a pas répondu, et pour l'accord du panneau de debug, qui coûterait une
+  requête. Un filtre placé avant le volet est plus permissif que lui, jamais
+  moins : le doute ne cache rien. Ce qu'il sait, il le lit comme la page — le
+  rôle du compte, l'appareil sur lequel il tourne.
+- **L'épinglage reste au compte** (D1) : la section fermée n'est plus dessinée,
+  elle n'est pas retirée de `users.settings_shortcuts`, et revient à sa place
+  avec ce qui l'avait fermée.
+- **Le sélecteur compte ce que le dock dessine** : le compteur, le plafond et
+  l'indication « rien d'épinglé » lisent la même liste. Un épinglage que
+  personne ne voit ne bloque donc plus une case. Il reste stocké tant qu'il y a
+  de la place, et cède la sienne — le dernier d'abord — quand la personne prend
+  la dernière (`nextShortcutTokens`) : la liste envoyée respecte toujours le
+  plafond que la route impose, et le choix que la personne vient de faire ne
+  cède jamais.
+
+Deux limites, écrites : la configuration de la mise en page est lue une fois
+par chargement, donc une capacité que l'opérateur rouvre ne revient dans le dock
+qu'au rechargement suivant (comme une destination de l'en-tête) ; et un
+raccourci vers le panneau de debug dont l'accord a été retiré reste dessiné, le
+dock ne pouvant le savoir sans requête. Preuves : ADR-280, amendement du
+2026-11-12.

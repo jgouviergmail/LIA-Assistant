@@ -1,4 +1,7 @@
-/** Authored LIA color zones for objects and stateful shapes; source geometry is Lucide ISC. */
+/**
+ * Authored LIA color zones for objects and stateful shapes on Lucide ISC geometry,
+ * and the objects LIA draws outright where no collection has them.
+ */
 function splitContour(entry, { node, paint, clip }) {
   return (
     node(entry, {
@@ -41,13 +44,13 @@ function pin(context) {
   );
 }
 
-function recordingDisc({ draw }) {
-  // The caller owns the recording ring's live red/pulse state. Its center
-  // remains genuinely colored even when that ring follows a neutral color.
+function recordingDisc({ draw, gradient }) {
+  // The recording dot is red by convention, at rest as well as live. The ring
+  // stays the caller's: recording, it takes the destructive color and the pulse.
   return (
     draw(0, { fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8 }) +
-    '<circle cx="12" cy="12" r="7.2" fill="#6267BB" stroke="#2875B5" stroke-width="1.5"/>' +
-    draw(1, { fill: '#F8C86A', stroke: '#2875B5', 'stroke-width': 1.6 })
+    `<circle cx="12" cy="12" r="6.5" fill="${gradient('record', '#FF7B72', '#E5383B')}" stroke="none"/>` +
+    '<path d="M8.6 10.9a3.6 3.6 0 0 1 2.6-2.4" fill="none" stroke="#FFD3A8" stroke-width="1.3"/>'
   );
 }
 
@@ -173,4 +176,26 @@ export function renderSpecialArtwork(name, context) {
     draw: (index, extra) => node(data.node[index], extra),
     outline: () => gradient('outline', paint.primary, paint.secondary),
   });
+}
+
+/** A portable set: aerial, cabinet, loudspeaker, tuning knob and dial. */
+function radioSet({ gradient }) {
+  return (
+    '<path d="M8 8.5 16.5 2.8" fill="none" stroke="#2875B5" stroke-width="1.7"/>' +
+    '<circle cx="17" cy="2.6" r="1.3" fill="#F8C86A" stroke="#D28A2C" stroke-width="1"/>' +
+    `<rect x="2.5" y="8" width="19" height="13" rx="3" fill="${gradient('cabinet', '#C8EEFF', '#55A8EB')}" stroke="#2875B5" stroke-width="1.5"/>` +
+    `<circle cx="8.4" cy="14.5" r="3.7" fill="${gradient('speaker', '#D9B4FF', '#8854BA')}" stroke="#8854BA" stroke-width="1.2"/>` +
+    '<circle cx="8.4" cy="14.5" r="1.2" fill="#F9F6FC" stroke="none"/>' +
+    '<circle cx="16.6" cy="12.3" r="1.7" fill="#F8C86A" stroke="#D28A2C" stroke-width="1"/>' +
+    '<path d="M14.2 17.2h4.8" fill="none" stroke="#F9F6FC" stroke-width="1.6"/>'
+  );
+}
+
+// Drawn outright: no Lucide geometry is painted here, and none is claimed.
+const CONCEPT_RENDERERS = {
+  RadioSet: radioSet,
+};
+
+export function renderConceptArtwork(name, context) {
+  return Object.hasOwn(CONCEPT_RENDERERS, name) ? CONCEPT_RENDERERS[name](context) : null;
 }

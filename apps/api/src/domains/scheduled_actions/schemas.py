@@ -22,6 +22,8 @@ from pydantic import (
 from src.core.config import settings
 from src.core.constants import (
     OUT_OF_TURN_EXECUTION_MODE_DEFAULT,
+    PAGE_WATCH_CONTAINS_MAX_CHARS,
+    PAGE_WATCH_URL_MAX_CHARS,
     ROUTINE_MCP_PREAPPROVAL_MAX_SERVERS,
     ROUTINE_MCP_SERVER_KEY_MAX_LENGTH,
     SCHEDULED_ACTION_OCCURRENCES_PREVIEW,
@@ -36,12 +38,14 @@ from src.domains.scheduled_actions.models import (
     CONDITION_TYPE_CALENDAR_EVENT,
     CONDITION_TYPE_DOCUMENT_ADDED,
     CONDITION_TYPE_MAIL_MATCH,
+    CONDITION_TYPE_PAGE_CHANGE,
     CONDITION_TYPE_TASK_OVERDUE,
     CONDITION_TYPE_WEATHER_CHANGE,
     CONDITION_TYPES,
     ScheduledRunOutcome,
     TriggerKind,
 )
+from src.domains.scheduled_actions.page_watch import page_url_refusal
 from src.domains.scheduled_actions.recurrence_limits import routine_recurrence_limits
 from src.domains.scheduled_actions.trigger import (
     TriggerPlan,
@@ -49,6 +53,7 @@ from src.domains.scheduled_actions.trigger import (
     published_check_minutes,
     schedule_sentence,
 )
+from src.domains.scheduled_actions.webhooks import routine_webhook_url
 from src.domains.shared.mcp_preapproval import stored_server_keys
 
 # Weather-change kinds accepted by the condition (mirror of the briefing
@@ -65,9 +70,13 @@ CONDITION_PARAMS_READ_BY: dict[str, frozenset[str]] = {
     CONDITION_TYPE_MAIL_MATCH: frozenset({"query"}),
     CONDITION_TYPE_DOCUMENT_ADDED: frozenset(),
     CONDITION_TYPE_CALENDAR_EVENT: frozenset({"query", "within_hours"}),
+    CONDITION_TYPE_PAGE_CHANGE: frozenset({"url", "contains"}),
 }
 if set(CONDITION_PARAMS_READ_BY) != set(CONDITION_TYPES):  # pragma: no cover - boot guard
     raise RuntimeError("CONDITION_PARAMS_READ_BY must cover exactly CONDITION_TYPES")
+
+#: Every per-type parameter of a condition, ``until`` aside (read by every type).
+_CONDITION_PARAMS: tuple[str, ...] = ("kinds", "query", "within_hours", "url", "contains")
 
 
 class ConditionConfig(BaseModel):
@@ -81,7 +90,10 @@ class ConditionConfig(BaseModel):
     - ``document_added``: no params — fires on a Drive file newly in the
       recent list;
     - ``calendar_event``: ``within_hours`` (1–48, default 4) and optional
-      ``query`` matched against event titles.
+      ``query`` matched against event titles;
+    - ``page_change`` (ADR-387): ``url`` (required), a public page's address,
+      refused at the door when its spelling rules a public page out; optional
+      ``contains``, only the page's lines holding that text are watched.
 
     ``until`` — the last local day watched, that day included — applies to
     every type: a condition routine has no schedule, so this is its only end.
@@ -101,6 +113,23 @@ class ConditionConfig(BaseModel):
     )
     within_hours: int | None = Field(
         default=None, ge=1, le=48, description="calendar_event only: look-ahead window."
+    )
+    url: str | None = Field(
+        default=None,
+        max_length=PAGE_WATCH_URL_MAX_CHARS,
+        description=(
+            "page_change only (required): the public web page to watch, http(s). "
+            "Read by the system with no model; a run starts only for lines new on it."
+        ),
+    )
+    contains: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=PAGE_WATCH_CONTAINS_MAX_CHARS,
+        description=(
+            "page_change only (optional): only the page's lines containing this text "
+            "are watched, case-insensitive — e.g. a currency sign for a price."
+        ),
     )
     until: calendar_date | None = Field(
         default=None,
@@ -123,6 +152,50 @@ class ConditionConfig(BaseModel):
         """
         return sorted(set(kinds)) if kinds is not None else None
 
+    @field_validator("url")
+    @classmethod
+    def a_public_page_address(cls, url: str | None) -> str | None:
+        """The address trimmed, refused when its spelling rules a public page out.
+
+        No network call here (an API boundary): where the name resolves is
+        judged by every read, at every hop (ADR-387).
+
+        Args:
+            url: The address as sent.
+
+        Returns:
+            The address, trimmed; ``None`` stays ``None``.
+
+        Raises:
+            ValueError: ``url refused: <why>``.
+        """
+        if url is None:
+            return None
+        refusal = page_url_refusal(url)
+        if refusal is not None:
+            raise ValueError(f"url refused: {refusal}")
+        return url.strip()
+
+    @field_validator("contains")
+    @classmethod
+    def a_filter_that_says_something(cls, contains: str | None) -> str | None:
+        """The filter trimmed: a filter of blanks would watch every line, silently.
+
+        Args:
+            contains: The filter as sent.
+
+        Returns:
+            The filter, trimmed; ``None`` stays ``None``.
+
+        Raises:
+            ValueError: When it holds nothing but blanks.
+        """
+        if contains is None:
+            return None
+        if not contains.strip():
+            raise ValueError("contains is blank")
+        return contains.strip()
+
     @model_validator(mode="after")
     def validate_per_type(self) -> ConditionConfig:
         """Refuse unknown types and per-type nonsense at the API boundary."""
@@ -130,7 +203,7 @@ class ConditionConfig(BaseModel):
             raise ValueError(f"Unknown condition type: {self.type}")
         stray = [
             name
-            for name in ("kinds", "query", "within_hours")
+            for name in _CONDITION_PARAMS
             if getattr(self, name) is not None and name not in CONDITION_PARAMS_READ_BY[self.type]
         ]
         if stray:
@@ -140,6 +213,8 @@ class ConditionConfig(BaseModel):
             raise ValueError(f"Unknown weather kinds: {unknown}")
         if self.type == CONDITION_TYPE_MAIL_MATCH and not (self.query and self.query.strip()):
             raise ValueError("mail_match requires a query")
+        if self.type == CONDITION_TYPE_PAGE_CHANGE and not self.url:
+            raise ValueError("page_change requires a url")
         return self
 
     def stored(self) -> dict[str, object]:
@@ -211,6 +286,13 @@ class ScheduledActionCreate(BaseModel):
         default=False,
         description="True = propose via notification instead of executing.",
     )
+    notify_only_when_new: bool = Field(
+        default=False,
+        description=(
+            "True = a run that found nothing new is answered in the chat and not "
+            "notified. Refused together with requires_approval."
+        ),
+    )
     execution_mode: ExecutionMode = Field(
         default=OUT_OF_TURN_EXECUTION_MODE_DEFAULT,
         description="How LIA runs it: react (autonomous loop) or pipeline.",
@@ -236,29 +318,73 @@ class ScheduledActionCreate(BaseModel):
             self.trigger_kind.value,
             has_recurrence=self.recurrence is not None,
             has_condition=self.condition_config is not None,
+            proposes_first=self.requires_approval,
+        )
+        if refusal:
+            raise ValueError(refusal)
+        refusal = delivery_refusal(
+            requires_approval=self.requires_approval,
+            notify_only_when_new=self.notify_only_when_new,
         )
         if refusal:
             raise ValueError(refusal)
         return self
 
 
-def trigger_mode_refusal(kind: str, *, has_recurrence: bool, has_condition: bool) -> str | None:
+def delivery_refusal(*, requires_approval: bool, notify_only_when_new: bool) -> str | None:
+    """Why a routine cannot reach its owner both ways, or ``None`` when it can.
+
+    ONE rule for the create schema and the service's update (which sees the
+    stored half of the pair): a routine that proposes first always notifies —
+    its proposal IS the notification — so « only when there is something new »
+    would be stored and never read (ADR-265 amendment 2026-11-12 c).
+
+    Args:
+        requires_approval: Whether the resulting routine proposes first.
+        notify_only_when_new: Whether it asks to be told only of something new.
+
+    Returns:
+        The refusal, worded for the API caller, or ``None``.
+    """
+    if requires_approval and notify_only_when_new:
+        return (
+            "notify_only_when_new does not apply to a routine that proposes first: "
+            "its proposal is always notified"
+        )
+    return None
+
+
+def trigger_mode_refusal(
+    kind: str, *, has_recurrence: bool, has_condition: bool, proposes_first: bool = False
+) -> str | None:
     """Why a routine's fields do not match its mode, or ``None`` when they do.
 
     ONE rule for the create schema and the service's update (which sees the
     stored half of the pair the schema cannot): a time routine runs on its
     recurrence and carries no condition; a condition routine runs on the
-    system's checks and carries no recurrence (ADR-322). The same rule is the
-    table's CHECK constraint.
+    system's checks and carries no recurrence (ADR-322); a webhook routine runs
+    when its address is called and carries neither, and it never proposes first
+    — a proposal hands the run to the chat, which would never read the calls it
+    was started for (ADR-386). The same pairing is the table's CHECK constraint.
 
     Args:
         kind: The resulting ``trigger_kind``.
         has_recurrence: Whether the resulting row has a recurrence.
         has_condition: Whether the resulting row has a condition.
+        proposes_first: Whether the resulting routine proposes before running.
 
     Returns:
         The refusal, worded for the API caller, or ``None``.
     """
+    if kind == TriggerKind.WEBHOOK.value:
+        if has_recurrence or has_condition:
+            return (
+                "a webhook routine runs when its address is called: "
+                "it has no recurrence and no condition"
+            )
+        if proposes_first:
+            return "a webhook routine cannot propose first: the calls it serves would be lost"
+        return None
     if kind == TriggerKind.CONDITION.value:
         if not has_condition:
             return "condition_config is required when trigger_kind is condition"
@@ -304,6 +430,13 @@ class ScheduledActionUpdate(BaseModel):
     requires_approval: bool | None = Field(
         None, description="True = propose via notification instead of executing."
     )
+    notify_only_when_new: bool | None = Field(
+        None,
+        description=(
+            "True = a run that found nothing new is answered in the chat and not "
+            "notified (pair coherence with requires_approval enforced in the service)."
+        ),
+    )
     execution_mode: ExecutionMode | None = Field(
         None, description="react (autonomous loop) or pipeline; the next firing reads it."
     )
@@ -332,6 +465,24 @@ class ScheduledActionUpdate(BaseModel):
         if isinstance(data, dict) and "recurrence" in data and data["recurrence"] is None:
             raise ValueError("recurrence cannot be null — omit it to leave the schedule alone")
         return data
+
+    @field_validator("notify_only_when_new")
+    @classmethod
+    def refuse_an_explicit_null_delivery(cls, value: bool | None) -> bool | None:
+        """Refuse ``null`` for a column that holds a boolean: omit it to leave it alone.
+
+        Args:
+            value: The option as sent; the validator only runs when it was sent.
+
+        Returns:
+            The value, when it is a boolean.
+
+        Raises:
+            ValueError: When the option is present and null.
+        """
+        if value is None:
+            raise ValueError("notify_only_when_new cannot be null — omit it to leave it alone")
+        return value
 
     @model_validator(mode="after")
     def validate_against_routine_limits(self) -> ScheduledActionUpdate:
@@ -408,6 +559,7 @@ class ScheduledActionResponse(BaseModel):
     trigger_kind: str
     condition_config: dict | None
     requires_approval: bool
+    notify_only_when_new: bool
     execution_mode: str
     next_trigger_at: datetime | None
     is_enabled: bool
@@ -486,6 +638,23 @@ class ScheduledActionResponse(BaseModel):
         default_factory=list,
         description="MCP server keys this routine's runs may confirm for themselves.",
     )
+    # ADR-386: a webhook routine's address, composed from its key — read here
+    # and served only inside the URL. Its secret is NEVER read from the row (no
+    # field bears the column's name): it leaves the server once, in
+    # ``new_webhook_secret``, filled by the request that drew it.
+    webhook_key: str | None = Field(
+        default=None, exclude=True, description="The address key, served only in webhook_url."
+    )
+    webhook_url: str | None = Field(
+        default=None, description="webhook routines: the address another system calls."
+    )
+    new_webhook_secret: str | None = Field(
+        default=None,
+        description=(
+            "webhook routines: the secret just drawn, present ONLY in the answer of the "
+            "request that drew it (creation, a switch to this clock, a new secret)."
+        ),
+    )
 
     @field_validator("mcp_preapproved_servers", mode="before")
     @classmethod
@@ -505,6 +674,8 @@ class ScheduledActionResponse(BaseModel):
         )
         if not self.schedule_display:
             self.schedule_display = schedule_sentence(plan, resolve_language())
+        if self.webhook_key and not self.webhook_url:
+            self.webhook_url = routine_webhook_url(self.webhook_key)
         if plan.is_condition:
             ledger = ConditionLedger.read(self.condition_state)
             self.check_interval_minutes = check_minutes(plan)
@@ -589,6 +760,18 @@ def published_recurrence_limits() -> RoutineRecurrenceLimits:
         max_times_per_day=limits.max_times_per_day,
         min_step_minutes=limits.min_step_minutes,
         max_series_count=limits.max_series_count,
+    )
+
+
+class RoutineWebhookSecretResponse(BaseModel):
+    """A webhook routine's address and its newly drawn secret (ADR-386).
+
+    The only answer a secret is ever in: it is not served again.
+    """
+
+    webhook_url: str = Field(..., description="The address another system calls.")
+    webhook_secret: str = Field(
+        ..., description="The HMAC-SHA256 secret, shown this once; the previous one is retired."
     )
 
 

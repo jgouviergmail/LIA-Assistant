@@ -27,9 +27,17 @@ import { composeStarterRail } from '@/lib/chat-starters';
 import type { ChatSuggestion } from '@/hooks/useChatSuggestions';
 import { cn } from '@/lib/utils';
 import { useEyesWidgetStore } from '@/stores/eyesWidgetStore';
+import { gazeTargetProps } from '@/components/eyes/gaze-target';
 
 export interface ChatMessageListProps {
   messages: Message[];
+  /**
+   * Whether the instance offers the psyche now (`capabilityAvailable`). Its
+   * router refuses every route under the operator's switch (ADR-280): the
+   * thread hydrates LIA's mood only where it is offered, and the caller that
+   * holds the instance configuration is the one that knows.
+   */
+  psycheOffered: boolean;
   isTyping?: boolean;
   /** Id of the assistant message currently receiving stream updates (null when idle). */
   activeStreamId?: string | null;
@@ -391,6 +399,7 @@ const NO_MESSAGES: Message[] = [];
 
 export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   messages,
+  psycheOffered,
   isTyping = false,
   activeStreamId = null,
   streamPhase = 'answer',
@@ -429,8 +438,10 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   const mounted = useHydrated();
 
   // Populate the Zustand store from server on mount (GET /psyche/state + /psyche/settings).
-  // ChatMessage reads the store directly for fallback avatar data.
-  usePsyche();
+  // ChatMessage reads the store directly for fallback avatar data. Nothing is
+  // asked where the instance has switched the psyche off: the store keeps its
+  // neutral defaults.
+  usePsyche(psycheOffered);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const wasTypingRef = useRef(false);
@@ -848,6 +859,8 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
             key={message.id}
             data-message-role={message.role}
             data-message-id={message.id}
+            // The answer being written is what the companion looks at.
+            {...(message.id === activeStreamId ? gazeTargetProps('answer') : undefined)}
             className="scroll-mt-24"
           >
             <ChatMessage

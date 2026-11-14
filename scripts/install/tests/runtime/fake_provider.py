@@ -1,13 +1,18 @@
-"""Hermetic OpenAI-compatible fake provider (ADR-215, G3/G4).
+"""Hermetic fake provider (ADR-215, G3/G4), in the two wire formats a seeded core answers on.
 
-Serves the three endpoints the backend adapters consume — ``GET
-/v1/models``, ``POST /v1/chat/completions`` (plain + SSE streaming), and
-``POST /v1/responses`` (SSE event shapes) — for BOTH required providers
-(the seeded core runs on DeepSeek through the same base URL override).
+OpenAI-compatible — ``GET /v1/models``, ``POST /v1/chat/completions`` (plain +
+SSE streaming) and ``POST /v1/responses`` (SSE event shapes): the response and
+the ReAct loop of a fresh install run on DeepSeek through the base URL override.
 
-Any request whose bearer token is not the fixed non-secret fixture value
-``sk-fake-qualification-key`` is rejected 401. Only method/path metadata is
-ever logged: no prompt, no authorization header.
+Anthropic — ``GET /v1/models``, ``POST /v1/messages`` (plain + the NAMED
+server-sent events its SDK reads) and ``POST /v1/messages/count_tokens``: the
+other core slots answer there. The two formats share nothing but the fixture
+key, so a path decides which one answers.
+
+Any request whose key is not the fixed non-secret fixture value
+``sk-fake-qualification-key`` — a bearer token, or Anthropic's ``x-api-key`` —
+is rejected 401. Only method/path metadata is ever logged: no prompt, no
+authorization header.
 
 Stdlib only: this runs inside a bare python container in the disposable
 workflow. Usage: ``python fake_provider.py [port]`` (default 18080).
@@ -36,6 +41,46 @@ _CHAT_BODY = {
     "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
 }
 
+_ANSWER = "Hermetic OK."
+
+
+def _anthropic_message(model: str, *, answered: bool) -> dict:
+    """An Anthropic ``message``: whole when ``answered``, else the stream's opening."""
+    return {
+        "id": "msg_fake_1",
+        "type": "message",
+        "role": "assistant",
+        "model": model,
+        "content": [{"type": "text", "text": _ANSWER}] if answered else [],
+        "stop_reason": "end_turn" if answered else None,
+        "stop_sequence": None,
+        "usage": {"input_tokens": 1, "output_tokens": 2 if answered else 0},
+    }
+
+
+def _anthropic_stream(model: str) -> list[dict]:
+    """The events of one streamed text answer, in the order the SDK expects them."""
+    return [
+        {"type": "message_start", "message": _anthropic_message(model, answered=False)},
+        {
+            "type": "content_block_start",
+            "index": 0,
+            "content_block": {"type": "text", "text": ""},
+        },
+        {
+            "type": "content_block_delta",
+            "index": 0,
+            "delta": {"type": "text_delta", "text": _ANSWER},
+        },
+        {"type": "content_block_stop", "index": 0},
+        {
+            "type": "message_delta",
+            "delta": {"stop_reason": "end_turn", "stop_sequence": None},
+            "usage": {"output_tokens": 2},
+        },
+        {"type": "message_stop"},
+    ]
+
 
 class _Handler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002
@@ -43,7 +88,10 @@ class _Handler(BaseHTTPRequestHandler):
         sys.stderr.write(f"{self.command} {self.path}\n")
 
     def _authorized(self) -> bool:
-        return self.headers.get("Authorization") == f"Bearer {FIXTURE_KEY}"
+        return (
+            self.headers.get("Authorization") == f"Bearer {FIXTURE_KEY}"
+            or self.headers.get("x-api-key") == FIXTURE_KEY
+        )
 
     def _send_json(self, status: int, payload: dict) -> None:
         body = json.dumps(payload).encode()
@@ -59,6 +107,15 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         for event in events:
             self.wfile.write(f"data: {event}\n\n".encode())
+        self.wfile.flush()
+
+    def _send_named_sse(self, events: list[dict]) -> None:
+        """Anthropic's stream: each event is NAMED after its ``type``."""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.end_headers()
+        for event in events:
+            self.wfile.write(f"event: {event['type']}\ndata: {json.dumps(event)}\n\n".encode())
         self.wfile.flush()
 
     def do_GET(self) -> None:  # noqa: N802
@@ -83,6 +140,17 @@ class _Handler(BaseHTTPRequestHandler):
             payload = json.loads(raw or b"{}")
         except json.JSONDecodeError:
             self._send_json(400, {"error": {"message": "bad json"}})
+            return
+        path = self.path.split("?", 1)[0].rstrip("/")
+        if path.endswith("/messages/count_tokens"):
+            self._send_json(200, {"input_tokens": 1})
+            return
+        if path.endswith("/messages"):
+            model = str(payload.get("model") or "fake-model")
+            if payload.get("stream"):
+                self._send_named_sse(_anthropic_stream(model))
+                return
+            self._send_json(200, _anthropic_message(model, answered=True))
             return
         if self.path.rstrip("/").endswith("/chat/completions"):
             if payload.get("stream"):

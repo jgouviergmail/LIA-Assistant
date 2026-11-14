@@ -8,6 +8,7 @@ from prometheus_client import REGISTRY
 
 from src.infrastructure.browser import pool as module
 from src.infrastructure.browser.models import BrowserSessionInfo
+from tests.fixtures.browser_scope import browser_scope
 
 
 @pytest.mark.parametrize("cancel_first", [False, True])
@@ -84,8 +85,8 @@ async def test_shutdown_continues_past_context_and_browser_failures(
     pool._browser = browser
     pool._playwright = driver
     pool._healthy = True
-    pool._sessions = {"first": first, "second": second}
-    pool._session_info = {"first": MagicMock(spec=BrowserSessionInfo)}
+    pool._sessions = {browser_scope("first"): first, browser_scope("second"): second}
+    pool._session_info = {browser_scope("first"): MagicMock(spec=BrowserSessionInfo)}
     remove = AsyncMock()
     monkeypatch.setattr(pool, "_remove_session_redis", remove)
     before = REGISTRY.get_sample_value("browser_sessions_active") or 0
@@ -114,7 +115,7 @@ async def test_context_close_failure_reaches_the_pool_after_page_cleanup() -> No
     context = MagicMock(close=AsyncMock(side_effect=failure))
     page = MagicMock(close=AsyncMock(side_effect=OSError("page disconnected")))
     page.is_closed.return_value = False
-    session = BrowserSession("user", context, MagicMock())
+    session = BrowserSession(browser_scope("user"), context, MagicMock())
     session.page = page
 
     with pytest.raises(OSError) as caught:

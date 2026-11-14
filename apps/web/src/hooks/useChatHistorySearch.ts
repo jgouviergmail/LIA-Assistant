@@ -6,7 +6,10 @@
  *   -insensitive via `normalizeSearchText`, matching the server semantics);
  * - a debounced term driving the in-bubble highlight and the server-search
  *   availability (min 2 chars, mirrors the backend constraint);
- * - the server search panel (keyset-paginated dated results);
+ * - the server search panel (keyset-paginated dated results) across EVERY
+ *   discussion of the account (lot 12): a result found in another discussion
+ *   opens it, leaving the jump (`lib/discussion-jump.ts`) that the arriving
+ *   discussion takes once its history is loaded;
  * - the "history view": jumping to a result replaces the message list with
  *   the page ENDING at that message (keyset `before = created_at + 1ms`),
  *   clears the filter so the surrounding context shows, retains the term as
@@ -15,15 +18,16 @@
  *   wraps its send handler with `ensurePresent`.
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useDebounce } from '@/hooks/useDebounce';
 import type {
-  ConversationMessage,
   ConversationPage,
-  MessageSearchPage,
+  DiscussionSearchPage,
+  DiscussionSearchResult,
 } from '@/hooks/useConversation';
 import { CHAT_SEARCH_MIN_CHARS, SEARCH_DEBOUNCE_MS } from '@/lib/constants';
+import { requestDiscussionJump, takeDiscussionJump } from '@/lib/discussion-jump';
 import { logger } from '@/lib/logger';
 import { normalizeSearchText } from '@/lib/utils';
 import type { Message } from '@/types/chat';
@@ -33,9 +37,17 @@ export interface UseChatHistorySearchParams {
   /** Blocks jumps while a stream is active (a jump would tear the live turn). */
   isTyping: boolean;
   /** Whether older, not-yet-loaded history exists (server search only makes
-   *  sense when the loaded window is incomplete). */
+   *  sense when the loaded window is incomplete — or another discussion exists). */
   hasMoreOlder: boolean;
-  searchMessages: (query: string, before?: string) => Promise<MessageSearchPage>;
+  /** Whether the account holds discussions besides this one. */
+  hasOtherDiscussions: boolean;
+  /** The discussion on screen: a result in it jumps here, any other opens its own. */
+  currentDiscussionId: string | null;
+  /** Opens another discussion; absent while leaving this one would cancel its turn. */
+  openDiscussion?: (row: DiscussionSearchResult) => void;
+  /** True once this discussion's history is loaded: a jump left for it then runs. */
+  historyReady: boolean;
+  searchDiscussions: (query: string, cursor?: string) => Promise<DiscussionSearchPage>;
   loadOlderMessages: (beforeCursor: string) => Promise<ConversationPage>;
   loadConversationPage: () => Promise<ConversationPage>;
   setMessages: (messages: Message[]) => void;
@@ -55,7 +67,7 @@ export interface UseChatHistorySearchReturn {
   /** True when the "search entire history" affordance should be offered. */
   serverSearchAvailable: boolean;
   panelOpen: boolean;
-  serverResults: ConversationMessage[];
+  serverResults: DiscussionSearchResult[];
   serverHasMore: boolean;
   serverLoading: boolean;
   serverError: boolean;
@@ -64,7 +76,7 @@ export interface UseChatHistorySearchReturn {
   closePanel: () => void;
   /** True while the list shows a jumped-to point of history. */
   historyView: boolean;
-  jumpToResult: (row: ConversationMessage) => Promise<void>;
+  jumpToResult: (row: DiscussionSearchResult) => Promise<void>;
   returnToPresent: () => Promise<void>;
   /** Awaited by the page's send wrapper: restores the present before a send
    *  while in history view (no-op otherwise). */
@@ -78,7 +90,11 @@ export function useChatHistorySearch(
     messages,
     isTyping,
     hasMoreOlder,
-    searchMessages,
+    hasOtherDiscussions,
+    currentDiscussionId,
+    openDiscussion,
+    historyReady,
+    searchDiscussions,
     loadOlderMessages,
     loadConversationPage,
     setMessages,
@@ -90,7 +106,7 @@ export function useChatHistorySearch(
   const debouncedQuery = useDebounce(searchQuery, SEARCH_DEBOUNCE_MS);
 
   const [panelOpen, setPanelOpen] = useState(false);
-  const [serverResults, setServerResults] = useState<ConversationMessage[]>([]);
+  const [serverResults, setServerResults] = useState<DiscussionSearchResult[]>([]);
   const [serverHasMore, setServerHasMore] = useState(false);
   const [serverCursor, setServerCursor] = useState<string | null>(null);
   const [serverLoading, setServerLoading] = useState(false);
@@ -111,7 +127,7 @@ export function useChatHistorySearch(
   const loadedMatchCount = normalizedQuery ? displayedMessages.length : 0;
 
   const serverSearchAvailable =
-    debouncedQuery.trim().length >= CHAT_SEARCH_MIN_CHARS && hasMoreOlder;
+    debouncedQuery.trim().length >= CHAT_SEARCH_MIN_CHARS && (hasMoreOlder || hasOtherDiscussions);
 
   // A new (debounced) term invalidates any open results — the panel reruns on
   // demand rather than firing a request per keystroke.
@@ -130,18 +146,18 @@ export function useChatHistorySearch(
       setServerLoading(true);
       setServerError(false);
       try {
-        const page = await searchMessages(debouncedQuery.trim(), before);
+        const page = await searchDiscussions(debouncedQuery.trim(), before);
         setServerResults(prev => (before ? [...prev, ...page.rows] : page.rows));
         setServerHasMore(page.hasMore);
         setServerCursor(page.nextCursor);
       } catch {
-        // Transport error already logged by searchMessages — surface a state.
+        // Transport error already logged by searchDiscussions — surface a state.
         setServerError(true);
       } finally {
         setServerLoading(false);
       }
     },
-    [debouncedQuery, searchMessages]
+    [debouncedQuery, searchDiscussions]
   );
 
   const runServerSearch = useCallback(async () => {
@@ -165,21 +181,22 @@ export function useChatHistorySearch(
     [setMessages, setHasMoreOlder, setOldestCursor]
   );
 
-  const jumpToResult = useCallback(
-    async (row: ConversationMessage) => {
+  /** Show the page ENDING at a message of this discussion, its words marked. */
+  const jumpHere = useCallback(
+    async (createdAt: string, term: string) => {
       if (isTyping || navInFlightRef.current) return;
       navInFlightRef.current = true;
       try {
         // Keyset `before` is strictly `<`: +1ms makes the clicked message the
         // newest (bottom) row of the fetched page.
-        const cursor = new Date(new Date(row.created_at).getTime() + 1).toISOString();
+        const cursor = new Date(new Date(createdAt).getTime() + 1).toISOString();
         const page = await loadOlderMessages(cursor);
         if (page.messages.length === 0) {
           logger.warn('history_jump_empty_page', { cursor });
           return;
         }
         applyPage(page);
-        setRetainedTerm(debouncedQuery.trim());
+        setRetainedTerm(term);
         setHistoryView(true);
         setSearchQuery('');
         setPanelOpen(false);
@@ -187,8 +204,33 @@ export function useChatHistorySearch(
         navInFlightRef.current = false;
       }
     },
-    [isTyping, loadOlderMessages, applyPage, debouncedQuery]
+    [isTyping, loadOlderMessages, applyPage]
   );
+
+  const jumpToResult = useCallback(
+    async (row: DiscussionSearchResult) => {
+      const term = debouncedQuery.trim();
+      if (row.conversation_id === currentDiscussionId) {
+        await jumpHere(row.created_at, term);
+        return;
+      }
+      // Leaving is the caller's to allow: it passes `openDiscussion` only when
+      // leaving cancels nothing (`leavingCancelsTurn`).
+      if (!openDiscussion) return;
+      requestDiscussionJump({ conversationId: row.conversation_id, createdAt: row.created_at, term });
+      setPanelOpen(false);
+      openDiscussion(row);
+    },
+    [debouncedQuery, currentDiscussionId, jumpHere, openDiscussion]
+  );
+
+  // The arriving end of a jump made from another discussion's search: once this
+  // discussion's history is on screen, its own jump (and no other) runs, once.
+  useEffect(() => {
+    if (!historyReady || currentDiscussionId === null) return;
+    const jump = takeDiscussionJump(currentDiscussionId);
+    if (jump) void jumpHere(jump.createdAt, jump.term);
+  }, [historyReady, currentDiscussionId, jumpHere]);
 
   const returnToPresent = useCallback(async () => {
     if (navInFlightRef.current) return;

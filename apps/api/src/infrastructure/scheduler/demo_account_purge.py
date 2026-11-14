@@ -31,10 +31,11 @@ from dataclasses import dataclass
 from uuid import UUID
 
 import structlog
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.domains.users.account_erasure import erase_purged_account
 from src.domains.users.models import User
 from src.infrastructure.database import get_db_context
 
@@ -61,7 +62,7 @@ async def delete_user_row(db: AsyncSession, user_id: UUID) -> None:
         db: Async session; the caller owns the commit.
         user_id: Account to remove.
     """
-    await db.execute(delete(User).where(User.id == user_id))
+    await erase_purged_account(db, user_id)
 
 
 async def _sweep_one(db: AsyncSession, user: User, operator_id: UUID | None) -> None:

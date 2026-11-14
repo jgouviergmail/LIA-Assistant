@@ -48,7 +48,7 @@ async def _parse(message: str) -> dict:
         patch("src.domains.agents.utils.HITLStore", return_value=store),
     ):
         return await svc._parse_approval_decision(
-            user_message=message, conversation_id=uuid4(), run_id="test"
+            user_message=message, runtime_id=uuid4(), run_id="test"
         )
 
 

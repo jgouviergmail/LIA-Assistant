@@ -48,6 +48,26 @@ afterEach(() => {
 });
 
 describe('useConversationSync — the tab asks on its own', () => {
+  it('never applies the previous discussion page to the next discussion', async () => {
+    const late = Promise.withResolvers<{ messages: Message[] }>();
+    const first = options({
+      ownerId: 'owner',
+      scopeKey: 'a:0',
+      readNewestPage: () => late.promise,
+    });
+    const second = options({ ownerId: 'owner', scopeKey: 'b:0' });
+    const hook = renderHook(({ opts }) => useConversationSync(opts), {
+      initialProps: { opts: first },
+    });
+    act(() => hook.result.current.requestSync('signal'));
+    hook.rerender({ opts: second });
+    await act(async () => {
+      late.resolve({ messages: [row] });
+      await late.promise;
+    });
+    expect(second.mergeServerPage).not.toHaveBeenCalled();
+    expect(first.mergeServerPage).not.toHaveBeenCalled();
+  });
   it('reads the newest page when the tab comes back to the foreground', async () => {
     const opts = options();
     renderHook(() => useConversationSync(opts));

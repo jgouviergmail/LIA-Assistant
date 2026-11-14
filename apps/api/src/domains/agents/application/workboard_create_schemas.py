@@ -30,6 +30,9 @@ class WorkboardCreateSelection(BaseModel):
     holder_id: UUID | None
     holder_name: str | None
     parent_title: str | None
+    #: The NAME of the lane the ticket will be filed under — the request holds
+    #: an id, and a person confirms a name. None for a ticket filed under none.
+    category_name: str | None = None
     owned_count: int = Field(ge=0)
     max_tickets: int = Field(ge=1)
     state_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
@@ -41,6 +44,7 @@ class WorkboardCreateSelection(BaseModel):
             "holder_id": str(self.holder_id) if self.holder_id else None,
             "holder_name": self.holder_name,
             "parent_title": self.parent_title,
+            "category_name": self.category_name,
             "owned_count": self.owned_count,
             "max_tickets": self.max_tickets,
             "creation_requested": after,

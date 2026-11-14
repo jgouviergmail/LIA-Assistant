@@ -23,13 +23,14 @@ export const EXECUTING_REFRESH_INTERVAL_MS = 10_000;
 export type ScheduledActionStatus = 'active' | 'executing' | 'error' | 'completed';
 
 /**
- * Which clock a routine runs on (N-07, ADR-322) — one, never both: its own
- * schedule, or the system's checks of a condition.
+ * Which clock a routine runs on (N-07, ADR-322, ADR-386) — one, never two: its
+ * own schedule, the system's checks of a condition, or another system's signed
+ * call to its address.
  */
-export type TriggerKind = 'time' | 'condition';
+export type TriggerKind = 'time' | 'condition' | 'webhook';
 
-/** Why a condition routine's last check could not read its source. */
-export type ConditionCheckError = 'not_configured' | 'unavailable';
+/** Why a condition routine's last check read nothing (the source, or the usage limit). */
+export type ConditionCheckError = 'not_configured' | 'unavailable' | 'quota_blocked';
 
 /** N-07 condition types — mirror of the backend CONDITION_TYPES. */
 export type ConditionType =
@@ -37,7 +38,8 @@ export type ConditionType =
   | 'weather_change'
   | 'mail_match'
   | 'document_added'
-  | 'calendar_event';
+  | 'calendar_event'
+  | 'page_change';
 
 /** N-07 condition of a CONDITION-kind routine. */
 export interface ConditionConfig {
@@ -48,6 +50,10 @@ export interface ConditionConfig {
   query?: string;
   /** calendar_event only: look-ahead window in hours. */
   within_hours?: number;
+  /** page_change only (required): the public page the system reads (ADR-387). */
+  url?: string;
+  /** page_change only: watch only the page's lines containing this text. */
+  contains?: string;
   /** The last local day watched, `YYYY-MM-DD`, included; absent = no end. */
   until?: string;
 }
@@ -77,6 +83,8 @@ export interface ScheduledAction {
   trigger_kind: TriggerKind;
   condition_config: ConditionConfig | null;
   requires_approval: boolean;
+  /** A run that found nothing new is answered in the chat and not notified. */
+  notify_only_when_new?: boolean;
   /** `pipeline` | `react` — how LIA runs it when it fires (ADR-276). */
   execution_mode: string;
   /**
@@ -122,7 +130,7 @@ export interface ScheduledAction {
   check_interval_minutes?: number | null;
   /** Condition routines: when the condition was last checked (UTC). */
   last_checked_at?: string | null;
-  /** Condition routines: why that check could not read its source. */
+  /** Condition routines: why that check read nothing. */
   last_check_error?: ConditionCheckError | null;
   /**
    * The MCP servers this routine's runs confirm for themselves (spec D9) — a
@@ -130,8 +138,26 @@ export interface ScheduledAction {
    * cached payload predating the field must still parse.
    */
   mcp_preapproved_servers?: string[];
+  /** A routine started by calls: the address another system calls (ADR-386). */
+  webhook_url?: string | null;
+  /**
+   * The secret just drawn — ONLY in the answer of the request that drew it (a
+   * creation on calls, a switch onto calls). Never kept in the list.
+   */
+  new_webhook_secret?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** A routine's address and its newly drawn secret, shown this once (ADR-386). */
+export interface RoutineWebhookSecret {
+  webhook_url: string;
+  webhook_secret: string;
+}
+
+/** The row the list keeps: a secret shown once never stays in memory with it. */
+function listed(action: ScheduledAction): ScheduledAction {
+  return action.new_webhook_secret ? { ...action, new_webhook_secret: null } : action;
 }
 
 /**
@@ -145,6 +171,7 @@ export interface ScheduledActionCreate {
   trigger_kind?: TriggerKind;
   condition_config?: ConditionConfig | null;
   requires_approval?: boolean;
+  notify_only_when_new?: boolean;
   execution_mode?: ExecutionMode;
   /** The MCP servers its runs confirm for themselves (spec D9); omitted = none. */
   mcp_preapproved_servers?: string[];
@@ -160,6 +187,7 @@ export interface ScheduledActionUpdate {
   trigger_kind?: TriggerKind;
   condition_config?: ConditionConfig | null;
   requires_approval?: boolean;
+  notify_only_when_new?: boolean;
   execution_mode?: ExecutionMode;
   /** Omitted = unchanged; null clears the pre-approval (spec D9). */
   mcp_preapproved_servers?: string[] | null;
@@ -185,7 +213,10 @@ export type ScheduledRunOutcome =
   | 'failure'
   | 'skipped_condition'
   | 'proposed'
-  | 'skipped_hitl';
+  | 'skipped_hitl'
+  | 'skipped_busy'
+  | 'skipped_quota'
+  | 'skipped_late';
 
 /** One configured day of the current week for one routine (ADR-265). */
 export interface ScheduledActionWeekCell {
@@ -365,7 +396,7 @@ export function useScheduledActions() {
           if (!prev) return prev;
           return {
             ...prev,
-            scheduled_actions: [...prev.scheduled_actions, result],
+            scheduled_actions: [...prev.scheduled_actions, listed(result)],
             total: prev.total + 1,
           };
         });
@@ -387,7 +418,9 @@ export function useScheduledActions() {
           if (!prev) return prev;
           return {
             ...prev,
-            scheduled_actions: prev.scheduled_actions.map(a => (a.id === actionId ? result : a)),
+            scheduled_actions: prev.scheduled_actions.map(a =>
+              a.id === actionId ? listed(result) : a
+            ),
           };
         });
         void refetchWeek();

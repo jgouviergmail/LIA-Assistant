@@ -21,7 +21,10 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.conversation_execution import ExecutionKind, RunAdmission
+from src.core.conversation_target import ConversationKind, ConversationRef
 from src.core.exceptions import BaseAPIException, ValidationError
+from src.core.run_authority import RunAuthority, run_authority_scope
 from src.domains.shared import action_sink
 from src.domains.skills import proposal_service
 from src.domains.skills.proposal_errors import (
@@ -42,12 +45,14 @@ from src.domains.skills.proposals import (
     SkillProposal,
     _pending_proposals,
     package_fingerprint,
+    proposal_key,
 )
 from src.infrastructure.locks.redis_claim import RELEASE_SCRIPT
 
 pytestmark = pytest.mark.unit
 
 OWNER = uuid4()
+RUNTIME = uuid4()
 NOW = datetime(2026, 9, 30, 10, 0, tzinfo=UTC)
 FILES = {"SKILL.md": "---\nname: ma-skill\n---\nbody\n", "references/r.md": "ref\n"}
 
@@ -81,10 +86,13 @@ class FakeRedis:
         self.keys[key] = value
         return True
 
-    async def eval(self, script: str, numkeys: int, *args: Any) -> int:
-        if script == _SAVE_SCRIPT:
-            self.keys[str(args[1])] = str(args[3])
-            return 0
+    async def eval(self, script: str, numkeys: int, *args: str) -> int | list[int]:
+        if self.fail:
+            raise ConnectionError("down")
+        if _SAVE_SCRIPT in script:
+            assert numkeys == 4
+            self.keys[args[3]] = args[7]
+            return [1, 0]
         if script == RELEASE_SCRIPT:
             key, token = str(args[0]), str(args[1])
             if self.keys.get(key) == token:
@@ -92,16 +100,17 @@ class FakeRedis:
                 return 1
             return 0
         if script == _TRANSITION_SCRIPT:
-            key, owner, proposal_id, state, attempt, changed = map(str, args)
+            key, owner, proposal_id, state, attempt, changed, runtime = args
             current = json.loads(self.keys[key]) if key in self.keys else None
             if (
                 not current
                 or current["owner_id"] != owner
                 or current["id"] != proposal_id
                 or current["status"] != state
+                or (current.get("runtime_id") or "") != runtime
             ):
                 return 0
-            if state != "pending" and current.get("attempt_id") != attempt:
+            if state != "pending" and (current.get("attempt_id") or "") != attempt:
                 return 0
             self.keys[key] = changed
             return 1
@@ -180,40 +189,60 @@ def _cache(entry: dict[str, str] | None) -> Any:
     return patch("src.domains.skills.cache.SkillsCache.get_exact", return_value=entry)
 
 
-def _proposal(**overrides: Any) -> SkillProposal:
-    values: dict[str, Any] = {
-        "id": "p" * 32,
-        "owner_id": str(OWNER),
-        "name": "ma-skill",
-        "description": "Useful.",
-        "files": dict(FILES),
-        "sizes": {path: len(text) for path, text in FILES.items()},
-        "created_at": NOW.isoformat(),
-        "expires_at": NOW.isoformat(),
-        "replaces": None,
-        "changes": None,
-    }
-    values.update(overrides)
-    return SkillProposal(**values)
+def _proposal(*, replaces: str | None = None) -> SkillProposal:
+    return SkillProposal(
+        id="p" * 32,
+        owner_id=str(OWNER),
+        name="ma-skill",
+        description="Useful.",
+        files=dict(FILES),
+        sizes={path: len(text) for path, text in FILES.items()},
+        created_at=NOW.isoformat(),
+        expires_at=NOW.isoformat(),
+        replaces=replaces,
+        changes=None,
+    )
 
 
 async def _stored(redis: FakeRedis, proposal: SkillProposal) -> None:
-    await ProposalStore(redis).save(proposal, ttl_seconds=60, max_per_owner=5, now=0)
+    # Click tests read already stored offers, including records predating runtime provenance.
+    await redis.set(proposal_key(proposal.owner_id, proposal.id), proposal.to_json(), ex=60)
 
 
 class TestPropose:
+    @pytest.fixture(autouse=True)
+    def authority(self) -> Iterator[None]:
+        """The unit service reads local authority; SQL and Lua admission have real integration tests."""
+        admission = RunAdmission(
+            activity_id=uuid4(),
+            target=ConversationRef(OWNER, uuid4(), ConversationKind.SECONDARY, 2, RUNTIME),
+            kind=ExecutionKind.GRAPH,
+            run_id=str(uuid4()),
+            stream_id=str(uuid4()),
+            worker_id=uuid4(),
+            owner_token=uuid4(),
+            fence=1,
+            relayed=False,
+        )
+        authority = RunAuthority(admission)
+        with run_authority_scope(authority):
+            try:
+                yield
+            finally:
+                authority.clear_payloads()
+
     async def test_a_new_skill_is_kept_and_its_card_queued(
         self, redis: FakeRedis, importer: MagicMock, service_settings: SimpleNamespace
     ) -> None:
         with _cache(None):
             proposal, _ = await proposal_service.propose(
-                FILES, owner_id=OWNER, conversation_id="conv", now=NOW, redis=redis
+                FILES, owner_id=OWNER, runtime_id=RUNTIME, now=NOW, redis=redis
             )
 
         assert proposal.replaces is None and proposal.changes is None
         assert proposal.expires_at == "2026-09-30T11:00:00+00:00"
         assert await ProposalStore(redis).load(str(OWNER), proposal.id) == proposal
-        assert [p.id for p in _pending_proposals.peek("conv")] == [proposal.id]
+        assert [p.id for p in _pending_proposals.peek(str(RUNTIME))] == [proposal.id]
         importer.validate_files.assert_awaited_once_with(FILES, owner_id=OWNER)
         importer.import_files.assert_not_awaited()
 
@@ -227,7 +256,7 @@ class TestPropose:
         installed = {"SKILL.md": "old\n", "references/gone.md": "g\n"}
         with _cache(_installed_skill(tmp_path, installed)):
             proposal, _ = await proposal_service.propose(
-                FILES, owner_id=OWNER, conversation_id="conv", now=NOW, redis=redis
+                FILES, owner_id=OWNER, runtime_id=RUNTIME, now=NOW, redis=redis
             )
 
         assert proposal.replaces == package_fingerprint(installed)
@@ -242,23 +271,23 @@ class TestPropose:
 
         with _cache(None), pytest.raises(ValidationError):
             await proposal_service.propose(
-                FILES, owner_id=OWNER, conversation_id="conv", now=NOW, redis=redis
+                FILES, owner_id=OWNER, runtime_id=RUNTIME, now=NOW, redis=redis
             )
 
         assert redis.keys == {}
-        assert _pending_proposals.peek("conv") == []
+        assert _pending_proposals.peek(str(RUNTIME)) == []
 
     async def test_a_cache_that_fails_offers_nothing(
         self, redis: FakeRedis, importer: MagicMock, service_settings: SimpleNamespace
     ) -> None:
-        redis.eval = AsyncMock(side_effect=ConnectionError("down"))  # type: ignore[method-assign]
+        redis.fail = True
 
         with _cache(None), pytest.raises(ConnectionError):
             await proposal_service.propose(
-                FILES, owner_id=OWNER, conversation_id="conv", now=NOW, redis=redis
+                FILES, owner_id=OWNER, runtime_id=RUNTIME, now=NOW, redis=redis
             )
 
-        assert _pending_proposals.peek("conv") == []
+        assert _pending_proposals.peek(str(RUNTIME)) == []
 
 
 class TestInstall:

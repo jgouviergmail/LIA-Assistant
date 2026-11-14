@@ -1,5 +1,5 @@
 /** Personal SMS: actual page, literal content, grouping, privacy and mobile reflow. */
-import { test, expect, idleNotificationStream, type MockRoute } from '../fixtures';
+import { test, expect, idleNotificationStream, openListFilters, type MockRoute } from '../fixtures';
 import { appConfig } from '../fixtures/dashboard-shell';
 import { scanPage } from '../a11y/scan';
 const id = 'df63b582-413f-4fd4-9f63-df30d1d3a4a2';
@@ -120,11 +120,11 @@ for (const width of [390, 1280]) {
     await expect(page.getByRole('region', { name: 'Mes SMS', exact: true })).toBeVisible({
       timeout: 15000,
     });
-    await expect(page.getByRole('button', { name: 'Par expéditeur', exact: true })).toHaveAttribute(
+    // The archive opens on the day view: what arrived last is read with no choice made.
+    await expect(page.getByRole('button', { name: 'Par jour', exact: true })).toHaveAttribute(
       'aria-pressed',
       'true'
     );
-    await page.getByRole('button', { name: 'Par jour', exact: true }).click();
     await expect(page.getByText(sms.body, { exact: true })).toBeVisible();
     const section = page.locator('main');
     const archiveHeading = section.locator('summary').filter({ hasText: 'Consulter mes SMS' });
@@ -142,7 +142,6 @@ for (const width of [390, 1280]) {
     await expect(page.getByText(sms.body, { exact: true })).toHaveCount(0);
     await expect(archiveHeading).toBeFocused();
     await page.keyboard.press('Enter');
-    await page.getByRole('button', { name: 'Par jour', exact: true }).click();
     await expect(page.getByText(sms.body, { exact: true })).toBeVisible();
     await expect(page.locator('img[src="x"]')).toHaveCount(0);
     const search = page.getByRole('searchbox');
@@ -168,6 +167,19 @@ for (const width of [390, 1280]) {
     await page.keyboard.press('Escape');
     await expect(search).toHaveValue('');
     await page.keyboard.press('Tab');
+    if (width < 640) {
+      // On a phone the two bounds wait behind « Filtres »: the fold is the next
+      // stop after the search, and the keyboard opens it like a pointer does.
+      const fold = page.locator('summary').filter({ hasText: 'Filtres' }).first();
+      await expect(fold).toBeFocused();
+      await expect(page.getByLabel('Du (inclus)', { exact: true })).toHaveCount(0);
+      await page.keyboard.press('Enter');
+      await expect(fold.locator('xpath=..')).toHaveAttribute('open');
+      // The fold mounts what it holds once it has opened: nobody tabs before
+      // the bounds are on the screen, and neither does this journey.
+      await expect(page.getByLabel('Du (inclus)', { exact: true })).toBeVisible();
+      await page.keyboard.press('Tab');
+    }
     // Native date inputs may have several keyboard segments. They belong to
     // the search toolbar and must both be traversed before its display chips.
     for (const field of [
@@ -361,9 +373,11 @@ for (const width of [390, 1280]) {
       ]);
       await page.goto('/fr/dashboard/sms');
       const section = page.locator('main');
-      if (scope === 'day')
-        await section.getByRole('button', { name: 'Par jour', exact: true }).click();
-      else await section.locator('summary').filter({ hasText: 'Camille' }).click();
+      // The archive opens by day; a sender's messages are behind the other chip.
+      if (scope !== 'day') {
+        await section.getByRole('button', { name: 'Par expéditeur', exact: true }).click();
+        await section.locator('summary').filter({ hasText: 'Camille' }).click();
+      }
       await expect(section.getByText(sms.body, { exact: true })).toBeVisible();
       const labels = {
         message: 'Supprimer ce SMS',
@@ -526,6 +540,10 @@ test('SMS search stays above the archive with inline date labels and no timezone
   const form = page.getByRole('search');
   await expect(form).toBeVisible();
   expect(await form.evaluate(node => node.closest('details') === null)).toBe(true);
+  // A phone: the search is in the open, the two bounds one tap away.
+  await expect(form.getByRole('searchbox')).toBeVisible();
+  await expect(form.getByLabel('Du (inclus)', { exact: true })).toHaveCount(0);
+  await openListFilters(form, 'Filtres');
   await expect(form.getByLabel('Du (inclus)', { exact: true })).toBeVisible();
   await expect(form.getByLabel('Au (exclus)', { exact: true })).toBeVisible();
   await expect(form).not.toContainText('Europe/Paris');

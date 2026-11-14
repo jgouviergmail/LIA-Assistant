@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versión**: 7.0
-**Fecha**: 2026-11-10
-**Aplicación**: LIA v4.6.0
+**Fecha**: 2026-11-14
+**Aplicación**: LIA v5.0.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -35,15 +35,15 @@ El mecanismo se explica en [la guía técnica](/es/how). Cómo se escribió el c
 
 Abre **Herramientas** cuando quieras hacerlo tú: correo, calendario, tareas, contactos, archivos y luces Hue utilizan los servicios que conectaste. Haces clic, editas y envías directamente, sin llamar a una IA, y las estrellas amarillas le piden a LIA que resuma o redacte cuando quieras, con el coste a la vista; en cualquier parte de LIA, unas palabras seleccionadas se explican, se traducen o se convierten en una tarea o un evento. Cada pantalla ofrece solo lo que admite su proveedor; tus actos no se anotan en los registros de actividad de LIA.
 
-Le hablas con normalidad, por escrito o de viva voz. La interfaz existe en seis idiomas (francés, inglés, alemán, español, italiano, chino) y tu dictado se transcribe en el idioma de tu cuenta. Una veintena de agentes especializados se reparten el trabajo: tus datos personales, la web, la creación, la casa conectada, la navegación por sitios web y la anticipación.
+Le hablas con normalidad, por escrito o de viva voz, una conversación por tema, incluso mientras responde. La interfaz existe en seis idiomas (francés, inglés, alemán, español, italiano, chino) y tu dictado se transcribe en el idioma de tu cuenta. Una veintena de agentes especializados se reparten el trabajo: tus datos personales, la web, la creación, la casa conectada, la navegación por sitios web y la anticipación.
 
 Un interruptor en el chat elige su forma de razonar. El modo **Pipeline**, por defecto, prepara todos los pasos, los verifica y luego los ejecuta en paralelo: es predecible y consume de 4 a 8 veces menos tokens. El modo **ReAct** avanza paso a paso, más autónomo y más costoso, para una búsqueda abierta; cuando un paso requiere un cálculo de verdad, escribe unas líneas de Python y las lanza en un entorno aislado y cerrado, que solo sale a la web por un único proxy y sin tus claves ([privacidad](/es/faq#faq-privacy), [el recorrido de un mensaje](/es/how#pipeline)).
 
-Si eliges la visualización en **tarjetas** (los otros dos modos son el HTML simple y el Markdown), las respuestas que traen datos llegan así: fotos de un lugar, el tiempo franja a franja, un itinerario, la vista previa de un documento. Una tarjeta muestra lo que la fuente ha proporcionado, sin inventar nada, y responder a un correo desde su tarjeta prepara la petición sin enviar nada.
+Si eliges la visualización en **tarjetas**, las respuestas que traen datos llegan así: fotos de un lugar, el tiempo franja a franja, un itinerario, la vista previa de un documento. Una tarjeta muestra lo que la fuente ha proporcionado, sin inventar nada, y responder a un correo desde su tarjeta prepara la petición sin enviar nada.
 
 ### Tus servicios
 
-Le pides a LIA que mueva tu cita del jueves: prepara la modificación y te la muestra antes de enviarla. Lee, busca, resume, redacta, envía y reenvía tus correos (Gmail, Outlook, Apple Mail), lee sus adjuntos, incluida una foto o un escaneo, y gestiona los borradores de tu buzón, que solo envía tras tu confirmación. Lleva tu agenda y tus contactos en Google, Microsoft o Apple, tus tareas en Google o Microsoft, lee y ordena tus archivos en Google Drive u OneDrive, solo escribe en ellos con tu permiso, enciende tus luces Philips Hue.
+Le pides a LIA que mueva tu cita del jueves: prepara la modificación y te la muestra antes de enviarla. Lee, busca, resume, envía y reenvía tus correos (Gmail, Outlook, Apple Mail), sabe a cuáles has respondido, los redacta a tu manera, lee sus adjuntos, incluida una foto o un escaneo, y gestiona los borradores de tu buzón, que solo envía tras tu confirmación. Lleva tu agenda y tus contactos en Google, Microsoft o Apple, tus tareas en Google o Microsoft, lee y ordena tus archivos en Google Drive u OneDrive, solo escribe en ellos con tu permiso, enciende tus luces Philips Hue.
 
 Sin configurar nada, tienes Wikipedia, la lectura de páginas web, los lugares cercanos con horarios y reseñas, el tiempo a cinco días con la calidad del aire y el polen, y los itinerarios a pie, en bici, en coche o en transporte público ([conectores](/es/faq#faq-connectors)). Con tus propias claves, la búsqueda web cruza también Brave Search y Perplexity, y cita sus fuentes. LIA también sabe recorrer un sitio por ti, hacer clic, rellenar un formulario.
 
@@ -55,15 +55,15 @@ El **modo Live** abre una conversación de voz en tiempo real con tu propia clav
 
 ### Crear y guardar
 
-LIA crea y retoca imágenes con el modelo elegido por el administrador, sin pasar a una opción más cara que tus preferencias. De forma opcional, enriquece tu descripción, y para recuperar una imagen basta con pedírsela ([imágenes](/es/faq#faq-image_generation)). Produce archivos de verdad (CSV, Excel, Word, PowerPoint, PDF) que construye un motor local y que llegan con su fecha de caducidad, diagramas de Excalidraw, y lee las fotos y los PDF que adjuntas. Las aplicaciones MCP muestran sus formularios directamente en el chat, y un juego, un cuestionario o una calculadora que pidas también funcionan allí, en un marco sellado.
+LIA crea y retoca imágenes con el modelo elegido por el administrador, sin pasar a una opción más cara que tus preferencias. De forma opcional, enriquece tu descripción, y para recuperar una imagen basta con pedírsela ([imágenes](/es/faq#faq-image_generation)). Produce archivos de verdad (CSV, Excel, Word, PowerPoint, PDF) — fórmulas vivas, gráficos editables y, si las autorizas, ilustraciones — que construye un motor local y que llegan con su fecha de caducidad, diagramas de Excalidraw, y lee las fotos y los documentos que adjuntas. Las aplicaciones MCP muestran sus formularios directamente en el chat, y un juego, un cuestionario o una calculadora que pidas también funcionan allí, en un marco sellado.
 
 Lo que produce, lo guardas, lo envías por correo con un clic, compartes una imagen con una persona conectada a tu instancia o dejas que caduque. Una respuesta guardada sale de la conversación con tu petición y su fecha, y se une a un espacio de conocimiento donde LIA la encontrará semanas después.
 
 ### Tomar la iniciativa
 
-Si se lo permites, LIA no se limita a esperar. Te escribe cuando tu agenda, el tiempo, tus tareas, tus correos o tus intereses lo justifican, y puede iniciar por sí misma una conversación personal. Al final de una reunión, te pregunta cómo ha ido. Cuando tu buzón o tu agenda se mueven, puede reaccionar en pocos minutos, y «Vigilar» está pendiente de un correo que esperas hasta que llega. Si se anuncia lluvia el sábado, revisa tus actividades al aire libre. Retiene lo que de verdad te importa, un tema que rechazas no vuelve, y lo que pides muchos días se convierte en una propuesta que aceptas con un clic, como una rutina lista antes de que la pidas.
+Si se lo permites, LIA no se limita a esperar. Te escribe cuando tu agenda, el tiempo, tus tareas, tus correos o tus intereses lo justifican, y puede iniciar por sí misma una conversación personal. Al final de una reunión, te pregunta cómo ha ido. Cuando tu buzón o tu agenda se mueven, puede reaccionar en pocos minutos, y «Vigilar» está pendiente de un correo que esperas hasta que llega. Si se anuncia lluvia el sábado, revisa tus actividades al aire libre. Retiene lo que de verdad te importa, un tema que rechazas no vuelve, y lo que pides muchos días se convierte en una propuesta que aceptas con un clic.
 
-Le confías un ticket: lo toma a su ritmo y te devuelve un resultado para aceptar. Para una tarea compleja, delega en subagentes que trabajan en paralelo. Rutinas y recordatorios siguen ritmos ricos (un martes de cada dos, el segundo martes del mes, hasta una fecha), y una vista de la semana muestra lo que ha pasado de verdad ([la iniciativa](/es/how#proactivity)).
+Le confías un ticket: lo toma a su ritmo y te devuelve un resultado para aceptar. Para una tarea compleja, delega en subagentes que trabajan en paralelo. Rutinas y recordatorios siguen ritmos ricos (un martes de cada dos, hasta una fecha); una rutina también vigila una página web o espera la llamada de otro sistema, y una vista de la semana muestra lo que ha pasado de verdad ([la iniciativa](/es/how#proactivity)).
 
 ### Los demás
 

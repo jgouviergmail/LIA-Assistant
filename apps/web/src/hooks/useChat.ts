@@ -1,5 +1,5 @@
 import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
-import { useReducer, useCallback, useEffect, useRef, Dispatch } from 'react';
+import { useReducer, useCallback, useEffect, useRef, useState, Dispatch } from 'react';
 import {
   Message,
   MessageAttachmentMeta,
@@ -29,7 +29,14 @@ import {
   persistDebugMetricsHistory,
 } from '@/reducers/chat-reducer';
 import { validateReducerAction } from '@/reducers/chat-reducer-errors';
-import { cancelActiveRun, chatSSEClient, ChatStreamError, fetchActiveRun } from '@/lib/api/chat';
+import {
+  cancelActiveRun,
+  ChatSSEClient,
+  ChatStreamError,
+  fetchActiveRun,
+  type ActiveRunStatus,
+} from '@/lib/api/chat';
+import { isQueueable, streamIdOf, type SendExtras } from '@/lib/waiting-message';
 import { useAuth } from '@/hooks/useAuth';
 import { useApplicationStateSync } from '@/hooks/useApplicationStateSync';
 import { useGeolocation } from '@/hooks/useGeolocation';
@@ -42,16 +49,11 @@ import { useTranslation } from 'react-i18next';
 import { generateUUID } from '@/lib/utils';
 import { messageRequiresGeolocation } from '@/lib/location-detection';
 import { toast } from 'sonner';
-import {
-  flushTokenBatching,
-  processSSEChunk,
-  resetTokenBatching,
-  SSEHandlerContext,
-  type LiveStepTally,
-} from '@/lib/sse-handlers';
-import { clearChatTurnTiming, markChatTurnStarted } from '@/lib/journey-timing';
-import { resetMcpPreparationNotices } from '@/lib/sse-handlers/mcp-preparation';
+import { createSSEProcessor, SSEHandlerContext, type LiveStepTally } from '@/lib/sse-handlers';
+import { endMcpPreparationRun } from '@/lib/sse-handlers/mcp-preparation';
 import { DEBUG_PANEL_TOTAL_WIDTH_PX } from '@/lib/constants';
+import { conversationScopeKey, isSelectedRun } from '@/lib/conversation-selection';
+import type { ConversationSelection } from '@/types/conversation';
 
 /**
  * Custom hook for managing chat state with SSE streaming.
@@ -174,6 +176,10 @@ export interface UseChatReturn {
    * it. Returns true when a resume was started (does not await the stream).
    */
   checkAndResumeActiveRun: () => Promise<boolean>;
+  /** ADR-384: the run this page streams, which words typed meanwhile wait behind. */
+  runStreamId: () => string | null;
+  /** ADR-384: who takes a plain send a busy account refused (the view's waiting message). */
+  registerBusyRefusal: (handler: BusyRefusalHandler | undefined) => void;
   /**
    * ADR-117 Lot 3 (stop button): cancel the in-flight generation. Flag ON,
    * the server cancels the detached run (the partial answer is kept and
@@ -206,6 +212,7 @@ function buildChatRequest(args: {
   hitlDecision?: HitlDecisionWire;
   directive?: CapabilityDirectiveWire;
   liveMeta?: LiveSpokenMeta;
+  selection?: ConversationSelection;
 }) {
   const {
     content,
@@ -219,6 +226,7 @@ function buildChatRequest(args: {
     liveMeta,
   } = args;
   return {
+    ...args.selection,
     message: content,
     user_id: userId,
     session_id: sessionId,
@@ -240,10 +248,79 @@ function buildChatRequest(args: {
   };
 }
 
+/**
+ * ADR-384: what a send refused by a busy account can become.
+ *
+ * @param refusal - The words, what else the send carried, and the occupying run.
+ * @returns True when the waiting message took the words.
+ */
+export type BusyRefusalHandler = (refusal: {
+  content: string;
+  activeRun: ActiveRunStatus | undefined;
+}) => boolean;
+
+/**
+ * Offer a plain send the busy account refused to the waiting message (ADR-384).
+ *
+ * @param error - The stream's failure.
+ * @param content - The words sent.
+ * @param extras - What the send carried beyond its words.
+ * @param handler - The page's waiting message, when it has one.
+ * @returns True when the words now wait, and the optimistic send must go.
+ */
+function waitingTookRefusal(
+  error: Error,
+  content: string,
+  extras: SendExtras,
+  handler: BusyRefusalHandler | undefined
+): boolean {
+  if (!(error instanceof ChatStreamError) || error.name !== 'RunInProgressError') return false;
+  if (handler === undefined || !isQueueable(extras)) return false;
+  return handler({ content, activeRun: error.activeRun });
+}
+
+/** A retained callback has no authority after its controller/account retired. */
+function isActiveChatOwner<T extends { id: string }>(
+  user: T | null | undefined,
+  ownerId: string | undefined,
+  mounted: boolean
+): user is T {
+  return mounted && !!user && user.id === ownerId;
+}
+
 export const useChat = ({
   debugPanelVisible = false,
-}: { debugPanelVisible?: boolean } = {}): UseChatReturn => {
+  selection: requestedSelection,
+  visible = true,
+}: { debugPanelVisible?: boolean; selection?: ConversationSelection; visible?: boolean } = {}): UseChatReturn => {
+  // The host keys this controller by owner + discussion + revision. In-flight
+  // callbacks retain that coordinate throughout a Live session or a view switch.
+  const [selection] = useState(() => (requestedSelection ? { ...requestedSelection } : undefined));
+  const [chatSSEClient] = useState(() => new ChatSSEClient());
+  const [
+    {
+      flushTokenBatching,
+      processSSEChunk,
+      resetTokenBatching,
+      clearChatTurnTiming,
+      markChatTurnStarted,
+    },
+  ] = useState(createSSEProcessor);
+  const noticeRun = useRef<string | null>(null);
+  // ADR-384: the run this page streams, and who takes a send a busy account refused.
+  const runStream = useRef<string | null>(null);
+  const busyRefusal = useRef<BusyRefusalHandler | undefined>(undefined);
+  const registerBusyRefusal = useCallback((handler: BusyRefusalHandler | undefined) => {
+    busyRefusal.current = handler;
+  }, []);
+  const rememberRun = useCallback((chunk: ChatStreamChunk) => {
+    runStream.current = streamIdOf(chunk.metadata) ?? runStream.current;
+  }, []);
+  const runStreamId = useCallback(() => runStream.current, []);
+  const mounted = useRef(false);
   const { user } = useAuth();
+  const [ownerId] = useState(user?.id);
+  const [debugStorageScope] = useState(() => conversationScopeKey(user?.id, selection));
   const { handleChange: handleApplicationStateChange, completeStream: completeApplicationStream } =
     useApplicationStateSync();
   const { withContext } = useLoggingContext();
@@ -275,20 +352,21 @@ export const useChat = ({
   const currentLanguage = (i18n.language || 'fr').split('-')[0];
 
   // State management with useReducer (replaces multiple useState calls)
-  const [state, baseDispatch] = useReducer(chatReducer, createInitialState());
+  const [state, baseDispatch] = useReducer(chatReducer, debugStorageScope, createInitialState);
 
   // A stream that ends without its done or error chunk — a local abort, a lost or
   // erroring connection — still closes the preparation notices it showed: a « slow »
   // toast has no duration of its own (fresh review m4).
   const sseStatus = state.streaming.sseStatus;
   useEffect(() => {
-    if (sseStatus === 'disconnected' || sseStatus === 'error') resetMcpPreparationNotices();
+    if ((sseStatus === 'disconnected' || sseStatus === 'error') && noticeRun.current)
+      endMcpPreparationRun(noticeRun.current);
   }, [sseStatus]);
 
   // Persist debug metrics history to sessionStorage so it survives page navigation
   useEffect(() => {
-    persistDebugMetricsHistory(state.debugMetricsHistory);
-  }, [state.debugMetricsHistory]);
+    persistDebugMetricsHistory(state.debugMetricsHistory, debugStorageScope);
+  }, [state.debugMetricsHistory, debugStorageScope]);
 
   // Latest-state ref for the dev-only dispatch validation below.
   // The wrapper used to depend on [state] (recreated on every token) while
@@ -303,7 +381,11 @@ export const useChat = ({
     stateRef.current = state;
   }, [state]);
 
-  const { hydratePendingHitl, cancelPendingHitlSync } = usePendingHitlSync(stateRef, baseDispatch);
+  const { hydratePendingHitl, cancelPendingHitlSync } = usePendingHitlSync(
+    stateRef,
+    baseDispatch,
+    selection
+  );
 
   /**
    * Validated dispatch wrapper - logs errors before passing to pure reducer.
@@ -365,11 +447,19 @@ export const useChat = ({
   const resolveStreamErrorMessage = useCallback(
     (error: Error): string => {
       if (error instanceof ChatStreamError) {
+        const run = error.activeRun;
+        const elsewhere = run && (selection
+          ? run.conversation_id !== selection.conversation_id
+          : run.conversation_kind === 'secondary');
+        if (elsewhere && run.conversation_id) {
+          const title = run.conversation_kind === 'main' ? t('chat.discussions.main') : run.title;
+          return t('chat.discussions.foreign_busy', { title });
+        }
         return t(error.i18nKey, { ...error.i18nParams, defaultValue: error.message });
       }
       return t('errors.chat.connection_error', { message: error.message });
     },
-    [t]
+    [selection, t]
   );
 
   // HITL streaming buffer (stores partial questions during progressive rendering)
@@ -413,11 +503,13 @@ export const useChat = ({
    */
   const resumeActiveRun = useCallback(
     async (streamId: string) => {
-      // Never stack two subscriptions on the singleton client
+      if (!mounted.current) return;
+      // Never stack two subscriptions on this discussion's client.
       chatSSEClient.cancel();
       stopPlayback();
 
       const assistantMessageId = generateUUID();
+      noticeRun.current = assistantMessageId;
       useEyesSignalsStore.getState().beginTurn(assistantMessageId);
       let progressMessageId: string | null = null;
       let normalStreamInitialized = false;
@@ -438,6 +530,7 @@ export const useChat = ({
         await chatSSEClient.reattachStream(
           streamId,
           (chunk: ChatStreamChunk) => {
+            rememberRun(chunk);
             const handlerContext: SSEHandlerContext = {
               dispatch,
               t,
@@ -486,7 +579,8 @@ export const useChat = ({
           },
           () => {
             replayDone = true;
-          }
+          },
+          selection
         );
       } catch (error) {
         dispatch({
@@ -506,6 +600,12 @@ export const useChat = ({
       beginVoiceRun,
       endVoiceRun,
       resolveStreamErrorMessage,
+      selection,
+      chatSSEClient,
+      processSSEChunk,
+      flushTokenBatching,
+      resetTokenBatching,
+      clearChatTurnTiming,
     ] // dispatch excluded: stable from useReducer
   );
 
@@ -516,13 +616,18 @@ export const useChat = ({
    * this does NOT await its completion.
    */
   const checkAndResumeActiveRun = useCallback(async (): Promise<boolean> => {
-    const status = await fetchActiveRun();
-    if (!status.active || !status.stream_id) {
+    const status = await fetchActiveRun(selection);
+    if (
+      !mounted.current ||
+      !status.active ||
+      !status.stream_id ||
+      !isSelectedRun(status, selection)
+    ) {
       return false;
     }
     void resumeActiveRun(status.stream_id);
     return true;
-  }, [resumeActiveRun]);
+  }, [resumeActiveRun, selection]);
 
   /**
    * Stop the in-flight generation (ADR-117 Lot 3).
@@ -535,7 +640,7 @@ export const useChat = ({
    * abort, which kills the inline generation exactly as before ADR-117.
    */
   const stopGeneration = useCallback(async () => {
-    const { cancelled } = await cancelActiveRun();
+    const { cancelled } = await cancelActiveRun(selection);
     if (cancelled) {
       // The stream stays open: the synthesized done arrives within
       // ~BACKGROUND_RUNS_CANCEL_POLL_SECONDS and finalizes the bubble.
@@ -549,7 +654,7 @@ export const useChat = ({
     flushTokenBatching();
     dispatch({ type: 'SSE_DISCONNECTED' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [withContext, stopPlayback]); // dispatch excluded: stable from useReducer
+  }, [withContext, stopPlayback, selection, chatSSEClient, flushTokenBatching]); // dispatch excluded: stable from useReducer
 
   /**
    * Send a chat message and handle SSE streaming response.
@@ -567,6 +672,7 @@ export const useChat = ({
       liveMeta?: LiveSpokenMeta,
       cardComposition?: import('@/types/card-actions').CardCompositionWire
     ) => {
+      if (!isActiveChatOwner(user, ownerId, mounted.current)) return;
       // ✅ CRITICAL: Cancel any pending stream before starting new one
       // Prevents double token counting and ensures clean state
       chatSSEClient.cancel();
@@ -583,17 +689,6 @@ export const useChat = ({
       warmupAudio().catch(() => {
         // Silently ignore - audio will try to warmup on first chunk if needed
       });
-
-      if (!user) {
-        logger.error(
-          'send_message_no_user',
-          undefined,
-          withContext({
-            component: 'useChat',
-          })
-        );
-        return;
-      }
 
       // ========================================================================
       // GEOLOCATION INTERCEPTION: Request permission if message needs location
@@ -651,6 +746,7 @@ export const useChat = ({
 
       // Generate message ID for assistant response
       const assistantMessageId = generateUUID();
+      noticeRun.current = assistantMessageId;
       useEyesSignalsStore.getState().beginTurn(assistantMessageId);
 
       // Don't create message immediately - wait for first content
@@ -711,6 +807,7 @@ export const useChat = ({
         hitlDecision,
         directive,
         liveMeta,
+        selection,
       });
 
       try {
@@ -723,6 +820,7 @@ export const useChat = ({
           request,
           // onChunk: Handle each SSE chunk via extracted handlers
           (chunk: ChatStreamChunk) => {
+            rememberRun(chunk);
             // Build handler context with mutable state access
             const handlerContext: SSEHandlerContext = {
               dispatch,
@@ -756,6 +854,19 @@ export const useChat = ({
           },
           // onError: Handle SSE connection errors
           (error: Error) => {
+            // ADR-384: plain words a busy account refused wait for their turn.
+            const extras = {
+              attachmentIds,
+              sttProvider: sttMeta?.stt_provider,
+              hitlDecision,
+              directive,
+              live: liveMeta,
+              composition: cardComposition,
+            };
+            if (waitingTookRefusal(error, content, extras, busyRefusal.current)) {
+              dispatch({ type: 'WITHDRAW_MESSAGE', payload: { id: userMessage.id } });
+              return;
+            }
             // ADR-117 Lot 2: HTTP 409 — another run is already streaming for
             // this conversation (multi-tab / return-mid-run race). Reattach
             // to it instead of erroring. The optimistic user bubble stays
@@ -763,7 +874,8 @@ export const useChat = ({
             if (
               error instanceof ChatStreamError &&
               error.name === 'RunInProgressError' &&
-              error.activeStreamId
+              error.activeStreamId &&
+              isSelectedRun(error.activeRun ?? {}, selection)
             ) {
               toast.info(t('chat.resume.in_progress'));
               void resumeActiveRun(error.activeStreamId);
@@ -862,6 +974,13 @@ export const useChat = ({
       warmupAudio,
       recordUserInteraction,
       debugPanelVisible,
+      selection,
+      ownerId,
+      chatSSEClient,
+      processSSEChunk,
+      flushTokenBatching,
+      resetTokenBatching,
+      markChatTurnStarted,
     ] // dispatch excluded: stable from useReducer
   );
 
@@ -879,6 +998,7 @@ export const useChat = ({
   // Stop voice playback on user interaction (double-tap on mobile, click on desktop)
   // Also record interactions to help iOS resume suspended AudioContext
   useEffect(() => {
+    if (!visible) return;
     const handleInterrupt = () => {
       // ✅ iOS FIX: Record every click as user interaction
       // This helps iOS resume AudioContext on subsequent audio playback
@@ -920,16 +1040,20 @@ export const useChat = ({
       document.removeEventListener('touchstart', handleDoubleTap, { capture: true });
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [stopPlayback, recordUserInteraction]);
+  }, [stopPlayback, recordUserInteraction, visible]);
 
   /**
    * Cleanup SSE connection on unmount.
    */
   useEffect(() => {
+    mounted.current = true;
     return () => {
+      mounted.current = false;
       chatSSEClient.cancel();
+      resetTokenBatching();
+      if (noticeRun.current) endMcpPreparationRun(noticeRun.current);
     };
-  }, []);
+  }, [chatSSEClient, resetTokenBatching]);
 
   /**
    * Set messages (for loading conversation history).
@@ -1108,6 +1232,8 @@ export const useChat = ({
     // ADR-117 Lot 2: background-run reattachment
     resumeActiveRun,
     checkAndResumeActiveRun,
+    runStreamId,
+    registerBusyRefusal,
     // ADR-117 Lot 3: stop button
     stopGeneration,
     stopVoice: stopPlayback,

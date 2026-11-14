@@ -78,10 +78,14 @@ describe('NotificationSettings — gating', () => {
     expect(screen.getByRole('switch')).toBeDisabled();
   });
 
-  it('shows a spinner while the token list loads', () => {
+  it('shows a spinner while the token list loads, the switch busy but never disabled', () => {
     useFCMToken.mockReturnValue(fcm({ isLoading: true }));
     renderNotifications();
     expect(screen.getByRole('status')).toBeInTheDocument();
+    // A load is a wait, not an impossibility: the switch keeps the keyboard focus.
+    const toggle = screen.getByRole('switch');
+    expect(toggle).toHaveAttribute('aria-busy', 'true');
+    expect(toggle).not.toBeDisabled();
   });
 });
 

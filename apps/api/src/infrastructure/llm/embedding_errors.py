@@ -111,3 +111,60 @@ def embedding_retry_reason(exc: BaseException) -> str | None:
 def is_transient_embedding_error(exc: BaseException) -> bool:
     """Whether an embedding failure should be retried."""
     return embedding_retry_reason(exc) is not None
+
+
+#: The ``@type`` of the detail that carries the provider's own delay
+#: (``google.rpc.RetryInfo``), matched on its suffix: the host part is a URL.
+_RETRY_INFO_TYPE = "google.rpc.RetryInfo"
+#: A protobuf ``Duration`` in its JSON form: seconds, an optional fraction, ``s``.
+_DURATION_RE = re.compile(r"(\d+(?:\.\d+)?)s")
+
+
+def provider_retry_delay_seconds(exc: BaseException) -> float | None:
+    """The wait the provider itself asks for before another attempt, or None.
+
+    A quota refusal says when to come back: ``error.details[]`` of the response
+    carries a ``RetryInfo`` whose ``retryDelay`` is a duration (``"40s"``). The
+    SDK keeps the response on its error (``details``) and langchain chains that
+    error as the cause of its own, so the chain is walked like the status code
+    is.
+
+    Structural or nothing, with no fallback on the sentence: the wording of a
+    refusal is the provider's to change, and an unreadable delay must leave the
+    caller its own backoff rather than a guess. The structured value is rounded
+    DOWN to whole seconds — measured on 2026-11-09, ``40s`` beside a message
+    reading « retry in 40.38414246s » — so a caller that waits it adds a margin.
+
+    Args:
+        exc: Exception raised by an embedding call.
+
+    Returns:
+        The delay in seconds, or None when the provider named none.
+    """
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        delay = _retry_info_delay(getattr(current, "details", None))
+        if delay is not None:
+            return delay
+        current = current.__cause__
+    return None
+
+
+def _retry_info_delay(payload: object) -> float | None:
+    """The ``RetryInfo`` delay of one provider response, or None."""
+    error = payload.get("error") if isinstance(payload, dict) else None
+    entries = error.get("details") if isinstance(error, dict) else None
+    if not isinstance(entries, list):
+        return None
+    for entry in entries:
+        if not isinstance(entry, dict) or not str(entry.get("@type", "")).endswith(
+            _RETRY_INFO_TYPE
+        ):
+            continue
+        raw_delay = entry.get("retryDelay")
+        match = _DURATION_RE.fullmatch(raw_delay) if isinstance(raw_delay, str) else None
+        if match is not None:
+            return float(match.group(1))
+    return None

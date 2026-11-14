@@ -1,36 +1,28 @@
 import type { MetadataRoute } from 'next';
-import { languages, fallbackLng } from '@/i18n/settings';
-import type { Language } from '@/i18n/settings';
+import { languages } from '@/i18n/settings';
 import { BLOG_ARTICLES } from '@/data/blog-articles';
+import { languageAlternates, siteUrl } from '@/lib/public-page-metadata';
 import { PUBLIC_PAGES } from '@/lib/public-pages';
-import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
+import { getSiteOrigin } from '@/lib/site-origin';
+import { LAST_UPDATED } from '@/lib/version';
 
 // Evaluated per request so the generic prebuilt image serves the runtime
 // APP_URL_SERVER origin (B03) instead of a build-time hostname.
 export const dynamic = 'force-dynamic';
 
 /**
- * Build the full URL for a given path and language.
- * French (default) has no prefix, other languages are prefixed.
+ * The day of the release this build ships, at midnight UTC.
+ *
+ * The release stamp carries no zone: read as a day it can never name an instant
+ * later than the moment a crawler reads it.
  */
-function buildUrl(path: string, lng: Language): string {
-  // The caller returns an empty sitemap when no origin is configured, so
-  // origin is non-null here; passing the path verbatim preserves the exact
-  // historical URL shape (home keeps its trailing slash).
-  return localizedUrl(getSiteOrigin(), path, lng);
+function releaseDay(): Date {
+  return new Date(LAST_UPDATED.slice(0, 10));
 }
 
-/**
- * Build hreflang alternates for a given path across all supported languages.
- */
-function buildAlternates(path: string): Record<string, string> {
-  const alternates: Record<string, string> = {};
-  for (const lng of languages) {
-    alternates[lng] = buildUrl(path, lng);
-  }
-  // x-default points to the default language (French, no prefix)
-  alternates['x-default'] = buildUrl(path, fallbackLng);
-  return alternates;
+/** The day an article was last revised, else the day it was published. */
+function articleDay(article: (typeof BLOG_ARTICLES)[number]): Date {
+  return new Date(article.updated ?? article.date);
 }
 
 /**
@@ -39,7 +31,15 @@ function buildAlternates(path: string): Record<string, string> {
  * Public pages and blog articles are included. The page list is the shared
  * declaration (`lib/public-pages.ts`) that robots.txt reads too — a second copy
  * here is how `/more` and `/demo` ended up sitemapped but never allowed.
- * Each page has alternates for all 6 supported languages.
+ *
+ * Two rules search engines publish for a multilingual sitemap are held here:
+ * - EVERY language version is an entry of its own, and each entry lists the
+ *   whole set of alternates, itself included (`x-default` too). A version that
+ *   only appears as someone else's alternate is not an announced URL.
+ * - `lastModified` is a claim, read only as long as it is true: a page that
+ *   follows the release takes the release's day, an article takes its own
+ *   revision day, and a page with no known date states none. It is never the
+ *   moment the sitemap was asked for.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   if (getSiteOrigin() === null) {
@@ -47,26 +47,41 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // would be invalid — serve an honest empty one instead.
     return [];
   }
-  const staticEntries = PUBLIC_PAGES.map(({ path, changeFrequency, priority }) => ({
-    url: buildUrl(path, fallbackLng),
-    lastModified: new Date(),
-    changeFrequency,
-    priority,
-    alternates: {
-      languages: buildAlternates(path),
-    },
-  }));
+  const release = releaseDay();
+  const newestArticle = new Date(
+    Math.max(...BLOG_ARTICLES.map(article => articleDay(article).getTime()))
+  );
 
-  // Blog article entries
-  const blogEntries = BLOG_ARTICLES.map(article => ({
-    url: buildUrl(`/blog/${article.slug}`, fallbackLng),
-    lastModified: new Date(article.date),
-    changeFrequency: 'monthly' as const,
-    priority: 0.6,
-    alternates: {
-      languages: buildAlternates(`/blog/${article.slug}`),
-    },
-  }));
+  const staticEntries = PUBLIC_PAGES.flatMap(
+    ({ path, changeFrequency, priority, lastModified }) => {
+      const modified =
+        lastModified === 'release'
+          ? release
+          : lastModified === 'articles'
+            ? newestArticle
+            : undefined;
+      const alternates = { languages: languageAlternates(path) };
+      return languages.map(lng => ({
+        url: siteUrl(path, lng),
+        ...(modified ? { lastModified: modified } : {}),
+        changeFrequency,
+        priority,
+        alternates,
+      }));
+    }
+  );
+
+  const blogEntries = BLOG_ARTICLES.flatMap(article => {
+    const path = `/blog/${article.slug}`;
+    const alternates = { languages: languageAlternates(path) };
+    return languages.map(lng => ({
+      url: siteUrl(path, lng),
+      lastModified: articleDay(article),
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
+      alternates,
+    }));
+  });
 
   return [...staticEntries, ...blogEntries];
 }

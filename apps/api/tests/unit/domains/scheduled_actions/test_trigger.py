@@ -28,6 +28,7 @@ from typing import Any
 import pytest
 
 from src.core.config import settings
+from src.core.constants import ROUTINE_WEBHOOK_FAILURE_RETRY_SECONDS
 from src.core.recurrence import DailyTimes, RecurrenceSpec, TimeOfDay, describe
 from src.domains.scheduled_actions.models import CONDITION_TYPES, TriggerKind
 from src.domains.scheduled_actions.trigger import (
@@ -304,4 +305,48 @@ class TestTheSentence:
         )
 
         assert schedule_sentence(plan, "en") == describe(_weekly_at_eight(), "en")
+        assert check_minutes(plan) is None
+
+
+class TestAWebhookPlan:
+    """ADR-386: the clock is a call; the plan only says when to look again."""
+
+    def _webhook(self) -> TriggerPlan:
+        return _plan(trigger_kind=TriggerKind.WEBHOOK.value, condition_config=None)
+
+    def test_a_new_or_revived_routine_looks_at_once_for_what_is_waiting(self) -> None:
+        # Created, edited, resumed: the next pass serves calls accepted meanwhile,
+        # and finds nothing otherwise.
+        assert self._webhook().first(NOW) == NOW
+
+    def test_after_a_tick_it_looks_again_at_the_next_pass(self) -> None:
+        assert self._webhook().after_tick(due_at=NOW - timedelta(minutes=3), now=NOW) == NOW
+
+    def test_after_a_failed_run_it_backs_off_rather_than_looping(self) -> None:
+        backed_off = self._webhook().after_tick(due_at=NOW, now=NOW, failed=True)
+
+        assert backed_off == NOW + timedelta(seconds=ROUTINE_WEBHOOK_FAILURE_RETRY_SECONDS)
+
+    def test_a_failure_changes_nothing_for_the_other_clocks(self) -> None:
+        time_plan = _plan(
+            trigger_kind=TriggerKind.TIME.value,
+            recurrence=_weekly_at_eight(),
+            condition_config=None,
+        )
+        pending = datetime(2026, 9, 26, 6, 0, tzinfo=UTC)
+
+        assert time_plan.after_tick(due_at=pending, now=NOW, failed=True) == pending
+
+    def test_it_has_no_occurrence_to_catch_up_or_give_up(self) -> None:
+        plan = self._webhook()
+
+        assert plan.due_occurrence(due_at=NOW - timedelta(hours=5), started_at=NOW) is None
+        assert plan.catch_up_deadline(NOW) is None
+        assert not plan.is_condition and plan.is_webhook
+
+    def test_its_sentence_says_what_starts_it(self) -> None:
+        plan = self._webhook()
+
+        assert schedule_sentence(plan, "fr") == "Démarrée par un appel signé à son adresse"
+        assert schedule_sentence(plan, "en") == "Started by a signed call to its address"
         assert check_minutes(plan) is None

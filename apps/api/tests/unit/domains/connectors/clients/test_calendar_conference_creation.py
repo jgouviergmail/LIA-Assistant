@@ -16,9 +16,11 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import AsyncMock
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 
+from src.domains.connectors.clients.event_bounds import bounds_of
 from src.domains.connectors.clients.google_calendar_client import GoogleCalendarClient
 from src.domains.connectors.clients.microsoft_calendar_client import MicrosoftCalendarClient
 from src.domains.connectors.clients.normalizers.microsoft_calendar_normalizer import (
@@ -29,9 +31,9 @@ pytestmark = pytest.mark.unit
 
 _EVENT_ARGS: dict[str, Any] = {
     "summary": "Point avec Marc",
-    "start_datetime": "2026-08-27T10:00:00",
-    "end_datetime": "2026-08-27T10:30:00",
-    "timezone": "Europe/Paris",
+    "bounds": bounds_of(
+        "2026-08-27T10:00:00", "2026-08-27T10:30:00", ZoneInfo("Europe/Paris"), all_day=False
+    ),
 }
 
 
@@ -178,9 +180,7 @@ class TestAppleGracefulDegradation:
         assert executed["operation"] == "create_event"
         # The flag never reaches the CalDAV impl (no conference concept there).
         assert True not in executed["args"]
-        # Only the uid fixed before the retry loop, and the shape (ADR-369).
-        assert executed["kwargs"] == {
-            "uid": executed["kwargs"]["uid"],
-            "all_day": False,
-            "options": None,
-        }
+        # Only the uid fixed before the retry loop, and the options (ADR-369).
+        assert executed["kwargs"] == {"uid": executed["kwargs"]["uid"], "options": None}
+        # The bounds reach the CalDAV impl as they were given (ADR-380).
+        assert executed["args"][1] is _EVENT_ARGS["bounds"]

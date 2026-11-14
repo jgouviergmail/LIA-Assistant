@@ -6,8 +6,8 @@ and none of them raise on a wrong outcome — a defect here is silent:
 - ``normalize_gmail_query`` rewrites every Gmail search. It decides the SCOPE
   (received vs sent vs inbox) and whether **trashed** mail is included. A
   regression silently changes the result set.
-- ``_extract_email_from_address`` / ``_validate_email_addresses`` /
-  ``_validate_send_email_inputs`` gate outbound mail. A regression sends to the
+- ``extract_email_from_address`` / ``validate_email_addresses`` /
+  ``validate_send_email_inputs`` gate outbound mail. A regression sends to the
   wrong address or lets a malformed recipient through.
 
 All are pure (no connector, no network), so they are exercised directly.
@@ -19,12 +19,12 @@ from __future__ import annotations
 
 import pytest
 
-from src.domains.agents.tools.emails_tools import (
-    _extract_email_from_address,
-    _validate_email_addresses,
-    _validate_send_email_inputs,
-    normalize_gmail_query,
+from src.domains.agents.tools.email_address_validation import (
+    extract_email_from_address,
+    validate_email_addresses,
+    validate_send_email_inputs,
 )
+from src.domains.agents.tools.emails_tools import normalize_gmail_query
 from src.domains.agents.tools.exceptions import EmailValidationError
 
 pytestmark = pytest.mark.unit
@@ -170,7 +170,7 @@ class TestNormalizeGmailQueryQuotesAndDate:
 
 
 # ============================================================================
-# _extract_email_from_address
+# extract_email_from_address
 # ============================================================================
 
 
@@ -186,66 +186,66 @@ class TestExtractEmailFromAddress:
         ],
     )
     def test_extraction(self, raw: str, expected: str) -> None:
-        assert _extract_email_from_address(raw) == expected
+        assert extract_email_from_address(raw) == expected
 
     def test_unclosed_bracket_returns_input(self) -> None:
         """No closing '>' → nothing to extract; the caller's validation then
         rejects it rather than silently sending to a malformed address."""
-        assert _extract_email_from_address("broken <a@x.com") == "broken <a@x.com"
+        assert extract_email_from_address("broken <a@x.com") == "broken <a@x.com"
 
 
 # ============================================================================
-# _validate_email_addresses / _validate_send_email_inputs
+# validate_email_addresses / validate_send_email_inputs
 # ============================================================================
 
 
 class TestValidateEmailAddresses:
     def test_valid_plain_list_passes(self) -> None:
-        _validate_email_addresses("a@x.com, b@y.com", "to")
+        validate_email_addresses("a@x.com, b@y.com", "to")
 
     def test_valid_rfc5322_list_passes(self) -> None:
-        _validate_email_addresses("Jean <a@x.com>, Marie <b@y.com>", "to")
+        validate_email_addresses("Jean <a@x.com>, Marie <b@y.com>", "to")
 
     def test_blank_entries_are_skipped(self) -> None:
         """A trailing comma must not be reported as an invalid address."""
-        _validate_email_addresses("a@x.com, , b@y.com,", "to")
+        validate_email_addresses("a@x.com, , b@y.com,", "to")
 
     @pytest.mark.parametrize("bad", ["not-an-email", "a@", "@x.com", "a@x.com, broken"])
     def test_invalid_address_raises(self, bad: str) -> None:
         with pytest.raises(EmailValidationError) as exc:
-            _validate_email_addresses(bad, "to")
+            validate_email_addresses(bad, "to")
         assert exc.value.field == "to"
 
 
 class TestValidateSendEmailInputs:
     def test_valid_inputs_pass(self) -> None:
-        _validate_send_email_inputs(to="a@x.com", subject="Hi", body="Body")
+        validate_send_email_inputs(to="a@x.com", subject="Hi", body="Body")
 
     def test_missing_recipient_raises(self) -> None:
         with pytest.raises(EmailValidationError) as exc:
-            _validate_send_email_inputs(to=None, subject="Hi", body="Body")
+            validate_send_email_inputs(to=None, subject="Hi", body="Body")
         assert exc.value.field == "to"
 
     def test_empty_recipient_raises(self) -> None:
         with pytest.raises(EmailValidationError):
-            _validate_send_email_inputs(to="", subject="Hi", body="Body")
+            validate_send_email_inputs(to="", subject="Hi", body="Body")
 
     @pytest.mark.parametrize(("subject", "body"), [(None, "Body"), ("Hi", None), ("", "Body")])
     def test_missing_subject_or_body_raises(self, subject: str | None, body: str | None) -> None:
         with pytest.raises(EmailValidationError):
-            _validate_send_email_inputs(to="a@x.com", subject=subject, body=body)
+            validate_send_email_inputs(to="a@x.com", subject=subject, body=body)
 
     def test_invalid_cc_raises(self) -> None:
         with pytest.raises(EmailValidationError) as exc:
-            _validate_send_email_inputs(to="a@x.com", subject="Hi", body="B", cc="bad")
+            validate_send_email_inputs(to="a@x.com", subject="Hi", body="B", cc="bad")
         assert exc.value.field == "cc"
 
     def test_invalid_bcc_raises(self) -> None:
         with pytest.raises(EmailValidationError) as exc:
-            _validate_send_email_inputs(to="a@x.com", subject="Hi", body="B", bcc="bad")
+            validate_send_email_inputs(to="a@x.com", subject="Hi", body="B", bcc="bad")
         assert exc.value.field == "bcc"
 
     def test_valid_cc_and_bcc_pass(self) -> None:
-        _validate_send_email_inputs(
+        validate_send_email_inputs(
             to="a@x.com", subject="Hi", body="B", cc="c@x.com", bcc="Marie <d@x.com>"
         )

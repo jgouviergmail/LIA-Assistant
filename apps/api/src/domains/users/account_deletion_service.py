@@ -17,31 +17,36 @@ Created: 2026-03-31
 
 from __future__ import annotations
 
-import os
-import shutil
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Delete, Update, delete, or_, select, text, update
+from sqlalchemy import Delete, Update, delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.client_ip import resolve_client_ip
 from src.core.config import settings
+from src.core.constants import CONVERSATION_OWNER_LOCK_SCOPE
 from src.core.exceptions import ResourceConflictError, raise_user_not_found
 from src.domains.connectors.models import (
     Connector,
     ConnectorStatus,
     ConnectorType,
 )
-from src.domains.conversations.models import Conversation
 from src.domains.shared.world_cleanup import cleanup_world_presence
+from src.domains.users.account_cleanup import (
+    clean_account_runtime_page,
+    require_account_cleanup_complete,
+    stage_account_cleanup,
+)
+from src.domains.users.account_cleanup_port import account_cleanup
+from src.domains.users.account_files import remove_account_tree
 from src.domains.users.models import User
 from src.domains.users.resource_release import (
     build_capability_origin_scrub,
     workboard_release,
 )
+from src.infrastructure.database.owner_lock import hold_owner_lock
 from src.infrastructure.database.registry import import_all_models
 from src.infrastructure.database.session import Base
 from src.infrastructure.observability.logging import get_logger
@@ -58,7 +63,7 @@ def build_workboard_release(user_id: UUID) -> Update:
     Runs BEFORE the purge's DELETEs. Two mechanisms protect a ticket from a
     departing account and neither covers the other's case:
     ``workboard_tickets.assignee_user_id`` is ``ON DELETE SET NULL``, which
-    releases it on the four paths that HARD-delete a users row; account
+    releases it on every path that HARD-deletes a users row; account
     deletion, however, SCRUBS the users row instead of deleting it, so no
     foreign-key action fires at all — this statement is that path's release.
 
@@ -211,11 +216,15 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         by_user("relation_favorites"),
         by_user("relation_aliases"),
         by_user("relation_debriefs"),
+        by_user("conversation_creation_receipts"),
+        by_user("conversation_executions"),
         by_user("conversations"),
         by_user("memories"),
         by_user("journal_entries"),
         by_user("psyche_history"),
         by_user("psyche_states"),
+        # How the account writes (ADR-383): learned from its own sent mail.
+        by_user("writing_styles"),
         by_user("user_interests"),
         by_user("heartbeat_notifications"),
         # Anticipated moments (ADR-281). Explicit despite the ON DELETE CASCADE
@@ -230,6 +239,11 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         # by ``release_assignments_statement`` in _purge_user_data_tables —
         # this DELETE must never take another person's ticket with it.
         by_user("workboard_tickets", column="owner_user_id"),
+        # The account's own lanes. AFTER its tickets: a category leaving
+        # first would only null the column on rows the line above deletes. A
+        # ticket somebody else owns never names one of these — a category is
+        # its ticket's OWNER's — so no other account's board is touched.
+        by_user("workboard_categories", column="owner_user_id"),
         by_user("user_skill_states"),
         by_user("skills", column="owner_id"),
         by_user("user_mcp_servers"),
@@ -343,8 +357,16 @@ class AccountDeletionService:
         # =====================================================================
         # STEP 0 — Validate and lock
         # =====================================================================
-        user = await self._load_and_validate_user(user_id)
-        conversation = await self._load_conversation(user_id)
+        try:
+            await hold_owner_lock(self.db, CONVERSATION_OWNER_LOCK_SCOPE, user_id)
+            user = await self._load_and_validate_user(user_id)
+            await stage_account_cleanup(self.db, user)
+            await self.db.commit()
+        except BaseException:
+            await self.db.rollback()
+            raise
+
+        counts["attachment_files"] = await clean_account_runtime_page(self.db, user_id)
 
         # =====================================================================
         # STEP 1 — External services cleanup (best-effort, non-transactional)
@@ -364,25 +386,27 @@ class AccountDeletionService:
         # =====================================================================
         # STEP 1b — Physical file cleanup (before DB row deletion)
         # =====================================================================
-        counts["attachment_files"] = self._cleanup_attachment_files(user_id)
-        counts["rag_files"] = self._cleanup_rag_files(user_id)
-        counts["skill_files"] = self._cleanup_user_tree(
-            user_id, settings.skills_users_path, "skill"
+        counts["attachment_directories"] = await remove_account_tree(
+            user_id, settings.attachments_storage_path
         )
-        counts["plugin_files"] = self._cleanup_user_tree(
-            user_id, settings.plugins_users_path, "plugin"
+        counts["rag_files"] = await remove_account_tree(user_id, settings.rag_spaces_storage_path)
+        counts["skill_files"] = await remove_account_tree(user_id, settings.skills_users_path)
+        counts["plugin_files"] = await remove_account_tree(user_id, settings.plugins_users_path)
+        counts["meeting_audio_files"] = await remove_account_tree(
+            user_id, settings.meetings_storage_path
         )
 
         # =====================================================================
         # STEP 2 — PostgreSQL data purge (single transaction)
         # =====================================================================
 
-        # 2a. LangGraph checkpoints
-        if conversation:
-            await self._purge_langgraph_checkpoints(conversation.id)
-
-        # 2b. LangGraph Store (tool contexts, memories, heartbeat context)
+        # Runtime cleanup is complete. Account-level memories/context leave too.
         counts["store_items"] = await self._purge_langgraph_store(user_id)
+
+        # Recheck under the same lock order before deleting any durable intent.
+        await hold_owner_lock(self.db, CONVERSATION_OWNER_LOCK_SCOPE, user_id)
+        user = await self._load_and_validate_user(user_id)
+        await require_account_cleanup_complete(self.db, user_id)
 
         # 2c. Deactivate all connectors
         counts["connectors_deactivated"] = await self._deactivate_connectors(user_id)
@@ -434,7 +458,12 @@ class AccountDeletionService:
             HTTPException 404: User not found.
             HTTPException 409: Precondition violated.
         """
-        result = await self.db.execute(select(User).where(User.id == user_id).with_for_update())
+        result = await self.db.execute(
+            select(User)
+            .where(User.id == user_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         user = result.scalar_one_or_none()
 
         if not user:
@@ -461,23 +490,6 @@ class AccountDeletionService:
             )
 
         return user
-
-    async def _load_conversation(self, user_id: UUID) -> Conversation | None:
-        """Load user's conversation (may not exist if user never chatted).
-
-        Args:
-            user_id: User UUID.
-
-        Returns:
-            Conversation or None.
-        """
-        result = await self.db.execute(
-            select(Conversation).where(
-                Conversation.user_id == user_id,
-                Conversation.deleted_at.is_(None),
-            )
-        )
-        return result.scalar_one_or_none()
 
     # =========================================================================
     # STEP 1 — External services cleanup
@@ -521,6 +533,7 @@ class AccountDeletionService:
             encrypted_tokens = [grant.credentials_encrypted for grant in grants] + [
                 connector.credentials_encrypted for connector in legacy_connectors
             ]
+            await self.db.commit()
             revoked_tokens: set[str] = set()
             for encrypted in encrypted_tokens:
                 try:
@@ -651,6 +664,10 @@ class AccountDeletionService:
             for start in range(0, len(user_keys), 100):
                 await redis.delete(*user_keys[start : start + 100])
 
+            from src.infrastructure.browser.pool import forget_browser_sessions
+
+            await forget_browser_sessions(user_id)
+
             logger.info(
                 "account_deletion_redis_caches_cleaned",
                 user_id=uid,
@@ -667,142 +684,11 @@ class AccountDeletionService:
     # STEP 1b — Physical file cleanup
     # =========================================================================
 
-    def _cleanup_user_tree(self, user_id: UUID, base_path: str, label: str) -> int:
-        """Delete one {base_path}/{user_id}/ tree from disk (best-effort).
-
-        Closes the disk half of the purge for user-scoped content trees whose
-        DB rows CASCADE away with the account: imported skills
-        (``skills_users_path``) and installed Agent Plugins roots
-        (``plugins_users_path``, ADR-225).
-
-        Args:
-            user_id: User UUID.
-            base_path: Configured base directory holding per-user subtrees.
-            label: Short content label for the structured log event.
-
-        Returns:
-            1 if the directory existed and was removed, 0 otherwise.
-        """
-        base_str = str(Path(base_path).resolve())
-        # CodeQL sanitizer: normpath + startswith prevents path traversal
-        user_dir_str = os.path.normpath(os.path.join(base_str, str(user_id)))
-        if not user_dir_str.startswith(base_str):
-            logger.warning(
-                "account_deletion_path_traversal_blocked",
-                user_id=str(user_id),
-                resolved_path=user_dir_str,
-            )
-            return 0
-        user_dir = Path(user_dir_str)
-        if user_dir.exists():
-            shutil.rmtree(user_dir, ignore_errors=True)
-            logger.info(
-                "account_deletion_user_tree_cleaned",
-                user_id=str(user_id),
-                tree=label,
-                path=user_dir_str,
-            )
-            return 1
-        return 0
-
-    def _cleanup_attachment_files(self, user_id: UUID) -> int:
-        """Delete user's attachment directory from disk (best-effort).
-
-        Files are organized as: {storage_path}/{user_id}/
-
-        Args:
-            user_id: User UUID.
-
-        Returns:
-            1 if directory existed and was removed, 0 if no directory found.
-        """
-        base_str = str(Path(settings.attachments_storage_path).resolve())
-        # CodeQL sanitizer: normpath + startswith prevents path traversal
-        user_dir_str = os.path.normpath(os.path.join(base_str, str(user_id)))
-        if not user_dir_str.startswith(base_str):
-            logger.warning(
-                "account_deletion_path_traversal_blocked",
-                user_id=str(user_id),
-                resolved_path=user_dir_str,
-            )
-            return 0
-        user_dir = Path(user_dir_str)
-        if user_dir.exists():
-            shutil.rmtree(user_dir, ignore_errors=True)
-            logger.info(
-                "account_deletion_attachment_files_cleaned",
-                user_id=str(user_id),
-                path=user_dir_str,
-            )
-            return 1
-        return 0
-
-    def _cleanup_rag_files(self, user_id: UUID) -> int:
-        """Delete user's RAG upload directory from disk (best-effort).
-
-        Files are organized as: {storage_path}/{user_id}/{space_id}/
-
-        Args:
-            user_id: User UUID.
-
-        Returns:
-            1 if directory existed and was deleted, 0 otherwise.
-        """
-        base_str = str(Path(settings.rag_spaces_storage_path).resolve())
-        # CodeQL sanitizer: normpath + startswith prevents path traversal
-        user_dir_str = os.path.normpath(os.path.join(base_str, str(user_id)))
-        if not user_dir_str.startswith(base_str):
-            logger.warning(
-                "account_deletion_path_traversal_blocked",
-                user_id=str(user_id),
-                resolved_path=user_dir_str,
-            )
-            return 0
-        user_dir = Path(user_dir_str)
-        if user_dir.exists():
-            shutil.rmtree(user_dir, ignore_errors=True)
-            logger.info(
-                "account_deletion_rag_files_cleaned",
-                user_id=str(user_id),
-                path=user_dir_str,
-            )
-            return 1
-        return 0
-
-    # =========================================================================
-    # STEP 2 — PostgreSQL data purge
-    # =========================================================================
-
-    async def _purge_langgraph_checkpoints(self, conversation_id: UUID) -> None:
-        """Purge LangGraph checkpoints for the user's conversation thread.
-
-        Uses the checkpointer's adelete_thread() to properly handle all 3 tables
-        (checkpoints, checkpoint_writes, checkpoint_blobs) and internal caches.
-
-        Args:
-            conversation_id: Conversation UUID (= LangGraph thread_id).
-        """
-        try:
-            from src.domains.conversations.checkpointer import get_checkpointer
-
-            checkpointer = await get_checkpointer()
-            await checkpointer.adelete_thread(str(conversation_id))
-            logger.info(
-                "account_deletion_checkpoints_purged",
-                conversation_id=str(conversation_id),
-            )
-        except Exception as e:
-            logger.warning(
-                "account_deletion_checkpoint_purge_failed",
-                conversation_id=str(conversation_id),
-                error=str(e),
-            )
-
     async def _purge_langgraph_store(self, user_id: UUID) -> int:
         """Purge all LangGraph Store entries for the user.
 
-        Store namespaces start with '{user_id}.' — covers tool contexts,
-        memories, heartbeat context. The store_vectors table cascades from store.
+        The native Store owns namespace matching and vector removal. Page at
+        zero while deleting, including the exact root namespace and children.
 
         Args:
             user_id: User UUID.
@@ -810,19 +696,7 @@ class AccountDeletionService:
         Returns:
             Number of store items deleted.
         """
-        uid = str(user_id)
-        cursor_result = await self.db.execute(
-            text("DELETE FROM store WHERE prefix LIKE :pattern"),
-            {"pattern": f"{uid}.%"},
-        )
-        count: int = cursor_result.rowcount  # type: ignore[attr-defined]
-        if count > 0:
-            logger.info(
-                "account_deletion_store_purged",
-                user_id=uid,
-                items_deleted=count,
-            )
-        return count
+        return await account_cleanup().purge_store(user_id)
 
     async def _deactivate_connectors(self, user_id: UUID) -> int:
         """Deactivate all connectors: OAuth → REVOKED, non-OAuth → INACTIVE.

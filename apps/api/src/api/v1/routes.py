@@ -9,6 +9,7 @@ from src.core import constants
 from src.core.config import settings
 from src.core.field_names import FIELD_STATUS
 from src.domains.agents.api.router import router as agents_router
+from src.domains.agents.api.waiting_router import router as waiting_router
 from src.domains.agents.application.command_router import (
     router as application_commands_router,
 )
@@ -35,6 +36,8 @@ from src.domains.briefing.router import router as briefing_router
 from src.domains.capabilities.router import router as capabilities_router
 from src.domains.chat.router import router as chat_router
 from src.domains.connectors.router import router as connectors_router
+from src.domains.conversations.catalogue_router import router as conversations_catalogue_router
+from src.domains.conversations.lifecycle_router import router as conversations_lifecycle_router
 from src.domains.conversations.router import router as conversations_router
 from src.domains.feature_switches.public_state import public_capability_states
 from src.domains.feature_switches.router import router as capability_switches_router
@@ -77,6 +80,7 @@ from src.domains.voice.router import router as voice_router
 from src.domains.voice.slot_selection import LibrarySpeechGuard
 from src.domains.world.configuration import configured_arcade_enabled
 from src.domains.world.router import router as world_router
+from src.domains.writing_style.router import router as writing_style_router
 
 # The composition root wires the typed port without a llm_config -> voice import.
 install_speech_guard(LibrarySpeechGuard())
@@ -96,6 +100,8 @@ api_router.include_router(connectors_router)
 api_router.include_router(avatars_router)
 api_router.include_router(avatar_relay_router)
 api_router.include_router(agents_router)
+# ADR-384: words written while LIA works wait for their turn, kept by the server.
+api_router.include_router(waiting_router)
 # The effect register (ADR-263): read-only, user-scoped, always mounted. It is
 # how a user checks what was done for them without taking the executor's word.
 api_router.include_router(effects_router)
@@ -116,6 +122,8 @@ api_router.include_router(effects_admin_router)
 api_router.include_router(chain_admin_router)
 api_router.include_router(statistics_admin_router)
 api_router.include_router(conversations_router)
+api_router.include_router(conversations_lifecycle_router)
+api_router.include_router(conversations_catalogue_router)
 api_router.include_router(chat_router)
 if getattr(settings, "world_enabled", False):
     api_router.include_router(world_router)
@@ -142,6 +150,7 @@ api_router.include_router(scheduled_actions_router)
 api_router.include_router(briefing_router)  # Today dashboard
 api_router.include_router(briefing_progressive_router)  # Today, progressive (D2)
 api_router.include_router(relations_router)  # Personal CRM (N-09, read-only)
+api_router.include_router(writing_style_router)  # The person's voice (ADR-383)
 api_router.include_router(checklist_router)  # Starter checklist state (UXR A10)
 if getattr(settings, "account_export_enabled", False):
     from src.domains.account_export.router import router as account_export_router
@@ -265,6 +274,12 @@ if getattr(settings, "email_share_enabled", False):
     from src.domains.email_share.router import router as email_share_router
 
     api_router.include_router(email_share_router)
+# Another system starts a routine with a signed call (ADR-386): the public
+# address, mounted by its ceiling; the operator's switch closes it at the door.
+if getattr(settings, "routine_webhooks_enabled", False):
+    from src.domains.scheduled_actions.webhook_router import router as routine_webhook_router
+
+    api_router.include_router(routine_webhook_router)
 # The « Tools » section (ADR-369): the person's own door to their services.
 if getattr(settings, "workbench_enabled", False):
     from src.domains.workbench.router import router as workbench_router
@@ -281,10 +296,13 @@ if getattr(settings, "radio_enabled", False):
 
     api_router.include_router(radio_router)
 if getattr(settings, "skills_enabled", False):
+    from src.domains.skills.lifecycle_router import router as skill_lifecycle_router
     from src.domains.skills.proposal_router import router as skill_proposals_router
     from src.domains.skills.router import router as skills_router
 
     api_router.include_router(skills_router)
+    # Switching off the dormant skills, restoring a previous version (lot 14).
+    api_router.include_router(skill_lifecycle_router)
     # A skill written in the chat, installed from its card (ADR-327).
     api_router.include_router(skill_proposals_router)
 # The hosts a person allowed a sandbox script or a skill's command to reach
@@ -346,9 +364,13 @@ if getattr(settings, "telephony_enabled", False):
     from src.domains.agents.telephony.live_tools_router import (
         router as telephony_tools_router,
     )
+    from src.domains.telephony.router import record_router as telephony_record_router
     from src.domains.telephony.router import router as telephony_router
 
     api_router.include_router(telephony_router)
+    # The stored key's removal: under the deployment flag like the rest, outside
+    # the operator's switch (a switch removes the capability, never the record).
+    api_router.include_router(telephony_record_router)
     # The vendor's call-back during an owner call (lot 7) — agents-side, because
     # it runs a registered tool; hides itself while TELEPHONY_LIVE_TOOLS_ENABLED is off.
     api_router.include_router(telephony_tools_router)
@@ -458,6 +480,7 @@ async def get_client_config() -> dict:
 
     This endpoint is public and does not require authentication.
     """
+    from src.domains.attachments.document_formats import composer_accepts
     from src.domains.connectors.keyless import keyless_ceiling_reason
     from src.domains.connectors.map_load_metering import (
         map_load_config,
@@ -477,6 +500,17 @@ async def get_client_config() -> dict:
             "per_minute": settings.rate_limit_per_minute,
             "burst": settings.rate_limit_burst,
         },
+        "conversations": {
+            "creation_enabled": settings.secondary_conversations_enabled,
+            "background_runs_enabled": settings.background_runs_enabled,
+            "title_max_length": constants.CONVERSATION_TITLE_MAX_LENGTH,
+            "title_pattern": constants.CONVERSATION_TITLE_PATTERN,
+            "offset_max": constants.CONVERSATION_LIST_SQL_MAX,
+            "page_default_limit": settings.conversation_list_default_limit,
+            "page_max_limit": settings.conversation_list_max_limit,
+        },
+        # What the composer may offer for an upload (ADR-184, ADR-295 amendment).
+        "attachments": composer_accepts(),
         "i18n": {
             "supported_languages": settings.supported_languages,
             "default_language": settings.default_language,
@@ -525,8 +559,9 @@ async def get_client_config() -> dict:
                 and getattr(settings, "meetings_import_enabled", False)
             ),
             "sms_enabled": settings.sms_enabled,
-            # Workboard (ADR-276): gates the board page, its settings section
-            # and the ticket actions under a chat notification.
+            # Workboard (ADR-276): the deployment ceiling of the board page, its
+            # header destination and the ticket actions under a chat
+            # notification (the effective state is in `capabilities`).
             "workboard_enabled": getattr(settings, "workboard_enabled", False),
             # Message bookmarks (ADR-282): gates the bubble action and the
             # « Bookmarks » tab of the generated files.
@@ -554,6 +589,17 @@ async def get_client_config() -> dict:
             # What LIA does from the Tools (ADR-372): its deployment ceiling (the
             # effective state is in `capabilities`).
             "tool_assists_enabled": getattr(settings, "tool_assists_enabled", False),
+            # A routine started by a signed call (ADR-386): the deployment ceiling of
+            # the form's third clock (the effective state is in `capabilities`).
+            "routine_webhooks_enabled": getattr(settings, "routine_webhooks_enabled", False),
+            # Telephony: what MOUNTS its routes. A stored key stays removable
+            # under the operator's switch (ADR-280); the connectors screen tells
+            # « switched off » from « not mounted » by this flag.
+            "telephony_enabled": getattr(settings, "telephony_enabled", False),
+            # Personal MCP servers: their router is mounted by this flag, not by
+            # the MCP capability's ceiling (`mcp_enabled`, the instance's own
+            # servers) — the capability map alone cannot say the router is absent.
+            "mcp_user_enabled": getattr(settings, "mcp_user_enabled", False),
         },
         # Every capability of the registry with its EFFECTIVE state (ceiling
         # AND operator switch): what a visitor will find on this instance.

@@ -25,6 +25,7 @@ from src.core.i18n import get_language_name, resolve_language
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.prompt_layout import single_call_messages
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
+from src.core.time_utils import resolve_zone
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.services.jev_extraction_observer import (
     observe_extractor,
@@ -226,6 +227,8 @@ async def extract_journal_entry_background(
     query_embedding: list[float] | None = None,
     previous_turn_injected_ids: list[str] | None = None,
     previous_turn_injected_revisions: dict[str, int] | None = None,
+    *,
+    user_timezone: str | None,
 ) -> int:
     """
     Background journal extraction from conversation.
@@ -254,6 +257,9 @@ async def extract_journal_entry_background(
             entries. Empty/None on conversation reset (gracefully skipped).
         previous_turn_injected_revisions: Exact revisions exposed at T-1;
             an absent or changed revision cannot receive a reaction signal.
+        user_timezone: The person's display zone (IANA name), the turn's own: the
+            exchange is stamped and the present written in it (ADR-381 amendment);
+            None reads as the declared default zone.
 
     Returns:
         Number of actions applied (create/update/delete)
@@ -302,7 +308,9 @@ async def extract_journal_entry_background(
         context_messages = messages[context_start : last_human_index + 1]
 
         # Format conversation excerpt
-        conversation = _format_messages_for_extraction(context_messages)
+        conversation = _format_messages_for_extraction(
+            context_messages, zone=resolve_zone(user_timezone)
+        )
 
         # Append assistant's response (not yet in state at scheduling time)
         if assistant_response:
@@ -575,6 +583,7 @@ async def extract_journal_entry_background(
             settlement_context = ExtractionSettlement(
                 user_id=user_id,
                 session_id=session_id,
+                conversation_id=conversation_id,
                 personality_code=personality_code,
                 max_entry_chars=max_entry_chars,
                 event_key=event_key,

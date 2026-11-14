@@ -40,6 +40,7 @@ from src.domains.peers.image_share import (
 from src.domains.peers.models import PeerConnection, PeerImageShare
 from src.domains.peers.pair_fence import lock_peer_pair
 from src.domains.peers.service import PeersService
+from src.domains.users.file_writers import account_file_write
 from src.domains.users.preference_cas import PreferenceWriteReceipt
 
 
@@ -205,45 +206,47 @@ async def execute_peer_image(
         raise ValueError("Sharing requires exact recipient, image and comment approval")
     expected = PeerImagePatch.model_validate(draft.intent).peer_image
 
-    async def check() -> None:
-        await _image_access(db, actor_id)
-        if datetime.now(UTC) >= draft.expires_at:
-            raise CommandRejected("EXPIRED")
+    async with account_file_write(db, actor_id), account_file_write(db, expected.peer_id):
 
-    await check()
-    await lock_peer_pair(db, actor_id, expected.peer_id)
-    await check()
-    await _verify_image_selection(db, actor_id, expected)
+        async def check() -> None:
+            await _image_access(db, actor_id)
+            if datetime.now(UTC) >= draft.expires_at:
+                raise CommandRejected("EXPIRED")
 
-    async def commit(
-        session: AsyncSession, copy: Attachment, share: PeerImageShare, target: Path
-    ) -> None:
-        await _verify_image_selection(session, actor_id, expected)
-        await _verify_saved_copy(session, actor_id, expected, copy, share, target)
         await check()
-        try:
-            await session.commit()
-        except (Exception, asyncio.CancelledError) as exc:
-            raise ImageShareCommitUnknown("Image share commit was not acknowledged") from exc
-        receipt.committed = True
+        await lock_peer_pair(db, actor_id, expected.peer_id)
+        await check()
+        await _verify_image_selection(db, actor_id, expected)
 
-    try:
-        shared = await share_image(
-            db,
-            sender_id=actor_id,
-            connection_id=expected.request.connection_id,
-            attachment_id=expected.request.attachment_id,
-            comment=expected.request.comment,
-            commit=commit,
-            record_user_action=False,
-        )
-    except ImageShareCommitUnknown as exc:
-        raise CommandRejected("COMPLETION_UNKNOWN") from exc
-    public = {
-        **expected.public_scope(after=True),
-        "share_id": str(shared.share_id),
-        "recipient_attachment_id": str(shared.attachment_id),
-        "delivered": False,
-    }
-    receipt.values = {"peer_image": public}
-    public["delivered"] = await deliver_shared_image(shared)
+        async def commit(
+            session: AsyncSession, copy: Attachment, share: PeerImageShare, target: Path
+        ) -> None:
+            await _verify_image_selection(session, actor_id, expected)
+            await _verify_saved_copy(session, actor_id, expected, copy, share, target)
+            await check()
+            try:
+                await session.commit()
+            except (Exception, asyncio.CancelledError) as exc:
+                raise ImageShareCommitUnknown("Image share commit was not acknowledged") from exc
+            receipt.committed = True
+
+        try:
+            shared = await share_image(
+                db,
+                sender_id=actor_id,
+                connection_id=expected.request.connection_id,
+                attachment_id=expected.request.attachment_id,
+                comment=expected.request.comment,
+                commit=commit,
+                record_user_action=False,
+            )
+        except ImageShareCommitUnknown as exc:
+            raise CommandRejected("COMPLETION_UNKNOWN") from exc
+        public = {
+            **expected.public_scope(after=True),
+            "share_id": str(shared.share_id),
+            "recipient_attachment_id": str(shared.attachment_id),
+            "delivered": False,
+        }
+        receipt.values = {"peer_image": public}
+        public["delivered"] = await deliver_shared_image(shared)

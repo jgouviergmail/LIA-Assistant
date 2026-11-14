@@ -37,6 +37,7 @@ from src.domains.shared.text_normalization import fold_name
 from src.domains.sms.constants import SMS_CARD_EXCERPT_CHARS
 from src.domains.telephony.models import PhoneCallOutcome, PhoneCallStatus
 from src.domains.workbench.ids import OptionalPageToken, OptionalProviderId, ProviderId
+from src.domains.workbench.schemas.mail import ReplyMark
 
 _ONE_LINE = r"^[^\x00-\x1f\x7f]+$"
 _NAME = StringConstraints(
@@ -175,6 +176,10 @@ class HistoryMail(BaseModel):
     id: str = Field(description="The message.")
     subject: str = Field(description="Its subject; empty for none, the page says so.")
     at: datetime | None = Field(description="When it was exchanged.")
+    reply: ReplyMark | None = Field(
+        default=None,
+        description="Where it stands in its conversation, when something happened (ADR-379).",
+    )
 
 
 class HistoryMeeting(BaseModel):

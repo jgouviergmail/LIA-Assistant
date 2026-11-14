@@ -11,6 +11,9 @@ so an obstacle is the same on every run and for every model:
 - ``error_then_fix``: the forecast refuses an ambiguous place and says what to pass;
 - ``empty_then_relax``: the agenda search is empty until the query is relaxed;
 - ``dedicated_down``: the place tool is down, a web search answers;
+- ``public_web_first``: the 2026-11-14 turn — a deck on a public subject, every tool
+  answers: a source marked as a fallback is a false mark (run it without
+  ``--bind-catalogue``, whose neutral answers make a later web search a true fallback);
 - ``truncated_list``: the agenda says its page is cut and names the next one;
 - ``unobtainable``: every source fails — the gap must be declared, never looped;
 - ``trip_cross_check``: the 2026-09-23 turn — a trip tomorrow whose weather is a
@@ -28,16 +31,31 @@ The three ``stand_in_*`` scenarios open on that refused call (a prelude), bind t
 two send tools under their real names, descriptions and schemas, and build the
 refusal with the gate's own functions, in the shape the loop reads it.
 
+A final message marks a fallback when it holds the prompt's word, parentheses or not
+(the 2026-11-14 loop wrote « — fallback, … »), or a French name for a fallback source,
+anywhere; an ordinary French word (« repli », « en remplacement ») or a failure report
+marks only on a line naming a source; a negated mark never counts — the bench speaks
+French, and a family often writes one of these words instead of the token
+(``marks_fallback``).
+It claims that no other source existed when it says none was available, which the
+synthesis relays as a limit of the turn (``claims_no_other_source``, French and
+English); what the turn consulted, or what no source said, claims nothing. Each run
+keeps the lines carrying either (``marked_lines``) — a mark on a source line, in a
+declared gap or in the reasoning are three different things — and its whole final
+message (``final_text``), so that a later reader can redo every reading.
+
 ``--baseline-prompt`` renders another ReAct prompt file in place of the versioned
 one (the doctrine before a change), everything else equal — which is how a
 doctrine is compared with its predecessor. ``--bind-catalogue`` binds every
 registered tool beside a scenario's own, under its real name, description and
 schema, answering a neutral success: a production-sized prefix, where a tool the
-turn needs is one among many. Anthropic is refused (owner rule).
+turn needs is one among many. A series stops past ``--budget`` (USD): the runs
+left are skipped, none is cut.
 Run inside the API container, which holds the database the model configuration
-and the tariffs are read from::
+and the tariffs are read from, as a module (a script run by its path has its own
+folder on the import path, not the package root)::
 
-    python scripts/react/measure_recovery.py --models deepseek:deepseek-flash@none --reps 1
+    python -m scripts.react.measure_recovery --models deepseek:deepseek-flash@none --reps 1
 """
 
 from __future__ import annotations
@@ -45,6 +63,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import re
 import statistics
 import sys
 import time
@@ -69,8 +88,9 @@ from langchain_core.messages import (  # noqa: E402
 )
 from langchain_core.tools import StructuredTool  # noqa: E402
 
+from scripts.llm_families import named_families, prepare_bench  # noqa: E402
 from src.core.llm_agent_config import LLMAgentConfig  # noqa: E402
-from src.core.reasoning_intent import LEVELS, Level, ReasoningIntent  # noqa: E402
+from src.core.reasoning_intent import Level, ReasoningIntent  # noqa: E402
 from src.core.time_utils import now_in_timezone  # noqa: E402
 from src.domains.agents.effects import runtime as gate_runtime  # noqa: E402
 from src.domains.agents.effects.gate import (  # noqa: E402
@@ -84,6 +104,7 @@ from src.domains.agents.emails.self_send_manifest import (  # noqa: E402
 from src.domains.agents.models import MessagesState  # noqa: E402
 from src.domains.agents.nodes import react_prompt  # noqa: E402
 from src.domains.agents.nodes.react_recovery import (  # noqa: E402
+    _BLOCK,  # production's own block rule: from the LAST opening before its closing
     declared_unresolved,
     recovery_outcome,
     should_recover,
@@ -95,21 +116,135 @@ from src.domains.agents.tools.tool_registry import (  # noqa: E402
     ensure_tools_loaded,
     get_all_tools,
 )
-from src.domains.llm_config.cache import LLMConfigOverrideCache  # noqa: E402
-from src.infrastructure.cache.pricing_cache import (  # noqa: E402
-    get_cached_cost_usd_eur,
-    refresh_pricing_cache,
-)
-from src.infrastructure.database.session import get_db_context  # noqa: E402
+from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur  # noqa: E402
 from src.infrastructure.llm.factory import get_llm  # noqa: E402
 from src.infrastructure.llm.message_text import coerce_content_to_text  # noqa: E402
-from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache  # noqa: E402
 from src.infrastructure.llm.usage_metadata import tokens_from_usage_metadata  # noqa: E402
 
 TIMEZONE = "Europe/Paris"
 MAX_ITERATIONS = 12
-REFUSED_PROVIDERS = frozenset({"anthropic"})
 EXCERPT_CHARS = 400
+
+
+def _structured(tool: object) -> StructuredTool:
+    """A production tool as what it is once decorated: its decorator types it as its function."""
+    if not isinstance(tool, StructuredTool):
+        raise SystemExit(f"{tool!r} is no StructuredTool: nothing to measure")
+    return tool
+
+
+SEND_EMAIL = _structured(send_email_tool)
+SEND_EMAIL_TO_ME = _structured(send_email_to_me_tool)
+#: The mark wherever it sits: the prompt's word, and the French names of a fallback source.
+_MARK = re.compile(
+    r"\bfall-?back\b|solution de secours|\bsource (?:\w+ )?de (?:secours|repli)", re.IGNORECASE
+)
+#: Ordinary French that marks a source only on the line naming it (« Source : … »):
+#: « repli », « en remplacement », « recours après », and the dedicated service's failure.
+_MARK_ON_SOURCE_LINE = re.compile(
+    r"\brepli\b|en remplacement d|\brecours après|\bindisponib|\ba échoué|\ben échec",
+    re.IGNORECASE,
+)
+#: « Source : », « Sources : », « Source tool: » (the prompt's own key), « Sources consultées : ».
+_SOURCE_LINE = re.compile(r"\bsources?(?:\s+\w+)?\s*:", re.IGNORECASE)
+#: A negation just before a mark (« pas besoin d'un fallback », « sans repli », « rien n'a
+#: échoué », « aucun outil en échec ») or just after it (« Fallback : aucun », « fallback
+#: not needed »).
+_NEGATED_BEFORE = re.compile(
+    r"(?:\bpas (?:de|d['’]|une?|d['’]une?|besoin d(?:e|['’](?:une?\s+)?))|\baucune?(?:\s+\w+)?"
+    r"|\bsans|\bno|\bnot a|\bwithout(?: a)?|\bn['’])\s*$",
+    re.IGNORECASE,
+)
+_NEGATED_AFTER = re.compile(
+    r"(?:\s*:\s*(?:aucune?|none|non|no|néant)|\s+(?:not (?:needed|required|used)|unnecessary"
+    r"|non (?:nécessaire|requis)|pas (?:nécessaire|requis)|inutile))\b",
+    re.IGNORECASE,
+)
+#: « None was available », never « none was consulted » nor « no source mentions it »: each
+#: availability word is whole (a plural cannot be cut short to dodge the « ne » after it).
+_NO_OTHER_SOURCE = re.compile(
+    r"(?:faute|à défaut|en l['’]absence) d['’]autres? sources?\b(?!\s+consultées?)"
+    r"|(?:aucune|pas d['’]|sans)\s*(?:autres?\s+)?(?:sources?|pages?)"
+    r"(?:\s+(?!(?:ne|ni)\b|n['’])\w+){0,2}?(?:\s+ni\s+[^.;:\n]{1,60}?)?"
+    r"\s+(?:n['’](?:est|était|étaient)\s+)?"
+    r"(?:disponibles?|accessibles?|consultables?|trouvées?)\b(?!\s+n(?:e\b|['’]))"
+    r"|(?<!pas la )(?<!pas l['’])(?:seule?s?|unique) (?:sources?|pages?)"
+    r" (?:disponibles?|accessibles?)\b"
+    r"|no (?:other|alternative) sources?\s+(?:(?:was|were|is|are|could be)\s+)?"
+    r"(?:available|accessible|found)\b"
+    r"|only (?:(?:available|accessible) sources?|sources? (?:available|accessible))\b",
+    re.IGNORECASE,
+)
+
+
+def _negated(line: str, start: int, end: int) -> bool:
+    """Whether the mark found at ``line[start:end]`` is negated, just before or just after.
+
+    Args:
+        line: One line of a final message.
+        start: Where the mark starts in ``line``.
+        end: Where the mark ends in ``line``.
+
+    Returns:
+        True when a negation is adjacent to the mark.
+    """
+    return bool(
+        _NEGATED_BEFORE.search(line[max(0, start - 20) : start]) or _NEGATED_AFTER.match(line, end)
+    )
+
+
+def marks_fallback(text: str) -> bool:
+    """Whether a final message marks a source as a fallback, line by line.
+
+    The prompt's word, parentheses or not, or a French name for a fallback source,
+    anywhere; ordinary French words and a failure report only on a source line; never
+    when negated. The bench speaks French, and a family often writes one of these words
+    instead of the token.
+
+    Args:
+        text: A final message, or one of its lines.
+
+    Returns:
+        True when one of its lines marks a source as a fallback.
+    """
+    for line in text.splitlines():
+        patterns = [_MARK, _MARK_ON_SOURCE_LINE] if _SOURCE_LINE.search(line) else [_MARK]
+        for pattern in patterns:
+            for match in pattern.finditer(line):
+                if not _negated(line, match.start(), match.end()):
+                    return True
+    return False
+
+
+def claims_no_other_source(text: str) -> bool:
+    """Whether a final message says that no other source was available to the turn.
+
+    Args:
+        text: A final message, or one of its lines.
+
+    Returns:
+        True when it says so, in French or in English.
+    """
+    return _NO_OTHER_SOURCE.search(text) is not None
+
+
+def marked_lines(text: str) -> list[str]:
+    """The lines of a final message that mark a fallback or claim no other source, whole.
+
+    Where a mark sits decides what it is — a source line, a declared gap, the
+    reasoning — and the excerpt, cut at ``EXCERPT_CHARS``, often stops before it.
+
+    Args:
+        text: A final message.
+
+    Returns:
+        Each such line, stripped, in the message's order.
+    """
+    return [
+        line.strip()
+        for line in text.splitlines()
+        if marks_fallback(line) or claims_no_other_source(line)
+    ]
 
 
 class Probe:
@@ -334,6 +469,56 @@ def _dedicated_down(probe: Probe) -> list[StructuredTool]:
     ]
 
 
+def _public_web_first(probe: Probe) -> list[StructuredTool]:
+    """A public subject no tool is dedicated to: the web and the encyclopedia both answer."""
+
+    async def web_search(query: str) -> str:
+        return probe.served(
+            {
+                "results": [
+                    {
+                        "url": "https://musee-exemple.example/histoire",
+                        "snippet": "Musée Exemple : fondé en 1887 par la peintre Jeanne Exemple, "
+                        "ouvert au public en 1891.",
+                    },
+                    {
+                        "url": "https://patrimoine.example/musee-exemple",
+                        "snippet": "Une aile moderne est inaugurée en 1962 ; la rénovation "
+                        "complète s'achève en 2019.",
+                    },
+                ]
+            }
+        )
+
+    async def get_encyclopedia_summary(title: str) -> str:
+        return probe.served(
+            {
+                "title": title,
+                "summary": "Le Musée Exemple, fondé en 1887 par Jeanne Exemple, ouvre en 1891, "
+                "s'agrandit en 1962 et rouvre rénové en 2019.",
+            }
+        )
+
+    async def generate_document(title: str, content: str) -> str:
+        return probe.served(
+            {"success": True, "data": {"filename": "histoire-musee-exemple.pptx", "slides": 8}}
+        )
+
+    return [
+        _tool("web_search", "Search the public web.", web_search),
+        _tool(
+            "get_encyclopedia_summary",
+            "Summary of an encyclopedia article, by title.",
+            get_encyclopedia_summary,
+        ),
+        _tool(
+            "generate_document",
+            "Generate a presentation or a report from a title and its full content.",
+            generate_document,
+        ),
+    ]
+
+
 def _truncated_list(probe: Probe) -> list[StructuredTool]:
     start = now_in_timezone(TIMEZONE).date() + timedelta(days=7)
     titles = [f"Réunion projet {n}" for n in range(1, 11)] + [
@@ -432,7 +617,7 @@ def _draft_refused(*, named: bool) -> str:
         else str(decision.llm_message)
     )
     payload = gate_runtime._refusal_output(  # the gate's own payload shape
-        send_email_tool.name, str(decision.error_code), message
+        SEND_EMAIL.name, str(decision.error_code), message
     )
     return str(payload.get("message", str(payload)))
 
@@ -463,8 +648,8 @@ def _send_tools(probe: Probe, *, named: bool) -> list[StructuredTool]:
         return probe.served(NEWS)
 
     return [
-        _like(send_email_tool, refused),
-        _like(send_email_to_me_tool, sent),
+        _like(SEND_EMAIL, refused),
+        _like(SEND_EMAIL_TO_ME, sent),
         _tool("web_search", "Search the public web.", web_search),
     ]
 
@@ -488,7 +673,7 @@ def _refused_send(*, to: str, named: bool) -> list[BaseMessage]:
             id="tool-0",
             status="success",
         ),
-        _call(send_email_tool.name, draft, "call-draft-1", "model-1"),
+        _call(SEND_EMAIL.name, draft, "call-draft-1", "model-1"),
         ToolMessage(
             content=_draft_refused(named=named),
             tool_call_id="call-draft-1",
@@ -518,6 +703,12 @@ SCENARIOS = (
         ("18h", "18:00", "18 h"),
     ),
     Scenario(
+        "public_web_first",
+        "Rédige une présentation sur l'histoire du Musée Exemple.",
+        _public_web_first,
+        ("1887",),
+    ),
+    Scenario(
         "truncated_list",
         "Quels sont tous mes rendez-vous de la semaine prochaine ?",
         _truncated_list,
@@ -540,14 +731,14 @@ SCENARIOS = (
         _SELF,
         lambda probe: _send_tools(probe, named=True),
         prelude=lambda: _refused_send(to=SELF_ADDRESS, named=True),
-        expected_call=send_email_to_me_tool.name,
+        expected_call=SEND_EMAIL_TO_ME.name,
     ),
     Scenario(
         "stand_in_unnamed",
         _SELF,
         lambda probe: _send_tools(probe, named=False),
         prelude=lambda: _refused_send(to=SELF_ADDRESS, named=False),
-        expected_call=send_email_to_me_tool.name,
+        expected_call=SEND_EMAIL_TO_ME.name,
     ),
     Scenario(
         "stand_in_third_party",
@@ -555,7 +746,7 @@ SCENARIOS = (
         f"{THIRD_PARTY}.",
         lambda probe: _send_tools(probe, named=True),
         prelude=lambda: _refused_send(to=THIRD_PARTY, named=True),
-        forbidden_call=send_email_to_me_tool.name,
+        forbidden_call=SEND_EMAIL_TO_ME.name,
     ),
 )
 
@@ -567,6 +758,7 @@ class Run:
     variant: str
     model: str
     scenario: str
+    level: str = ""
     iterations: int = 0
     calls: list[str] = field(default_factory=list)
     obstacles: int = 0
@@ -577,8 +769,11 @@ class Run:
     declared: list[str] = field(default_factory=list)
     obtained: bool = False
     fallback_marked: bool = False
+    no_other_source_claimed: bool = False
+    marked_lines: list[str] = field(default_factory=list)
     wrong_mentioned: bool = False
     final_excerpt: str = ""
+    final_text: str = ""
     tokens_in: int = 0
     tokens_out: int = 0
     cost_usd: float = 0.0
@@ -595,12 +790,42 @@ async def _call_tool(tools: dict[str, StructuredTool], probe: Probe, call: dict[
         return probe.served(_refusal("INVALID_INPUT", str(exc)[:300]))
 
 
+def read_final(run: Run, scenario: Scenario, text: str) -> None:
+    """Fill what a run is judged on from its whole final message, which the run keeps.
+
+    The two flags are read on the marked lines, so a flag always has the line that
+    raised it; the facts are looked for outside the declared gaps, each block taken
+    from the LAST opening before its closing as production reads it — a reasoning that
+    names the tag cuts nothing. The text is synthetic (the stubs' own values), kept
+    for a later reader.
+
+    Args:
+        run: The run to fill; its ``calls`` are already recorded.
+        scenario: The scenario the run played, which says what proves it.
+        text: The run's final message, whole.
+    """
+    body = _BLOCK.sub("", text)
+    run.final_text = text
+    run.marked_lines = marked_lines(text)
+    run.fallback_marked = any(marks_fallback(line) for line in run.marked_lines)
+    run.no_other_source_claimed = any(claims_no_other_source(line) for line in run.marked_lines)
+    run.obtained = any(fact in body for fact in scenario.expected) or (
+        scenario.expected_call is not None and scenario.expected_call in run.calls
+    )
+    run.wrong_mentioned = any(value in body for value in scenario.wrong) or (
+        scenario.forbidden_call is not None and scenario.forbidden_call in run.calls
+    )
+    run.final_excerpt = body.strip()[:EXCERPT_CHARS]
+
+
 async def _run(
     scenario: Scenario,
     variant: str,
     model: str,
     llm: BaseChatModel,
     catalogue: list[StructuredTool],
+    *,
+    level: str,
 ) -> Run:
     probe = Probe()
     tools = {t.name: t for t in scenario.build(probe)}
@@ -620,7 +845,7 @@ async def _run(
     ]
     passes: list[dict[str, Any]] = []
     failed_calls: set[str] = set()
-    run = Run(variant, model, scenario.key)
+    run = Run(variant, model, scenario.key, level=level)
     for iteration in range(1, MAX_ITERATIONS + 1):
         run.iterations = iteration
         composed = with_recovery_directives([SystemMessage(content=system), *thread], passes)
@@ -684,20 +909,11 @@ async def _run(
             continue
         break
     final = thread[-1] if isinstance(thread[-1], AIMessage) else None
-    text = coerce_content_to_text(final.content) if final is not None else ""
-    body = text.split("<unresolved>")[0]
     run.passes = len(passes)
     run.pass_declared = [list(p["unresolved"]) for p in passes]
     run.outcome = recovery_outcome(passes, final, cut=False)
     run.declared = list(declared_unresolved(final))
-    run.obtained = any(fact in body for fact in scenario.expected) or (
-        scenario.expected_call is not None and scenario.expected_call in run.calls
-    )
-    run.fallback_marked = "(fallback)" in text.lower()
-    run.wrong_mentioned = any(value in body for value in scenario.wrong) or (
-        scenario.forbidden_call is not None and scenario.forbidden_call in run.calls
-    )
-    run.final_excerpt = body.strip()[:EXCERPT_CHARS]  # synthetic data: the stubs' own values
+    read_final(run, scenario, coerce_content_to_text(final.content) if final is not None else "")
     return run
 
 
@@ -717,27 +933,16 @@ def _llm(provider: str, model: str, level: Level) -> BaseChatModel:
     )
 
 
-def _parse_models(spec: str) -> list[tuple[str, str, Level]]:
-    parsed: list[tuple[str, str, Level]] = []
-    for item in spec.split(","):
-        head, _, raw = item.partition("@")
-        provider, _, model = head.partition(":")
-        level = raw.strip() or "provider_default"
-        if level not in LEVELS:
-            raise SystemExit(f"unknown reasoning level '{level}' (one of {', '.join(LEVELS)})")
-        parsed.append((provider.strip(), model.strip(), cast(Level, level)))
-    return parsed
-
-
 def _summary(runs: list[Run]) -> str:
     rows = [
         "| variant | model | scenario | n | obtained | wrong | declared | passes | outcomes | "
-        + "calls | repeated | fallback | USD/run |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        + "calls | repeated | fallback | no other source | USD/run |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     groups: dict[tuple[str, str, str], list[Run]] = {}
     for run in runs:
-        groups.setdefault((run.variant, run.model, run.scenario), []).append(run)
+        model = f"{run.model}@{run.level}" if run.level else run.model
+        groups.setdefault((run.variant, model, run.scenario), []).append(run)
     for (variant, model, scenario), group in groups.items():
         outcomes = Counter(r.outcome or "-" for r in group)
         rows.append(
@@ -750,6 +955,7 @@ def _summary(runs: list[Run]) -> str:
             f"| {statistics.mean(len(r.calls) for r in group):.1f} "
             f"| {sum(r.repeated for r in group)} "
             f"| {sum(r.fallback_marked for r in group)}/{len(group)} "
+            f"| {sum(r.no_other_source_claimed for r in group)}/{len(group)} "
             f"| {statistics.mean(r.cost_usd for r in group):.4f} |"
         )
     return "\n".join(rows)
@@ -770,10 +976,7 @@ def _install_prompt(path: Path | None) -> str:
 
 
 async def _amain(args: argparse.Namespace) -> int:
-    models = _parse_models(args.models)
-    if any(provider in REFUSED_PROVIDERS for provider, _m, _l in models):
-        print("refused: no Anthropic call (owner rule)", file=sys.stderr)
-        return 2
+    models = named_families(args.models)
     wanted = set(args.scenario.split(",")) if args.scenario else None
     scenarios = [s for s in SCENARIOS if wanted is None or s.key in wanted]
     if args.dry_run:
@@ -786,10 +989,7 @@ async def _amain(args: argparse.Namespace) -> int:
         ensure_tools_loaded()
         catalogue = [tool for tool in get_all_tools().values() if isinstance(tool, StructuredTool)]
         variant = f"{variant}+catalogue{len(catalogue)}"
-    async with get_db_context() as db:
-        await LLMConfigOverrideCache.load_from_db(db)
-        await ModelCapabilitiesCache.load_from_db(db)
-    await refresh_pricing_cache()
+    await prepare_bench()
     runs: list[Run] = []
     spent = 0.0
     started = time.perf_counter()
@@ -799,7 +999,7 @@ async def _amain(args: argparse.Namespace) -> int:
             for _ in range(args.reps):
                 if spent > args.budget:  # every remaining run is skipped, none is cut
                     break
-                run = await _run(scenario, variant, model, llm, catalogue)
+                run = await _run(scenario, variant, model, llm, catalogue, level=level)
                 runs.append(run)
                 spent += run.cost_usd
                 print(json.dumps(asdict(run), ensure_ascii=False), flush=True)

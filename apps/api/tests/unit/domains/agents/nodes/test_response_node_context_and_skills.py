@@ -9,6 +9,7 @@ error, and the passive-L2 vs ReAct-runner skill routes.
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
+from uuid import UUID
 
 import pytest
 
@@ -188,6 +189,96 @@ async def test_activate_skills_always_loaded_passive_injection():
         )
     assert "ALWAYS_CTX" in res.skills_context
     assert res.skill_react_response is None
+
+
+_PERSON = "22222222-2222-4222-8222-222222222222"
+
+
+@pytest.mark.asyncio
+async def test_the_skill_a_turn_settles_on_is_counted_under_its_run():
+    """Lot 14: the response node reports the skill it activated to the usage door."""
+    state = {"query_intelligence": {"detected_skill_name": "notes"}}
+    reported = Mock()
+    with (
+        patch(f"{_RESP}.settings.skills_enabled", True),
+        patch(f"{_RESP}.runtime_user_id_str", Mock(return_value=_PERSON)),
+        patch("src.domains.skills.cache.SkillsCache.get_always_loaded", Mock(return_value=[])),
+        patch(
+            "src.domains.skills.cache.SkillsCache.get_by_name_for_user",
+            Mock(return_value={"scope": "user", "references": [], "scripts": []}),
+        ),
+        patch("src.domains.skills.activation.activate_skill", Mock(return_value="<notes/>")),
+        patch("src.domains.skills.usage.schedule_skill_use", reported),
+    ):
+        res = await _activate_response_skills(
+            state,
+            {"configurable": {}},
+            "run-9",
+            last_user_message="mes notes",
+            conversation_history="",
+            current_turn_registry=None,
+            react_result=None,
+        )
+    assert res.activated_skill_name == "notes"
+    reported.assert_called_once_with(UUID(_PERSON), "notes", run_id="run-9")
+
+
+@pytest.mark.asyncio
+async def test_a_skill_the_loop_already_reported_this_turn_is_not_counted_again():
+    """Lot 14: one report per run at the source; the loop reported its activation."""
+    state = {
+        "query_intelligence": {"detected_skill_name": "notes"},
+        "react_activated_skills": ["notes"],
+    }
+    reported = Mock()
+    with (
+        patch(f"{_RESP}.settings.skills_enabled", True),
+        patch(f"{_RESP}.runtime_user_id_str", Mock(return_value=_PERSON)),
+        patch("src.domains.skills.cache.SkillsCache.get_always_loaded", Mock(return_value=[])),
+        patch(
+            "src.domains.skills.cache.SkillsCache.get_by_name_for_user",
+            Mock(return_value={"scope": "user", "references": [], "scripts": []}),
+        ),
+        patch("src.domains.skills.activation.activate_skill", Mock(return_value="<notes/>")),
+        patch("src.domains.skills.usage.schedule_skill_use", reported),
+    ):
+        res = await _activate_response_skills(
+            state,
+            {"configurable": {}},
+            "run-9",
+            last_user_message="mes notes",
+            conversation_history="",
+            current_turn_registry=None,
+            react_result=None,
+        )
+    assert res.activated_skill_name == "notes"
+    reported.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_an_always_loaded_skill_injected_passively_is_not_a_use():
+    reported = Mock()
+    with (
+        patch(f"{_RESP}.settings.skills_enabled", True),
+        patch(f"{_RESP}.runtime_user_id_str", Mock(return_value=_PERSON)),
+        patch(
+            "src.domains.skills.cache.SkillsCache.get_always_loaded",
+            Mock(return_value=[{"name": "always", "scope": "admin"}]),
+        ),
+        patch("src.domains.skills.cache.SkillsCache.get_by_name_for_user", Mock(return_value=None)),
+        patch("src.domains.skills.activation.activate_skill", Mock(return_value="ALWAYS_CTX")),
+        patch("src.domains.skills.usage.schedule_skill_use", reported),
+    ):
+        await _activate_response_skills(
+            {},
+            {"configurable": {}},
+            "run-9",
+            last_user_message="q",
+            conversation_history="",
+            current_turn_registry=None,
+            react_result=None,
+        )
+    reported.assert_not_called()
 
 
 @pytest.mark.asyncio

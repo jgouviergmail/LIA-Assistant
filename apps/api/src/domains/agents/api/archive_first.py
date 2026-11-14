@@ -1,15 +1,14 @@
 """Archive-first persistence of the user turn (ADR-117).
 
-Extracted verbatim from ``AgentService._archive_user_message_first``
-(file-size ratchet — a logical file never grows): the user message must be
-persisted BEFORE graph execution so the turn survives client disconnects,
-cancellations and crashes. End-of-run HITL flags are patched onto this row
-during finalization by ``AgentService._patch_user_message_hitl_flags``.
+The user message is persisted BEFORE graph execution so the turn survives
+client disconnects, cancellations and crashes. Its current execution fence
+serializes retries of the same invocation; a later HITL invocation owns a new
+row. Finalization patches end-of-run HITL flags onto the original request row.
 
 Habits program Lot 0 addition: when the run is automated (scheduled action
 executor), the archived row now carries ``is_automated_source: true`` in its
 metadata. Without the marker, a synthetic user message is indistinguishable
-from a human one at the message level (the conversation is 1:1 per user), and
+from a human one at the message level, and
 the rhythm profile would learn from LIA's own automations — a feedback loop.
 """
 
@@ -108,8 +107,12 @@ async def archive_user_message_first(
         The archived row id, or None when archiving failed (best-effort:
         an archiving hiccup must never block the generation itself).
     """
+    from src.core.conversation_execution import ExecutionRevoked
     from src.core.field_names import FIELD_IS_AUTOMATED_SOURCE, FIELD_RUN_ID
+    from src.core.run_authority import current_run_authority
     from src.domains.agents.api.run_origin import with_origin_stamp
+    from src.domains.conversations.publication_repository import ConversationPublicationRepository
+    from src.domains.conversations.waiting_repository import WaitingMessageRepository
     from src.infrastructure.database import get_db_context
 
     metadata: dict[str, Any] = {FIELD_RUN_ID: run_id, **attachment_meta}
@@ -128,6 +131,19 @@ async def archive_user_message_first(
     metadata = with_live_stamp(metadata, live_session_id, spoken_text)
     try:
         async with get_db_context() as archive_db:
+            authority = current_run_authority()
+            if authority is not None:
+                authority.require_current()
+                if (
+                    conversation_id != authority.admission.target.id
+                    or run_id != authority.admission.run_id
+                ):
+                    raise ExecutionRevoked()
+                existing = await ConversationPublicationRepository(archive_db).request_message_id(
+                    authority.admission, user_message
+                )
+                if existing is not None:
+                    return existing
             row = await conv_service.archive_message(
                 conversation_id,
                 "user",
@@ -136,13 +152,20 @@ async def archive_user_message_first(
                 archive_db,
                 **stt_kwargs,
             )
+            if authority is not None:
+                # A message that waited for its turn enters the discussion in
+                # this same transaction, or stays where it was (ADR-384).
+                await WaitingMessageRepository(archive_db).consume(
+                    authority.admission.target.owner_id, authority.admission.stream_id
+                )
             return row.id
+    except ExecutionRevoked:
+        raise
     except Exception as archive_err:  # noqa: BLE001 — must not kill the run
         logger.error(
             "archive_first_user_message_failed",
             run_id=run_id,
             conversation_id=str(conversation_id),
-            error=str(archive_err),
             error_type=type(archive_err).__name__,
         )
         return None

@@ -25,6 +25,7 @@ from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from sqlalchemy import CursorResult
 from sqlalchemy.dialects import postgresql
 
 from src.domains.workboard.constants import RunOutcome, TicketStatus
@@ -254,18 +255,19 @@ class TestPricingIt:
 
 
 class TestReapingAndRetention:
-    async def test_a_stale_claim_is_released_not_settled(self) -> None:
-        """A worker killed mid-run leaves a ticket claimed for ever otherwise."""
+    async def test_a_stale_claim_is_retired_without_a_repeat(self) -> None:
+        """Retirement clears ownership; it cannot queue an unknown external act."""
         repo = _repo()
-        repo.db.execute = AsyncMock(return_value=MagicMock(rowcount=2))
+        repo.db.execute = AsyncMock(return_value=MagicMock(spec=CursorResult, rowcount=2))
 
         assert await repo.reap_stale_claims(older_than=NOW - timedelta(minutes=10)) == 2
 
         sql = _sql(repo.db.execute.await_args.args[0])
-        assert "status='todo'" in sql.replace(" ", "")
+        assert "status='todo'" not in sql.replace(" ", "")
         assert "run_claimed_at=NULL" in sql.replace(" ", "")
         where = sql.split("WHERE", 1)[1]
         assert "run_claimed_at <" in where
+        assert "conversation_executions" in where
 
     async def test_the_retention_only_touches_closed_tickets_transcripts(self) -> None:
         repo = _repo()

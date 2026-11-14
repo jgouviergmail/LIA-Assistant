@@ -47,6 +47,13 @@ STATUSES: Final[dict[str, int]] = {
 }
 
 
+class ProposalCapacityReached(RuntimeError):
+    """Every retained proposal is protected by an ongoing or uncertain installation."""
+
+    def __init__(self) -> None:
+        super().__init__("The proposal capacity is occupied by protected installations")
+
+
 class ProposalRefusal(Exception):
     """A refusal to install a proposal, named by its code."""
 

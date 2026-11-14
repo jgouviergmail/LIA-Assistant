@@ -691,6 +691,42 @@ test('the keyboard opens a file and gets its row back when it closes', async ({
   await expect(page.getByRole('link', { name: /Customer deck\.pdf/ })).toBeFocused();
 });
 
+/* What is ticked can become, on ONE line (owner, 2026-11-11): the mail's remark, here too. */
+test('the acts of what is ticked hold on one line of a phone', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+
+  await page.goto('/en/dashboard/tools/files');
+  await waitForHydration(page, 'input[type="search"]');
+  await page.getByRole('checkbox', { name: 'Select Customer deck.pdf' }).check();
+
+  const bar = page.getByRole('region', { name: 'Items selected' });
+  const more = bar.getByRole('button', { name: 'More actions' });
+  // One file: the move stands in the bar, what only one item takes waits behind « … ».
+  await expectOnOneLine(
+    bar.getByText('1 selected'),
+    bar.getByRole('button', { name: 'Clear the selection' }),
+    bar.getByRole('button', { name: 'Move', exact: true }),
+    more,
+    bar.getByRole('button', { name: 'Delete' })
+  );
+  await expectNoOverflow(page, 'one file ticked at 360px');
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+  await more.click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Rename', 'Make a copy']);
+  await page.keyboard.press('Escape');
+
+  // Several: a « … » of nothing is not drawn.
+  await page.getByRole('checkbox', { name: 'Select Projects 2026' }).check();
+  await expect(bar.getByText('2 selected')).toBeVisible();
+  await expect(more).toHaveCount(0);
+});
+
 /* PHONE LINES: the owner's remarks of 2026-11-06. */
 for (const width of [390, 360]) {
   test(`a phone reads the files line by line at ${width}px`, async ({

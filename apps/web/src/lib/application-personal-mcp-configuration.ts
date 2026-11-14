@@ -7,9 +7,13 @@ export const personalMCPConfigurationSelectionSchema = z
     server_id: z.string().uuid().nullable(),
     creating: z.boolean(),
     requires_private_browser_form: z.literal(true),
+    // A key of the known catalogue the assistant proposed to add: the form
+    // opens filled with that server's PUBLIC facts. Present only when chosen.
+    known_server: z.string().min(1).optional(),
   })
   .strict()
-  .refine(value => value.creating === (value.server_id === null));
+  .refine(value => value.creating === (value.server_id === null))
+  .refine(value => value.creating || value.known_server === undefined);
 
 /** Browser-only original DTO projection. Cached schemas and stored diagnostic text are discarded. */
 export const personalMCPFormSourceSchema = z.object({
@@ -65,11 +69,26 @@ export function acceptsPersonalMCPConfiguration(
   );
 }
 
+/**
+ * The status line of the card.
+ *
+ * @param closed - The confirmation still waits for its form, and the instance
+ *   has closed the personal servers since: the form cannot be offered, so the
+ *   confirmed action cannot complete there. Everything the command itself
+ *   says — saved, running, expired, failed, unknown — is said first.
+ */
 export function personalMCPConfigurationMessage(
   status: ApplicationCommandStatus,
   mode: string,
-  expired: boolean
+  expired: boolean,
+  closed: boolean
 ): string {
+  const message = commandMessage(status, mode, expired);
+  return closed && message === 'mcp_configuration_waiting' ? 'secure_failed' : message;
+}
+
+/** What the command says of itself, whatever the instance offers now. */
+function commandMessage(status: ApplicationCommandStatus, mode: string, expired: boolean): string {
   if (mode === 'done' || status.outcome?.committed) return 'mcp_configuration_saved';
   if (mode === 'uncertain' || status.outcome?.error_code === 'COMPLETION_UNKNOWN')
     return 'secure_unknown';

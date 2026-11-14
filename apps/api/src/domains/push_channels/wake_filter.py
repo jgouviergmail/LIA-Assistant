@@ -5,8 +5,11 @@ Before spending a heartbeat decision (an LLM call, a notification budget)
 the sweep asks two cheap, published questions:
 
 - **mail**: does one new INBOX message carry a required label (Google's own
-  ``IMPORTANT`` by default) and none of the excluded categories, and is it
-  not list mail (``List-Unsubscribe``, bulk/list ``Precedence``)?
+  ``IMPORTANT`` by default) and none of the excluded categories, is it not
+  list mail (``List-Unsubscribe``, bulk/list ``Precedence``), and is it still
+  unread? A message the person opened since it arrived is nothing to announce:
+  the heartbeat's mail source is UNREAD mail, which is a definition, not a
+  setting.
 - **calendar**: was an event starting within the lookahead updated in the
   last few minutes by someone other than the user, or is the user's answer
   still pending on it?
@@ -23,6 +26,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
+
+from src.core.mail_vocabulary import is_unread
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,7 +82,7 @@ def mail_passes(message: dict[str, Any], rules: MailWakeRules) -> WakeVerdict:
 
     Returns:
         ``passes`` with a bounded ``reason``: ``excluded_label`` |
-        ``list_mail`` | ``no_required_label`` | ``important``.
+        ``list_mail`` | ``no_required_label`` | ``already_read`` | ``important``.
     """
     labels = {str(label) for label in message.get("labelIds") or []}
     if labels & rules.exclude_labels:
@@ -89,6 +94,10 @@ def mail_passes(message: dict[str, Any], rules: MailWakeRules) -> WakeVerdict:
             return WakeVerdict(False, "list_mail")
     if rules.require_labels and not (labels & rules.require_labels):
         return WakeVerdict(False, "no_required_label")
+    # Last, so the reason names exactly this case: it would have passed, and
+    # the person opened it before the sweep read it.
+    if not is_unread(message):
+        return WakeVerdict(False, "already_read")
     return WakeVerdict(True, "important")
 
 

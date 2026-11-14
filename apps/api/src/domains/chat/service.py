@@ -19,6 +19,8 @@ from src.core.constants import (
     TRACKER_COMMIT_CANCELLATION_GRACE_ATTEMPTS,
 )
 from src.core.context import current_tracker
+from src.core.conversation_execution import ExecutionRevoked
+from src.core.conversation_source import current_conversation_source
 from src.core.field_names import (
     FIELD_COST_EUR,
     FIELD_GOOGLE_API_COST_EUR,
@@ -61,6 +63,7 @@ from src.domains.chat.tracking_records import (
     token_log_row,
     tts_usage_record,
 )
+from src.domains.users.conversation_authority import hold_conversation_source
 from src.infrastructure.async_utils import write_through_cancellation
 from src.infrastructure.cache.pricing_cache import PricingCacheData
 from src.infrastructure.database import get_db_context
@@ -121,6 +124,12 @@ class TrackingContext:
         self.user_id = user_id
         self.session_id = session_id
         self.conversation_id = conversation_id
+        source = current_conversation_source()
+        self._source = (
+            source
+            if source is not None and (source.owner_id, source.id) == (user_id, conversation_id)
+            else None
+        )
         self.auto_commit = auto_commit
         self._external_db = db
 
@@ -638,7 +647,7 @@ class TrackingContext:
         tts_characters = sum(r.characters for r in self._tts_records)
         tts_cost_eur = sum(float(r.cost_eur) for r in self._tts_records)
 
-        summary = {
+        return {
             FIELD_TOKENS_IN: sum(r.prompt_tokens for r in self._node_records),
             FIELD_TOKENS_OUT: sum(r.completion_tokens for r in self._node_records),
             FIELD_TOKENS_CACHE: sum(r.cached_tokens for r in self._node_records),
@@ -655,38 +664,6 @@ class TrackingContext:
             FIELD_TTS_CHARACTERS: tts_characters,
             FIELD_TTS_COST_EUR: tts_cost_eur,
         }
-
-        # DEBUG: Log detailed breakdown by node for token verification.
-        # Aggregate tokens per node_name (sum across multiple executions).
-        # Fixes: ReAct loop has multiple react_call_model calls — dict comprehension
-        # would only keep the last one, losing tokens from earlier iterations.
-        node_breakdown: dict[str, dict[str, int]] = {}
-        for r in self._node_records:
-            if r.node_name in node_breakdown:
-                entry = node_breakdown[r.node_name]
-                entry["prompt"] += r.prompt_tokens
-                entry["completion"] += r.completion_tokens
-                entry["cached"] += r.cached_tokens
-                entry["total"] += r.prompt_tokens + r.completion_tokens + r.cached_tokens
-            else:
-                node_breakdown[r.node_name] = {
-                    "prompt": r.prompt_tokens,
-                    "completion": r.completion_tokens,
-                    "cached": r.cached_tokens,
-                    "total": r.prompt_tokens + r.completion_tokens + r.cached_tokens,
-                }
-
-        logger.debug(
-            "tracking_summary_generated",
-            run_id=self.run_id,
-            summary=summary,
-            node_breakdown=node_breakdown,
-            nodes_included=list(node_breakdown.keys()),
-            has_semantic_validator="semantic_validator" in node_breakdown,
-            google_api_records=len(self._google_api_records),
-        )
-
-        return summary
 
     @staticmethod
     def cleanup_run_records(run_id: str) -> None:
@@ -1058,6 +1035,15 @@ class TrackingContext:
             async with get_db_context() as db:
                 await self._do_persist(db, commit=True)
 
+    async def _bill_conversation(self, db: AsyncSession) -> UUID | None:
+        """Order attribution against retirement without discarding already paid usage."""
+        if self._source is not None:
+            try:
+                await hold_conversation_source(db, self.user_id, self._source)
+            except ExecutionRevoked:
+                return None
+        return self.conversation_id
+
     async def _do_persist(self, db: AsyncSession, *, commit: bool) -> None:
         """
         Internal persistence logic.
@@ -1068,6 +1054,7 @@ class TrackingContext:
         """
         from src.domains.chat.repository import ChatRepository
 
+        conversation_id = await self._bill_conversation(db)
         chat_repo = ChatRepository(db)
 
         # DEBUG: Log what's in _node_records before persistence (Phase 2.1.7 - Planner diagnostic)
@@ -1118,7 +1105,7 @@ class TrackingContext:
             run_id=self.run_id,
             user_id=self.user_id,
             session_id=self.session_id,
-            conversation_id=self.conversation_id,
+            conversation_id=conversation_id,
             summary_data=summary,
         )
 
@@ -1200,6 +1187,14 @@ class TrackingContext:
         self._image_generation_records.clear()
         self._tts_records.clear()
 
+        # On a tracker-owned transaction, release the source and the budget
+        # rows before Redis, and invalidate only after the new spend is visible.
+        if getattr(settings, "usage_limits_enabled", False):
+            with suppress(Exception):
+                from src.domains.usage_limits.service import UsageLimitService
+
+                await UsageLimitService.invalidate_cache_static(self.user_id)
+
     async def _update_user_statistics(self, db: AsyncSession, summary: dict) -> None:
         """
         Update user statistics (atomic upsert).
@@ -1244,14 +1239,6 @@ class TrackingContext:
             summary_data=summary,
             is_new_cycle=is_new_cycle,
         )
-
-        # Invalidate usage limit cache after stats update
-        if getattr(settings, "usage_limits_enabled", False):
-            # Cache invalidation failure must not break token tracking
-            with suppress(Exception):
-                from src.domains.usage_limits.service import UsageLimitService
-
-                await UsageLimitService.invalidate_cache_static(self.user_id)
 
 
 class StatisticsService:

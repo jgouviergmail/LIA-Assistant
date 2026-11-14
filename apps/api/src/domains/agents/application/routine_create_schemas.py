@@ -15,6 +15,7 @@ class RoutineCreateRequest(ScheduledActionCreate):
     model_config = ConfigDict(extra="forbid", frozen=True)
     condition_config: RoutineCondition | None = None
     requires_approval: StrictBool = False
+    notify_only_when_new: StrictBool = False
 
 
 class RoutineCreationValues(BaseModel):

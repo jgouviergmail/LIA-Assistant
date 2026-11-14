@@ -22,8 +22,7 @@ from sqlalchemy import Select, exists, or_, select
 
 from src.core.config import settings
 from src.core.i18n import normalize_language, resolve_language
-from src.core.i18n_account_export import render_export_heading, render_export_speaker
-from src.core.i18n_drafts import label_separator
+from src.core.i18n_account_export import render_export_heading, render_export_turn
 from src.core.security.utils import decrypt_data
 from src.domains.account_export.archive_stream import (
     ExportTooLargeError as ExportTooLargeError,
@@ -56,6 +55,10 @@ _OWNER_COLUMN_OVERRIDES: dict[str, str] = {
     # incoming shares are the OTHER user's choices, not the requester's data.
     "peer_blocks": "blocker_id",
     "peer_domain_shares": "owner_user_id",
+    # Ticket categories (ADR-276): the owner's own lanes. One-sided on purpose
+    # — a peer holding a ticket filed under one reads its name on their board,
+    # and the name stays the owner's data.
+    "workboard_categories": "owner_user_id",
     # The personal radio (ADR-324): the sites a listener added. The catalogue's
     # rows share the table with no owner, so they never match.
     "radio_feeds": "owner_id",
@@ -83,6 +86,9 @@ _REDACTED_COLUMNS: dict[str, frozenset[str]] = {
         {"snapshot", "lease_owner", "lease_expires_at", "fence"}
     ),
     "phone_calls": frozenset({"return_webhook_encrypted"}),
+    # ADR-386: a routine's address opens a public door and its secret signs for
+    # it; neither leaves the server after the answer that drew the secret.
+    "scheduled_actions": frozenset({"webhook_key", "webhook_secret"}),
     "sms_messages": frozenset({"sender_hash", "receipt_id"}),
     "sms_sender_blocks": frozenset({"sender_hash"}),
 }
@@ -102,6 +108,8 @@ _DECRYPTED_COLUMNS: dict[str, frozenset[str]] = {
     # quote a third party) and leaves the archive readable — portability means
     # readable data, and these are the user's own actions.
     "agent_effects": frozenset({"label", "result_payload"}),
+    # ADR-383: how the person writes rests encrypted and leaves readable — theirs.
+    "writing_styles": frozenset({"profile_encrypted"}),
 }
 
 # Tables whose rows resolve through a parent (no owner column of their own).
@@ -272,14 +280,14 @@ def _render_conversations(rows: list[dict[str, Any]], language: str) -> str:
     """The conversation, as it was read — each message opens on who spoke."""
     lines = [f"# {render_export_heading('conversations', language)}\n"]
     for row in rows:
-        role = render_export_speaker(str(row.get("role", "?")), language)
-        content = row.get("content") or ""
-        stamp = row.get("created_at", "")
-        # The reader's punctuation joins the speaker to the words (ADR-323).
-        # The separator ends the line: its trailing space would be the line's last
-        # character (the HITL headers strip it the same way).
-        head = f"**{role}** ({stamp}){label_separator(language).rstrip()}"
-        lines.append(f"{head}\n\n{content}\n\n---\n")
+        lines.append(
+            render_export_turn(
+                str(row.get("role", "?")),
+                row.get("created_at", ""),
+                row.get("content") or "",
+                language,
+            )
+        )
     return "\n".join(lines)
 
 

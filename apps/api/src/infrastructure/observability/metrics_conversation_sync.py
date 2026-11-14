@@ -11,7 +11,7 @@ from prometheus_client import Counter
 conversation_sync_signals_total = Counter(
     "conversation_sync_signals_total",
     "Conversation change signals sent to a person's open tabs after commit",
-    # kind: conversation_updated | conversation_reset
+    # kind: conversation_updated | conversation_reset | conversation_metadata
     # outcome: published | no_redis | failed | no_loop
     ["kind", "outcome"],
 )

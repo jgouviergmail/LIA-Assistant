@@ -2355,6 +2355,8 @@ async def run_agent(self, user_id: UUID, message: str):
 
 ## 16. Gestion du Contexte (ToolContextManager)
 
+Le runtime admis donne au graphe la discussion métier et sa génération. Les références et les confirmations reprennent le contexte de cette génération. Les lecteurs de mémoire et du journal restent rattachés au compte. Le [contrat des discussions](technical/SECONDARY_CONVERSATIONS.md#target-and-storage) décrit ces identités.
+
 Le `ToolContextManager` gère la persistence des résultats de recherche et détails dans le LangGraph BaseStore.
 
 ### 16.1 Architecture Two-Keys Store (2026-04)

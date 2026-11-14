@@ -471,7 +471,6 @@ class ReactSubAgentRunner:
 
             parent_store = parent_runtime.store if parent_runtime else None
             parent_config = parent_runtime.config if parent_runtime else {}
-            parent_configurable = parent_config.get("configurable", {})
             user_id = runtime_user_id_str("unknown")
 
             # One trace per run: the selector records that the budget ended the
@@ -503,9 +502,8 @@ class ReactSubAgentRunner:
 
             # The sub-run inherits the parent's context WHOLE: deriving instead of
             # re-listing keys is what stops the next field added to the context
-            # from being silently dropped here (ADR-231). ``__parent_thread_id``
-            # stays in ``configurable`` — it is thread plumbing, not run context,
-            # and ``browser_tools`` reads it deliberately.
+            # from being silently dropped here (ADR-231). The root runtime is
+            # explicit; no child thread is parsed to guess its parent.
             parent_context = runtime_context_if_running()
             nested_context = (
                 derive_sub_agent_context(parent_context, thread_id=nested_thread_id)
@@ -520,9 +518,6 @@ class ReactSubAgentRunner:
             nested_config = RunnableConfig(
                 configurable={
                     "thread_id": nested_thread_id,
-                    # Read deliberately by browser_tools to attribute a sub-run's
-                    # artefacts to the conversation that spawned it.
-                    "__parent_thread_id": parent_configurable.get("thread_id"),
                 },
                 callbacks=parent_config.get("callbacks"),
                 metadata=nested_metadata,

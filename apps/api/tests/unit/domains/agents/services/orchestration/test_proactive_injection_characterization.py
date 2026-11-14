@@ -230,7 +230,7 @@ class TestTheQuestionComesBeforeItsAnswer:
     """Ordering belongs to ``load_or_create_state``, so it is pinned there.
 
     Reading it off the source rather than off a run is deliberate: the append of
-    the person's ``HumanMessage`` and the injection are two statements in one
+    the person's message (``person_message``) and the injection are two statements in one
     method, and only their ORDER makes the exchange readable. A behavioural test
     would need the whole turn; an AST test states the invariant exactly.
     """
@@ -261,9 +261,9 @@ class TestTheQuestionComesBeforeItsAnswer:
             and isinstance(node.func, ast.Attribute)
             and node.func.attr == "append"
             and any(
-                isinstance(arg, ast.Call)
-                and isinstance(arg.func, ast.Name)
-                and arg.func.id == "HumanMessage"
+                isinstance(arg, ast.Call) and isinstance(arg.func, ast.Name)
+                # The person's words enter through their door, stamped (lot 17).
+                and arg.func.id == "person_message"
                 for arg in node.args
             )
         ]

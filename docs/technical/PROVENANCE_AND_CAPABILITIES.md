@@ -158,6 +158,14 @@ par le même `activeLabel` — une requête pour tout le hub, un silence assumé
 pendant le chargement, à l'échec, et pour toute section dont l'agrégat ne dit
 rien.
 
+Une capacité qui vit sur une PAGE de l'application, et non dans une section des
+réglages, le dit dans `CAPABILITY_PAGE` : les relations, dont ADR-269 a posé le
+réglage sur leur page, et le tableau de travail (ADR-276). Son étoile mène à
+cette page, jamais à la racine des réglages ; le garde tient ces routes égales
+à sa propre déclaration (`NODES_LIVING_ON_A_PAGE`), et un test côté web tient
+que chacune est une destination de l'en-tête. Seule la génération de documents
+n'a nulle part où envoyer le lecteur.
+
 ### La route
 
 ```

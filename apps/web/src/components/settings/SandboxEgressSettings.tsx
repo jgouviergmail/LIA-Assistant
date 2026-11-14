@@ -37,6 +37,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { RowActions } from '@/components/ui/row-actions';
 import { Switch } from '@/components/ui/switch';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { capabilityMounted } from '@/lib/capability-availability';
 import { useSandboxEgress, type AddGrantResult } from '@/hooks/useSandboxEgress';
 import { CONNECTOR_LABELS, isValidConnectorType } from '@/constants/connectors';
 import { useTranslation } from '@/i18n/client';
@@ -60,7 +61,9 @@ function connectorLabel(connector: string | null): string {
 export function SandboxEgressSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { config } = useAppConfig();
-  const flagOn = !!config?.features?.python_sandbox_egress_enabled;
+  // The grants are a RECORD: the person reads and withdraws them under the
+  // deployment flag, whatever the operator's switch says.
+  const flagOn = capabilityMounted(config, 'python_sandbox_egress');
   const egress = useSandboxEgress(flagOn);
 
   if (!flagOn || egress.unavailable) return null;

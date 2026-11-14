@@ -39,6 +39,7 @@ pytestmark = pytest.mark.unit
 
 _ME = "11111111-1111-4111-8111-111111111111"
 _CONVERSATION = "22222222-2222-4222-8222-222222222222"
+_RUNTIME = "33333333-3333-4333-8333-333333333333"
 
 
 def _write(base: Path, name: str) -> None:
@@ -86,7 +87,12 @@ def skills(tmp_path: Path) -> Iterator[Path]:
 
 def _runtime() -> Any:
     return make_tool_runtime(
-        user_id=UUID(_ME), thread_id=_CONVERSATION, conversation_id=_CONVERSATION, store=MagicMock()
+        user_id=UUID(_ME),
+        thread_id=_RUNTIME,
+        conversation_id=_CONVERSATION,
+        runtime_id=UUID(_RUNTIME),
+        conversation_revision=4,
+        store=MagicMock(),
     )
 
 
@@ -220,6 +226,7 @@ class TestWhatRuns:
         assert "../input/My form.pdf" in result.message
         assert EXTERNAL_CONTENT_OPEN_TAG not in result.message
         assert deliver.await_args.kwargs["conversation_id"] == _CONVERSATION
+        assert deliver.await_args.kwargs["delivery_runtime_id"] == _RUNTIME
         assert result.structured_data["exit_code"] == 0
 
     async def test_a_failing_command_is_a_script_error_with_both_streams(

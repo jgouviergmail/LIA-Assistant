@@ -14,6 +14,7 @@ from src.core.constants import (
     USER_THEME_MINUTE_MAX,
     IconStyle,
 )
+from src.core.document_preferences import DocumentAnimations, DocumentIllustrations
 from src.core.exchange_rhythm import ExchangeRhythm
 from src.core.i18n import _
 from src.domains.shared.schemas import (
@@ -122,6 +123,21 @@ class UserUpdate(
         description=(
             "Rewrite image prompts with recognised prompting techniques before "
             "generation (ADR-315); inert while the operator withdraws it"
+        ),
+    )
+    # Strict on write: the published choices, dumped as exact strings.
+    document_illustrations: DocumentIllustrations | None = Field(
+        None,
+        description=(
+            "Illustrations in generated documents: 'auto' (LIA judges where a picture "
+            "serves), 'on_request' (only where the request asks), 'never'"
+        ),
+    )
+    document_animations: DocumentAnimations | None = Field(
+        None,
+        description=(
+            "Animations in generated decks: 'presented' (only a deck to be presented), "
+            "'always', 'never'"
         ),
     )
 
@@ -279,6 +295,9 @@ class UserProfileWithStats(UserProfile):
     )
     journal_consolidation_with_history: bool = Field(
         ..., description="Journal consolidation may read the conversation history"
+    )
+    writing_style_enabled: bool = Field(
+        ..., description="E-mails LIA writes follow the style learned from the sent mail"
     )
     phone_rich_context_enabled: bool = Field(
         ..., description="The chat's context is carried into the person's own calls"

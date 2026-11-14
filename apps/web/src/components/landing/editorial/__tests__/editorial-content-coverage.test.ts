@@ -171,6 +171,9 @@ describe('editorial i18n contract', () => {
 
   /** Keys orphaned by the removed sections — must stay purged everywhere. */
   const PURGED = [
+    // The section left the landing long ago; its text only survived as HowTo
+    // structured data, which described nothing a visitor could read.
+    'how_it_works',
     'audience',
     'rex',
     'features.title',
@@ -224,14 +227,6 @@ describe('editorial i18n contract', () => {
     const landing = landingBlock(lang);
     for (const key of PURGED) {
       expect(lookup(landing, key), `${lang}:landing.${key}`).toBeUndefined();
-    }
-  });
-
-  it.each(LANGS)('%s keeps how_it_works alive for the HowTo JsonLd', lang => {
-    const landing = landingBlock(lang);
-    for (const step of ['step1', 'step2', 'step3', 'step4']) {
-      expect(lookup(landing, `how_it_works.${step}.title`)).toBeTruthy();
-      expect(lookup(landing, `how_it_works.${step}.description`)).toBeTruthy();
     }
   });
 });

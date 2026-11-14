@@ -27,7 +27,8 @@
  *
  * No backend, LLM, or paid provider is contacted.
  */
-import { test, expect, type MockRoute } from '../fixtures';
+import { test, expect, waitForMockGate, type MockRoute } from '../fixtures';
+import { ANNEX_DISCUSSION_ID, discussionFixture } from '../fixtures/discussions';
 import { liveSessionDeadlines } from '../fixtures/live';
 import { avatarRoutes, installSimliPeer, spokenWave } from '../fixtures/simli';
 
@@ -61,6 +62,8 @@ const APP_CONFIG = {
 
 const START = {
   session_id: SESSION,
+  conversation_id: CONVERSATION_ID,
+  conversation_revision: 0,
   provider: 'gemini',
   model: 'gemini-x-live',
   mode: 'delegated',
@@ -174,7 +177,11 @@ function routes(
       url: '**/api/v1/live/sessions',
       method: 'POST',
       handler: async route => {
-        const body = (route.request().postDataJSON() ?? {}) as { mode?: string };
+        const body = (route.request().postDataJSON() ?? {}) as {
+          mode?: string;
+          conversation_id?: string;
+          conversation_revision?: number;
+        };
         startBodies.push(body);
         await route.fulfill({
           status: 200,
@@ -183,6 +190,8 @@ function routes(
             ...START,
             ...liveSessionDeadlines(START.session_max_minutes, LIVE_CONFIG.connect_window_seconds),
             mode: body.mode ?? 'delegated',
+            conversation_id: body.conversation_id ?? START.conversation_id,
+            conversation_revision: body.conversation_revision ?? START.conversation_revision,
           }),
         });
       },
@@ -498,9 +507,7 @@ test('a Live started cold — comments off, nothing clicked on the avatar — un
   await expect(avatar).toHaveCount(0);
   expect(starts).toHaveLength(0);
   await page.getByRole('button', { name: 'Voix et session live' }).click();
-  await page
-    .getByRole('menuitem', { name: 'Session Live directe (Gemini)', exact: true })
-    .click();
+  await page.getByRole('menuitem', { name: 'Session Live directe (Gemini)', exact: true }).click();
   const banner = page.getByRole('region', { name: 'Session live' });
   await expect(banner.getByRole('status')).toContainText('Session directe');
   await expect(avatar).toBeVisible();
@@ -531,6 +538,111 @@ test('a Live started cold — comments off, nothing clicked on the avatar — un
 });
 
 test.describe('chat live session', () => {
+  test('keeps Live delegated turns and the closing card in their original discussion', async ({
+    page,
+    context,
+    authenticate,
+    mockApi,
+  }) => {
+    await context.grantPermissions(['microphone']);
+    const user = await authenticate({ language: 'fr' });
+    const fixture = discussionFixture(user.id, { annexTitle: 'Voyage' });
+    const startBodies: unknown[] = [];
+    const endBodies: unknown[] = [];
+    const mint = Promise.withResolvers<void>();
+    await mockApi([
+      ...routes([], endBodies),
+      ...fixture.routes,
+      { url: '**/api/v1/config', json: { ...APP_CONFIG, conversations: fixture.rules } },
+      {
+        url: '**/api/v1/live/sessions',
+        method: 'POST',
+        handler: async (route, signal) => {
+          startBodies.push(route.request().postDataJSON());
+          if (!(await waitForMockGate(mint.promise, signal))) return;
+          await route.fulfill({
+            json: {
+              ...START,
+              ...liveSessionDeadlines(
+                START.session_max_minutes,
+                LIVE_CONFIG.connect_window_seconds
+              ),
+              conversation_id: ANNEX_DISCUSSION_ID,
+            },
+          });
+        },
+      },
+    ]);
+    const results: unknown[] = [];
+    let ask: (() => void) | undefined;
+    await page.routeWebSocket(/generativelanguage\.googleapis\.com/, socket => {
+      const frame = (payload: unknown) => socket.send(Buffer.from(JSON.stringify(payload)));
+      socket.onMessage(message => {
+        const received = JSON.parse(String(message)) as Record<string, unknown>;
+        if (received.setup) {
+          frame({ setupComplete: {} });
+          ask = () =>
+            frame({
+              toolCall: {
+                functionCalls: [
+                  {
+                    id: 'annex-turn',
+                    name: 'send_to_lia',
+                    args: { request: 'Recherche Live annexe' },
+                  },
+                ],
+              },
+            });
+        }
+        if (received.toolResponse) results.push(received.toolResponse);
+      });
+    });
+    await page.goto(`/fr/dashboard/chat?conversation=${ANNEX_DISCUSSION_ID}`);
+    const annex = page.getByRole('button', { name: 'Discussions — Voyage', exact: true });
+    await page.getByRole('button', { name: 'Voix et session live' }).click();
+    await page.getByRole('menuitem', { name: 'Session Live (Gemini)' }).click();
+    await expect.poll(() => startBodies.length).toBe(1);
+    expect(startBodies).toMatchObject([
+      { conversation_id: ANNEX_DISCUSSION_ID, conversation_revision: 0 },
+    ]);
+
+    await annex.click();
+    await page
+      .getByRole('dialog', { name: 'Discussions', exact: true })
+      .getByRole('button', { name: 'Principale', exact: true })
+      .click();
+    await expect(page.getByText('Historique principal')).toBeVisible();
+    mint.resolve();
+    await expect.poll(() => ask !== undefined).toBe(true);
+    const banner = page.getByRole('region', { name: 'Session live' });
+    await expect(banner.getByText('Session Live dans « Voyage »')).toBeVisible();
+    ask?.();
+    await expect.poll(() => results.length).toBe(1);
+    expect(fixture.turns).toMatchObject([
+      {
+        message: 'Recherche Live annexe',
+        conversation_id: ANNEX_DISCUSSION_ID,
+        conversation_revision: 0,
+        live_session_id: SESSION,
+      },
+    ]);
+    expect(JSON.stringify(results[0])).toContain('Réponse dans la bonne discussion');
+    await expect(page.getByText('Recherche Live annexe')).toHaveCount(0);
+    await expect(page.getByText('Réponse dans la bonne discussion')).toHaveCount(0);
+    const returnToOrigin = banner.getByRole('button', { name: 'Ouvrir cette discussion' });
+    await expect(page.getByRole('group', { name: /^Yeux expressifs de LIA/ })).toBeVisible();
+    for (const width of [320, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      await returnToOrigin.click({ trial: true, timeout: 10_000 });
+    }
+    await returnToOrigin.click();
+    await expect(annex).toBeVisible();
+    await expect(page.getByText('Réponse dans la bonne discussion')).toBeVisible();
+    await banner.getByRole('button', { name: 'Terminer la session live' }).click();
+    await expect(page.getByTestId('live-session-summary')).toBeVisible();
+    expect(endBodies).toHaveLength(1);
+  });
+
   test('starts, delegates a spoken request, answers the voice, ends with the card', async ({
     page,
     context,

@@ -21,8 +21,9 @@ from src.core.application_origin import ApplicationOrigin
 from src.core.config import settings
 from src.core.constants import (
     DEFAULT_USER_DISPLAY_TIMEZONE,
-    STREAM_TEARDOWN_WAIT_SECONDS,
 )
+from src.core.conversation_execution import RunAdmission
+from src.core.conversation_target import ConversationRef
 from src.core.field_names import (
     FIELD_ERROR_TYPE,
     FIELD_RUN_ID,
@@ -35,10 +36,17 @@ from src.domains.agents.api.archive_metadata import (
     persist_psyche_snapshot,
     with_injected_journal_versions,
 )
+from src.domains.agents.api.browser_screenshot_card import publish_browser_screenshot_card
 from src.domains.agents.api.error_messages import SSEErrorMessages
-from src.domains.agents.api.hitl_pending import extract_decision_type, hitl_stale_chunks
+from src.domains.agents.api.hitl_pending import (
+    clear_completed_interrupt,
+    extract_decision_type,
+    hitl_stale_chunks,
+)
 from src.domains.agents.api.mixins import GraphManagementMixin, StreamingMixin
 from src.domains.agents.api.schemas import BrowserContext, ChatStreamChunk, composition_request
+from src.domains.agents.api.stream_identity import with_invocation_identity
+from src.domains.agents.api.stream_pump import interleave_side_channel
 from src.domains.agents.api.turn_preparation import (
     MCPPreparation,
     TurnStateRequest,
@@ -55,7 +63,7 @@ from src.domains.agents.effects.decisions import (
 from src.domains.agents.effects.treatment_recorder import treatment_recorder
 from src.domains.agents.effects.turn_summary import performed_effects
 from src.domains.agents.expressivity.activity_summary import ActivitySummary
-from src.domains.agents.expressivity.turn import attach_tone_to_done
+from src.domains.agents.services.answer_annotations import attach_answer_annotations_to_done
 from src.domains.agents.services.card_composition_service import composition_scope
 from src.domains.agents.services.orchestration.approval_decision import (
     HitlDecisionStaleError,
@@ -73,9 +81,8 @@ from src.domains.agents.services.streaming.voice_stream_helpers import (
     ListenerProbe,
     voice_listens,
 )
-from src.domains.agents.utils import generate_run_id
-from src.infrastructure.async_utils import cancel_and_wait
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.streaming.run_admission import execution_for_turn
 
 if TYPE_CHECKING:
     from src.domains.conversations.service import ConversationService
@@ -105,69 +112,7 @@ class AgentService(
         super().__init__()
         logger.info("agent_service_initialized")
 
-    @staticmethod
-    async def _interleave_side_channel(
-        sse_stream: AsyncGenerator[tuple[Any, str]],
-        side_queue: asyncio.Queue,
-        poll_interval: float = 0.3,
-    ) -> AsyncGenerator[tuple[Any, str]]:
-        """Interleave SSE stream with side-channel queue polling.
-
-        Ensures side-channel items (progressive screenshots, etc.) are yielded
-        promptly even when the graph is blocked in a long node execution
-        (e.g., ReAct browser loop). Polls the queue every poll_interval seconds.
-
-        Args:
-            sse_stream: The main SSE chunk stream from StreamingService.
-            side_queue: Side-channel asyncio.Queue populated by tools.
-            poll_interval: Seconds between queue polls when graph is idle.
-
-        Yields:
-            (chunk, content_fragment) tuples — either from the SSE stream
-            or (side_chunk, "") for side-channel items.
-        """
-        sse_aiter = sse_stream.__aiter__()
-        pending: asyncio.Task | None = None
-
-        try:
-            while True:
-                # Start fetching next SSE chunk if not already pending
-                if pending is None:
-                    pending = asyncio.ensure_future(sse_aiter.__anext__())
-
-                # Wait for SSE chunk OR timeout (to drain side-channel)
-                done, _ = await asyncio.wait({pending}, timeout=poll_interval)
-
-                # Drain any pending side-channel items
-                while not side_queue.empty():
-                    try:
-                        yield side_queue.get_nowait(), ""
-                    except asyncio.QueueEmpty:
-                        break
-
-                # If SSE chunk arrived, yield it
-                if done:
-                    try:
-                        result = pending.result()
-                        pending = None
-                        yield result
-                    except StopAsyncIteration:
-                        break
-                # Otherwise: timeout — loop back and poll again
-        finally:
-            # The stream closes before the turn does: left behind, its end raced the
-            # turn's on the tracker and wrote a cancelled turn's spend twice.
-            if pending is not None and not pending.done():
-                await cancel_and_wait(pending, timeout_seconds=STREAM_TEARDOWN_WAIT_SECONDS)
-            # Note: no yield in finally — avoids RuntimeError if exception propagating.
-            # Final drain is done below (only reached on normal exit, not on exception).
-
-        # Final drain after clean stream completion (unreachable on exception)
-        while not side_queue.empty():
-            try:
-                yield side_queue.get_nowait(), ""
-            except asyncio.QueueEmpty:
-                break
+    _interleave_side_channel = staticmethod(interleave_side_channel)
 
     @staticmethod
     def _get_agents_bucket_label(agents_count: int) -> str:
@@ -330,6 +275,8 @@ class AgentService(
         live_session_id: str | None = None,
         spoken_text: str | None = None,
         application_origin: ApplicationOrigin | None = None,
+        target: ConversationRef | None = None,
+        admission: RunAdmission | None = None,
     ) -> AsyncGenerator[ChatStreamChunk]:
         """
         Stream chat response with SSE chunks and conversation persistence.
@@ -384,47 +331,55 @@ class AgentService(
         if limit_chunk is not None:
             yield limit_chunk
             return
-        capture_location_fire_and_forget(user_id, browser_context)
+        async with execution_for_turn(
+            user_id,
+            target=target,
+            admission=admission,
+            run_id=run_id or original_run_id,
+            language=user_language,
+        ) as authority:
+            capture_location_fire_and_forget(user_id, browser_context)
 
-        # === PHASE 3.3 - Service Architecture (Migration Complete Day 7) ===
-        # Uses: OrchestrationService, StreamingService, ConversationOrchestrator
-        # Closed with this stream, in the reader's task: left to the loop's finalizer,
-        # the turn's exits ran later in another context (every scope reset refused).
-        async with aclosing(
-            self._stream_with_new_services(
-                user_message,
-                user_id,
-                session_id,
-                user_timezone,
-                resolve_language(user_language),
-                user_display_name,
-                original_run_id,
-                browser_context,
-                user_memory_enabled,
-                user_journals_enabled,
-                user_psyche_enabled,
-                user_display_mode,
-                user_execution_mode,
-                is_automated_source,
-                auto_approve_plan,
-                attachment_ids,
-                run_id=run_id,
-                archive_user_message=archive_user_message,
-                has_listeners=has_listeners,
-                stt_provider=stt_provider,
-                stt_audio_duration_seconds=stt_audio_duration_seconds,
-                stt_cost_usd=stt_cost_usd,
-                stt_cost_eur=stt_cost_eur,
-                hitl_decision=hitl_decision,
-                directive=directive,
-                client_user_agent=client_user_agent,
-                live_session_id=live_session_id,
-                spoken_text=spoken_text,
-                application_origin=application_origin,
-            )
-        ) as turn:
-            async for chunk in turn:
-                yield chunk
+            # === PHASE 3.3 - Service Architecture (Migration Complete Day 7) ===
+            # Uses: OrchestrationService, StreamingService, ConversationOrchestrator
+            # Closed with this stream, in the reader's task: left to the loop's finalizer,
+            # the turn's exits ran later in another context (every scope reset refused).
+            async with aclosing(
+                self._stream_with_new_services(
+                    user_message,
+                    user_id,
+                    session_id,
+                    user_timezone,
+                    resolve_language(user_language),
+                    user_display_name,
+                    original_run_id,
+                    browser_context,
+                    user_memory_enabled,
+                    user_journals_enabled,
+                    user_psyche_enabled,
+                    user_display_mode,
+                    user_execution_mode,
+                    is_automated_source,
+                    auto_approve_plan,
+                    attachment_ids,
+                    target=authority.admission.target,
+                    run_id=authority.admission.run_id,
+                    archive_user_message=archive_user_message,
+                    has_listeners=has_listeners,
+                    stt_provider=stt_provider,
+                    stt_audio_duration_seconds=stt_audio_duration_seconds,
+                    stt_cost_usd=stt_cost_usd,
+                    stt_cost_eur=stt_cost_eur,
+                    hitl_decision=hitl_decision,
+                    directive=directive,
+                    client_user_agent=client_user_agent,
+                    live_session_id=live_session_id,
+                    spoken_text=spoken_text,
+                    application_origin=application_origin,
+                )
+            ) as turn:
+                async for chunk in turn:
+                    yield with_invocation_identity(chunk, authority.admission)
 
     async def _stream_with_new_services(
         self,
@@ -445,7 +400,8 @@ class AgentService(
         auto_approve_plan: bool = False,
         attachment_ids: list[uuid.UUID] | None = None,
         *,
-        run_id: str | None = None,
+        target: ConversationRef,
+        run_id: str,
         archive_user_message: bool = True,
         has_listeners: ListenerProbe | None = None,
         stt_provider: str | None = None,
@@ -500,7 +456,6 @@ class AgentService(
         # CRITICAL: Reuse original_run_id for HITL token aggregation.
         # ADR-117: an externally-supplied run_id (detached producer) wins so
         # the Redis stream key is known before execution starts.
-        run_id = run_id or original_run_id or generate_run_id()
         # Detect HITL resumption early (needed for message counting logic)
         is_hitl_resumption = original_run_id is not None
         start_time = time.time()
@@ -537,7 +492,7 @@ class AgentService(
             # === Step 1: Setup conversation (get/create, tracking, OAuth scopes) ===
             setup_started = time.perf_counter()
             context = await conversation_orchestrator.setup_conversation(
-                user_id, session_id, run_id, db, language=user_language
+                target, session_id, run_id, db
             )
 
             conversation_id = context.conversation_id
@@ -710,7 +665,7 @@ class AgentService(
                     try:
                         prepared = await prepare_turn_state(
                             TurnStateRequest(
-                                conversation_id=conversation_id,
+                                target=context.target,
                                 user_message=user_message,
                                 user_id=user_id,
                                 session_id=session_id,
@@ -737,7 +692,6 @@ class AgentService(
                                 card_composition=composition_request(browser_context),
                             ),
                             graph=self.graph,
-                            db=db,
                             orchestration_service=orchestration_service,
                             conv_service=conv_service,
                         )
@@ -861,8 +815,7 @@ class AgentService(
                             graph_stream=orchestration_service.execute_graph_stream(
                                 graph=self.graph,
                                 state=state,
-                                conversation_id=conversation_id,
-                                user_id=user_id,
+                                target=context.target,
                                 session_id=session_id,
                                 run_id=run_id,
                                 tool_deps=tool_deps,
@@ -887,7 +840,7 @@ class AgentService(
                                 is_automated_source=is_automated_source,  # True for scheduled actions (skips extraction)
                                 side_channel_queue=side_channel_queue,  # SSE side-channel
                             ),
-                            conversation_id=conversation_id,
+                            target=context.target,
                             run_id=run_id,
                         )
 
@@ -1021,7 +974,7 @@ class AgentService(
                     # assistant response skips that branch entirely, and reading an
                     # unbound local here would raise UnboundLocalError right before the
                     # `done` chunk — killing the SSE stream at its very last step.
-                    browser_screenshot_card_url: str | None = None
+                    browser_screenshot_card: dict[str, str] | None = None
 
                     async with get_db_context() as archive_db:
                         _interrupt_resume_data = state.get("_interrupt_resume_data", {})
@@ -1084,90 +1037,22 @@ class AgentService(
                                 attach_archived_cards,
                             )
 
-                            attach_archived_cards(assistant_metadata, str(conversation_id))
+                            attach_archived_cards(
+                                assistant_metadata, str(context.target.runtime_id)
+                            )
 
-                            # Persist last browser screenshot as Attachment for card display
-                            if getattr(settings, "browser_progressive_screenshots", False):
-                                from src.domains.agents.tools.browser_screenshot_store import (
-                                    get_and_clear_last_screenshot,
+                            # The turn's last browser screenshot, published like
+                            # every generated file so its card survives a reload.
+                            browser_screenshot_card = await publish_browser_screenshot_card(
+                                user_id=user_id,
+                                conversation_id=conversation_id,
+                                runtime_id=str(context.target.runtime_id),
+                                run_id=run_id,
+                            )
+                            if browser_screenshot_card:
+                                assistant_metadata["browser_screenshot"] = dict(
+                                    browser_screenshot_card
                                 )
-
-                                last_screenshot_bytes = get_and_clear_last_screenshot(
-                                    str(conversation_id)
-                                )
-                                if last_screenshot_bytes:
-                                    try:
-                                        from datetime import UTC, datetime, timedelta
-                                        from pathlib import Path
-
-                                        from src.domains.attachments.models import (
-                                            AttachmentContentType,
-                                            AttachmentOrigin,
-                                            AttachmentStatus,
-                                        )
-                                        from src.domains.attachments.repository import (
-                                            AttachmentRepository,
-                                        )
-                                        from src.domains.attachments.thread_id import (
-                                            conversation_uuid,
-                                        )
-                                        from src.domains.attachments.urls import attachment_url
-                                        from src.infrastructure.database.session import (
-                                            get_db_context,
-                                        )
-
-                                        stored_fn = f"browser_{uuid.uuid4()}.jpg"
-                                        rel_path = f"{user_id}/{stored_fn}"
-                                        abs_path = (
-                                            Path(settings.attachments_storage_path) / rel_path
-                                        )
-                                        abs_path.parent.mkdir(parents=True, exist_ok=True)
-                                        abs_path.write_bytes(last_screenshot_bytes)
-
-                                        async with get_db_context() as attach_db:
-                                            attach_repo = AttachmentRepository(attach_db)
-                                            attachment = await attach_repo.create(
-                                                {
-                                                    "user_id": user_id,
-                                                    "original_filename": stored_fn,
-                                                    "stored_filename": stored_fn,
-                                                    "mime_type": "image/jpeg",
-                                                    "file_size": len(last_screenshot_bytes),
-                                                    "file_path": rel_path,
-                                                    "content_type": AttachmentContentType.IMAGE,
-                                                    "origin": (
-                                                        AttachmentOrigin.BROWSER_SCREENSHOT.value
-                                                    ),
-                                                    "conversation_id": conversation_uuid(
-                                                        conversation_id
-                                                    ),
-                                                    "status": AttachmentStatus.READY,
-                                                    "expires_at": datetime.now(UTC)
-                                                    + timedelta(
-                                                        hours=settings.attachments_ttl_hours,
-                                                    ),
-                                                }
-                                            )
-                                            await attach_db.commit()
-
-                                        browser_screenshot_card_url = attachment_url(attachment.id)
-                                        assistant_metadata["browser_screenshot"] = {
-                                            "url": browser_screenshot_card_url,
-                                            "alt": "Browser screenshot",
-                                        }
-
-                                        logger.debug(
-                                            "browser_screenshot_card_saved",
-                                            run_id=run_id,
-                                            attachment_id=str(attachment.id),
-                                        )
-                                    except Exception as bsc_err:
-                                        logger.warning(
-                                            "browser_screenshot_card_save_failed",
-                                            run_id=run_id,
-                                            error=str(bsc_err),
-                                            error_type=type(bsc_err).__name__,
-                                        )
 
                             # Persist interactive-widget payloads with the message
                             # so they survive a page reload. Without this the
@@ -1179,7 +1064,7 @@ class AgentService(
                             # because this one is frozen at its size, and each
                             # enricher returns a NEW dict so a turn's metadata
                             # can never leak into another's.
-                            attach_tone_to_done(delivery_metadata, run_id)
+                            attach_answer_annotations_to_done(delivery_metadata, run_id)
                             assistant_metadata = build_assistant_metadata(
                                 assistant_metadata,
                                 widgets=streaming_service.persistable_widgets,
@@ -1338,73 +1223,10 @@ class AgentService(
                 # Cleanup run-level record collector (prevents memory leak)
                 TrackingContext.cleanup_run_records(run_id)
 
-                # === PHASE 3.3 DAY 3: Cleanup pending_hitl after successful HITL completion ===
-                # If this was a HITL resumption (original_run_id provided), check if we need
-                # to cleanup the pending_hitl data from Redis to prevent it from being
-                # detected on the next user message.
-                #
-                # Why cleanup here:
-                # 1. Graph completed successfully without new interrupt
-                # 2. User's next message should be treated as NEW conversation, not HITL response
-                # 3. Prevents bug where "search jean" after "search jean + HITL" is
-                #    misinterpreted as HITL response
-                #
-                # CRITICAL FIX: Only clear if NO new interrupt was generated during resumption.
-                # Multi-step clarification flows (e.g., email: to -> subject/body) generate
-                # MULTIPLE interrupts. We must NOT clear the new interrupt data!
-                # Example bug before fix:
-                #   1. User responds to clarif #1 (provides email "to")
-                #   2. Graph resumes, generates clarif #2 (asks for subject/body)
-                #   3. OLD CODE: Cleared interrupt data here (BUG!)
-                #   4. User responds to clarif #2, but data is gone -> HITL classifier fails
-                #
-                # Safety: This is Layer 1 defense. Layer 2 (router expiry check) provides
-                # additional protection if this cleanup fails due to exception or crash.
+                # A continuation consumes its old question only if it did not
+                # replace it. Runtime ownership also prevents cross-thread cleanup.
                 if original_run_id and not streaming_service.hitl_interrupt_detected:
-                    # This was a HITL resumption AND no new interrupt was generated
-                    # Safe to cleanup pending_hitl
-                    try:
-                        from src.domains.agents.utils.hitl_store import HITLStore
-                        from src.infrastructure.cache.redis import get_redis_cache
-
-                        redis = await get_redis_cache()
-                        hitl_store = HITLStore(
-                            redis_client=redis,
-                            ttl_seconds=settings.hitl_pending_data_ttl_seconds,
-                        )
-
-                        # Clear pending_hitl since graph completed without
-                        # re-interrupting. The store invalidates the in-memory
-                        # detection cache itself (Lot 1 Phase 0) — no router
-                        # hook needed anymore.
-                        await hitl_store.clear_interrupt(thread_id=str(conversation_id))
-
-                        logger.info(
-                            "pending_hitl_cleared_after_completion",
-                            run_id=run_id,
-                            original_run_id=original_run_id,
-                            conversation_id=str(conversation_id),
-                            reason="HITL flow completed successfully, no new interrupt",
-                        )
-                    except Exception as cleanup_error:
-                        # Non-fatal: Log error but continue (Layer 2 will handle expiry)
-                        logger.error(
-                            "pending_hitl_cleanup_failed",
-                            run_id=run_id,
-                            original_run_id=original_run_id,
-                            conversation_id=str(conversation_id),
-                            error=str(cleanup_error),
-                            fallback="Layer 2 router expiry check will handle",
-                        )
-                elif original_run_id and streaming_service.hitl_interrupt_detected:
-                    # HITL resumption with NEW interrupt - don't clear, just log
-                    logger.info(
-                        "pending_hitl_preserved_for_new_interrupt",
-                        run_id=run_id,
-                        original_run_id=original_run_id,
-                        conversation_id=str(conversation_id),
-                        reason="New interrupt generated during HITL resumption",
-                    )
+                    await clear_completed_interrupt(context.target)
 
                 # === VOICE TTS: Emit remaining chunks or sync fallback ===
                 # Priority: 1) Progressive emission during streaming (may be complete)
@@ -1510,14 +1332,11 @@ class AgentService(
                     # drawn as dedicated cards (never inside markdown) ===
                     from src.domains.agents.api.card_delivery import attach_done_cards
 
-                    attach_done_cards(done_metadata, str(conversation_id))
+                    attach_done_cards(done_metadata, str(context.target.runtime_id))
 
-                    # Browser screenshot card: reuse URL computed at archive time
-                    if browser_screenshot_card_url:
-                        done_metadata["browser_screenshot"] = {
-                            "url": browser_screenshot_card_url,
-                            "alt": "Browser screenshot",
-                        }
+                    # Browser screenshot card: the one published at archive time
+                    if browser_screenshot_card:
+                        done_metadata["browser_screenshot"] = dict(browser_screenshot_card)
 
                     # Psyche Engine: include psyche state summary in done metadata
                     if getattr(settings, "psyche_enabled", False) and user_psyche_enabled:
@@ -1535,7 +1354,7 @@ class AgentService(
                             )
 
                     done_metadata.update(delivery_metadata)
-                    attach_tone_to_done(done_metadata, run_id)
+                    attach_answer_annotations_to_done(done_metadata, run_id)
                     done_metadata["companion_activity"] = activity_summary.snapshot()
 
                     journey_timing.log_completed(

@@ -2,7 +2,6 @@
 
 from collections.abc import Awaitable, Callable, Sequence
 
-from langchain.agents.middleware import SummarizationMiddleware
 from langchain.agents.middleware.types import (
     AgentMiddleware,
     AgentState,
@@ -14,6 +13,7 @@ from langchain_core.messages import AnyMessage, BaseMessage, ToolMessage
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.sms.message_policy import is_sms_source_message, normalize_sms_messages
 from src.domains.agents.sms.state_policy import guard_sms_messages
+from src.infrastructure.llm.slot_summarization import SlotSummarizationMiddleware
 
 
 def _copy(original: AnyMessage, clean: BaseMessage) -> AnyMessage:
@@ -58,7 +58,7 @@ class SmsModelBoundary(AgentMiddleware[AgentState[object], LiaRuntimeContext, ob
         return handler(request)
 
 
-class SmsSafeSummarization(SummarizationMiddleware):
+class SmsSafeSummarization(SlotSummarizationMiddleware):
     """Never turn live SMS evidence into a persistent, unrevocable summary."""
 
     async def _acreate_summary(self, messages_to_summarize: list[AnyMessage]) -> str:

@@ -35,15 +35,18 @@ import {
   type DynamicsName,
 } from '@/components/eyes/rig/dynamics';
 import {
+  answering,
   contextualPose,
   NEUTRAL_CONTEXT,
   thoughtPattern,
   activityPattern,
+  skyGlanceTapes,
+  skyWeather,
   type ActingContext,
 } from './direction';
 import { loopValue, type LoopSpec } from '@/components/eyes/rig/loops';
 import { calibratedLoops, exaggeratePose, resolvePose } from '@/components/eyes/rig/poses';
-import { ambientMotion, scarfTrail } from './ambient';
+import { ambientMotion, scarfTrail, weatherConditions } from './ambient';
 import {
   isSpringAtRest,
   REST_EPSILON,
@@ -59,8 +62,14 @@ import {
 } from '@/components/eyes/rig/tape';
 import { ARRIVAL_SCRIPTS, resolvePatterns } from '@/components/eyes/rig/scripts';
 import {
+  SPEECH_OPEN_MAX,
+  VOICE_ATTACK_MS,
+  VOICE_RELEASE_MS,
+} from '@/components/eyes/rig/speech';
+import {
   createLifeRandom,
   drawMouthLifeDelayMs,
+  drawMouthLifeSilenceMs,
   drawMouthMimic,
   MOUTH_LIFE_EXPRESSIONS,
   type MouthMimic,
@@ -70,6 +79,7 @@ import {
   armSketchClock,
   isSketchName,
   createSketchClock,
+  SKY_FORGOTTEN_MS,
   recordSketch,
   SKETCH_EXPRESSIONS,
   SKETCH_MOUTH_GRACE_MS,
@@ -86,6 +96,7 @@ import {
   type RigCharacterId,
 } from './acting-profile';
 import { actingSketchTapes, directActingTapes } from './acting-scenes';
+import { arrivalScene, carriesProp, restingWeatherScenes } from './weather-scenes';
 import { clampLimbOutput, isLimbChannel, limbLoops, limbPose } from './limbs';
 import { limbRestTapes } from './limb-rest';
 import { limbSpeechTapes } from './limb-speech';
@@ -291,7 +302,9 @@ export interface EyeRig {
   setCharacterId(characterId?: RigCharacterId): void;
   /** Available temporary travel; this never changes the user's saved anchor. */
   setBodySpace(space: BodyMotionSpace): void;
-  /** Interaction takes priority over the character's spontaneous performances. */
+  /** Interaction takes priority over the character's spontaneous performances.
+   * A mimic that came due during a pause is not played when it ends: the face
+   * takes a whole silence first. */
   setLifePaused(paused: boolean): void;
   pauseLifeFor(ms: number): void;
   /** True while a sketch is on. */
@@ -357,6 +370,12 @@ export interface RigOptions {
    * keeps a private one.
    */
   readonly sketchClock?: SketchClock;
+  /** How loud the voice LIA speaks with is, from 0 to 1, read off the sound
+   * (`lib/audio/voice-envelope.ts`, which answers nothing else), or null when
+   * none is heard. While the face speaks, its mouth opens on it; the made-up
+   * speech keeps the shape of the words, and takes the opening back whenever
+   * this answers null. */
+  readonly voiceLevel?: () => number | null;
 }
 
 /** How much an arrival's pace may vary, either way. Small on purpose: this
@@ -407,7 +426,9 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       for (const key of CHANNEL_KEYS)
         target[key] = rest[key] + (target[key] - rest[key]) * Math.max(0, responseWeight);
     }
-    const available = !context.activity && !context.responding;
+    // A factual answer earns the face the character rests on: delivered, it
+    // must not put the character's smile out (`answering`, `direction.ts`).
+    const available = !context.activity && !answering(context, nextExpression);
     const characterRest = characterNeutralPose(
       target,
       nextExpression,
@@ -456,6 +477,10 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
   /** Looping behaviour owned by the current expression (the search
    * saccades). Re-resolved on every pose change, so a pattern can never
    * outlive the state that asked for it. */
+  // How many times the state's pattern has come round since it started:
+  // a long thought goes through its attitudes, a new one starts over.
+  // Declared BEFORE the first `startPatterns`, which writes it.
+  let patternTurn = 0;
   let patterns: ActiveTape[] = startPatterns(pose.expression);
   /** The sketch in progress — one scene of tapes, outranked by one-shot
    * beats and outranking the state's patterns. Dropped on any expression
@@ -466,6 +491,12 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
   let clockMs = 0;
   let lifePaused = false;
   let lifePausedUntilMs = 0;
+  /** Whether the life was paused at the mouth's last tick: the END of a
+   * pause is a moment, read on the first tick after it (`tickMouthLife`). */
+  let lifeWasPaused = false;
+  /** The voice the speaking mouth follows, smoothed on the rig's own clock, or
+   * null when it speaks on its own (`sampleVoice`). */
+  let heardOpen: number | null = null;
   let bodySpace: BodyMotionSpace = { minX: -0.7, maxX: 0.7, minY: -0.7, maxY: 0.7, roaming: false };
 
   /** Last stretch axis, held while the eyes are too slow for it to mean
@@ -503,14 +534,32 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
   const sketchClock = options.sketchClock ?? createSketchClock();
   if (lifeRandom && sketchClock.dueMs <= 0) armSketchClock(sketchClock, lifeRandom);
 
+  /** The face is taken — by real work, by the answer it just gave, or by
+   * text it follows as it is written — and its own life stands aside. */
+  function isTaken(): boolean {
+    return Boolean(context.activity) || context.responding || context.attending;
+  }
+
   /** Play the next mimic if its time has come; reschedule either way. Runs
    * on BOTH step paths: a resting face is on the idle path by definition.
    * A sketch in progress holds it: two things acting on one face at once
    * read as two characters. */
   function tickMouthLife(): void {
-    if (!lifeRandom || reducedMotion || clockMs < mouthLifeAtMs) return;
-    if (lifePaused || clockMs < lifePausedUntilMs) return;
-    if (context.activity || context.responding || clockMs < sketchUntilMs) return;
+    if (!lifeRandom || reducedMotion) return;
+    const paused = lifePaused || clockMs < lifePausedUntilMs;
+    const released = lifeWasPaused && !paused;
+    lifeWasPaused = paused;
+    if (clockMs < mouthLifeAtMs) return;
+    // A mimic that came due during a pause — a click, a key, a scroll, the
+    // pointer on the face, a face out of sight — played the instant the pause
+    // ends answers every interaction like a tic (measured: 200 times out of
+    // 200, 1.5 s after the last wheel event). The face takes a whole silence
+    // first, as it does when the writing stops (`setContext`).
+    if (released) {
+      mouthLifeAtMs = clockMs + drawMouthLifeSilenceMs(lifeRandom);
+      return;
+    }
+    if (paused || isTaken() || clockMs < sketchUntilMs) return;
     mouthLifeAtMs = clockMs + drawMouthLifeDelayMs(lifeRandom);
     if (!MOUTH_LIFE_EXPRESSIONS.has(expression)) return;
     const draw = drawMouthMimic(lifeRandom, lastMimic, context);
@@ -528,7 +577,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
   /** Start a scene: the tapes, the curtain time, and the face's own life
    * stood aside until a breath after the end. */
   function playSketch(list: readonly Tape[]): boolean {
-    if (reducedMotion || context.activity || context.responding || list.length === 0) return false;
+    if (reducedMotion || isTaken() || list.length === 0) return false;
     if (lifePaused || clockMs < lifePausedUntilMs) return false;
     tapes = tapes.filter(active => CHANNELS[active.tape.channel].group === 'blink');
     sketch = list.map(tape => ({ tape, elapsedMs: 0 }));
@@ -547,20 +596,33 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
   function tickSketchLife(dtMs: number): void {
     if (!lifeRandom || reducedMotion) return;
     if (lifePaused || clockMs < lifePausedUntilMs) return;
-    if (
-      context.activity ||
-      context.responding ||
-      !SKETCH_EXPRESSIONS.has(expression) ||
-      sketch.length > 0
-    )
-      return;
+    if (isTaken() || !SKETCH_EXPRESSIONS.has(expression) || sketch.length > 0) return;
+    // A greeting is this frame's scene: nothing drawn may replace it.
+    if (lookAtTheSky(lifeRandom, dtMs)) return;
     sketchClock.restedMs += dtMs;
     if (sketchClock.restedMs < sketchClock.dueMs) return;
-    const name = pickActingSketch(acting, lifeRandom, sketchClock.recent, allowSleep);
-    // Warped: the same scene twice is never the same performance.
-    playSketch(warpTapes(actingSketchTapes(name, acting, bodySpace, lifeRandom), lifeRandom));
+    const conditions = weatherConditions(context.weather, context.weatherFlags);
+    const name = pickActingSketch(
+      acting,
+      lifeRandom,
+      sketchClock.recent,
+      allowSleep,
+      conditions,
+      restingWeatherScenes(conditions, context.sky, context.dayPhase)
+    );
+    playSketch(sceneTapes(name, lifeRandom));
     recordSketch(sketchClock, name);
     armSketchClock(sketchClock, lifeRandom);
+  }
+
+  /**
+   * A named scene as this character plays it. Warped, so the same scene twice is
+   * never the same performance — unless it carries a prop: the first drop and the
+   * caught flake meet the face on one beat, which a per-channel warp would break.
+   */
+  function sceneTapes(name: SketchName, random: () => number): Tape[] {
+    const tapesOfScene = actingSketchTapes(name, acting, bodySpace, random);
+    return carriesProp(name) ? tapesOfScene : warpTapes(tapesOfScene, random);
   }
 
   // Derive the computed channels once, before anyone can read them: the
@@ -576,13 +638,18 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
    * motion. One helper for the three places that start patterns, so the
    * preference cannot be honoured on two of them and forgotten on the
    * third (it was, on the constructor). */
-  function startPatterns(next: EyeExpression, elapsedMs = 0): ActiveTape[] {
+  function startPatterns(next: EyeExpression, elapsedMs = 0, comingRound = false): ActiveTape[] {
+    patternTurn = comingRound ? patternTurn + 1 : 0;
     if (reducedMotion) return [];
     const pattern =
       context.activity && ['thinking', 'searching', 'focused', 'attentive'].includes(next)
         ? activityPattern(context.activity, patternRandom)
         : next === 'thinking'
-          ? thoughtPattern(patternRandom)
+          ? // The looks away of a thought belong to work: over a careful
+            // answer it has delivered, the face stays with the person.
+            context.responding
+            ? []
+            : thoughtPattern(patternRandom, patternTurn)
           : resolvePatterns(next, patternRandom);
     const limbs = next === 'speaking' ? limbSpeechTapes(pattern, acting.identity) : [];
     return [...pattern, ...limbs].map(tape => ({ tape, elapsedMs }));
@@ -627,6 +694,9 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       return 0;
     const beat = tapeTargetIn(tapes, key);
     if (beat !== null) return beat;
+    // A speaking mouth opens on the voice it hears, its words keep their shape.
+    if (key === 'mouthOpen' && heardOpen !== null)
+      return baseTargetFor(key) + SPEECH_OPEN_MAX * heardOpen;
     const scene = tapeTargetIn(sketch, key);
     if (scene !== null) return scene;
     const pattern = tapeTargetIn(patterns, key);
@@ -920,7 +990,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       active.elapsedMs += dtMs;
       if (active.elapsedMs >= cycle) leftoverMs = Math.max(leftoverMs, active.elapsedMs - cycle);
     }
-    if (leftoverMs >= 0) patterns = startPatterns(expression, leftoverMs);
+    if (leftoverMs >= 0) patterns = startPatterns(expression, leftoverMs, true);
   }
 
   /**
@@ -947,6 +1017,56 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       const next = springStep(state, target, springFor(key), dtMs);
       springs[key] = isSpringAtRest(next, target) ? { value: target, velocity: 0 } : next;
     }
+  }
+
+  /**
+   * Something started falling from the sky: the face greets it, once. The first
+   * drop of a rain lands on its head, the first flake of a snow is pursued down
+   * to the root of its nose (`arrivalScene`, 2026-11-13); a storm is looked up at.
+   * Called from the resting tick alone, which is what « a face that is free »
+   * already means there — a face that is taken, paused or in a scene greets it
+   * when it rests again, because only the greeting marks the weather as seen.
+   * A sky that stays empty for minutes is forgotten, so rain that comes back
+   * is news; a sky empty for a moment is a reading on its way.
+   *
+   * Returns whether a scene started: the tick then draws nothing else.
+   */
+  function lookAtTheSky(draw: () => number, restedMs: number): boolean {
+    const sky = skyWeather(context.weather);
+    if (sky === null) {
+      if (sketchClock.sky === null) return false;
+      sketchClock.skyGoneMs += restedMs;
+      if (sketchClock.skyGoneMs >= SKY_FORGOTTEN_MS) sketchClock.sky = null;
+      return false;
+    }
+    sketchClock.skyGoneMs = 0;
+    if (sky === sketchClock.sky) return false;
+    sketchClock.sky = sky;
+    const scene = arrivalScene(sky);
+    if (scene && playSketch(sceneTapes(scene, draw))) {
+      recordSketch(sketchClock, scene);
+      return true;
+    }
+    for (const tape of skyGlanceTapes(draw)) tapes.push({ tape, elapsedMs: 0 });
+    lastSettling = true;
+    return false;
+  }
+
+  /**
+   * Reads the voice the face speaks with, on the rig's own frame: quick to rise
+   * on a syllable, a little slower to let go (`VOICE_ATTACK_MS`,
+   * `VOICE_RELEASE_MS`). Only a SPEAKING face hears it; null hands the opening
+   * back to the made-up speech.
+   */
+  function sampleVoice(dtMs: number): void {
+    const level = expression === 'speaking' ? (options.voiceLevel?.() ?? null) : null;
+    if (level === null) {
+      heardOpen = null;
+      return;
+    }
+    const previous = heardOpen ?? 0;
+    const pace = level > previous ? VOICE_ATTACK_MS : VOICE_RELEASE_MS;
+    heardOpen = previous + (level - previous) * (1 - Math.exp(-dtMs / pace));
   }
 
   function interruptPerformance(): void {
@@ -1072,9 +1192,18 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
         return;
       const changedActivity = next.activity !== context.activity;
       const takesAttention =
-        (changedActivity && next.activity) || (next.responding && !context.responding);
+        (changedActivity && next.activity) ||
+        (next.responding && !context.responding) ||
+        (next.attending && !context.attending);
+      const letsGoOfText = context.attending && !next.attending;
       context = next;
       if (takesAttention) interruptPerformance();
+      // A mimic that came due while the face followed the text was held back.
+      // Played the instant the text stops, it answers every pause in the typing
+      // like a tic (measured: 199 times out of 200, 1.5 s after the last key).
+      // The face takes a whole silence first.
+      if (letsGoOfText && lifeRandom && clockMs >= mouthLifeAtMs)
+        mouthLifeAtMs = clockMs + drawMouthLifeSilenceMs(lifeRandom);
       poseTargets = computeTargets(expression, styleId, family, emphasis);
       if (changedActivity) patterns = startPatterns(expression);
       lastSettling = true;
@@ -1117,6 +1246,11 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       for (const tape of next) {
         if ((sketch.length || context.activity) && CHANNELS[tape.channel].group !== 'blink')
           continue;
+        // A blink never opens the eyes a scene holds: the sun on the face keeps
+        // them shut, and a blink in the hold would open them, then close them
+        // again (measured on the paint, 2026-11-13). A mask blink is the same
+        // case: the scene's lids already cover the face it would hide.
+        if (tapeTargetIn(sketch, tape.channel) !== null) continue;
         tapes.push({ tape, elapsedMs: 0 });
       }
       lastSettling = next.length > 0;
@@ -1128,12 +1262,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       if (!isSketchName(name)) return;
       if (!SKETCH_EXPRESSIONS.has(expression)) return;
       if (!canPlaySketch(name, allowSleep)) return;
-      if (
-        playSketch(
-          warpTapes(actingSketchTapes(name, acting, bodySpace, patternRandom), patternRandom)
-        )
-      )
-        recordSketch(sketchClock, name);
+      if (playSketch(sceneTapes(name, patternRandom))) recordSketch(sketchClock, name);
     },
 
     setCharacterId(next) {
@@ -1212,6 +1341,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
         }
         clockMs += dtMs;
         advanceBeats(dtMs);
+        sampleVoice(dtMs);
         integrateSprings(dtMs);
       }
       writeOutput();

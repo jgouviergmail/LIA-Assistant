@@ -139,3 +139,33 @@ that window needs a side-by-side generation (parallel column/table + the
 query-embedding model pinned to the OLD generation until an atomic switch) —
 the remaining Phase 2 item, deliberately out of scope here. The failure/loss
 component of F001 is closed; the availability component stays documented.
+
+## Follow-up — the source lease outlives the embedding (2026-11-10)
+
+A source sync renewed its lease before each thread or file it READ, then embedded what it had
+queued without renewing anything — and embedding is the long part. Measured in production on
+2026-11-09: a Gmail label of 2,502 threads embedded for 13 minutes under the 5-minute lease. At
+minute 6 the reaper re-drove a second full sync beside the first (221 threads embedded twice) and
+the document reaper requeued 25, then 7, of the first sync's `PENDING` documents — their
+protection is the source's live lease. All of it ran in the minutes the embedding provider's quota
+was already exhausted (ADR-254 amendment of the same day).
+
+- `source_lease_keepalive.source_lease_kept` renews the lease on a timer for as long as its body
+  runs, each renewal on a short session of its own, and is cancelled and joined before the caller
+  goes on to release the lease. A timer, not one renewal per document: a document may itself last
+  longer than the lease once a provider asks its callers to wait.
+- `process_queued` — the one door a source's documents embed through in bulk — takes its source
+  (`source_id`, `source_table`, no default) and holds that scope around the whole batch. Its four
+  callers name theirs: the full Gmail and Drive syncs, the Drive push window, the Gmail history
+  pass.
+- `RAG_JOB_HEARTBEAT_INTERVAL_SECONDS` is the cadence. The setting was published in every
+  environment template since this ADR and read by nothing; this is its reader.
+- A renewal that FAILS is logged and tried again at the next cadence (the lease outlives several);
+  one that is REFUSED means the source is no longer `SYNCING`, and the renewal stops. Both events
+  join the evidence of `RagSourceRecoveryLoop`.
+- A native source worker is left alone: it already renews around each external call under its own
+  unique claim (`source_worker_runtime.source_worker_external`).
+
+Held on real PostgreSQL by `tests/integration/domains/rag_spaces/
+test_source_lease_kept_while_embedding.py` (both source tables: the lease is alive again once the
+documents have embedded, and neither reaper query returns the source or its queued documents).

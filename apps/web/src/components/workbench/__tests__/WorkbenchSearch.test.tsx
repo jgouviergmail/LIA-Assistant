@@ -267,7 +267,7 @@ describe('WorkbenchSearch — asking LIA instead', () => {
     await user.type(box(), 'what did Ana decide?');
     await user.click(askLia());
 
-    expect(window.localStorage.getItem('lia.chatDraft.owner')).toBe('what did Ana decide?');
+    expect(window.localStorage.getItem('lia.chatDraft.owner.main')).toBe('what did Ana decide?');
     expect(openChat).toHaveBeenCalledWith('/en/dashboard/chat');
     expect(get).not.toHaveBeenCalled();
   });

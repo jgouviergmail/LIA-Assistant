@@ -21,8 +21,15 @@ from uuid import uuid4
 
 import pytest
 from langgraph.store.memory import InMemoryStore
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
+from src.core.conversation_target import ConversationRef
 from src.domains.agents.context.manager import ToolContextManager
+from src.domains.agents.context.store import get_tool_context_store
+from src.domains.conversations.service import ConversationService
+from tests.fixtures.conversation_executions import legacy_reset_runtime as legacy_reset_runtime
+from tests.fixtures.persisted_runtimes import admitted_runtime
+from tests.helpers.committed_users import commit_owner, committed_user_scope
 
 pytestmark = pytest.mark.unit
 
@@ -327,89 +334,62 @@ class TestCleanupSessionContexts:
 
 
 @pytest.mark.integration
+@pytest.mark.usefixtures("legacy_reset_runtime")
 class TestResetConversationIntegration:
-    """
-    Integration tests for reset_conversation() with Store cleanup.
-
-    These tests validate that ConversationService.reset_conversation()
-    correctly calls cleanup_session_contexts() as part of the reset flow.
-
-    Marked ``integration``: unlike the class above, this one needs a real
-    database (``db_session`` / ``test_user``) and the production store, so the
-    exclusion is explicit in the CI marker filter rather than hidden behind a
-    credential check. Without a reachable database the fixture chain degrades to
-    a readable skip (it fails loudly only under ``LIA_REQUIRE_DB=1``).
-    """
+    """Reset reaches the native Store on an independently committed account."""
 
     @pytest.mark.asyncio
-    async def test_reset_conversation_cleans_tool_contexts(self, db_session, test_user):
+    async def test_reset_conversation_cleans_tool_contexts(self, async_engine: AsyncEngine) -> None:
+        """Reset removes real stored context, including the auto-current item.
+
+        The Store uses its own connection, so a SAVEPOINT-owned account would
+        be invisible to its ownership fence. Both connections read a committed
+        account, removed by the explicit fixture scope even after a failure.
         """
-        Test that reset_conversation() cleans tool contexts from Store.
-
-        Setup:
-            - Create conversation
-            - Save tool contexts (contacts)
-            - Call reset_conversation()
-
-        Validate:
-            - Tool contexts are deleted
-            - Conversation is reset (message_count=0)
-            - No errors raised
-
-        Note:
-            This test requires fixtures:
-            - db_session: AsyncSession
-            - test_user: User model instance
-        """
-        from src.domains.agents.context.store import get_tool_context_store
-        from src.domains.conversations.service import ConversationService
-
-        # Skip if fixtures not available (run with: pytest -v test_context_cleanup_on_reset.py)
-        if not hasattr(test_user, "id"):
-            pytest.skip("Requires test_user fixture")
-
         service = ConversationService()
         manager = ToolContextManager()
-        # The PRODUCTION store on purpose: this test asserts that
-        # `reset_conversation` reaches the same store the application writes to.
         store = await get_tool_context_store()
-
-        # Setup: Create conversation
-        conversation = await service.get_or_create_conversation(test_user.id, db_session)
-        session_id = str(conversation.id)
-
-        # Setup: Save tool contexts
-        test_items = [
-            {"resource_name": "people/c123", "name": "Jean Dupond"},
-        ]
-        metadata = {
-            "turn_id": 1,
-            "total_count": 1,
-            "query": "test",
-            "tool_name": "test_tool",
-            "timestamp": "2025-01-26T14:30:00Z",
-        }
-
-        await manager.save_list(
-            user_id=test_user.id,
-            session_id=session_id,
-            domain="contacts",
-            items=test_items,
-            metadata=metadata,
-            store=store,
-        )
-
-        # Verify contexts exist
-        context_list = await manager.get_list(test_user.id, session_id, "contacts", store)
-        assert context_list is not None
-
-        # Execute reset
-        await service.reset_conversation(test_user.id, db_session)
-
-        # Validate contexts are deleted
-        context_list_after = await manager.get_list(test_user.id, session_id, "contacts", store)
-        assert context_list_after is None
-
-        # Validate conversation is reset
-        conversation_after = await service.get_active_conversation(test_user.id, db_session)
-        assert conversation_after.message_count == 0
+        async with committed_user_scope(async_engine) as identities:
+            owner_id = await commit_owner(async_engine, identities)
+            async with AsyncSession(async_engine, expire_on_commit=False) as db:
+                conversation = await service.get_or_create_conversation(owner_id, db)
+                session_id = str(conversation.runtime_id)
+                target = ConversationRef(
+                    owner_id=owner_id,
+                    id=conversation.id,
+                    kind=conversation.kind,
+                    revision=conversation.revision,
+                    runtime_id=conversation.runtime_id,
+                )
+                await db.commit()
+                # A real writer needs the same committed authority as a graph;
+                # close that invocation before exercising reset itself.
+                async with admitted_runtime(async_engine, target):
+                    await manager.save_list(
+                        user_id=owner_id,
+                        session_id=session_id,
+                        domain="contacts",
+                        items=[{"resource_name": "people/c123", "name": "Fictional contact"}],
+                        metadata={
+                            "turn_id": 1,
+                            "total_count": 1,
+                            "query": "test",
+                            "tool_name": "test_tool",
+                            "timestamp": "2025-01-26T14:30:00Z",
+                        },
+                        store=store,
+                    )
+                assert await manager.get_list(owner_id, session_id, "contacts", store) is not None
+                assert (
+                    await manager.get_current_item(owner_id, session_id, "contacts", store)
+                    is not None
+                )
+                result = await service.reset_conversation(owner_id, db)
+                assert result is not None and result.cleanup_complete
+                assert await manager.get_list(owner_id, session_id, "contacts", store) is None
+                assert (
+                    await manager.get_current_item(owner_id, session_id, "contacts", store) is None
+                )
+                conversation_after = await service.get_active_conversation(owner_id, db)
+                assert conversation_after is not None
+                assert conversation_after.message_count == 0

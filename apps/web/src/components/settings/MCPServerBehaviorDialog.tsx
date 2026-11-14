@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { TestConnectionResponse, UserMCPServer } from '@/hooks/useUserMCPServers';
+import { mcpTestFailureMessage } from '@/lib/mcp-test-result';
 import { MCPServerBehaviorEditor } from './MCPServerBehaviorEditor';
 
 export interface MCPServerInspection {
@@ -57,10 +58,10 @@ export function MCPServerBehaviorDialog({ inspection, ownerId, onClose, t }: Pro
                 : t('settings.mcp.test_failed')}
             </Badge>
           )}
-          {test && !test.success && test.error && (
+          {test && !test.success && (test.error || test.error_code) && (
             <div className="flex items-start gap-1.5 text-xs text-destructive">
               <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
-              <span className="break-words">{test.error}</span>
+              <span className="break-words">{mcpTestFailureMessage(test, t)}</span>
             </div>
           )}
           {(!test || test.success) && (

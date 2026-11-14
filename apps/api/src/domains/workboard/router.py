@@ -33,6 +33,8 @@ from src.domains.shared.display_query import DisplayQuery, display_query
 from src.domains.users.models import User
 from src.domains.workboard.assignment_notifications import dispatch_committed_assignment_notices
 from src.domains.workboard.board_queries import BoardFilters
+from src.domains.workboard.category_router import router as category_router
+from src.domains.workboard.category_service import WorkboardCategoryService
 from src.domains.workboard.schemas import (
     BoardPage,
     BoardSummary,
@@ -56,6 +58,9 @@ router = APIRouter(
     # mounted at all; this is the operator's switch inside it (B7).
     dependencies=capability_dependencies(PlatformCapability.WORKBOARD),
 )
+# The lanes' own routes, under this router's prefix and its operator switch:
+# a category is part of the board, never a second capability to mount.
+router.include_router(category_router)
 
 
 @router.get(
@@ -86,6 +91,10 @@ async def list_board(
     sort: Literal["position", "priority", "due", "updated", "created"] = Query(default="position"),
     limit: int = Query(default=200, ge=1, le=500, description="Page size."),
     offset: int = Query(default=0, ge=0, description="Page offset."),
+    category: list[UUID] | None = Query(default=None, description="Lanes to keep, by category."),
+    uncategorized: bool = Query(
+        default=False, description="Also keep the tickets filed under no category."
+    ),
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> BoardPage:
@@ -102,11 +111,14 @@ async def list_board(
         sort: Ordering of the page.
         limit: Page size.
         offset: Page offset.
+        category: Lanes to keep; omitted means every lane.
+        uncategorized: Whether the unfiled lane is kept beside ``category``.
         user: Authenticated session owner.
         db: Request-scoped session.
 
     Returns:
-        The page, the exact total, and one exact count per column.
+        The page, the exact total, one exact count per column, and the lanes
+        with their own exact counts — all over the same filter.
     """
     days = settings.workboard_closed_hide_days_default if closed_days is None else closed_days
     filters = BoardFilters(
@@ -118,6 +130,8 @@ async def list_board(
         query=q,
         include_closed_before=now_utc() - timedelta(days=days),
         sort=sort,
+        categories=tuple(category) if category else None,
+        uncategorized=uncategorized,
     )
     rows, total, counts = await WorkboardService(db).board(
         user, filters, limit=limit, offset=offset
@@ -126,6 +140,7 @@ async def list_board(
         tickets=[TicketRow.model_validate(row) for row in rows],
         total=total,
         counts_by_status=counts,
+        lanes=await WorkboardCategoryService(db).lanes(user, filters),
     )
 
 
@@ -160,7 +175,10 @@ async def needs_me(
         user, limit=limit, offset=offset, criteria=criteria
     )
     return NeedsMePage(
-        tickets=[TicketRow.model_validate(row) for row in rows], total=total, as_of=criteria.as_of
+        tickets=[TicketRow.model_validate(row) for row in rows],
+        total=total,
+        as_of=criteria.as_of,
+        categories=await WorkboardCategoryService(db).names_for(user.id, rows),
     )
 
 
@@ -293,14 +311,21 @@ async def move_ticket(
 
     Args:
         ticket_id: The ticket.
-        payload: The destination column and index.
+        payload: The destination column and index, and the lane when it changes.
         user: Authenticated session owner.
         db: Request-scoped session.
 
     Returns:
         The moved ticket.
     """
-    ticket = await WorkboardService(db).move(user, ticket_id, payload.status, payload.position)
+    ticket = await WorkboardService(db).move(
+        user,
+        ticket_id,
+        payload.status,
+        payload.position,
+        category_id=payload.category_id,
+        clear_category=payload.clear_category,
+    )
     await db.commit()
     return TicketRow.model_validate(ticket)
 

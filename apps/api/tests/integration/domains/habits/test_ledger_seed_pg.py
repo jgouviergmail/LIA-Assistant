@@ -20,6 +20,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings as app_settings
@@ -30,36 +31,11 @@ from src.domains.habits.usage_observations import LedgerView, needs_from_ledger
 from src.domains.product.models import ProductOutcome
 from src.domains.users.models import User
 from src.infrastructure.cache import recurrence_store
+from tests.fixtures.conversation_executions import redis_client as redis_client
 
 pytestmark = pytest.mark.integration
 
 _TYPED_HOURS = {9, 11, 14, 16, 18}
-
-
-class _FakeRedis:
-    """NX-faithful in-memory double (the ledger is advisory Redis)."""
-
-    def __init__(self) -> None:
-        self.data: dict[str, str] = {}
-
-    async def set(self, key: str, value: str, ex: int, nx: bool = False) -> bool | None:
-        if nx and key in self.data:
-            return None
-        self.data[key] = value
-        return True
-
-    async def get(self, key: str) -> str | None:
-        return self.data.get(key)
-
-    def scan_iter(self, match: str) -> object:
-        prefix = match[:-1]
-
-        async def _iter() -> object:
-            for key in list(self.data):
-                if key.startswith(prefix):
-                    yield key
-
-        return _iter()
 
 
 def _seed_settings() -> SimpleNamespace:
@@ -139,24 +115,35 @@ async def _seed_prod_like_rows(session: AsyncSession, user_id: uuid.UUID) -> tup
     return scheduler_rows, len(typed)
 
 
-async def test_seed_keeps_lia_s_own_routines_out(async_session: AsyncSession, owner: User) -> None:
+async def test_seed_keeps_lia_s_own_routines_out(
+    async_session: AsyncSession, owner: User, redis_client: Redis
+) -> None:
     scheduler_rows, typed_rows = await _seed_prod_like_rows(async_session, owner.id)
     assert scheduler_rows >= 100 and typed_rows == 5
-    redis = _FakeRedis()
+    owner_key = str(owner.id)
+    pattern = recurrence_store.user_key_pattern(owner_key)
+    per_signature = {}
 
-    with patch("src.infrastructure.cache.redis.get_redis_cache", new=AsyncMock(return_value=redis)):
-        seeded = await seed_ledger_from_outcomes(
-            async_session, owner.id, "Europe/Paris", _seed_settings()
-        )
+    try:
+        with patch(
+            "src.infrastructure.cache.redis.get_redis_cache",
+            new=AsyncMock(return_value=redis_client),
+        ):
+            seeded = await seed_ledger_from_outcomes(
+                async_session, owner.id, "Europe/Paris", _seed_settings()
+            )
+        async for key in redis_client.scan_iter(match=pattern):
+            value = await redis_client.get(key)
+            assert isinstance(value, str)
+            per_signature[recurrence_store.signature_from_key(key, owner_key)] = (
+                recurrence_store.parse_days(json.loads(value))
+            )
+    finally:
+        keys = [key async for key in redis_client.scan_iter(match=pattern)]
+        await redis_client.delete(recurrence_store.writer_key(owner_key), *keys)
 
     # Only the typed domains are seeded, each with exactly its typed days.
     assert seeded == 4
-    per_signature = {
-        recurrence_store.signature_from_key(key, str(owner.id)): recurrence_store.parse_days(
-            json.loads(value)
-        )
-        for key, value in redis.data.items()
-    }
     assert set(per_signature) == {"email", "web_search", "event", "browser"}
     assert len(per_signature["email"]) == 2
     assert len(per_signature["web_search"]) == 1

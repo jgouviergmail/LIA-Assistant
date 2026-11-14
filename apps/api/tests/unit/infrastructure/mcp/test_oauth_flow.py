@@ -631,6 +631,37 @@ class TestIssuerRecordingAndValidation:
         assert stored_state["issuer"] == "https://auth.example.com"
 
     @pytest.mark.asyncio
+    async def test_the_binding_of_the_consent_travels_in_the_state(self, handler, monkeypatch):
+        """What the consent was asked for is stored at initiation and read back first."""
+        from uuid import uuid4
+
+        monkeypatch.setattr(
+            "src.core.config.settings.mcp_user_oauth_callback_base_url",
+            "https://lia.example.com",
+        )
+        store_mock = AsyncMock()
+        monkeypatch.setattr(MCPOAuthFlowHandler, "_store_state", store_mock)
+        await handler.initiate_flow(
+            server_id=uuid4(),
+            user_id=uuid4(),
+            mcp_url="https://mcp.example.com/mcp",
+            cached_metadata=dict(self._METADATA),
+            client_id="client-abc",
+            binding="row-witness",
+        )
+        assert store_mock.call_args.args[1]["binding"] == "row-witness"
+
+        state = {**self._state_data("https://auth.example.com"), "binding": "row-witness"}
+        monkeypatch.setattr(MCPOAuthFlowHandler, "_consume_state", AsyncMock(return_value=state))
+        handler._http_client.post = AsyncMock()
+        # Read before anything can fail: the issuer refusal below comes after it.
+        with pytest.raises(ValueError, match="issuer"):
+            await handler.handle_callback(
+                code="auth-code", state="state-1", iss="https://evil.example.com"
+            )
+        assert handler.binding == "row-witness"
+
+    @pytest.mark.asyncio
     async def test_callback_rejects_mismatched_iss_before_token_exchange(
         self, handler, monkeypatch
     ):

@@ -7,13 +7,15 @@ exact version of the skill it replaces so a later change is caught at install.
 
 from __future__ import annotations
 
-from dataclasses import fields
+from dataclasses import fields, replace
 from pathlib import Path
+from typing import TypedDict, Unpack
 
 import pytest
 
 from src.domains.skills.proposals import (
     ProposalChanges,
+    ProposalStatus,
     SkillProposal,
     describe_changes,
     package_fingerprint,
@@ -23,22 +25,32 @@ from src.domains.skills.proposals import (
 pytestmark = pytest.mark.unit
 
 
-def _proposal(**overrides: object) -> SkillProposal:
-    values: dict[str, object] = {
-        "id": "a" * 32,
-        "owner_id": "11111111-1111-1111-1111-111111111111",
-        "name": "ma-skill",
-        "description": "Does something useful.",
-        "files": {"SKILL.md": "---\nname: ma-skill\n---\n", "references/r.md": "é"},
-        "sizes": {"SKILL.md": 23, "references/r.md": 2},
-        "created_at": "2026-09-30T10:00:00+00:00",
-        "expires_at": "2026-10-01T10:00:00+00:00",
-        "replaces": "f" * 64,
-        "changes": ProposalChanges(added=("references/r.md",), modified=("SKILL.md",), removed=()),
-        "status": "pending",
-    }
-    values.update(overrides)
-    return SkillProposal(**values)  # type: ignore[arg-type]
+class _ProposalOverrides(TypedDict, total=False):
+    status: ProposalStatus
+    attempt_id: str | None
+    cache_refresh_pending: bool
+    replaces: str | None
+    changes: ProposalChanges | None
+    files: dict[str, str]
+    sizes: dict[str, int]
+    runtime_id: str | None
+
+
+def _proposal(**overrides: Unpack[_ProposalOverrides]) -> SkillProposal:
+    base = SkillProposal(
+        id="a" * 32,
+        owner_id="11111111-1111-1111-1111-111111111111",
+        name="ma-skill",
+        description="Does something useful.",
+        files={"SKILL.md": "---\nname: ma-skill\n---\n", "references/r.md": "é"},
+        sizes={"SKILL.md": 23, "references/r.md": 2},
+        created_at="2026-09-30T10:00:00+00:00",
+        expires_at="2026-10-01T10:00:00+00:00",
+        replaces="f" * 64,
+        changes=ProposalChanges(added=("references/r.md",), modified=("SKILL.md",), removed=()),
+        runtime_id="22222222-2222-2222-2222-222222222222",
+    )
+    return replace(base, **overrides)
 
 
 class TestFingerprint:
@@ -112,7 +124,7 @@ class TestReadingTheInstalledPackage:
 
 class TestRecord:
     @pytest.mark.parametrize("status", ["pending", "installing", "unknown", "installed"])
-    def test_round_trips_every_field(self, status: str) -> None:
+    def test_round_trips_every_field(self, status: ProposalStatus) -> None:
         proposal = _proposal(status=status, attempt_id="b" * 32, cache_refresh_pending=True)
 
         restored = SkillProposal.from_json(proposal.to_json())
@@ -133,6 +145,7 @@ class TestRecord:
             "status",
             "attempt_id",
             "cache_refresh_pending",
+            "runtime_id",
         }
 
     def test_a_new_skill_round_trips_without_changes(self) -> None:

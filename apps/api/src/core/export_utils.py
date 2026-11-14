@@ -21,13 +21,32 @@ from typing import Any
 from fastapi.responses import StreamingResponse
 
 
+def _opens_a_formula(text: str) -> bool:
+    """Whether a spreadsheet would run ``text`` instead of showing it."""
+    return text.startswith(("\t", "\r", "\n")) or text.lstrip().startswith(("=", "+", "-", "@"))
+
+
 def spreadsheet_safe_cell(value: Any) -> Any:
     """Only text is escaped: numeric negative values remain numeric CSV values."""
-    if isinstance(value, str) and (
-        value.startswith(("\t", "\r", "\n")) or value.lstrip().startswith(("=", "+", "-", "@"))
-    ):
+    if isinstance(value, str) and _opens_a_formula(value):
         return "'" + value
     return value
+
+
+def spreadsheet_cell_text(cell: str) -> str:
+    """The text a protected cell held: :func:`spreadsheet_safe_cell`, read the other way.
+
+    An import of an export restores what the export protected. One text is not
+    restored: a text that already opened on a quote followed by a formula sign was
+    exported as it was, so it reads back without its quote.
+
+    Args:
+        cell: A text cell of an exported CSV.
+
+    Returns:
+        The cell without the protection mark, or the cell itself when it carries none.
+    """
+    return cell[1:] if cell.startswith("'") and _opens_a_formula(cell[1:]) else cell
 
 
 def create_csv_response(

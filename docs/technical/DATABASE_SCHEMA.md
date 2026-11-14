@@ -707,10 +707,10 @@ CREATE TABLE conversation_messages (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Indexes (optimized for pagination DESC)
+-- Indexes (history order closed by the id, read backwards for pagination)
 CREATE INDEX ix_conversation_messages_conversation_id ON conversation_messages(conversation_id);
-CREATE INDEX ix_conversation_messages_conv_created
-    ON conversation_messages(conversation_id, created_at DESC);
+CREATE INDEX ix_conversation_messages_history_position
+    ON conversation_messages(conversation_id, created_at, id);
 ```
 
 **Modèle SQLAlchemy:**
@@ -725,7 +725,7 @@ class ConversationMessage(BaseModel):
 
     Notes:
         - Separate from LangGraph state for performance
-        - Indexed by (conversation_id, created_at DESC) for pagination
+        - Indexed by (conversation_id, created_at, id) for pagination
         - Cascade delete: deleted when conversation is deleted
     """
     __tablename__ = "conversation_messages"
@@ -744,17 +744,17 @@ class ConversationMessage(BaseModel):
 
     __table_args__ = (
         Index(
-            "ix_conversation_messages_conv_created",
+            "ix_conversation_messages_history_position",
             "conversation_id",
             "created_at",
-            postgresql_ops={"created_at": "DESC"},
+            "id",
         ),
     )
 ```
 
 **Performance:**
 
-- **Composite Index**: `(conversation_id, created_at DESC)` pour pagination rapide
+- **Composite Index**: `(conversation_id, created_at, id)`, lu à rebours, pour pagination rapide
 - **Separation of Concerns**: Messages UI séparés des checkpoints LangGraph (évite désérialisation)
 
 ---
@@ -2960,20 +2960,22 @@ et [SCHEDULED_ACTIONS.md](SCHEDULED_ACTIONS.md) décrivent les contrôles de rè
 
 ### Critical Indexes for Performance
 
-#### 1. Conversations Pagination (DESC Order)
+#### 1. Conversations Pagination (keyset, read backwards)
 
 ```sql
 -- Index definition
-CREATE INDEX ix_conversation_messages_conv_created
-    ON conversation_messages(conversation_id, created_at DESC);
+CREATE INDEX ix_conversation_messages_history_position
+    ON conversation_messages(conversation_id, created_at, id);
 
--- Query optimized
+-- Query optimized (the cursor is the last row's (created_at, id))
 SELECT * FROM conversation_messages
 WHERE conversation_id = :conversation_id
-ORDER BY created_at DESC
-LIMIT 50 OFFSET 0;
+  AND (created_at, id) < (:cursor_created_at, :cursor_id)
+ORDER BY created_at DESC, id DESC
+LIMIT 50;
 
--- EXPLAIN result: Index Only Scan (fast)
+-- The work is bounded by the page, not by the conversation: the real plan is
+-- measured by apps/api/tests/integration/domains/conversations/test_history_consistency.py
 ```
 
 #### 2. Token Analytics (Composite Index)

@@ -59,13 +59,15 @@ async def test_every_user_scoped_family_is_deleted_and_global_keys_survive() -> 
     redis = _FakeRedis(user_keys + survivors)
 
     service = AccountDeletionService(AsyncMock())
-    with patch(
-        "src.infrastructure.cache.redis.get_redis_cache",
-        new=AsyncMock(return_value=redis),
+    forget_browser = AsyncMock()
+    with (
+        patch("src.infrastructure.cache.redis.get_redis_cache", new=AsyncMock(return_value=redis)),
+        patch("src.infrastructure.browser.pool.forget_browser_sessions", forget_browser),
     ):
         await service._cleanup_redis_caches(uid)
 
     assert set(redis.data) == set(survivors)
+    forget_browser.assert_awaited_once_with(uid)
 
 
 async def test_redis_failure_is_best_effort() -> None:

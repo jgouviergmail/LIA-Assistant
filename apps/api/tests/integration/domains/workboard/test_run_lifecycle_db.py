@@ -32,7 +32,14 @@ import pytest_asyncio
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from src.core.config import settings
+from src.core.conversation_execution import RunAdmission, RunEnd
 from src.domains.chat.models import MessageTokenSummary, TokenUsageLog
+from src.domains.conversations.catalogue_service import (
+    ConversationCatalogueService,
+    conversation_ref,
+)
+from src.domains.conversations.execution_repository import ConversationExecutionRepository
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.users.models import User
 from src.domains.workboard.constants import (
@@ -126,6 +133,7 @@ class TestTheSettleQuotesItsRun:
         assert stored is not None
         assert stored.status == TicketStatus.VALIDATING.value
         assert stored.run_claimed_at is None
+        assert not await repo.lock_owned_run(ticket.id, "r-1")
         assert stored.run_attempts == 0
         assert stored.run_count == 1
         assert stored.last_run_outcome == RunOutcome.SUCCESS.value
@@ -191,6 +199,9 @@ class TestTheSettleQuotesItsRun:
         await async_session.commit()
         revived = await async_session.get(WorkboardTicket, ticket.id, populate_existing=True)
         assert revived is not None
+        # A person explicitly requests another try; the reaper never requeues an unknown act.
+        revived.status = TicketStatus.TODO.value
+        await async_session.commit()
         await repo.claim_ticket(revived, run_id="r-2", now=NOW + timedelta(hours=1))
         await async_session.commit()
 
@@ -381,11 +392,10 @@ class TestTheScanOnARealServer:
 
 
 class TestReaping:
-    async def test_a_stranded_claim_comes_back_with_its_attempt_counted(
+    async def test_an_unknown_outcome_keeps_its_attempt_and_never_requeues(
         self, async_session: AsyncSession, owner: User
     ) -> None:
-        """The attempt is what stops an unrunnable ticket looping for ever, so
-        the reaper must NOT clear it — that is the settle's job."""
+        """Nobody may replay an act whose paid or external result is unknown."""
         repo = WorkboardRepository(async_session)
         ticket = _ticket(owner.id)
         async_session.add(ticket)
@@ -399,7 +409,7 @@ class TestReaping:
         assert reaped == 1
         stored = await async_session.get(WorkboardTicket, ticket.id, populate_existing=True)
         assert stored is not None
-        assert stored.status == TicketStatus.TODO.value
+        assert stored.status == TicketStatus.IN_PROGRESS.value
         assert stored.run_claimed_at is None
         assert stored.run_attempts == 1, "the attempt happened, and it counts"
         assert stored.run_count == 1
@@ -407,6 +417,56 @@ class TestReaping:
         assert (
             stored.last_run_error == RunError.RUN_REAPED.value
         ), "a card must say the run was reaped, not repeat an older message"
+        assert (
+            await async_session.scalars(
+                repo.claimable_stmt(
+                    NOW + timedelta(hours=2),
+                    max_runs=settings.workboard_max_runs_per_ticket,
+                    max_attempts=settings.workboard_run_max_attempts,
+                )
+            )
+        ).all() == []
+        assert not await repo.settle_run(
+            ticket_id=ticket.id,
+            run_id="r-1",
+            status=TicketStatus.DONE.value,
+            outcome=RunOutcome.SUCCESS.value,
+            now=NOW + timedelta(hours=2),
+        )
+        assert not await repo.release_claim(
+            ticket_id=ticket.id,
+            run_id="r-1",
+            outcome=RunOutcome.SKIPPED_BUSY.value,
+            now=NOW + timedelta(hours=2),
+        )
+
+    async def test_a_stale_heartbeat_is_not_proof_the_graph_stopped(
+        self,
+        async_session: AsyncSession,
+        owner: User,
+    ) -> None:
+        repo = WorkboardRepository(async_session)
+        ticket = _ticket(owner.id)
+        async_session.add(ticket)
+        await async_session.commit()
+        await repo.claim_ticket(ticket, run_id="r-1", now=NOW)
+        primary = await ConversationCatalogueService(async_session).ensure_primary_row(
+            owner.id, "en"
+        )
+        executions = ConversationExecutionRepository(async_session)
+        admission = await executions.admit(
+            conversation_ref(primary),
+            run_id="r-1",
+            stream_id="worker-stream",
+            worker_id=uuid4(),
+        )
+        assert isinstance(admission, RunAdmission)
+        await async_session.commit()
+        assert await repo.lock_owned_run(ticket.id, "r-1")
+        assert await repo.reap_stale_claims(older_than=NOW + timedelta(days=1)) == 0
+        assert await executions.close_owned(admission, end=RunEnd.NORMAL)
+        await async_session.commit()
+        assert await repo.reap_stale_claims(older_than=NOW + timedelta(days=1)) == 1
 
     async def test_a_fresh_claim_is_left_alone(
         self, async_session: AsyncSession, owner: User

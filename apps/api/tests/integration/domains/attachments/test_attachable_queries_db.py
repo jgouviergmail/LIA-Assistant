@@ -47,7 +47,7 @@ async def _file(
     *,
     origin: AttachmentOrigin = AttachmentOrigin.UPLOAD,
     expires_at: datetime | None = _NOW + timedelta(hours=1),
-    status: str | None = None,
+    status: str = AttachmentStatus.READY,
 ) -> uuid.UUID:
     row = Attachment(
         user_id=user_id,
@@ -60,9 +60,8 @@ async def _file(
         origin=origin.value,
         created_at=_NOW - timedelta(minutes=5),
         expires_at=expires_at,
+        status=status,
     )
-    if status is not None:
-        row.status = status
     db.add(row)
     await db.flush()
     return row.id

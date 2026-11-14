@@ -52,6 +52,29 @@ class TestClientConfigFlags:
         payload = await get_client_config()
         assert payload["features"]["home_address_enabled"] is expected
 
+    @pytest.mark.parametrize("mounted", [True, False])
+    async def test_telephony_flag_mirrors_what_mounts_its_routes(
+        self, mounted: bool, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A stored telephony key is a record: the connectors screen keeps
+        offering its removal under the operator's switch (ADR-280), which it
+        can only tell from an unmounted router by this flag."""
+        monkeypatch.setattr(settings, "telephony_enabled", mounted)
+        payload = await get_client_config()
+        assert payload["features"]["telephony_enabled"] is mounted
+
+    @pytest.mark.parametrize("mounted", [True, False])
+    async def test_personal_mcp_flag_mirrors_what_mounts_its_routes(
+        self, mounted: bool, monkeypatch: pytest.MonkeyPatch
+    ):
+        """The MCP switch's ceiling is ``mcp_enabled``; the personal servers'
+        router is mounted by ``mcp_user_enabled``. With the first on and the
+        second off the capability map says « offered » for a router that is not
+        there: the web's door needs the second flag to close the section."""
+        monkeypatch.setattr(settings, "mcp_user_enabled", mounted)
+        payload = await get_client_config()
+        assert payload["features"]["mcp_user_enabled"] is mounted
+
     async def test_sibling_gate_flags_still_present(self):
         """The section-gating flags the settings page consumes (page.tsx memo)."""
         payload = await get_client_config()
@@ -71,3 +94,38 @@ class TestClientConfigFlags:
         for entry in published.values():
             assert isinstance(entry["enabled"], bool)
             assert isinstance(entry["family"], str)
+
+
+@pytest.mark.unit
+class TestTheComposerIsToldWhatAnUploadAccepts:
+    """Enforced means published (ADR-184): the composer's picker and drop zone
+    read what the upload accepts, from the instance's own allowlists — a
+    browser reports no usable type for a ``.md`` or a ``.csv``, so documents
+    are published by extension (ADR-295 amendment 2026-11-12)."""
+
+    async def test_the_instance_s_formats_are_published(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(settings, "attachments_allowed_image_types", "image/png, image/jpeg")
+        monkeypatch.setattr(
+            settings,
+            "attachments_allowed_doc_types",
+            "application/pdf,text/csv,"
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+
+        payload = await get_client_config()
+
+        assert payload["attachments"] == {
+            "image_types": ["image/jpeg", "image/png"],
+            "document_extensions": [".csv", ".docx", ".pdf"],
+        }
+
+    async def test_an_operator_who_narrowed_the_allowlist_narrows_the_composer(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(settings, "attachments_allowed_doc_types", "application/pdf")
+
+        payload = await get_client_config()
+
+        assert payload["attachments"]["document_extensions"] == [".pdf"]

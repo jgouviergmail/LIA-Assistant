@@ -81,6 +81,7 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "is_superuser": _LIFECYCLE,
     "last_login": _LIFECYCLE,
     "deleted_at": _LIFECYCLE,
+    "deletion_started_at": _LIFECYCLE,
     "deleted_reason": _LIFECYCLE,
     # Terms acceptance: the legal record that this account agreed to the
     # terms, and to WHICH version. Kept like the rest of the lifecycle
@@ -99,6 +100,7 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "relation_overview_scope": _PREFERENCE,
     "relation_debrief_enabled": _PREFERENCE,
     "memory_enabled": _PREFERENCE,
+    "writing_style_enabled": _PREFERENCE,
     "health_metrics_agents_enabled": _PREFERENCE,
     "execution_mode": _PREFERENCE,
     "exchange_rhythm": _PREFERENCE,
@@ -158,6 +160,8 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "image_generation_default_size": _PREFERENCE,
     "image_generation_output_format": _PREFERENCE,
     "image_generation_prompt_enhancement": _PREFERENCE,
+    "document_illustrations": _PREFERENCE,
+    "document_animations": _PREFERENCE,
     "admin_mcp_disabled_servers": _PREFERENCE,
     "briefing_preferences": _PREFERENCE,
     "onboarding_checklist": _PREFERENCE,

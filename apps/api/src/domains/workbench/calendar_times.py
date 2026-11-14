@@ -18,6 +18,8 @@ from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, Final
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from src.core.wall_time import WallTime
+
 _WALL_TIME: Final = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$")
 
 
@@ -67,9 +69,7 @@ def ends_after(start: str, end: str, zone: ZoneInfo, *, all_day: bool) -> bool:
     """
     if all_day:
         return date.fromisoformat(end) > date.fromisoformat(start)
-    first = wall_time(start).replace(tzinfo=zone)
-    last = wall_time(end).replace(tzinfo=zone)
-    return last.astimezone(UTC) > first.astimezone(UTC)
+    return WallTime(wall_time(end), zone).instant() > WallTime(wall_time(start), zone).instant()
 
 
 def _utc(instant: datetime) -> str:

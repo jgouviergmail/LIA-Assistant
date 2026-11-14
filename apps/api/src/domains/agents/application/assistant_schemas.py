@@ -37,6 +37,7 @@ class AssistantPreferenceField(str, Enum):
     ONBOARDING_COMPLETED = "onboarding_completed"
     DEBUG_PANEL_ENABLED = "debug_panel_enabled"
     RESPONSE_DISPLAY_MODE = "response_display_mode"
+    WRITING_STYLE_ENABLED = "writing_style_enabled"
 
 
 class AssistantPreferenceRead(BaseModel):

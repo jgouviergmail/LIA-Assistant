@@ -11,6 +11,11 @@ import type {
   BoardFilters,
   BoardPage,
   BoardSummary,
+  CategoryCreateBody,
+  CategoryDeleteResult,
+  CategoryList,
+  CategoryRow,
+  CategoryUpdateBody,
   CommentRow,
   DeleteResult,
   MoveBody,
@@ -23,6 +28,41 @@ import type {
 
 const BASE = '/workboard';
 
+/** What the tickets must BE to be on the board: column, rank, holder, lateness, words. */
+function narrowingParams(filters: BoardFilters): Record<string, QueryParamValue> {
+  const params: Record<string, QueryParamValue> = {};
+  if (filters.status?.length) params.status = filters.status;
+  if (filters.priority?.length) params.priority = filters.priority;
+  if (filters.assignee) params.assignee = filters.assignee;
+  if (filters.overdue) params.overdue = true;
+  if (filters.due_before) params.due_before = filters.due_before;
+  if (filters.q?.trim()) params.q = filters.q.trim();
+  if (filters.closed_days !== undefined) params.closed_days = filters.closed_days;
+  return params;
+}
+
+/**
+ * Which lanes: categories, and what is not filed yet.
+ *
+ * Two halves that WIDEN each other server-side — « Home, and what is not
+ * filed » — each sent only when it says something.
+ */
+function laneParams(filters: BoardFilters): Record<string, QueryParamValue> {
+  const params: Record<string, QueryParamValue> = {};
+  if (filters.category?.length) params.category = filters.category;
+  if (filters.uncategorized) params.uncategorized = true;
+  return params;
+}
+
+/** How the answer is ordered and paged — it changes the page, never the set. */
+function pagingParams(filters: BoardFilters): Record<string, QueryParamValue> {
+  const params: Record<string, QueryParamValue> = {};
+  if (filters.sort) params.sort = filters.sort;
+  if (filters.limit !== undefined) params.limit = filters.limit;
+  if (filters.offset !== undefined) params.offset = filters.offset;
+  return params;
+}
+
 /**
  * Turn the board's filters into query parameters.
  *
@@ -34,18 +74,7 @@ const BASE = '/workboard';
  * @returns The parameters, ready for `apiClient`.
  */
 export function boardParams(filters: BoardFilters): Record<string, QueryParamValue> {
-  const params: Record<string, QueryParamValue> = {};
-  if (filters.status?.length) params.status = filters.status;
-  if (filters.priority?.length) params.priority = filters.priority;
-  if (filters.assignee) params.assignee = filters.assignee;
-  if (filters.overdue) params.overdue = true;
-  if (filters.due_before) params.due_before = filters.due_before;
-  if (filters.q?.trim()) params.q = filters.q.trim();
-  if (filters.closed_days !== undefined) params.closed_days = filters.closed_days;
-  if (filters.sort) params.sort = filters.sort;
-  if (filters.limit !== undefined) params.limit = filters.limit;
-  if (filters.offset !== undefined) params.offset = filters.offset;
-  return params;
+  return { ...narrowingParams(filters), ...laneParams(filters), ...pagingParams(filters) };
 }
 
 export const workboardApi = {
@@ -64,4 +93,13 @@ export const workboardApi = {
   comment: (id: string, body: string) =>
     apiClient.post<CommentRow>(`${BASE}/tickets/${id}/comments`, { body }),
   remove: (id: string) => apiClient.delete<DeleteResult>(`${BASE}/tickets/${id}`),
+  // Categories — the lanes of the board. Deleting one deletes no ticket: its
+  // tickets go back to the unfiled lane, and the answer says how many.
+  categories: () => apiClient.get<CategoryList>(`${BASE}/categories`),
+  createCategory: (body: CategoryCreateBody) =>
+    apiClient.post<CategoryRow>(`${BASE}/categories`, body),
+  updateCategory: (id: string, body: CategoryUpdateBody) =>
+    apiClient.patch<CategoryRow>(`${BASE}/categories/${id}`, body),
+  removeCategory: (id: string) =>
+    apiClient.delete<CategoryDeleteResult>(`${BASE}/categories/${id}`),
 };

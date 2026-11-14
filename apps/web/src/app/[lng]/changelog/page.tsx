@@ -9,8 +9,9 @@ import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
 import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
 import { CosmosThemeDefault } from '@/components/landing/cosmic/CosmosThemeDefault';
 import { initI18next, validateLanguage } from '@/i18n';
-import { fallbackLng, languages, LOCALE_MAP } from '@/i18n/settings';
+import { fallbackLng } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
+import { publicPageMetadata } from '@/lib/public-page-metadata';
 import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
 
 /**
@@ -24,7 +25,9 @@ import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
  *
  * It reuses the changelog's own translations (`faq.changelog.*`) rather than
  * inventing a second title for the same thing: one history, one wording, six
- * locales already written.
+ * locales already written. Its document title and description are its own
+ * (`meta_title`, `meta_description`): what a results page shows must name the
+ * page and say what it holds.
  */
 
 function buildLangUrl(path: string, lng: Language): string {
@@ -40,36 +43,12 @@ export async function generateMetadata({ params }: ChangelogPageProps): Promise<
   const lng = validateLanguage(lngParam);
   const { t } = await initI18next(lng);
 
-  const title = `${t('faq.changelog.title')} — ${t('landing.meta.title')}`;
-  const description = t('faq.changelog.description');
-  const canonicalUrl = buildLangUrl('/changelog', lng);
-
-  const langAlternates: Record<string, string> = {};
-  for (const l of languages) {
-    langAlternates[l] = buildLangUrl('/changelog', l);
-  }
-  langAlternates['x-default'] = buildLangUrl('/changelog', fallbackLng);
-
-  return {
-    title,
-    description,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: langAlternates,
-    },
-    openGraph: {
-      title,
-      description,
-      url: canonicalUrl,
-      locale: LOCALE_MAP[lng],
-      alternateLocale: languages.filter(l => l !== lng).map(l => LOCALE_MAP[l]),
-      type: 'website',
-    },
-    twitter: {
-      title,
-      description,
-    },
-  };
+  return publicPageMetadata(
+    lng,
+    '/changelog',
+    t('faq.changelog.meta_title'),
+    t('faq.changelog.meta_description')
+  );
 }
 
 export default async function ChangelogPage({ params }: ChangelogPageProps) {

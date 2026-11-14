@@ -1189,51 +1189,6 @@ class PsycheService:
 
 
 # =============================================================================
-# Background Task (fire-and-forget entry point)
-# =============================================================================
-
-
-async def psyche_post_response_background(
-    user_id: str,
-    appraisal: PsycheAppraisal | None,
-    run_id: str,
-) -> None:
-    """Background task for post-response psyche update.
-
-    Called via safe_fire_and_forget from response_node.
-    Stores summary in process-local registry for SSE done metadata.
-
-    Args:
-        user_id: User UUID string.
-        appraisal: Parsed PsycheAppraisal from response tag (None if absent).
-        run_id: Pipeline run_id for summary registry.
-    """
-    try:
-        from src.infrastructure.database.session import get_db_context
-
-        async with get_db_context() as db:
-            service = PsycheService(db)
-            summary = await service.process_post_response(
-                user_id=UUID(user_id),
-                appraisal=appraisal,
-            )
-            await db.commit()
-
-        # Store summary for pop_psyche_summary(run_id)
-        if summary:
-            store_psyche_summary(run_id, summary.model_dump())
-
-    except Exception as e:
-        logger.warning(
-            "psyche_post_response_background_failed",
-            user_id=user_id,
-            run_id=run_id,
-            error=str(e),
-            error_type=type(e).__name__,
-        )
-
-
-# =============================================================================
 # Utility
 # =============================================================================
 

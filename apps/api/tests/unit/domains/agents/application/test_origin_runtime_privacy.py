@@ -18,6 +18,7 @@ from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.context.runtime_context_builder import build_runtime_context
 from src.domains.agents.models import MessagesState
 from src.infrastructure.application_sessions import bind_browser_session
+from tests.fixtures.conversation_cases import conversation_target
 
 pytestmark = pytest.mark.unit
 
@@ -36,7 +37,9 @@ async def test_live_transport_reader_is_private_and_never_checkpointed() -> None
     origin = bind_browser_session(actor, cookie)
     assert origin is not None
     context = build_runtime_context(
-        state={"messages": []}, user_id=actor, conversation_id=uuid4(), application_origin=origin
+        state={"messages": []},
+        target=conversation_target(actor, uuid4()),
+        application_origin=origin,
     )
     assert (
         cookie not in repr(origin) and cookie not in dumps(origin) and cookie not in dumps(context)
@@ -78,21 +81,34 @@ def test_missing_transport_and_foreign_context_cannot_create_session_authority()
     assert bind_browser_session(actor, None) is None
     origin = bind_browser_session(actor, "private")
     context = build_runtime_context(
-        state={"messages": []}, user_id=uuid4(), conversation_id=uuid4(), application_origin=origin
+        state={"messages": []},
+        target=conversation_target(uuid4(), uuid4()),
+        application_origin=origin,
     )
     assert context.application_origin is None
 
 
 def test_every_authenticated_http_chat_call_forwards_the_transport_origin() -> None:
     tree = ast.parse(Path("src/domains/agents/api/router.py").read_text(encoding="utf-8"))
+    composition = ast.parse(
+        Path("src/domains/agents/api/chat_response.py").read_text(encoding="utf-8")
+    )
     calls = [
         node
-        for node in ast.walk(tree)
+        for node in ast.walk(composition)
         if isinstance(node, ast.Call)
         and isinstance(node.func, ast.Attribute)
         and node.func.attr == "stream_chat_response"
     ]
-    assert len(calls) >= 2
+    assert len(calls) == 1
+    calls.extend(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "browser_chat_stream"
+    )
+    assert len(calls) == 2, "Both the HTTP composition and actual graph entry must forward origin"
     for call in calls:
         forwarded = next(
             (item.value for item in call.keywords if item.arg == "application_origin"), None

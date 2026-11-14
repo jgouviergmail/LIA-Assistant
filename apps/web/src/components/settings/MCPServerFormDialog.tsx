@@ -26,6 +26,8 @@ import type {
   useUserMCPServers,
 } from '@/hooks/useUserMCPServers';
 import { isMcpApp, type MCPQuestionLoss, type UserMCPDefaults } from '@/lib/mcp-behavior';
+import { applyKnownServer, type KnownMCPServer } from '@/lib/mcp-known-servers';
+import { mcpTestFailureMessage } from '@/lib/mcp-test-result';
 import {
   editMCPServerForm,
   emptyMCPServerForm,
@@ -53,11 +55,24 @@ export type MCPServerFormActions = Pick<
 interface Props {
   /** The server edited; null creates one. */
   server: UserMCPServer | null;
+  /** A creation picked from the known servers starts filled with that server. */
+  known?: KnownMCPServer | null;
   defaults: UserMCPDefaults | undefined;
   ownerId: string | undefined;
   actions: MCPServerFormActions;
   onClose: () => void;
+  /**
+   * Where the focus goes once closed, for a dialog whose opener is gone (a tile
+   * of the known servers' gallery, closed when it opened this one).
+   */
+  returnFocus?: () => void;
   t: TFunction;
+}
+
+/** Where a form starts: the row it edits, a known server's facts, or nothing. */
+function initialForm(server: UserMCPServer | null, known: KnownMCPServer | null | undefined) {
+  if (server) return editMCPServerForm(server);
+  return known ? applyKnownServer(emptyMCPServerForm(), known) : emptyMCPServerForm();
 }
 
 function liveNotice(live: ReturnType<typeof useMCPLiveBehavior>, t: TFunction): string | null {
@@ -159,10 +174,10 @@ function ConnectionTest({
           </Badge>
         )}
       </div>
-      {result && !result.success && result.error && (
+      {result && !result.success && (result.error || result.error_code) && (
         <div className="flex items-start gap-1.5 text-xs text-destructive">
           <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" aria-hidden="true" />
-          <span className="line-clamp-3 break-words">{result.error}</span>
+          <span className="line-clamp-3 break-words">{mcpTestFailureMessage(result, t)}</span>
         </div>
       )}
     </div>
@@ -178,11 +193,20 @@ function ConnectionTest({
  * `questions_lost` — and applies only once confirmed (§ 6). Mount it per server:
  * its state starts from the row it edits.
  */
-export function MCPServerFormDialog({ server, defaults, ownerId, actions, onClose, t }: Props) {
+export function MCPServerFormDialog({
+  server,
+  known = null,
+  defaults,
+  ownerId,
+  actions,
+  onClose,
+  returnFocus,
+  t,
+}: Props) {
   const toast = useApplicationAccountToast(ownerId);
   const [form, setForm] = useApplicationAccountState<MCPServerFormState>(
     ownerId,
-    server ? editMCPServerForm(server) : emptyMCPServerForm()
+    initialForm(server, known)
   );
   const [testResult, setTestResult] = useApplicationAccountState<TestConnectionResponse | null>(
     ownerId,
@@ -195,7 +219,7 @@ export function MCPServerFormDialog({ server, defaults, ownerId, actions, onClos
   const { previewServer } = useMCPBehaviorPreview();
   const { setToolChoice } = useMCPToolChoice();
   const busy = actions.creating || actions.updating || checking;
-  const valid = isMCPServerFormValid(form, server !== null);
+  const valid = isMCPServerFormValid(form, server);
 
   // The server row first, then its tools' choices: a refused row writes no choice.
   const persistServer = async (saved: UserMCPServer) => {
@@ -242,7 +266,7 @@ export function MCPServerFormDialog({ server, defaults, ownerId, actions, onClos
     try {
       const result = await actions.testConnection(server.id);
       setTestResult(result ?? null);
-      if (!result?.success) return toast.error(result?.error || t('settings.mcp.test_failed'));
+      if (!result?.success) return toast.error(mcpTestFailureMessage(result, t));
       toast.success(t('settings.mcp.test_success', { count: result.tool_count }));
       live.refresh(); // the test re-read the catalogue the synthesis describes
     } catch (err) {
@@ -266,7 +290,17 @@ export function MCPServerFormDialog({ server, defaults, ownerId, actions, onClos
 
   return (
     <Dialog open onOpenChange={open => !open && onClose()}>
-      <DialogContent className="sm:max-w-[560px] max-h-[90dvh] overflow-y-auto">
+      <DialogContent
+        className="sm:max-w-[560px] max-h-[90dvh] overflow-y-auto"
+        onCloseAutoFocus={
+          returnFocus
+            ? event => {
+                event.preventDefault();
+                returnFocus();
+              }
+            : undefined
+        }
+      >
         <DialogHeader>
           <DialogTitle>
             {t(server ? 'settings.mcp.edit_title' : 'settings.mcp.add_title')}

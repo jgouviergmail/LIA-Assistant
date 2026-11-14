@@ -8,7 +8,7 @@
  * `PeerActionResult`; success toasts a localized confirmation, failure maps
  * the backend `peers_*` code through `toastPeersError` (never a raw code on
  * screen). The section itself is only mounted when the instance flag
- * `features.peers_enabled` is on (page-level gating, OpenLoopsSection
+ * the instance offers connections (`peersAvailable`: page-level gating, OpenLoopsSection
  * precedent).
  */
 
@@ -33,6 +33,7 @@ import { PeerVisibilityCard } from '@/components/settings/peers/PeerVisibilityCa
 import { PeerRequestsBlock } from '@/components/settings/peers/PeerRequestsBlock';
 import { toastPeersError } from '@/components/settings/peers/peers-error-messages';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { peersAvailable } from '@/lib/peers/image-share';
 import { useAuth } from '@/hooks/useAuth';
 import type { DiscoveryMatch, PeerActionResult } from '@/hooks/usePeerConnections';
 import { usePeerConnections } from '@/hooks/usePeerConnections';
@@ -53,10 +54,11 @@ function OwnedPeerConnectionsSettings({ lng }: BaseSettingsProps) {
   const requestsSummary = useRef<HTMLElement>(null);
   const blocksSummary = useRef<HTMLElement>(null);
   const connectionsHeading = useRef<HTMLHeadingElement>(null);
-  // Instance-flag self-gating (OpenLoopsSection precedent): flag off → no
-  // section AND no queries (the /peers router is not even mounted then).
+  // Self-gating (OpenLoopsSection precedent) on what the instance offers
+  // now: off → no section AND no queries (the /peers router is not mounted,
+  // or refuses once the operator switched the connections off).
   const { config } = useAppConfig();
-  const flagOn = Boolean(config?.features.peers_enabled);
+  const flagOn = peersAvailable(config);
   const {
     discoveryEnabled,
     emailVisible,

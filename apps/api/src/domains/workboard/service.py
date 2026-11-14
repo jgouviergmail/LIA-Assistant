@@ -47,6 +47,7 @@ from src.domains.workboard.assignment_notifications import (
     collect_assignment_notices,
 )
 from src.domains.workboard.board_queries import BoardFilters
+from src.domains.workboard.category_service import WorkboardCategoryService
 from src.domains.workboard.constants import (
     ActorKind,
     AssigneeKind,
@@ -97,6 +98,9 @@ class WorkboardService:
     ) -> None:
         self.db = db
         self.repo = WorkboardRepository(db)
+        # Which lane a ticket is filed under is the categories' rule, not a
+        # second copy of it here.
+        self.categories = WorkboardCategoryService(db)
         # Collected, never sent from here: the caller sends them once its
         # transaction has committed (`dispatch_committed_assignment_notices`).
         self.assignment_notices: list[AssignmentNotice] = (
@@ -381,8 +385,7 @@ class WorkboardService:
         self._check_dates(data.start_at, data.due_at)
         if await self.repo.count_owned(actor.id) >= settings.workboard_max_tickets_per_user:
             raise_invalid_input(WorkboardError.TOO_MANY_TICKETS.value)
-        if data.parent_id is not None:
-            await self._check_parent(actor, data.parent_id)
+        parent = None if data.parent_id is None else await self._check_parent(actor, data.parent_id)
         kind, holder = await self._resolve_assignment(
             actor.id, data.assignee, data.assignee_user_id
         )
@@ -393,6 +396,13 @@ class WorkboardService:
                     "description": description,
                     "status": status,
                     "priority": priority,
+                    # NORMALISED here, never in `create`: the assistant's
+                    # confirmation compares the stored row to this copy, field
+                    # by field, so a lane inherited later would read as a
+                    # creation that differs from what was approved.
+                    "category_id": await self.categories.creation_category(
+                        actor.id, data.category_id, parent
+                    ),
                 }
             ),
             kind,
@@ -430,6 +440,7 @@ class WorkboardService:
             "assignee_kind": kind,
             "assignee_user_id": holder,
             "execution_mode": data.execution_mode,
+            "category_id": data.category_id,
             "position": await self.repo.next_position(actor.id, status),
             "follow_owner": data.follow,
             "follow_assignee": False,
@@ -454,12 +465,15 @@ class WorkboardService:
         )
         return ticket
 
-    async def _check_parent(self, actor: User, parent_id: UUID) -> None:
+    async def _check_parent(self, actor: User, parent_id: UUID) -> WorkboardTicket:
         """Refuse a parent that is not the caller's, or already a child.
 
         Args:
             actor: The caller.
             parent_id: The proposed parent.
+
+        Returns:
+            The parent — a step is born in its lane.
 
         Raises:
             ValidationError: Not owned, already a child, or at its cap.
@@ -472,6 +486,7 @@ class WorkboardService:
             raise_invalid_input(WorkboardError.DEPTH_EXCEEDED.value)
         if await self.repo.count_children(parent.id) >= settings.workboard_max_children_per_ticket:
             raise_invalid_input(WorkboardError.TOO_MANY_CHILDREN.value)
+        return parent
 
     # ------------------------------------------------------------------ reads
 
@@ -552,6 +567,7 @@ class WorkboardService:
             held_by_lia=figures.held_by_lia,
             held_by_me=figures.held_by_me,
             needs_me=figures.needs_me,
+            lanes=await self.categories.lanes(actor, BoardFilters()),
             owned=figures.owned,
             max_tickets=settings.workboard_max_tickets_per_user,
             max_runs_per_ticket=settings.workboard_max_runs_per_ticket,
@@ -594,6 +610,9 @@ class WorkboardService:
             ticket.execution_mode = data.execution_mode
         await self._apply_priority(ticket, actor, data)
         await self._apply_dates(ticket, actor, data)
+        # No event, like the mode: a lane is how the owner reads their board,
+        # it changes nothing about the work.
+        await self.categories.file(ticket, actor.id, data.category_id, clear=data.clear_category)
 
         if data.assignee is not None or data.assignee_user_id is not None:
             answer = await self._answer_on_the_ticket(ticket, actor, data)
@@ -904,9 +923,19 @@ class WorkboardService:
         )
 
     async def move(
-        self, actor: User, ticket_id: UUID, status: str, position: int
+        self,
+        actor: User,
+        ticket_id: UUID,
+        status: str,
+        position: int,
+        *,
+        category_id: UUID | None = None,
+        clear_category: bool = False,
     ) -> WorkboardTicket:
-        """The drag-and-drop write: a column, and a place in it.
+        """The drag-and-drop write: a column, a place in it — and a lane.
+
+        A drop in another lane refiles the ticket in the same write (the
+        owner only); a drop that names no lane leaves it filed where it was.
 
         Positions belong to the OWNER's board, so a holder moving a ticket
         renumbers the OWNER's column, never one of their own.
@@ -921,16 +950,20 @@ class WorkboardService:
             ticket_id: The ticket.
             status: The destination column.
             position: Where in it, 0 first.
+            category_id: The lane it lands in, or None to leave it.
+            clear_category: Whether it lands in the unfiled lane.
 
         Returns:
             The moved row, not yet committed.
 
         Raises:
-            ValidationError: An unknown column.
+            ValidationError: An unknown column, a holder refiling the owner's
+                ticket, or a category that is not the owner's.
             ResourceNotFoundError: Unknown or not on their board.
         """
         ticket = await self._visible_or_404(ticket_id, actor.id, for_update=True)
         status = self._valid_status(status)
+        await self.categories.file(ticket, actor.id, category_id, clear=clear_category)
         if ticket.status != status:
             await self._transition(ticket, actor, status)
 

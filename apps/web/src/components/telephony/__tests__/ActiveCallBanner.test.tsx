@@ -53,7 +53,7 @@ function mockCalls(calls: TelephonyCallSummary[]) {
 describe('ActiveCallBanner', () => {
   it('says who LIA is talking to, and about what', () => {
     mockCalls([call()]);
-    renderWithProviders(<ActiveCallBanner lng="fr" />);
+    renderWithProviders(<ActiveCallBanner lng="fr" offered />);
 
     expect(screen.getByRole('status')).toBeInTheDocument();
     expect(screen.getByText(/Demander si elle est libre mardi/)).toBeInTheDocument();
@@ -62,31 +62,31 @@ describe('ActiveCallBanner', () => {
   it('distinguishes dialing from an answered call', () => {
     // "LIA is calling…" and "LIA is on the phone with…" are different facts.
     mockCalls([call({ status: 'dialing' })]);
-    const { unmount } = renderWithProviders(<ActiveCallBanner lng="fr" />);
+    const { unmount } = renderWithProviders(<ActiveCallBanner lng="fr" offered />);
     expect(screen.getByText('chat.active_call.dialing')).toBeInTheDocument();
     unmount();
 
     mockCalls([call({ status: 'in_progress' })]);
-    renderWithProviders(<ActiveCallBanner lng="fr" />);
+    renderWithProviders(<ActiveCallBanner lng="fr" offered />);
     expect(screen.getByText('chat.active_call.in_progress')).toBeInTheDocument();
   });
 
   it('disappears the moment the call ends', () => {
     // A status line that outlives its subject asserts something false.
     mockCalls([call({ status: 'completed' })]);
-    const { container } = renderWithProviders(<ActiveCallBanner lng="fr" />);
+    const { container } = renderWithProviders(<ActiveCallBanner lng="fr" offered />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it('renders nothing when no call was ever placed', () => {
     mockCalls([]);
-    const { container } = renderWithProviders(<ActiveCallBanner lng="fr" />);
+    const { container } = renderWithProviders(<ActiveCallBanner lng="fr" offered />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it('links to the recap surface in the current locale', () => {
     mockCalls([call()]);
-    renderWithProviders(<ActiveCallBanner lng="de" />);
+    renderWithProviders(<ActiveCallBanner lng="de" offered />);
     expect(screen.getByRole('link')).toHaveAttribute(
       'href',
       '/de/dashboard/settings?section=telephony-calls'
@@ -96,14 +96,14 @@ describe('ActiveCallBanner', () => {
   it('announces politely rather than interrupting', () => {
     // The user is mid-conversation with LIA; this is context, not an alert.
     mockCalls([call()]);
-    renderWithProviders(<ActiveCallBanner lng="fr" />);
+    renderWithProviders(<ActiveCallBanner lng="fr" offered />);
     expect(screen.getByRole('status')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('never shows a phone number', () => {
     mockCalls([call()]);
-    const { container } = renderWithProviders(<ActiveCallBanner lng="fr" />);
+    const { container } = renderWithProviders(<ActiveCallBanner lng="fr" offered />);
     expect(container.textContent ?? '').not.toMatch(/\+?\d[\d ().-]{7,}/);
   });
 
@@ -112,7 +112,7 @@ describe('ActiveCallBanner', () => {
       call({ id: 'done', status: 'completed' }),
       call({ id: 'live', callee_display: 'Paul' }),
     ]);
-    renderWithProviders(<ActiveCallBanner lng="fr" />);
+    renderWithProviders(<ActiveCallBanner lng="fr" offered />);
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 });
@@ -120,13 +120,33 @@ describe('ActiveCallBanner', () => {
 describe('ActiveCallBanner — an owner call', () => {
   it('says LIA is calling the person, not a third party', () => {
     mockCalls([call({ status: 'dialing', call_kind: 'self', callee_display: 'Alex' })]);
-    renderWithProviders(<ActiveCallBanner lng="fr" />);
+    renderWithProviders(<ActiveCallBanner lng="fr" offered />);
     expect(screen.getByText('chat.active_call.self_dialing')).toBeInTheDocument();
   });
 
   it('a verification call is also a call to the person', () => {
     mockCalls([call({ status: 'in_progress', call_kind: 'verification', callee_display: 'Alex' })]);
-    renderWithProviders(<ActiveCallBanner lng="fr" />);
+    renderWithProviders(<ActiveCallBanner lng="fr" offered />);
     expect(screen.getByText('chat.active_call.self_in_progress')).toBeInTheDocument();
+  });
+});
+
+describe('ActiveCallBanner — telephony the instance does not offer', () => {
+  it('asks for no call where the operator switched telephony off, and draws nothing', () => {
+    // The band is on every chat page and re-reads on every turn: under the
+    // switch each of those reads could only be refused (ADR-280).
+    mockCalls([]);
+    const { container } = renderWithProviders(<ActiveCallBanner lng="fr" offered={false} />);
+
+    expect(useTelephonyCalls).toHaveBeenCalledWith(false);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('asks where telephony is offered', () => {
+    mockCalls([call()]);
+    renderWithProviders(<ActiveCallBanner lng="fr" offered />);
+
+    expect(useTelephonyCalls).toHaveBeenCalledWith(true);
+    expect(screen.getByRole('status')).toBeInTheDocument();
   });
 });

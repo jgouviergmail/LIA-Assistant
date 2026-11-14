@@ -26,7 +26,7 @@ WIZARD_LANGUAGES: tuple[str, ...] = ("en", "fr")
 APP_LANGUAGES: tuple[str, ...] = ("fr", "en", "es", "de", "it", "zh-CN")
 
 #: Wizard copy of ``required_current_core_provider_ids()`` — see module doc.
-REQUIRED_PROVIDER_IDS: tuple[str, ...] = ("deepseek", "openai")
+REQUIRED_PROVIDER_IDS: tuple[str, ...] = ("anthropic", "deepseek")
 
 #: Wizard copy of ``OPTIONAL_INSTALL_PROVIDER_IDS``: keys asked but skippable.
 OPTIONAL_PROVIDER_IDS: tuple[str, ...] = ("gemini",)
@@ -157,6 +157,10 @@ class PublicAnswers:
     # World is an instance ceiling; each participant still consents to presence.
     # Older answers and state files keep this optional surface disabled.
     world: bool = False
+    # The instance's keyless web search (ADR-382): the `searxng` profile, for every
+    # person with no search key of their own. The wizard offers it ON; an install
+    # recorded before the question keeps what it runs until it is asked again.
+    web_search: bool = False
 
 
 @dataclass(frozen=True)

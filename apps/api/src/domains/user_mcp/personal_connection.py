@@ -1,11 +1,13 @@
 """Release transactions during discovery; freshly guard both success/error writes."""
 
 import asyncio
+from typing import Any, Literal
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import AuthorizationError, ResourceConflictError, ValidationError
+from src.domains.user_mcp.models import UserMCPTestErrorCode
 from src.domains.user_mcp.personal_state import _owned_row, _snapshot
 from src.domains.user_mcp.service import UserMCPServerService
 from src.infrastructure.mcp.personal_connection_contract import PersonalMCPConnectionResult
@@ -14,6 +16,17 @@ from src.infrastructure.mcp.personal_state_contract import (
     PersonalMCPWriteCheck,
 )
 from src.infrastructure.mcp.security import validate_http_endpoint
+
+
+def _connection_error(
+    result: dict[str, Any],
+) -> Literal["connection_failed", "authorization_required"] | None:
+    """The kind of failure the assistant reports, read from the test's structured code."""
+    if result["success"]:
+        return None
+    if result.get("error_code") == UserMCPTestErrorCode.OAUTH_AUTHORIZATION_REQUIRED.value:
+        return "authorization_required"
+    return "connection_failed"
 
 
 async def test_personal_mcp_connection(
@@ -61,7 +74,7 @@ async def test_personal_mcp_connection(
         return PersonalMCPConnectionResult(
             success=result["success"],
             server=current,
-            error=None if result["success"] else "connection_failed",
+            error=_connection_error(result),
         )
     except Exception, asyncio.CancelledError:
         await service._disconnect_from_pool(owner_id, server_id)

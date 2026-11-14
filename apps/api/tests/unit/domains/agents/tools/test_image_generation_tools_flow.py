@@ -12,7 +12,7 @@ import uuid
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from decimal import Decimal
-from types import SimpleNamespace
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -35,6 +35,8 @@ from src.domains.image_generation.providers.base import (
     ImageResult,
     SourceImage,
 )
+from tests.helpers.attachment_publication import stub_publication
+from tests.helpers.run_authority import unit_run_authority
 from tests.helpers.runtime_context import make_tool_runtime
 
 _PNG = PNG_SIGNATURE + b"generated"
@@ -85,7 +87,8 @@ def _caller(
 ) -> _Caller:
     return _Caller(
         user_id=uuid.uuid4(),
-        thread_id="thread-1",
+        conversation_id=str(uuid.uuid4()),
+        delivery_runtime_id="thread-1",
         stored_quality=quality,
         stored_size=size,
         options=options,
@@ -136,7 +139,7 @@ def _patched(caller: _Caller, client: _FakeClient, *, source: bytes | None = Non
     patches = [
         patch.object(image_generation_tools, "_resolve_caller", AsyncMock(return_value=caller)),
         patch.object(image_generation_tools, "_save_image", AsyncMock(return_value=_URL)),
-        patch("src.domains.image_generation.client.create_image_client", return_value=client),
+        patch("src.domains.image_generation.billed_call.create_image_client", return_value=client),
         patch("src.domains.image_generation.tracker.track_image_generation_call"),
     ]
     if source is not None:
@@ -326,7 +329,9 @@ class TestFailureCodes:
         with (
             patches[0],
             patches[1],
-            patch("src.domains.image_generation.client.create_image_client", side_effect=missing),
+            patch(
+                "src.domains.image_generation.billed_call.create_image_client", side_effect=missing
+            ),
             patches[3] as track,
         ):
             result = await _run(image_generation_tools.generate_image, "x")
@@ -416,20 +421,12 @@ class TestTheImageIsStoredInThePersonSFormat:
         ],
     )
     async def test_the_stored_file_is_in_the_chosen_format(
-        self, output_format: str, pillow_format: str, mime_type: str, extension: str
+        self, output_format: str, pillow_format: str, mime_type: str, extension: str, tmp_path: Path
     ) -> None:
         caller = _caller(
             _qwen_options(), quality="standard", size="1024x1024", output_format=output_format
         )
-        rows: list[dict[str, Any]] = []
-
-        class _Repository:
-            def __init__(self, _db: object) -> None:
-                pass
-
-            async def create(self, row: dict[str, Any]) -> Any:
-                rows.append(row)
-                return SimpleNamespace(id=uuid.uuid4(), expires_at=row["expires_at"])
+        rows: list[dict[str, object]] = []
 
         @asynccontextmanager
         async def _db_context() -> AsyncIterator[AsyncMock]:
@@ -437,10 +434,10 @@ class TestTheImageIsStoredInThePersonSFormat:
 
         vendor_png = io.BytesIO()
         Image.new("RGBA", (32, 32), (200, 30, 30, 128)).save(vendor_png, format="PNG")
-        write = AsyncMock()
+        assert caller.conversation_id is not None
         with (
-            patch.object(image_generation_tools, "_write_image_file", write),
-            patch("src.domains.attachments.repository.AttachmentRepository", _Repository),
+            stub_publication(tmp_path, rows),
+            unit_run_authority(caller.user_id, uuid.UUID(caller.conversation_id), uuid.uuid4()),
             patch("src.infrastructure.database.session.get_db_context", _db_context),
             patch("src.domains.image_generation.image_store.store_pending_image"),
         ):
@@ -449,14 +446,13 @@ class TestTheImageIsStoredInThePersonSFormat:
             )
 
         assert isinstance(url, str) and url.startswith("/api/v1/attachments/")
-        assert write.await_args is not None
-        written, relative_path = write.await_args.args
-        assert Image.open(io.BytesIO(written)).format == pillow_format
         (row,) = rows
+        written = (tmp_path / str(row["file_path"])).read_bytes()
+        assert Image.open(io.BytesIO(written)).format == pillow_format
         assert (row["mime_type"], row["file_size"]) == (mime_type, len(written))
-        assert row["stored_filename"].endswith(f".{extension}")
-        assert relative_path.endswith(f".{extension}")
-        assert row["original_filename"] == f"generated_{row['stored_filename']}"
+        assert str(row["stored_filename"]).endswith(f".{extension}")
+        assert str(row["original_filename"]).startswith("generated_")
+        assert str(row["original_filename"]).endswith(f".{extension}")
 
 
 class TestTheCapabilitySwitch:

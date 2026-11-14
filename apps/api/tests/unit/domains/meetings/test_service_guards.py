@@ -15,8 +15,9 @@ from src.domains.meetings import service as service_module
 from src.domains.meetings.models import MeetingAudioFormat, MeetingStatus
 from src.domains.meetings.schemas import MeetingPatchRequest, MeetingStopRequest
 from src.domains.meetings.service import MeetingService
+from tests.helpers.account_file_writes import account_writer_sql_stub as account_writer_sql_stub
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("account_writer_sql_stub")]
 
 
 def _meeting(

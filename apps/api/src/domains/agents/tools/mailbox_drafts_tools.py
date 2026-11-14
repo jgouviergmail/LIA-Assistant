@@ -24,13 +24,11 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 
 from src.core.config import settings
-from src.core.exceptions_domains import UsageLimitExceededError
 from src.core.field_names import FIELD_SET_ASIDE_ON_PAGE
 from src.core.i18n import get_locale_for_language
 from src.domains.agents.constants import AGENT_EMAIL, CONTEXT_DOMAIN_EMAILS
 from src.domains.agents.context.runtime_context import (
     LiaRuntimeContext,
-    tool_runtime_context,
 )
 from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.emails.catalogue_manifests import (
@@ -40,7 +38,7 @@ from src.domains.agents.emails.catalogue_manifests import (
 from src.domains.agents.emails.content_generation import resolve_email_content
 from src.domains.agents.emails.mailbox_drafts_manifests import LIST_MAX_RESULTS_DESCRIPTION
 from src.domains.agents.emails.message_finishing import finish_messages
-from src.domains.agents.emails.reply_drafting import draft_reply_body
+from src.domains.agents.emails.previous_reply import previous_reply_of
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.decorators import connector_tool
 from src.domains.agents.tools.email_files import draft_files, signed_body
@@ -52,9 +50,9 @@ from src.domains.agents.tools.mailbox_draft_base import (
     refusal_for,
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.agents.tools.reply_writing import written_reply
 from src.domains.agents.tools.runtime_helpers import get_user_preferences
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
-from src.infrastructure.llm.structured_output_errors import StructuredOutputError
 
 logger = structlog.get_logger(__name__)
 
@@ -307,31 +305,17 @@ class CreateMailboxReplyDraftTool(MailboxDraftTool):
         self, client: GoogleGmailClient, user_id: UUID, message_id: str, instruction: str | None
     ) -> str | dict[str, Any]:
         """The reply LIA writes from the received e-mail — or why it could not."""
-        runtime = self.runtime
-        context = tool_runtime_context(runtime) if runtime is not None else None
         original = await client.get_message(message_id)
-        try:
-            body = await draft_reply_body(
-                original,
-                instruction=instruction,
-                sender_name=context.display_name if context is not None else None,
-                user_language=self.get_user_language(),
-                user_id=str(user_id),
-                config=runtime.config if runtime is not None else None,
-            )
-        except UsageLimitExceededError:
-            return refusal(
-                ToolErrorCode.RATE_LIMIT_EXCEEDED,
-                "A spending ceiling refused writing the reply: give its text, or try later.",
-            )
-        except StructuredOutputError:
-            return refusal(
-                ToolErrorCode.EXTERNAL_API_ERROR,
-                "The reply could not be written: give its text.",
-            )
-        if not body.strip():
-            return refusal(ToolErrorCode.EMPTY_RESULT, "No reply was written: give its text.")
-        return body.strip()
+        # What the person already answered to it, read whole: the reply continues from it.
+        previous = await previous_reply_of(client, original, user_timezone=None, with_words=True)
+        return await written_reply(
+            original,
+            instruction=instruction,
+            previous=previous,
+            runtime=self.runtime,
+            user_id=user_id,
+            language=self.get_user_language(),
+        )
 
     async def execute_api_call(
         self,

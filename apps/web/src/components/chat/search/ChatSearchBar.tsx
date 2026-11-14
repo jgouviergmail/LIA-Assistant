@@ -11,7 +11,8 @@
  * - `HistoryBanner`: amber "you are viewing the past" bar with the way back;
  * - `StatusRow`: "N results in loaded messages" + the server-search
  *   affordance;
- * - `ResultsPanel`: dated, keyset-paginated whole-history results.
+ * - `ResultsPanel`: dated, keyset-paginated results across every discussion of
+ *   the account (lot 12), a result found in another one naming it.
  *
  * Excerpts are rendered as React segments (`prefix`/`<mark>`/`suffix`) built
  * by `buildSearchExcerpt` — no HTML injection anywhere.
@@ -21,7 +22,7 @@ import { useEffect, useRef } from 'react';
 import { History, Loader2, Search, X } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
-import type { ConversationMessage } from '@/hooks/useConversation';
+import type { DiscussionSearchResult } from '@/hooks/useConversation';
 import { buildSearchExcerpt } from '@/lib/search-excerpt';
 import { getIntlLocale, type Language } from '@/i18n/settings';
 
@@ -31,54 +32,75 @@ export interface ChatSearchBarProps {
   loadedMatchCount: number;
   serverSearchAvailable: boolean;
   panelOpen: boolean;
-  serverResults: ConversationMessage[];
+  serverResults: DiscussionSearchResult[];
   serverHasMore: boolean;
   serverLoading: boolean;
   serverError: boolean;
   /** Term the open results were fetched with (drives the excerpt marks). */
   excerptTerm: string;
   historyView: boolean;
-  /** Disables result jumps (e.g. while a stream is active). */
+  /** Holds jumps within this discussion (a stream is active). */
   jumpDisabled: boolean;
+  /** The discussion on screen: a result found in another one names it. */
+  currentDiscussionId: string | null;
+  /** Whether a result found in another discussion can open it now. */
+  canOpenOtherDiscussions: boolean;
   mobileOpen: boolean;
   onCloseMobile: () => void;
   onRunServerSearch: () => void;
   onLoadMoreServerResults: () => void;
   onClosePanel: () => void;
-  onJump: (row: ConversationMessage) => void;
+  onJump: (row: DiscussionSearchResult) => void;
   onReturnToPresent: () => void;
 }
 
-function ResultRow({
-  row,
-  excerptTerm,
-  disabled,
-  locale,
-  onJump,
-}: {
-  row: ConversationMessage;
+interface ResultRowProps {
+  row: DiscussionSearchResult;
   excerptTerm: string;
-  disabled: boolean;
+  /** Jumps within this discussion are held (a stream is active). */
+  held: boolean;
+  /** Set when the result lives in another discussion: whether it can open now. */
+  elsewhere: { canOpen: boolean } | null;
   locale: string;
-  onJump: (row: ConversationMessage) => void;
-}) {
+  onJump: (row: DiscussionSearchResult) => void;
+}
+
+function ResultRow({ row, excerptTerm, held, elsewhere, locale, onJump }: ResultRowProps) {
   const { t } = useTranslation();
   const dateLabel = new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(row.created_at));
   const excerpt = buildSearchExcerpt(row.content, excerptTerm);
+  // Main's name is the reader's translation, never a stored title.
+  const name =
+    row.conversation_kind === 'secondary'
+      ? (row.conversation_title ?? t('chat.discussions.new'))
+      : t('chat.discussions.main');
+  // A stream holds a jump within this discussion; another one opens whenever
+  // it may be left. `aria-disabled` + the guard, never `disabled`: a stream
+  // starting under a focused result must not blur it.
+  const blocked = elsewhere ? !elsewhere.canOpen : held;
 
   return (
     <li>
       <button
         type="button"
-        disabled={disabled}
-        onClick={() => onJump(row)}
-        aria-label={t('chat.search.jump_aria', { date: dateLabel })}
-        className="w-full text-left px-3 py-2 rounded-md hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+        aria-disabled={blocked || undefined}
+        onClick={() => {
+          if (!blocked) onJump(row);
+        }}
+        aria-label={
+          elsewhere
+            ? t('chat.search.jump_other_aria', { name, date: dateLabel })
+            : t('chat.search.jump_aria', { date: dateLabel })
+        }
+        className="w-full text-left px-3 py-2 rounded-md hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-disabled:opacity-50 aria-disabled:cursor-not-allowed"
       >
-        <span className="block text-px-11 font-semibold text-muted-foreground">{dateLabel}</span>
+        <span className="block text-px-11 font-semibold text-muted-foreground">
+          {dateLabel}
+          {elsewhere && <> · {t('chat.search.in_discussion', { name })}</>}
+        </span>
         <span className="block text-xs text-foreground/90 truncate">
           {excerpt ? (
             <>
@@ -171,11 +193,17 @@ function StatusRow(props: ChatSearchBarProps) {
   );
 }
 
-/** Status line of the panel header — exactly one of four states. */
+/**
+ * Status line of the panel header — exactly one of five states.
+ *
+ * The search ships no total (ADR-185): while more results follow, the count is
+ * that of the most recent ones shown, never « N results ».
+ */
 function panelStatusKey(props: ChatSearchBarProps): string {
   if (props.serverLoading && props.serverResults.length === 0) return 'chat.search.searching';
   if (props.serverError) return 'chat.search.remote_error';
   if (props.serverResults.length === 0) return 'chat.search.remote_none';
+  if (props.serverHasMore) return 'chat.search.remote_count_partial';
   return 'chat.search.remote_count';
 }
 
@@ -201,10 +229,15 @@ function ResultsPanel(props: ChatSearchBarProps) {
       <ul className="max-h-72 overflow-y-auto p-1 space-y-0.5" role="list">
         {props.serverResults.map(row => (
           <ResultRow
-            key={row.id}
+            key={row.message_id}
             row={row}
             excerptTerm={props.excerptTerm}
-            disabled={props.jumpDisabled}
+            held={props.jumpDisabled}
+            elsewhere={
+              row.conversation_id === props.currentDiscussionId
+                ? null
+                : { canOpen: props.canOpenOtherDiscussions }
+            }
             locale={locale}
             onJump={props.onJump}
           />

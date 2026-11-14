@@ -1,400 +1,265 @@
-"""Integration tests for the detached chat-run producer (real Redis, ADR-117).
-
-The producer consumes a chat-chunk async generator and publishes every
-chunk to the run stream, ALWAYS terminating with an end marker:
-  - generator completes  -> end(completed)
-  - generator raises     -> end(error)   (the real generator emits its own
-                                          error/done chunks before raising)
-  - task cancelled       -> end(killed) + finalize_partial callback
-"""
-
-from __future__ import annotations
+"""Detached producers own real SQL admission and deliver through real Redis streams."""
 
 import asyncio
 import json
-import uuid
 from collections.abc import AsyncGenerator
+from uuid import UUID, uuid4
 
 import pytest
 from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from src.core.config import settings
+from src.core.conversation_execution import RunAdmission, RunEnd
 from src.domains.agents.api.background_runner import (
     drain_chat_producers,
     get_active_chat_producer_count,
     spawn_chat_run_producer,
 )
 from src.domains.agents.api.schemas import ChatStreamChunk
+from src.domains.conversations.execution_repository import ConversationExecutionRepository
+from src.infrastructure.streaming.run_admission import reserve_execution
 from src.infrastructure.streaming.run_stream_broker import (
     RunStreamEvent,
-    active_run_key,
-    get_active_run,
-    register_active_run,
-    run_stream_key,
+    is_cancel_requested,
+    request_cancel,
     subscribe,
 )
+from tests.fixtures.conversation_executions import redis_client as redis_client
+from tests.fixtures.conversation_executions import reserved as reserved
+from tests.fixtures.persisted_runtimes import persist_runtime_targets
 
 pytestmark = pytest.mark.integration
 
 
 @pytest.fixture
-async def redis_client(monkeypatch):
-    """Real Redis client (same decode mode as get_redis_cache). Skips if down.
-
-    Also patches the runner module's get_redis_cache: the production
-    singleton is bound to the FIRST event loop that creates it, while
-    pytest-asyncio gives each test its own loop — reusing the singleton
-    across tests would hang on a closed loop.
-    """
-    try:
-        redis = Redis.from_url(str(settings.redis_url), decode_responses=True)
-        await redis.ping()
-    except Exception as e:  # noqa: BLE001 — environment guard, not logic
-        pytest.skip(f"Redis not available: {e}")
-
-    async def _get_test_redis() -> Redis:
-        return redis
-
-    monkeypatch.setattr("src.domains.agents.api.background_runner.get_redis_cache", _get_test_redis)
-    yield redis
-    await redis.aclose()
+async def admitted(reserved: RunAdmission, async_engine: AsyncEngine) -> RunAdmission:
+    """Reserve a real reconnectable invocation, never forge an ORM or authority token."""
+    async with AsyncSession(async_engine) as db:
+        await ConversationExecutionRepository(db).close_owned(reserved, end=RunEnd.NORMAL)
+        await db.commit()
+    admission = await reserve_execution(
+        reserved.target,
+        run_id=reserved.run_id,
+        stream_id=str(uuid4()),
+        relayed=True,
+        cancellable=True,
+    )
+    assert isinstance(admission, RunAdmission)
+    return admission
 
 
-async def _collect(redis: Redis, run_id: str) -> list[RunStreamEvent]:
-    return [event async for event in subscribe(redis, run_id) if event.kind != "keepalive"]
+async def collect(redis: Redis, stream_id: str) -> list[RunStreamEvent]:
+    async with asyncio.timeout(5):
+        return [event async for event in subscribe(redis, stream_id) if event.kind != "keepalive"]
 
 
-def _token(content: str) -> ChatStreamChunk:
+def token(content: str) -> ChatStreamChunk:
     return ChatStreamChunk(type="token", content=content, metadata=None)
 
 
-async def test_producer_publishes_all_chunks_and_completed_marker(redis_client) -> None:
-    run_id = f"test_{uuid.uuid4().hex[:8]}"
-
-    async def stream() -> AsyncGenerator[ChatStreamChunk]:
-        for i in range(5):
-            yield _token(f"tok{i}")
-            await asyncio.sleep(0.01)
-
-    try:
-        task = spawn_chat_run_producer(
-            chat_stream=stream(), run_id=run_id, stream_id=run_id, user_id="u", session_id="s"
-        )
-        events = await _collect(redis_client, run_id)
-        await task
-        assert [e.kind for e in events] == ["chunk"] * 5 + ["end"]
-        assert events[-1].payload == "completed"
-        assert get_active_chat_producer_count() == 0
-    finally:
-        await redis_client.delete(run_stream_key(run_id))
-
-
-async def test_producer_failing_generator_ends_with_error_marker(redis_client) -> None:
-    run_id = f"test_{uuid.uuid4().hex[:8]}"
-
-    async def stream() -> AsyncGenerator[ChatStreamChunk]:
-        yield _token("partial")
-        raise RuntimeError("llm exploded")
-
-    try:
-        task = spawn_chat_run_producer(
-            chat_stream=stream(), run_id=run_id, stream_id=run_id, user_id="u", session_id="s"
-        )
-        events = await _collect(redis_client, run_id)
-        await task  # must NOT re-raise: producer swallows and marks the stream
-        assert events[-1].kind == "end"
-        assert events[-1].payload == "error"
-    finally:
-        await redis_client.delete(run_stream_key(run_id))
-
-
-async def test_cancelled_producer_ends_killed_and_finalizes_partial(redis_client) -> None:
-    run_id = f"test_{uuid.uuid4().hex[:8]}"
-    finalized: list[tuple[str, str]] = []
-
-    async def finalize_partial(content: str, reason: str) -> None:
-        finalized.append((content, reason))
-
-    async def stream() -> AsyncGenerator[ChatStreamChunk]:
-        yield _token("hello ")
-        yield _token("world")
-        await asyncio.sleep(30)  # cancellation lands here
-        yield _token("never")
-
-    try:
-        task = spawn_chat_run_producer(
-            chat_stream=stream(),
-            run_id=run_id,
-            stream_id=run_id,
-            user_id="u",
-            session_id="s",
-            finalize_partial=finalize_partial,
-        )
-        await asyncio.sleep(0.3)  # let the two chunks flow
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
-        events = await _collect(redis_client, run_id)
-        assert events[-1].kind == "end"
-        assert events[-1].payload == "killed"
-        assert finalized == [("hello world", "killed")]
-    finally:
-        await redis_client.delete(run_stream_key(run_id))
-
-
-async def test_content_replacement_replaces_accumulated_content(redis_client) -> None:
-    run_id = f"test_{uuid.uuid4().hex[:8]}"
-    finalized: list[tuple[str, str]] = []
-
-    async def finalize_partial(content: str, reason: str) -> None:
-        finalized.append((content, reason))
-
-    async def stream() -> AsyncGenerator[ChatStreamChunk]:
-        yield _token("raw ")
-        yield ChatStreamChunk(type="content_replacement", content="FINAL enriched", metadata=None)
-        await asyncio.sleep(30)
-
-    try:
-        task = spawn_chat_run_producer(
-            chat_stream=stream(),
-            run_id=run_id,
-            stream_id=run_id,
-            user_id="u",
-            session_id="s",
-            finalize_partial=finalize_partial,
-        )
-        await asyncio.sleep(0.3)
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
-        assert finalized == [("FINAL enriched", "killed")]
-    finally:
-        await redis_client.delete(run_stream_key(run_id))
-
-
-async def test_hitl_resumption_fresh_stream_avoids_stale_end_marker(redis_client) -> None:
-    """HITL resumption reuses run_id (billing) but MUST get a fresh stream.
-
-    Regression guard: publishing the resumption onto the interrupt phase's
-    stream would append after that phase's terminal marker, so a
-    replay-from-0 subscriber would stop at the stale marker and never see
-    the resumption content.
-    """
-    billing_run_id = f"test_{uuid.uuid4().hex[:8]}"
-    stream_phase1 = f"{billing_run_id}_s1"
-    stream_phase2 = f"{billing_run_id}_s2"
-
-    async def phase1() -> AsyncGenerator[ChatStreamChunk]:
-        yield _token("hitl question")  # interrupt phase ends cleanly
-
-    async def phase2() -> AsyncGenerator[ChatStreamChunk]:
-        yield _token("resumption ")
-        yield _token("answer")
-
-    try:
-        # Phase 1 (interrupt): completes and writes its terminal marker
-        await spawn_chat_run_producer(
-            chat_stream=phase1(),
-            run_id=billing_run_id,
-            stream_id=stream_phase1,
-            user_id="u",
-            session_id="s",
-        )
-        # Phase 2 (resumption): SAME billing run_id, FRESH stream
-        await spawn_chat_run_producer(
-            chat_stream=phase2(),
-            run_id=billing_run_id,
-            stream_id=stream_phase2,
-            user_id="u",
-            session_id="s",
-        )
-        events = await _collect(redis_client, stream_phase2)
-        contents = [json.loads(e.payload)["content"] for e in events if e.kind == "chunk"]
-        # The subscriber sees ONLY the resumption content, fully, and terminates
-        assert contents == ["resumption ", "answer"]
-        assert events[-1].kind == "end"
-        assert events[-1].payload == "completed"
-    finally:
-        await redis_client.delete(run_stream_key(stream_phase1))
-        await redis_client.delete(run_stream_key(stream_phase2))
-
-
-async def test_drain_chat_producers_waits_then_reports_pending(redis_client) -> None:
-    """The shutdown drain awaits fast producers and reports slow ones."""
-    fast_id = f"test_{uuid.uuid4().hex[:8]}"
-    slow_id = f"test_{uuid.uuid4().hex[:8]}"
-
-    async def fast() -> AsyncGenerator[ChatStreamChunk]:
-        yield _token("quick")
-        await asyncio.sleep(0.5)  # still in flight when the drain starts
-
-    async def slow() -> AsyncGenerator[ChatStreamChunk]:
-        yield _token("slow")
-        await asyncio.sleep(30)
-
-    slow_task = None
-    try:
-        spawn_chat_run_producer(
-            chat_stream=fast(), run_id=fast_id, stream_id=fast_id, user_id="u", session_id="s"
-        )
-        slow_task = spawn_chat_run_producer(
-            chat_stream=slow(), run_id=slow_id, stream_id=slow_id, user_id="u", session_id="s"
-        )
-        await asyncio.sleep(0.1)  # both producers started, both still in flight
-        done, pending = await drain_chat_producers(timeout=2.0)
-        assert done == 1  # the fast producer finished within the drain window
-        assert pending == 1  # the slow one is honestly reported as pending
-    finally:
-        if slow_task is not None and not slow_task.done():
-            slow_task.cancel()
-            with pytest.raises(asyncio.CancelledError):
-                await slow_task
-        await redis_client.delete(run_stream_key(fast_id))
-        await redis_client.delete(run_stream_key(slow_id))
-
-
-async def test_producer_heartbeat_keeps_lock_then_releases_on_completion(
-    redis_client, monkeypatch
+async def test_producer_publishes_all_chunks_then_closes_authority(
+    admitted: RunAdmission,
+    redis_client: Redis,
+    async_engine: AsyncEngine,
 ) -> None:
-    """Lot 2: the heartbeat outlives the lock TTL; completion releases it."""
-    monkeypatch.setattr(settings, "background_runs_active_ttl_seconds", 2)
-    monkeypatch.setattr(settings, "background_runs_heartbeat_seconds", 1)
-    conv = f"conv_{uuid.uuid4().hex[:8]}"
-    stream_id = f"s_{uuid.uuid4().hex[:8]}"
+    async def stream() -> AsyncGenerator[ChatStreamChunk]:
+        for index in range(5):
+            yield token(str(index))
+
+    await spawn_chat_run_producer(chat_stream=stream(), admission=admitted, session_id="session")
+    events = await collect(redis_client, admitted.stream_id)
+    assert [event.kind for event in events] == ["chunk"] * 5 + ["end"]
+    assert events[-1].payload == "completed"
+    assert get_active_chat_producer_count() == 0
+    async with AsyncSession(async_engine) as db:
+        assert (
+            await ConversationExecutionRepository(db).active_for_owner(admitted.target.owner_id)
+            is None
+        )
+
+
+async def test_failing_generator_publishes_an_explicit_error_and_end(
+    admitted: RunAdmission,
+    redis_client: Redis,
+) -> None:
+    async def stream() -> AsyncGenerator[ChatStreamChunk]:
+        yield token("partial")
+        raise RuntimeError("Test model failed")
+
+    await spawn_chat_run_producer(chat_stream=stream(), admission=admitted, session_id="session")
+    events = await collect(redis_client, admitted.stream_id)
+    assert [json.loads(event.payload)["type"] for event in events if event.kind == "chunk"] == [
+        "token",
+        "error",
+        "done",
+    ]
+    assert events[-1].kind == "end" and events[-1].payload == "error"
+
+
+@pytest.mark.parametrize("source", ["user", "shutdown"])
+@pytest.mark.parametrize("replacement", [False, True])
+async def test_cancellation_preserves_partial_replacement_and_distinguishes_its_reason(
+    admitted: RunAdmission,
+    redis_client: Redis,
+    async_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
+    source: str,
+    replacement: bool,
+) -> None:
+    monkeypatch.setattr(settings, "background_runs_cancel_poll_seconds", 0.01)
+    running = asyncio.Event()
+    archived: list[tuple[str, str]] = []
+
+    async def finalize(content: str, reason: str) -> None:
+        async with AsyncSession(async_engine) as db:
+            assert (
+                await ConversationExecutionRepository(db).active_for_owner(admitted.target.owner_id)
+                is not None
+            )
+        archived.append((content, reason))
 
     async def stream() -> AsyncGenerator[ChatStreamChunk]:
-        yield _token("start")
-        await asyncio.sleep(3.5)  # > lock TTL: only the heartbeat keeps it alive
-        yield _token("end")
+        yield token("partial ")
+        yield token("answer")
+        if replacement:
+            yield ChatStreamChunk(
+                type="content_replacement", content="enriched answer", metadata=None
+            )
+        running.set()
+        await asyncio.Event().wait()
 
-    try:
-        assert await register_active_run(redis_client, conv, run_id="R", stream_id=stream_id)
-        task = spawn_chat_run_producer(
-            chat_stream=stream(),
-            run_id="R",
-            stream_id=stream_id,
-            user_id="u",
-            session_id="s",
-            conversation_id=conv,
-        )
-        await asyncio.sleep(3.0)  # beyond the original TTL
-        assert await get_active_run(redis_client, conv) is not None  # heartbeat kept it
-        await task
-        assert await get_active_run(redis_client, conv) is None  # released at completion
-    finally:
-        await redis_client.delete(active_run_key(conv))
-        await redis_client.delete(run_stream_key(stream_id))
-
-
-async def test_killed_producer_releases_lock_immediately(redis_client, monkeypatch) -> None:
-    """Lot 2: a cancelled producer releases the lock without waiting for TTL."""
-    monkeypatch.setattr(settings, "background_runs_active_ttl_seconds", 30)
-    conv = f"conv_{uuid.uuid4().hex[:8]}"
-    stream_id = f"s_{uuid.uuid4().hex[:8]}"
-
-    async def stream() -> AsyncGenerator[ChatStreamChunk]:
-        yield _token("start")
-        await asyncio.sleep(60)
-
-    try:
-        assert await register_active_run(redis_client, conv, run_id="R", stream_id=stream_id)
-        task = spawn_chat_run_producer(
-            chat_stream=stream(),
-            run_id="R",
-            stream_id=stream_id,
-            user_id="u",
-            session_id="s",
-            conversation_id=conv,
-        )
-        await asyncio.sleep(0.3)
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
-        # Released by the shielded finally — NOT left to the 30s TTL
-        assert await get_active_run(redis_client, conv) is None
-    finally:
-        await redis_client.delete(active_run_key(conv))
-        await redis_client.delete(run_stream_key(stream_id))
-
-
-async def test_user_cancel_signal_ends_run_as_cancelled(redis_client) -> None:
-    """Lot 3: the cross-worker cancel signal cooperatively stops the producer.
-
-    Expected terminal sequence on the stream: the already-published chunks,
-    then a SYNTHESIZED done chunk carrying metadata.cancelled (subscribers
-    finish their normal SSE lifecycle), then the end marker with status
-    "cancelled" (not "killed"). The partial content is finalized with the
-    "cancelled" reason and the consumed signal is cleared.
-    """
-    from src.infrastructure.streaming.run_stream_broker import (
-        is_cancel_requested,
-        request_cancel,
+    producer = spawn_chat_run_producer(
+        chat_stream=stream(), admission=admitted, session_id="session", finalize_partial=finalize
     )
-
-    run_id = f"test_{uuid.uuid4().hex[:8]}"
-    finalized: list[tuple[str, str]] = []
-
-    async def finalize_partial(content: str, reason: str) -> None:
-        finalized.append((content, reason))
-
-    async def stream() -> AsyncGenerator[ChatStreamChunk]:
-        yield _token("partial ")
-        yield _token("answer")
-        await asyncio.sleep(30)  # the cancel lands here
-        yield _token("never")
-
     try:
-        task = spawn_chat_run_producer(
-            chat_stream=stream(),
-            run_id=run_id,
-            stream_id=run_id,
-            user_id="u",
-            session_id="s",
-            finalize_partial=finalize_partial,
-        )
-        await asyncio.sleep(0.3)  # let the two chunks flow
-        await request_cancel(redis_client, run_id)
+        await asyncio.wait_for(running.wait(), 5)
+        if source == "user":
+            await request_cancel(redis_client, admitted.stream_id)
+        else:
+            producer.cancel()
         with pytest.raises(asyncio.CancelledError):
-            await task  # watcher polls every 1s -> cancelled within ~1s
-
-        events = await _collect(redis_client, run_id)
-        # Terminal sequence: tokens..., synthesized done(cancelled), end(cancelled)
-        assert events[-1].kind == "end"
-        assert events[-1].payload == "cancelled"
-        done_chunks = [
-            json.loads(e.payload) for e in events if e.kind == "chunk" and '"done"' in e.payload
+            await asyncio.wait_for(producer, 5)
+        events = await collect(redis_client, admitted.stream_id)
+        reason = "cancelled" if source == "user" else "killed"
+        assert events[-1].payload == reason
+        assert archived == [("enriched answer" if replacement else "partial answer", reason)]
+        done = [
+            json.loads(event.payload)
+            for event in events
+            if event.kind == "chunk" and json.loads(event.payload)["type"] == "done"
         ]
-        assert len(done_chunks) == 1
-        assert done_chunks[0]["metadata"] == {"cancelled": True}
-        # Partial archived with the user-cancel reason
-        assert finalized == [("partial answer", "cancelled")]
-        # Consumed signal cleared
-        assert await is_cancel_requested(redis_client, run_id) is False
+        if source == "user":
+            assert len(done) == 1 and done[0]["metadata"]["cancelled"] is True
+            assert not await is_cancel_requested(redis_client, admitted.stream_id)
+        else:
+            assert done == []
+        async with AsyncSession(async_engine) as db:
+            assert (
+                await ConversationExecutionRepository(db).active_for_owner(admitted.target.owner_id)
+                is None
+            )
     finally:
-        await redis_client.delete(run_stream_key(run_id))
+        if not producer.done():
+            producer.cancel()
+            await asyncio.gather(producer, return_exceptions=True)
 
 
-async def test_hard_kill_still_reports_killed_not_cancelled(redis_client) -> None:
-    """Lot 3 guard: a shutdown-drain kill (no user signal) keeps status
-    "killed" — the two abort causes must stay distinguishable in metrics
-    and archive metadata."""
-    run_id = f"test_{uuid.uuid4().hex[:8]}"
+async def test_hitl_resumption_uses_a_fresh_stream_after_the_previous_end_marker(
+    admitted: RunAdmission,
+    redis_client: Redis,
+) -> None:
+    async def phase(content: str) -> AsyncGenerator[ChatStreamChunk]:
+        yield token(content)
+
+    await spawn_chat_run_producer(
+        chat_stream=phase("question"), admission=admitted, session_id="session"
+    )
+    resumed = await reserve_execution(
+        admitted.target, run_id=admitted.run_id, stream_id=str(uuid4()), relayed=True
+    )
+    assert isinstance(resumed, RunAdmission)
+    await spawn_chat_run_producer(
+        chat_stream=phase("answer"), admission=resumed, session_id="session"
+    )
+    events = await collect(redis_client, resumed.stream_id)
+    chunks = [json.loads(event.payload) for event in events if event.kind == "chunk"]
+    assert [chunk["content"] for chunk in chunks] == ["answer"]
+    assert chunks[0]["metadata"]["run_id"] == admitted.run_id
+    assert chunks[0]["metadata"]["stream_id"] == resumed.stream_id != admitted.stream_id
+    assert events[-1].payload == "completed"
+
+
+async def test_supervision_updates_sql_without_any_redis_lease(
+    admitted: RunAdmission,
+    async_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "background_runs_heartbeat_seconds", 0.05)
+    running, release = asyncio.Event(), asyncio.Event()
+    async with AsyncSession(async_engine) as db:
+        initial = await ConversationExecutionRepository(db).snapshot_for_owner(
+            admitted.target.owner_id
+        )
+        assert initial is not None
 
     async def stream() -> AsyncGenerator[ChatStreamChunk]:
-        yield _token("x")
-        await asyncio.sleep(30)
+        yield token("start")
+        running.set()
+        await release.wait()
 
+    producer = spawn_chat_run_producer(
+        chat_stream=stream(), admission=admitted, session_id="session"
+    )
     try:
-        task = spawn_chat_run_producer(
-            chat_stream=stream(), run_id=run_id, stream_id=run_id, user_id="u", session_id="s"
-        )
-        await asyncio.sleep(0.3)
-        task.cancel()  # hard kill, no cancel signal
-        with pytest.raises(asyncio.CancelledError):
-            await task
-        events = await _collect(redis_client, run_id)
-        assert events[-1].payload == "killed"
-        # No synthesized done chunk on hard kill
-        assert not any(e.kind == "chunk" and '"done"' in e.payload for e in events)
+        await asyncio.wait_for(running.wait(), 5)
+        async with asyncio.timeout(5):
+            while True:
+                async with AsyncSession(async_engine) as db:
+                    active = await ConversationExecutionRepository(db).snapshot_for_owner(
+                        admitted.target.owner_id
+                    )
+                assert active is not None
+                if active.heartbeat_at > initial.heartbeat_at:
+                    break
+                await asyncio.sleep(0.01)
     finally:
-        await redis_client.delete(run_stream_key(run_id))
+        release.set()
+        await producer
+
+
+async def test_shutdown_drain_reports_unjoined_work_across_accounts(
+    admitted: RunAdmission,
+    async_engine: AsyncEngine,
+    committed_user_ids: list[UUID],
+) -> None:
+    (target,) = await persist_runtime_targets(async_engine, committed_user_ids, count=1)
+    second = await reserve_execution(
+        target, run_id=str(uuid4()), stream_id=str(uuid4()), relayed=True
+    )
+    assert isinstance(second, RunAdmission)
+    fast_started, slow_started, release = asyncio.Event(), asyncio.Event(), asyncio.Event()
+
+    async def stream(
+        started: asyncio.Event, finished: asyncio.Event
+    ) -> AsyncGenerator[ChatStreamChunk]:
+        yield token("started")
+        started.set()
+        await finished.wait()
+
+    fast = spawn_chat_run_producer(
+        chat_stream=stream(fast_started, release), admission=admitted, session_id="fast"
+    )
+    slow = spawn_chat_run_producer(
+        chat_stream=stream(slow_started, asyncio.Event()), admission=second, session_id="slow"
+    )
+    try:
+        await asyncio.wait_for(asyncio.gather(fast_started.wait(), slow_started.wait()), 5)
+        drain = asyncio.create_task(drain_chat_producers(timeout=1))
+        await asyncio.sleep(0)  # let the drain snapshot the actual two producers
+        release.set()
+        assert await drain == (1, 1)
+    finally:
+        release.set()
+        slow.cancel()
+        await asyncio.gather(fast, slow, return_exceptions=True)

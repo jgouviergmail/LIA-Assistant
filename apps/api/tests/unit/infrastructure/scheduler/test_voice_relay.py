@@ -203,27 +203,13 @@ async def test_the_relay_holds_no_session_across_the_turn(monkeypatch: pytest.Mo
             psyche_enabled=False,
         )
 
-    async def _pending(_db, _user_id, _language):  # noqa: ANN001
-        seen["probed_open"] = seen["open"]
-        return False, uuid4()
-
-    @contextlib.asynccontextmanager
-    async def _lease(_redis, _conversation_id, *, run_id, stream_id):  # noqa: ANN001
-        yield True
-
     async def _stream(_request):  # noqa: ANN001
         seen["turn_open"] = seen["open"]
         return RunResult(outcome=RunOutcome.SUCCESS, text="ok", attempts=1)
 
-    async def _redis() -> object:
-        return object()
-
     monkeypatch.setattr(relay, "get_db_context", _db_context)
     monkeypatch.setattr(relay, "resolve_run_context", _context)
-    monkeypatch.setattr(relay, "conversation_has_pending_hitl", _pending)
-    monkeypatch.setattr(relay, "active_run_lease", _lease)
     monkeypatch.setattr(relay, "stream_instruction", _stream)
-    monkeypatch.setattr(relay, "get_redis_cache", _redis)
     session = VoiceSession.browser(
         session_id="s" * 32,
         run_id="live_session_" + "s" * 32,
@@ -240,8 +226,7 @@ async def test_the_relay_holds_no_session_across_the_turn(monkeypatch: pytest.Mo
         )
     )
     assert outcome is relay.RelayOutcome.ANSWERED
-    assert seen["sessions"] == 1  # one session for the two probes
-    assert seen["probed_open"] == 1  # the probes ran on it
+    assert seen["sessions"] == 1  # one session for account preferences
     assert seen["turn_open"] == 0  # and it was closed before the turn
     assert seen["open"] == 0
 

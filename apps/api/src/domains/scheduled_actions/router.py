@@ -2,20 +2,28 @@
 Scheduled Actions router with FastAPI endpoints.
 
 Provides CRUD operations, toggle enable/disable, and immediate test execution.
+A routine started by calls (ADR-386) gets its secret in the answer of the
+request that drew it — its creation, its switch to that clock, or a new secret
+asked for — and in no other answer: those answers are never cached.
 """
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.dependencies import get_db
+from src.core.exceptions import raise_internal_error
 from src.core.session_dependencies import get_current_active_session
+from src.domains.feature_switches.guard import require_capability
+from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.scheduled_actions.models import (
     ScheduledAction as ScheduledActionModel,
 )
+from src.domains.scheduled_actions.models import TriggerKind
 from src.domains.scheduled_actions.schemas import (
+    RoutineWebhookSecretResponse,
     ScheduledActionFormCreate,
     ScheduledActionFormUpdate,
     ScheduledActionListResponse,
@@ -23,6 +31,7 @@ from src.domains.scheduled_actions.schemas import (
     ScheduledActionWeekResponse,
 )
 from src.domains.scheduled_actions.service import ScheduledActionService
+from src.domains.scheduled_actions.webhooks import routine_webhook_url
 from src.domains.scheduled_actions.week_projection import project_routine_week
 from src.domains.users.models import User
 from src.infrastructure.async_utils import safe_fire_and_forget
@@ -36,6 +45,17 @@ router = APIRouter(prefix="/scheduled-actions", tags=["Scheduled Actions"])
 def _action_to_response(action: ScheduledActionModel) -> ScheduledActionResponse:
     """Convert ScheduledAction model to response schema."""
     return ScheduledActionResponse.model_validate(action)
+
+
+def _with_new_secret(
+    action: ScheduledActionModel, secret: str | None, response: Response
+) -> ScheduledActionResponse:
+    """The routine's response, carrying a secret this request drew (never cached)."""
+    answer = _action_to_response(action)
+    if secret is None:
+        return answer
+    response.headers["Cache-Control"] = "no-store"
+    return answer.model_copy(update={"new_webhook_secret": secret})
 
 
 # =============================================================================
@@ -108,6 +128,7 @@ async def week_scheduled_actions(
 )
 async def create_scheduled_action(
     data: ScheduledActionFormCreate,
+    response: Response,
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> ScheduledActionResponse:
@@ -118,6 +139,9 @@ async def create_scheduled_action(
         data=data,
         user_timezone=user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE,
     )
+    secret: str | None = None
+    if action.trigger_kind == TriggerKind.WEBHOOK.value:
+        action, secret = await service.new_webhook_secret(action.id, user.id)
     if data.mcp_preapproved_servers:
         action = await service.set_mcp_preapproval(action, user, data.mcp_preapproved_servers)
     await db.commit()
@@ -129,7 +153,7 @@ async def create_scheduled_action(
         action_id=str(action.id),
     )
 
-    return _action_to_response(action)
+    return _with_new_secret(action, secret, response)
 
 
 # =============================================================================
@@ -146,12 +170,17 @@ async def create_scheduled_action(
 async def update_scheduled_action(
     action_id: UUID,
     data: ScheduledActionFormUpdate,
+    response: Response,
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> ScheduledActionResponse:
     """Update an existing scheduled action; an absent pre-approval is left as it is (D9)."""
     service = ScheduledActionService(db)
+    stored_kind = (await service.get_with_ownership_check(action_id, user.id)).trigger_kind
     action = await service.update(action_id, user.id, data.routine_changes())
+    secret: str | None = None
+    if action.trigger_kind == TriggerKind.WEBHOOK.value != stored_kind:
+        action, secret = await service.new_webhook_secret(action.id, user.id)
     if "mcp_preapproved_servers" in data.model_fields_set:
         action = await service.set_mcp_preapproval(action, user, data.mcp_preapproved_servers)
     await db.commit()
@@ -163,7 +192,41 @@ async def update_scheduled_action(
         action_id=str(action_id),
     )
 
-    return _action_to_response(action)
+    return _with_new_secret(action, secret, response)
+
+
+# =============================================================================
+# A new secret for a routine started by calls (ADR-386)
+# =============================================================================
+
+
+@router.post(
+    "/{action_id}/webhook-secret",
+    response_model=RoutineWebhookSecretResponse,
+    summary="Draw a new secret for a routine started by calls",
+    description=(
+        "Draws a new HMAC secret for a webhook routine and returns it with the routine's "
+        "address. The previous secret stops working at once; this answer is the only one "
+        "the new secret is ever in."
+    ),
+    dependencies=[Depends(require_capability(PlatformCapability.ROUTINE_WEBHOOKS))],
+)
+async def draw_routine_webhook_secret(
+    action_id: UUID,
+    response: Response,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> RoutineWebhookSecretResponse:
+    """Draw and show a webhook routine's new secret, once."""
+    action, secret = await ScheduledActionService(db).new_webhook_secret(action_id, user.id)
+    await db.commit()
+    response.headers["Cache-Control"] = "no-store"
+    if action.webhook_key is None:
+        # The table's CHECK gives every webhook routine its address: never reached.
+        raise_internal_error("webhook routine without an address")
+    return RoutineWebhookSecretResponse(
+        webhook_url=routine_webhook_url(action.webhook_key), webhook_secret=secret
+    )
 
 
 # =============================================================================
@@ -262,7 +325,11 @@ async def execute_scheduled_action(
     # took it over meanwhile is the only one allowed to settle it.
     safe_fire_and_forget(
         execute_single_action(
-            action_id=action.id, user_id=user.id, execution_token=action.execution_token
+            action_id=action.id,
+            user_id=user.id,
+            execution_token=action.execution_token,
+            # The click is the person's act: never given up for a slot's age.
+            started_by_person=True,
         ),
         name=f"scheduled_action_execute_{action.id}",
     )

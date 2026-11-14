@@ -5,7 +5,7 @@ INSTRUCTION: {instruction}
 RECIPIENT: {recipient}
 SENDER (the user writing this email): {sender_name}
 
-LANGUAGE: Write entirely in {user_language}.
+{writing_style}LANGUAGE: Write entirely in {user_language}.
 
 ---
 

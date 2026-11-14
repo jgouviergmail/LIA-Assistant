@@ -21,8 +21,8 @@ Sources:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable, Mapping
-from datetime import UTC, date, datetime, timedelta, tzinfo
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime, timedelta
 from time import perf_counter
 from typing import Any
 from uuid import UUID
@@ -33,11 +33,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
-from src.core.constants import (
-    GMAIL_FORMAT_METADATA,
-    HEARTBEAT_CONTENT_EXCERPT_CHARS,
-)
-from src.core.task_due import task_due_day
+from src.core.constants import HEARTBEAT_CONTENT_EXCERPT_CHARS
+from src.domains.connectors.companion_weather import publish_companion_weather
 from src.domains.connectors.service import ConnectorService
 from src.domains.conversations.activity_probe import fetch_last_seen_at
 from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
@@ -61,12 +58,14 @@ from src.domains.heartbeat.context_sources import (
 )
 from src.domains.heartbeat.habit_context import fetch_habits_context
 from src.domains.heartbeat.health_context import fetch_health_signals
+from src.domains.heartbeat.mail_context import unread_mail_summaries
 from src.domains.heartbeat.repository import HeartbeatNotificationRepository
 from src.domains.heartbeat.schemas import HeartbeatContext, WeatherChange
 from src.domains.heartbeat.second_pass_query import build_second_pass_query
 from src.domains.heartbeat.sms_context import fetch_sms_context
 from src.domains.heartbeat.source_placement import SOURCE_PLACEMENTS
 from src.domains.heartbeat.source_policy import is_source_available, is_source_enabled
+from src.domains.heartbeat.tasks_context import fetch_tasks_context
 from src.domains.interests.models import InterestNotification, UserInterest
 from src.domains.push_channels.wake import WakePayload
 from src.infrastructure.database.session import get_db_context
@@ -137,23 +136,6 @@ def _format_event_time(dt_field: dict[str, Any] | None, user_tz: ZoneInfo) -> st
         return local_dt.strftime("%H:%M")
     except ValueError, TypeError:
         return str(raw)
-
-
-def _due_label(task: Mapping[str, Any], zone: tzinfo) -> str:
-    """A task's due day for the prompt, through the one door (``core/task_due``).
-
-    A Google due is the date it names; a To Do due is local midnight, which Graph answers in UTC
-    (the evening before east of Greenwich): its day is that instant read in the account's zone.
-
-    Args:
-        task: A task as the clients answer it.
-        zone: The account's zone.
-
-    Returns:
-        ``YYYY-MM-DD``, or « no date » without a readable one.
-    """
-    day = task_due_day(task, zone)
-    return day.isoformat() if day else "no date"
 
 
 class ContextAggregator:
@@ -233,7 +215,7 @@ class ContextAggregator:
         common = (user_id, user, settings)
         specs: tuple[tuple[str, Any, tuple[Any, ...], bool], ...] = (
             ("calendar", self._fetch_calendar, common, False),
-            ("tasks", self._fetch_tasks, common, False),
+            ("tasks", fetch_tasks_context, common, False),
             ("emails", self._fetch_emails, common, False),
             ("weather", self._fetch_weather_with_changes, common, True),
             ("interests", self._fetch_interests, (user_id,), True),
@@ -530,84 +512,6 @@ class ContextAggregator:
             ]
 
     # ------------------------------------------------------------------
-    # Tasks source (Google Tasks or Microsoft To Do)
-    # ------------------------------------------------------------------
-
-    async def _fetch_tasks(
-        self,
-        user_id: UUID,
-        user: Any,
-        settings: Any,
-    ) -> list[dict[str, Any]] | None:
-        """Fetch pending and overdue tasks from the active provider.
-
-        Opens through the shared door (Google Tasks or Microsoft To Do), with
-        the owner's preferred task list read in the same short session.
-
-        Returns:
-            List of task dicts or None if unavailable.
-        """
-        from src.domains.connectors.active_client import ActiveClient, open_active_client
-        from src.domains.connectors.preferences.owner_defaults import (
-            TASK_LIST,
-            resolve_owner_container_id,
-        )
-
-        async with open_active_client("tasks", user_id, container=TASK_LIST) as opened:
-            if not isinstance(opened, ActiveClient):
-                return None
-            task_list_id = await resolve_owner_container_id(
-                client=opened.client,
-                name=opened.preferred_name,
-                owner_id=user_id,
-                container=TASK_LIST,
-            )
-            now = datetime.now(UTC)
-            # RFC 3339 timestamp for due_max filter.
-            due_max = (now + timedelta(days=settings.heartbeat_context_tasks_days)).strftime(
-                "%Y-%m-%dT%H:%M:%SZ"
-            )
-            result = await opened.client.list_tasks(
-                task_list_id=task_list_id,
-                max_results=10,
-                show_completed=False,
-                due_max=due_max,
-            )
-        tasks = result.get("items", [])
-        if not tasks:
-            return None
-        # Minimal task data for the prompt, overdue flagged. A due is a DAY, read through the one
-        # door: overdue once that day has passed on the person's clock, never on the day itself.
-        user_tz = _resolve_user_tz(user)
-        today = now.astimezone(user_tz).date()
-        return [
-            {
-                "title": t.get("title", "Untitled"),
-                "due": _due_label(t, user_tz),
-                "overdue": self._is_task_overdue(t, today, user_tz),
-            }
-            for t in tasks
-            if t.get("status") == "needsAction"
-        ]
-
-    @staticmethod
-    def _is_task_overdue(task: Mapping[str, Any], today: date, zone: tzinfo) -> bool:
-        """Whether a task still to do has a day that passed on the person's clock.
-
-        Args:
-            task: A task as the clients answer it.
-            today: The person's today.
-            zone: The account's zone, which a To Do due is read in.
-
-        Returns:
-            True once its day has passed; never on the day itself, once done or without a day.
-        """
-        if task.get("status") != "needsAction":
-            return False
-        day = task_due_day(task, zone)
-        return day is not None and day < today
-
-    # ------------------------------------------------------------------
     # Weather source + change detection
     # ------------------------------------------------------------------
 
@@ -682,6 +586,8 @@ class ContextAggregator:
         current = None
         if not isinstance(current_result, BaseException):
             current = current_result
+            # The person's place, read now: the companion shows it too (ADR-294).
+            await publish_companion_weather(user_id, current)
 
         changes = None
         if not isinstance(forecast_result, BaseException) and current:
@@ -716,16 +622,10 @@ class ContextAggregator:
         user: Any,
         settings: Any,
     ) -> list[dict[str, str]] | None:
-        """Fetch today's unread inbox emails from the active provider.
+        """Today's unread mail still awaiting the person, from the active provider.
 
         Opens through the shared door (Google Gmail, Apple Email, Microsoft
-        Outlook). Only returns emails received today (user's local date), as
-        minimal metadata (from, subject, date, snippet) for the decision prompt.
-
-        All three providers return normalized messages with top-level
-        from/subject/snippet/internalDate fields. Apple's search_emails
-        returns only IDs (full messages cached in Redis), so get_message()
-        is called for those — a Redis cache hit, no extra round-trip.
+        Outlook); what is listed, and why, is ``mail_context.unread_mail_summaries``.
 
         Returns:
             List of email summary dicts or None if unavailable.
@@ -735,106 +635,7 @@ class ContextAggregator:
         async with open_active_client("email", user_id) as opened:
             if not isinstance(opened, ActiveClient):
                 return None
-            return await self._email_summaries(opened.client, user_id, user, settings)
-
-    async def _email_summaries(
-        self, client: Any, user_id: UUID, user: Any, settings: Any
-    ) -> list[dict[str, str]] | None:
-        """Today's unread mail of an open client, as prompt-sized summaries."""
-        max_emails = settings.heartbeat_context_emails_max
-
-        # Delta fast-path (lot G, 2026-08): Gmail's history.list gives the
-        # EXACT new INBOX mail since the last tick (anchored in Redis).
-        # None => legacy query path (first run, other provider, expired
-        # anchor, Redis down) — always fail-open. Id-only entries: the
-        # fetch loop below resolves full messages.
-        from src.domains.heartbeat.wake_context import wake_or_delta_messages
-
-        user_tz = _resolve_user_tz(user)
-        # ADR-261: a push wake carries the delta the sweep already read.
-        messages = await wake_or_delta_messages(self._wake, client, user_id, max_emails)
-        if messages is None:
-            # Filter to today's unread emails only (user's local date).
-            # Gmail-style `after:` uses the date as a lower bound (inclusive).
-            today_str = datetime.now(user_tz).strftime("%Y/%m/%d")
-
-            # All providers accept Gmail-style query syntax (normalized internally)
-            result = await client.search_emails(
-                query=f"is:unread after:{today_str}",
-                max_results=max_emails,
-                use_cache=True,
-            )
-            messages = result.get("messages", [])
-        if not messages:
-            return None
-
-        # For providers that return only IDs (Apple), fetch full messages.
-        # Apple's search_emails caches full messages in Redis, so get_message
-        # is a cache hit — no extra IMAP round-trips.
-        full_messages = []
-        for msg in messages:
-            if set(msg.keys()) <= {"id", "threadId"}:
-                try:
-                    full_msg = await client.get_message(
-                        msg["id"], format=GMAIL_FORMAT_METADATA, use_cache=True
-                    )
-                    if full_msg:
-                        full_messages.append(full_msg)
-                except Exception:
-                    logger.debug(
-                        "heartbeat_email_fetch_message_failed",
-                        message_id=msg.get("id"),
-                        user_id=str(user_id),
-                    )
-            else:
-                full_messages.append(msg)
-
-        if not full_messages:
-            return None
-
-        # Extract minimal email data for the prompt.
-        # All providers now return top-level from/subject/snippet/internalDate:
-        # - Google: normalized in GoogleGmailClient._normalize_message_fields()
-        # - Apple: normalized in normalize_imap_message()
-        # - Microsoft: normalized in normalize_graph_message()
-        emails = []
-        for msg in full_messages:
-            emails.append(
-                {
-                    "from": msg.get("from", ""),
-                    "subject": msg.get("subject", ""),
-                    "date": self._format_email_date(msg.get("internalDate"), user_tz),
-                    "snippet": msg.get("snippet", ""),
-                }
-            )
-
-        return emails if emails else None
-
-    @staticmethod
-    def _format_email_date(
-        internal_date: str | int | None,
-        user_tz: ZoneInfo,
-    ) -> str:
-        """Convert email internalDate (epoch ms) to a user-local time string.
-
-        Args:
-            internal_date: Epoch milliseconds as string or int, or None.
-            user_tz: User's timezone for display.
-
-        Returns:
-            Formatted string like '2026-03-15 15:30' or '?' if unavailable.
-        """
-        if internal_date is None:
-            return "?"
-        try:
-            epoch_ms = int(internal_date)
-            dt = datetime.fromtimestamp(epoch_ms / 1000, tz=user_tz)
-            now_local = datetime.now(user_tz)
-            if dt.date() == now_local.date():
-                return dt.strftime("%H:%M")
-            return dt.strftime("%Y-%m-%d %H:%M")
-        except ValueError, TypeError, OSError:
-            return "?"
+            return await unread_mail_summaries(opened.client, user_id, user, settings, self._wake)
 
     # ------------------------------------------------------------------
     # Interests source

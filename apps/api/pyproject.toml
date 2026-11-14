@@ -1,6 +1,6 @@
 [project]
 name = "lia-api"
-version = "4.6.0"
+version = "5.0.0"
 description = "LIA Assistant - AI conversational assistant with multi-agent orchestration"
 license = "AGPL-3.0-or-later"
 authors = [
@@ -200,6 +200,13 @@ disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "misc", "as
 [[tool.mypy.overrides]]
 module = ["src.domains.agents.tools.*"]
 disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "misc", "call-arg", "assignment", "return-value", "var-annotated", "index", "union-attr", "attr-defined"]
+
+# The calendar draft executors hand the clients typed bounds (ADR-380): the codes
+# that check a CALL are back on for this module, whatever the block above disables
+# (an enabled code wins over a disabled one). Proven on an injected wrong argument.
+[[tool.mypy.overrides]]
+module = ["src.domains.agents.tools.calendar_draft_execution"]
+enable_error_code = ["call-arg", "arg-type", "misc"]
 
 [[tool.mypy.overrides]]
 module = ["src.domains.agents.utils.*"]

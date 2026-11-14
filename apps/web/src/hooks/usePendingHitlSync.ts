@@ -4,9 +4,14 @@ import { fetchPendingHitl } from '@/lib/api/chat';
 import { normalizeHitlPayload } from '@/lib/hitl-payload';
 import { logger } from '@/lib/logger';
 import type { ChatAction, ChatState } from '@/types/chat-state';
+import type { ConversationSelection } from '@/types/conversation';
 
 /** Reconcile the server's pending question without reviving an answered one. */
-export function usePendingHitlSync(state: RefObject<ChatState>, dispatch: Dispatch<ChatAction>) {
+export function usePendingHitlSync(
+  state: RefObject<ChatState>,
+  dispatch: Dispatch<ChatAction>,
+  selection?: ConversationSelection
+) {
   const active = useRef(false);
   const controller = useRef<AbortController | null>(null);
   const cancelPendingHitlSync = useCallback(() => controller.current?.abort(), []);
@@ -25,7 +30,7 @@ export function usePendingHitlSync(state: RefObject<ChatState>, dispatch: Dispat
     controller.current = request;
     const expected = state.current.hitl;
     try {
-      const pending = await fetchPendingHitl(request.signal);
+      const pending = await fetchPendingHitl(request.signal, selection);
       if (request.signal.aborted) return;
       const payload = normalizeHitlPayload(pending);
       if (pending !== null && !payload) return;
@@ -41,7 +46,7 @@ export function usePendingHitlSync(state: RefObject<ChatState>, dispatch: Dispat
         });
       }
     }
-  }, [cancelPendingHitlSync, dispatch, state]);
+  }, [cancelPendingHitlSync, dispatch, state, selection]);
 
   return { hydratePendingHitl, cancelPendingHitlSync };
 }

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -14,7 +15,22 @@ from src.core.i18n import resolve_language
 from src.domains.channels.abstractions import ChannelInboundMessage
 from src.domains.channels.message_router import ChannelMessageRouter
 from src.domains.channels.models import ChannelType
+from src.domains.conversations.models import Conversation
 from src.infrastructure.locks.redis_claim import RELEASE_SCRIPT
+
+_CONVERSATION = uuid4()
+
+
+@pytest.fixture(autouse=True)
+def current_main() -> Iterator[None]:
+    """Compose the read query; production still resolves the runtime and reads the cache."""
+    row = Conversation(id=_CONVERSATION, runtime_id=_CONVERSATION)
+    with patch(
+        "src.domains.conversations.repository.ConversationRepository.get_active_for_user",
+        AsyncMock(return_value=row),
+    ):
+        yield
+
 
 # Patch targets — source modules (lazy imports inside functions)
 _PATCH_DB_CTX = "src.infrastructure.database.session.get_db_context"
@@ -468,7 +484,7 @@ class TestSuccessfulDispatch:
     @patch(_PATCH_REDIS_CACHE, new=AsyncMock(return_value=MagicMock()))
     @patch(_PATCH_HITL_STORE)
     @patch(_PATCH_INBOUND_HANDLER)
-    @patch(_PATCH_CONV_CACHE, new_callable=AsyncMock, return_value="conv-123")
+    @patch(_PATCH_CONV_CACHE, new_callable=AsyncMock, return_value=str(_CONVERSATION))
     @patch(_PATCH_USER_REPO)
     @patch(_PATCH_RATE_LIMITER)
     @patch(_PATCH_REPO)
@@ -521,7 +537,7 @@ class TestSuccessfulDispatch:
         assert heard == [person]
         assert resolve_language() == settings.default_language
         assert call_kwargs["user_timezone"] == "America/New_York"
-        assert call_kwargs["conversation_id"] == "conv-123"
+        assert call_kwargs["conversation_id"] == str(_CONVERSATION)
         assert call_kwargs["pending_hitl"] is None
         # The account's own long-term-state choices reach the turn (the profile
         # DTO the reader used to return carried neither flag: both read False).
@@ -584,7 +600,7 @@ class TestSuccessfulDispatch:
     @patch(_PATCH_REDIS_CACHE, new=AsyncMock(return_value=MagicMock()))
     @patch(_PATCH_HITL_STORE)
     @patch(_PATCH_INBOUND_HANDLER)
-    @patch(_PATCH_CONV_CACHE, new_callable=AsyncMock, return_value="conv-456")
+    @patch(_PATCH_CONV_CACHE, new_callable=AsyncMock, return_value=str(_CONVERSATION))
     @patch(_PATCH_USER_REPO)
     @patch(_PATCH_RATE_LIMITER)
     @patch(_PATCH_REPO)
@@ -635,7 +651,7 @@ class TestSuccessfulDispatch:
 
         call_kwargs = mock_handler.handle.call_args[1]
         assert call_kwargs["pending_hitl"] == pending_data
-        assert call_kwargs["conversation_id"] == "conv-456"
+        assert call_kwargs["conversation_id"] == str(_CONVERSATION)
 
 
 # =============================================================================
@@ -690,13 +706,12 @@ class TestThePendingQuestionIsReadWhereTheEngineSavedIt:
         ran under a fresh run and left the question behind (review 12). Two
         keyspaces of one in-memory server (``tests/helpers/redis_databases``)."""
         from src.core.constants import REDIS_CACHE_DB, REDIS_SESSION_DB
-        from src.domains.agents.utils.hitl_store import HITLStore
         from tests.helpers.redis_databases import RedisServer
 
         server = RedisServer()
         engine_cache, door_session = server.client(REDIS_CACHE_DB), server.client(REDIS_SESSION_DB)
-        conversation_id = str(uuid4())
-        await HITLStore(redis_client=engine_cache, ttl_seconds=60).save_interrupt(
+        conversation_id = str(_CONVERSATION)
+        engine_cache.seed_pending_question(
             conversation_id, {"action_requests": [], "run_id": "run-1"}
         )
         _wired(mock_db_ctx, mock_repo_cls, mock_limiter_cls, mock_user_repo_cls)

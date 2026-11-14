@@ -181,6 +181,28 @@ edit_image (source_attachment_id optional)
 9. **UnifiedToolOutput** (not plain str): `action_success()` lets the adaptive
    replanner recognise a successful action rather than an empty result.
 
+10. **One billed call for every caller** (ADR-388). `image_generation/billed_call.py`
+    asks the vendor and bills what it answered: `call_billed` records the cost on
+    success AND on an `ImageDeliveryError` (the vendor billed it), then re-raises
+    the failure. The image tool and a document's illustrations both go through it,
+    so a picture a document carries is priced, attributed to the turn and bounded
+    by the two ceilings exactly like an image the person asked for.
+
+## Pictures in a generated document (ADR-388)
+
+A presentation or a report may carry illustrations: its writer asks for each by
+a subject in English, with alternative text in the document's language, in ONE
+style the document shares. `document_generation/illustrations.py` draws them on
+THIS slot's configured model — the person's quality, the billing tier of the size
+they chose, the frame deciding the proportions (`edit_size`) — a few at a time,
+all within one call's time of this slot, with no prompt enhancement (the writer
+already wrote the prompt). It asks the two spend ceilings before the first
+picture; a picture that fails is left out of the document and said, never fails
+it. The person's choice lives in **Settings › Documents** (illustrations `auto`,
+`on_request`, `never`), on top of their image opt-in here; the instance bounds a
+document with `DOCUMENT_ILLUSTRATIONS_MAX`. See
+[DOCUMENT_GENERATION.md](./DOCUMENT_GENERATION.md#pictures).
+
 ---
 
 ## File Structure

@@ -42,7 +42,7 @@ export interface ConversationTotalsDisplay {
   tokensCache: number;
   googleApiRequests: number;
   costEur: number;
-  userMessageCount: number;
+  userMessageCount?: number;
 }
 
 type Props = {
@@ -190,11 +190,7 @@ export function ContextUsagePill({ usage, totals }: Props) {
                 </span>
               </span>
               <span className="whitespace-nowrap font-semibold">
-                {totals.userMessageCount}{' '}
-                {totals.userMessageCount > 1
-                  ? t('chat.page.message_plural')
-                  : t('chat.page.message')}
-                {' · '}
+                <UserMessageCount count={totals.userMessageCount} />
                 {formatEuro(totals.costEur)}
               </span>
             </div>
@@ -203,4 +199,10 @@ export function ContextUsagePill({ usage, totals }: Props) {
       )}
     </div>
   );
+}
+
+function UserMessageCount({ count }: { count?: number }) {
+  const { t } = useTranslation();
+  if (count === undefined) return null;
+  return <>{count} {t(count > 1 ? 'chat.page.message_plural' : 'chat.page.message')}{' · '}</>;
 }

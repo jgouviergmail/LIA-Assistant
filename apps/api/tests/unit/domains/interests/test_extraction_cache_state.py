@@ -88,6 +88,7 @@ async def _analyze(extraction, messages=None, language="fr", owner=None):
         messages=messages or _messages(),
         session_id="test-session",
         user_language=language,
+        user_timezone=None,
     )
 
 

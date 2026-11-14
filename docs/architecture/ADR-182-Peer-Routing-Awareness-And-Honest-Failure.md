@@ -84,6 +84,13 @@ anniversaires. D'où « aucun créneau occupé » alors qu'il était pris —
 **libre-alors-qu'occupé**, la forme la plus coûteuse de réponse fausse, parce
 que l'utilisateur agit dessus.
 
+**Amendement 2026-11-10 (tâches seulement).** La préférence ne borne plus la
+lecture des tâches : celles d'un proche se lisent dans TOUTES ses listes
+(décision du propriétaire, ADR-369 §4), sa liste par défaut ne servant qu'à ses
+propres créations. Seuls les titres sortent, les plus pressants d'abord, jamais
+un nom de liste ; une liste illisible ou une coupe se dit. Le calendrier reste
+lu dans le calendrier par défaut.
+
 ### D3 — Cinq connecteurs cassés toute la journée, personne prévenu
 
 `oauth_health_check_completed checked=5 healthy=0 error=5 notified=0` sur 35

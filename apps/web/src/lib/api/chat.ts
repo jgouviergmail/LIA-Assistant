@@ -9,6 +9,8 @@ import { logger } from '@/lib/logger';
 import { CHAT_SSE_STALL_TIMEOUT_MS } from '@/lib/constants';
 import { applicationDeviceHeaders } from '@/lib/application-device-identity';
 import { recordingDeviceSnapshot } from '@/lib/application-recording-device';
+import type { ConversationSelection } from '@/types/conversation';
+import { conversationParams, conversationQuery } from '@/lib/conversation-selection';
 
 // `??`, not `||`: empty string = same-origin relative URLs (see api-config.ts).
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -29,19 +31,22 @@ export class ChatStreamError extends Error {
    * surfacing an error.
    */
   readonly activeStreamId?: string;
+  readonly activeRun?: ActiveRunStatus;
 
   constructor(
     name: string,
     i18nKey: string,
     fallbackMessage: string,
     i18nParams?: Record<string, string | number>,
-    activeStreamId?: string
+    activeStreamId?: string,
+    activeRun?: ActiveRunStatus
   ) {
     super(fallbackMessage);
     this.name = name;
     this.i18nKey = i18nKey;
     this.i18nParams = i18nParams;
     this.activeStreamId = activeStreamId;
+    this.activeRun = activeRun;
   }
 }
 
@@ -88,6 +93,99 @@ export interface ActiveRunStatus {
   active: boolean;
   stream_id?: string | null;
   run_id?: string;
+  conversation_id?: string | null;
+  conversation_revision?: number | null;
+  conversation_kind?: 'main' | 'secondary' | null;
+  title?: string | null;
+  phase?: string | null;
+  can_resume?: boolean;
+  can_cancel?: boolean;
+  selected?: boolean;
+}
+
+/** HTTP refusals are transport policy, independent of owning/reading a stream. */
+async function chatResponseError(response: Response): Promise<ChatStreamError> {
+  if (response.status === 429) return usageLimitError(response);
+  if (response.status === 409) return occupiedRunError(response);
+  const known: Partial<Record<number, readonly [string, string, string]>> = {
+    401: [
+      'AuthenticationError',
+      'errors.chat.session_expired',
+      'Your session has expired. Please log in again.',
+    ],
+    403: [
+      'AccountInactiveError',
+      'errors.chat.account_inactive',
+      'Your account is disabled. Check your emails for more information or contact an administrator.',
+    ],
+    503: [
+      'ServiceUnavailableError',
+      'errors.chat.service_unavailable',
+      'The service is temporarily unavailable. Please try again in a moment.',
+    ],
+  };
+  const refusal = known[response.status];
+  if (refusal) return new ChatStreamError(...refusal);
+  if (response.status >= 500)
+    return new ChatStreamError(
+      'ServerError',
+      'errors.chat.server_error',
+      `Server error (${response.status}). Please try again.`,
+      { status: response.status }
+    );
+  return new ChatStreamError(
+    'HttpError',
+    'errors.chat.http_error',
+    `HTTP Error ${response.status}: ${response.statusText}`,
+    { status: response.status, statusText: response.statusText }
+  );
+}
+
+/** A conflict keeps the admitted coordinate; a caller decides whether it may rejoin. */
+async function occupiedRunError(response: Response): Promise<ChatStreamError> {
+  let activeRun: ActiveRunStatus | undefined;
+  try {
+    const body = (await response.json()) as { detail?: { active_run?: ActiveRunStatus } };
+    activeRun = body?.detail?.active_run;
+  } catch {
+    // A proxy's unreadable refusal must not grant permission to attach.
+  }
+  return new ChatStreamError(
+    'RunInProgressError',
+    'errors.chat.run_in_progress',
+    'LIA is already working. Your message was not sent — try again in a moment.',
+    undefined,
+    activeRun?.stream_id ?? undefined,
+    activeRun
+  );
+}
+
+/** Diagnostic facts only: no received body, query, error wording or token text. */
+function logStreamChunk(chunk: ChatStreamChunk): void {
+  if (chunk.type === 'error') {
+    logger.error('chat_sse_error_chunk', undefined, {
+      component: 'ChatSSEClient',
+      code: chunk.error_code,
+    });
+  } else if (chunk.type === 'done') {
+    logger.debug('chat_sse_stream_complete', { component: 'ChatSSEClient' });
+  } else if (chunk.type === 'execution_step') {
+    // The wire's metadata variants are objects; this view permits optional
+    // diagnostic keys without claiming a type for any received value.
+    const metadata = chunk.metadata as Record<string, unknown> | undefined;
+    logger.debug('chat_sse_execution_step', {
+      component: 'ChatSSEClient',
+      step_type: metadata?.step_type,
+      step_name: metadata?.step_name,
+      i18n_key: metadata?.i18n_key,
+      category: metadata?.category,
+    });
+  } else if (!['token', 'hitl_question_token', 'content_replacement'].includes(chunk.type)) {
+    logger.debug('chat_sse_unknown_chunk_type', {
+      component: 'ChatSSEClient',
+      chunk_type: chunk.type,
+    });
+  }
 }
 
 /**
@@ -96,12 +194,17 @@ export interface ActiveRunStatus {
  * Fail-closed: any error reads as "nothing was cancelled" — the caller
  * then falls back to the legacy local abort.
  */
-export async function cancelActiveRun(): Promise<{ cancelled: boolean }> {
+export async function cancelActiveRun(
+  selection?: ConversationSelection
+): Promise<{ cancelled: boolean }> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/agents/runs/active/cancel`, {
-      method: 'POST',
-      credentials: 'include',
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/api/v1/agents/runs/active/cancel${conversationQuery(selection)}`,
+      {
+        method: 'POST',
+        credentials: 'include',
+      }
+    );
     if (!response.ok) {
       return { cancelled: false };
     }
@@ -123,8 +226,14 @@ export async function cancelActiveRun(): Promise<{ cancelled: boolean }> {
  * the raw wire payload (normalized by lib/hitl-payload), null when nothing
  * is pending, and rejects on failure so a failed read cannot erase a card.
  */
-export async function fetchPendingHitl(signal?: AbortSignal): Promise<unknown | null> {
-  return apiClient.get<unknown>('/agents/hitl/pending', { signal });
+export async function fetchPendingHitl(
+  signal?: AbortSignal,
+  selection?: ConversationSelection
+): Promise<unknown | null> {
+  return apiClient.get<unknown>('/agents/hitl/pending', {
+    signal,
+    ...(selection ? { params: conversationParams(selection) } : {}),
+  });
 }
 
 /**
@@ -135,12 +244,15 @@ export async function fetchPendingHitl(signal?: AbortSignal): Promise<unknown | 
  * Fail-closed: any error reads as "no active run" (the page then behaves
  * exactly as before ADR-117 Lot 2).
  */
-export async function fetchActiveRun(): Promise<ActiveRunStatus> {
+export async function fetchActiveRun(selection?: ConversationSelection): Promise<ActiveRunStatus> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/agents/runs/active`, {
-      method: 'GET',
-      credentials: 'include',
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/api/v1/agents/runs/active${conversationQuery(selection)}`,
+      {
+        method: 'GET',
+        credentials: 'include',
+      }
+    );
     if (!response.ok) {
       return { active: false };
     }
@@ -158,9 +270,9 @@ export async function fetchActiveRun(): Promise<ActiveRunStatus> {
 export class ChatSSEClient {
   private abortController: AbortController | null = null;
   private isConnected = false;
-  // Flag to ignore chunks after cancel() - prevents race condition
-  // where buffered chunks from previous request are processed after new request starts
-  private isCancelled = false;
+  private owns(controller: AbortController): boolean {
+    return this.abortController === controller && !controller.signal.aborted;
+  }
 
   /**
    * Stream chat response via SSE
@@ -197,12 +309,10 @@ export class ChatSSEClient {
     onError: (error: Error) => void,
     onDone: () => void
   ): Promise<void> {
+    this.cancel();
+    const controller = new AbortController();
+    this.abortController = controller;
     try {
-      // Reset cancelled flag for new stream
-      this.isCancelled = false;
-      // Create new AbortController for this stream
-      this.abortController = new AbortController();
-
       const response = await fetch(SSE_ENDPOINT, {
         method: 'POST',
         headers: {
@@ -214,85 +324,26 @@ export class ChatSSEClient {
           ...request,
           recording_device: recordingDeviceSnapshot(request.user_id),
         }),
-        signal: this.abortController.signal, // Enable cancellation
+        signal: controller.signal,
       });
 
-      if (!response.ok) {
-        // Handle specific HTTP errors with i18n-ready error codes
-        if (response.status === 401) {
-          // Session expired - user needs to re-authenticate
-          throw new ChatStreamError(
-            'AuthenticationError',
-            'errors.chat.session_expired',
-            'Your session has expired. Please log in again.'
-          );
-        } else if (response.status === 403) {
-          // Forbidden - user doesn't have access (account might be inactive)
-          throw new ChatStreamError(
-            'AccountInactiveError',
-            'errors.chat.account_inactive',
-            'Your account is disabled. Check your emails for more information or contact an administrator.'
-          );
-        } else if (response.status === 429) {
-          throw await usageLimitError(response);
-        } else if (response.status === 409) {
-          // A background run is already in flight for this conversation
-          // (ADR-117 Lot 2) — surface its stream id so the caller reattaches.
-          // A run that relays nothing (a ticket, a voice relay) names none:
-          // the caller then says LIA is busy and the message was not sent.
-          let activeStreamId: string | undefined;
-          try {
-            const body = (await response.json()) as {
-              detail?: { active_run?: { stream_id?: string } };
-            };
-            activeStreamId = body?.detail?.active_run?.stream_id ?? undefined;
-          } catch {
-            // Malformed body: fall through without a stream id
-          }
-          throw new ChatStreamError(
-            'RunInProgressError',
-            'errors.chat.run_in_progress',
-            'LIA is already working on this conversation. Your message was not sent — try again in a moment.',
-            undefined,
-            activeStreamId
-          );
-        } else if (response.status === 503) {
-          // Service unavailable
-          throw new ChatStreamError(
-            'ServiceUnavailableError',
-            'errors.chat.service_unavailable',
-            'The service is temporarily unavailable. Please try again in a moment.'
-          );
-        } else if (response.status >= 500) {
-          // Server error
-          throw new ChatStreamError(
-            'ServerError',
-            'errors.chat.server_error',
-            `Server error (${response.status}). Please try again.`,
-            { status: response.status }
-          );
-        } else {
-          // Other client errors
-          throw new ChatStreamError(
-            'HttpError',
-            'errors.chat.http_error',
-            `HTTP Error ${response.status}: ${response.statusText}`,
-            { status: response.status, statusText: response.statusText }
-          );
-        }
+      if (!this.owns(controller)) {
+        await response.body?.cancel();
+        return;
       }
+
+      if (!response.ok) throw await chatResponseError(response);
 
       if (!response.body) {
         throw new Error('Response body is null');
       }
 
       this.isConnected = true;
-      await this.readSseStream(response, onChunk, onDone);
+      await this.readSseStream(response, controller, onChunk, onDone);
     } catch (error) {
-      this.handleStreamError(error, onError);
+      if (this.owns(controller)) this.handleStreamError(error, onError);
     } finally {
-      // Cleanup AbortController
-      this.abortController = null;
+      if (this.abortController === controller) this.abortController = null;
     }
   }
 
@@ -315,20 +366,26 @@ export class ChatSSEClient {
     onChunk: (chunk: ChatStreamChunk) => void,
     onError: (error: Error) => void,
     onDone: () => void,
-    onReplayEnd?: () => void
+    onReplayEnd?: () => void,
+    selection?: ConversationSelection
   ): Promise<void> {
+    this.cancel();
+    const controller = new AbortController();
+    this.abortController = controller;
     try {
-      this.isCancelled = false;
-      this.abortController = new AbortController();
-
       const response = await fetch(
-        `${API_BASE_URL}/api/v1/agents/runs/${encodeURIComponent(streamId)}/stream`,
+        `${API_BASE_URL}/api/v1/agents/runs/${encodeURIComponent(streamId)}/stream${conversationQuery(selection)}`,
         {
           method: 'GET',
           credentials: 'include',
-          signal: this.abortController.signal,
+          signal: controller.signal,
         }
       );
+
+      if (!this.owns(controller)) {
+        await response.body?.cancel();
+        return;
+      }
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -353,11 +410,11 @@ export class ChatSSEClient {
       }
 
       this.isConnected = true;
-      await this.readSseStream(response, onChunk, onDone, onReplayEnd);
+      await this.readSseStream(response, controller, onChunk, onDone, onReplayEnd);
     } catch (error) {
-      this.handleStreamError(error, onError);
+      if (this.owns(controller)) this.handleStreamError(error, onError);
     } finally {
-      this.abortController = null;
+      if (this.abortController === controller) this.abortController = null;
     }
   }
 
@@ -407,6 +464,7 @@ export class ChatSSEClient {
 
   private async readSseStream(
     response: Response,
+    controller: AbortController,
     onChunk: (chunk: ChatStreamChunk) => void,
     onDone: () => void,
     onReplayEnd?: () => void
@@ -416,99 +474,72 @@ export class ChatSSEClient {
     const decoder = new TextDecoder();
     let buffer = '';
 
-    while (true) {
-      const { done, value } = await this.readWithStallGuard(reader);
+    try {
+      while (true) {
+        const { done, value } = await this.readWithStallGuard(reader);
 
-      if (done) {
-        logger.debug('chat_sse_stream_completed', { component: 'ChatSSEClient' });
-        this.isConnected = false;
-        onDone();
-        break;
-      }
+        if (!this.owns(controller)) {
+          await reader.cancel();
+          return;
+        }
 
-      // Decode chunk and add to buffer
-      buffer += decoder.decode(value, { stream: true });
+        if (done) {
+          logger.debug('chat_sse_stream_completed', { component: 'ChatSSEClient' });
+          this.isConnected = false;
+          onDone();
+          break;
+        }
 
-      // Process complete SSE messages
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || ''; // Keep last incomplete line
+        // Decode chunk and add to buffer
+        buffer += decoder.decode(value, { stream: true });
 
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6); // Remove 'data: ' prefix
+        // Process complete SSE messages
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep last incomplete line
 
-          try {
-            const chunk: ChatStreamChunk = JSON.parse(data);
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6); // Remove 'data: ' prefix
 
-            // ============================================================================
-            // Structured logger: debug-level entries are dropped in production,
-            // and message content is never logged (PII protection).
-            // ============================================================================
-            if (chunk.type === 'error') {
-              logger.error('chat_sse_error_chunk', undefined, {
+            try {
+              const chunk: ChatStreamChunk = JSON.parse(data);
+
+              logStreamChunk(chunk);
+
+              // CRITICAL: Skip chunk if stream was cancelled
+              // This prevents race condition where buffered chunks from previous
+              // request are processed after a new request has started
+              if (!this.owns(controller)) {
+                logger.debug('chat_sse_chunk_skipped_cancelled', {
+                  component: 'ChatSSEClient',
+                  chunk_type: chunk.type,
+                });
+                continue;
+              }
+
+              onChunk(chunk);
+            } catch (parseError) {
+              // Log the parse failure without the raw payload (may contain PII)
+              logger.warn('chat_sse_chunk_parse_failed', {
                 component: 'ChatSSEClient',
-                error: chunk.error,
-                code: chunk.error_code,
-              });
-            } else if (chunk.type === 'done') {
-              logger.debug('chat_sse_stream_complete', {
-                component: 'ChatSSEClient',
-              });
-            } else if (chunk.type === 'execution_step') {
-              // Phase 6: Execution step tracking
-              const stepMetadata = chunk.metadata as Record<string, unknown> | undefined;
-              logger.debug('chat_sse_execution_step', {
-                component: 'ChatSSEClient',
-                step_type: stepMetadata?.step_type,
-                step_name: stepMetadata?.step_name,
-                i18n_key: stepMetadata?.i18n_key,
-                category: stepMetadata?.category,
-              });
-            } else if (chunk.type === 'token') {
-              // Token chunks are frequent - no logging needed
-            } else if (
-              chunk.type === 'hitl_question_token' ||
-              chunk.type === 'content_replacement'
-            ) {
-              // HITL streaming tokens and content replacements - no logging needed
-              // These are frequent and would flood the console
-            } else {
-              // Unknown chunk type - log type only for debugging
-              logger.debug('chat_sse_unknown_chunk_type', {
-                component: 'ChatSSEClient',
-                chunk_type: chunk.type,
+                data_length: data.length,
+                error_type: parseError instanceof Error ? parseError.name : 'unknown',
               });
             }
-
-            // CRITICAL: Skip chunk if stream was cancelled
-            // This prevents race condition where buffered chunks from previous
-            // request are processed after a new request has started
-            if (this.isCancelled) {
-              logger.debug('chat_sse_chunk_skipped_cancelled', {
-                component: 'ChatSSEClient',
-                chunk_type: chunk.type,
-              });
-              continue;
-            }
-
-            onChunk(chunk);
-          } catch (parseError) {
-            // Log the parse failure without the raw payload (may contain PII)
-            logger.warn('chat_sse_chunk_parse_failed', {
-              component: 'ChatSSEClient',
-              data_length: data.length,
-              error: String(parseError),
-            });
+          } else if (line.startsWith(': replay-end')) {
+            // ADR-117 Lot 2: replay→live boundary on a reattached stream
+            onReplayEnd?.();
+          } else if (line.startsWith(': heartbeat')) {
+            // Heartbeat - keep connection alive, no logging needed
+          } else if (line.startsWith('retry:')) {
+            // Retry interval sent by server - no logging needed
           }
-        } else if (line.startsWith(': replay-end')) {
-          // ADR-117 Lot 2: replay→live boundary on a reattached stream
-          onReplayEnd?.();
-        } else if (line.startsWith(': heartbeat')) {
-          // Heartbeat - keep connection alive, no logging needed
-        } else if (line.startsWith('retry:')) {
-          // Retry interval sent by server - no logging needed
         }
       }
+    } finally {
+      // This reader is owned by this subscription, including callback failures.
+      await reader.cancel().catch(() => undefined);
+      reader.releaseLock();
     }
   }
 
@@ -564,7 +595,6 @@ export class ChatSSEClient {
   cancel(): void {
     if (this.abortController) {
       logger.debug('chat_sse_cancelling_stream', { component: 'ChatSSEClient' });
-      this.isCancelled = true; // CRITICAL: Set BEFORE abort to prevent race condition
       this.abortController.abort();
       this.abortController = null;
     }
@@ -578,11 +608,6 @@ export class ChatSSEClient {
     return this.isConnected;
   }
 }
-
-/**
- * Singleton instance
- */
-export const chatSSEClient = new ChatSSEClient();
 
 // ============================================================================
 // HITL (Human-in-the-Loop) API Functions

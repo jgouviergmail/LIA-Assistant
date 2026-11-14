@@ -263,6 +263,70 @@
       "occasional": "偶尔交流"
     }
   },
+  "document_illustrations": {
+    "fr": {
+      "auto": "Au jugement de LIA",
+      "on_request": "Sur demande",
+      "never": "Jamais"
+    },
+    "en": {
+      "auto": "LIA judges",
+      "on_request": "On request",
+      "never": "Never"
+    },
+    "de": {
+      "auto": "LIA entscheidet",
+      "on_request": "Auf Anfrage",
+      "never": "Nie"
+    },
+    "es": {
+      "auto": "A criterio de LIA",
+      "on_request": "Bajo petición",
+      "never": "Nunca"
+    },
+    "it": {
+      "auto": "A giudizio di LIA",
+      "on_request": "Su richiesta",
+      "never": "Mai"
+    },
+    "zh-CN": {
+      "auto": "由 LIA 判断",
+      "on_request": "按需",
+      "never": "从不"
+    }
+  },
+  "document_animations": {
+    "fr": {
+      "presented": "Présentations projetées",
+      "always": "Toujours",
+      "never": "Jamais"
+    },
+    "en": {
+      "presented": "Presented decks",
+      "always": "Always",
+      "never": "Never"
+    },
+    "de": {
+      "presented": "Vorgeführte Präsentationen",
+      "always": "Immer",
+      "never": "Nie"
+    },
+    "es": {
+      "presented": "Presentaciones expuestas",
+      "always": "Siempre",
+      "never": "Nunca"
+    },
+    "it": {
+      "presented": "Presentazioni proiettate",
+      "always": "Sempre",
+      "never": "Mai"
+    },
+    "zh-CN": {
+      "presented": "用于演示的幻灯片",
+      "always": "始终",
+      "never": "从不"
+    }
+  },
   "execution_mode": {
     "fr": {
       "pipeline": "Mode Pipeline",

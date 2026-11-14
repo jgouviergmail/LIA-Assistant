@@ -6,34 +6,27 @@ a knowledge-space document (ADR-295), a kept answer and a generated file
 it, the TTL sweep expires it, the original is never touched. They share the
 disk work — a fresh UUID name, a streamed copy or a written text, the text
 extracted through the knowledge spaces' pipeline under the attachments' cap —
-the reads ended before that disk work, and the commit that withdraws a file no
-row points at.
+and the durable publication protocol shared with ordinary uploads. The row
+owns the path before writing; failed writes remain recorded until removal.
 """
 
 from __future__ import annotations
 
-import asyncio
 import shutil
-import uuid
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.core.conversation_execution import ExecutionRevoked
+from src.core.conversation_target import ConversationRef
+from src.domains.attachments.file_contracts import FileWriteResult, UploadMetadata
+from src.domains.attachments.file_publication import publish_file
+from src.domains.attachments.models import Attachment
+from src.domains.attachments.publication_errors import raise_retired_file_source
 from src.domains.rag_spaces.processing import extract_text
 from src.infrastructure.observability.metrics_attachments import attachments_uploaded_total
-
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-
-    from src.domains.attachments.models import Attachment
-    from src.domains.attachments.repository import AttachmentRepository
-
-
-def copy_target(storage_root: str, user_id: uuid.UUID, extension: str) -> tuple[str, str, Path]:
-    """A fresh place for a copy: ``(stored filename, relative path, absolute path)``."""
-    stored_filename = f"{uuid.uuid4()}{extension}"
-    relative_path = f"{user_id}/{stored_filename}"
-    return stored_filename, relative_path, Path(storage_root) / relative_path
 
 
 def copy_and_extract(
@@ -51,84 +44,50 @@ def copy_and_extract(
         ``(capped text or None, copied size)``.
 
     Raises:
-        Exception: Whatever the copy or the reader raised — the copy withdrawn
-            first, since no row will ever point at it.
+        Exception: Copy/extraction failure; the publisher retains the cleanup intent.
     """
     target.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        shutil.copyfile(source, target)
-        text = extract_text(target, content_type)[:max_chars] if content_type else None
-        return text, target.stat().st_size
-    except Exception:
-        target.unlink(missing_ok=True)
-        raise
+    shutil.copyfile(source, target)
+    text = extract_text(target, content_type)[:max_chars] if content_type else None
+    return text, target.stat().st_size
 
 
 def write_text_copy(target: Path, text: str) -> int:
     """Disk work, off the event loop: write a text the copy IS, size it.
 
     Raises:
-        OSError: The write failed — what it left withdrawn first.
+        OSError: The write failed; the publisher retains the cleanup intent.
     """
     target.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        target.write_text(text, encoding="utf-8")
-        return target.stat().st_size
-    except OSError:
-        target.unlink(missing_ok=True)
-        raise
+    target.write_text(text, encoding="utf-8")
+    return target.stat().st_size
 
 
-async def run_after_reads[T](db: AsyncSession, work: Callable[..., T], *args: Any) -> T:
-    """Run a copy's disk work in a thread once the reads that found its source ended.
-
-    Copying a file and extracting its text can take seconds: the source's read
-    would otherwise keep its transaction idle — and a pooled connection held —
-    the whole time. A session lives no longer than the queries it serves.
-
-    Args:
-        db: The request session the source was read on (committed here).
-        work: ``copy_and_extract`` or ``write_text_copy``.
-        *args: Its arguments.
-
-    Returns:
-        What ``work`` returned.
-    """
-    await db.commit()
-    return await asyncio.to_thread(work, *args)
-
-
-async def record_copy(
-    repo: AttachmentRepository, db: AsyncSession, target: Path, row: dict[str, Any]
+async def publish_copy(
+    db: AsyncSession,
+    *,
+    user_id: UUID,
+    metadata: UploadMetadata,
+    target: ConversationRef | None,
+    write: Callable[[Path], FileWriteResult],
 ) -> Attachment:
-    """Create the copy's row and commit; a file no row points at is withdrawn.
-
-    Args:
-        repo: The attachments repository on ``db``.
-        db: The request session (committed here).
-        target: The copied file.
-        row: The attachment's columns.
-
-    Returns:
-        The committed row.
-    """
-    content_type = row["content_type"]
+    """Use the upload's durable, joined publication and record the copy's outcome."""
     try:
-        attachment = await repo.create(row)
-        await db.commit()
+        attachment = await publish_file(
+            db, owner_id=user_id, metadata=metadata, target=target, write=write
+        )
+    except ExecutionRevoked as exc:
+        attachments_uploaded_total.labels(content_type=metadata.content_type, status="error").inc()
+        raise_retired_file_source(exc)
     except Exception:
-        # A copy nobody's row points at would outlive every sweep: withdraw it.
-        await asyncio.to_thread(target.unlink, True)
-        attachments_uploaded_total.labels(content_type=content_type, status="error").inc()
+        attachments_uploaded_total.labels(content_type=metadata.content_type, status="error").inc()
         raise
-    attachments_uploaded_total.labels(content_type=content_type, status="success").inc()
+    attachments_uploaded_total.labels(content_type=metadata.content_type, status="success").inc()
     return attachment
 
 
 __all__ = [
     "copy_and_extract",
-    "copy_target",
-    "record_copy",
-    "run_after_reads",
+    "publish_copy",
     "write_text_copy",
 ]

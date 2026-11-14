@@ -23,10 +23,11 @@ import cycle is introduced.
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from structlog import get_logger
 
+from src.core.exceptions import CacheError
 from src.core.field_names import (
     FIELD_ABANDON_PENDING,
     FIELD_ACTION_REQUESTS,
@@ -36,6 +37,7 @@ from src.core.field_names import (
     FIELD_TYPE,
 )
 from src.core.i18n import resolve_language
+from src.core.i18n_api_messages import APIMessages
 from src.core.i18n_hitl import HitlMessages, HitlResumeMessage
 from src.domains.agents.constants import (
     ACTION_TYPE_DRAFT_CRITIQUE,
@@ -68,17 +70,17 @@ _HITL_CONFIRM_WORDS_DRAFT: frozenset[str] = _HITL_CONFIRM_WORDS | frozenset({"en
 
 
 async def _fetch_interrupt_context(
-    conversation_id: uuid.UUID, run_id: str
+    runtime_id: uuid.UUID, run_id: str
 ) -> tuple[list[dict[str, Any]], str | None, str | None, dict[str, Any] | None]:
     """Fetch pending HITL context from Redis.
 
     Args:
-        conversation_id: Conversation UUID for the Redis lookup.
+        runtime_id: Admitted runtime UUID for the Redis lookup.
         run_id: Run ID for logging.
 
     Returns:
-        ``(action_context, interrupt_type, draft_id, pending_data)``. On any Redis
-        error the context is empty, which the caller treats as a stale/new request.
+        ``(action_context, interrupt_type, draft_id, pending_data)``. An unavailable
+        read raises: it cannot turn an approval into a fresh request.
     """
     from src.core.config import settings
     from src.domains.agents.utils import HITLStore
@@ -95,7 +97,7 @@ async def _fetch_interrupt_context(
             redis_client=redis,
             ttl_seconds=settings.hitl_pending_data_ttl_seconds,
         )
-        pending_data = await hitl_store.get_interrupt(str(conversation_id))
+        pending_data = await hitl_store.get_interrupt(str(runtime_id))
         if pending_data and FIELD_INTERRUPT_DATA in pending_data:
             action_context = pending_data[FIELD_INTERRUPT_DATA].get(FIELD_ACTION_REQUESTS, [])
             # Detect interrupt type from first action request
@@ -105,14 +107,16 @@ async def _fetch_interrupt_context(
                 # For draft_critique, extract draft_id
                 if interrupt_type == ACTION_TYPE_DRAFT_CRITIQUE:
                     draft_id = first_action.get(FIELD_DRAFT_ID, INTENTION_UNKNOWN)
-    except (ConnectionError, TimeoutError, OSError, RuntimeError) as redis_err:
+    except Exception as redis_err:
         logger.warning(
             "approval_decision_redis_fetch_failed",
             run_id=run_id,
-            error=str(redis_err),
             error_type=type(redis_err).__name__,
-            fallback="proceeding without interrupt context",
         )
+        raise CacheError(
+            operation="hitl_pending",
+            detail=APIMessages.service_unavailable("Redis"),
+        ) from redis_err
 
     return action_context, interrupt_type, draft_id, pending_data
 
@@ -654,7 +658,7 @@ async def _classify_generic(
 
 
 class HitlDecisionStaleError(Exception):
-    """A structured hitl_decision cannot be applied to the pending interrupt.
+    """An answer cannot be applied to the pending interrupt.
 
     Raised when the pending interrupt is missing, its message_id does not
     match the decision's, or the (interrupt_type, action) pair is not
@@ -665,8 +669,24 @@ class HitlDecisionStaleError(Exception):
     """
 
 
+async def reject_completed_question(runtime_id: uuid.UUID) -> NoReturn:
+    """Remove a stale question only after a successful checkpoint read proved completion.
+
+    The caller owns the account's graph admission. A failed cleanup propagates,
+    preserving the refusal; a later invocation can reconcile it again without
+    resuming an act whose outcome is already recorded.
+    """
+    from src.core.config import settings
+    from src.domains.agents.utils import HITLStore
+    from src.infrastructure.cache.redis import get_redis_cache
+
+    store = HITLStore(await get_redis_cache(), settings.hitl_pending_data_ttl_seconds)
+    await store.clear_interrupt(str(runtime_id))
+    raise HitlDecisionStaleError("checkpoint_not_interrupted")
+
+
 async def build_structured_decision(
-    hitl_decision: dict[str, Any], conversation_id: uuid.UUID, run_id: str
+    hitl_decision: dict[str, Any], runtime_id: uuid.UUID, run_id: str
 ) -> dict[str, Any]:
     """Map a structured one-click decision to the interrupt's resume payload.
 
@@ -678,7 +698,7 @@ async def build_structured_decision(
     Args:
         hitl_decision: ``{"message_id": ..., "action": "confirm"|"cancel"}``
             as sent by the frontend card.
-        conversation_id: Conversation UUID for the Redis pending lookup.
+        runtime_id: Admitted runtime UUID for the Redis pending lookup.
         run_id: Run ID for logging.
 
     Returns:
@@ -689,7 +709,7 @@ async def build_structured_decision(
             or unsupported (interrupt_type, action) pair — fail-closed.
     """
     action_context, interrupt_type, draft_id, pending_data = await _fetch_interrupt_context(
-        conversation_id, run_id
+        runtime_id, run_id
     )
 
     if not action_context or interrupt_type is None:
@@ -754,7 +774,7 @@ def _read_disambiguation(
 
 async def parse_approval_decision(
     user_message: str,
-    conversation_id: uuid.UUID,
+    runtime_id: uuid.UUID,
     run_id: str,
     user_language: str | None = None,
 ) -> dict[str, Any]:
@@ -766,7 +786,7 @@ async def parse_approval_decision(
 
     Args:
         user_message: User's response message.
-        conversation_id: Conversation UUID for Redis lookup.
+        runtime_id: Admitted runtime UUID for Redis lookup.
         run_id: Run ID for logging.
         user_language: Language of the static notices this may emit (ambiguity,
             clarification). Some are streamed verbatim to the user, so the caller
@@ -780,7 +800,7 @@ async def parse_approval_decision(
     message_lower = user_message.lower().strip()
 
     action_context, interrupt_type, draft_id, pending_data = await _fetch_interrupt_context(
-        conversation_id, run_id
+        runtime_id, run_id
     )
 
     # Stale/invalid HITL resumption: pending data without action_context is not a

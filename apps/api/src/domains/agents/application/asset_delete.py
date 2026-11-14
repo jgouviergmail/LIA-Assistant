@@ -1,18 +1,17 @@
-"""Exact row deletion commits before identity-checked physical cleanup and metrics."""
+"""Exact logical removal commits its witness before durable physical cleanup."""
 
 import asyncio
 from datetime import UTC, datetime
 from uuid import UUID
 
+import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.agents.application.action_preparation import build_action_content
-from src.domains.agents.application.asset_delete_files import cleanup_asset_file
 from src.domains.agents.application.asset_delete_schemas import (
     AssetDeleteInput,
     AssetDeletePatch,
-    AssetDeleteSelection,
     canonical_asset_deletion,
 )
 from src.domains.agents.application.asset_delete_scope import asset_deletion_selection
@@ -21,17 +20,14 @@ from src.domains.agents.application.authorization import authorize_actor, load_a
 from src.domains.agents.application.availability import require_application_tools
 from src.domains.agents.application.command_service import CommandRejected
 from src.domains.agents.application.draft_models import ApplicationActionDraftContent
-from src.domains.attachments.models import Attachment
+from src.domains.attachments.file_cleanup import cleanup_files
+from src.domains.attachments.file_repository import AttachmentFileRepository
+from src.domains.attachments.models import Attachment, AttachmentStatus
 from src.domains.attachments.service import AttachmentService
 from src.domains.users.preference_cas import PreferenceWriteReceipt
 from src.domains.users.repository import UserRepository
-from src.infrastructure.observability.logging import get_logger
-from src.infrastructure.observability.metrics_attachments import (
-    DELETION_REASON_USER,
-    attachments_cleanup_deleted_total,
-)
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 async def _access(db: AsyncSession, actor_id: UUID) -> None:
@@ -85,10 +81,17 @@ async def execute_asset_deletion(
         skipped
         or updated != list(selected.request.ids)
         or await db.scalar(
-            select(func.count(Attachment.id)).where(Attachment.id.in_(selected.request.ids))
+            select(func.count(Attachment.id)).where(
+                Attachment.id.in_(selected.request.ids),
+                Attachment.status != AttachmentStatus.DELETING,
+            )
         )
     ):
         raise CommandRejected("STALE_STATE")
+    for file in selected.files:
+        await AttachmentFileRepository(db).bind_removal_identity(
+            actor_id, file.id, file.file_digest
+        )
     await check()
     try:
         await db.commit()
@@ -97,22 +100,17 @@ async def execute_asset_deletion(
     receipt.committed = True
     public = {**selected.public_scope(after=True), "file_cleanup_pending": True}
     receipt.values = {"assets_to_delete": public}
-    public["file_cleanup_pending"] = not await _cleanup(actor_id, selected)
+    public["file_cleanup_pending"] = not await _cleanup(db, selected.request.ids)
 
 
-async def _cleanup(actor_id: UUID, selected: AssetDeleteSelection) -> bool:
-    complete = True
-    for file in selected.files:
-        try:
-            cleaned = await cleanup_asset_file(actor_id, file)
-        except (Exception, asyncio.CancelledError) as error:
-            logger.warning("generated_file_cleanup_pending", error_type=type(error).__name__)
-            cleaned = False
-        complete = complete and cleaned
+async def _cleanup(db: AsyncSession, ids: tuple[UUID, ...]) -> bool:
+    """An incomplete effect stays in the table with its approved identity for retry."""
     try:
-        attachments_cleanup_deleted_total.labels(reason=DELETION_REASON_USER).inc(
-            len(selected.items)
-        )
-    except Exception as error:
-        logger.warning("generated_deletion_telemetry_failed", error_type=type(error).__name__)
-    return complete
+        await cleanup_files(db, ids=ids)
+        pending = await db.scalar(select(func.count(Attachment.id)).where(Attachment.id.in_(ids)))
+        await db.commit()
+        return pending == 0
+    except (Exception, asyncio.CancelledError) as error:
+        logger.warning("generated_file_cleanup_pending", error_type=type(error).__name__)
+        await db.rollback()
+        return False

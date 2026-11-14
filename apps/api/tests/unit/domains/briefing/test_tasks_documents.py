@@ -1,8 +1,10 @@
 """Tasks & Documents briefing cards (P15 extension, 2026-07-22).
 
-- Tasks: strictly pending/overdue (user arbitration) from the active tasks
-  provider (Google Tasks / Microsoft To Do), date-only due semantics in the
-  USER's local frame (a task due today is NOT overdue — birthdays doctrine).
+- Tasks: strictly pending/overdue (user arbitration) from EVERY list of the
+  active tasks provider (Google Tasks / Microsoft To Do), each naming its own
+  list; date-only due semantics in the USER's local frame (a task due today is
+  NOT overdue — birthdays doctrine). A list that fails leaves the others on the
+  card, said partial; « nothing to do » is never told on a list nobody read.
 - Documents: latest modified files of the account's drive (Google Drive or
   OneDrive), pre-formatted local modification time + external link.
 
@@ -29,7 +31,6 @@ from src.domains.briefing.schemas import DocumentsData, TasksData
 from src.domains.connectors.active_client import ActiveClient, ClientUnavailable
 from src.domains.connectors.clients.normalizers.onedrive_normalizer import normalize_drive_item
 from src.domains.connectors.models import ConnectorType
-from src.domains.connectors.preferences.owner_defaults import TASK_LIST
 
 TZ = ZoneInfo("Europe/Paris")
 
@@ -57,10 +58,28 @@ def _settings(**overrides):
     return SimpleNamespace(**defaults)
 
 
-def _tasks_env(tasks, *, resolved=True):
-    """Patch context for fetch_tasks: the shared door + the list resolution."""
+def _tasks_env(tasks, *, resolved=True, more_lists=False):
+    """Patch context for fetch_tasks: the shared door and a provider of task lists.
+
+    ``tasks`` is the page of a single list (« Perso »), or a mapping of list id to
+    what that list answers: its tasks, a whole page (a dict) or the error it raises.
+    """
+    pages = tasks if isinstance(tasks, dict) else {"list-perso": tasks}
+
+    async def read(list_id, **kwargs):
+        answer = pages[list_id]
+        if isinstance(answer, Exception):
+            raise answer
+        return answer if isinstance(answer, dict) else {"items": answer}
+
     client = MagicMock()
-    client.list_tasks = AsyncMock(return_value={"items": tasks})
+    client.list_task_lists = AsyncMock(
+        return_value={
+            "items": [{"id": list_id, "title": list_id.removeprefix("list-")} for list_id in pages],
+            "next_page_token": "next" if more_lists else None,
+        }
+    )
+    client.list_tasks = AsyncMock(side_effect=read)
     asked: list[tuple[str, object]] = []
 
     @asynccontextmanager
@@ -72,37 +91,34 @@ def _tasks_env(tasks, *, resolved=True):
             else ClientUnavailable.NO_CONNECTOR
         )
 
-    resolve = AsyncMock(return_value="list-perso")
     patches = [
         patch("src.domains.connectors.active_client.open_active_client", _door),
-        patch(
-            "src.domains.connectors.preferences.owner_defaults.resolve_owner_container_id",
-            resolve,
-        ),
         patch("src.domains.briefing.fetchers.settings", _settings()),
     ]
-    return SimpleNamespace(client=client, asked=asked, resolve=resolve), patches
+    return SimpleNamespace(client=client, asked=asked), patches
+
+
+async def _fetch(env_patches, **kwargs):
+    with ExitStack() as stack:
+        for p in env_patches:
+            stack.enter_context(p)
+        return await fetch_tasks(user=_user(), user_tz=TZ, **kwargs)
 
 
 @pytest.mark.unit
 class TestFetchTasks:
     async def test_not_configured_without_provider(self):
         _, patches = _tasks_env([], resolved=False)
-        with ExitStack() as stack:
-            for p in patches:
-                stack.enter_context(p)
-            with pytest.raises(ConnectorNotConfiguredError):
-                await fetch_tasks(user=_user(), user_tz=TZ)
+        with pytest.raises(ConnectorNotConfiguredError):
+            await _fetch(patches)
 
     async def test_overdue_is_strictly_before_today_local(self):
         """Date-only semantics in the user's local frame: due today is ON
         TIME (never 'overdue' just because 00:00 UTC passed)."""
         tasks = [_task("aujourd'hui", 0), _task("hier", -1), _task("demain", 1)]
         _, patches = _tasks_env(tasks)
-        with ExitStack() as stack:
-            for p in patches:
-                stack.enter_context(p)
-            data = await fetch_tasks(user=_user(), user_tz=TZ)
+
+        data = await _fetch(patches)
 
         assert isinstance(data, TasksData)
         by_title = {t.title: t for t in data.items}
@@ -112,24 +128,21 @@ class TestFetchTasks:
         assert by_title["aujourd'hui"].days_until_due == 0
         assert by_title["demain"].overdue is False
         assert data.overdue_count == 1
+        assert data.partial is False
 
     async def test_sorted_overdue_first_then_due_ascending(self):
         tasks = [_task("j+2", 2), _task("j-3", -3), _task("j+1", 1), _task("j-1", -1)]
         _, patches = _tasks_env(tasks)
-        with ExitStack() as stack:
-            for p in patches:
-                stack.enter_context(p)
-            data = await fetch_tasks(user=_user(), user_tz=TZ)
+
+        data = await _fetch(patches)
 
         assert [t.title for t in data.items] == ["j-3", "j-1", "j+1", "j+2"]
 
     async def test_capped_to_settings_limit(self):
         tasks = [_task(f"t{i}", i) for i in range(8)]
         _, patches = _tasks_env(tasks)
-        with ExitStack() as stack:
-            for p in patches:
-                stack.enter_context(p)
-            data = await fetch_tasks(user=_user(), user_tz=TZ)
+
+        data = await _fetch(patches)
 
         assert len(data.items) == 5
 
@@ -139,40 +152,157 @@ class TestFetchTasks:
         # task routine waits for (ADR-322).
         tasks = [_task(f"old{i}", -10 - i) for i in range(5)] + [_task("yesterday", -1)]
         _, patches = _tasks_env(tasks)
-        with ExitStack() as stack:
-            for p in patches:
-                stack.enter_context(p)
-            card = await fetch_tasks(user=_user(), user_tz=TZ)
-            routine = await fetch_tasks(user=_user(), user_tz=TZ, whole_page=True)
+
+        card = await _fetch(patches)
+        routine = await _fetch(patches, whole_page=True)
 
         assert "yesterday" not in [t.title for t in card.items]
         assert "yesterday" in [t.title for t in routine.items]
 
-    async def test_reads_the_owners_preferred_list(self):
-        """The door is asked for the TASK LIST container, and the list read is
-        the one resolved from the owner's preferred name."""
-        env, patches = _tasks_env([_task("x", 1)])
-        user = _user()
-        with ExitStack() as stack:
-            for p in patches:
-                stack.enter_context(p)
-            await fetch_tasks(user=user, user_tz=TZ)
+    async def test_every_list_is_read_and_each_task_names_its_own(self):
+        """The card gathers the lists (owner, 2026-11-10): one order across them
+        all, and each task says which list it is in, by its real id and its name."""
+        env, patches = _tasks_env(
+            {
+                "list-perso": [_task("perso demain", 1)],
+                "list-courses": [_task("courses hier", -1), _task("courses j+2", 2)],
+            }
+        )
 
-        assert env.asked == [("tasks", TASK_LIST)]
-        assert env.resolve.await_args.kwargs["name"] == "Perso"
-        assert env.resolve.await_args.kwargs["owner_id"] == user.id
-        assert env.client.list_tasks.await_args.kwargs["task_list_id"] == "list-perso"
+        data = await _fetch(patches)
+
+        assert env.asked == [("tasks", None)]
+        assert [(t.title, t.list_id, t.list_name) for t in data.items] == [
+            ("courses hier", "list-courses", "courses"),
+            ("perso demain", "list-perso", "perso"),
+            ("courses j+2", "list-courses", "courses"),
+        ]
+        assert [call.args for call in env.client.list_tasks.await_args_list] == [
+            ("list-perso",),
+            ("list-courses",),
+        ]
+        assert data.partial is False
+
+    async def test_a_routine_reads_the_whole_page_of_every_list(self):
+        _, patches = _tasks_env(
+            {
+                "list-perso": [_task(f"old{i}", -10 - i) for i in range(5)],
+                "list-courses": [_task("yesterday", -1)],
+            }
+        )
+
+        routine = await _fetch(patches, whole_page=True)
+
+        assert len(routine.items) == 6
+        assert routine.overdue_count == 6
+
+    async def test_each_list_is_asked_one_page_of_open_tasks_within_the_horizon(self):
+        env, patches = _tasks_env([_task("x", 1)])
+        expected = datetime.now(UTC) + timedelta(days=7)
+
+        await _fetch(patches)
+
+        asked = env.client.list_tasks.await_args.kwargs
+        assert asked["max_results"] == 5 * 4
+        assert (asked["show_completed"], asked["show_hidden"]) == (False, False)
+        due_max = datetime.strptime(asked["due_max"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+        assert abs(due_max - expected) < timedelta(minutes=1)
+        assert env.client.list_tasks.await_count == 1
+
+    async def test_a_list_holding_more_than_its_page_makes_the_card_partial(self):
+        page = {"items": [_task("x", 1)], "next_page_token": "more"}
+        env, patches = _tasks_env({"list-perso": page})
+
+        data = await _fetch(patches)
+
+        assert env.client.list_tasks.await_count == 1
+        assert data.partial is True
+
+    async def test_more_lists_than_were_read_makes_the_card_partial(self):
+        _, patches = _tasks_env([_task("x", 1)], more_lists=True)
+
+        data = await _fetch(patches)
+
+        assert data.partial is True
+
+    async def test_a_list_without_a_name_carries_none(self):
+        env, patches = _tasks_env([_task("x", 1)])
+        env.client.list_task_lists.return_value = {"items": [{"id": "list-perso", "title": ""}]}
+
+        data = await _fetch(patches)
+
+        assert [(t.list_id, t.list_name) for t in data.items] == [("list-perso", None)]
+
+    async def test_a_list_the_provider_gave_no_id_is_not_read(self):
+        env, patches = _tasks_env([_task("x", 1)])
+        env.client.list_task_lists.return_value = {
+            "items": [{"title": "ghost"}, {"id": "list-perso", "title": "perso"}]
+        }
+
+        data = await _fetch(patches)
+
+        assert [call.args for call in env.client.list_tasks.await_args_list] == [("list-perso",)]
+        assert [t.title for t in data.items] == ["x"]
+
+    @pytest.mark.parametrize("failure", ["http", "api"])
+    async def test_a_list_that_fails_leaves_the_others_and_the_card_says_so(self, failure):
+        import httpx
+
+        refused = (
+            httpx.ConnectError("boom")
+            if failure == "http"
+            else ConnectorAPIError("google_tasks", 404, "gone")
+        )
+        _, patches = _tasks_env({"list-perso": refused, "list-courses": [_task("pain", 0)]})
+
+        data = await _fetch(patches)
+
+        assert [t.title for t in data.items] == ["pain"]
+        assert data.partial is True
 
     async def test_http_failure_is_a_classified_access_error(self):
         import httpx
 
+        _, patches = _tasks_env({"list-perso": httpx.ConnectError("boom")})
+
+        with pytest.raises(ConnectorAccessError):
+            await _fetch(patches)
+
+    async def test_nothing_to_show_beside_a_failed_list_is_never_an_empty_card(self):
+        """« Nothing to do » cannot be told on a list nobody read (ADR-303)."""
+        import httpx
+
+        _, patches = _tasks_env({"list-perso": httpx.ConnectError("boom"), "list-courses": []})
+
+        with pytest.raises(ConnectorAccessError):
+            await _fetch(patches)
+
+    async def test_a_providers_refusal_of_every_list_stays_what_it_is(self):
+        refusal = ConnectorAPIError("google_tasks", 403, "forbidden")
+        _, patches = _tasks_env({"list-perso": refusal})
+
+        with pytest.raises(ConnectorAPIError) as raised:
+            await _fetch(patches)
+
+        assert raised.value is refusal
+
+    async def test_lists_that_cannot_be_listed_are_a_classified_access_error(self):
+        import httpx
+
         env, patches = _tasks_env([])
-        env.client.list_tasks = AsyncMock(side_effect=httpx.ConnectError("boom"))
-        with ExitStack() as stack:
-            for p in patches:
-                stack.enter_context(p)
-            with pytest.raises(ConnectorAccessError):
-                await fetch_tasks(user=_user(), user_tz=TZ)
+        env.client.list_task_lists = AsyncMock(side_effect=httpx.ConnectError("boom"))
+
+        with pytest.raises(ConnectorAccessError):
+            await _fetch(patches)
+
+        env.client.list_tasks.assert_not_awaited()
+
+    async def test_no_list_is_an_empty_card(self):
+        _, patches = _tasks_env({})
+
+        data = await _fetch(patches)
+
+        assert (data.items, data.partial) == ([], False)
 
 
 def _documents_env(files, *, resolved=True, connector_type=ConnectorType.MICROSOFT_ONEDRIVE):

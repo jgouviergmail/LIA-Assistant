@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
+from src.core.browser_scope import BrowserScope
 from src.core.config import settings
 from src.core.constants import (
     BROWSER_COORDINATION_TIMEOUT_SECONDS,
@@ -102,6 +103,17 @@ async def cleanup_browser_sessions() -> None:
         await _browser_pool.cleanup_expired()
 
 
+async def forget_browser_sessions(owner_id: uuid.UUID, runtime_id: uuid.UUID | None = None) -> None:
+    """Retire owned recovery metadata and this worker's contexts without starting a browser.
+
+    The caller has fenced new admissions. Other workers retire their contexts
+    when they observe the missing registry field on renewal.
+    """
+    await coordination.forget(owner_id, runtime_id)
+    if _browser_pool is not None:
+        await _browser_pool.release_owned_sessions(owner_id, runtime_id)
+
+
 class BrowserPool:
     """Manages Playwright browser instances and sessions.
 
@@ -112,8 +124,8 @@ class BrowserPool:
     def __init__(self) -> None:
         self._playwright: Playwright | None = None
         self._browser: Browser | None = None
-        self._sessions: dict[str, BrowserSession] = {}
-        self._session_info: dict[str, BrowserSessionInfo] = {}
+        self._sessions: dict[BrowserScope, BrowserSession] = {}
+        self._session_info: dict[BrowserScope, BrowserSessionInfo] = {}
         self._maintenance_task: asyncio.Task[None] | None = None
         self._coordination_down = False
         self._lock = asyncio.Lock()
@@ -196,11 +208,11 @@ class BrowserPool:
 
     async def acquire_session(
         self,
-        user_id: str,
+        scope: BrowserScope,
         user_language: str | None = None,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     ) -> BrowserSession:
-        """Acquire or create a browser session for the given user.
+        """Acquire or create a browser session for this root runtime.
 
         Checks for existing local session first (fast path), then attempts
         cross-worker recovery via Redis metadata, or creates a new session.
@@ -209,7 +221,7 @@ class BrowserPool:
         browser_max_concurrent_sessions across all workers.
 
         Args:
-            user_id: The user requesting a browser session.
+            scope: The owning account and immutable root runtime generation.
             user_language: User's language code (e.g., "fr", "en", "de"); the
                 declared language when absent (ADR-323).
             user_timezone: User's timezone (e.g., "Europe/Paris").
@@ -224,20 +236,20 @@ class BrowserPool:
             if not self._healthy or not self._browser:
                 raise BrowserRefusal(BrowserRefusalReason.UNHEALTHY)
             # Fast path: reuse existing local session
-            if user_id in self._sessions:
-                if await self._owns_session(user_id):
-                    session = self._sessions[user_id]
+            if scope in self._sessions:
+                if await self._owns_session(scope):
+                    session = self._sessions[scope]
                     session.last_activity = time.monotonic()
                     return session
-                await self._release_locked(user_id)
+                await self._release_locked(scope)
 
             # Redis fail-open retains availability, never an unbounded local pool.
             if len(self._sessions) >= settings.browser_max_concurrent_sessions:
                 raise BrowserRefusal(BrowserRefusalReason.CAPACITY)
 
-            # Claim BEFORE the awaited context allocation. The same-user transfer
+            # Claim BEFORE the awaited context allocation. The same-runtime transfer
             # preserves the logical-session contract and fences the previous owner.
-            recovery_url = await self._reserve_session_redis(user_id)
+            recovery_url = await self._reserve_session_redis(scope)
 
             # Create new session
             # Lazy import to avoid ModuleNotFoundError when browser_enabled=False
@@ -260,14 +272,14 @@ class BrowserPool:
                     extra_http_headers={"Accept-Language": accept_lang},
                 )
             except BaseException:
-                await self._discard_reservation(user_id)
+                await self._discard_reservation(scope)
                 raise
             try:
                 # Remove navigator.webdriver flag (primary bot detection signal)
                 await context.add_init_script(
                     "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
                 )
-                if not await self._owns_session(user_id):
+                if not await self._owns_session(scope):
                     raise BrowserRefusal(BrowserRefusalReason.SESSION_MOVED)
             except BaseException:
                 # Ownership has not reached a session yet. Even a cancelled
@@ -280,15 +292,15 @@ class BrowserPool:
                         error_type=type(cleanup_error).__name__,
                     )
                     logger.debug("browser_error_detail", error=str(cleanup_error))
-                await self._discard_reservation(user_id)
+                await self._discard_reservation(scope)
                 raise
 
             session = BrowserSession(
-                user_id=user_id,
+                scope=scope,
                 context=context,
                 security=self._security,
             )
-            self._sessions[user_id] = session
+            self._sessions[scope] = session
 
             browser_sessions_active.inc()
             self._ensure_maintenance()
@@ -299,13 +311,15 @@ class BrowserPool:
                     await session.navigate(recovery_url)
                     logger.info(
                         "browser_session_recovered",
-                        user_id=user_id[:8],
+                        user_id=str(scope.owner_id),
+                        runtime_id=str(scope.runtime_id),
                         url_host=url_host(recovery_url),
                     )
                 except Exception as e:
                     logger.warning(
                         "browser_session_recovery_failed",
-                        user_id=user_id[:8],
+                        user_id=str(scope.owner_id),
+                        runtime_id=str(scope.runtime_id),
                         url_host=url_host(recovery_url),
                         error_type=type(e).__name__,
                     )
@@ -313,31 +327,56 @@ class BrowserPool:
 
             return session
 
-    async def release_session(self, user_id: str) -> None:
-        """Release and close a user's browser session.
+    async def release_session(self, scope: BrowserScope) -> None:
+        """Release and close one runtime's browser session.
 
         Args:
-            user_id: The user whose session to release.
+            scope: The account and generation whose session to release.
         """
         async with self._lock:
-            await self._release_locked(user_id)
+            await self._release_locked(scope)
 
-    async def _release_locked(self, user_id: str) -> None:
-        session = self._sessions.pop(user_id, None)
+    async def _release_locked(self, scope: BrowserScope) -> None:
+        session = self._sessions.pop(scope, None)
         if session is None:
             return
         try:
             try:
                 await session.close()
             except BaseException:
-                await self._discard_reservation(user_id)
+                await self._discard_reservation(scope)
                 raise
             else:
-                await self._remove_session_redis(user_id)
+                await self._remove_session_redis(scope)
         finally:
-            self._session_info.pop(user_id, None)
+            self._session_info.pop(scope, None)
             browser_sessions_active.dec()
-        logger.info("browser_session_released", user_id=user_id[:8])
+        logger.info(
+            "browser_session_released",
+            user_id=str(scope.owner_id),
+            runtime_id=str(scope.runtime_id),
+        )
+
+    async def release_owned_sessions(
+        self, owner_id: uuid.UUID, runtime_id: uuid.UUID | None = None
+    ) -> None:
+        """Close this owner's selected generation, or all on account erasure."""
+        async with self._lock:
+            scopes = [
+                scope
+                for scope in self._sessions
+                if scope.owner_id == owner_id
+                and (runtime_id is None or scope.runtime_id == runtime_id)
+            ]
+            failures: list[Exception] = []
+            for scope in scopes:
+                try:
+                    await self._release_locked(scope)
+                except Exception as exc:
+                    failures.append(exc)
+                    logger.warning("browser_session_close_failed", error_type=type(exc).__name__)
+            if failures:
+                raise failures[0]
 
     async def cleanup_expired(self) -> None:
         """Close sessions that have been idle longer than the timeout.
@@ -346,13 +385,18 @@ class BrowserPool:
         """
         timeout = settings.browser_session_timeout_seconds
         async with self._lock:
-            for user_id, session in list(self._sessions.items()):
+            for scope, session in list(self._sessions.items()):
                 # Recheck under the same lock as acquire: an earlier idle
                 # snapshot must not close a session somebody just refreshed.
                 idle = not session.is_busy and time.monotonic() - session.last_activity > timeout
-                if idle or not await self._owns_session(user_id):
-                    await self._release_locked(user_id)
-                    logger.info("browser_session_retired", user_id=user_id[:8], idle=idle)
+                if idle or not await self._owns_session(scope):
+                    await self._release_locked(scope)
+                    logger.info(
+                        "browser_session_retired",
+                        user_id=str(scope.owner_id),
+                        runtime_id=str(scope.runtime_id),
+                        idle=idle,
+                    )
 
     def _ensure_maintenance(self) -> None:
         if not self._healthy:
@@ -390,9 +434,9 @@ class BrowserPool:
         # too. A snapshot taken before that allocation finished leaked a context.
         async with self._lock:
             failures: list[Exception] = []
-            for user_id in list(self._sessions):
+            for scope in list(self._sessions):
                 try:
-                    await self._release_locked(user_id)
+                    await self._release_locked(scope)
                 except Exception as exc:
                     failures.append(exc)
                     logger.warning("browser_session_close_failed", error_type=type(exc).__name__)
@@ -429,42 +473,44 @@ class BrowserPool:
             )
         logger.debug("browser_error_detail", error=str(error.__cause__ or error))
 
-    async def _owns_session(self, user_id: str) -> bool:
-        info = self._session_info.get(user_id)
+    async def _owns_session(self, scope: BrowserScope) -> bool:
+        info = self._session_info.get(scope)
         if info is None:
             return False
         try:
-            owned = await coordination.renew(user_id, info.session_id)
+            owned = await coordination.renew(scope, info.session_id)
         except BrowserCoordinationUnavailable as exc:
             self._coordination_failed(exc)
             return True  # Intentional availability fallback, within the local cap.
         self._coordination_down = False
         return owned
 
-    async def _discard_reservation(self, user_id: str) -> None:
+    async def _discard_reservation(self, scope: BrowserScope) -> None:
         """Clean up an aborted admission without replacing its primary failure."""
         try:
-            await self._remove_session_redis(user_id)
+            await self._remove_session_redis(scope)
         except BaseException as exc:
             logger.warning("browser_reservation_cleanup_failed", error_type=type(exc).__name__)
         finally:
-            self._session_info.pop(user_id, None)
+            self._session_info.pop(scope, None)
 
-    async def _get_recovery_url(self, user_id: str) -> str | None:
+    async def _get_recovery_url(self, scope: BrowserScope) -> str | None:
         """Check Redis for an existing session on another worker.
 
         Args:
-            user_id: The user to check for.
+            scope: The user to check for.
 
         Returns:
             The URL to recover to, or None if no existing session.
         """
+        if scope.legacy_key is None:
+            return None
         try:
             from src.infrastructure.cache.redis import get_redis_cache
 
             async with asyncio.timeout(BROWSER_COORDINATION_TIMEOUT_SECONDS):
                 redis = await get_redis_cache()
-                key = f"{REDIS_KEY_BROWSER_SESSION_PREFIX}{user_id}"
+                key = f"{REDIS_KEY_BROWSER_SESSION_PREFIX}{scope.legacy_key}"
                 data = await redis.get(key)
             if data:
                 info = json.loads(data)
@@ -481,28 +527,29 @@ class BrowserPool:
             logger.debug("browser_error_detail", error=str(e))
         return None
 
-    async def _reserve_session_redis(self, user_id: str) -> str | None:
+    async def _reserve_session_redis(self, scope: BrowserScope) -> str | None:
         """Claim logical capacity before allocating a context, retaining a unique owner."""
         info = BrowserSessionInfo(
             session_id=str(uuid.uuid4()),
-            user_id=user_id,
+            user_id=str(scope.owner_id),
+            runtime_id=scope.runtime_id,
             created_at=datetime.now(UTC),
             current_url=None,
             page_title=None,
             worker_pid=self._pid,
             navigation_count=0,
         )
-        self._session_info[user_id] = info
+        self._session_info[scope] = info
         try:
-            previous = await coordination.reserve(user_id, info)
+            previous = await coordination.reserve(scope, info)
         except BrowserCoordinationUnavailable as exc:
             self._coordination_failed(exc)
             previous = None
         except BrowserRefusal:
-            self._session_info.pop(user_id, None)
+            self._session_info.pop(scope, None)
             raise
         except BaseException:
-            await self._discard_reservation(user_id)
+            await self._discard_reservation(scope)
             raise
         else:
             self._coordination_down = False
@@ -510,25 +557,25 @@ class BrowserPool:
             info.current_url, info.page_title = previous.current_url, previous.page_title
         elif not self._coordination_down:
             try:
-                info.current_url = await self._get_recovery_url(user_id)
+                info.current_url = await self._get_recovery_url(scope)
             except asyncio.CancelledError:
-                await self._discard_reservation(user_id)
+                await self._discard_reservation(scope)
                 raise
         return info.current_url
 
-    async def update_session_redis(self, user_id: str, url: str, title: str) -> None:
+    async def update_session_redis(self, scope: BrowserScope, url: str, title: str) -> None:
         """Update session metadata in Redis after navigation.
 
         Args:
-            user_id: The session owner.
+            scope: The session owner.
             url: The current page URL.
             title: The current page title.
         """
         async with self._lock:
-            info = self._session_info.get(user_id)
+            info = self._session_info.get(scope)
             if info is None:
                 return
-            session = self._sessions.get(user_id)
+            session = self._sessions.get(scope)
             updated = info.model_copy(
                 update={
                     # A cut signed URL is a different request: omit recovery
@@ -541,28 +588,28 @@ class BrowserPool:
                 }
             )
             try:
-                owned = await coordination.update(user_id, updated)
+                owned = await coordination.update(scope, updated)
             except BrowserCoordinationUnavailable as exc:
                 self._coordination_failed(exc)
                 return
             self._coordination_down = False
             if owned:
-                self._session_info[user_id] = updated
+                self._session_info[scope] = updated
             else:
                 # The navigation already happened. Retire the stale context;
                 # never replace the newer owner's facts or retry the action.
-                await self._release_locked(user_id)
+                await self._release_locked(scope)
 
-    async def _remove_session_redis(self, user_id: str) -> None:
+    async def _remove_session_redis(self, scope: BrowserScope) -> None:
         """Remove session metadata from Redis.
 
         Args:
-            user_id: The session owner.
+            scope: The session owner.
         """
-        info = self._session_info.get(user_id)
+        info = self._session_info.get(scope)
         if info is None:
             return
         try:
-            await coordination.release(user_id, info.session_id)
+            await coordination.release(scope, info.session_id)
         except BrowserCoordinationUnavailable as exc:
             self._coordination_failed(exc)

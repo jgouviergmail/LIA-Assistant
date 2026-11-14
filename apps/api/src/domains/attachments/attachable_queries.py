@@ -56,7 +56,7 @@ def build_attachable_statement(
     statement = select(columns).where(
         Attachment.user_id == user_id,
         Attachment.origin.in_([origin.value for origin in ATTACHABLE_ORIGINS]),
-        Attachment.status != AttachmentStatus.EXPIRED,
+        Attachment.status == AttachmentStatus.READY,
         or_(Attachment.expires_at.is_(None), Attachment.expires_at > now),
     )
     if ids is not None:

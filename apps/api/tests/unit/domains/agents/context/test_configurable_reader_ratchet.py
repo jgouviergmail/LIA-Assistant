@@ -42,10 +42,13 @@ import importlib.util
 import json
 from pathlib import Path
 from types import ModuleType
+from uuid import uuid4
 
 import pytest
 
+from src.domains.conversations.runtime_identity import checkpoint_config
 from tests._repo_paths import repo_root_or_skip
+from tests.fixtures.conversation_cases import conversation_target
 
 REPO_ROOT = repo_root_or_skip()
 SRC_DIR = Path(__file__).parents[5] / "src"
@@ -190,6 +193,18 @@ def test_the_chokepoint_bag_carries_plumbing_only() -> None:
         if not (isinstance(node, ast.Call) and getattr(node.func, "id", None) == "RunnableConfig"):
             continue
         for keyword in node.keywords:
+            if (
+                keyword.arg == "configurable"
+                and isinstance(keyword.value, ast.Subscript)
+                and isinstance(keyword.value.value, ast.Call)
+                and isinstance(keyword.value.value.func, ast.Name)
+                and keyword.value.value.func.id == "checkpoint_config"
+            ):
+                # The SQL fence needs transport identity, not run preferences.
+                # Execute its sole producer: a new key cannot hide in a helper.
+                plumbing = checkpoint_config(conversation_target(uuid4(), uuid4()))["configurable"]
+                assert set(plumbing) == {"thread_id", "checkpoint_ns", "runtime_scope"}
+                written |= set(plumbing)
             if keyword.arg == "configurable" and isinstance(keyword.value, ast.Dict):
                 written |= {
                     key.value

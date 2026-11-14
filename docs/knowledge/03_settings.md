@@ -36,7 +36,7 @@ If you travel, LIA will offer to update your timezone when it detects a mismatch
 
 ## How do I manage my stored memories?
 
-You control your memories from **Settings › Memory**: read, edit, pin, export or delete them individually or in bulk. The form counts your characters and states each field's limit before you save, and clearing the **Usage nuance** or the **Trigger topic** removes it.
+You control your memories from **Settings › Memory**: read, edit, pin, export or delete them individually or in bulk. **Import** brings an export back, CSV or JSON: what the account already holds is left alone, and the screen says exactly how many memories were imported, were already there or were refused. The form counts your characters and states each field's limit before you save, and clearing the **Usage nuance** or the **Trigger topic** removes it.
 
 **📌 Pinning:** a pinned memory is protected from automatic edits and cleanup. New **standing instructions** — how LIA should work for you — are pinned as soon as they are stored. You may edit them, unpin them or delete them yourself. Even when unpinned, an instruction is protected from automatic deletion; an automatic correction must preserve a successor.
 
@@ -190,7 +190,7 @@ Customize LIA's appearance to your taste:
 • 💜 **Lavender**: soft lavender, refined and creative
 
 **Light, dark, absolute black:**
-Each theme exists in a light and a dark version, and dark has two depths — ordinary dark, and **absolute black** for OLED screens, where those pixels really switch off. The button in the title bar cycles through the three, and its icon shows where the next press goes. In **Settings › Appearance** you pick the mode directly from the available modes: **Light**, **Dark**, **Absolute black** and **System** (follow your device).
+Each theme exists in a light and a dark version, and dark has two depths — ordinary dark, and **absolute black** for OLED screens, where those pixels really switch off. The button in the title bar cycles through the three, then through **Automatic** when you are signed in, and its icon shows where the next press goes. In **Settings › Appearance** you pick the mode directly from the available modes: **Light**, **Dark**, **Absolute black** and **System** (follow your device).
 
 **To change theme:**
 Go to **Settings** (⚙️ icon), **Appearance** section.
@@ -344,6 +344,21 @@ Beyond what it recalls with each message, LIA can search its memory for a subjec
 
 **🛡️ Full control:**
 View, edit, pin or delete your memories in **Settings › Features › Identity & Memory › Memory**.
+
+## Can LIA write my e-mails the way I write them?
+
+Yes. The first time LIA writes an e-mail for you — a reply, a draft or a new message — it reads your latest sent e-mails and learns **how** you write: your greeting, your sign-off, whether and how you sign, your usual length, your tone, your emojis. Never **what** you wrote about: no name, place or project is kept.
+
+**✍️ Where it is used:**
+• every reply LIA writes, including the one you confirm before it leaves — when you say what to answer rather than the exact words, LIA writes it from the received e-mail
+• every new e-mail it writes for you, in the chat and in the Tools
+• not a note sent to your own mailbox, which keeps its plain form, and never words you dictated exactly
+
+**🛡️ Your control:**
+In **Settings › Features › Identity & Memory › Writing style** you read what LIA learned, from how many e-mails and when, and when it will learn it again. Switch it off and nothing is read or used any more (what was learned is kept until you forget it); **Forget** deletes it. It is kept encrypted, deleted with your account and included in your data export.
+
+## How do I choose whether my documents are illustrated or animated?
+In **Settings › Documents**. **Illustrations**: *LIA judges* (the default — a picture only where it serves the document, never in a short note), *On request* or *Never*; each illustration is an image generation counted in your costs, and needs image generation turned on for your account. **Animations** of PowerPoint presentations: *Presented decks* (the default), *Always* or *Never*. Charts, tables and the colour palette do not depend on these choices. See the document generation page for what each choice does.
 
 ## What are usage limits and where can I see them?
 Usage limits are quotas set by your administrator to control resource consumption (tokens, messages, cost). You can see your current usage vs limits on the **Dashboard** via dedicated tiles (Period Limits and Global Limits).

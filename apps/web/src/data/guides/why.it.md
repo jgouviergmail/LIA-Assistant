@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versione**: 7.0
-**Data**: 2026-11-10
-**Applicazione**: LIA v4.6.0
+**Data**: 2026-11-14
+**Applicazione**: LIA v5.0.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -35,15 +35,15 @@ Il meccanismo è spiegato nella [guida tecnica](/it/how). Il modo in cui il codi
 
 Apri **Strumenti** quando vuoi fare da te: posta, calendario, attività, contatti, file e luci Hue utilizzano i servizi che hai collegato. Fai clic, modifichi e invii direttamente, senza una chiamata IA, e le stelle gialle chiedono a LIA di riassumere o di scrivere quando vuoi, con il costo mostrato; ovunque in LIA, parole selezionate si spiegano, si traducono o diventano un'attività o un evento. Ogni schermata offre solo ciò che supporta il fornitore; i tuoi gesti non entrano nei registri di attività di LIA.
 
-Le parli normalmente, per iscritto o a voce. L'interfaccia esiste in sei lingue (francese, inglese, tedesco, spagnolo, italiano, cinese) e la tua dettatura viene trascritta nella lingua del tuo account. Una ventina di agenti specializzati si dividono il lavoro: i tuoi dati personali, il web, la creazione, la casa connessa, la navigazione sui siti e l'anticipazione.
+Le parli normalmente, per iscritto o a voce, una conversazione per argomento, anche mentre risponde. L'interfaccia esiste in sei lingue (francese, inglese, tedesco, spagnolo, italiano, cinese) e la tua dettatura viene trascritta nella lingua del tuo account. Una ventina di agenti specializzati si dividono il lavoro: i tuoi dati personali, il web, la creazione, la casa connessa, la navigazione sui siti e l'anticipazione.
 
 Un interruttore nella chat sceglie il suo modo di ragionare. La modalità **Pipeline**, predefinita, prepara tutti i passaggi, li verifica e poi li esegue in parallelo: è prevedibile e consuma da 4 a 8 volte meno token. La modalità **ReAct** procede passo dopo passo, più autonoma e più costosa, per una ricerca aperta; quando un passaggio richiede un vero calcolo, scrive alcune righe di Python e le lancia in una sandbox blindata, che esce sul web solo attraverso un unico proxy e senza le tue chiavi ([privacy](/it/faq#faq-privacy), [il percorso di un messaggio](/it/how#pipeline)).
 
-Se scegli la visualizzazione a **schede** (le altre due modalità sono l'HTML semplice e il Markdown), le risposte che portano dati arrivano così: foto di un luogo, meteo fascia oraria per fascia oraria, itinerario, anteprima di un documento. Una scheda mostra ciò che la fonte ha fornito, senza inventare nulla, e rispondere a un'email dalla sua scheda prepara la richiesta senza inviare nulla.
+Se scegli la visualizzazione a **schede**, le risposte che portano dati arrivano così: foto di un luogo, meteo fascia oraria per fascia oraria, itinerario, anteprima di un documento. Una scheda mostra ciò che la fonte ha fornito, senza inventare nulla, e rispondere a un'email dalla sua scheda prepara la richiesta senza inviare nulla.
 
 ### I tuoi servizi
 
-Chiedi a LIA di spostare il tuo appuntamento di giovedì: prepara la modifica e te la mostra prima di inviarla. Legge, cerca, riassume, scrive, invia e inoltra le tue email (Gmail, Outlook, Apple Mail), legge i loro allegati, anche una foto o una scansione, e gestisce le bozze della tua casella, che invia solo dopo la tua conferma. Tiene la tua agenda e i tuoi contatti su Google, Microsoft o Apple, le tue attività su Google o Microsoft, legge e riordina i tuoi file su Google Drive o OneDrive, ci scrive solo con il tuo consenso, accende le tue lampade Philips Hue.
+Chiedi a LIA di spostare il tuo appuntamento di giovedì: prepara la modifica e te la mostra prima di inviarla. Legge, cerca, riassume, invia e inoltra le tue email (Gmail, Outlook, Apple Mail), sa a quali hai risposto, le scrive a modo tuo, legge i loro allegati, anche una foto o una scansione, e gestisce le bozze della tua casella, che invia solo dopo la tua conferma. Tiene la tua agenda e i tuoi contatti su Google, Microsoft o Apple, le tue attività su Google o Microsoft, legge e riordina i tuoi file su Google Drive o OneDrive, ci scrive solo con il tuo consenso, accende le tue lampade Philips Hue.
 
 Senza configurare nulla, hai Wikipedia, la lettura di pagine web, i luoghi vicini con orari e recensioni, il meteo a cinque giorni con la qualità dell'aria e i pollini, e gli itinerari a piedi, in bici, in auto o con i mezzi pubblici ([connettori](/it/faq#faq-connectors)). Con le tue chiavi, la ricerca web incrocia anche Brave Search e Perplexity, e cita le sue fonti. LIA sa anche navigare un sito per te, cliccare, compilare un modulo.
 
@@ -55,15 +55,15 @@ La **modalità Live** apre una conversazione vocale in tempo reale con la tua ch
 
 ### Creare e conservare
 
-LIA crea e ritocca immagini con il modello scelto dall'amministratore, senza passare a un'opzione più cara delle tue preferenze. Facoltativamente, arricchisce la tua descrizione, e un'immagine si ritrova chiedendogliela ([immagini](/it/faq#faq-image_generation)). Produce veri file (CSV, Excel, Word, PowerPoint, PDF), costruiti da un motore locale e consegnati con la loro data di scadenza, schemi Excalidraw, e legge le foto e i PDF che alleghi. Le applicazioni MCP mostrano i loro moduli direttamente nella chat, e un gioco, un quiz o una calcolatrice che chiedi girano lì anche loro, in un riquadro sigillato.
+LIA crea e ritocca immagini con il modello scelto dall'amministratore, senza passare a un'opzione più cara delle tue preferenze. Facoltativamente, arricchisce la tua descrizione, e un'immagine si ritrova chiedendogliela ([immagini](/it/faq#faq-image_generation)). Produce veri file (CSV, Excel, Word, PowerPoint, PDF) — formule vive, grafici modificabili e, se le autorizzi, illustrazioni —, costruiti da un motore locale e consegnati con la loro data di scadenza, schemi Excalidraw, e legge le foto e i documenti che alleghi. Le applicazioni MCP mostrano i loro moduli direttamente nella chat, e un gioco, un quiz o una calcolatrice che chiedi girano lì anche loro, in un riquadro sigillato.
 
 Ciò che produce, lo conservi, lo invii per email con un clic, condividi un'immagine con una persona collegata alla tua istanza, o lo lasci scadere. Una risposta conservata lascia la conversazione con la tua richiesta e la sua data, ed entra in uno spazio di conoscenza dove LIA la ritroverà settimane dopo.
 
 ### Prendere l'iniziativa
 
-Se glielo permetti, LIA non si limita ad aspettare. Ti scrive quando la tua agenda, il meteo, le tue attività, le tue email o i tuoi interessi lo giustificano, e può avviare di sua iniziativa una conversazione personale. Alla fine di una riunione, ti chiede com'è andata. Quando la tua casella o la tua agenda si muovono, può reagire in pochi minuti, e «Sorveglia» tiene d'occhio una mail attesa fino al suo arrivo. Se sabato è prevista pioggia, guarda le tue attività all'aperto. Ricorda ciò a cui tieni davvero, un argomento che rifiuti non torna, e ciò che chiedi in molti giorni diventa una proposta che accetti con un clic, come una routine pronta prima che tu chieda.
+Se glielo permetti, LIA non si limita ad aspettare. Ti scrive quando la tua agenda, il meteo, le tue attività, le tue email o i tuoi interessi lo giustificano, e può avviare di sua iniziativa una conversazione personale. Alla fine di una riunione, ti chiede com'è andata. Quando la tua casella o la tua agenda si muovono, può reagire in pochi minuti, e «Sorveglia» tiene d'occhio una mail attesa fino al suo arrivo. Se sabato è prevista pioggia, guarda le tue attività all'aperto. Ricorda ciò a cui tieni davvero, un argomento che rifiuti non torna, e ciò che chiedi in molti giorni diventa una proposta che accetti con un clic.
 
-Le affidi un ticket: lo prende in carico al suo ritmo e ti restituisce un risultato da accettare. Per un compito complesso, delega a sub-agenti che lavorano in parallelo. Routine e promemoria seguono ritmi ricchi (un martedì su due, il secondo martedì del mese, fino a una data), e una vista della settimana mostra ciò che è realmente successo ([l'iniziativa](/it/how#proactivity)).
+Le affidi un ticket: lo prende in carico al suo ritmo e ti restituisce un risultato da accettare. Per un compito complesso, delega a sub-agenti che lavorano in parallelo. Routine e promemoria seguono ritmi ricchi (un martedì su due, fino a una data); una routine può anche sorvegliare una pagina web o attendere la chiamata di un altro sistema, e una vista della settimana mostra ciò che è realmente successo ([l'iniziativa](/it/how#proactivity)).
 
 ### Gli altri
 

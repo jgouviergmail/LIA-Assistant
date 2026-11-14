@@ -788,15 +788,51 @@ async def test_owner_call_attaches_the_live_tools_to_the_agent_before_dialing(
     assert "tool_ids" not in override["agent"]["prompt"]
     assert "Calendar" in override["agent"]["prompt"]["prompt"]
     assert captured["connector"].connector_metadata["live_tools_attached"] is True
+    # ONE read of the agent serves its tools and its palette.
+    assert captured["agent_reads"] == ["ag_1"]
+
+
+def _carrying(*tool_ids: str) -> dict[str, Any]:
+    """An agent as the vendor serves it, carrying ``tool_ids`` (words-only engine)."""
+    return {
+        "conversation_config": {
+            "agent": {"prompt": {"tool_ids": list(tool_ids)}},
+            "tts": {"model_id": "eleven_flash_v2_5"},
+        }
+    }
 
 
 @pytest.mark.unit
-async def test_a_third_party_call_detaches_the_live_tools_first(
+@pytest.mark.parametrize("marked", [True, False], ids=["marked attached", "marked detached"])
+async def test_a_third_party_call_detaches_whatever_the_agent_carries(
+    monkeypatch: pytest.MonkeyPatch, marked: bool
+) -> None:
+    """The stranger is never phoned by an agent holding the owner's tools: the
+    AGENT is read before the dial — a note LIA kept can be wrong (the same agent
+    chosen for a Live session, a tool attached by hand on the portal)."""
+    connector = SimpleNamespace(
+        connector_metadata={
+            "agent_id": "ag_1",
+            "agent_phone_number_id": "pn_1",
+            "live_tools_attached": marked,
+        }
+    )
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(
+        monkeypatch, connector=connector, agent=_carrying("tool_a", "client_tool_of_live")
+    )
+    result = await _call(TelephonyService(db, client_factory=factory))
+
+    assert result.status == "placed"
+    assert captured["tool_ids_patches"] == [("ag_1", [])]
+    assert connector.connector_metadata["live_tools_attached"] is False
+
+
+@pytest.mark.unit
+async def test_a_third_party_call_trusts_the_agent_over_a_stale_note(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The stranger's agent never dials with the owner's tools attached: a
-    connector still marked attached (a webhook that never came) is detached
-    BEFORE a third-party or verification call leaves."""
+    """An agent carrying nothing is not written to; the note follows the agent."""
     connector = SimpleNamespace(
         connector_metadata={
             "agent_id": "ag_1",
@@ -805,12 +841,74 @@ async def test_a_third_party_call_detaches_the_live_tools_first(
         }
     )
     db = _FakeDB(_user())
-    captured, factory = _install_fakes(monkeypatch, connector=connector)
+    captured, factory = _install_fakes(monkeypatch, connector=connector, agent=_carrying())
+    result = await _call(TelephonyService(db, client_factory=factory))
+
+    assert result.status == "placed"
+    assert "tool_ids_patches" not in captured
+    assert connector.connector_metadata["live_tools_attached"] is False
+
+
+@pytest.mark.unit
+async def test_a_stranger_is_not_dialled_by_an_agent_that_keeps_its_tools(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch, agent=_carrying("tool_a"), tool_ids_error=True)
+    result = await _call(TelephonyService(db, client_factory=factory))
+
+    assert result.status == "agent_sync_failed"
+    assert "call_kwargs" not in captured  # never dialled
+    assert "create_data" not in captured  # no row left behind
+
+
+@pytest.mark.unit
+async def test_an_agent_that_cannot_be_read_is_cleared_before_a_stranger_is_dialled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """What an unreadable agent carries is unknown: it is cleared, never assumed clean."""
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch, agent_read_error=True)
     result = await _call(TelephonyService(db, client_factory=factory))
 
     assert result.status == "placed"
     assert captured["tool_ids_patches"] == [("ag_1", [])]
-    assert connector.connector_metadata["live_tools_attached"] is False
+
+
+@pytest.mark.unit
+async def test_an_owner_call_whose_tools_the_agent_refuses_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Owner decision 2026-11-11: never an agent with tools out of date or incomplete.
+    The vendor refusing the call's tools refuses the call — it no longer leaves
+    with a voice that can look nothing up."""
+    from src.domains.telephony.live_tools import LiveToolBinding
+
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch, tool_ids_error=True)
+    result = await _owner_call(
+        TelephonyService(db, client_factory=factory),
+        live_tools=(LiveToolBinding("get_events_tool", "tool_a", "event"),),
+    )
+    assert result.status == "agent_sync_failed"
+    assert "call_kwargs" not in captured and "create_data" not in captured
+
+
+@pytest.mark.unit
+async def test_an_agent_already_carrying_the_calls_tools_is_not_written_again(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.domains.telephony.live_tools import LiveToolBinding
+
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch, agent=_carrying("tool_a"))
+    result = await _owner_call(
+        TelephonyService(db, client_factory=factory),
+        live_tools=(LiveToolBinding("get_events_tool", "tool_a", "event"),),
+    )
+    assert result.status == "placed"
+    assert "tool_ids_patches" not in captured
+    assert captured["connector"].connector_metadata["live_tools_attached"] is True
 
 
 @pytest.mark.unit
@@ -877,15 +975,18 @@ async def test_a_live_owner_call_without_a_delegation_tool_runs_direct_and_says_
 
 
 @pytest.mark.unit
-async def test_a_live_call_whose_tool_attach_is_refused_runs_direct(
+async def test_a_live_call_whose_tool_attach_is_refused_is_refused(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """It used to run DIRECT — with neither the delegation nor a single lookup, a
+    voice that could answer nothing. An agent that refuses the call's tools now
+    refuses the call (owner decision 2026-11-11)."""
     db = _FakeDB(_user())
     captured, factory = _install_fakes(monkeypatch, tool_ids_error=True)
     service = TelephonyService(db, client_factory=factory)
     result = await _owner_call(service, call_mode="delegated", delegation_tool_id="tool_d")
-    assert result.status == "placed"
-    assert captured["create_data"]["call_mode"] == "direct"
+    assert result.status == "agent_sync_failed"
+    assert "call_kwargs" not in captured and "create_data" not in captured
 
 
 @pytest.mark.unit

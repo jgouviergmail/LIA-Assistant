@@ -57,13 +57,19 @@ ANSWER_DERIVED_KEYS: frozenset[str] = frozenset(
         "OBSERVABILITY_HOST",
         "DIAGNOSTICS_WEBHOOK_SECRET",
         "ALERTMANAGER_LIA_WEBHOOK_URL",
+        "SEARXNG_URL",
+        "SEARXNG_SECRET",
     }
 )
 
 #: Answer-derived values the console never prints: a confirmation names them.
 SECRET_ANSWER_DERIVED_KEYS: frozenset[str] = frozenset(
-    {"DIAGNOSTICS_WEBHOOK_SECRET", "GRAFANA_ADMIN_PASSWORD"}
+    {"DIAGNOSTICS_WEBHOOK_SECRET", "GRAFANA_ADMIN_PASSWORD", "SEARXNG_SECRET"}
 )
+
+#: Where the API reaches the instance's web search (ADR-382): the `searxng`
+#: service of the base Compose file, on the internal network only.
+SEARXNG_INTERNAL_URL = "http://searxng:8080"
 
 #: The host's Docker socket, whose group the sandbox overlay hands the API
 #: (``group_add: ${DOCKER_GID:-...}``).
@@ -108,6 +114,19 @@ def _parse_env_text(text: str) -> dict[str, str]:
 def _grafana_credential_is_configured(value: str) -> bool:
     """Empty Compose literals are unconfigured; keep other raw values intact."""
     return value not in ("", '""', "''")
+
+
+def _searxng_secret(public: PublicAnswers, in_force: Mapping[str, str]) -> str:
+    """The web search's secret: the one in force, else a new one when it runs.
+
+    SearXNG refuses to start on its default secret, so an empty or placeholder
+    line (the templates') is no secret. One in force is never rotated, and is
+    kept while the search is off, for a later re-enable.
+    """
+    current = in_force.get("SEARXNG_SECRET", "")
+    if _grafana_credential_is_configured(current) and not current.startswith("CHANGE_ME"):
+        return current
+    return secrets.token_hex(32) if public.web_search else ""
 
 
 def load_existing_generated_secrets(
@@ -258,6 +277,10 @@ def derive_environment(
             if public.self_diagnostics and public.observability
             else ""
         ),
+        # The instance's web search (ADR-382): the `searxng` profile runs it, the
+        # API asks it for whoever has no search key; empty, the API asks nothing.
+        "SEARXNG_URL": SEARXNG_INTERNAL_URL if public.web_search else "",
+        "SEARXNG_SECRET": _searxng_secret(public, in_force),
     }
 
 

@@ -846,14 +846,13 @@ def raise_scheduled_action_already_executing(action_id: UUID) -> NoReturn:
 
 def raise_run_in_progress(active_run: dict[str, Any] | None) -> NoReturn:
     """
-    Raise 409 for the per-conversation active-run lock (ADR-117).
+    Raise 409 for the account's durable graph admission.
 
-    One concurrent chat run per conversation: a second run attempt returns
+    One concurrent graph invocation per account: a second attempt returns
     the structured payload the frontend uses to offer live-resume.
 
     Args:
-        active_run: Metadata of the run holding the lock (or None if it
-            vanished between the failed acquire and the lookup)
+        active_run: Public metadata of the occupying invocation.
 
     Raises:
         ResourceConflictError: 409 Conflict with a structured detail dict

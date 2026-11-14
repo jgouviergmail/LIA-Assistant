@@ -6,10 +6,12 @@ Migrated to UnifiedToolOutput (2025-12-29)
 """
 
 from unittest.mock import Mock
+from uuid import uuid4
 
 import pytest
 
 from src.core.i18n_api_messages import APIMessages
+from src.core.tool_context_scope import ChildToolContextScope
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
@@ -29,11 +31,15 @@ class TestValidateRuntimeConfig:
 
     def test_valid_runtime_config(self):
         """Test successful validation with all required fields."""
-        # Given: the runtime the graph injects — identity in the TYPED context
-        # (ADR-231), thread_id still in `configurable` because it is LangGraph
-        # plumbing rather than run context.
+        # Given: the runtime the graph injects — identity AND thread in the TYPED
+        # context (ADR-231). The bag is made to DISAGREE on purpose: with the same
+        # thread on both planes this would pass against a reader of either.
         store = Mock()
-        runtime = make_tool_runtime(configurable={"thread_id": "sess456"}, store=store)
+        runtime = make_tool_runtime(
+            thread_id="sess456",
+            configurable={"thread_id": "stale-thread-from-the-bag"},
+            store=store,
+        )
 
         # When: Validate config
         result = validate_runtime_config(runtime, "test_tool")
@@ -41,8 +47,31 @@ class TestValidateRuntimeConfig:
         # Then: Returns ValidatedRuntimeConfig
         assert isinstance(result, ValidatedRuntimeConfig)
         assert result.user_id == str(DEFAULT_TEST_USER_ID)
-        assert result.session_id == "sess456"  # Normalized internally to session_id
+        assert result.session_id == "sess456"  # The context's thread, as the tool-context scope
         assert result.store is store
+
+    def test_a_root_run_is_scoped_by_its_thread_and_a_child_under_its_parent(self):
+        """The scope a tool's context is filed under says whose run it is.
+
+        A root run's thread IS its runtime: the scope is the thread itself. A
+        synthetic child thread (a sub-agent's) is filed under the runtime that
+        spawned it, so the parent's cleanup finds it — never guessed from the
+        thread's shape.
+        """
+        # Given: a root run, then a child thread of the same runtime
+        parent = uuid4()
+        root = make_tool_runtime(thread_id=str(parent), runtime_id=parent, store=Mock())
+        child = make_tool_runtime(thread_id="child-thread", runtime_id=parent, store=Mock())
+
+        # When: Validate both
+        root_config = validate_runtime_config(root, "test_tool")
+        child_config = validate_runtime_config(child, "test_tool")
+
+        # Then
+        assert isinstance(root_config, ValidatedRuntimeConfig)
+        assert root_config.session_id == str(parent)
+        assert isinstance(child_config, ValidatedRuntimeConfig)
+        assert child_config.session_id == ChildToolContextScope(parent, "child-thread")
 
     def test_missing_run_context(self):
         """A tool invoked outside a run has no identity at all.
@@ -65,9 +94,12 @@ class TestValidateRuntimeConfig:
 
     def test_missing_session_id(self):
         """Test validation fails when thread_id (session_id) is missing."""
-        # Given: Runtime without thread_id. The context is present — this is
-        # about the LangGraph plumbing key, not about identity.
-        runtime = make_tool_runtime(configurable={"thread_id": None}, store=Mock())
+        # Given: a context that names no thread. The identity is present — this
+        # is about the run's thread, which the context carries; a thread left in
+        # the bag does not stand in for it.
+        runtime = make_tool_runtime(
+            thread_id="", configurable={"thread_id": "sess456"}, store=Mock()
+        )
 
         # When: Validate config
         result = validate_runtime_config(runtime, "test_tool")
@@ -76,7 +108,11 @@ class TestValidateRuntimeConfig:
         assert isinstance(result, UnifiedToolOutput)
         assert result.success is False
         assert result.error_code == "configuration_error"
-        assert "thread_id" in result.message  # Updated to match new error message
+        assert "thread_id" in result.message
+        # The message names where the thread is read. The bag HOLDS one here, so
+        # advice to put it there would send the reader nowhere.
+        assert "LiaRuntimeContext.thread_id" in result.message
+        assert "configurable={" not in result.message
 
     def test_missing_store(self):
         """Test validation fails when store is None."""
@@ -92,20 +128,23 @@ class TestValidateRuntimeConfig:
         assert result.error_code == "configuration_error"
         assert "Store" in result.message
 
-    def test_missing_configurable_dict(self):
-        """Test validation fails when config.configurable is None."""
+    def test_missing_configurable_dict_is_not_read(self):
+        """Nothing is taken from config.configurable: the context alone decides."""
         # Given: Runtime with None configurable — the context is there, the
-        # plumbing is not, so the thread_id lookup is what must fail cleanly.
-        runtime = make_tool_runtime(store=Mock())
+        # plumbing is not. Identity and thread both come from the context, so
+        # there is no lookup left to fail.
+        store = Mock()
+        runtime = make_tool_runtime(thread_id="sess456", store=store)
         runtime.config["configurable"] = None
 
         # When: Validate config
         result = validate_runtime_config(runtime, "test_tool")
 
-        # Then: Returns error UnifiedToolOutput
-        assert isinstance(result, UnifiedToolOutput)
-        assert result.success is False
-        assert result.error_code == "configuration_error"
+        # Then: Returns ValidatedRuntimeConfig, read from the context
+        assert isinstance(result, ValidatedRuntimeConfig)
+        assert result.user_id == str(DEFAULT_TEST_USER_ID)
+        assert result.session_id == "sess456"
+        assert result.store is store
 
 
 class TestHandleToolException:
@@ -174,9 +213,9 @@ class TestHelperIntegration:
 
     def test_typical_tool_workflow(self):
         """Test typical workflow: validate config → use it → handle errors."""
-        # Given: Valid runtime
+        # Given: Valid runtime, its thread carried by the typed context
         store = Mock()
-        runtime = make_tool_runtime(configurable={"thread_id": "sess456"}, store=store)
+        runtime = make_tool_runtime(thread_id="sess456", store=store)
 
         # Step 1: Validate runtime config
         config = validate_runtime_config(runtime, "my_tool")

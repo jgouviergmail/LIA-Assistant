@@ -1,8 +1,10 @@
 /** Character direction changes performances, never the native clock or emotion. */
 import type { RigEyeStyleId } from '../eye-styles';
 import type { EyeExpression } from '../expression-engine';
+import type { WeatherFeeling } from '../environment';
 import type { ChannelValues } from './channels';
 import { SKETCHES, type SketchName } from './sketches';
+import { isChilled, type WeatherSceneName } from './weather-scenes';
 
 export type RigCharacterId =
   | RigEyeStyleId
@@ -122,18 +124,28 @@ export function canPlaySketch(name: SketchName, allowSleep: boolean): boolean {
   return allowSleep || !SLEEP_SKETCHES.has(name);
 }
 
-/** The favorite is more frequent; allowed scenes remain reachable and memory wins. */
+/**
+ * The favorite is more frequent; allowed scenes remain reachable and memory wins.
+ * In the cold a sneeze is as likely as a favorite: the weather is observed, the
+ * scene is the catalogue's own, and it still never plays twice in a row. A scene
+ * the weather offers (`restingWeatherScenes`: a shiver in the cold, the sun on a
+ * clear mild day) joins the draw as likely as a favorite, and only then.
+ */
 export function pickActingSketch(
   profile: ActingProfile,
   random: () => number,
   recent: readonly SketchName[] = [],
-  allowSleep = true
+  allowSleep = true,
+  weather: readonly WeatherFeeling[] = [],
+  offered: readonly WeatherSceneName[] = []
 ): SketchName {
-  const catalogue = SKETCHES.filter(name => canPlaySketch(name, allowSleep));
+  const chilled = isChilled(weather);
+  const catalogue = [...SKETCHES.filter(name => canPlaySketch(name, allowSleep)), ...offered];
   const available = catalogue.filter(name => !recent.includes(name));
   const pool = available.length ? available : catalogue;
   const weight = (name: SketchName) => {
-    if (name === profile.signature) return 8;
+    if (name === profile.signature || (chilled && name === 'sneeze')) return 8;
+    if (offered.some(scene => scene === name)) return 8;
     return profile.repertoire.includes(name) ? 3 : 1;
   };
   const draw = random();

@@ -219,7 +219,7 @@ for (const theme of ['light', 'dark'] as const) {
       for (const [key, name] of [
         ['executionMode.toggle.enable_pipeline', 'Zap'],
         ['meetings.header.record', 'Disc'],
-        ['radio.header.start', 'Radio'],
+        ['radio.header.start', 'RadioSet'],
         ['voice.toggle.enable', 'VolumeX'],
         ['tokens_display.toggle.disable', 'CircleDollarSign'],
         [

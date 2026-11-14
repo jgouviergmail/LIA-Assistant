@@ -104,7 +104,8 @@ export default function AdminPublicDemoLinkSection({ lng }: BaseSettingsProps) {
         <Switch
           id={SWITCH_ID}
           checked={data?.enabled ?? false}
-          disabled={saving || !deployed}
+          busy={saving}
+          disabled={!deployed}
           onCheckedChange={checked => void handleToggle(checked)}
           aria-label={t('settings.admin.publicDemoLink.switchLabel')}
         />

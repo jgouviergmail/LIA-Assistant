@@ -120,6 +120,7 @@ function ReceivedSmsSection({
           <div className="mb-4">
             <SmsSearchForm
               searchable={false}
+              surface="nested"
               timezone={timezone}
               filtered={Boolean(period.from_ts || period.to_ts)}
               onChange={({ from_ts, to_ts }) => setPeriod({ from_ts, to_ts })}

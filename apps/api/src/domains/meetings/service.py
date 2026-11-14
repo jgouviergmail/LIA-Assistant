@@ -69,6 +69,7 @@ from src.domains.meetings.template_service import (
 )
 from src.domains.meetings.templates import parse_sections
 from src.domains.usage_limits.service import UsageLimitService
+from src.domains.users.file_writers import account_file_write
 from src.infrastructure.meeting_deletions import MeetingDeletionConfirmation
 from src.infrastructure.meeting_email import MeetingEmailConfirmation
 from src.infrastructure.meeting_regeneration import MeetingRegenerationConfirmation
@@ -349,47 +350,52 @@ class MeetingService:
         self, user_id: uuid.UUID, meeting_id: uuid.UUID, *, sequence: int, body: bytes
     ) -> MeetingSegmentAck:
         """Store one segment; every bound is checked before a byte touches the disk."""
-        meeting = await self._owned(meeting_id, user_id, lock=True)
-        if meeting.status not in LIVE_STATUSES:
-            raise_meeting_conflict("meeting_not_recording", status=meeting.status.value)
-        if not body:
-            raise_meeting_conflict("segment_empty", sequence=sequence)
-        max_bytes = settings.meetings_segment_max_bytes
-        if len(body) > max_bytes:
-            raise_meeting_too_large("segment_too_large", max_bytes=max_bytes)
-        if meeting.audio_format is MeetingAudioFormat.PCM_S16LE_16 and len(body) % 2:
-            raise_meeting_conflict("segment_malformed", sequence=sequence)
+        async with account_file_write(self.db, user_id):
+            meeting = await self._owned(meeting_id, user_id, lock=True)
+            if meeting.status not in LIVE_STATUSES:
+                raise_meeting_conflict("meeting_not_recording", status=meeting.status.value)
+            if not body:
+                raise_meeting_conflict("segment_empty", sequence=sequence)
+            max_bytes = settings.meetings_segment_max_bytes
+            if len(body) > max_bytes:
+                raise_meeting_too_large("segment_too_large", max_bytes=max_bytes)
+            if meeting.audio_format is MeetingAudioFormat.PCM_S16LE_16 and len(body) % 2:
+                raise_meeting_conflict("segment_malformed", sequence=sequence)
 
-        # Duration cap: the sequence number bounds what the client may still send.
-        if sequence >= _max_segments():
-            raise_meeting_too_large(
-                "duration_cap_reached",
-                max_duration_minutes=settings.meetings_max_duration_minutes,
+            # Duration cap: the sequence number bounds what the client may still send.
+            if sequence >= _max_segments():
+                raise_meeting_too_large(
+                    "duration_cap_reached",
+                    max_duration_minutes=settings.meetings_max_duration_minutes,
+                )
+
+            try:
+                added, replaced = await self.store.write_segment(
+                    user_id, meeting_id, sequence, body
+                )
+            except AudioStorageError as exc:
+                logger.error(
+                    "meeting_segment_write_failed",
+                    meeting_id=str(meeting_id),
+                    error=str(exc),
+                )
+                raise_meeting_storage_unavailable()
+
+            recorded = await self.repo.record_segment(
+                meeting_id, sequence=sequence, added_bytes=added
             )
-
-        try:
-            added, replaced = await self.store.write_segment(user_id, meeting_id, sequence, body)
-        except AudioStorageError as exc:
-            logger.error(
-                "meeting_segment_write_failed",
-                meeting_id=str(meeting_id),
-                error=str(exc),
+            if recorded is None:
+                # Lost the race against a stop: the file is harmless, the client stops.
+                raise_meeting_conflict("meeting_not_recording", status=MeetingStatus.STOPPED.value)
+            if not replaced:
+                meeting_segments_received_total.labels(format=meeting.audio_format.value).inc()
+            new_status, segment_count, audio_bytes = recorded
+            return MeetingSegmentAck(
+                sequence=sequence,
+                segment_count=segment_count,
+                audio_bytes=audio_bytes,
+                status=new_status,
             )
-            raise_meeting_storage_unavailable()
-
-        recorded = await self.repo.record_segment(meeting_id, sequence=sequence, added_bytes=added)
-        if recorded is None:
-            # Lost the race against a stop: the file is harmless, the client stops.
-            raise_meeting_conflict("meeting_not_recording", status=MeetingStatus.STOPPED.value)
-        if not replaced:
-            meeting_segments_received_total.labels(format=meeting.audio_format.value).inc()
-        new_status, segment_count, audio_bytes = recorded
-        return MeetingSegmentAck(
-            sequence=sequence,
-            segment_count=segment_count,
-            audio_bytes=audio_bytes,
-            status=new_status,
-        )
 
     # -------------------------------------------------------------------- stop
 

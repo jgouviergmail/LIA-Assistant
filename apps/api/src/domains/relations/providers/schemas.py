@@ -26,6 +26,7 @@ from src.core.content_classification import (
     LiveEmailClassification,
     LiveEventClassification,
 )
+from src.core.mail_reply_state import ReplyState
 
 
 class ContextStatus(str, Enum):
@@ -142,6 +143,14 @@ class ExchangedEmail(BaseModel):
     direction: str = Field(description="received | sent, relative to the CRM owner.")
     subject: str = Field(description="Subject line, or a stated placeholder.")
     classification: LiveEmailClassification = None
+    reply_state: ReplyState | None = Field(
+        default=None,
+        description=(
+            "Where the message stands in its conversation, when the mailbox could tell "
+            "(ADR-379): answered, or a reply received to a message sent. Its instants are "
+            "UTC, like ``occurred_at``."
+        ),
+    )
     occurred_at: datetime | None = Field(
         default=None, description="UTC instant, when the provider gave a usable one."
     )

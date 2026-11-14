@@ -87,7 +87,16 @@ interface EyesSignalsState {
   // Pure TTL selectors (clock injected)
   isNotificationLive: (now: number) => boolean;
   isTypingLive: (now: number) => boolean;
+  /** The face follows text as it is written: a turn is open (the answer is on
+   * its way or on screen), or the person is typing. The ONE predicate the
+   * rig's own life reads (`ActingContext.attending`): told nothing, it played
+   * a scene in the middle of an answer. */
+  isAttending: (now: number) => boolean;
   liveReaction: (now: number) => EyeExpression | null;
+  /** The delivered answer HOLDS the face (`REACTION_HOLD_MS`): its own life
+   * and the rig's spontaneous one stand aside. Its release then fades the
+   * tone (`liveReactionWeight`) while that life has already resumed. */
+  isReactionHeld: (now: number) => boolean;
   /** How forcefully the last answer was written, while its reaction is held;
    * 1 the rest of the time. */
   liveEmphasis: (now: number) => number;
@@ -198,10 +207,17 @@ export const useEyesSignalsStore = create<EyesSignalsState>((set, get) => ({
     return at !== null && now - at < TYPING_ACTIVE_MS;
   },
 
+  isAttending: now => get().turnOpen || get().isTypingLive(now),
+
   liveReaction: now => {
     const reaction = get().reaction;
     if (!reaction || now - reaction.at >= REACTION_HOLD_MS + REACTION_RELEASE_MS) return null;
     return reaction.expression;
+  },
+
+  isReactionHeld: now => {
+    const reaction = get().reaction;
+    return reaction !== null && now - reaction.at < REACTION_HOLD_MS;
   },
 
   setAudioPlaying: audioPlaying => set({ audioPlaying }),

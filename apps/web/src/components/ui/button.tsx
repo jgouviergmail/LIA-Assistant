@@ -7,6 +7,17 @@ import { buttonVariants } from './button-variants';
 
 import { cn } from '@/lib/utils';
 import { Loader2 } from '@/lib/icons';
+import { MonochromeIcons } from '@/lib/icon-style-context';
+
+type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>['variant']>;
+
+/** The variants painting a solid colour behind their label: their glyphs follow the label. */
+const SOLID_VARIANTS: ReadonlySet<ButtonVariant> = new Set([
+  'default',
+  'success',
+  'warning',
+  'destructive',
+]);
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
@@ -35,7 +46,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const Comp = asChild ? Slot : 'button';
-    return (
+    const button = (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
@@ -69,6 +80,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           </>
         )}
       </Comp>
+    );
+    return (
+      <MonochromeIcons enabled={SOLID_VARIANTS.has(variant ?? 'default')}>{button}</MonochromeIcons>
     );
   }
 );

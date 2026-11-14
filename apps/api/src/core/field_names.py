@@ -25,6 +25,16 @@ FIELD_USER_ID = "user_id"
 FIELD_SESSION_ID = "session_id"
 FIELD_THREAD_ID = "thread_id"
 FIELD_CONVERSATION_ID = "conversation_id"
+FIELD_CONVERSATION_REVISION = "conversation_revision"
+FIELD_CONVERSATION_KIND = "conversation_kind"
+FIELD_STREAM_ID = "stream_id"
+FIELD_RUNTIME_ID = "runtime_id"
+FIELD_RUNTIME_SCOPE = "runtime_scope"
+FIELD_EXECUTION_SCOPE = "execution_scope"
+FIELD_ACTIVITY_ID = "activity_id"
+FIELD_WORKER_ID = "worker_id"
+FIELD_OWNER_TOKEN = "owner_token"
+FIELD_FENCE = "fence"
 
 # Agents & LangGraph
 FIELD_RUN_ID = "run_id"
@@ -57,6 +67,10 @@ FIELD_LIVE_SESSION_ID = "live_session_id"
 # its figures REPLACED by the stamp (review 2026-09-20).
 FIELD_LIVE_SUMMARY = "live_summary"
 FIELD_SPOKEN_TEXT = "spoken_text"
+# Archive metadata: the person's note, read by the loop while the answer was being
+# written (ADR-385). A turn's fourth kind of row: a predicate over a turn's person
+# rows names it, or a note would be taken for the turn's request.
+FIELD_TURN_NOTE = "turn_note"
 # Archive metadata: the row belongs to an out-of-turn run and must not be read
 # back into the chat (ADR-276). Declared here because TWO sides depend on the
 # same spelling — the stamp that writes it (`agents/api/run_origin.py`) and the
@@ -168,6 +182,7 @@ FIELD_TIMESTAMP = "timestamp"
 FIELD_TOTAL = "total"
 FIELD_TOTAL_COUNT = "total_count"
 FIELD_MESSAGE_COUNT = "message_count"
+FIELD_USER_MESSAGE_COUNT = "user_message_count"
 # How many messages of a listing PAGE a check the provider's search could not
 # carry set aside (RC3.1): the page holds fewer than asked while more may
 # follow. Written by the client, read by the tools that publish the page.
@@ -283,6 +298,26 @@ FIELD_STEPS = "steps"
 FIELD_DISCUSSION_PAUSE_HOURS = "discussion_pause_hours"
 
 # ============================================================
+# TASKS READ ACROSS LISTS (2026-11-10)
+# ============================================================
+# What a task carries once it stands among the tasks of other lists: its own
+# list's real id (where an act on it runs, where the Tools open it) and that
+# list's name (what a card shows). Written by the one walk
+# (`connectors/clients/task_lists`), read by the assistant's tools and cards.
+FIELD_TASK_LIST_ID = "tasklist_id"
+FIELD_TASK_LIST_NAME = "taskListName"
+
+# A message's place in its conversation (ADR-379): what a mailbox itself says of a
+# message, beside the e-mail vocabulary's own fields (ADR-287). The mark a provider
+# keeps on a message it answered (Graph's last verb, IMAP's \Answered; Gmail keeps
+# none), the instant it dates that mark with (epoch milliseconds, as
+# `internalDate`), and the Message-ID a message says it answers. Written by the
+# normalisers, read by the one decider (`connectors/clients/conversation_replies`).
+FIELD_MAIL_ANSWERED = "answered"
+FIELD_MAIL_ANSWERED_AT = "answered_at"
+FIELD_MAIL_IN_REPLY_TO = "in_reply_to"
+
+# ============================================================
 # FIELD GROUPS (for validation, serialization)
 # ============================================================
 
@@ -375,6 +410,12 @@ __all__ = [
     "FIELD_SESSION_ID",
     "FIELD_THREAD_ID",
     "FIELD_CONVERSATION_ID",
+    "FIELD_CONVERSATION_REVISION",
+    "FIELD_CONVERSATION_KIND",
+    "FIELD_STREAM_ID",
+    "FIELD_TURN_NOTE",
+    "FIELD_RUNTIME_ID",
+    "FIELD_RUNTIME_SCOPE",
     "FIELD_RUN_ID",
     "FIELD_HIDDEN",
     "FIELD_TURN_ID",
@@ -410,6 +451,7 @@ __all__ = [
     "FIELD_TOTAL",
     "FIELD_TOTAL_COUNT",
     "FIELD_MESSAGE_COUNT",
+    "FIELD_USER_MESSAGE_COUNT",
     "FIELD_SET_ASIDE_ON_PAGE",
     "FIELD_SKIPPED_HITS",
     "FIELD_TOTAL_TOKENS_IN",
@@ -467,6 +509,13 @@ __all__ = [
     "FIELD_STEPS",
     # Proactive discussions
     "FIELD_DISCUSSION_PAUSE_HOURS",
+    # Tasks read across lists
+    "FIELD_TASK_LIST_ID",
+    "FIELD_TASK_LIST_NAME",
+    # A message's place in its conversation
+    "FIELD_MAIL_ANSWERED",
+    "FIELD_MAIL_ANSWERED_AT",
+    "FIELD_MAIL_IN_REPLY_TO",
     # Helpers
     "is_identity_field",
     "is_token_field",

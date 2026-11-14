@@ -326,6 +326,8 @@ export interface ContactCard {
 
 export interface ExchangedEmail {
   classification?: import('@/lib/content-classification').ContentClassification | null;
+  /** Where the message stands in its conversation, when the mailbox could tell (ADR-379). */
+  reply_state?: import('@/lib/mail-reply-state').ReplyState | null;
   id: string;
   direction: PeerMessageDirection;
   subject: string;

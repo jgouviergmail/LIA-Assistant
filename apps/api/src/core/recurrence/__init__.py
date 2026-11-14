@@ -22,6 +22,7 @@ from src.core.recurrence.engine import (
 )
 from src.core.recurrence.schedule import (
     day_slots,
+    latest_occurrence,
     rearm_after,
     served_slot,
     week_slots,
@@ -56,6 +57,7 @@ __all__ = [
     "describe",
     "describe_until",
     "join_clauses",
+    "latest_occurrence",
     "next_occurrence",
     "occurrences",
     "recurrence_from_parameters",

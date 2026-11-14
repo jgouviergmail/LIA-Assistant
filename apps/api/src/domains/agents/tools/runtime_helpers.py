@@ -142,6 +142,7 @@ from src.core.exceptions import ExternalServiceError, MaxRetriesExceededError
 from src.core.field_names import FIELD_ERROR_MESSAGE, FIELD_ERROR_TYPE
 from src.core.i18n import get_locale_for_language, normalize_language, resolve_language
 from src.core.i18n_api_messages import APIMessages
+from src.core.tool_context_scope import ToolContextScope, tool_context_scope
 from src.domains.agents.context.runtime_context import (
     LiaRuntimeContext,
     tool_user_id_str,
@@ -314,7 +315,7 @@ class ValidatedRuntimeConfig(NamedTuple):
     """Validated runtime configuration extracted from ToolRuntime."""
 
     user_id: str
-    session_id: str
+    session_id: ToolContextScope
     store: BaseStore
 
 
@@ -328,7 +329,10 @@ def validate_runtime_config(
     This helper eliminates the ~15 lines of duplication in each tool for:
     - Taking user_id from the typed run context (ADR-231), projected to the
       string the tool layer and the Store namespaces expect
-    - Extracting session_id (LangGraph's thread_id) from runtime.config.configurable
+    - Taking session_id from the same context: the scope the tool's context is
+      filed under — the run's thread itself, unless that thread is the synthetic
+      child of a declared runtime (a sub-agent's), which is filed under its
+      parent (``tool_context_scope``)
     - Validating that runtime.store is available
 
     Args:
@@ -378,18 +382,22 @@ def validate_runtime_config(
         )
     user_id = str(context.user_id)
 
-    # Extract session_id (thread_id in LangGraph v1.0 terminology)
-    # LangGraph v1.0 uses "thread_id" in config.configurable for conversation threads
-    # We normalize it to "session_id" internally for consistency with Store operations
-    session_id = (runtime.config.get("configurable") or {}).get("thread_id")
+    # The thread comes from the typed context too, never from the bag: a
+    # ``thread_id`` left in ``config.configurable`` is not read. It is kept under
+    # the name ``session_id`` the Store namespaces use, as the scope the tool's
+    # context is filed under (the thread itself, or a child of its declared
+    # runtime for a sub-agent's synthetic thread).
+    session_id = tool_context_scope(context.thread_id, context.runtime_id)
     if not session_id:
         logger.error(
             f"{tool_name}_missing_thread_id",
             user_id=str(user_id),
         )
         return UnifiedToolOutput.failure(
-            message="thread_id (session_id) missing in config.configurable. "
-            "Ensure RunnableConfig has configurable={'thread_id': ...}",
+            message=(
+                "thread_id (session_id) missing in the run context: "
+                "LiaRuntimeContext.thread_id is empty, and config.configurable is not read."
+            ),
             error_code="configuration_error",
         )
 
@@ -685,7 +693,7 @@ async def get_user_preferences(
     profile changes.
 
     Args:
-        runtime: ToolRuntime containing user_id in config
+        runtime: ToolRuntime whose typed run context names the acting user (ADR-231)
 
     Returns:
         Tuple of (timezone: str, language: str, locale: str).
@@ -743,7 +751,7 @@ async def get_user_language_safe(
     that only need the language code from user preferences.
 
     Args:
-        runtime: LangGraph ToolRuntime configuration
+        runtime: ToolRuntime whose typed run context names the acting user (ADR-231)
 
     Returns:
         User language code (e.g., "fr", "en"), or the declared language when
@@ -879,17 +887,17 @@ def extract_value_by_path(obj: Any, path: str, default: Any = None) -> Any:
 
 def get_original_user_message(runtime: ToolRuntime[LiaRuntimeContext, Any]) -> str:
     """
-    Get original user message from runtime config.
+    Get the original user message from the typed run context.
 
-    The message travels on the typed run context (ADR-231) — it used to be the
-    private ``configurable["__user_message"]`` key (now ``LiaRuntimeContext.user_message``), an enforced but unpublished
-    contract.
+    The message travels on the typed run context (ADR-231), as
+    ``LiaRuntimeContext.user_message``. It used to be the private
+    ``configurable["__user_message"]`` key, an enforced but unpublished contract.
 
     This is useful for tools that need to detect location phrases
     like "at home" or "nearby" in the original query, in the person's language.
 
     Args:
-        runtime: ToolRuntime containing config with user message
+        runtime: ToolRuntime whose typed run context carries the user message
 
     Returns:
         Original user message string, or empty string if not available
@@ -983,7 +991,7 @@ async def resolve_contact_to_email(
     and extracts the primary email.
 
     Args:
-        runtime: ToolRuntime with config containing user_id and dependencies
+        runtime: ToolRuntime whose typed run context carries the acting user and the dependencies
         name: Contact name to resolve
 
     Returns:
@@ -1094,7 +1102,7 @@ async def resolve_recipients_to_emails(
         toggle was removed (resolution is unconditional).
 
     Args:
-        runtime: ToolRuntime with config containing user_id and dependencies
+        runtime: ToolRuntime whose typed run context carries the acting user and the dependencies
         recipients: Either a comma-separated string (email tools) or list of strings (calendar)
         field_name: Field name for logging (e.g., "to", "cc", "attendees")
 
@@ -1224,7 +1232,7 @@ def emit_side_channel_chunk(
     unavailable (e.g., running outside graph context, or in tests).
 
     Args:
-        runtime: Tool runtime for accessing configurable queue. None-safe.
+        runtime: Tool runtime whose typed run context carries the side-channel queue. None-safe.
         chunk: A ChatStreamChunk instance to emit. Must be fully constructed by caller.
     """
     try:

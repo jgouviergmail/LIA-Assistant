@@ -41,11 +41,14 @@ from langgraph.checkpoint.base import (
     CheckpointTuple,
 )
 from langgraph.checkpoint.postgres import _ainternal
-from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-from psycopg import AsyncCursor
+from psycopg import AsyncCursor, OperationalError
+from psycopg.errors import InsufficientPrivilege
 from psycopg.rows import DictRow, dict_row
 from psycopg_pool import AsyncConnectionPool
 
+from src.domains.conversations.runtime_checkpointer import RuntimeAsyncPostgresSaver
+from src.domains.conversations.runtime_persistence import RetiredConversationRuntime
+from src.infrastructure.database.errors import classify_database_error, database_error_fields
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
     checkpoint_errors_total,
@@ -58,7 +61,26 @@ from src.infrastructure.observability.metrics_agents import (
 logger = get_logger(__name__)
 
 
-class InstrumentedAsyncPostgresSaver(AsyncPostgresSaver):
+def _checkpoint_error_type(error: Exception, *, loading: bool) -> str:
+    """Classify facts and types; private exception wording is never a verdict."""
+    if isinstance(error, RetiredConversationRuntime):
+        return "retired_runtime"
+    database_kind = classify_database_error(error)
+    if isinstance(error, TimeoutError) or database_kind == "timeout":
+        return "timeout"
+    if isinstance(error, (PermissionError, InsufficientPrivilege)):
+        return "permission"
+    if (
+        isinstance(error, (ConnectionError, OperationalError))
+        or database_kind == "connection_error"
+    ):
+        return "db_connection"
+    if isinstance(error, pickle.PickleError):
+        return "deserialization" if loading else "serialization"
+    return "unknown"
+
+
+class InstrumentedAsyncPostgresSaver(RuntimeAsyncPostgresSaver):
     """
     Instrumented wrapper around LangGraph's AsyncPostgresSaver.
 
@@ -229,7 +251,7 @@ class InstrumentedAsyncPostgresSaver(AsyncPostgresSaver):
                 logger.warning(
                     "checkpoint_size_calculation_failed",
                     node_name=node_name,
-                    error=str(e),
+                    error_type=type(e).__name__,
                 )
 
             return result
@@ -241,17 +263,7 @@ class InstrumentedAsyncPostgresSaver(AsyncPostgresSaver):
             # Track failed operation and categorize error
             checkpoint_operations_total.labels(operation="save", status="error").inc()
 
-            # Categorize error type for better debugging
-            error_type = "unknown"
-            error_str = str(e)
-            if "connection" in error_str.lower() or "connect" in error_str.lower():
-                error_type = "db_connection"
-            elif "timeout" in error_str.lower():
-                error_type = "timeout"
-            elif "pickle" in error_str.lower() or "serial" in error_str.lower():
-                error_type = "serialization"
-            elif "permission" in error_str.lower() or "denied" in error_str.lower():
-                error_type = "permission"
+            error_type = _checkpoint_error_type(e, loading=False)
 
             checkpoint_errors_total.labels(error_type=error_type, operation="save").inc()
 
@@ -259,8 +271,8 @@ class InstrumentedAsyncPostgresSaver(AsyncPostgresSaver):
                 "checkpoint_save_failed",
                 node_name=node_name,
                 duration_ms=round(duration * 1000, 2),
-                error=str(e),
                 error_type=error_type,
+                **database_error_fields(e),
                 thread_id=config.get("configurable", {}).get("thread_id"),
                 exc_info=True,
             )
@@ -314,25 +326,15 @@ class InstrumentedAsyncPostgresSaver(AsyncPostgresSaver):
             # Track failed operation and categorize error
             checkpoint_operations_total.labels(operation="load", status="error").inc()
 
-            # Categorize error type for better debugging
-            error_type = "unknown"
-            error_str = str(e)
-            if "connection" in error_str.lower() or "connect" in error_str.lower():
-                error_type = "db_connection"
-            elif "timeout" in error_str.lower():
-                error_type = "timeout"
-            elif "pickle" in error_str.lower() or "deserial" in error_str.lower():
-                error_type = "deserialization"
-            elif "permission" in error_str.lower() or "denied" in error_str.lower():
-                error_type = "permission"
+            error_type = _checkpoint_error_type(e, loading=True)
 
             checkpoint_errors_total.labels(error_type=error_type, operation="load").inc()
 
             logger.error(
                 "checkpoint_load_failed",
                 duration_ms=round(duration * 1000, 2),
-                error=str(e),
                 error_type=error_type,
+                **database_error_fields(e),
                 thread_id=config.get("configurable", {}).get("thread_id"),
                 exc_info=True,
             )

@@ -37,6 +37,11 @@ PAGE_TOOL_DESCRIPTION: Final = (
     "**NOT for**: a request to SEE, GET or explain source code ('give me the HTML "
     "code for X'): answer that directly, in a code block. NOT for documents "
     "(generate_document) nor images.\n"
+    "**Limits**: the page runs with no network. It cannot embed another site, map or "
+    "video (no iframe), load a library, call an API or open a link: it shows only "
+    "what it holds. A map is drawn by the page itself, on map tiles when this "
+    "deployment allows a tile source: give every place to draw with its latitude "
+    "and longitude, the page cannot look one up.\n"
     "**Output**: the page is displayed below the response. Never repeat its code."
 )
 PAGE_INSTRUCTIONS_DESCRIPTION: Final = (
@@ -50,8 +55,8 @@ PAGE_MODE_DESCRIPTION: Final = (
 )
 PAGE_SOURCE_DATA_DESCRIPTION: Final = (
     "Facts the page must use, typically the result of earlier steps "
-    "(e.g. $steps.step_1.web_searches). With show or code: HTML code the person "
-    "pasted, shown as it is."
+    "(e.g. $steps.step_1.web_searches). For a map: each place with its latitude "
+    "and longitude. With show or code: HTML code the person pasted, shown as it is."
 )
 PAGE_FILENAME_DESCRIPTION: Final = "Filename requested by the user, without extension."
 

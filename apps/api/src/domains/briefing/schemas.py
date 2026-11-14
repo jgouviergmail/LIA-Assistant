@@ -23,6 +23,7 @@ from src.core.content_classification import EmailClassification, EventClassifica
 # surfaces come to report a cost differently). Every caller here, and
 # the OpenAPI schema name, are unchanged.
 from src.core.llm_usage import LLMUsage
+from src.core.mail_reply_state import ReplyState
 from src.domains.briefing.constants import SECTION_NAMES
 
 # BirthdayItem moved to the neutral connectors home (P7 — heartbeat consumes
@@ -284,6 +285,12 @@ class MailItem(BaseModel):
     )
     subject: str
     classification: EmailClassification | None = None
+    # Unread is not unanswered (ADR-379): a card shows what stays true (« answered »),
+    # a model reads the rest through the projection, which lets a reading of a moment lapse.
+    reply_state: ReplyState | None = Field(
+        default=None,
+        description="Where the mail stands in its conversation, when the mailbox could tell.",
+    )
     received_local: str = Field(..., description="Pre-formatted local received time")
     # The message's identity (ADR-322): `received_local` rewrites itself as the
     # days pass, so it cannot say whether a mail was already announced.
@@ -388,15 +395,23 @@ class TaskItem(BaseModel):
     list_id: str | None = Field(
         default=None, description="The task's list, by its real id; None when it was unreadable."
     )
+    # The card gathers every list (2026-11-10): each task says which one it is in.
+    list_name: str | None = Field(
+        default=None, description="The name of the task's list; None when it has none."
+    )
 
 
 class TasksData(BaseModel):
-    """Pending/overdue tasks from the active provider (strictly open items)."""
+    """Pending/overdue tasks of every list of the active provider (strictly open items)."""
 
     model_config = ConfigDict(frozen=True)
 
     items: list[TaskItem]
     overdue_count: int = Field(ge=0)
+    partial: bool = Field(
+        default=False,
+        description="A list could not be read, or was read in part: the card may hold more.",
+    )
 
 
 class DocumentItem(BaseModel):
@@ -436,6 +451,13 @@ class WorkboardTicketItem(BaseModel):
     status: str = Field(..., description="The ticket's column (a workboard TicketStatus value).")
     due_at: datetime | None = Field(default=None, description="Due instant (UTC), if any.")
     overdue: bool = Field(..., description="True when the due instant is past and still open.")
+    category: str | None = Field(
+        default=None,
+        description=(
+            "Name of the category the ticket is filed under, as its owner wrote it; "
+            "None for a ticket filed under nothing — and in a cache predating categories."
+        ),
+    )
 
 
 class WorkboardPreviews(BaseModel):

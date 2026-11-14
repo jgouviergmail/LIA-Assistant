@@ -106,6 +106,8 @@ class SystemSettingKey(str, enum.Enum):
     CAPABILITY_SKILL_LIBRARY_ENABLED = "capability_skill_library_enabled"
     # ADR-369 — the person's own door onto their connected services (« Tools »).
     CAPABILITY_WORKBENCH_ENABLED = "capability_workbench_enabled"
+    # ADR-386 — a routine started by another system's signed call.
+    CAPABILITY_ROUTINE_WEBHOOKS_ENABLED = "capability_routine_webhooks_enabled"
 
     # Whether the landing advertises the public demonstrator. Off by default:
     # a fresh instance never advertises a demonstrator it does not run. Read

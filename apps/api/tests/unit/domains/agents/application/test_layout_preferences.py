@@ -106,6 +106,28 @@ def test_every_new_settings_section_requires_a_reviewed_server_role_classificati
     }
 
 
+def test_a_pin_of_a_section_the_screen_no_longer_has_is_dropped_on_read_and_refused_on_write() -> (
+    None
+):
+    """The workboard had a settings section until 2026-11-11 (ADR-276, amendment).
+
+    An account that pinned it must keep a readable dock — the stored token is
+    tolerated and left out — and nothing may pin what the screen no longer has.
+    """
+    owner = import_module("src.infrastructure.account_preferences")
+    actor = User(
+        id=uuid4(),
+        is_active=True,
+        is_superuser=False,
+        settings_shortcuts=["workboard", "theme"],
+        deleted_at=None,
+    )
+
+    assert owner.layout_values(actor)["settings_shortcuts"] == ["theme"]
+    with pytest.raises(ValidationError):
+        owner.LayoutPreferencePatch(settings_shortcuts=["workboard"])
+
+
 def test_partial_grid_intent_materializes_every_default_before_confirmation() -> None:
     from src.domains.briefing.constants import SECTION_DISPLAY_ORDER_DEFAULT
 

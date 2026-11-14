@@ -21,6 +21,7 @@ from src.domains.psyche.efficacy_repository import EfficacyRepository
 from src.domains.psyche.engine import PADVector
 from src.domains.psyche.models import PsycheState
 from src.domains.psyche.reset_policy import apply_psyche_reset
+from tests.fixtures.conversation_cases import conversation_target
 
 pytestmark = pytest.mark.integration
 
@@ -121,7 +122,7 @@ async def test_actual_private_feedback_changes_bounded_policy_but_off_reset_and_
     from src.domains.agents.services import efficacy_runtime
 
     runtime = LiaRuntimeContext.for_conversation(
-        user_id=test_user.id, conversation_id=test_user.id, psyche_enabled=True
+        target=conversation_target(test_user.id, test_user.id), psyche_enabled=True
     )
     monkeypatch.setattr(efficacy_runtime, "runtime_context_if_running", lambda: runtime)
 
@@ -222,7 +223,7 @@ async def test_repeated_observed_partial_coverage_can_verify_or_state_limit_with
     from src.domains.agents.services import efficacy_runtime
 
     runtime = LiaRuntimeContext.for_conversation(
-        user_id=test_user.id, conversation_id=test_user.id, psyche_enabled=True
+        target=conversation_target(test_user.id, test_user.id), psyche_enabled=True
     )
     monkeypatch.setattr(efficacy_runtime, "runtime_context_if_running", lambda: runtime)
 

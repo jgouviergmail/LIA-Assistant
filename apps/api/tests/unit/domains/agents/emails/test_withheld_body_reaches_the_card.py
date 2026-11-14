@@ -308,6 +308,7 @@ class TestEveryProviderListingDrawsAWholeCard:
 
         client = AsyncMock()
         client.list_labels = AsyncMock(return_value={})
+        client.conversations_of = AsyncMock(return_value={})
         if provider == "google":
             client.SEARCH_HITS_ARE_WHOLE = GoogleGmailClient.SEARCH_HITS_ARE_WHOLE
             hits = [_gmail_whole_hit()]

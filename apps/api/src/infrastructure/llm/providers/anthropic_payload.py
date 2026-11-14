@@ -2,7 +2,7 @@
 
 The Claude API never caches unasked: a request is cached only up to a
 ``cache_control`` breakpoint, by exact prefix, and a written entry costs 1.25x
-the input price where a read costs a tenth of it (a fortieth on Fable 5.1).
+the input price where a read costs a tenth of it (a fortieth on Fable 5.1 and 5.2).
 Where the breakpoints sit therefore decides the bill. Three rules, each one
 measured on the Claude API on 2026-09-23 (Sonnet 5, the real ``response``
 prompt, ``max_tokens=0``):

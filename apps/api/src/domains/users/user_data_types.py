@@ -15,6 +15,8 @@ class TableDataClass(str, Enum):
     """The users row is retained with its personal columns scrubbed."""
     BILLING_RETAINED = "billing_retained"
     """Kept for dispute resolution after account deletion."""
+    OPERATIONAL_RETAINED = "operational_retained"
+    """Content-free unfinished cleanup debt; only explicit success permits expiry."""
     GLOBAL = "global"
     """Instance configuration, catalogues and administrative records."""
 

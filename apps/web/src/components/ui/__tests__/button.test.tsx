@@ -5,7 +5,9 @@
 import { describe, it, expect, vi } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
-import { Button } from '../button';
+import { IconStyleContext } from '@/lib/icon-style-context';
+import { RotateCcw } from '@/lib/icons';
+import { Button, type ButtonProps } from '../button';
 
 describe('Button — rendering', () => {
   it('renders a native button carrying its children', () => {
@@ -19,6 +21,76 @@ describe('Button — rendering', () => {
     expect(screen.getByRole('button').className).toContain('bg-primary');
     rerender(<Button variant="destructive">X</Button>);
     expect(screen.getByRole('button').className).toContain('bg-destructive');
+  });
+});
+
+describe('Button — glyph colour on a solid surface', () => {
+  it('keeps the focused control when selection changes between outlined and filled', () => {
+    const view = (variant: ButtonProps['variant']) => (
+      <IconStyleContext.Provider value="fluent">
+        <Button variant={variant}>
+          <RotateCcw aria-hidden="true" />
+          Choose
+        </Button>
+      </IconStyleContext.Provider>
+    );
+    const { rerender } = renderWithProviders(view('outline'));
+    const button = screen.getByRole('button', { name: 'Choose' });
+    button.focus();
+    rerender(view('default'));
+    expect(screen.getByRole('button', { name: 'Choose' })).toBe(button);
+    expect(button).toHaveFocus();
+    expect(button.querySelector('svg')).toHaveAttribute('data-icon-style', 'lucide');
+    rerender(view('outline'));
+    expect(screen.getByRole('button', { name: 'Choose' })).toBe(button);
+    expect(button).toHaveFocus();
+    expect(button.querySelector('svg')).toHaveAttribute('data-icon-style', 'fluent');
+  });
+
+  function glyphStyle(variant: ButtonProps['variant']): string | null {
+    const { unmount } = renderWithProviders(
+      <IconStyleContext.Provider value="fluent">
+        <Button variant={variant}>
+          <RotateCcw aria-hidden="true" />
+          Reset
+        </Button>
+      </IconStyleContext.Provider>
+    );
+    const style = screen
+      .getByRole('button', { name: 'Reset' })
+      .querySelector('svg')
+      ?.getAttribute('data-icon-style');
+    unmount();
+    return style ?? null;
+  }
+
+  it.each(['default', 'success', 'warning', 'destructive', undefined] as const)(
+    'draws the %s variant glyph in its label colour, never in the artwork paints',
+    variant => {
+      expect(glyphStyle(variant)).toBe('lucide');
+    }
+  );
+
+  it.each(['secondary', 'outline', 'ghost', 'link', 'softPrimary'] as const)(
+    'keeps the account icon style on the %s variant, drawn over a light surface',
+    variant => {
+      expect(glyphStyle(variant)).toBe('fluent');
+    }
+  );
+
+  it('keeps the solid rule through slot polymorphism', () => {
+    renderWithProviders(
+      <IconStyleContext.Provider value="fluent">
+        <Button asChild variant="destructive">
+          <a href="https://example.com/out">
+            <RotateCcw aria-hidden="true" />
+            Leave
+          </a>
+        </Button>
+      </IconStyleContext.Provider>
+    );
+    const svg = screen.getByRole('link', { name: 'Leave' }).querySelector('svg');
+    expect(svg).toHaveAttribute('data-icon-style', 'lucide');
   });
 });
 

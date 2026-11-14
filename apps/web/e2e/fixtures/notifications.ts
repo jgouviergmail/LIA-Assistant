@@ -164,6 +164,7 @@ const ticket: TicketRow = {
   id: id(90),
   owner_user_id: id(91),
   parent_id: null,
+  category_id: null,
   title: 'Confirmer la proposition et les responsabilités avec les partenaires internationaux',
   description: null,
   status: 'waiting',

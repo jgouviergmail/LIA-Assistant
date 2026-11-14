@@ -6,12 +6,14 @@ from src.core.i18n_classification import ClassificationLabel, classification_lab
 from src.domains.agents.display.components.base import escape_html
 
 
-def classification_badges(value: object, language: str) -> str:
+def classification_badges(value: object, language: str, *, answered: bool = False) -> str:
     """Render the badge row of an accepted annotation, or nothing.
 
     Args:
         value: The stored annotation, read through the one projection.
         language: The reader's language for the labels.
+        answered: The mailbox said the person answered this message (ADR-379): the
+            reply it asked for was given, so « reply expected » is not shown.
 
     Returns:
         The badge row's HTML, or an empty string when nothing is shown.
@@ -20,7 +22,11 @@ def classification_badges(value: object, language: str) -> str:
     if annotation is None:
         return ""
     classified_at = escape_html(annotation.evaluated_at.isoformat())
-    parts = [_badge(key, classified_at, language) for key in _shown_labels(annotation)]
+    parts = [
+        _badge(key, classified_at, language)
+        for key in _shown_labels(annotation)
+        if not (answered and key == "reply_expected")
+    ]
     return '<div class="lia-classification">' + " ".join(parts) + "</div>" if parts else ""
 
 

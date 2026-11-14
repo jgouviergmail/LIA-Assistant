@@ -19,7 +19,7 @@ Fire-and-forget contract: :func:`extract_open_loops_background` never raises.
 from __future__ import annotations
 
 import time as _time
-from datetime import UTC, datetime
+from datetime import datetime, tzinfo
 from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
@@ -29,6 +29,10 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.core.config import settings
+from src.core.time_utils import resolve_zone
+from src.domains.agents.context.extraction_revision import capture_run_extraction_revision
+from src.domains.users.extraction_consent import snapshot_extraction_revision
+from src.infrastructure.llm.message_view import present_label, written_prefix
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
 
 if TYPE_CHECKING:
@@ -127,13 +131,13 @@ class OpenLoopExtraction(BaseModel):
     items: list[OpenLoopItem] = Field(default_factory=list)
 
 
-def _parse_due_hint(raw: str | None) -> datetime | None:
+def _parse_due_hint(raw: str | None, *, zone: tzinfo) -> datetime | None:
     """Parse the advisory ISO deadline, tolerantly (LLM-shaped input).
 
-    An offset-less ISO string (frequent LLM output) is coerced to UTC: the
-    column is timestamptz and the codebase invariant is aware-UTC. The hint
-    is advisory (nudge timing at a 48 h scale), so the ≤ few-hours offset
-    ambiguity of that coercion is acceptable by design.
+    The model is told the present in the person's zone (ADR-381 amendment), so
+    an offset-less ISO string (frequent LLM output) is the person's wall time
+    and is read in ``zone`` — never UTC's, which shifted a « 9 h » by the
+    person's offset (ADR-380). An explicit offset is kept as it is.
     """
     if not raw:
         return None
@@ -142,12 +146,30 @@ def _parse_due_hint(raw: str | None) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=UTC)
+        parsed = parsed.replace(tzinfo=zone)
     return parsed
 
 
-def _format_messages_tail(messages: list[BaseMessage]) -> str:
-    """Render the last conversation turns for the extraction prompt."""
+def render_system_prompt(*, zone: tzinfo, now: datetime | None = None) -> str:
+    """The extraction's rules, its present written in the person's zone (ADR-381).
+
+    Args:
+        zone: The person's display zone.
+        now: The present; the current instant by default.
+
+    Returns:
+        The system prompt.
+    """
+    from src.domains.agents.prompts.prompt_loader import load_prompt
+
+    return load_prompt("open_loop_extraction_prompt").format(
+        current_datetime=present_label(zone, now),
+        max_items=settings.open_loops_extraction_max_items,
+    )
+
+
+def _format_messages_tail(messages: list[BaseMessage], *, zone: tzinfo) -> str:
+    """Render the last conversation turns, stamped in the person's zone (ADR-381)."""
     lines: list[str] = []
     for msg in messages[-_EXTRACTION_MESSAGE_TAIL:]:
         if isinstance(msg, HumanMessage):
@@ -163,7 +185,9 @@ def _format_messages_tail(messages: list[BaseMessage]) -> str:
         content = msg.text if hasattr(msg, "text") else str(msg.content)
         if not content:
             continue
-        lines.append(f"{role}: {content[:_EXTRACTION_MESSAGE_MAX_CHARS]}")
+        lines.append(
+            f"{role}: {written_prefix(msg, zone)}{content[:_EXTRACTION_MESSAGE_MAX_CHARS]}"
+        )
     return "\n".join(lines)
 
 
@@ -181,6 +205,7 @@ async def apply_extraction(
     user_id: UUID,
     session_id: str,
     settings: Any,
+    zone: tzinfo,
 ) -> dict[str, int]:
     """Apply extracted items with deterministic guards.
 
@@ -198,6 +223,7 @@ async def apply_extraction(
         user_id: Owner.
         session_id: Conversation thread id (stored as source_ref).
         settings: Settings view carrying the two caps.
+        zone: The person's display zone: an offset-less deadline is theirs.
 
     Returns:
         Counters ``{opened, closed, skipped}`` for logging/metrics.
@@ -235,7 +261,7 @@ async def apply_extraction(
                 "subject": item.subject.strip(),
                 "counterparty": item.counterparty,
                 "direction": item.direction,
-                "due_hint": _parse_due_hint(item.due_hint_iso),
+                "due_hint": _parse_due_hint(item.due_hint_iso, zone=zone),
                 "source_ref": session_id,
             }
         )
@@ -299,10 +325,11 @@ async def _run_extraction(
     messages: list[BaseMessage],
     session_id: str,
     run_id: str,
+    *,
+    zone: tzinfo,
 ) -> None:
     """LLM call + application, on a dedicated DB session."""
     from src.core.llm_config_helper import get_llm_config_for_agent
-    from src.core.time_utils import get_prompt_datetime_formatted
     from src.domains.agents.prompts.prompt_loader import load_prompt
     from src.domains.open_loops.repository import OpenLoopRepository
     from src.infrastructure.database.session import get_db_context
@@ -312,6 +339,9 @@ async def _run_extraction(
     owner_id = UUID(user_id)
 
     async with get_db_context() as db:
+        extraction_revision = await capture_run_extraction_revision(db, owner_id)
+        if extraction_revision is None:
+            return
         repo = OpenLoopRepository(db)
         existing = await repo.list_open_for_user(
             owner_id, limit=settings.open_loops_max_open_per_user
@@ -320,13 +350,10 @@ async def _run_extraction(
         # the extraction's own, and the writes below open their transaction.
         await db.commit()
 
-        system_prompt = load_prompt("open_loop_extraction_prompt").format(
-            current_datetime=get_prompt_datetime_formatted(),
-            max_items=settings.open_loops_extraction_max_items,
-        )
-        user_prompt = (
-            f"CURRENT OPEN LOOPS:\n{_format_existing_loops(existing)}\n\n"
-            f"CONVERSATION TAIL:\n{_format_messages_tail(messages)}"
+        system_prompt = render_system_prompt(zone=zone)
+        user_prompt = load_prompt("open_loop_extraction_input").format(
+            existing_loops=_format_existing_loops(existing),
+            conversation_tail=_format_messages_tail(messages, zone=zone),
         )
 
         llm = get_llm("open_loop_extraction")
@@ -352,6 +379,7 @@ async def _run_extraction(
                 schema=OpenLoopExtraction,
                 provider=config.provider,
                 node_name="open_loop_extraction",
+                user_id=owner_id,
                 config=RunnableConfig(callbacks=[token_capture]),
             )
         observation.set_output(extraction.model_dump_json())
@@ -375,14 +403,25 @@ async def _run_extraction(
                 source="user",
             )
         except Exception as exc:  # noqa: BLE001 — tracking must not lose the extraction
-            logger.warning("open_loop_token_tracking_failed", run_id=run_id, error=str(exc))
+            logger.warning(
+                "open_loop_token_tracking_failed", run_id=run_id, error_type=type(exc).__name__
+            )
 
+        if (
+            await snapshot_extraction_revision(
+                db, owner_id, expected_revision=extraction_revision, lock=True
+            )
+            is None
+        ):
+            logger.info("open_loop_extraction_source_retired", run_id=run_id, user_id=user_id)
+            return
         stats = await apply_extraction(
             extraction,
             repo=repo,
             user_id=owner_id,
             session_id=session_id,
             settings=settings,
+            zone=zone,
         )
         await db.commit()
 
@@ -411,6 +450,7 @@ async def extract_open_loops_background(
     messages: list[BaseMessage],
     session_id: str,
     run_id: str,
+    user_timezone: str | None,
 ) -> None:
     """Background entry point (safe_fire_and_forget contract: never raises).
 
@@ -423,13 +463,18 @@ async def extract_open_loops_background(
         messages: Conversation messages (tail is used).
         session_id: Conversation thread id.
         run_id: Run id for logging correlation.
+        user_timezone: The person's display zone (IANA name), the turn's own: the
+            exchange is stamped and the present written in it (ADR-381 amendment);
+            None reads as the declared default zone.
     """
     if not settings.open_loops_enabled:
         return
     if not messages:
         return
     try:
-        await _run_extraction(user_id, messages, session_id, run_id)
+        await _run_extraction(
+            user_id, messages, session_id, run_id, zone=resolve_zone(user_timezone)
+        )
     except Exception as exc:  # noqa: BLE001 — background task, degrade silently
         logger.warning(
             "open_loop_extraction_failed",

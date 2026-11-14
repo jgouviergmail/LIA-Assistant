@@ -10,11 +10,16 @@
  * Read-only, and every row is a LINK to the ticket: the board owns the writes,
  * and a second place to change a status would be a second place to get the
  * rights wrong.
+ *
+ * On the board a card sits in its lane; here there is no lane, so a ticket's
+ * category is a BADGE. The name comes with the page that carries the ticket —
+ * never an id, and nothing at all for a category the page does not name.
  */
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
+import { CategoryBadge } from '@/components/workboard/CategoryBadge';
 import { getIntlLocale, type Language } from '@/i18n/settings';
 import { lifecycleTone } from '@/lib/status-tone';
 import { isOverdue } from '@/lib/workboard/display';
@@ -22,44 +27,53 @@ import type { TicketRow } from '@/types/workboard';
 
 export interface NeedsMeListProps {
   tickets: readonly TicketRow[];
+  /** Name of each category the tickets are filed under, by id. */
+  categories?: Readonly<Record<string, string>>;
   lng: Language;
 }
 
-export function NeedsMeList({ tickets, lng }: NeedsMeListProps) {
+export function NeedsMeList({ tickets, categories = {}, lng }: NeedsMeListProps) {
   const { t } = useTranslation();
   const locale = getIntlLocale(lng);
   const dueDate = (iso: string) =>
     new Intl.DateTimeFormat(locale, { dateStyle: 'short' }).format(new Date(iso));
 
+  const categoryOf = (ticket: TicketRow) =>
+    ticket.category_id === null ? undefined : categories[ticket.category_id];
+
   return (
     <ul className="divide-y divide-border">
-      {tickets.map(ticket => (
-        <li key={ticket.id}>
-          <Link
-            href={`/${lng}/dashboard/workboard/${ticket.id}`}
-            className="flex min-w-0 flex-col items-start gap-2 rounded-lg py-3 text-sm hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <span className="flex flex-wrap items-center gap-2">
-              <Badge variant={lifecycleTone(ticket.status)}>
-                {t(`workboard.columns.${ticket.status}`)}
-              </Badge>
-              {/* Late, the badge names the date it was due (owner request
-                  2026-10-21): « en retard » alone said nothing of how late. */}
-              {ticket.due_at && isOverdue(ticket) && (
-                <Badge variant="destructive">
-                  {t('workboard.card.overdue_due', { date: dueDate(ticket.due_at) })}
+      {tickets.map(ticket => {
+        const category = categoryOf(ticket);
+        return (
+          <li key={ticket.id}>
+            <Link
+              href={`/${lng}/dashboard/workboard/${ticket.id}`}
+              className="flex min-w-0 flex-col items-start gap-2 rounded-lg py-3 text-sm hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="flex flex-wrap items-center gap-2">
+                <Badge variant={lifecycleTone(ticket.status)}>
+                  {t(`workboard.columns.${ticket.status}`)}
                 </Badge>
-              )}
-              {ticket.due_at && !isOverdue(ticket) && (
-                <span className="text-xs text-muted-foreground">
-                  {t('workboard.card.due', { date: dueDate(ticket.due_at) })}
-                </span>
-              )}
-            </span>
-            <span className="min-w-0 break-words leading-relaxed">{ticket.title}</span>
-          </Link>
-        </li>
-      ))}
+                {/* Late, the badge names the date it was due (owner request
+                    2026-10-21): « en retard » alone said nothing of how late. */}
+                {ticket.due_at && isOverdue(ticket) && (
+                  <Badge variant="destructive">
+                    {t('workboard.card.overdue_due', { date: dueDate(ticket.due_at) })}
+                  </Badge>
+                )}
+                {ticket.due_at && !isOverdue(ticket) && (
+                  <span className="text-xs text-muted-foreground">
+                    {t('workboard.card.due', { date: dueDate(ticket.due_at) })}
+                  </span>
+                )}
+                {category !== undefined && <CategoryBadge name={category} />}
+              </span>
+              <span className="min-w-0 break-words leading-relaxed">{ticket.title}</span>
+            </Link>
+          </li>
+        );
+      })}
     </ul>
   );
 }

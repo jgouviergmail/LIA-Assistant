@@ -1,10 +1,13 @@
 """Native replacement swaps rows atomically and retains old bytes through commit uncertainty."""
 
 import asyncio
+from collections.abc import Mapping
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.domains.rag_spaces.drive_ingest import create_pending_document
@@ -16,6 +19,8 @@ from src.domains.rag_spaces.source_worker_lease import (
     source_worker_scope,
 )
 from src.domains.rag_spaces.storage_paths import stored_file_path
+from src.domains.users.models import User
+from tests.helpers.committed_account_session import async_session as async_session
 
 pytestmark = pytest.mark.integration
 
@@ -24,8 +29,12 @@ pytestmark = pytest.mark.integration
     "ack", ["known", "failed", "lost", "cancelled", "insert_failed", "active_job"]
 )
 async def test_native_replacement_keeps_old_version_until_atomic_sql_ack(
-    async_session, test_user, monkeypatch, tmp_path, ack
-):
+    async_session: AsyncSession,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    ack: str,
+) -> None:
     for flag in (
         "application_tools_enabled",
         "rag_spaces_enabled",
@@ -77,7 +86,7 @@ async def test_native_replacement_keeps_old_version_until_atomic_sql_ack(
     old_file.write_bytes(b"old")
     original = async_session.commit
 
-    async def acknowledgement():
+    async def acknowledgement() -> None:
         assert old_file.read_bytes() == b"old"
         if ack == "failed":
             raise OSError("controlled SQL failure")
@@ -90,7 +99,9 @@ async def test_native_replacement_keeps_old_version_until_atomic_sql_ack(
     monkeypatch.setattr(async_session, "commit", acknowledgement)
     if ack == "insert_failed":
 
-        async def failed_create(self, data):
+        async def failed_create(
+            self: RAGDocumentRepository, data: Mapping[str, object]
+        ) -> RAGDocument:
             raise OSError("controlled insertion failure")
 
         monkeypatch.setattr(RAGDocumentRepository, "create", failed_create)

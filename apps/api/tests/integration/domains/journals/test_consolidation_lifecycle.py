@@ -96,6 +96,7 @@ def _redirect_db_context(async_session: AsyncSession, monkeypatch: pytest.Monkey
 
     monkeypatch.setattr(database, "get_db_context", _fake_ctx)
     monkeypatch.setattr(database_session, "get_db_context", _fake_ctx)
+    monkeypatch.setattr("src.domains.journals.conversation_sources.get_db_context", _fake_ctx)
     for module in (
         consolidation_lifecycle,
         consolidation_settlement,
@@ -1171,7 +1172,11 @@ class TestTheConversationReadsSpeakTheRepositorysVocabulary:
             user.id, since=None, max_messages=10, max_days=7
         )
 
-        assert history == "USER: Bonjour\nASSISTANT: Salut"
+        assert "2 of 2" in history
+        assert str(conversation.id) in history
+        assert "USER: Bonjour" in history and "ASSISTANT: Salut" in history
+        assert history.index("USER: Bonjour") < history.index("ASSISTANT: Salut")
+        assert "the brief of a run" not in history
 
     @pytest.mark.usefixtures("_redirect_db_context")
     async def test_usage_patterns_count_the_persons_messages_in_their_own_hours(

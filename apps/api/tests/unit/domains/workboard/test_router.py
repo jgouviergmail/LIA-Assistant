@@ -14,15 +14,25 @@ loaded.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from fastapi import FastAPI, HTTPException
+from fastapi.testclient import TestClient
 
 from src.core.exceptions import ResourceNotFoundError
 from src.domains.shared.display_query import DisplayQuery
+from src.domains.workboard.category_router import (
+    create_category,
+    delete_category,
+    list_categories,
+    update_category,
+)
 from src.domains.workboard.router import (
     add_comment,
     board_summary,
@@ -32,12 +42,18 @@ from src.domains.workboard.router import (
     list_board,
     move_ticket,
     needs_me,
+    router,
     run_ticket_now,
     update_ticket,
 )
 from src.domains.workboard.schemas import (
     BoardSummary,
+    CategoryCreate,
+    CategoryList,
+    CategoryRow,
+    CategoryUpdate,
     CommentCreate,
+    LaneRow,
     MoveRequest,
     TicketCreate,
     TicketUpdate,
@@ -86,6 +102,7 @@ def _row(**overrides: Any) -> Any:
         "total_tokens_cache": 0,
         "total_google_requests": 0,
         "total_cost_eur": 0.0,
+        "category_id": None,
         "created_at": datetime.now(UTC),
         "updated_at": datetime.now(UTC),
     }
@@ -98,69 +115,74 @@ def _service() -> Any:
     return patch("src.domains.workboard.router.WorkboardService")
 
 
+@contextmanager
+def _lanes(lanes: list[LaneRow] | None = None) -> Iterator[AsyncMock]:
+    """Patch the category service the board read asks for its lanes.
+
+    Yields:
+        The ``lanes`` call, so a test can read what it was asked with.
+    """
+    with patch("src.domains.workboard.router.WorkboardCategoryService") as service_cls:
+        service_cls.return_value.lanes = AsyncMock(return_value=lanes or [])
+        yield service_cls.return_value.lanes
+
+
+async def _read_board(db: Any, **overrides: Any) -> Any:
+    """Call the board read as FastAPI would, every parameter stated.
+
+    The route's defaults are ``Query(...)`` objects, which only FastAPI
+    resolves: a direct call has to name each one, so they are named once here.
+    """
+    arguments: dict[str, Any] = {
+        "status": None,
+        "assignee": "all",
+        "priority": None,
+        "overdue": False,
+        "due_before": None,
+        "q": None,
+        "closed_days": None,
+        "sort": "position",
+        "limit": 50,
+        "offset": 0,
+        "category": None,
+        "uncategorized": False,
+        "user": _user(),
+        "db": db,
+    }
+    arguments.update(overrides)
+    return await list_board(**arguments)
+
+
 class TestBoard:
+    @pytest.fixture(autouse=True)
+    def _no_lane(self) -> Iterator[None]:
+        with _lanes():
+            yield
+
     async def test_it_returns_the_page_the_total_and_the_counts(self) -> None:
         db = AsyncMock()
         with _service() as service_cls:
             service_cls.return_value.board = AsyncMock(
                 return_value=([_row()], 7, {"todo": 7, "done": 0})
             )
-            page = await list_board(
-                status=None,
-                assignee="all",
-                priority=None,
-                overdue=False,
-                due_before=None,
-                q=None,
-                closed_days=None,
-                sort="position",
-                limit=50,
-                offset=0,
-                user=_user(),
-                db=db,
-            )
+            page = await _read_board(db)
         assert page.total == 7
         assert page.counts_by_status["todo"] == 7
         assert len(page.tickets) == 1
+        assert page.lanes == []
 
     async def test_a_read_never_commits(self) -> None:
         db = AsyncMock()
         with _service() as service_cls:
             service_cls.return_value.board = AsyncMock(return_value=([], 0, {}))
-            await list_board(
-                status=None,
-                assignee="all",
-                priority=None,
-                overdue=False,
-                due_before=None,
-                q=None,
-                closed_days=None,
-                sort="position",
-                limit=50,
-                offset=0,
-                user=_user(),
-                db=db,
-            )
+            await _read_board(db)
         db.commit.assert_not_awaited()
 
     async def test_closed_days_becomes_an_instant_the_repository_can_compare(self) -> None:
         db = AsyncMock()
         with _service() as service_cls:
             service_cls.return_value.board = AsyncMock(return_value=([], 0, {}))
-            await list_board(
-                status=None,
-                assignee="all",
-                priority=None,
-                overdue=False,
-                due_before=None,
-                q=None,
-                closed_days=30,
-                sort="position",
-                limit=50,
-                offset=0,
-                user=_user(),
-                db=db,
-            )
+            await _read_board(db, closed_days=30)
             filters = service_cls.return_value.board.await_args.args[1]
         assert filters.include_closed_before is not None
         assert filters.include_closed_before.tzinfo is not None, "UTC-aware, never naive"
@@ -170,40 +192,28 @@ class TestBoard:
         db = AsyncMock()
         with _service() as service_cls:
             service_cls.return_value.board = AsyncMock(return_value=([], 0, {}))
-            await list_board(
-                status=None,
-                assignee="all",
-                priority=None,
-                overdue=False,
-                due_before=None,
-                q=None,
-                closed_days=0,
-                sort="position",
-                limit=50,
-                offset=0,
-                user=_user(),
-                db=db,
-            )
+            await _read_board(db, closed_days=0)
             filters = service_cls.return_value.board.await_args.args[1]
         assert filters.include_closed_before is not None
 
     async def test_the_filters_reach_the_service_verbatim(self) -> None:
         db = AsyncMock()
+        wanted = uuid.uuid4()
         with _service() as service_cls:
             service_cls.return_value.board = AsyncMock(return_value=([], 0, {}))
-            await list_board(
+            await _read_board(
+                db,
                 status=["todo", "waiting"],
                 assignee="lia",
                 priority=["high"],
                 overdue=True,
                 due_before=datetime(2026, 9, 30, tzinfo=UTC),
                 q="venue",
-                closed_days=None,
                 sort="due",
                 limit=10,
                 offset=20,
-                user=_user(),
-                db=db,
+                category=[wanted],
+                uncategorized=True,
             )
             filters = service_cls.return_value.board.await_args.args[1]
             kwargs = service_cls.return_value.board.await_args.kwargs
@@ -213,7 +223,91 @@ class TestBoard:
         assert filters.overdue is True
         assert filters.query == "venue"
         assert filters.sort == "due"
+        assert filters.categories == (wanted,)
+        assert filters.uncategorized is True
         assert kwargs == {"limit": 10, "offset": 20}
+
+
+class TestBoardLanes:
+    async def test_the_lanes_are_counted_over_the_pages_own_filter(self) -> None:
+        """One filter object, handed to both reads: a lane's header and the
+        cards under it cannot then disagree about what was asked (ADR-185)."""
+        db = AsyncMock()
+        lane = LaneRow(category_id=None, name=None, owner_user_id=None, counts_by_status={})
+        with _lanes([lane]) as lanes_call, _service() as service_cls:
+            service_cls.return_value.board = AsyncMock(return_value=([], 0, {}))
+            page = await _read_board(db, overdue=True)
+            page_filters = service_cls.return_value.board.await_args.args[1]
+        assert page.lanes == [lane]
+        assert lanes_call.await_args.args[1] is page_filters
+
+
+class TestCategoryRoutes:
+    def test_they_are_mounted_under_the_board_and_behind_its_switch(self) -> None:
+        """A category is part of the board: same prefix, same operator switch.
+
+        Proved by a REQUEST, never by reading the route table: this FastAPI
+        resolves an included router lazily, so the table holds a wrapper and
+        says nothing of what a nested route inherits. The switch is replaced
+        by a refusal with a status nothing else on the path answers — were it
+        not applied, the unauthenticated request would reach the session
+        dependency and answer 401 instead.
+        """
+        app = FastAPI()
+        app.include_router(router)
+
+        def switched_off() -> None:
+            raise HTTPException(status_code=418)
+
+        app.dependency_overrides[router.dependencies[0].dependency] = switched_off
+        client = TestClient(app)
+        one = f"/workboard/categories/{uuid.uuid4()}"
+        answers = {
+            "control: the board itself": client.get("/workboard/tickets"),
+            "list": client.get("/workboard/categories"),
+            "create": client.post("/workboard/categories", json={"name": "Home"}),
+            "update": client.patch(one, json={"name": "Work"}),
+            "delete": client.delete(one),
+        }
+        assert {name: answer.status_code for name, answer in answers.items()} == dict.fromkeys(
+            answers, 418
+        )
+
+    async def test_a_listing_never_commits(self) -> None:
+        db = AsyncMock()
+        listing = CategoryList(categories=[], max_categories=20, name_max_chars=40)
+        with patch("src.domains.workboard.category_router.WorkboardCategoryService") as cls:
+            cls.return_value.listing = AsyncMock(return_value=listing)
+            assert await list_categories(user=_user(), db=db) is listing
+        db.commit.assert_not_awaited()
+
+    async def test_every_write_commits_once(self) -> None:
+        row = CategoryRow(
+            id=uuid.uuid4(), owner_user_id=uuid.uuid4(), name="Home", position=0, ticket_count=0
+        )
+        with patch("src.domains.workboard.category_router.WorkboardCategoryService") as cls:
+            cls.return_value.create = AsyncMock(return_value=row)
+            cls.return_value.update = AsyncMock(return_value=row)
+            cls.return_value.delete = AsyncMock(return_value=3)
+            created_db, updated_db, deleted_db = AsyncMock(), AsyncMock(), AsyncMock()
+            await create_category(payload=CategoryCreate(name="Home"), user=_user(), db=created_db)
+            await update_category(
+                category_id=row.id, payload=CategoryUpdate(name="Work"), user=_user(), db=updated_db
+            )
+            result = await delete_category(category_id=row.id, user=_user(), db=deleted_db)
+        for db in (created_db, updated_db, deleted_db):
+            db.commit.assert_awaited_once()
+        assert result.released == 3
+
+    async def test_a_refused_write_commits_nothing(self) -> None:
+        db = AsyncMock()
+        with patch("src.domains.workboard.category_router.WorkboardCategoryService") as cls:
+            cls.return_value.delete = AsyncMock(
+                side_effect=ResourceNotFoundError("category", str(uuid.uuid4()))
+            )
+            with pytest.raises(ResourceNotFoundError):
+                await delete_category(category_id=uuid.uuid4(), user=_user(), db=db)
+        db.commit.assert_not_awaited()
 
 
 class TestDetail:
@@ -403,7 +497,25 @@ class TestNeedsMe:
         )
         assert page.total == 4
         assert len(page.tickets) == 1
+        assert page.categories == {}
         db.commit.assert_not_awaited()
+
+    async def test_it_names_the_categories_its_tickets_are_filed_under(self) -> None:
+        """The hub shows the lane as a badge: the name travels with the page."""
+        db = AsyncMock()
+        home = uuid.uuid4()
+        row = _row(status="waiting", category_id=home)
+        user = _user()
+        with (
+            _service() as service_cls,
+            patch("src.domains.workboard.router.WorkboardCategoryService") as categories_cls,
+        ):
+            service_cls.return_value.needs_me = AsyncMock(return_value=([row], 1))
+            categories_cls.return_value.names_for = AsyncMock(return_value={home: "Home"})
+            page = await needs_me(limit=20, offset=0, criteria=DisplayQuery(), user=user, db=db)
+        categories_cls.return_value.names_for.assert_awaited_once_with(user.id, [row])
+        assert page.categories == {home: "Home"}
+        assert page.tickets[0].category_id == home
 
 
 class TestSummary:

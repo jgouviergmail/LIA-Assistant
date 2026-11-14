@@ -5,11 +5,11 @@
  * This reduces useChat.ts complexity by ~400 lines.
  *
  * Usage:
- *   import { processSSEChunk, SSEHandlerContext } from '@/lib/sse-handlers';
+ *   import { createSSEProcessor, SSEHandlerContext } from '@/lib/sse-handlers';
  */
 
 import { ChatStreamChunk, SSEChunkType } from '@/types/chat';
-import { noteChatFirstToken } from '@/lib/journey-timing';
+import { createChatTurnTiming } from '@/lib/journey-timing';
 import { logger } from '@/lib/logger';
 import { SSEHandlerContext, SSEHandlerMap } from './types';
 import { handleApplicationStateChanged } from './application-state';
@@ -109,104 +109,116 @@ const SSE_HANDLERS: SSEHandlerMap = {
 // any NON-token chunk synchronously flushes the buffer before being handled,
 // so replacements, done, HITL and error events never overtake buffered text.
 
-let pendingTokens: string[] = [];
-let pendingTokenContext: SSEHandlerContext | null = null;
-let tokenFlushHandle: number | null = null;
+/** A mounted discussion owns its buffer; retiring another one cannot touch it. */
+export function createSSEProcessor() {
+  const { noteChatFirstToken, markChatTurnStarted, clearChatTurnTiming } = createChatTurnTiming();
+  let pendingTokens: string[] = [];
+  let pendingTokenContext: SSEHandlerContext | null = null;
+  let tokenFlushHandle: number | null = null;
 
-/** Flush buffered tokens as a single aggregated token chunk (order-safe). */
-function flushPendingTokens(): void {
-  if (tokenFlushHandle !== null && typeof cancelAnimationFrame !== 'undefined') {
-    cancelAnimationFrame(tokenFlushHandle);
-  }
-  tokenFlushHandle = null;
+  /** Flush buffered tokens as a single aggregated token chunk (order-safe). */
+  function flushPendingTokens(): void {
+    if (tokenFlushHandle !== null && typeof cancelAnimationFrame !== 'undefined') {
+      cancelAnimationFrame(tokenFlushHandle);
+    }
+    tokenFlushHandle = null;
 
-  if (pendingTokens.length === 0 || pendingTokenContext === null) {
+    if (pendingTokens.length === 0 || pendingTokenContext === null) {
+      pendingTokens = [];
+      pendingTokenContext = null;
+      return;
+    }
+
+    const content = pendingTokens.join('');
+    // The most recent context is always current: any non-token chunk flushes
+    // BEFORE its handler runs, so no context mutation can be missed here.
+    const context = pendingTokenContext;
     pendingTokens = [];
     pendingTokenContext = null;
-    return;
+
+    handleToken({ type: 'token', content } as ChatStreamChunk, context);
   }
 
-  const content = pendingTokens.join('');
-  // The most recent context is always current: any non-token chunk flushes
-  // BEFORE its handler runs, so no context mutation can be missed here.
-  const context = pendingTokenContext;
-  pendingTokens = [];
-  pendingTokenContext = null;
-
-  handleToken({ type: 'token', content } as ChatStreamChunk, context);
-}
-
-/**
- * Flush any buffered tokens immediately (public entry point).
- *
- * Called on stream error: tokens received BEFORE the error were visible in
- * the pre-batching behavior, so they are dispatched now — and doing it
- * synchronously prevents a late animation-frame flush from dispatching a
- * STREAM_TOKEN after the SSE_ERROR state transition.
- */
-export function flushTokenBatching(): void {
-  flushPendingTokens();
-}
-
-/**
- * Reset the token batcher (drops any buffered tokens WITHOUT dispatching).
- *
- * Must be called when a new stream starts: a late animation-frame flush from
- * a cancelled stream must never inject stale tokens into the next message.
- */
-export function resetTokenBatching(): void {
-  if (tokenFlushHandle !== null && typeof cancelAnimationFrame !== 'undefined') {
-    cancelAnimationFrame(tokenFlushHandle);
+  /**
+   * Flush any buffered tokens immediately (public entry point).
+   *
+   * Called on stream error: tokens received BEFORE the error were visible in
+   * the pre-batching behavior, so they are dispatched now — and doing it
+   * synchronously prevents a late animation-frame flush from dispatching a
+   * STREAM_TOKEN after the SSE_ERROR state transition.
+   */
+  function flushTokenBatching(): void {
+    flushPendingTokens();
   }
-  tokenFlushHandle = null;
-  pendingTokens = [];
-  pendingTokenContext = null;
-}
 
-/**
- * Process an SSE chunk by dispatching to the appropriate handler.
- *
- * @param chunk - The SSE chunk to process
- * @param context - Handler context with dispatch, refs, and callbacks
- */
-export function processSSEChunk(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
-  if (chunk.type === 'token') {
-    // Buffer instead of dispatching per token. Empty tokens are dropped
-    // (they only produced no-op renders before).
-    if (typeof chunk.content === 'string' && chunk.content) {
-      noteChatFirstToken();
-      pendingTokens.push(chunk.content);
-      pendingTokenContext = context;
-      if (tokenFlushHandle === null) {
-        if (typeof requestAnimationFrame === 'undefined') {
-          // SSR/test environments without rAF: degrade to synchronous dispatch
-          flushPendingTokens();
-        } else {
-          tokenFlushHandle = requestAnimationFrame(() => {
-            tokenFlushHandle = null;
+  /**
+   * Reset the token batcher (drops any buffered tokens WITHOUT dispatching).
+   *
+   * Must be called when a new stream starts: a late animation-frame flush from
+   * a cancelled stream must never inject stale tokens into the next message.
+   */
+  function resetTokenBatching(): void {
+    if (tokenFlushHandle !== null && typeof cancelAnimationFrame !== 'undefined') {
+      cancelAnimationFrame(tokenFlushHandle);
+    }
+    tokenFlushHandle = null;
+    pendingTokens = [];
+    pendingTokenContext = null;
+  }
+
+  /**
+   * Process an SSE chunk by dispatching to the appropriate handler.
+   *
+   * @param chunk - The SSE chunk to process
+   * @param context - Handler context with dispatch, refs, and callbacks
+   */
+  function processSSEChunk(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
+    if (chunk.type === 'token') {
+      // Buffer instead of dispatching per token. Empty tokens are dropped
+      // (they only produced no-op renders before).
+      if (typeof chunk.content === 'string' && chunk.content) {
+        noteChatFirstToken();
+        pendingTokens.push(chunk.content);
+        pendingTokenContext = context;
+        if (tokenFlushHandle === null) {
+          if (typeof requestAnimationFrame === 'undefined') {
+            // SSR/test environments without rAF: degrade to synchronous dispatch
             flushPendingTokens();
-          });
+          } else {
+            tokenFlushHandle = requestAnimationFrame(() => {
+              tokenFlushHandle = null;
+              flushPendingTokens();
+            });
+          }
         }
       }
+      return;
     }
-    return;
+
+    // Any non-token chunk: flush buffered tokens first (ordering guarantee)
+    flushPendingTokens();
+
+    const handler = SSE_HANDLERS[chunk.type];
+
+    if (handler) {
+      handler(chunk, context);
+    } else {
+      // Log unknown event types for debugging
+      logger.debug('sse_unknown_event_type', {
+        type: chunk.type,
+        hasContent: !!chunk.content,
+        hasMetadata: !!chunk.metadata,
+      });
+    }
   }
 
-  // Any non-token chunk: flush buffered tokens first (ordering guarantee)
-  flushPendingTokens();
-
-  const handler = SSE_HANDLERS[chunk.type];
-
-  if (handler) {
-    handler(chunk, context);
-  } else {
-    // Log unknown event types for debugging
-    logger.debug('sse_unknown_event_type', {
-      type: chunk.type,
-      hasContent: !!chunk.content,
-      hasMetadata: !!chunk.metadata,
-    });
-  }
+  return {
+    processSSEChunk,
+    flushTokenBatching,
+    resetTokenBatching,
+    markChatTurnStarted,
+    clearChatTurnTiming,
+  };
 }
 
 /**

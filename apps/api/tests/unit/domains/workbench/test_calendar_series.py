@@ -209,9 +209,12 @@ class TestChangingAWholeSeries:
         with _door(client):
             await calendar_service.update_event(USER, request)
 
-        kwargs = client.update_event.await_args.kwargs
-        assert kwargs["start_datetime"] == "2027-01-04T10:15:00"
-        assert kwargs["end_datetime"] == "2027-01-04T11:00:00"
+        bounds = client.update_event.await_args.kwargs["bounds"]
+        assert (bounds.start.iso(), bounds.end.iso()) == (
+            "2027-01-04T10:15:00",
+            "2027-01-04T11:00:00",
+        )
+        assert (bounds.start.zone.key, bounds.end.zone.key) == (ZONE, ZONE)
 
     async def test_a_time_past_midnight_stays_as_long(self) -> None:
         client = self._client(self.occurrence, self.master)
@@ -225,7 +228,11 @@ class TestChangingAWholeSeries:
         with _door(client):
             await calendar_service.update_event(USER, request)
 
-        assert client.update_event.await_args.kwargs["end_datetime"] == "2027-01-05T00:30:00"
+        bounds = client.update_event.await_args.kwargs["bounds"]
+        assert (bounds.start.iso(), bounds.end.iso()) == (
+            "2027-01-04T23:30:00",
+            "2027-01-05T00:30:00",
+        )
 
     async def test_an_all_day_series_keeps_its_first_day_and_its_length(self) -> None:
         master = _raw(start={"date": "2027-01-04"}, end={"date": "2027-01-05"}, recurrence=["x"])
@@ -236,9 +243,8 @@ class TestChangingAWholeSeries:
         with _door(client):
             await calendar_service.update_event(USER, request)
 
-        kwargs = client.update_event.await_args.kwargs
-        assert kwargs["start_datetime"] == "2027-01-04"
-        assert kwargs["end_datetime"] == "2027-01-06"
+        bounds = client.update_event.await_args.kwargs["bounds"]
+        assert (bounds.first, bounds.after_last) == (date(2027, 1, 4), date(2027, 1, 6))
 
     async def test_a_new_rule_starts_on_the_series_first_day(self) -> None:
         client = self._client(self.occurrence, self.master)

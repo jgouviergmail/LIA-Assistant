@@ -238,6 +238,8 @@ def client() -> AsyncMock:
     )
     # A preview listing by default: each hit is fetched through _fetch_full_details.
     client.SEARCH_HITS_ARE_WHOLE = False
+    # A mailbox that tells no reply state (ADR-379): those are tested on their own.
+    client.conversations_of = AsyncMock(return_value={})
     return client
 
 
@@ -271,6 +273,7 @@ def whole_client() -> AsyncMock:
         return_value={"messages": [_gmail_hit(1), _gmail_hit(2)], "resultSizeEstimate": 2}
     )
     client.list_labels = AsyncMock(return_value={"Label_7": "Clients"})
+    client.conversations_of = AsyncMock(return_value={})
     return client
 
 

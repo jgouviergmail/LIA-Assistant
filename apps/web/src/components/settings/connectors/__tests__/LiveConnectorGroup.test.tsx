@@ -14,8 +14,14 @@ const h = vi.hoisted(() => ({
   liveEnabled: true,
   form: null as null | { onSuccess?: () => void },
 }));
+/** What the operator switched off: absent, the deployment flag alone decides. */
+const operator = vi.hoisted(() => ({
+  capabilities: undefined as Record<string, { enabled: boolean; family: string }> | undefined,
+}));
 vi.mock('@/hooks/useAppConfig', () => ({
-  useAppConfig: () => ({ config: { features: { live_enabled: h.liveEnabled } } }),
+  useAppConfig: () => ({
+    config: { features: { live_enabled: h.liveEnabled }, capabilities: operator.capabilities },
+  }),
 }));
 vi.mock('../LiveConnectorForm', () => ({
   LiveConnectorForm: (props: {
@@ -110,5 +116,42 @@ describe('LiveConnectorGroup', () => {
     act(() => h.form?.onSuccess?.());
     expect(refetch).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId('live-form')).not.toBeInTheDocument();
+  });
+});
+
+describe('LiveConnectorGroup under the operator switch', () => {
+  it('offers no connection: discovering models and activating a key are refused', () => {
+    // Connecting is an ACT of the capability — its routes refuse under the
+    // switch — where a stored key is a record (ADR-280).
+    h.liveEnabled = true;
+    operator.capabilities = { live: { enabled: false, family: 'media' } };
+    render([{ id: 'c1', connector_type: 'gemini_live', status: 'active' }]);
+    operator.capabilities = undefined;
+
+    expect(screen.getByText('settings.connectors.connected_live')).toBeInTheDocument();
+    expect(screen.queryByText('settings.connectors.available_live')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('settings.connectors.live.connect')).not.toBeInTheDocument();
+  });
+
+  it('renders nothing where no key is stored', () => {
+    h.liveEnabled = true;
+    operator.capabilities = { live: { enabled: false, family: 'media' } };
+    const { container } = render([]);
+    operator.capabilities = undefined;
+
+    expect(container.querySelector('[data-state]')).toBeNull();
+  });
+
+  it('keeps a stored key removable: it is the person’s own record', async () => {
+    h.liveEnabled = true;
+    operator.capabilities = { live: { enabled: false, family: 'media' } };
+    const { user, onDisconnect } = render([
+      { id: 'c1', connector_type: 'gemini_live', status: 'active' },
+    ]);
+    operator.capabilities = undefined;
+
+    expect(screen.getByText('settings.connectors.connected_live')).toBeInTheDocument();
+    await user.click(screen.getByTitle('settings.connectors.google.disconnect'));
+    expect(onDisconnect).toHaveBeenCalledWith('c1');
   });
 });

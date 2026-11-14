@@ -107,3 +107,28 @@ label.**
   was said and written around it, which the mail source and the meeting
   minutes (ADR-258) already capture; indexing event rows would add
   timestamps without text.
+
+## Amendment 2026-11-10 — whoever takes the lease by SQL reads the row before releasing it
+
+From v1.40.0 (2026-09-04) every Gmail push left its label sources `syncing`. The push pass loads
+the sources, takes each lease with one conditional SQL statement the session never sees, then
+releases it through the repository on the object loaded BEFORE the lease. The ORM writes only what
+differs from the loaded state: `sync_status`, `lease_expires_at`, `attempts` and `worker_id` were
+left as the lease had set them, while `last_sync_at` and the history anchor were written. Five
+minutes later the reaper logged a recovered worker crash and replayed a full label sync. Measured
+on production on 2026-11-10: 236 replays and 127,585 Gmail thread reads in 24 hours, on a rate
+limit the connector shares with the person's own Gmail tools. The log line said `sync_status` had
+been updated; the unit tests mocked the lease.
+
+- `_serve_source` now reads the row again once it holds the lease (`db.refresh`), as the Drive push
+  path loads its source after the lease. It is also the anchor to resume from.
+- `tests/integration/domains/rag_spaces/test_mail_push_lock_release.py` holds the push pass on real
+  PostgreSQL: the lease is returned, the reaper finds nothing to recover, a changed thread is
+  indexed and the anchor advances.
+- `RagSourceRecoveryLoop` (ADR-119 amendment of the same day) says so when a source is recovered
+  over and over.
+
+Left open: the loop replayed a full sync after every push, so in the seven days Prometheus keeps,
+the incremental path never once answered `indexed` — nothing had needed it, or it does not work on
+Gmail's real history. The first labelled mail after the fix is the proof
+(`rag_mail_push_index_total{outcome="indexed"}`).

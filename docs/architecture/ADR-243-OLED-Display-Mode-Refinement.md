@@ -1,6 +1,6 @@
 # ADR-243: OLED display mode — a refinement of dark, selected by an attribute, not a fourth theme
 
-**Status**: Accepted (2026-08-23)
+**Status**: Accepted (2026-08-23); amended 2026-11-12 (the header cycle)
 **Deciders**: LIA core team
 **Technical story**: UI review 2026-08-23 — "add an OLED mode with absolute black to the existing light/dark, and make the header icon cycle light → dark → OLED → light"
 
@@ -158,6 +158,58 @@ for good.
 - **Making `background` the only override.** Rejected: cards at the dark 22%
   against a pure-black page separate *worse* than they do today (1.04 vs 1.09),
   so the mode would have degraded legibility in exchange for depth.
+
+## Amendment 2026-11-12 — automatic joins the header cycle, for an account
+
+The automatic mode (light by day, absolute black at night, at an account's hours and
+in its zone) came after this decision, and the header control never offered it: an
+account that chose it in Settings left it with one press and could not come back from
+the header.
+
+- **For an account the circle is light → dark → OLED → automatic → light**, the order
+  Settings lists them in. Automatic is drawn with the icon Settings already gives it,
+  the clock, which the icon facade renders in the account's style (Lucide, Fluent Color
+  or Streamline Flex) like every other glyph.
+- **Automatic is recognised by its mode, not by what it renders.** It renders light by
+  day and absolute black at night, so a cycle read from the resolved appearance alone
+  would take it for a manual stop and, at night, never leave it. From automatic a press
+  always goes to light.
+- **A visitor keeps three stops.** The automatic mode follows hours and a zone that only
+  an account holds; without one, `apply` has no schedule to follow and would draw
+  nothing. `ThemePreferences.automaticAvailable` says which case applies, and
+  `nextInCycle` reads it.
+- **One press in the circle changes nothing on screen**: entering automatic at night (it
+  shows the black just left) or leaving it by day (it shows the light about to be
+  chosen). The icon and the accessible name are what move, which is why both keep
+  describing the destination.
+- `system` stays out, for the reason given above.
+
+### Follow-up 2026-11-14 — a press has one writer, its reveal
+
+Owner report: the passages between dark, OLED and light misbehaved. The circle was walked
+press after press on the real `next-themes` provider, with an account a server answers
+with at three speeds (`theme-cycle-walk.test.tsx`). Three writers drew a press beside
+its reveal, each at its own moment:
+
+- **The account's effect, on the press itself.** `next-themes` hands out a new `setTheme`
+  at every theme change (its callback lists the theme). `draw` followed that identity and
+  the account's effect listed `draw`, so the effect ran again on the very change a press
+  made and redrew what the account still said. With a save answered within the frame the
+  reveal waits for — a server on the same machine — the press was undone as it was drawn
+  and the page only changed, with no reveal, once the account was read back. Two tabs of
+  one account answered each other the same way through the shared storage. `draw` now has
+  one identity for the life of the provider, and the effect runs when the ACCOUNT changes.
+- **The automatic clock, ahead of the reveal.** `apply` started the clock before the
+  reveal; its first tick drew the day's light at once, and the reveal photographed a page
+  already changed: entering automatic by day snapped. `apply` now draws inside the reveal
+  and starts the clock on the page it has just drawn.
+- **The read that follows a save, ahead of the reveal.** A save and its read can both
+  return within that frame; the account's new value was then drawn before the reveal. The
+  read now waits for the press to be drawn.
+
+The choice still holds on the press alone, before and without the server's answer: by
+night only the MODE tells automatic from the black it shows, and the next press leaves it.
+The press that changes nothing on screen, above, is unchanged by this follow-up.
 
 ## References
 

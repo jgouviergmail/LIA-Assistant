@@ -7,6 +7,10 @@
  * unfolding into its own form. Rendered ONLY when the instance publishes the
  * capability. Extracted so `UserConnectorsSection` (a frozen hotspot) grows
  * by two lines, not two accordion items.
+ *
+ * Under the operator's switch a stored key stays, with its removal: it is the
+ * person's record. Connecting one is an ACT — discovering the models, activating
+ * the key — whose routes refuse there, so no card offers it (ADR-280).
  */
 
 import { useState } from 'react';
@@ -14,6 +18,7 @@ import { AudioLines } from '@/lib/icons';
 
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { capabilityAvailable, capabilityMounted } from '@/lib/capability-availability';
 import type { Language } from '@/i18n/settings';
 import { LIVE_PROVIDERS, isLiveConnectorType } from '@/lib/live/providers';
 
@@ -42,7 +47,9 @@ export function LiveConnectorGroup({
 }: LiveConnectorGroupProps) {
   const { config } = useAppConfig();
   const [formFor, setFormFor] = useState<string | null>(null);
-  if (!config?.features?.live_enabled) return null;
+  // A stored key is the person's own RECORD: it stays removable under the
+  // deployment flag, whatever the operator's switch says.
+  if (!capabilityMounted(config, 'live')) return null;
 
   const activeTypes = new Set(
     connectors.filter(isConnectorActive).map(c => c.connector_type.toLowerCase())
@@ -50,7 +57,9 @@ export function LiveConnectorGroup({
   const connected = connectors.filter(
     c => isConnectorActive(c) && isLiveConnectorType(c.connector_type)
   );
-  const available = LIVE_PROVIDERS.filter(p => !activeTypes.has(p.connectorType));
+  const available = capabilityAvailable(config, 'live')
+    ? LIVE_PROVIDERS.filter(p => !activeTypes.has(p.connectorType))
+    : [];
 
   return (
     <>

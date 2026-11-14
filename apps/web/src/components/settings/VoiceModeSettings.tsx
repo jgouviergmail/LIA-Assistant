@@ -258,7 +258,7 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
             aria-labelledby={wakeTitleId}
             checked={user?.voice_mode_enabled ?? false}
             onCheckedChange={handleToggleEnabled}
-            disabled={updating}
+            busy={updating}
           />
         </div>
         {/* Generic voice mode info */}

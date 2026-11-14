@@ -250,7 +250,7 @@ class TestThinkingTokenBudgetFloor:
 class TestAModelThatReasonsUnasked:
     """``provider_default`` is not "no reasoning" on a Claude generation that thinks unasked.
 
-    Fable 5, Fable 5.1 and Opus 5.5 cannot switch thinking off; Opus 5 and
+    Fable 5, 5.1, 5.2 and Opus 5.5 cannot switch thinking off; Opus 5 and
     Sonnet 5 think unless told not to (ADR-306). Leaving the level unset there
     buys the vendor's implicit depth -- billed inside ``max_tokens`` like any
     other -- so the incident guard must read that depth, not the empty field.
@@ -264,6 +264,7 @@ class TestAModelThatReasonsUnasked:
     @pytest.mark.parametrize(
         ("model", "implicit"),
         [
+            ("claude-fable-5-2", "high"),
             ("claude-fable-5-1", "high"),
             ("claude-fable-5", "high"),
             ("claude-opus-5-5", "medium"),

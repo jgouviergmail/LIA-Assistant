@@ -166,7 +166,17 @@ class TestExecution:
             AsyncMock(return_value="primary"),
         )
 
-    async def test_a_change_reaches_the_series_and_keeps_its_first_day(self) -> None:
+    @pytest.mark.parametrize(
+        ("start", "end"),
+        [
+            ("2027-01-11T10:15:00", "2027-01-11T11:00:00"),
+            # The tool hands its times re-localised, with the zone's own offset.
+            ("2027-01-11T10:15:00+01:00", "2027-01-11T11:00:00+01:00"),
+        ],
+    )
+    async def test_a_change_reaches_the_series_and_keeps_its_first_day(
+        self, start: str, end: str
+    ) -> None:
         client = self._client()
 
         with _resolving(client), self._calendar():
@@ -176,8 +186,8 @@ class TestExecution:
                     "scope": "series",
                     "moves_series": True,
                     "summary": "Retro",
-                    "start_datetime": "2027-01-11T10:15:00",
-                    "end_datetime": "2027-01-11T11:00:00",
+                    "start_datetime": start,
+                    "end_datetime": end,
                     "timezone": ZONE,
                 },
                 USER,
@@ -186,8 +196,13 @@ class TestExecution:
 
         kwargs = client.update_event.await_args.kwargs
         assert kwargs["event_id"] == "e1"
-        assert kwargs["start_datetime"] == "2027-01-04T10:15:00"
-        assert kwargs["end_datetime"] == "2027-01-04T11:00:00"
+        bounds = kwargs["bounds"]
+        # The series' first day, the occurrence's times, on the person's own wall.
+        assert (bounds.start.iso(), bounds.end.iso()) == (
+            "2027-01-04T10:15:00",
+            "2027-01-04T11:00:00",
+        )
+        assert (bounds.start.zone.key, bounds.end.zone.key) == (ZONE, ZONE)
 
     async def test_a_series_renamed_keeps_its_times_out_of_the_request(self) -> None:
         client = self._client()
@@ -208,7 +223,7 @@ class TestExecution:
 
         kwargs = client.update_event.await_args.kwargs
         assert kwargs["event_id"] == "e1"
-        assert kwargs["start_datetime"] is None and kwargs["end_datetime"] is None
+        assert kwargs["bounds"] is None
 
     async def test_a_change_of_an_occurrence_stays_one(self) -> None:
         client = self._client()

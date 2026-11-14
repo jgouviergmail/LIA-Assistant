@@ -1,0 +1,7 @@
+# The person's note, read by the ReAct loop while it works on the answer (ADR-385).
+# Shown to every later call of the turn right after the message the loop had when it
+# read it, stamped with when the person wrote it, then folded after the turn's request
+# at the loop's exit. One `key|template` per line, rendered by
+# nodes/react_turn_notes.py. Blank lines and #-comments are ignored.
+
+note|The person added this to their request while you were working on it: {text}

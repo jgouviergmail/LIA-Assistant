@@ -76,6 +76,9 @@ class BoardFilters:
         include_closed_before: Hide closed tickets that closed BEFORE this
             instant. Never hides an open ticket, however old.
         sort: Which order the page comes back in.
+        categories: Lanes to keep, by category id; None means every lane.
+        uncategorized: Also keep the tickets filed under nothing. With
+            ``categories`` it WIDENS the set — see :func:`apply_category`.
     """
 
     statuses: tuple[str, ...] | None = None
@@ -86,6 +89,8 @@ class BoardFilters:
     query: str | None = None
     include_closed_before: datetime | None = None
     sort: SortKey = "position"
+    categories: tuple[UUID, ...] | None = None
+    uncategorized: bool = False
 
 
 def visible_predicate(user_id: UUID) -> ColumnElement[bool]:
@@ -148,6 +153,30 @@ def apply_assignee(
     return stmt
 
 
+def apply_category(
+    stmt: Select[tuple[WorkboardTicket]], filters: BoardFilters
+) -> Select[tuple[WorkboardTicket]]:
+    """Narrow to the lanes the reader asked for.
+
+    The two halves of the filter are a UNION: « Home, and what is not filed
+    yet » keeps both, where an AND would match nothing — a category id is
+    never NULL — and say so to nobody.
+
+    Args:
+        stmt: The statement to narrow.
+        filters: What the reader asked for.
+
+    Returns:
+        The narrowed statement, or the same one when no lane was named.
+    """
+    wanted: list[ColumnElement[bool]] = []
+    if filters.categories:
+        wanted.append(WorkboardTicket.category_id.in_(filters.categories))
+    if filters.uncategorized:
+        wanted.append(WorkboardTicket.category_id.is_(None))
+    return stmt.where(or_(*wanted)) if wanted else stmt
+
+
 def needs_me_stmt(user_id: UUID, now: datetime) -> Select[tuple[UUID]]:
     """The « needs me » set, as a statement its tests can read.
 
@@ -192,6 +221,7 @@ __all__ = [
     "BoardFilters",
     "SortKey",
     "apply_assignee",
+    "apply_category",
     "needs_me_stmt",
     "priority_rank",
     "visible_predicate",

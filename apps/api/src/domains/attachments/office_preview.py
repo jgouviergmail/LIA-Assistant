@@ -69,19 +69,34 @@ def _spreadsheet(archive: ZipFile, data: bytes) -> str:
             _xml(archive, info.filename)
     from openpyxl import load_workbook
 
-    workbook = load_workbook(io.BytesIO(data), read_only=True, data_only=False, keep_links=False)
+    # The excerpt shows what a reader sees: the value a workbook caches beside
+    # each formula (a generated workbook always caches it), and the formula only
+    # where another program saved none — never a blank cell for a computation.
+    values = load_workbook(io.BytesIO(data), read_only=True, data_only=True, keep_links=False)
+    formulas = load_workbook(io.BytesIO(data), read_only=True, data_only=False, keep_links=False)
     try:
-        if not workbook.worksheets:
+        if not values.worksheets:
             return ""
         output = io.StringIO()
         writer = csv.writer(output)
-        for row in workbook.worksheets[0].iter_rows(
-            min_row=1, max_row=7, min_col=1, max_col=8, values_only=True
+        bounds = {"min_row": 1, "max_row": 7, "min_col": 1, "max_col": 8, "values_only": True}
+        for shown, written in zip(
+            values.worksheets[0].iter_rows(**bounds),
+            formulas.worksheets[0].iter_rows(**bounds),
+            strict=False,
         ):
-            writer.writerow("" if value is None else str(value)[:256] for value in row)
+            writer.writerow(
+                _cell_text(value if value is not None else formula)
+                for value, formula in zip(shown, written, strict=False)
+            )
         return output.getvalue()
     finally:
-        workbook.close()
+        values.close()
+        formulas.close()
+
+
+def _cell_text(value: object) -> str:
+    return "" if value is None else str(value)[:256]
 
 
 def office_excerpt(data: bytes, mime: str) -> bytes:

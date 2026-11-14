@@ -15,8 +15,14 @@ const h = vi.hoisted(() => ({
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: h.userId }, refreshUser: h.refreshUser }),
 }));
+/** What the operator switched off: absent, the deployment flag alone decides. */
+const operator = vi.hoisted(() => ({
+  capabilities: undefined as Record<string, { enabled: boolean; family: string }> | undefined,
+}));
 vi.mock('@/hooks/useAppConfig', () => ({
-  useAppConfig: () => ({ config: { features: { avatar_enabled: h.available } } }),
+  useAppConfig: () => ({
+    config: { features: { avatar_enabled: h.available }, capabilities: operator.capabilities },
+  }),
 }));
 vi.mock('@/lib/api-client', async original => ({
   ...(await original<typeof import('@/lib/api-client')>()),
@@ -362,5 +368,15 @@ describe('AvatarSettings', () => {
     await waitFor(() => expect(screen.getByRole('switch')).not.toBeChecked());
     expect(h.put).toHaveBeenCalledOnce();
     expect(h.refreshUser).not.toHaveBeenCalled();
+  });
+});
+
+describe('AvatarSettings under the operator switch', () => {
+  it('renders nothing once the operator switched the avatar off', () => {
+    operator.capabilities = { avatar: { enabled: false, family: 'media' } };
+    const { container } = renderWithProviders(<AvatarSettings lng="en" />);
+    operator.capabilities = undefined;
+
+    expect(container).toBeEmptyDOMElement();
   });
 });

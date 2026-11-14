@@ -7,21 +7,21 @@
  * hears which one); the rest of the row is a LINK to the task's detail (the
  * open task rides the address). A due day reads against the account's today:
  * « Today » and an overdue day are drawn in the warning tone, and an overdue
- * day also SAYS so — colour is never the only carrier. A checkbox whose last
+ * day also SAYS so (`TaskDueChip`). A checkbox whose last
  * change is still on its way takes no second one (`aria-disabled`, guarded in
  * the hook): disabling it would blur it under the keyboard. While the person
  * selects, the tick selects: two checkboxes on a line would read as one.
  */
 import Link from 'next/link';
-import { CalendarDays } from '@/lib/icons';
 
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { cn } from '@/lib/utils';
-import { dueTone, formatDay, type TaskNode } from '@/lib/workbench/tasks';
+import { dueTone, type TaskNode } from '@/lib/workbench/tasks';
 import type { WorkbenchTask } from '@/lib/workbench/types';
+
+import { TaskDueChip } from './TaskDueChip';
 
 export interface TaskRowProps {
   lng: Language;
@@ -159,25 +159,11 @@ function TaskLine({
         </span>
         {(task.due || notes) && (
           <span className="mt-1 flex flex-wrap items-center gap-2">
-            {task.due && <DueChip lng={lng} task={task} today={today} />}
+            {task.due && <TaskDueChip lng={lng} due={task.due} tone={dueTone(task, today)} />}
             {notes && <span className="truncate text-xs text-muted-foreground">{notes}</span>}
           </span>
         )}
       </Link>
     </div>
-  );
-}
-
-/** The day a task is due, read against today. */
-function DueChip({ lng, task, today }: { lng: Language; task: WorkbenchTask; today: string }) {
-  const { t } = useTranslation(lng);
-  const tone = dueTone(task, today);
-  const due = task.due ?? '';
-  return (
-    <Badge variant={tone === 'later' ? 'outline' : 'warning'} size="sm">
-      <CalendarDays className="h-3 w-3" aria-hidden="true" />
-      {tone === 'today' ? t('workbench.tasks.today') : formatDay(due, lng)}
-      {tone === 'overdue' && <span className="sr-only"> {t('workbench.tasks.overdue')}</span>}
-    </Badge>
   );
 }

@@ -19,7 +19,7 @@ Architecture:
 """
 
 from datetime import UTC, datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, NamedTuple
 from uuid import UUID
 
 import structlog
@@ -69,6 +69,7 @@ from src.domains.agents.weather.catalogue_manifests import (
 )
 from src.domains.connectors.clients.google_geocoding_helpers import forward_geocode
 from src.domains.connectors.clients.openweathermap_client import OpenWeatherMapClient
+from src.domains.connectors.companion_weather import publish_companion_weather
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials
 from src.infrastructure.observability.decorators import track_tool_metrics
@@ -80,6 +81,16 @@ from src.infrastructure.observability.metrics_agents import (
 logger = structlog.get_logger(__name__)
 
 
+class _Point(NamedTuple):
+    """Where a weather call reads, and whether that is the person's own place."""
+
+    lat: float
+    lon: float
+    name: str
+    country: str
+    own: bool
+
+
 async def _weather_point(
     client: OpenWeatherMapClient,
     location: str | None,
@@ -87,7 +98,7 @@ async def _weather_point(
     user_message: str,
     language: str,
     resolved_event: str,
-) -> tuple[float, float, str, str] | dict[str, Any]:
+) -> _Point | dict[str, Any]:
     """The point a weather call serves, or the refusal owed when there is none.
 
     An absent or ``auto`` location is resolved from the person (consented
@@ -112,7 +123,7 @@ async def _weather_point(
         resolved, fallback_msg = await resolve_location(runtime, user_message, language)
         if resolved:
             logger.info(resolved_event, source=resolved.source)
-            return resolved.lat, resolved.lon, resolved.address or "", ""
+            return _Point(resolved.lat, resolved.lon, resolved.address or "", "", own=True)
         if fallback_msg:
             return {"success": False, "error": "location_required", "message": fallback_msg}
     if not location:
@@ -128,7 +139,7 @@ async def _weather_point(
             "error": "location_not_found",
             "message": _("Unable to find location: {location}", language).format(location=location),
         }
-    return coords
+    return _Point(*coords, own=False)
 
 
 async def _geocode_with_city_fallback(
@@ -275,7 +286,7 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         )
         if isinstance(point, dict):
             return point
-        lat, lon, resolved_name, country = point
+        lat, lon, resolved_name, country, own_place = point
 
         # Get current weather
         weather = await client.get_current_weather(
@@ -284,6 +295,9 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
             units=units,
             lang=language,
         )
+        if own_place:
+            # The person's place, read now: the companion shows it too (ADR-294).
+            await publish_companion_weather(user_id, weather)
 
         # Format response with user's timezone. The language rides along in the
         # result so the sync formatter can localize its summary (tool instances
@@ -476,7 +490,7 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         )
         if isinstance(point, dict):
             return point
-        lat, lon, resolved_name, country = point
+        lat, lon, resolved_name, country, _own_place = point
 
         # Get daily forecast - request enough days to cover offset + requested days
         # Free tier has max N days, so cap total at limit
@@ -711,7 +725,7 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         )
         if isinstance(point, dict):
             return point
-        lat, lon, resolved_name, country = point
+        lat, lon, resolved_name, country, _own_place = point
 
         # Get 3-hour forecast (free tier limit: 8 intervals/day * max_days).
         max_entries = max_forecast_days * 8  # 8 x 3-hour intervals per day

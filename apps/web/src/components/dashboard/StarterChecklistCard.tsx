@@ -23,6 +23,7 @@ import { useApiMutation } from '@/hooks/useApiMutation';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { prefersReducedMotion } from '@/lib/utils/motion';
 import { useAppConfig, type AppConfig } from '@/hooks/useAppConfig';
+import { capabilityAvailable } from '@/lib/capability-availability';
 import { useAuth } from '@/hooks/useAuth';
 import { useChannelBindings } from '@/hooks/useChannelBindings';
 import { useHeartbeatSettings } from '@/hooks/useHeartbeatSettings';
@@ -30,6 +31,7 @@ import { usePersonality } from '@/hooks/usePersonality';
 import { useScheduledActions } from '@/hooks/useScheduledActions';
 import { useSpaces } from '@/hooks/useSpaces';
 import type { HomeLocation } from '@/hooks/useHomeLocationSettings';
+import { ragSpacesAvailable } from '@/lib/rag-spaces/availability';
 import { settingsSectionHref, type SettingsSectionToken } from '@/lib/settings-sections';
 
 export type ChecklistItemId =
@@ -54,14 +56,21 @@ export interface ChecklistFlags {
  * optional item is offered once the instance said it can be done.
  */
 export function checklistFlags(
-  config: { features?: Partial<AppConfig['features']> } | null
+  config: {
+    features?: Partial<AppConfig['features']>;
+    capabilities?: AppConfig['capabilities'];
+  } | null
 ): ChecklistFlags {
   const features = config?.features;
   return {
     homeAddress: !!features?.home_address_enabled,
-    channels: !!features?.channels_enabled,
-    heartbeat: !!features?.heartbeat_enabled,
-    ragSpaces: !!features?.rag_spaces_enabled,
+    // A first step must lead somewhere: neither is offered once the operator
+    // switched its capability off.
+    channels: capabilityAvailable(config, 'channels'),
+    heartbeat: capabilityAvailable(config, 'heartbeat'),
+    // Where the instance offers the spaces NOW: their routes refuse once the
+    // operator switched them off, and a first step must not open on a refusal.
+    ragSpaces: ragSpacesAvailable(config),
   };
 }
 

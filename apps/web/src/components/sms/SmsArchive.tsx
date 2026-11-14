@@ -49,7 +49,9 @@ function archiveProjection(
 /** Own filters, cursor invalidation and the mutually exclusive archive queries. */
 function useArchiveState(limit: number, enabled: boolean) {
   const { user } = useAuth();
-  const [mode, setMode] = useState<'day' | 'sender'>('sender');
+  // The archive opens on what arrived last, day by day (owner request 2026-11-14);
+  // the grouping by sender is one chip away.
+  const [mode, setMode] = useState<'day' | 'sender'>('day');
   const [filters, setFilters] = useState<SmsQuery>({});
   const [trail, setTrail] = useState<string[]>([]);
   const cursor = trail.at(-1);

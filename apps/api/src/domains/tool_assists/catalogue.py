@@ -72,7 +72,8 @@ class AssistSpec:
 ASSISTS: Final[dict[ToolAssist, AssistSpec]] = {
     ToolAssist.MAIL_SUMMARY: AssistSpec(slot=DIGEST_SLOT, sections=(SECTION_MAIL,)),
     ToolAssist.MAIL_REPLY: AssistSpec(slot=MAIL_WRITING_SLOT, sections=(SECTION_MAIL,)),
-    ToolAssist.MAIL_COMPOSE: AssistSpec(slot=MAIL_WRITING_SLOT),
+    # Reads the mailbox only to learn how the person writes, when it must (ADR-383).
+    ToolAssist.MAIL_COMPOSE: AssistSpec(slot=MAIL_WRITING_SLOT, sections=(SECTION_MAIL,)),
     ToolAssist.MAIL_SUBJECT: AssistSpec(slot=MAIL_WRITING_SLOT),
     ToolAssist.MAIL_TRANSLATE: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE, sections=(SECTION_MAIL,)),
     ToolAssist.MAIL_EVENT: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE, sections=(SECTION_MAIL,)),
@@ -98,7 +99,10 @@ ASSISTS: Final[dict[ToolAssist, AssistSpec]] = {
     ToolAssist.TEXT_PASSAGE: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE),
     ToolAssist.SELECTION: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE),
     ToolAssist.SELECTION_INTERNET: AssistSpec(
-        slot=TOOL_ASSIST_LLM_TYPE, sections=("brave", "perplexity", "wikipedia")
+        # Every provider the research may choose (selection_research.SEARCH_CONNECTORS,
+        # a test holds the two equal); the instance's search since lot 18.
+        slot=TOOL_ASSIST_LLM_TYPE,
+        sections=("brave", "perplexity", "searxng", "wikipedia"),
     ),
     # No model: the voice bills on its own run, and the slot here prices nothing.
     ToolAssist.READ_ALOUD: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE, asks_a_model=False),

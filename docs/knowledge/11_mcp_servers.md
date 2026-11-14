@@ -23,6 +23,9 @@ Add a server in a few steps:
 **⚙️ Access:**
 Settings → "*MCP Servers*" section → **Add** button
 
+**⚡ Known servers:**
+The **+ Known MCPs** button, beside **Add**, opens a gallery of ready-made servers: each tile shows the product's own icon, its name, how it signs in (no account, OAuth sign-in, OAuth with the person's own app, API key or access token) and what it brings — for example Notion, GitHub, Hugging Face, Bright Data, or Wolfram|Alpha and Exa with no account at all. A server the person already added (recognised by its address) is greyed out and marked **Installed**. Clicking a tile opens the create form already filled — name, address, sign-in method, and the header a key is sent in — and says what to do next: paste the person's own key or token, or save then connect the account from the server's card. GitHub registers no application for LIA: the person creates an OAuth app at GitHub with the callback address the form shows, then pastes its client ID and secret. It can also be asked in the chat ("*Add the Notion MCP server*"): after confirmation, the private form opens already filled, and the person saves it there.
+
 **📝 Configuration:**
 1. **Name**: descriptive name (e.g., "HuggingFace Hub")
 2. **URL**: HTTPS Streamable HTTP endpoint of the MCP server

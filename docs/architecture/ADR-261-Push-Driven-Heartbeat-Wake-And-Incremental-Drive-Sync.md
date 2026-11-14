@@ -108,3 +108,34 @@ The heartbeat has no daily quota and no probabilistic pacing any more, so a wake
 runs under exactly the checker a tick runs under, and `skip_probabilistic_gate`
 is gone. In point 2, « daily quota » leaves the list of gates; the notification
 window and the global, cross-type and activity cooldowns still apply.
+
+## Amendment 2026-11-11 — a mail wake announces unread mail only
+
+**Finding.** The pre-filter asked whether a new inbox message was important, never
+whether it was still unread, and the aggregator listed every message of a wake or of
+a Gmail delta under « UNREAD EMAILS ». A message the person had opened, and answered,
+between its arrival and the sweep could therefore wake the decision and be announced
+with an offer to reply. Proved on 2026-11-11 by running the real aggregator against a
+mailbox holding one opened message: it was listed on both roads.
+
+**Decision.** Unread is the DEFINITION of the heartbeat's mail source, not a tunable,
+so point 4's « every rule is a setting » does not extend to it. `mail_passes` refuses
+an opened message last, under the bounded reason `already_read`; the aggregator keeps
+only the messages the mailbox still marks unread on its three roads (search, delta,
+wake). What a decision looks at is bounded apart from what it lists
+(`PUSH_WAKE_MAIL_MAX_MESSAGES` new messages, `HEARTBEAT_CONTEXT_EMAILS_MAX` listed), so
+an opened message never takes the place of an unread one behind it. The verdict reads
+each message FRESH at the sweep and on the delta: a copy cached when the mail arrived
+would still say « unread » of a message opened since. The label has one reading
+(`core.mail_vocabulary.is_unread`), fail-closed: a message carrying no labels is not
+unread. A mail watch is untouched: it waits for an arrival, and still arms on an
+opened message.
+
+**Proof.** `tests/unit/domains/heartbeat/test_mail_context.py`,
+`tests/unit/domains/push_channels/test_wake_filter.py`,
+`tests/unit/infrastructure/scheduler/test_wake_mail_watches.py`.
+
+**Since.** Unread is not unanswered either: the same source now leaves out a mail the
+person already answered and says when an answer sits unsent in their drafts
+([ADR-379](ADR-379-A-Listed-Mail-Says-Whether-It-Was-Answered.md)). The source lives
+in `domains/heartbeat/mail_context.py`.

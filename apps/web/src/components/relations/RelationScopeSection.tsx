@@ -16,6 +16,7 @@
 
 import { useCallback, useState } from 'react';
 import { Sparkles, Target } from '@/lib/icons';
+import { MonochromeIcons } from '@/lib/icon-style-context';
 import { useTranslation } from 'react-i18next';
 
 import { CollapsibleSection } from '@/components/relations/CollapsibleSection';
@@ -236,7 +237,9 @@ export function RelationScopeSection({
         // the sheet (owner request 2026-10-22).
         className="inline-flex min-h-11 w-full items-center justify-start gap-1.5 rounded-lg bg-primary px-3 py-2 text-left text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-disabled:cursor-not-allowed aria-disabled:opacity-50 sm:w-auto sm:justify-center"
       >
-        <Sparkles className="h-4 w-4" aria-hidden="true" />
+        <MonochromeIcons>
+          <Sparkles className="h-4 w-4" aria-hidden="true" />
+        </MonochromeIcons>
         {t('relations.scope_launch')}
       </button>
     </CollapsibleSection>

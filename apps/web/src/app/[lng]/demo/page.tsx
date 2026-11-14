@@ -1,7 +1,5 @@
 import { type Metadata } from 'next';
 import { initI18next, validateLanguage } from '@/i18n';
-import { languages, fallbackLng, LOCALE_MAP } from '@/i18n/settings';
-import type { Language } from '@/i18n/settings';
 import { InteractiveChatMockup } from '@/components/landing/InteractiveChatMockup';
 import { LiveDemoInvitation } from '@/components/showroom/LiveDemoInvitation';
 import { GuidedShowroom } from '@/components/showroom/GuidedShowroom';
@@ -13,7 +11,7 @@ import { MotionToggle } from '@/components/landing/cosmic/MotionToggle';
 import { Planetarium } from '@/components/landing/cosmic/Planetarium';
 import { LANDING_PLANETARIUM_ENABLED } from '@/components/landing/constants';
 import { getPublicShowroomVariant } from '@/lib/showroom-config';
-import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
+import { publicPageMetadata } from '@/lib/public-page-metadata';
 
 /**
  * Shareable product demonstration: the same six contextual scenes as the
@@ -22,10 +20,6 @@ import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
  * to read. Engineering explanations remain opt-in; reduced motion shows the
  * complete scene immediately. The configured guided showroom stays independent.
  */
-function buildLangUrl(path: string, lng: Language): string {
-  return localizedUrl(getSiteOrigin(), path, lng);
-}
-
 interface DemoPageProps {
   params: Promise<{ lng: string }>;
 }
@@ -35,40 +29,12 @@ export async function generateMetadata({ params }: DemoPageProps): Promise<Metad
   const lng = validateLanguage(lngParam);
   const { t } = await initI18next(lng);
 
-  const title = t('landing.meta.title');
-  const description = t('landing.product_demo.meta_description');
-  const canonicalUrl = buildLangUrl('/demo', lng);
-  const socialImage = getSiteOrigin()?.concat('/Title.png');
-
-  const langAlternates: Record<string, string> = {};
-  for (const l of languages) {
-    langAlternates[l] = buildLangUrl('/demo', l);
-  }
-  langAlternates['x-default'] = buildLangUrl('/demo', fallbackLng);
-
-  return {
-    title,
-    description,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: langAlternates,
-    },
-    openGraph: {
-      title,
-      description,
-      url: canonicalUrl,
-      locale: LOCALE_MAP[lng],
-      alternateLocale: languages.filter(l => l !== lng).map(l => LOCALE_MAP[l]),
-      images: socialImage
-        ? [{ url: socialImage, width: 2125, height: 1193, alt: title }]
-        : undefined,
-    },
-    twitter: {
-      title,
-      description,
-      images: socialImage ? [socialImage] : undefined,
-    },
-  };
+  return publicPageMetadata(
+    lng,
+    '/demo',
+    t('landing.product_demo.meta_title'),
+    t('landing.product_demo.meta_description')
+  );
 }
 
 export default async function DemoPage({ params }: DemoPageProps) {

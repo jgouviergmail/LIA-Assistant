@@ -72,6 +72,7 @@ import type {
   LiveTranscriptRole,
   LiveTurnResponse,
 } from './types';
+import type { ConversationSelection } from '@/types/conversation';
 
 /** What a delegated turn tells the chat beside the request. */
 export interface LiveSpokenMeta {
@@ -81,6 +82,10 @@ export interface LiveSpokenMeta {
 
 /** The chat's doors, as the page hands them over. */
 export interface LiveChatBindings {
+  /** Omitted only while a legacy Main view has not resolved its first discussion. */
+  readonly target?: ConversationSelection;
+  /** The workspace retains these doors until this session finishes. */
+  onStart?: () => void;
   sendMessage: (content: string, meta: LiveSpokenMeta) => Promise<void>;
   /** The chat's own Stop: cancels the running turn (ADR-117). */
   stop: () => Promise<void>;
@@ -100,6 +105,8 @@ export interface LivePlayer {
   /** A real generation-complete signal; a transcript's quiet is not audio EOF. */
   finishProduction?(): void;
   attachRemoteStream?(stream: MediaStream): () => void;
+  /** Lends the player's running context to a voice another sink plays, for the face. */
+  tapStream?(stream: MediaStream): () => void;
   nativeSpeaking?(speaking: boolean): void;
   prepareNativeResponse?(): void;
   onAudibleChange?(listener: (speaking: boolean) => void): void;
@@ -118,7 +125,7 @@ export interface LiveControllerDeps {
   startMic: (options: MicCaptureOptions) => Promise<MicCapture>;
   /** Whether this browser can hold a session — asked before anything is minted. */
   isSupported: () => boolean;
-  chat: LiveChatBindings;
+  chat: LiveChatBindings | null;
   /** The wake word of a sleeping session (ADR-329); null where this browser cannot run it. */
   createWakeListener: (options: LiveWakeListenerOptions) => LiveWakeListener | null;
   /** The language whose phrase wakes a session, or null when none ships. */
@@ -139,6 +146,17 @@ interface TurnBuffer {
   startedAt: number;
   /** The turn handed a request to LIA: its rows belong to the chat turn. */
   delegated: boolean;
+}
+
+interface LiveClosing {
+  outcome: LiveOutcome;
+  error: string | null;
+  detail: string | null;
+}
+
+interface LiveOpening {
+  submitted: boolean;
+  closing: LiveClosing | null;
 }
 
 const LIVE_TURN_TYPE = 'live_turn';
@@ -173,8 +191,9 @@ function freshTurn(): TurnBuffer {
 
 export class LiveSessionController {
   private readonly store = useLiveStore;
-  /** The chat's doors, replaced by the hook on every render so a delegated turn reaches the CURRENT chat. */
-  private chat: LiveChatBindings;
+  /** The immutable origin captured before the first asynchronous step of a start. */
+  private chat: LiveChatBindings | null;
+  private nextChat: LiveChatBindings | null;
   private transport: LiveTransport | null = null;
   private player: LivePlayer | null = null;
   /** Output activity is independent of delayed captions and tool progress. */
@@ -183,6 +202,7 @@ export class LiveSessionController {
   private bridge: DelegationBridge | null = null;
   private clock: ActivityClock | null = null;
   private session: LiveSessionStart | null = null;
+  private opening: LiveOpening | null = null;
   private config: LiveConfigResponse | null = null;
   private handle: string | null = null;
   /** The provider's own conversation id, when its wire named one (ElevenLabs). */
@@ -203,6 +223,7 @@ export class LiveSessionController {
 
   constructor(private readonly deps: LiveControllerDeps) {
     this.chat = deps.chat;
+    this.nextChat = deps.chat;
     this.sleeper = new LiveStandby(
       {
         api: deps.api,
@@ -225,15 +246,18 @@ export class LiveSessionController {
 
   // -- public surface --------------------------------------------------------
 
-  /** Point at the chat as the page renders it now (the hook calls this in an effect). */
+  /** A view change affects the next session; an open session keeps its original doors. */
   setChat(chat: LiveChatBindings): void {
-    this.chat = chat;
+    this.nextChat = chat;
   }
 
   /** Open a session: the click that calls this is the user gesture the player needs. */
   async start(mode: LiveSessionMode = 'delegated'): Promise<void> {
     const status = this.store.getState().status;
     if (status !== 'idle' && status !== 'ended') return;
+    const chat = this.nextChat;
+    if (!chat) return;
+    this.chat = chat;
     if (!this.deps.isSupported()) {
       // No request leaves: nothing is claimed, minted or counted for a
       // browser that could not open the socket or the microphone anyway.
@@ -247,30 +271,29 @@ export class LiveSessionController {
     this.attempts = 0;
     const player = this.deps.createPlayer();
     this.player = player;
+    const opening: LiveOpening = { submitted: false, closing: null };
+    this.opening = opening;
     let session: LiveSessionStart;
     try {
-      this.store.getState().begin(null, mode);
-      await player.warmup();
-      this.config = await this.deps.api.get<LiveConfigResponse>('/live/config');
-      this.store.getState().setExtensionMinutes(this.config.extension_minutes);
-      session = await this.deps.api.post<LiveSessionStart>('/live/sessions', {
-        mode,
-        audio_transport: isAppleMobile() ? 'webrtc' : 'websocket',
-      });
-      this.session = session;
-      this.store.getState().begin(session.session_id, session.mode);
-      this.store.getState().apply('minted');
-      this.store.getState().setRates(session.rates, session.session_budget_eur);
-      this.store.getState().setVendorBilled(session.capabilities.vendor_billed);
-      this.bindPlayer(player);
-      // A direct session delegates nothing: no bridge, the chat's doors unused.
-      this.bridge = session.mode === 'direct' ? null : this.buildBridge(session);
-      this.transport = this.deps.createTransport(session.provider, session.audio_transport);
-      if (this.transport.audio.ownership === 'managed' && !player.attachRemoteStream) {
-        player.dispose();
-        this.player = null;
+      chat.onStart?.();
+      this.store.getState().begin(null, mode, chat.target);
+      const minted = await this.mint(opening, mode, chat, player);
+      if (!minted) return;
+      session = minted;
+      this.opening = null;
+      this.session = minted;
+      if (opening.closing) {
+        const { outcome, error, detail } = opening.closing;
+        await this.end(outcome, error, detail);
+        return;
       }
+      this.activate(minted, chat, player);
     } catch (error) {
+      if (opening.closing) {
+        if (this.opening === opening) this.finishOpening(opening.closing);
+        return;
+      }
+      this.opening = null;
       // Before the mint nothing exists server-side; after it, the record is
       // claimed and must be closed — with the reason named.
       if (this.session) await this.end('error', getApiErrorCode(error) ?? String(error));
@@ -278,6 +301,44 @@ export class LiveSessionController {
       return;
     }
     await this.establishInitialConnection(session);
+  }
+
+  private async mint(
+    opening: LiveOpening,
+    mode: LiveSessionMode,
+    chat: LiveChatBindings,
+    player: LivePlayer
+  ): Promise<LiveSessionStart | null> {
+    await player.warmup();
+    if (opening.closing) return null;
+    const config = await this.deps.api.get<LiveConfigResponse>('/live/config');
+    if (opening.closing) return null;
+    this.config = config;
+    this.store.getState().setExtensionMinutes(config.extension_minutes);
+    opening.submitted = true;
+    return this.deps.api.post<LiveSessionStart>('/live/sessions', {
+      mode,
+      ...chat.target,
+      audio_transport: isAppleMobile() ? 'webrtc' : 'websocket',
+    });
+  }
+
+  private activate(session: LiveSessionStart, chat: LiveChatBindings, player: LivePlayer): void {
+    this.store.getState().begin(session.session_id, session.mode, {
+      conversation_id: session.conversation_id,
+      conversation_revision: session.conversation_revision,
+    });
+    this.store.getState().apply('minted');
+    this.store.getState().setRates(session.rates, session.session_budget_eur);
+    this.store.getState().setVendorBilled(session.capabilities.vendor_billed);
+    this.bindPlayer(player);
+    // A direct session delegates nothing: no bridge, the chat's doors unused.
+    this.bridge = session.mode === 'direct' ? null : this.buildBridge(session, chat);
+    this.transport = this.deps.createTransport(session.provider, session.audio_transport);
+    if (this.transport.audio.ownership === 'managed' && !player.attachRemoteStream) {
+      player.dispose();
+      this.player = null;
+    }
   }
 
   /** Prepare the provider's audio, then open its first credentialed connection. */
@@ -293,21 +354,33 @@ export class LiveSessionController {
       return;
     }
     await avatar;
-    if (this.ending) return;
+    if (this.ownsSession(session)) await this.openInitialSocket(session, transport);
+  }
+
+  private ownsSession(session: LiveSessionStart): boolean {
+    return this.session === session && !this.ending;
+  }
+
+  private async openInitialSocket(
+    session: LiveSessionStart,
+    transport: LiveTransport
+  ): Promise<void> {
     try {
       this.awaitingMicrophone = transport.audio.ownership === 'managed';
-      await this.connect(await this.firstCredential(session));
-      this.awaitingMicrophone = false;
+      const credential = await this.firstCredential(session);
+      if (!this.ownsSession(session)) return;
+      await this.connect(credential);
+      if (this.ownsSession(session)) this.armExpiry(session.expires_at, 0);
     } catch (error) {
-      this.awaitingMicrophone = false;
+      if (!this.ownsSession(session)) return;
       // Minted and claimed server-side: close the books, name the reason.
       const denied =
         error instanceof Error &&
         (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError');
       await this.end(denied ? 'mic_denied' : 'error', getApiErrorCode(error) ?? String(error));
-      return;
+    } finally {
+      if (this.session === session) this.awaitingMicrophone = false;
     }
-    this.armExpiry(session.expires_at, 0);
   }
 
   /**
@@ -385,9 +458,20 @@ export class LiveSessionController {
   ): Promise<void> {
     if (this.ending) return;
     const session = this.session;
-    if (!session) return;
+    if (!session) {
+      this.cancelOpening({ outcome, error, detail });
+      return;
+    }
     this.ending = true;
     this.store.getState().apply('end');
+    const audioDiagnostics = await this.closeMedia();
+    await this.archiveTurn();
+    await this.closeBooks(session, outcome, detail ?? error, audioDiagnostics);
+    this.store.getState().finish(outcome, error, detail);
+    this.release();
+  }
+
+  private async closeMedia(): Promise<PcmPlayerDiagnostics | null> {
     this.clearTimers();
     this.sleeper.dispose();
     this.clock?.stop();
@@ -398,10 +482,12 @@ export class LiveSessionController {
     const audioDiagnostics = this.player?.diagnostics?.() ?? null;
     this.player?.dispose();
     this.setSpeaking(false);
-    await this.archiveTurn();
-    await this.closeBooks(session, outcome, detail ?? error, audioDiagnostics ?? null);
-    this.store.getState().finish(outcome, error, detail);
-    this.release();
+    return audioDiagnostics;
+  }
+
+  /** Stop the delegated turn through the session's own discussion, then close. */
+  async stopAll(): Promise<void> {
+    await Promise.all([this.chat?.stop(), this.end('ended')]);
   }
 
   toggleMute(): void {
@@ -481,6 +567,24 @@ export class LiveSessionController {
 
   // -- start ------------------------------------------------------------------
 
+  private cancelOpening(closing: LiveClosing): void {
+    const opening = this.opening;
+    if (!opening || opening.closing) return;
+    opening.closing = closing;
+    this.store.getState().apply('end');
+    this.player?.dispose();
+    this.player = null;
+    // A submitted mint must be settled: the response can acknowledge a claim
+    // that the client still owns even after its view has closed.
+    if (!opening.submitted) this.finishOpening(closing);
+  }
+
+  private finishOpening({ outcome, error, detail }: LiveClosing): void {
+    this.opening = null;
+    this.release();
+    this.store.getState().finish(outcome, error, detail);
+  }
+
   private failStart(error: unknown): void {
     const code = getApiErrorCode(error);
     const message = error instanceof Error ? error.message : String(error);
@@ -493,15 +597,39 @@ export class LiveSessionController {
 
   /** A system permission sheet is part of opening the mic, not a hidden live session. */
   private async openMicrophoneAfterPrompt(): Promise<boolean> {
+    const session = this.session;
+    const transport = this.transport;
+    if (!session || !transport) return false;
+    const ownsCapture = () => this.ownsSession(session) && this.transport === transport;
+    const audio = transport.audio;
+    let capture: MicCapture | null = null;
     this.awaitingMicrophone = true;
-    const micReady = await this.openMicrophone();
-    this.awaitingMicrophone = false;
-    if (!micReady) return false;
-    if (this.ending || !this.session) {
-      await this.mic?.stop().catch(() => undefined);
-      this.mic = null;
+    try {
+      capture = await this.deps.startMic({
+        sampleRate: audio.inputRate,
+        chunkSamples: Math.round((audio.inputRate * audio.chunkMs) / 1000),
+        pcm: audio.ownership === 'pcm',
+        onChunk: pcm => {
+          if (capture && this.mic === capture && ownsCapture()) transport.sendAudio(pcm);
+        },
+      });
+    } catch (error) {
+      if (ownsCapture()) {
+        const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+        const denied =
+          error instanceof Error &&
+          (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError');
+        await this.end(denied ? 'mic_denied' : 'error', null, detail);
+      }
+      return false;
+    } finally {
+      if (this.session === session) this.awaitingMicrophone = false;
+    }
+    if (!ownsCapture()) {
+      await capture.stop().catch(() => undefined);
       return false;
     }
+    this.mic = capture;
     if (this.pageIsHidden) this.pageHidden(true);
     return true;
   }
@@ -515,28 +643,6 @@ export class LiveSessionController {
       `/live/sessions/${session.session_id}/credential`,
       {}
     );
-  }
-
-  /** Open the microphone as the transport wants it; false when the person refused it. */
-  private async openMicrophone(): Promise<boolean> {
-    const audio = this.transport?.audio;
-    if (!audio) return false;
-    try {
-      this.mic = await this.deps.startMic({
-        sampleRate: audio.inputRate,
-        chunkSamples: Math.round((audio.inputRate * audio.chunkMs) / 1000),
-        pcm: audio.ownership === 'pcm',
-        onChunk: pcm => this.transport?.sendAudio(pcm),
-      });
-      return true;
-    } catch (error) {
-      const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-      const denied =
-        error instanceof Error &&
-        (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError');
-      await this.end(denied ? 'mic_denied' : 'error', null, detail);
-      return false;
-    }
   }
 
   private bindPlayer(player: LivePlayer): void {
@@ -565,15 +671,15 @@ export class LiveSessionController {
     this.store.getState().setVoiceState(this.outputSpeaking ? 'speaking' : state);
   }
 
-  private buildBridge(session: LiveSessionStart): DelegationBridge {
+  private buildBridge(session: LiveSessionStart, chat: LiveChatBindings): DelegationBridge {
     return new DelegationBridge({
       send: (request, spokenText) =>
-        this.chat.sendMessage(request, {
+        chat.sendMessage(request, {
           live_session_id: session.session_id,
           spoken_text: spokenText,
         }),
-      stop: () => this.chat.stop(),
-      readAnswer: () => this.chat.readAnswer(),
+      stop: chat.stop,
+      readAnswer: chat.readAnswer,
       lines: {
         timed_out: this.config?.delegation_lines.timed_out ?? '',
         result_cut: this.config?.delegation_lines.result_cut ?? '',
@@ -937,10 +1043,10 @@ export class LiveSessionController {
   private appendArchived(session: LiveSessionStart, body: TurnBody, ids: LiveTurnResponse): void {
     const at = new Date();
     if (body.user_text && ids.user_message_id) {
-      this.chat.appendMessage(this.row(ids.user_message_id, 'user', body.user_text, at, session));
+      this.chat?.appendMessage(this.row(ids.user_message_id, 'user', body.user_text, at, session));
     }
     if (body.assistant_text && ids.assistant_message_id) {
-      this.chat.appendMessage(
+      this.chat?.appendMessage(
         this.row(ids.assistant_message_id, 'assistant', body.assistant_text, at, session)
       );
     }
@@ -987,7 +1093,7 @@ export class LiveSessionController {
         }
       );
       if (summary.summary_message_id) {
-        this.chat.appendMessage(this.summaryRow(session, outcome, summary));
+        this.chat?.appendMessage(this.summaryRow(session, outcome, summary));
       }
       // The vendor's own bill, on the person's key: shown once, recorded nowhere.
       if (summary.vendor_bill) this.store.getState().setVendorBill(summary.vendor_bill);
@@ -1056,6 +1162,7 @@ export class LiveSessionController {
     this.clock = null;
     this.session = null;
     this.handle = null;
+    this.awaitingMicrophone = false;
     this.ending = false;
   }
 

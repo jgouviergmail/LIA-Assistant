@@ -6,10 +6,10 @@ who may delete it. The conversation reset used to delete every key matching
 and the adaptive thresholds were wiped 161 times in 56 days on the primary
 production account (measured 2026-09-03). A family now declares what it is:
 
-- ``CONVERSATION``: state of the running conversation (HITL, active run, tool
-  contexts) — purged by a conversation reset.
-- ``USER_CACHE``: per-user caches with a TTL — purged by a reset (privacy and
-  freshness), harmless to lose.
+- ``CONVERSATION``: runtime state; removal additionally requires exact runtime
+  ownership and membership in the retirement inventory.
+- ``USER_CACHE``: per-account caches with a TTL, shared by every discussion.
+  A targeted reset never scans or invalidates them.
 - ``USER_LEARNING``: what LIA learned about the user — NEVER purged by a
   reset; purged by account deletion and by the explicit "forget" surfaces.
 - ``USER_RUNTIME``: sessions, rate limits, SSE registries, one-time tokens —
@@ -18,8 +18,8 @@ production account (measured 2026-09-03). A family now declares what it is:
 
 The match is longest-prefix on ``:``-separated segments, so
 ``briefing:v2:lastgood`` wins over ``briefing:v2``. An UNDECLARED family is
-never purged by a reset: silent deletion is how learning died invisibly, so
-the safe default is to keep and to count (``reset_undeclared_family_total``).
+never purged by a reset. An unknown runtime inventory member refuses cleanup
+and is counted by ``conversation_cleanup_inventory_refusals_total``.
 The boot guard (:func:`assert_key_families_complete`) refuses to start when a
 ``core.constants`` prefix names a family this registry does not know.
 """
@@ -52,11 +52,14 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     # --- conversation: purged by a reset ---------------------------------
     "hitl_pending": KeyScope.CONVERSATION,
     "hitl:request_ts": KeyScope.CONVERSATION,
+    "conversation:inventory": KeyScope.CONVERSATION,
     "chat:run": KeyScope.CONVERSATION,
     "chat:active_run": KeyScope.CONVERSATION,
     "chat:listeners": KeyScope.CONVERSATION,
     "chat:cancel": KeyScope.CONVERSATION,
     "browser:session": KeyScope.CONVERSATION,
+    # Shared bounded hash: lifecycle erases only the owner's runtime fields.
+    "browser:pool:registry": KeyScope.GLOBAL,
     # A skill written in the chat, waiting for the card's click, and the
     # account's index of them (ADR-327): a question the conversation asked —
     # the reset that removes the card forgets it too.
@@ -80,6 +83,8 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "content:classification": KeyScope.USER_CACHE,
     "relations:context:v2": KeyScope.USER_CACHE,
     "briefing:v2": KeyScope.USER_CACHE,
+    # The companion's newest present weather (ADR-294, 2026-11-13): an hour at most.
+    "companion:weather": KeyScope.USER_CACHE,
     "heartbeat:birthdays": KeyScope.USER_CACHE,
     "heartbeat:departure": KeyScope.USER_CACHE,
     "moments:agenda": KeyScope.USER_CACHE,
@@ -101,6 +106,10 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "heartbeat:wake": KeyScope.USER_LEARNING,
     "psyche:state": KeyScope.USER_LEARNING,
     # --- runtime: never purged by a reset --------------------------------
+    # A closed writer marker must outlive every already-issued opening command.
+    # Logical retirement closes it; deleting it is not the cleanup operation.
+    "conversation:writer": KeyScope.USER_RUNTIME,
+    "recurrence_writer": KeyScope.USER_RUNTIME,
     # A build claim held across uvicorn workers (shared_flight). NEVER purged
     # by a reset: deleting a claim while its holder is still building would
     # let every other worker start the same work again — the opposite of
@@ -142,6 +151,9 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     # reset: a waiter would wait out its budget for a verdict already given.
     "oauth_refresh": KeyScope.USER_RUNTIME,
     "oauth:health:notified": KeyScope.USER_RUNTIME,
+    # « Your usage ceiling stood your routines aside », claimed once per window
+    # (ADR-265 amendment 2026-11-12): a reset that freed it would re-send it.
+    "scheduled_action:quota_notified": KeyScope.USER_RUNTIME,
     "oauth:state": KeyScope.USER_RUNTIME,
     "apikey:user": KeyScope.USER_RUNTIME,
     "ws:audio": KeyScope.USER_RUNTIME,
@@ -215,6 +227,9 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "system": KeyScope.GLOBAL,
     "http": KeyScope.GLOBAL,
     "ratelimit": KeyScope.GLOBAL,
+    # A routine address's call window and a client's (ADR-386): named by a
+    # routine or an IP, never a person, and never a reset's to clear.
+    "routine_webhook": KeyScope.GLOBAL,
     "product": KeyScope.GLOBAL,
     "pricing": KeyScope.GLOBAL,
     "plan:patterns": KeyScope.GLOBAL,
@@ -241,7 +256,7 @@ BARE_PREFIX_FAMILIES: dict[str, KeyScope] = {
     "async_currency_rate_": KeyScope.GLOBAL,
 }
 
-_RESET_PURGED: frozenset[KeyScope] = frozenset({KeyScope.CONVERSATION, KeyScope.USER_CACHE})
+_RESET_PURGED: frozenset[KeyScope] = frozenset({KeyScope.CONVERSATION})
 _USER_SCOPED: frozenset[KeyScope] = frozenset(
     {
         KeyScope.CONVERSATION,
@@ -293,9 +308,9 @@ def scope_of(key: str | bytes) -> KeyScope | None:
 def is_reset_purgeable(key: str | bytes) -> bool:
     """Whether a conversation reset may delete this key.
 
-    Only families declared ``CONVERSATION`` or ``USER_CACHE`` qualify. An
-    undeclared family answers False: keeping an unknown key costs a cache
-    miss, deleting it may cost weeks of learning.
+    Only ``CONVERSATION`` qualifies. This is a necessary scope check, never
+    authorization by itself: the exact runtime and inventory must match too.
+    Shared account caches and undeclared families always answer False.
     """
     return scope_of(key) in _RESET_PURGED
 

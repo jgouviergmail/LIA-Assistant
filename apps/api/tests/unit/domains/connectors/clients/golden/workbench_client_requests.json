@@ -1,13 +1,13 @@
 {
   "apple_calendar.create_update_timed": [
     {
-      "dtend": "2026-11-02T11:00:00+00:00",
-      "dtstart": "2026-11-02T10:00:00+00:00",
+      "dtend": "2026-11-02T11:00:00+01:00",
+      "dtstart": "2026-11-02T10:00:00+01:00",
       "summary": "Dentist"
     },
     {
-      "dtend": "2026-11-02T11:00:00+00:00",
-      "dtstart": "2026-11-02T10:00:00+00:00",
+      "dtend": "2026-11-02T11:00:00+01:00",
+      "dtstart": "2026-11-02T10:00:00+01:00",
       "summary": "Dentist"
     }
   ],
@@ -49,12 +49,12 @@
       "body": {
         "end": {
           "dateTime": "2026-11-02T11:00:00",
-          "timeZone": "UTC"
+          "timeZone": "Europe/Paris"
         },
         "id": "20blhqt7sbfihtegeul4b741i9q7um1mqrrmts35h01hhkqip0o0",
         "start": {
           "dateTime": "2026-11-02T10:00:00",
-          "timeZone": "UTC"
+          "timeZone": "Europe/Paris"
         },
         "summary": "Dentist"
       },
@@ -71,12 +71,12 @@
     {
       "body": {
         "end": {
-          "dateTime": "2026-11-02T11:00:00Z",
-          "timeZone": "UTC"
+          "dateTime": "2026-11-02T11:00:00",
+          "timeZone": "Europe/Paris"
         },
         "start": {
-          "dateTime": "2026-11-02T10:00:00Z",
-          "timeZone": "UTC"
+          "dateTime": "2026-11-02T10:00:00",
+          "timeZone": "Europe/Paris"
         },
         "summary": "Dentist"
       },
@@ -139,11 +139,11 @@
       "body": {
         "end": {
           "dateTime": "2026-11-02T11:00:00",
-          "timeZone": "UTC"
+          "timeZone": "Europe/Paris"
         },
         "start": {
           "dateTime": "2026-11-02T10:00:00",
-          "timeZone": "UTC"
+          "timeZone": "Europe/Paris"
         },
         "subject": "Dentist",
         "transactionId": "0f7fc7e3-d9c6-55c5-b2dc-069be067079e"
@@ -156,11 +156,11 @@
       "body": {
         "end": {
           "dateTime": "2026-11-02T11:00:00",
-          "timeZone": "UTC"
+          "timeZone": "Europe/Paris"
         },
         "start": {
           "dateTime": "2026-11-02T10:00:00",
-          "timeZone": "UTC"
+          "timeZone": "Europe/Paris"
         },
         "subject": "Dentist"
       },

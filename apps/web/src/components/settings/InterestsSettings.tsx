@@ -353,7 +353,7 @@ export function InterestsSettings({ lng }: BaseSettingsProps) {
             <Switch
               checked={settings?.interests_enabled ?? false}
               onCheckedChange={handleToggleEnabled}
-              disabled={updatingSettings}
+              busy={updatingSettings}
             />
           </Card>
 

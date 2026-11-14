@@ -237,6 +237,31 @@ describe('ChatSSEClient — transport failures', () => {
       i18nKey: 'errors.chat.unknown_error',
     });
   });
+
+  it('releases the reader and reports a network failure after a partial answer', async () => {
+    const client = new ChatSSEClient();
+    let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const stream = new ReadableStream<Uint8Array>({
+      start(value) {
+        controller = value;
+        value.enqueue(new TextEncoder().encode('data: {"type":"token","content":"partial"}\n'));
+      },
+    });
+    fetchMock.mockResolvedValue(new Response(stream));
+    const onChunk = vi.fn(() => controller?.error(new TypeError('Failed to fetch')));
+    const onError = vi.fn();
+    const onDone = vi.fn();
+
+    await client.streamChat(REQUEST, onChunk, onError, onDone);
+
+    expect(onChunk).toHaveBeenCalledExactlyOnceWith({ type: 'token', content: 'partial' });
+    expect(onError).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ name: 'NetworkError' })
+    );
+    expect(onDone).not.toHaveBeenCalled();
+    expect(stream.locked).toBe(false);
+    expect(client.getIsConnected()).toBe(false);
+  });
 });
 
 describe('ChatSSEClient — frame parsing', () => {

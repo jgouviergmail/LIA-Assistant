@@ -577,12 +577,14 @@ def _to_messages(turns: tuple[tuple[str, str], ...]) -> list[BaseMessage]:
 def _render_interest_prompt(template: str, scenario: Scenario, now: str) -> str:
     """Render the interest prompt exactly as ``_analyze_interests_core`` does."""
     from src.core.i18n import get_language_name
+    from src.core.time_utils import resolve_zone
     from src.domains.interests.services.extraction_service import (
         _format_messages_for_extraction as fmt,
     )
 
     return template.format(
-        conversation=fmt(_to_messages(scenario.turns)),
+        # The declared default zone: the scenarios' messages carry no instant.
+        conversation=fmt(_to_messages(scenario.turns), zone=resolve_zone(None)),
         existing_interests=EXISTING_INTERESTS,
         current_datetime=now,
         user_language=get_language_name("fr"),
@@ -597,12 +599,14 @@ def _render_memory_prompt(template: str, scenario: Scenario, now: str) -> str:
         MEMORY_TRIGGER_TOPIC_MAX_CHARS,
         MEMORY_USAGE_NUANCE_MAX_CHARS,
     )
+    from src.core.time_utils import resolve_zone
     from src.domains.agents.services.memory_extractor import (
         _format_messages_for_extraction as fmt,
     )
 
     return template.format(
-        conversation=fmt(_to_messages(scenario.turns)),
+        # The declared default zone: the scenarios' messages carry no instant.
+        conversation=fmt(_to_messages(scenario.turns), zone=resolve_zone(None)),
         existing_memories=EXISTING_MEMORIES,
         current_datetime=now,
         known_relationships=KNOWN_RELATIONSHIPS,

@@ -97,6 +97,43 @@ describe('checklistFlags — what the instance publishes', () => {
     ).toEqual({ homeAddress: true, channels: false, heartbeat: false, ragSpaces: true });
   });
 
+  it('withdraws the knowledge space once the operator switched the spaces off', () => {
+    // The deployment mounts the spaces and the operator's switch closes their
+    // routes: a first step that opens on a refusal is not a first step.
+    const mounted = { rag_spaces_enabled: true };
+
+    expect(
+      checklistFlags({
+        features: mounted,
+        capabilities: { rag_spaces: { enabled: false, family: 'knowledge' } },
+      }).ragSpaces
+    ).toBe(false);
+    expect(
+      checklistFlags({
+        features: mounted,
+        capabilities: { rag_spaces: { enabled: true, family: 'knowledge' } },
+      }).ragSpaces
+    ).toBe(true);
+  });
+
+  it('withdraws a first step whose capability the operator switched off', () => {
+    const mounted = { channels_enabled: true, heartbeat_enabled: true };
+    const flags = checklistFlags({
+      features: mounted,
+      capabilities: {
+        channels: { enabled: false, family: 'reach' },
+        heartbeat: { enabled: false, family: 'work' },
+      },
+    });
+
+    expect(flags.channels).toBe(false);
+    expect(flags.heartbeat).toBe(false);
+    expect(checklistFlags({ features: mounted })).toMatchObject({
+      channels: true,
+      heartbeat: true,
+    });
+  });
+
   it('offers nothing optional while the configuration is unknown', () => {
     expect(checklistFlags(null)).toEqual({
       homeAddress: false,

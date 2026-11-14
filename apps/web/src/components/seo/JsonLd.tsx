@@ -125,6 +125,9 @@ export function SoftwareApplicationJsonLd({
       `${LANDING_STATS.agents}+ specialized AI agents`,
       `${LANDING_STATS.providers} LLM providers (OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen, Perplexity, Ollama)`,
       'Human-in-the-Loop approval',
+      'A discussion for every subject, beside one permanent Main discussion',
+      'Routines on a schedule, on a condition or on another system’s signed call',
+      'Documents with formulas, native charts and optional illustrations',
       'Google, Apple iCloud & Microsoft 365 connectors',
       `${LANDING_STATS.uiLanguages} UI languages, ${LANDING_STATS.voiceLanguages}+ voice languages`,
       `${LANDING_STATS.tools}+ integrated tools`,
@@ -199,38 +202,6 @@ export function BreadcrumbJsonLd({ items }: BreadcrumbJsonLdProps) {
       position: index + 1,
       name: item.name,
       item: item.url,
-    })),
-  };
-
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: serializeJsonLd(schema) }}
-    />
-  );
-}
-
-interface HowToJsonLdProps {
-  name: string;
-  description: string;
-  steps: Array<{ name: string; text: string }>;
-}
-
-/**
- * HowTo schema — structured how-to data for rich snippets.
- * Used on the landing page "How it works" section.
- */
-export function HowToJsonLd({ name, description, steps }: HowToJsonLdProps) {
-  const schema = {
-    '@context': 'https://schema.org',
-    '@type': 'HowTo',
-    name,
-    description,
-    step: steps.map((step, index) => ({
-      '@type': 'HowToStep',
-      position: index + 1,
-      name: step.name,
-      text: step.text,
     })),
   };
 

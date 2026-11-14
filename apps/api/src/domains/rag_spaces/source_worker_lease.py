@@ -1,6 +1,6 @@
 """An ephemeral native worker identity holds fresh account/parent/source mutation fences."""
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -48,6 +48,23 @@ _CURRENT: ContextVar[SourceWorkerLease | None] = ContextVar("native_source_worke
 
 def current_source_worker() -> SourceWorkerLease | None:
     return _CURRENT.get()
+
+
+def require_source_target(
+    user_id: UUID, space_id: UUID, source_fields: Mapping[str, object]
+) -> SourceWorkerLease | None:
+    """A worker cannot publish a file under another account, space or source."""
+    scope = current_source_worker()
+    if scope is None:
+        return None
+    source_key = "drive_source_id" if scope.kind == "drive" else "mail_source_id"
+    if (user_id, space_id, source_fields.get(source_key)) != (
+        scope.actor_id,
+        scope.space_id,
+        scope.source_id,
+    ):
+        raise SourceLeaseLost("Native creation targets another source scope")
+    return scope
 
 
 def native_source_limit(

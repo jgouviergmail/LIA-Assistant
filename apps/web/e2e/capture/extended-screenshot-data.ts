@@ -389,6 +389,7 @@ export const EXTENDED_ROUTINES: ScheduledActionListResponse = {
     calendar_event: 10,
     document_added: 10,
     mail_match: 10,
+    page_change: 60,
     task_overdue: 10,
     weather_change: 60,
   },
@@ -440,6 +441,7 @@ export const TICKETS: TicketRow[] = [
   id: index === 0 ? TICKET_ID : `00000000-0000-4000-8000-000000000e1${index}`,
   owner_user_id: OWNER,
   parent_id: null,
+  category_id: null,
   title: ticketNames[index],
   description:
     index === 0
@@ -484,6 +486,8 @@ export const EXTENDED_BOARD: BoardPage = {
   tickets: TICKETS,
   total: TICKETS.length,
   counts_by_status: boardCounts,
+  // The account of this proof has no category: its board is the flat one.
+  lanes: [],
 };
 export const EXTENDED_TICKET: TicketDetail = {
   ticket: TICKETS[0],

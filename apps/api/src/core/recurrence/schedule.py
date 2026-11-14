@@ -1,11 +1,12 @@
 """What a SCHEDULED THING does with the instants the engine computes.
 
-The engine answers "when does this fire". Three questions are left: which
-instants fall in the CURRENT week, which slot a run SERVED, and what to arm
-NEXT.
+The engine answers "when does this fire". Four questions are left: which
+instants fall in the CURRENT week, which slot a run SERVED, what to arm NEXT,
+and which occurrence came LAST inside a window (asked once one is given up as
+too late).
 
 They lived in the routine domain, under the claim that "only a routine asks
-them". The reminders lot refuted it: a reminder asks exactly the same three,
+them". The reminders lot refuted it: a reminder asks the first three as well,
 and reaching for them across domains would be the import this codebase forbids.
 They are pure functions of a spec, a zone and an instant — they name no
 routine, no reminder, and no table — so they belong beside the engine they
@@ -145,6 +146,41 @@ def served_slot(
     local_day = now.astimezone(ZoneInfo(timezone)).date()
     passed = [slot for slot in day_slots(spec, timezone, day=local_day) if slot <= now]
     return passed[-1] if passed else None
+
+
+def latest_occurrence(
+    spec: RecurrenceSpec, timezone: str, *, after: datetime, until: datetime, max_days: int
+) -> datetime | None:
+    """The most recent instant in ``(after, until]``, walked back from ``until``.
+
+    Asked once an occurrence is given up as too late: has a later one come
+    already? Walking FORWARD from the occurrence given up would visit every
+    instant of an outage — hundreds for a frequent schedule; walking back by
+    local day stops at the first day that holds one.
+
+    Args:
+        spec: The recurrence to walk.
+        timezone: Its IANA zone.
+        after: Lower bound (UTC), excluded — the occurrence already dealt with.
+        until: Upper bound (UTC), included.
+        max_days: How many local days before ``until``'s the walk may visit;
+            a window of years is never walked day by day.
+
+    Returns:
+        The instant, or ``None`` when the window — as far as the walk goes —
+        holds none.
+    """
+    tz = ZoneInfo(timezone)
+    day = until.astimezone(tz).date()
+    first_day = after.astimezone(tz).date()
+    for _ in range(max_days + 1):
+        if day < first_day:
+            break
+        passed = [slot for slot in day_slots(spec, timezone, day=day) if after < slot <= until]
+        if passed:
+            return passed[-1]
+        day -= timedelta(days=1)
+    return None
 
 
 def rearm_after(

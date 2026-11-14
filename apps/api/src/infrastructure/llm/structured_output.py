@@ -468,7 +468,7 @@ def _anthropic_refuses_forced_tool(llm: BaseChatModel) -> bool:
     that a 400 (ADR-306): thinking switched on at construction (« Thinking may
     not be enabled when tool_choice forces tool use » on the 4.x generations),
     and a generation that refuses a forced tool outright, whatever its thinking
-    (Fable 5.1, Opus 5.5, Sonnet 5.5; an undeclared generation is treated the same way,
+    (Fable 5.1 and 5.2, Opus 5.5, Sonnet 5.5; an undeclared generation is treated the same way,
     since the auto-tool door works on every one of them).
     """
     if requests_thinking(getattr(llm, "thinking", None)):
@@ -783,9 +783,10 @@ async def _get_native_structured_output[T: BaseModel](
                 raise_truncated(raw_message, provider, schema_name)
             parsing_error = bundle.get("parsing_error") if isinstance(bundle, dict) else None
             # A COMPLETE answer the parser refused is repaired mechanically and
-            # generically before the door gives up (ADR-184): values that only
-            # spell « absent », bare words where strings belong, an object
-            # written as text — one chain, shared with the auto-tool door.
+            # generically before the door gives up (ADR-184, ADR-388): values that
+            # only spell « absent », a structure written as JSON text, bare words
+            # where strings belong, a bracket that closes nothing, an object
+            # answered as text — one chain, shared with the auto-tool door.
             repaired, outcome = repair_refused_answer(raw_message, schema, provider, schema_name)
             if repaired is not None:
                 _count_outcome(provider, schema_name, outcome)

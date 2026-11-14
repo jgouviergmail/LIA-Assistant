@@ -155,8 +155,9 @@ porteur suivant n'hérite jamais de l'abonnement de quelqu'un d'autre.
 
 ## Ce que la base garantit, et ce qu'elle ne peut pas
 
-Trois tables : `workboard_tickets`, `workboard_comments` et
-`workboard_ticket_events` (celle-ci en ajout seul, sans `updated_at`).
+Quatre tables : `workboard_tickets`, `workboard_comments`,
+`workboard_ticket_events` (celle-ci en ajout seul, sans `updated_at`) et
+`workboard_categories` (les couloirs d'un tableau, voir plus bas).
 
 **La base ne peut PAS porter l'invariant « une affectation à un pair est
 autorisée par une connexion acceptée ».** Une contrainte `CHECK` croisant deux
@@ -173,7 +174,52 @@ Ce que la base garantit :
 | Le pair détenteur supprime son compte | le ticket survit, rendu au propriétaire ; son commentaire reste, sans auteur |
 | Le propriétaire supprime son compte | le ticket, ses enfants, ses commentaires et son histoire partent |
 | Suppression d'un ticket parent | ses enfants partent avec lui |
+| Suppression d'une catégorie | ses tickets retournent dans « À catégoriser » (`SET NULL`) ; aucun n'est supprimé |
 | Suppression de compte (scrub) | la purge libère explicitement ce que le compte détenait sans le posséder |
+
+## Les catégories et les couloirs
+
+Une **catégorie** est un nom que le propriétaire d'un tableau donne à un
+couloir ; un ticket en porte une ou aucune (`category_id`, nullable). Le
+tableau dessine un rang de ses colonnes par catégorie, et un rang
+« À catégoriser » pour le reste (amendement d'ADR-276 du 2026-11-11).
+
+**La catégorie est celle du PROPRIÉTAIRE du ticket.** Le classer, c'est écrire
+son `category_id` — par un déplacement, une mise à jour ou la création — et
+seul le propriétaire le peut, sous l'une de ses propres catégories
+(`WorkboardCategoryService.file`, `creation_category`). Un pair détenteur lit
+le couloir et ne le change pas ; une étape naît dans le couloir de son ticket.
+
+**Qui voit quelle catégorie a une seule écriture** :
+`WorkboardCategoryRepository.on_board_of` — les siennes, plus la catégorie de
+chaque ticket qu'on détient pour quelqu'un d'autre, et rien d'autre du
+vocabulaire de cette personne. La liste, les couloirs et les noms passent tous
+par ce prédicat.
+
+**Les couloirs voyagent avec la page** : `BoardPage.lanes` porte, pour chaque
+catégorie en vue, son nom, son propriétaire et un compte EXACT par colonne,
+calculé sur le filtre même de la page (`lane_counts_stmt` dérive de
+`filtered_stmt`, il ne le réécrit pas). Une liste vide veut dire « aucune
+catégorie en vue » : l'écran dessine alors le tableau plat. Le filtre de
+couloir (`category`, répétable, et `uncategorized`) élargit : « Maison, et ce
+qui n'est pas classé ».
+
+**Hors du tableau, le nom voyage avec la page qui porte le ticket**, lu par
+`WorkboardCategoryService.names_for(lecteur, tickets)` : une question pour
+toute la page, aucune quand rien n'y est classé. L'énoncé qu'elle pose
+(`names_stmt`) porte lui-même le prédicat du lecteur, donc aucun appelant —
+les deux cartes de confirmation de l'assistant le posent pour un seul
+identifiant — ne peut nommer une catégorie hors du tableau de celui qui lit.
+Le hub (`NeedsMePage.categories`), la carte de l'accueil
+(`WorkboardTicketItem.category`) et les outils de l'assistant s'en servent ;
+le bloc des chiffres du tableau lit `BoardSummary.lanes`.
+
+**Toute écriture de catégorie prend la barrière du compte**
+(`lock_peer_pair(compte, compte)`) avant de lire : le plafond, l'unicité du nom
+plié et l'ordre dense tiennent sous deux requêtes simultanées
+(`tests/integration/domains/workboard/test_categories_db.py`, trois courses à
+deux sessions). Le nom est plié par `fold_name`, la seule autorité du pliage :
+« Maison » et « maison » sont une catégorie.
 
 ## API
 
@@ -182,8 +228,9 @@ montées seulement si `WORKBOARD_ENABLED`.
 
 | Route | Ce qu'elle fait |
 |---|---|
-| `GET /tickets` | une page du tableau, le total EXACT, un compte exact par colonne |
-| `GET /needs-me` | ce qui attend l'appelant, et ce qui est en retard |
+| `GET /tickets` | une page du tableau, le total EXACT, un compte exact par colonne, et ses couloirs (`lanes`) |
+| `GET /needs-me` | ce qui attend l'appelant, et ce qui est en retard, avec le nom des catégories de la page |
+| `GET /summary` | le tableau d'un coup d'œil : agrégats sur tout le tableau, plafonds, couloirs |
 | `GET /tickets/{id}` | un ticket, ses enfants, son fil et son histoire |
 | `POST /tickets` | créer |
 | `PATCH /tickets/{id}` | modifier sous les droits de l'appelant |
@@ -191,6 +238,10 @@ montées seulement si `WORKBOARD_ENABLED`.
 | `POST /tickets/{id}/run-now` | armer un ticket LIA pour le prochain balayage |
 | `POST /tickets/{id}/comments` | commenter |
 | `DELETE /tickets/{id}` | supprimer (propriétaire seul) |
+| `GET /categories` | les catégories du tableau du lecteur, le compte exact de chacune, les plafonds publiés |
+| `POST /categories` | créer une catégorie (la sienne) |
+| `PATCH /categories/{id}` | renommer et/ou déplacer dans l'ordre |
+| `DELETE /categories/{id}` | supprimer ; répond le nombre de tickets rendus à « À catégoriser » |
 
 La page et ses compteurs sortent du même énoncé filtré : un en-tête de colonne
 annonçant 7 au-dessus d'une colonne en montrant 3 serait pire que pas
@@ -224,6 +275,8 @@ même valeur est publiée à qui produit la donnée (règle ADR-184).
 | `WORKBOARD_QUOTA_RETRY_MINUTES` | 30 | le report après un refus de quota |
 | `WORKBOARD_MAX_TICKETS_PER_USER` | 2000 | les tickets qu'un compte possède |
 | `WORKBOARD_MAX_CHILDREN_PER_TICKET` | 50 | les sous-tickets d'un ticket |
+| `WORKBOARD_MAX_CATEGORIES_PER_USER` | 20 | les catégories qu'un compte définit |
+| `WORKBOARD_CATEGORY_NAME_MAX_CHARS` | 40 | le nom d'une catégorie |
 | `WORKBOARD_MAX_RUNS_PER_TICKET` | 10 | les runs d'un ticket dans sa vie |
 | `WORKBOARD_HIDDEN_ROWS_RETENTION_DAYS` | 90 | la conservation des transcriptions cachées après clôture |
 | `WORKBOARD_TITLE_MAX_CHARS` | 200 | le titre |
@@ -619,13 +672,41 @@ prédicat « le tableau est-il rétréci ? » viennent du même module
 « aucune correspondance » pendant que le résumé annonce « aucun filtre ». Le
 **tri n'est pas un rétrécissement** — il change l'ORDRE, jamais l'ensemble.
 
-**Réglages › Workboard est le tableau en un coup d'œil** (lot 18) :
-`GET /workboard/summary` — total, en retard, chez LIA, mes tickets (ce que le
-compte détient — jamais un ticket de LIA ou d'un pair), un
-compte exact par colonne, chacun un lien vers le tableau réduit ; la
-capacité du compte contre le plafond de l'instance ; le coût des exécutions
-dans le vocabulaire du compteur du chat. Les comptes portent sur ce que le
-compte voit, les sommes sur ce qu'il possède.
+**Le tableau en un coup d'œil est au-dessus des filtres** (`BoardGlance`,
+`GET /workboard/summary`) : total, en retard, chez LIA, mes tickets (ce que le
+compte détient — jamais un ticket de LIA ou d'un pair), un compte exact par
+colonne et par catégorie ; la capacité du compte contre le plafond de
+l'instance ; le coût des exécutions dans le vocabulaire du compteur du chat.
+Les comptes portent sur ce que le compte voit, les sommes sur ce qu'il possède,
+et tous portent sur le tableau ENTIER, quels que soient les filtres dessous —
+le bloc le dit même replié. C'était une section des réglages (lot 18), chaque
+chiffre un lien vers le tableau réduit ; le propriétaire l'a déplacée sur le
+tableau le 2026-11-11, et la section des réglages n'existe plus. Trois choses
+en découlent :
+
+- **un chiffre est un BOUTON qui rétrécit le tableau sur place**, un seul à la
+  fois (« Sur ton tableau » efface tout filtre). Un lien vers la page où l'on
+  est déjà serait défait par elle : ses filtres partent de l'URL puis la
+  mènent ;
+- **le bloc se replie, et arrive replié là où l'écran est petit** (sous `lg`,
+  et toujours quand le tableau est hébergé dans une autre interface). Replié,
+  il ne lit rien : les chiffres sont des enfants du repli, et un repli fermé
+  n'en a pas. Le choix de la personne est celui de l'appareil
+  (`workboardLanesStore.summaryOpen`, `null` tant qu'elle n'a pas choisi) ;
+- **les chiffres sont relus chaque fois que le tableau l'est** (`useBoardReads`),
+  et après chaque écriture réussie de la page. Aucun compte de la page ne dit
+  quand ils ont bougé : une échéance qui passe, une catégorie renommée, un
+  ticket confié à LIA depuis un autre appareil ne déplacent aucune colonne. Le
+  réducteur du tableau ne modifie jamais ses lignes en place : chaque réponse
+  du serveur (la relecture périodique, le retour sur l'onglet, un filtre, la
+  relecture qu'un dialogue demande) et chaque écriture qu'il applique rendent
+  un NOUVEAU tableau de lignes, et c'est ce témoin que le bloc suit. Le compteur
+  d'écritures de la page est le second témoin : un ticket que la page ne porte
+  pas — ouvert par son lien sous un filtre qui le cache — change un chiffre et
+  aucune ligne. Ouvert, le bloc coûte donc une lecture d'agrégats par lecture
+  du tableau ; replié, rien. Les chiffres attendent la première lecture du
+  tableau, ce qui est à l'écran y reste jusqu'à la réponse, et une relecture
+  qui échoue garde les derniers chiffres connus.
 
 **The dashboard has a workboard card**: the `workboard` card of the
 « Mon dashboard » grid (configurable like the others: hidden and reordered
@@ -666,9 +747,10 @@ en cours permet de savoir, un run échoué laissant le ticket en « en cours ».
 
 ## Depuis le chat
 
-Six capacités, agent `ticket_agent`, domaine `ticket` (drapeau
+Sept capacités, agent `ticket_agent`, domaine `ticket` (drapeau
 `workboard_enabled`) : créer un ticket, le modifier, le commenter, lister le
-tableau, lire un ticket en entier, en supprimer un.
+tableau, lire un ticket en entier, en supprimer un, et lister les catégories
+du tableau.
 
 **Aucune règle métier n'est dans les outils.** `WorkboardService` possède les
 droits, les bornes, les transitions et la résolution des pairs ; un outil qui
@@ -687,6 +769,56 @@ diverger. Trois conséquences visibles :
 Chaque borne que le service applique est **publiée** dans le manifeste, lue
 depuis les réglages (ADR-184) : un `.env` modifié déplace la borne appliquée et
 la borne publiée ensemble.
+
+**L'assistant lit, filtre et classe par catégorie ; il n'en administre
+aucune.** Un ticket rendu par un outil porte le NOM de sa catégorie, jamais son
+id — `null` quand il n'est sous aucune catégorie du tableau du lecteur, ce qui
+couvre l'étape qu'un propriétaire a rangée dans un couloir que le détenteur du
+ticket ne voit pas ; `list_tickets` restreint à une catégorie par son nom
+(`category`) ou à ce qui n'est pas classé (`uncategorized`) ; `create_ticket`
+et `update_ticket`
+classent sous une catégorie EXISTANTE du compte (`category`), et
+`clear_category` — un interrupteur, pas un mot-clé qu'une catégorie pourrait
+porter — sort un ticket de la sienne ; `list_ticket_categories` liste les
+catégories avec leurs comptes exacts, et c'est là qu'arrive une demande de
+créer, renommer, réordonner ou supprimer une catégorie : son résultat dit où
+cela se fait (`managed_from`), parce que le modèle qui rédige la réponse du
+mode Pipeline lit les données d'un outil, jamais sa description. La phrase est
+de l'anglais technique, lue par un modèle seul ; les deux NOMS qu'elle cite —
+la page du menu et le bouton — sont ceux de la langue du tour, tels que
+l'écran de la personne les montre (`core/i18n_workboard_categories.py`). Un
+outil ne lit pas un fichier du frontend : la table les redit sous les codes du
+backend (`zh-CN`), et `tests/unit/core/test_i18n_workboard_categories.py` la
+tient égale aux six fichiers de langue du web (`navigation.workboard`,
+`workboard.categories.manage`) et vérifie que l'écran dessine toujours ces
+deux clés. La langue est celle du tour, c'est-à-dire celle du compte, que
+l'interface suit ; une adresse forcée dans une autre langue montrerait
+d'autres mots que ceux que la réponse cite. Un nom inconnu
+est REFUSÉ
+(`workboard_category_unknown`) : il ne crée pas de catégorie, et une liste
+filtrée sur un nom absent ne répond pas une page vide, qui dirait autre chose.
+Pour classer, le nom est lu parmi les catégories de l'ACTEUR
+(`normalize_workboard_legacy`), donc un détenteur n'apprend rien du vocabulaire
+du propriétaire. Un détenteur qui nomme l'une de SES catégories passe les mots
+et c'est la source qui refuse (`workboard_peer_cannot_edit_field`) : deux
+refus que le modèle doit pouvoir distinguer. Le code l'atteint donc depuis
+TOUS les outils du tableau. La modification, le commentaire et la suppression
+passent par la préparation commune des outils natifs (`prepare_native_tool`),
+qui répond à tout refus de validation une phrase sans cause — mesuré en
+conteneur le 2026-11-11, la modification refusait sans dire pourquoi ; un refus
+dont le détail est l'un des codes de `WorkboardError` voyage désormais par la
+porte que cette préparation garde aux refus finis
+(`agents/tools/workboard_refusal.py`, une seule écriture :
+`workboard_refusals()` autour de la préparation de chacun des trois), et tout
+autre détail reste la phrase commune : une validation qui cite les mots de
+quelqu'un n'entre pas dans un prompt. Le cas qui comptait le plus pour le
+commentaire et la suppression est le titre porté par deux tickets
+(`workboard_ambiguous_reference`) : sans le code, le modèle ne pouvait pas
+demander LEQUEL. Un ticket introuvable garde sa propre réponse, qui ne dit pas
+si le ticket existe.
+Créer, renommer, réordonner et supprimer une catégorie se font sur le
+tableau : aucun outil ne le fait, et les manifestes le disent
+(`agents/workboard/category_manifest.py`).
 
 **La suppression demande d'abord.** Elle déclare `draft` — la forme native de
 tout outil destructeur ici ; `confirm` est réservé aux outils MCP tiers, où la
@@ -726,18 +858,71 @@ Une seconde confirmation du même brouillon est REFUSÉE par le registre (une
 ligne, jamais deux) — mesuré en conteneur le 2026-09-09 par le moteur même que
 la reprise HITL appelle.
 
-**Le routage est mesuré, pas supposé** : 12 familles × 6 langues
+**Le routage est mesuré, pas supposé** : 18 familles × 6 langues
 (`tests/unit/domains/agents/workboard/routing_corpus.json`), dont **trois
 familles NÉGATIVES** — une tâche du fournisseur, un rappel et une routine — qui
-doivent partir ailleurs. La moitié déterministe est un test unitaire (le
-vocabulaire atteint-il le domaine ?), la moitié fournisseur un script
+doivent partir ailleurs. Six familles portent sur les catégories (lister les
+catégories, une catégorie, ce qui n'est pas classé, classer un ticket, créer
+dans une catégorie, et « crée une catégorie », qui doit atteindre le lecteur et
+non un outil d'écriture).
+La moitié déterministe est un test unitaire (le vocabulaire atteint-il le
+domaine ?), la moitié fournisseur un script
 (`task workboard:corpus:measure`) : un test qui se saute sur une clé absente est
-vert et pourrit. Mesuré le 2026-09-09 : **72/72 sur `deepseek-v4-flash`, 72/72
-sur `gpt-5.6-luna`**, environ 0,02 $ par passage, hors registre (une mesure
-d'ingénierie n'est pas une action de LIA — même choix que le script de
-récurrence). Le script réchauffe lui-même le cache des clés fournisseur depuis
-la base, comme le démarrage : sans cela un script autonome tourne sur les
-valeurs par défaut et chaque appel répond 401.
+vert et pourrit. La mesure est hors registre (une mesure d'ingénierie n'est pas
+une action de LIA — même choix que le script de récurrence). Le script réchauffe
+lui-même le cache des clés fournisseur depuis la base, comme le démarrage : sans
+cela un script autonome tourne sur les valeurs par défaut et chaque appel
+répond 401.
+
+Mesuré le 2026-09-09 sur les douze premières familles : **72/72 sur
+`deepseek-v4-flash`, 72/72 sur `gpt-5.6-luna`**, environ 0,02 $ par passage.
+Mesuré le 2026-11-11 sur les dix-huit, 108 phrases par modèle, en deux passages
+(0,115 $ pour les six) :
+
+| Modèle | Premier passage | Après correction |
+| --- | --- | --- |
+| `claude-haiku-5-5` (créneau `planner` de l'instance de dev, sans raisonnement) | 102/108 | 107/108 |
+| `deepseek-v4-flash` (raisonnement `low`) | 102/108 | 108/108 |
+| `gpt-5.6-luna` (raisonnement `low`) | 97/108 | 107/108 |
+
+Aux deux passages, aucune phrase destinée à un voisin n'atteint le tableau
+(54/54). Le premier a montré deux défauts dans la description du lecteur des
+catégories, corrigés avant le second :
+
+- **« Crée une catégorie » n'atteignait le lecteur qu'une fois sur 18.** La
+  description demandait de DIRE où cela se fait : dix-sept fois le modèle
+  répondait sans appeler d'outil — jamais par un outil d'écriture. En mode
+  Pipeline, le modèle qui rédige la réponse ne lit aucune description : il
+  n'en aurait rien su. La description demande maintenant l'appel, et le
+  RÉSULTAT du lecteur dit où les catégories se gèrent (`managed_from`), sur le
+  téléphone aussi : 18/18.
+- **Créer ou classer dans une catégorie partait cinq fois sur 36 vers le
+  lecteur**, toutes sur le même modèle : sa description demandait d'y passer
+  « avant de classer un ticket quand la personne nomme une catégorie que tu
+  n'as pas vue ». Un nom inconnu est déjà refusé par un code stable, et le
+  paramètre qui refuse nomme le lecteur : la consigne est retirée, 35/36.
+
+Restent deux écarts sur 324 : une phrase espagnole de classement prise pour une
+création (le même modèle aux deux passages), et un commentaire en chinois pris
+pour une lecture, une fois.
+
+Vérifié ensuite sur deux VRAIS tours de chat (2026-11-11, comptes jetables,
+0,047 $) : « Crée une catégorie Jardin sur mon tableau de tickets », en Pipeline
+puis en ReAct. Dans les deux, le lecteur est appelé, rien n'est créé, et la
+réponse dit que cela se fait par le bouton des catégories en citant les
+catégories existantes et leurs comptes. Le tour Pipeline a montré un défaut de
+la formulation : « the workboard page » était rendu « la page du tableau de
+bord », c'est-à-dire l'accueil. Le résultat NOMME maintenant la page comme le
+menu la nomme (« the page named 'Workboard' ») ; le tour ReAct, joué après,
+répond « va sur la page Workboard ».
+
+Le tour Pipeline a été rejoué une fois la formulation corrigée et le bouton
+nommé dans la langue de la personne (2026-11-11, compte jetable en français,
+0,012 $) : le lecteur est appelé une fois, rien n'est créé, et la réponse dit
+« depuis la page « Workboard » du menu de l'application, via le bouton
+« Catégories » », avant de citer les deux catégories existantes et leurs
+comptes. Sur un compte allemand le résultat cite « Kategorien », sur un compte
+chinois « 分类 » et « 工作看板 » (preuve Docker, sans appel de modèle).
 
 ## L'écran
 
@@ -746,10 +931,49 @@ valeurs par défaut et chaque appel répond 401.
 notification de ticket — et qui répondait 404 avant le lot 4 (mesuré le
 2026-09-09). Les deux montent `WorkboardPage`, et le ticket ouvert est DÉRIVÉ de
 l'URL : un panneau est un lien qu'on envoie, et le bouton retour le ferme.
-Le tableau n'a **aucune destination d'en-tête** (D15) : on y arrive par la
-section de réglages, par la section « Tickets » du hub des notifications, et par
-chaque notification dans le chat. Un test le vérifie, pour que l'absence soit
-une décision et non un oubli.
+Le tableau est une **destination de l'en-tête**, juste après les réunions
+(`lib/dashboard-nav.ts`, propriétaire, 2026-11-11), offerte là où l'instance
+offre le tableau MAINTENANT (`workboardAvailable`, l'interrupteur de l'opérateur
+compris) — dans l'en-tête, le menu du logo et la liste « Application » du monde
+3D, qui lisent une seule liste (`components/dashboard/offered-destinations.ts`,
+ADR-280) ; la section « Tickets » du hub des alertes lit la même porte
+(`lib/alert-categories.ts`). D16 la lui avait refusée — sept libellés étaient le maximum mesuré de
+la rangée — et le tableau s'atteignait par une section de réglages ; la rangée
+ne dessine plus que des icônes depuis le 2026-10-31, et cette section a disparu.
+On y arrive aussi par « Mes raccourcis » de l'accueil, par la section
+« Tickets » du hub des notifications, par chaque notification dans le chat, et
+par l'étoile du tableau dans la constellation des capacités
+(`CAPABILITY_PAGE`). Le tableau porte UN glyphe partout où il est désigné
+(`SquareKanban`). Un test tient la place de la destination et l'absence de la
+section, pour que ce soit une décision et non un oubli. Le serveur tient la
+même liste (`core/settings_surface.py`, les sections qu'un compte peut
+épingler) : le jeton `workboard` en est sorti avec la section. Un épinglage
+ancien est toléré à la lecture et laissé de côté, et rien ne peut plus
+épingler une section que l'écran n'a pas.
+
+**Le tableau a deux formes, et c'est le serveur qui choisit.** Sans aucune
+catégorie en vue (`lanes` vide) : le tableau plat décrit ci-dessous. Avec au
+moins une : un rang des mêmes colonnes par catégorie (`LaneBoard`), « À
+catégoriser » en tête, les colonnes nommées UNE fois au-dessus. Les couloirs
+alternent les deux fonds du thème et une carte prend le fond opposé à celui de
+son couloir — aucune couleur par catégorie. De `lg` vers le haut ce tableau est
+sa propre zone de défilement, dans les deux sens et bornée à l'écran : c'est ce
+qui permet aux noms de colonnes de rester collés en haut (un en-tête collant ne
+colle pas à la page depuis un conteneur qui défile de côté, mesuré dans un
+navigateur). Un couloir se replie, et l'appareil s'en souvient ; un couloir
+vide est son seul en-tête, qui reçoit aussi un dépôt. Pendant un glisser, les
+couloirs où la carte ne peut pas entrer sont estompés et leurs cibles
+désactivées. Un trait fin marque chaque colonne de la précédente, au même
+endroit sous les noms de colonnes et dans chaque couloir (`ColumnRule`, la
+couleur neutre des bordures, un pixel au milieu de la gouttière) : avec six
+colonnes de front et un fond par couloir, rien ne disait où une colonne
+finissait. Sous `lg` : une colonne à la fois, groupée par couloir, le nom de
+chaque couloir épinglé sous l'en-tête de l'application ; rien ne se glisse, la
+catégorie est une liste sur la carte de son propriétaire, à côté de la colonne
+et du porteur. Les catégories se gèrent depuis le bouton « Catégories » du
+tableau (`CategoryManager`) : un nom s'écrit à la sortie du champ, l'ordre se
+change d'un cran à la fois, la suppression annonce le nombre EXACT de tickets
+rendus à « À catégoriser », et le plafond est affiché.
 
 **De `lg` vers le haut** : les sept colonnes dans UN conteneur qui défile
 horizontalement (le corps de page ne défile jamais latéralement), glisser au
@@ -762,7 +986,10 @@ qui fait défiler ne saisisse jamais une carte. Le déplacement passe alors par 
 
 **La poignée de glisser n'est pas le titre** : le capteur clavier s'active sur
 Espace/Entrée et annule le défaut, donc posé sur le titre il ferait démarrer un
-glisser là où le pointeur ouvre le ticket. Deux contrôles, deux noms.
+glisser là où le pointeur ouvre le ticket. Deux contrôles, deux noms. La carte
+qu'on saisit est un GROUPE nommé (`role="group"`), jamais un bouton : un bouton
+cache aux lecteurs d'écran les contrôles qu'il contient — le titre qui ouvre le
+ticket, son menu (axe `nested-interactive`, mesuré le 2026-11-11).
 
 **La carte ne porte pas de badge de statut** — elle est dans sa colonne — et son
 badge de priorité ne marque que `high` et `urgent` : `medium` est le défaut et
@@ -783,7 +1010,7 @@ Livré : le vocabulaire, les trois tables et leurs migrations, la purge,
 l'export, le repository, le service, les routes, le badge du hub, le moteur
 d'exécution hors tour partagé avec les routines, le balayage, le brief versionné,
 les notifications filtrées par le suivi, les métriques et leur tableau de bord,
-les six outils d'agent, leur corpus de routage, le ticket dans le système de
+les six premiers outils d'agent, leur corpus de routage, le ticket dans le système de
 contexte, l'exécuteur de la suppression confirmée, la déclaration des lecteurs
 de la table des messages, et la notification « ce ticket t'a été confié » — qui part du SERVICE et traverse donc une couture
 (`domains/shared/proactive_sink`), parce que `agents` importe désormais
@@ -793,7 +1020,7 @@ couture muette, comme pour le registre de consultations (ADR-270).
 
 Le lot 4 a livré l'écran : les deux routes, le tableau et ses sept colonnes,
 la carte, le panneau, les filtres, la section de réglages (la porte du
-tableau), la section « Tickets » du hub, la rangée d'actions sous une
+tableau jusqu'au 2026-11-11), la section « Tickets » du hub, la rangée d'actions sous une
 notification de ticket dans le chat, l'i18n des six langues et le parcours e2e.
 
 Le lot 5 a livré la fin d'une relation : la couture inversée et son refus d'un
@@ -805,6 +1032,16 @@ Le lot 6 clôt le programme : la source heartbeat et ses trois motifs, la requê
 plafonnée sous un tri explicite, le refroidissement à la délivrance, la table de
 placement qui a libéré la place dans un fichier gelé, et la seconde porte que le
 registre ignorait.
+
+Le programme des catégories (2026-11-11) ajoute les couloirs : la table des
+catégories et sa migration, les quatre routes, les couloirs et leurs comptes
+dans la page du tableau, l'écran en couloirs sur ordinateur et sur téléphone,
+le gestionnaire de catégories, le badge de catégorie partout où un ticket se
+montre hors du tableau, et les outils de l'assistant qui lisent, filtrent et
+classent — sans administrer. Il donne aussi au tableau sa destination dans
+l'en-tête, déplace ses chiffres au-dessus de ses filtres en supprimant la
+section des réglages qui les portait, et marque les colonnes d'un trait fin sur
+ordinateur.
 
 Le lot 7 ajoute la confirmation sur le ticket : la colonne « À confirmer » qui
 n'existe que lorsqu'une confirmation attend, le brouillon porté par la ligne,

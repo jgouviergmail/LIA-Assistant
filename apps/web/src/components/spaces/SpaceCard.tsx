@@ -96,7 +96,7 @@ export function SpaceCard({
         </div>
 
         {/* Toggle */}
-        <SpaceActivationToggle isActive={space.is_active} onToggle={onToggle} disabled={toggling} />
+        <SpaceActivationToggle isActive={space.is_active} onToggle={onToggle} busy={toggling} />
       </CardHeader>
 
       <CardContent className="mt-auto p-4 pt-0">

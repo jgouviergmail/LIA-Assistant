@@ -51,6 +51,7 @@ from src.domains.plugins.schemas import (
 from src.domains.plugins.staging import stage_plugin_zip
 from src.domains.skills.import_disk import read_disk_step
 from src.domains.skills.models import SkillProvenance
+from src.domains.users.file_writers import account_file_write
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -122,130 +123,135 @@ class PluginImportService:
         hooks: PluginImportHooks,
     ) -> PluginImportReport:
         """Validate a staged plugin root, then install/update its components."""
-        from src.domains.skills import import_service as skills_import
-        from src.domains.skills import preference_service as skills_pref
-        from src.domains.user_mcp import service as user_mcp_service
+        async with account_file_write(self.db, owner_id):
+            from src.domains.skills import import_service as skills_import
+            from src.domains.skills import preference_service as skills_pref
+            from src.domains.user_mcp import service as user_mcp_service
 
-        # Blocking file reads (manifest, discovery, mcp.json, frontmatter
-        # pre-parse) run off the event loop, like the skills pipeline (CA-4).
-        manifest, warnings = await read_disk_step(partial(self._load_manifest, plugin_root))
-        skill_dirs = await read_disk_step(partial(self._discover_skill_dirs, plugin_root, warnings))
-        mcp_result = await read_disk_step(partial(self._load_mcp_config, plugin_root, warnings))
-        supported_servers = [
-            s
-            for s in (mcp_result.servers if mcp_result else [])
-            if s.status is McpServerStatus.SUPPORTED
-        ]
+            # Blocking file reads (manifest, discovery, mcp.json, frontmatter
+            # pre-parse) run off the event loop, like the skills pipeline (CA-4).
+            manifest, warnings = await read_disk_step(partial(self._load_manifest, plugin_root))
+            skill_dirs = await read_disk_step(
+                partial(self._discover_skill_dirs, plugin_root, warnings)
+            )
+            mcp_result = await read_disk_step(partial(self._load_mcp_config, plugin_root, warnings))
+            supported_servers = [
+                s
+                for s in (mcp_result.servers if mcp_result else [])
+                if s.status is McpServerStatus.SUPPORTED
+            ]
 
-        skill_importer = skills_import.SkillImportService(self.db)
-        mcp_service = user_mcp_service.UserMCPServerService(self.db)
-        pref_service = skills_pref.SkillPreferenceService(self.db)
+            skill_importer = skills_import.SkillImportService(self.db)
+            mcp_service = user_mcp_service.UserMCPServerService(self.db)
+            pref_service = skills_pref.SkillPreferenceService(self.db)
 
-        # Existing installation? (update flow) + plugin quota for new installs.
-        existing = await self.plugin_repo.get_by_name_for_user(owner_id, manifest.name)
-        updated = existing is not None
-        await self._check_plugin_quota(existing, owner_id, settings)
-        prev_skills, prev_servers = await self._previous_components(existing, owner_id=owner_id)
-        prev_server_names = {s.name for s in prev_servers}
+            # Existing installation? (update flow) + plugin quota for new installs.
+            existing = await self.plugin_repo.get_by_name_for_user(owner_id, manifest.name)
+            updated = existing is not None
+            await self._check_plugin_quota(existing, owner_id, settings)
+            prev_skills, prev_servers = await self._previous_components(existing, owner_id=owner_id)
+            prev_server_names = {s.name for s in prev_servers}
 
-        # Installed identity is the FRONTMATTER name (§7.1 discovery only keys
-        # on the directory) — quotas and the update-flow removal set must be
-        # keyed on it, or an update would remove the skill it just upserted
-        # whenever a directory name differs from the declared name.
-        incoming_skill_names = await read_disk_step(partial(self._incoming_skill_names, skill_dirs))
-        incoming_server_names = {
-            _server_display_name(manifest.name, s.key) for s in supported_servers
-        }
+            # Installed identity is the FRONTMATTER name (§7.1 discovery only keys
+            # on the directory) — quotas and the update-flow removal set must be
+            # keyed on it, or an update would remove the skill it just upserted
+            # whenever a directory name differs from the declared name.
+            incoming_skill_names = await read_disk_step(
+                partial(self._incoming_skill_names, skill_dirs)
+            )
+            incoming_server_names = {
+                _server_display_name(manifest.name, s.key) for s in supported_servers
+            }
 
-        # ADR-225: quotas pre-checked globally BEFORE any write.
-        pending_skills, pending_servers = hooks.pending_components(
-            incoming_skill_names, incoming_server_names, manifest.name
-        )
-        await self._pre_check_component_quotas(
-            skill_importer,
-            mcp_service,
-            owner_id=owner_id,
-            incoming_skill_names=pending_skills,
-            incoming_server_names=pending_servers,
-            prev_server_names=prev_server_names,
-            settings=settings,
-        )
-
-        plugin_row = await self._write_plugin_row(existing, manifest, owner_id, hooks)
-
-        components: list[PluginComponentReport] = []
-        components.extend(
-            self._report_unsupported_servers(mcp_result.servers if mcp_result else [])
-        )
-        components.extend(
-            await self._install_skills(
-                skill_dirs,
+            # ADR-225: quotas pre-checked globally BEFORE any write.
+            pending_skills, pending_servers = hooks.pending_components(
+                incoming_skill_names, incoming_server_names, manifest.name
+            )
+            await self._pre_check_component_quotas(
                 skill_importer,
-                owner_id=owner_id,
-                plugin_id=plugin_row.id,
-                prev_skill_names=set(prev_skills),
-                hooks=hooks,
-            )
-        )
-        components.extend(
-            await self._install_servers(
-                supported_servers,
                 mcp_service,
                 owner_id=owner_id,
-                plugin_row=plugin_row,
-                manifest=manifest,
+                incoming_skill_names=pending_skills,
+                incoming_server_names=pending_servers,
                 prev_server_names=prev_server_names,
-                hooks=hooks,
-            )
-        )
-        live_root = Path(settings.plugins_users_path) / str(owner_id) / manifest.name
-        from src.domains.plugins.dropped_files import retain_dropped_files
-        from src.domains.plugins.root_commit import publish_plugin_root
-
-        if hooks.before_drop is not None:
-            await hooks.before_drop(self.db, components)
-        async with retain_dropped_files(
-            self.db,
-            owner_id,
-            Path(settings.skills_users_path),
-            set(prev_skills) - set(incoming_skill_names),
-            after_stage=hooks.after_drop_stage,
-        ) as dropped_files:
-            removed_components = await self._remove_dropped_components(
-                pref_service,
-                mcp_service,
-                owner_id=owner_id,
-                prev_skills=prev_skills,
-                incoming_skill_names=set(incoming_skill_names),
-                prev_servers=prev_servers,
-                incoming_server_names=incoming_server_names,
                 settings=settings,
             )
 
-            root_result = await publish_plugin_root(
-                self.db, plugin_root, live_root, plugin_row, hooks
+            plugin_row = await self._write_plugin_row(existing, manifest, owner_id, hooks)
+
+            components: list[PluginComponentReport] = []
+            components.extend(
+                self._report_unsupported_servers(mcp_result.servers if mcp_result else [])
             )
-        components.extend(removed_components)
+            components.extend(
+                await self._install_skills(
+                    skill_dirs,
+                    skill_importer,
+                    owner_id=owner_id,
+                    plugin_id=plugin_row.id,
+                    prev_skill_names=set(prev_skills),
+                    hooks=hooks,
+                )
+            )
+            components.extend(
+                await self._install_servers(
+                    supported_servers,
+                    mcp_service,
+                    owner_id=owner_id,
+                    plugin_row=plugin_row,
+                    manifest=manifest,
+                    prev_server_names=prev_server_names,
+                    hooks=hooks,
+                )
+            )
+            live_root = Path(settings.plugins_users_path) / str(owner_id) / manifest.name
+            from src.domains.plugins.dropped_files import retain_dropped_files
+            from src.domains.plugins.root_commit import publish_plugin_root
 
-        # A removal-only update runs no per-skill _finalize, so nothing else
-        # reloads the skills cache — do it here when a skill was removed.
-        if any(c.kind is PluginComponentKind.SKILL for c in removed_components):
-            from src.domains.skills import cache as skills_cache
+            if hooks.before_drop is not None:
+                await hooks.before_drop(self.db, components)
+            async with retain_dropped_files(
+                self.db,
+                owner_id,
+                Path(settings.skills_users_path),
+                set(prev_skills) - set(incoming_skill_names),
+                after_stage=hooks.after_drop_stage,
+            ) as dropped_files:
+                removed_components = await self._remove_dropped_components(
+                    pref_service,
+                    mcp_service,
+                    owner_id=owner_id,
+                    prev_skills=prev_skills,
+                    incoming_skill_names=set(incoming_skill_names),
+                    prev_servers=prev_servers,
+                    incoming_server_names=incoming_server_names,
+                    settings=settings,
+                )
 
-            await skills_cache.SkillsCache.invalidate_and_reload()
+                root_result = await publish_plugin_root(
+                    self.db, plugin_root, live_root, plugin_row, hooks
+                )
+            components.extend(removed_components)
 
-        report = PluginImportReport(
-            plugin_id=str(plugin_row.id),
-            name=manifest.name,
-            version=manifest.version,
-            description=manifest.description,
-            updated=updated,
-            components=components,
-            warnings=warnings,
-            file_cleanup_pending=root_result.cleanup_pending or dropped_files.cleanup_pending,
-        )
-        self._log_import_summary(report, owner_id)
-        return report
+            # A removal-only update runs no per-skill _finalize, so nothing else
+            # reloads the skills cache — do it here when a skill was removed.
+            if any(c.kind is PluginComponentKind.SKILL for c in removed_components):
+                from src.domains.skills import cache as skills_cache
+
+                await skills_cache.SkillsCache.invalidate_and_reload()
+
+            report = PluginImportReport(
+                plugin_id=str(plugin_row.id),
+                name=manifest.name,
+                version=manifest.version,
+                description=manifest.description,
+                updated=updated,
+                components=components,
+                warnings=warnings,
+                file_cleanup_pending=root_result.cleanup_pending or dropped_files.cleanup_pending,
+            )
+            self._log_import_summary(report, owner_id)
+            return report
 
     async def _write_plugin_row(
         self,

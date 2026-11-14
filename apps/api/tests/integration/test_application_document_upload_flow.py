@@ -21,6 +21,7 @@ from src.domains.rag_spaces.models import RAGDocument, RAGSpace
 from src.infrastructure.application_sessions import bind_browser_session
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.cache.session_store import SessionStore
+from tests.helpers.committed_account_session import async_session as async_session
 from tests.helpers.runtime_context import make_tool_runtime
 from tests.integration.application_runtime_context import installed_runtime_context
 

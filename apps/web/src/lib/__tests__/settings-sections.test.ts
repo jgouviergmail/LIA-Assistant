@@ -184,19 +184,17 @@ describe('isSettingsSectionToken — the runtime half of the contract', () => {
   });
 });
 
-describe('the workboard has no header destination (ADR-276, D15)', () => {
-  it('is reached from its settings section, never from the header', async () => {
-    // The owner explicitly requested a world entry in the shared navigation,
-    // then the « Tools » section (ADR-369) and the « SMS » page (ADR-357
-    // amendment 2026-10-31), then knowledge spaces. Workboard still uses its
-    // settings door and ticket notifications.
+describe('the workboard is a header destination, not a settings section', () => {
+  it('is reached from the header, right after the meetings, and has no settings door left', async () => {
+    // ADR-276 (D16) refused the board a door in the header and reached it from
+    // a settings section. The owner reversed both on 2026-11-11: the board
+    // joins the destinations after the meetings, and its settings section is
+    // gone — the figures it showed stand above the board's own filters.
     const { DASHBOARD_DESTINATIONS } = await import('../dashboard-nav');
+    const segments = DASHBOARD_DESTINATIONS.map(destination => destination.segment);
 
-    expect(DASHBOARD_DESTINATIONS).toHaveLength(11);
-    expect(DASHBOARD_DESTINATIONS.map(destination => destination.segment)).toContain('world');
-    expect(DASHBOARD_DESTINATIONS.map(destination => destination.segment)).not.toContain(
-      'workboard'
-    );
-    expect(SETTINGS_SECTIONS.workboard.tab).toBe('features');
+    expect(segments.indexOf('workboard')).toBe(segments.indexOf('meetings') + 1);
+    expect(isSettingsSectionToken('workboard')).toBe(false);
+    expect(Object.keys(SETTINGS_SECTIONS)).not.toContain('workboard');
   });
 });

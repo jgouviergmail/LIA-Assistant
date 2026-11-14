@@ -3,20 +3,23 @@ import Link from 'next/link';
 import { RegisterForm } from '@/components/auth/register-form';
 import { TrackView } from '@/components/telemetry/TelemetryBootstrap';
 import { OAuthButtons } from '@/components/auth/oauth-buttons';
-import { initI18next } from '@/i18n';
+import { initI18next, validateLanguage } from '@/i18n';
+import { publicPageMetadata } from '@/lib/public-page-metadata';
 
 interface RegisterPageProps {
   params: Promise<{ lng: string }>;
 }
 
 export async function generateMetadata({ params }: RegisterPageProps): Promise<Metadata> {
-  const { lng } = await params;
+  const lng = validateLanguage((await params).lng);
   const { t } = await initI18next(lng);
 
-  return {
-    title: t('auth.metadata.register_title'),
-    description: t('auth.metadata.register_description'),
-  };
+  return publicPageMetadata(
+    lng,
+    '/register',
+    t('auth.metadata.register_title'),
+    t('auth.metadata.register_description')
+  );
 }
 
 export default async function RegisterPage({ params }: RegisterPageProps) {

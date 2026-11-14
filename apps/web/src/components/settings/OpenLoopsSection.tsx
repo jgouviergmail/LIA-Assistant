@@ -28,6 +28,7 @@ import { Card } from '@/components/ui/card';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { haptic } from '@/lib/haptics';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { capabilityAvailable } from '@/lib/capability-availability';
 import {
   daysOpen,
   groupLoops,
@@ -44,7 +45,7 @@ import type { BaseSettingsProps } from '@/types/settings';
 export function OpenLoopsSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { config } = useAppConfig();
-  const flagOn = !!config?.features?.open_loops_enabled;
+  const flagOn = capabilityAvailable(config, 'open_loops');
   const { loops, unavailable, loadError, refetch, close, update } = useOpenLoops(flagOn);
 
   if (!flagOn || unavailable) return null;

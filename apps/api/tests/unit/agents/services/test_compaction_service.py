@@ -12,6 +12,7 @@ Phase: F4 — Intelligent Context Compaction
 Created: 2026-03-16
 """
 
+from datetime import UTC
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -314,7 +315,7 @@ class TestCompact:
         mock_get_llm.return_value = mock_llm
 
         msgs = _make_messages(20, with_system=True)
-        result = await service.compact(msgs, preserve_recent_n=5, language="en")
+        result = await service.compact(msgs, preserve_recent_n=5, language="en", zone=UTC)
 
         assert result.strategy == "single_chunk"
         assert "Summary" in result.summary
@@ -332,7 +333,7 @@ class TestCompact:
         # v2 hardening (Task 1.3): wait_for needs a numeric global timeout.
         mock_settings.compaction_global_timeout_seconds = 10.0
         msgs = _make_messages(5, with_system=True)
-        result = await service.compact(msgs, preserve_recent_n=10, language="en")
+        result = await service.compact(msgs, preserve_recent_n=10, language="en", zone=UTC)
 
         assert result.strategy == "noop"
         assert result.tokens_saved == 0
@@ -362,7 +363,7 @@ class TestCompact:
         mock_get_llm.return_value = mock_llm
 
         msgs = _make_messages(20, with_system=True)
-        result = await service.compact(msgs, preserve_recent_n=5, language="en")
+        result = await service.compact(msgs, preserve_recent_n=5, language="en", zone=UTC)
 
         assert result.strategy == "truncation"
         assert "truncated" in result.summary.lower()

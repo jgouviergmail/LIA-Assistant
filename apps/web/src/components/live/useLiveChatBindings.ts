@@ -25,6 +25,7 @@ import type { LiveChatBindings, LiveSpokenMeta } from '@/lib/live/session-contro
 import { hitlAwaitsUser } from '@/lib/chat-surfaces';
 import type { Message } from '@/types/chat';
 import type { HitlCardStatus } from '@/types/hitl';
+import type { ConversationSelection } from '@/types/conversation';
 
 export interface LiveChatSource {
   messages: Message[];
@@ -72,7 +73,11 @@ export function readLastAnswer(messages: readonly Message[], hitlStatus: HitlCar
 
 type Answer = { text: string; pendingQuestion: string | null; register: string | null };
 
-export function useLiveChatBindings(chat: LiveChatSource): LiveChatBindings {
+export function useLiveChatBindings(
+  chat: LiveChatSource,
+  target?: ConversationSelection,
+  onStart?: () => void
+): LiveChatBindings {
   const messagesRef = useRef(chat.messages);
   const hitlRef = useRef(chat.hitl);
   const readersRef = useRef<Array<(answer: Answer) => void>>([]);
@@ -101,6 +106,8 @@ export function useLiveChatBindings(chat: LiveChatSource): LiveChatBindings {
   const { sendMessage, appendMessage, stopGeneration } = chat;
   return useMemo(
     () => ({
+      target,
+      onStart,
       sendMessage: (content, meta) =>
         sendMessage(content, undefined, undefined, undefined, undefined, undefined, meta),
       stop: stopGeneration,
@@ -111,6 +118,6 @@ export function useLiveChatBindings(chat: LiveChatSource): LiveChatBindings {
           forceRender();
         }),
     }),
-    [sendMessage, appendMessage, stopGeneration]
+    [sendMessage, appendMessage, stopGeneration, target, onStart]
   );
 }

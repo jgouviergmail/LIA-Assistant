@@ -9,11 +9,13 @@ the first provider's wire format.
 """
 
 import base64
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Any
+from typing import Any, Final
 
 import structlog
 
+from src.core.field_names import FIELD_MAIL_ANSWERED, FIELD_MAIL_ANSWERED_AT
 from src.domains.connectors.clients.normalizers.html_text import html_to_text, strip_html_to_line
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
 from src.infrastructure.email.outgoing import OutgoingAttachment
@@ -42,10 +44,49 @@ GRAPH_SYSTEM_FOLDERS: tuple[str, ...] = (
     "conversationhistory",
 )
 
+#: ``PidTagLastVerbExecuted`` (tag 0x1081, an integer) and ``PidTagLastVerbExecutionTime``
+#: (tag 0x1082, a UTC time), in the proptag form Graph names a MAPI property it does not
+#: expose as a field ([MS-OXPROPS]; Graph, « Outlook extended properties overview »).
+_LAST_VERB: Final = "Integer 0x1081"
+_LAST_VERB_AT: Final = "SystemTime 0x1082"
+#: The verbs that are an answer: reply to the sender, reply to all ([MS-OXOMSG]
+#: 2.2.1.14). A forward (104) is not.
+_ANSWER_VERBS: Final = frozenset({"102", "103"})
+#: What a read of messages adds to carry the mailbox's own « answered » mark. Graph
+#: promises ONE relationship expandable per request: a read asking for this one asks
+#: for no other.
+GRAPH_ANSWERED_MARK_EXPAND: Final = (
+    f"singleValueExtendedProperties($filter=id eq '{_LAST_VERB}' or id eq '{_LAST_VERB_AT}')"
+)
 
-def _parse_datetime_to_epoch_ms(dt_str: str | None) -> str:
+
+def _answered_mark(msg: Mapping[str, Any]) -> dict[str, Any]:
+    """What a mailbox says it did last with a message, when that was to answer it.
+
+    Args:
+        msg: A Graph message; it carries the mark only where its read expanded
+            ``GRAPH_ANSWERED_MARK_EXPAND``.
+
+    Returns:
+        ``FIELD_MAIL_ANSWERED`` and the instant of the verb, or nothing: a message
+        never answered, forwarded last, or read without the expansion.
+    """
+    properties = {
+        str(entry.get("id")): entry.get("value")
+        for entry in msg.get("singleValueExtendedProperties") or []
+        if isinstance(entry, Mapping)
+    }
+    if str(properties.get(_LAST_VERB)) not in _ANSWER_VERBS:
+        return {}
+    return {
+        FIELD_MAIL_ANSWERED: True,
+        FIELD_MAIL_ANSWERED_AT: graph_epoch_millis(properties.get(_LAST_VERB_AT)),
+    }
+
+
+def graph_epoch_millis(dt_str: object) -> str:
     """Convert ISO datetime string to epoch milliseconds (Gmail internalDate format)."""
-    if not dt_str:
+    if not isinstance(dt_str, str) or not dt_str:
         return "0"
     try:
         # Microsoft Graph returns ISO 8601 with timezone suffix (e.g., "2025-01-15T10:30:00Z")
@@ -208,7 +249,7 @@ def normalize_graph_message(msg: dict[str, Any], *, keep_quoted: bool = False) -
         "threadId": thread_id,
         "snippet": snippet,
         "labelIds": label_ids,
-        "internalDate": _parse_datetime_to_epoch_ms(msg.get("receivedDateTime")),
+        "internalDate": graph_epoch_millis(msg.get("receivedDateTime")),
         "subject": subject,
         "from": from_str,
         "reply_to": _extract_recipients(msg.get("replyTo")),
@@ -222,6 +263,8 @@ def normalize_graph_message(msg: dict[str, Any], *, keep_quoted: bool = False) -
         "sizeEstimate": msg.get("size", 0),
         "webLink": msg.get("webLink", ""),
         "_provider": "microsoft",
+        # What its mailbox says of it, where the read asked (ADR-379).
+        **_answered_mark(msg),
     }
 
 

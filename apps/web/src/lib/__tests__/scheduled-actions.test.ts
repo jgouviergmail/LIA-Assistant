@@ -15,9 +15,13 @@ import { SCHEDULED_ACTION_TITLE_MAX_LENGTH } from '../constants';
 import { makeMultiSlotAction, makeScheduledAction } from '@/__tests__/factories';
 import type { ScheduledAction } from '@/hooks/useScheduledActions';
 import {
+  PAGE_URL_MAX_CHARS,
   buildTimelineGrid,
+  hasNoFutureLeft,
   isConditionRoutine,
+  isWebhookRoutine,
   sameCondition,
+  pageUrlProblem,
   chipState,
   duplicateTitle,
   isoWeekdayInZone,
@@ -313,13 +317,16 @@ describe('chipState', () => {
     expect(chipState(makeScheduledAction(), cell(outcome)).tone).toBe(tone);
   });
 
-  it.each(['skipped_condition', 'skipped_hitl'])('%s stays idle but says why', reason => {
-    expect(chipState(makeScheduledAction(), cell(reason))).toEqual({
-      tone: 'idle',
-      reason,
-      executing: false,
-    });
-  });
+  it.each(['skipped_condition', 'skipped_hitl', 'skipped_busy', 'skipped_quota', 'skipped_late'])(
+    '%s stays idle but says why',
+    reason => {
+      expect(chipState(makeScheduledAction(), cell(reason))).toEqual({
+        tone: 'idle',
+        reason,
+        executing: false,
+      });
+    }
+  );
 
   it('is idle with no reason when nothing served the slot, or the week is unknown', () => {
     expect(chipState(makeScheduledAction(), cell(null)).tone).toBe('idle');
@@ -400,6 +407,31 @@ describe('rovingTarget', () => {
   });
 });
 
+describe('pageUrlProblem (ADR-387)', () => {
+  it('asks for an address, then for one a public page can have', () => {
+    expect(pageUrlProblem('')).toBe('url_required');
+    expect(pageUrlProblem('   ')).toBe('url_required');
+    expect(pageUrlProblem('shop.example.org/chair')).toBe('url_invalid');
+    expect(pageUrlProblem('ftp://shop.example.org/')).toBe('url_invalid');
+    expect(pageUrlProblem('https://')).toBe('url_invalid');
+    expect(pageUrlProblem('https://user:pass@shop.example.org/')).toBe('url_invalid');
+    expect(pageUrlProblem(' https://shop.example.org/chair?ref=a ')).toBeNull();
+    expect(pageUrlProblem('http://shop.example.org')).toBeNull();
+  });
+
+  // `PAGE_URL_MAX_CHARS` mirrors a bound the API owns, like the title's above:
+  // re-parsed from the source when the checkout exposes it.
+  const constantsPath = path.resolve(process.cwd(), '../api/src/core/constants.py');
+
+  it.skipIf(!fs.existsSync(constantsPath))('bounds the address where the API does', () => {
+    const source = fs.readFileSync(constantsPath, 'utf-8');
+    const bound = /^PAGE_WATCH_URL_MAX_CHARS: Final = ([\d_]+)\s*$/m.exec(source)?.[1];
+
+    expect(bound, 'PAGE_WATCH_URL_MAX_CHARS not found — the constant moved').toBeDefined();
+    expect(Number(bound?.replaceAll('_', ''))).toBe(PAGE_URL_MAX_CHARS);
+  });
+});
+
 describe('sameCondition (ADR-322)', () => {
   it('reads the same condition whatever order its keys arrive in', () => {
     // The server stores its own key order; a spelling difference must not
@@ -421,6 +453,14 @@ describe('sameCondition (ADR-322)', () => {
         { type: 'weather_change', kinds: ['rain', 'snow'] }
       )
     ).toBe(true);
+  });
+
+  it('tells another watched page, or another line filter, apart (ADR-387)', () => {
+    const page = { type: 'page_change' as const, url: 'https://shop.example.org/a', contains: '€' };
+    expect(sameCondition(page, { ...page })).toBe(true);
+    expect(sameCondition(page, { ...page, url: 'https://shop.example.org/b' })).toBe(false);
+    expect(sameCondition(page, { ...page, contains: 'stock' })).toBe(false);
+    expect(sameCondition(page, { type: 'page_change', url: page.url })).toBe(false);
   });
 
   it('tells a moved last day, a new filter or new kinds apart', () => {
@@ -498,5 +538,23 @@ describe('weatherRuleSentence', () => {
 
     expect(sentence).toContain('"hours":2');
     expect(sentence).toContain('"percent":70');
+  });
+});
+
+describe('the clock a routine runs on (ADR-322, ADR-386)', () => {
+  it('tells a routine started by calls from the two others', () => {
+    expect(isWebhookRoutine({ trigger_kind: 'webhook' })).toBe(true);
+    expect(isWebhookRoutine({ trigger_kind: 'time' })).toBe(false);
+    expect(isWebhookRoutine({ trigger_kind: 'condition' })).toBe(false);
+    expect(isConditionRoutine({ trigger_kind: 'webhook' })).toBe(false);
+  });
+
+  it('reads a null trigger as an end, except for a routine asleep until a call', () => {
+    expect(hasNoFutureLeft({ trigger_kind: 'time', next_trigger_at: null })).toBe(true);
+    expect(hasNoFutureLeft({ trigger_kind: 'condition', next_trigger_at: null })).toBe(true);
+    expect(hasNoFutureLeft({ trigger_kind: 'webhook', next_trigger_at: null })).toBe(false);
+    expect(hasNoFutureLeft({ trigger_kind: 'time', next_trigger_at: '2026-11-14T07:00:00Z' })).toBe(
+      false
+    );
   });
 });

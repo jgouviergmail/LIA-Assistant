@@ -9,6 +9,7 @@ from src.domains.agents.tools.browser_tools import _browser_failure
 from src.infrastructure.browser.errors import BrowserRefusal
 from src.infrastructure.browser.pool import BrowserPool
 from src.infrastructure.browser.session import BrowserSession
+from tests.fixtures.browser_scope import browser_scope
 
 pytestmark = pytest.mark.unit
 
@@ -24,7 +25,7 @@ async def test_an_unavailable_admission_refuses_before_creating_a_session(
     pool = BrowserPool()
     with patch("src.infrastructure.cache.redis.get_redis_cache", AsyncMock(return_value=redis)):
         with pytest.raises(BrowserRefusal) as raised:
-            await pool._reserve_session_redis("bounded-user")
+            await pool._reserve_session_redis(browser_scope("bounded-user"))
     output = _browser_failure(raised.value, "browser_capacity_test")
     assert output.error_code == code
     if verdict == "full":
@@ -35,7 +36,7 @@ async def test_an_unavailable_admission_refuses_before_creating_a_session(
 async def test_the_navigation_cap_refuses_before_security_or_page_io() -> None:
     context = MagicMock(new_page=AsyncMock())
     security = MagicMock(validate_navigation_url=AsyncMock())
-    session = BrowserSession("bounded-user", context, security)
+    session = BrowserSession(browser_scope("bounded-user"), context, security)
     session.navigation_count = settings.browser_max_navigations_per_session
     with pytest.raises(BrowserRefusal) as raised:
         await session.navigate("https://example.org")
@@ -50,7 +51,7 @@ async def test_the_navigation_cap_refuses_before_security_or_page_io() -> None:
 async def test_an_unhealthy_pool_has_no_session_to_lend() -> None:
     pool = BrowserPool()
     with pytest.raises(BrowserRefusal) as raised:
-        await pool.acquire_session("bounded-user")
+        await pool.acquire_session(browser_scope("bounded-user"))
     assert _browser_failure(raised.value, "browser_pool_test").error_code == "DEPENDENCY_ERROR"
 
 
@@ -59,7 +60,7 @@ async def test_a_security_refusal_exposes_no_arbitrary_reason() -> None:
         validate_navigation_url=AsyncMock(return_value=(False, "private instruction"))
     )
     context = MagicMock(new_page=AsyncMock())
-    session = BrowserSession("bounded-user", context, security)
+    session = BrowserSession(browser_scope("bounded-user"), context, security)
     with pytest.raises(BrowserRefusal) as raised:
         await session.navigate("https://example.org")
     result = _browser_failure(raised.value, "browser_security_test")

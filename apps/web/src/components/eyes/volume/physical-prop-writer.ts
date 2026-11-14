@@ -12,6 +12,8 @@ import {
 type Kind = 'crown' | 'tear' | 'sweat' | 'heat';
 const KINDS = ['crown', 'tear', 'sweat', 'heat'] as const;
 const NEUTRAL = restChannelValues();
+/** The sheet's own seat for a laurel no layout calibrated (`eyes.css`). */
+const LAUREL_FALLBACK_Y = 21.5;
 const format = (value: number) => String(Number(value.toFixed(4)));
 const finite = (value: number) => (Number.isFinite(value) ? value : 0);
 const bounded = (value: number, limit: number) => Math.max(-limit, Math.min(limit, finite(value)));
@@ -27,13 +29,14 @@ function propFrame(root: HTMLElement, profile: VolumeProfile | null) {
   const half =
     (numeric(style, '--eye-w', 0.59265) + numeric(style, '--eye-gap', 0.01912) / 2) * eyeScale;
   const faceY = (numeric(style, '--avatar-face-y', 52.405) / 100 - 0.5) * 2.6;
-  const crownY = (numeric(style, '--avatar-crown-y', 0) / 100 - 0.5) * 2.6;
+  // The laurel's CSS centre, where its layout seats it on the head.
+  const laurelY = (numeric(style, '--avatar-laurel-y', LAUREL_FALLBACK_Y) / 100 - 0.5) * 2.6;
   return {
     eyeScale,
     monitor: profile?.character === 'monitor',
     human: profile?.character === 'oscar',
     anchors: {
-      crown: { x: 0, y: Math.min(crownY - 0.24 * scale, faceY - 1.25 * scale) + 0.8 * scale },
+      crown: { x: 0, y: laurelY },
       tear: { x: -half - 0.02 + 0.1 * scale, y: faceY + 0.13 * scale },
       sweat: { x: half + 0.1 - 0.09 * scale, y: faceY - 0.3 * scale },
       heat: { x: half - 0.05 * scale, y: faceY - 0.175 * scale },

@@ -25,6 +25,7 @@ _DISPLAY_MODELS = (
     "claude-sonnet-5",
     "claude-fable-5",
     "claude-fable-5-1",
+    "claude-fable-5-2",
     "claude-opus-5-5",
     "claude-sonnet-5-5",
 )
@@ -76,7 +77,9 @@ def test_the_between_tools_family_honours_the_visibility_switch() -> None:
     assert honours_exclude_from_output("anthropic_between_tools") is True
 
 
-@pytest.mark.parametrize("model", ("claude-fable-5", "claude-fable-5-1", "claude-opus-5-5"))
+@pytest.mark.parametrize(
+    "model", ("claude-fable-5", "claude-fable-5-1", "claude-fable-5-2", "claude-opus-5-5")
+)
 def test_an_always_on_model_is_never_sent_disabled(model: str) -> None:
     """``disabled`` is a 400 there: the off switch becomes the cheapest depth."""
     assert _render(model, ReasoningIntent(level="none")) == {

@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.constants import LIVE_TURN_MESSAGE_TYPE
+from src.core.constants import LIVE_SESSION_SUMMARY_MESSAGE_TYPE, LIVE_TURN_MESSAGE_TYPE
 from src.core.field_names import FIELD_LIVE_SESSION_ID, FIELD_RUN_ID
 from src.core.i18n_live import get_live_phrases
 from src.domains.chat.repository import ChatRepository
@@ -255,6 +255,24 @@ async def session_card(db: AsyncSession, card_id: UUID) -> ConversationMessage |
     """The closing card's row, by its id (the settle of a direct session reads it)."""
     return (
         await db.execute(select(ConversationMessage).where(ConversationMessage.id == card_id))
+    ).scalar_one_or_none()
+
+
+async def session_closing_card(
+    db: AsyncSession, *, conversation_id: UUID, live_session_id: str, run_id: str
+) -> ConversationMessage | None:
+    """Find the exact Live closing card under the caller's reserved source lock."""
+    message = ConversationMessage
+    return (
+        await db.execute(
+            select(message).where(
+                message.conversation_id == conversation_id,
+                message.role == "assistant",
+                message.message_metadata["type"].astext == LIVE_SESSION_SUMMARY_MESSAGE_TYPE,
+                message.message_metadata[FIELD_LIVE_SESSION_ID].astext == live_session_id,
+                message.message_metadata[FIELD_RUN_ID].astext == run_id,
+            )
+        )
     ).scalar_one_or_none()
 
 

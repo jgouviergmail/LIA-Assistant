@@ -373,6 +373,9 @@ async def test_full_sync_anchors_before_listing_removes_leavers_and_counts_exact
     assert [c.kwargs["thread_id"] for c in remove.await_args_list] == ["t9"]
     assert jobs.heartbeat_source.await_count == 2
     assert jobs.heartbeat_source.await_args.kwargs["table"] == "rag_mail_sources"
+    # The documents embed under THIS source's lease (2026-11-09 double sync).
+    assert process.await_args.kwargs["source_id"] == source.id
+    assert process.await_args.kwargs["source_table"] == "rag_mail_sources"
     fields = source_repo.update.await_args.args[1]
     assert fields["sync_status"] == "completed"
     assert fields["thread_count"] == 2
@@ -501,6 +504,8 @@ async def test_apply_history_reindexes_carriers_removes_leavers_and_advances() -
     assert ingest.await_args.kwargs["thread_id"] == "keep"
     assert ingest.await_args.kwargs["thread"] is threads["keep"]
     assert remove.await_args.kwargs["thread_id"] == "gone"
+    assert process.await_args.kwargs["source_id"] == source.id
+    assert process.await_args.kwargs["source_table"] == "rag_mail_sources"
     fields = source_repo.update.await_args.args[1]
     assert fields["last_history_id"] == 600
     assert fields["sync_status"] == "completed"
@@ -619,6 +624,51 @@ async def test_a_failing_source_is_released_and_counted_as_error() -> None:
             AsyncMock(), AsyncMock(), service, source, source.user_id
         )
     assert outcome == "error"
+    fail.assert_awaited_once()
+    assert fail.await_args.args[1] is source
+
+
+@pytest.mark.usefixtures("settings_patch")
+async def test_the_row_is_read_again_under_the_lock_before_anything_else() -> None:
+    """The lease is written by SQL the session never saw: the release would be
+    computed from the row as it was loaded before it (ADR-262 amendment
+    2026-11-10; held on PostgreSQL by test_mail_push_lock_release.py)."""
+    source = _source(last_history_id=9)
+    service = MagicMock()
+    service.try_acquire_sync_lock = AsyncMock(return_value=True)
+    db = AsyncMock()
+    order: list[str] = []
+    db.refresh.side_effect = lambda _source: order.append("refresh")
+
+    async def history(*_args: Any, **_kwargs: Any) -> str:
+        order.append("history")
+        return "nothing"
+
+    with patch.object(mail_sync, "apply_history", history):
+        outcome = await mail_sync._serve_source(db, AsyncMock(), service, source, source.user_id)
+
+    assert outcome == "nothing"
+    assert order == ["refresh", "history"]
+    db.refresh.assert_awaited_once_with(source)
+
+
+@pytest.mark.usefixtures("settings_patch")
+async def test_a_row_that_cannot_be_read_again_still_releases_the_lock() -> None:
+    """The lease is already taken when the row is read: a failure there is a
+    failure of the pass, and the source must not stay locked for it."""
+    source = _source(last_history_id=9)
+    service = MagicMock()
+    service.try_acquire_sync_lock = AsyncMock(return_value=True)
+    db = AsyncMock()
+    db.refresh.side_effect = RuntimeError("connection lost")
+    with (
+        patch.object(mail_sync, "apply_history", AsyncMock()) as history,
+        patch.object(mail_sync, "_fail_source", AsyncMock()) as fail,
+    ):
+        outcome = await mail_sync._serve_source(db, AsyncMock(), service, source, source.user_id)
+
+    assert outcome == "error"
+    history.assert_not_awaited()
     fail.assert_awaited_once()
     assert fail.await_args.args[1] is source
 

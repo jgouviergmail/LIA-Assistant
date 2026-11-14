@@ -46,6 +46,7 @@ from src.domains.rag_spaces.schemas import (
     RAGDocumentMoveRequest,
 )
 from src.domains.rag_spaces.service import raise_system_space_protected
+from src.domains.users.file_writers import account_file_write
 from src.infrastructure.file_transfer import LocalFileRead
 from src.infrastructure.observability.logging import get_logger
 
@@ -328,32 +329,33 @@ async def move_documents(
     Returns:
         The moved ids and the skipped ones with their reasons.
     """
-    if (await get_reindex_status()).get("in_progress"):
-        raise_reindex_in_progress()
-    source = await service.get_space(space_id, user_id)
-    target = await service.get_space(request.target_space_id, user_id)
-    if target.is_system:
-        raise_system_space_protected(target.id, "move")
+    async with account_file_write(service.db, user_id):
+        if (await get_reindex_status()).get("in_progress"):
+            raise_reindex_in_progress()
+        source = await service.get_space(space_id, user_id)
+        target = await service.get_space(request.target_space_id, user_id)
+        if target.is_system:
+            raise_system_space_protected(target.id, "move")
 
-    room = settings.rag_spaces_max_docs_per_space - await service.doc_repo.count_for_space(
-        target.id
-    )
-    done: list[uuid.UUID] = []
-    skipped: list[RAGBatchSkipped] = []
-    for document_id in dict.fromkeys(request.ids):
-        code = await _move_one(service, source, target, document_id, room - len(done))
-        if code is None:
-            done.append(document_id)
-        else:
-            skipped.append(RAGBatchSkipped(id=document_id, code=code))
-    logger.info(
-        "rag_documents_moved",
-        source_space_id=str(space_id),
-        target_space_id=str(target.id),
-        moved=len(done),
-        skipped=len(skipped),
-    )
-    return RAGDocumentBatchResponse(done=done, skipped=skipped)
+        room = settings.rag_spaces_max_docs_per_space - await service.doc_repo.count_for_space(
+            target.id
+        )
+        done: list[uuid.UUID] = []
+        skipped: list[RAGBatchSkipped] = []
+        for document_id in dict.fromkeys(request.ids):
+            code = await _move_one(service, source, target, document_id, room - len(done))
+            if code is None:
+                done.append(document_id)
+            else:
+                skipped.append(RAGBatchSkipped(id=document_id, code=code))
+        logger.info(
+            "rag_documents_moved",
+            source_space_id=str(space_id),
+            target_space_id=str(target.id),
+            moved=len(done),
+            skipped=len(skipped),
+        )
+        return RAGDocumentBatchResponse(done=done, skipped=skipped)
 
 
 # ---------------------------------------------------------------------------

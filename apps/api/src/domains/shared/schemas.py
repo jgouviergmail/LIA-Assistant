@@ -42,6 +42,14 @@ from src.core.constants import (
     USER_THEME_LIGHT_START_MINUTE,
     IconStyle,
 )
+from src.core.document_preferences import (
+    DOCUMENT_ANIMATIONS_DEFAULT,
+    DOCUMENT_ILLUSTRATIONS_DEFAULT,
+    DocumentAnimations,
+    DocumentIllustrations,
+    animations_of,
+    illustrations_of,
+)
 from src.core.exchange_rhythm import ExchangeRhythm, effective_exchange_rhythm
 from src.core.security import validate_password_strict
 from src.core.validators import validate_timezone
@@ -395,6 +403,15 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
         default=False,
         description="Image prompts rewritten with recognised techniques before generation",
     )
+    # Document preferences: a stored value nobody knows reads as the owner's default.
+    document_illustrations: DocumentIllustrations = Field(
+        default=DOCUMENT_ILLUSTRATIONS_DEFAULT,
+        description="Illustrations in generated documents: auto, on_request, never",
+    )
+    document_animations: DocumentAnimations = Field(
+        default=DOCUMENT_ANIMATIONS_DEFAULT,
+        description="Animations in generated decks: presented, always, never",
+    )
     use_last_known_location: bool = Field(
         default=False,
         description=(
@@ -485,6 +502,18 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     def set_image_generation_prompt_enhancement_default(cls, v: bool | None) -> bool:
         """Ensure image_generation_prompt_enhancement defaults to False if None."""
         return v if v is not None else False
+
+    @field_validator("document_illustrations", mode="before")
+    @classmethod
+    def read_document_illustrations(cls, v: str | None) -> DocumentIllustrations:
+        """The stored choice, through the one door that defaults an unknown value."""
+        return illustrations_of(v)
+
+    @field_validator("document_animations", mode="before")
+    @classmethod
+    def read_document_animations(cls, v: str | None) -> DocumentAnimations:
+        """The stored choice, through the one door that defaults an unknown value."""
+        return animations_of(v)
 
     @field_validator("exchange_rhythm", mode="before")
     @classmethod

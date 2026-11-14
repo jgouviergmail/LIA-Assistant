@@ -12,7 +12,7 @@ heartbeat, the radio, the assistant.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from datetime import UTC, date, datetime, tzinfo
 from typing import Any, Final
 from zoneinfo import ZoneInfo
@@ -76,4 +76,22 @@ def task_due_day(task: Mapping[str, Any], zone: tzinfo) -> date | None:
     )
 
 
-__all__ = ["due_day", "task_due_day", "todo_due"]
+def in_due_order(tasks: Iterable[dict[str, Any]], zone: tzinfo) -> list[dict[str, Any]]:
+    """The tasks of several lists in one order: the earliest due first, the undated last.
+
+    Args:
+        tasks: The tasks, as the clients answer them.
+        zone: The account's zone, which a To Do due is read in.
+
+    Returns:
+        A new list; tasks sharing a day, or none, keep the order they came in.
+    """
+
+    def order(task: dict[str, Any]) -> tuple[bool, date]:
+        day = task_due_day(task, zone)
+        return day is None, day or date.min
+
+    return sorted(tasks, key=order)
+
+
+__all__ = ["due_day", "in_due_order", "task_due_day", "todo_due"]

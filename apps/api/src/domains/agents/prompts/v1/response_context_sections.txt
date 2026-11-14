@@ -35,3 +35,8 @@ recent_entities|RecentEntities|Entities from earlier turns of this conversation,
 
 # --- 6. RECENCY ANCHORS (Immediate Generation Context) ---
 user_query|UserQuery|The user's current request, in their own words. Primary anchor for user intent.
+# A fact of the data, stated apart and LAST (ADR-379). Left among the data lines, a model
+# writes its opening from the requests it reads in the emails' own words. Its place is
+# measured (2026-11-11, the node's own chain): right after the data it changed nothing,
+# after the query it halved the wrong openings (10 of 36, against 32 of 60 without it).
+answered_mail|MailAlreadyAnswered|What the mailbox says of emails listed in <DataForFiltering>, by item ID: the person has ALREADY answered each one below. They no longer need a reply. Whatever their text asks, never count, present or announce them among the emails that need one, from your first sentence on.

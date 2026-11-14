@@ -49,10 +49,12 @@ from src.domains.rag_spaces.repository import (
     RAGChunkRepository,
     RAGDocumentRepository,
 )
+from src.domains.rag_spaces.source_lease_keepalive import source_lease_kept
 from src.domains.rag_spaces.source_worker_lease import (
     SourceLeaseLost,
     current_source_worker,
     native_source_limit,
+    require_source_target,
     require_source_worker,
 )
 from src.domains.rag_spaces.source_worker_runtime import source_worker_external
@@ -65,6 +67,9 @@ from src.domains.rag_spaces.synced_document_deletion import (
     discard_native_synced_document,
     lock_native_replacement,
 )
+from src.domains.users.file_writers import account_file_write
+from src.infrastructure.async_utils import finish_owned_task
+from src.infrastructure.llm.embedding_patience import patient_embeddings
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_rag_spaces import rag_drive_sync_files_total
 
@@ -193,63 +198,61 @@ async def create_pending_document(
     Returns:
         The ``process_document`` kwargs for the created document.
     """
-    await require_source_worker(db)
-    scope = current_source_worker()
-    if scope is not None and (
-        user_id != scope.actor_id
-        or space_id != scope.space_id
-        or source_fields.get("drive_source_id" if scope.kind == "drive" else "mail_source_id")
-        != scope.source_id
-    ):
-        raise SourceLeaseLost("Native creation targets another source scope")
-    previous_file: tuple[str, str | None] | None = None
-    await _require_native_capacity(db, space_id, len(content), replaces is not None)
-    if replaces is not None:
-        if scope is None:
-            raise ValueError("Atomic replacement requires a native owned worker scope")
-        await lock_native_replacement(db, replaces, user_id, space_id)
-        previous_file = await capture_native_synced_file(replaces, user_id, space_id)
-    stored_filename = f"{uuid_mod.uuid4().hex}{extension}"
-    file_path = stored_file_path(user_id, space_id, stored_filename)
-    await asyncio.to_thread(_write_stored_file, file_path, content)
-    if scope is not None:
-        try:
-            await require_source_worker(db)
-        except SourceLeaseLost:
-            await asyncio.to_thread(_unlink_if_exists, file_path)
-            raise
-    try:
-        if replaces is not None:
-            await RAGChunkRepository(db).delete_by_document(replaces.id)
-            await RAGDocumentRepository(db).delete(replaces)
-        document = await RAGDocumentRepository(db).create(
-            {
-                "space_id": space_id,
-                "user_id": user_id,
-                "filename": stored_filename,
-                "original_filename": original_name,
-                "file_size": len(content),
-                "content_type": content_type,
-                "status": RAGDocumentStatus.PENDING,
-                **source_fields,
-            }
-        )
+    async with account_file_write(db, user_id):
         await require_source_worker(db)
-    except Exception, asyncio.CancelledError:
+        scope = require_source_target(user_id, space_id, source_fields)
+        previous_file: tuple[str, str | None] | None = None
+        await _require_native_capacity(db, space_id, len(content), replaces is not None)
+        if replaces is not None:
+            if scope is None:
+                raise ValueError("Atomic replacement requires a native owned worker scope")
+            await lock_native_replacement(db, replaces, user_id, space_id)
+            previous_file = await capture_native_synced_file(replaces, user_id, space_id)
+        stored_filename = f"{uuid_mod.uuid4().hex}{extension}"
+        file_path = stored_file_path(user_id, space_id, stored_filename)
+        await finish_owned_task(
+            asyncio.create_task(asyncio.to_thread(_write_stored_file, file_path, content))
+        )
         if scope is not None:
-            await asyncio.to_thread(_unlink_if_exists, file_path)
-        raise
-    await db.commit()
-    if previous_file is not None:
-        await cleanup_deleted_document_file(user_id, space_id, previous_file[0], previous_file[1])
-    return {
-        "document_id": document.id,
-        "space_id": space_id,
-        "user_id": user_id,
-        "filename": stored_filename,
-        "original_filename": original_name,
-        "content_type": content_type,
-    }
+            try:
+                await require_source_worker(db)
+            except SourceLeaseLost:
+                await asyncio.to_thread(_unlink_if_exists, file_path)
+                raise
+        try:
+            if replaces is not None:
+                await RAGChunkRepository(db).delete_by_document(replaces.id)
+                await RAGDocumentRepository(db).delete(replaces)
+            document = await RAGDocumentRepository(db).create(
+                {
+                    "space_id": space_id,
+                    "user_id": user_id,
+                    "filename": stored_filename,
+                    "original_filename": original_name,
+                    "file_size": len(content),
+                    "content_type": content_type,
+                    "status": RAGDocumentStatus.PENDING,
+                    **source_fields,
+                }
+            )
+            await require_source_worker(db)
+        except Exception, asyncio.CancelledError:
+            if scope is not None:
+                await asyncio.to_thread(_unlink_if_exists, file_path)
+            raise
+        await db.commit()
+        if previous_file is not None:
+            await cleanup_deleted_document_file(
+                user_id, space_id, previous_file[0], previous_file[1]
+            )
+        return {
+            "document_id": document.id,
+            "space_id": space_id,
+            "user_id": user_id,
+            "filename": stored_filename,
+            "original_filename": original_name,
+            "content_type": content_type,
+        }
 
 
 async def _require_native_capacity(
@@ -271,23 +274,48 @@ async def _require_native_capacity(
 async def process_queued(
     process_kwargs: list[dict[str, Any]],
     *,
+    source_id: UUID,
+    source_table: str,
     counter: Counter = rag_drive_sync_files_total,
     processor: Callable[..., Awaitable[bool]] = process_document,
 ) -> tuple[int, int]:
-    """Embed the queued documents (bounded concurrency); returns (synced, failed).
+    """Embed the documents a source queued, under that source's lease.
 
-    ``counter`` is the source's per-item metric (``result`` label): Drive files
-    by default, mail threads for the label source (ADR-262).
+    The one door a source's documents embed through in bulk (full syncs, push
+    windows, history passes). It NAMES its source, with no default: embedding
+    is the long part of a sync, and a caller that embedded without keeping its
+    lease let the reaper start a second sync beside it (``source_lease_kept``).
+    It is also where the work declares itself patient with the embedding
+    provider (``patient_embeddings``): nothing here is on anybody's turn.
+
+    Args:
+        process_kwargs: One ``process_document`` argument set per document.
+        source_id: The syncing source the documents belong to.
+        source_table: Its table (``DRIVE_SOURCE_TABLE`` or ``MAIL_SOURCE_TABLE``).
+        counter: The source's per-item metric (``result`` label): Drive files
+            by default, mail threads for the label source (ADR-262).
+        processor: What embeds one document; never raises in production.
+
+    Returns:
+        ``(synced, failed)``: documents that reached READY, and the others.
     """
+    if not process_kwargs:
+        return 0, 0
     sem = asyncio.Semaphore(_PROCESS_CONCURRENCY)
 
     async def bounded(**kwargs: object) -> bool:
         async with sem:
             return await processor(**kwargs)
 
-    results = await asyncio.gather(
-        *(bounded(**kwargs) for kwargs in process_kwargs), return_exceptions=True
-    )
+    # Bulk work, declared: a quota refusal names its own delay, and these
+    # documents serve it instead of failing a second later (ADR-254 amendment
+    # 2026-11-10). The lease is kept on a timer for the same reason — a
+    # document may now last longer than it.
+    with patient_embeddings():
+        async with source_lease_kept(source_id, table=source_table):
+            results = await asyncio.gather(
+                *(bounded(**kwargs) for kwargs in process_kwargs), return_exceptions=True
+            )
     synced = sum(1 for r in results if r is True)
     for index, result in enumerate(results):
         if result is True:

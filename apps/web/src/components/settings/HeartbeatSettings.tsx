@@ -121,7 +121,7 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
           id="heartbeat-enabled"
           checked={settings.heartbeat_enabled}
           onCheckedChange={handleToggleEnabled}
-          disabled={updating || loading}
+          busy={updating || loading}
         />
       </div>
 
@@ -144,7 +144,7 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
             endAriaLabel={t('common.end_hour_label')}
             startHour={settings.heartbeat_notify_start_hour}
             endHour={settings.heartbeat_notify_end_hour}
-            disabled={updating}
+            busy={updating}
             onChange={handleUpdateHours}
           />
 

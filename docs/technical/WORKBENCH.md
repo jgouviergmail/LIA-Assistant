@@ -150,6 +150,17 @@ change clears the handoff and native editor state. The same handoff serves appli
 selection actions, including the memory settings form; see [Tool assists](TOOL_ASSISTS.md).
 `useListSelection` is the selection every list shares: it belongs to one listing, and Shift ticks a
 range.
+What a selection can become is drawn by `components/workbench/ToolSelectionBar.tsx` (owner,
+2026-11-11), on one line: a tool declares its acts (`SelectionAct`) and the bar draws the count,
+an icon out of the selection, the acts used most as icons (`quick`), the rest behind « … » and
+the deletion last. It measures itself (`scrollWidth` past `clientWidth`, nothing in a compact
+`SelectionBar` shrinks): whole while it fits, its quick icons in the list where the room runs
+out, back with the room, and measured again when the count or the acts change. A « … » of one
+is never opened; a label or another list is a place, listed under its own line. The mail
+declares marking read and the folder's own way out (archive, restore, not spam) as quick, the
+tasks « done », the files the move. In the mail and the files a selection past
+`limits.bulk_max_items` holds every act and says so under the bar; the tasks hold theirs while one
+is on its way.
 
 The home opens its items here (owner, 2026-11-07, `docs/technical/BRIEFING_DOMAIN.md`), on the
 addresses the tools already read. Two of them name something the screen must find first: an event
@@ -158,6 +169,31 @@ in the account's own calendar may come as `cal=primary`, the connector's alias, 
 may sit past the pages the list read, so `useKeptTask` reads it alone and keeps it at the head of
 the list (`WorkbenchPageState.keepItem`), where every act reaches it, its own page putting it back
 in its place.
+
+The tasks screen opens on « All tasks » when the address names nothing (`useTaskPlaces`): the
+default list is where a new task goes, not where the screen starts. A task another tool hands
+over therefore arrives on every list's tasks: its form still names the list it goes in, the view
+is read again once it exists, and a toast says where it went.
+
+The tasks of every list stand together in the views across the lists (owner, 2026-11-10). Beside
+« Today », « Overdue » and « Coming up », « All » (`?view=timeline`) gathers the three in time
+order, one titled stretch each, and « All tasks » (`?view=all`) holds every open task, dated or
+not, the undated last: a view like the others on the wire, which the pane draws at the head of
+the LISTS since that is what it is to the person. Every row names its list in a badge
+(`TaskListBadge`, which the home's tasks card shares) and its day against the account's today
+(`TaskDueChip`, a list's own chip). The lists are walked through one door,
+`connectors/clients/task_lists.py::read_task_lists`, which the home's card reads too: a few lists
+at a time (`TASK_LISTS_READ_CONCURRENCY`), a failed list named and a cut one stated. Every other
+reader of a person's tasks goes through the same walk (`read_every_task_list`): the assistant's
+`get_tasks_tool` (every list unless the model names one, each task carrying `tasklist_id` and
+`taskListName`), the heartbeat (`heartbeat/tasks_context.py`) and the radio's journal
+(`radio/readers/tasks.py`). The list the connector's settings name as the default is where a new
+task goes when the chat names none, and nothing else (ADR-369 §4, amendment 2026-11-10). A task opened
+from a view opens BESIDE it: the address keeps the view and names the task's own list
+(`?view=all&list=…&task=…`), which is read under the view for the detail's sake; closing comes
+back to the view, the focus to the task's row, or to the view's title when the task left it. What
+the detail changes of a row (a title, a day, a completion, a move, a subtask) reads the view
+again; what no row shows does not.
 
 A document is read through `useShownDocument`, which starts a read once the page has settled, and
 `ShownReading` (`components/workbench/ShownDocument.tsx`), which draws the wait, the refusal with
@@ -196,6 +232,7 @@ All under `/api/v1/workbench`, behind the capability guard and the session cooki
 | | `GET /mail/messages` | One page of a folder, narrowed by the person's words and chips |
 | | `GET /mail/message` · `GET /mail/message/html` | One message (reading marks nothing read) · its HTML for the isolated frame |
 | | `GET /mail/conversation` | What was said around a message: headers alone, oldest first, drafts left out, one page of the newest (`truncated` states the cut) |
+| | `POST /mail/reply-marks` | Where the rows of a page stand in their conversations, read APART from the listing (a read that posts: a page of ids fits no address): the marks to draw — answered, an answer drafted, a reply received — offered as the `reply_marks` feature while the capability is on, and nothing when the mailbox cannot tell ([reply state](./MAIL_REPLY_STATE.md)) |
 | | `GET /mail/message/images` | The images a message's HTML names, as `data:` addresses, under `WORKBENCH_MAIL_INLINE_MAX_BYTES` (what is left out is counted) |
 | | `GET /mail/message/unsubscribe` · `POST /mail/unsubscribe` | How a message says it can be left · its one-click POST (RFC 8058), by the message alone, through `pinned_stream` |
 | | `GET /mail/counts` | What the mailbox leaves unread, keyed as the pane names each folder (`truncated` when one was left out) |
@@ -226,7 +263,7 @@ All under `/api/v1/workbench`, behind the capability guard and the session cooki
 | | `GET /contacts/member-of` · `POST /contacts/groups/join` · `/leave` · `PATCH` `DELETE /contacts/groups` | A contact's groups; a name nobody holds makes the group |
 | | `POST /contacts/other/save` | Keeps a contact met in mail (`other_contacts`, Google) |
 | Tasks | `GET` `POST` `PATCH` `DELETE /tasks/lists` | Lists, the settings' default named |
-| | `GET /tasks/view` | What every list holds for today, overdue or the days ahead (`failed`, `truncated`) |
+| | `GET /tasks/view` | What every list holds: for today, overdue or the days ahead, the three together (`timeline`), or every open task, dated or not (`all`) (`failed`, `truncated`) |
 | | `POST /tasks/selection/completed` · `/delete` · `/move` | An act on ticked tasks, each answered; a move says what each is called from now on |
 | | `POST /tasks/clear-completed` | Deletes what a list holds as done, within `WORKBENCH_TASKS_CLEAR_MAX` (`remaining`) |
 | | `POST /tasks/place` | A task after a sibling, or first (`task_order`, Google) |
@@ -236,7 +273,7 @@ All under `/api/v1/workbench`, behind the capability guard and the session cooki
 | | `GET /tasks/due` | The open tasks due over the days a calendar shows, every list read a few at a time (`failed`, `truncated`) |
 | Contacts | `GET` `POST` `PATCH` `DELETE /contacts` · `GET /contacts/contact` | Contacts (a list sent replaces that list) |
 | | `GET /contacts/groups` · `GET /contacts/other` | The account's groups, on the three providers · Google's « other contacts » (listed and searched; an act on one is refused unsent, the screen shows its row) |
-| | `GET /contacts/history` | The latest mail each way and meetings each organised, by `address`; the calls LIA placed and the texts received, by `phone` (one of the two at least); each source says why it has nothing (`not_requested` when nothing was given to look under); `no-store` |
+| | `GET /contacts/history` | The latest mail each way (each row saying what happened next in its conversation, `reply`) and meetings each organised, by `address`; the calls LIA placed and the texts received, by `phone` (one of the two at least); each source says why it has nothing (`not_requested` when nothing was given to look under); `no-store` |
 | Files | `GET /files` · `GET /files/file` | A folder, a view (`file_views`) or a drive-wide search, by cursor, in the `order` asked (refused beside a search or a view) · one item and its breadcrumb |
 | | `GET /files/download` · `GET /files/preview` | A file, a Google document exported · the best it can be read as (`previews`, under the read window) |
 | | `GET` `PUT /files/text` | A plain text read whole with its version, written back on it (`editable`) |

@@ -20,6 +20,7 @@ import time
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any, NamedTuple
+from uuid import UUID
 
 if TYPE_CHECKING:
     from src.domains.agents.data_registry.models import RegistryItemType
@@ -49,6 +50,7 @@ from src.core.i18n_api_messages import (
 from src.core.llm_config_helper import llm_call_timeout_seconds
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.core.run_config import run_id_of
+from src.core.time_utils import resolve_zone
 from src.domains.agents.analysis.query_intelligence_helpers import (
     get_qi_attr,
     turn_references,
@@ -99,10 +101,7 @@ from src.domains.agents.display.html_renderer import NestedData, get_html_render
 from src.domains.agents.display.model_history import with_model_view
 from src.domains.agents.display.sentinel_filter import strip_widget_sentinels
 from src.domains.agents.drafts.models import DraftAction
-from src.domains.agents.expressivity.turn import (
-    inject_tone_instruction,
-    take_tone_annotation,
-)
+from src.domains.agents.emails.answered_mail import answered_mail_lines
 
 # Extracted modules (Phase 3 refactoring)
 from src.domains.agents.formatters.agent_results import format_agent_results_for_prompt
@@ -125,6 +124,7 @@ from src.domains.agents.nodes.draft_results_summary import (
 from src.domains.agents.nodes.post_response_extractions import (
     _schedule_post_response_extractions,
 )
+from src.domains.agents.nodes.react_turn_notes import with_turn_notes
 from src.domains.agents.nodes.response_skill_runner import run_and_settle
 from src.domains.agents.nodes.turn_proposal import resolve_turn_proposal
 from src.domains.agents.orchestration.correlation_detector import detect_correlations
@@ -139,6 +139,10 @@ from src.domains.agents.prompts import (
 from src.domains.agents.prompts.prompt_loader import (
     inject_before_final_reminder,
     load_prompt,
+)
+from src.domains.agents.services.answer_annotations import (
+    inject_answer_annotations,
+    take_answer_annotations,
 )
 from src.domains.agents.services.performed_actions_directive import (
     build_performed_actions_block,
@@ -175,7 +179,12 @@ from src.domains.attachments.urls import ATTACHMENT_PATH_PREFIX
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 from src.infrastructure.llm.message_text import coerce_content_to_text
-from src.infrastructure.llm.message_view import content_for_model
+from src.infrastructure.llm.message_view import (
+    content_for_model,
+    stamped_now,
+    with_written_at,
+    written_at,
+)
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics import graph_exceptions_total
@@ -1174,6 +1183,24 @@ def _record_plan_pattern_learning(state: MessagesState, run_id: str, turn_type: 
         )
 
 
+def _report_settled_skill_use(
+    skill_name: str | None, user_id: str | None, run_id: str, *, loop_ran_it: bool
+) -> None:
+    """The skill this turn settled on is a use (lot 14), reported once per run at the source.
+
+    Args:
+        skill_name: The skill the turn settled on, or None.
+        user_id: The account, or None outside one.
+        run_id: The run the use belongs to.
+        loop_ran_it: The ReAct loop activated it, and reported that use itself.
+    """
+    if not skill_name or not user_id or loop_ran_it:
+        return
+    from src.domains.skills.usage import schedule_skill_use
+
+    schedule_skill_use(UUID(user_id), skill_name, run_id=run_id)
+
+
 async def _activate_response_skills(
     state: MessagesState,
     config: RunnableConfig,
@@ -1346,6 +1373,9 @@ async def _activate_response_skills(
 
         if skill_sections:
             skills_context = "\n\n".join(skill_sections)
+        _report_settled_skill_use(
+            _activated_skill_name, skill_user_id, run_id, loop_ran_it=_loop_ran_it
+        )
     return _SkillActivationResult(
         skills_context=skills_context,
         skill_react_response=skill_react_response,
@@ -1639,6 +1669,7 @@ def _build_response_system_prompt(
     recent_entities: str = "",
     peer_context: str = "",
     runtime_failures_block: str = "",
+    answered_mail: str = "",
 ) -> str:
     """Assemble the response LLM system prompt from all injected context.
 
@@ -1665,6 +1696,7 @@ def _build_response_system_prompt(
         psyche_context=psyche_context,  # Psyche Engine expression profile
         recent_entities=recent_entities,  # Grounding when this turn produced no data
         peer_context=peer_context,  # Local CRM facts about a named connected user
+        answered_mail=answered_mail,  # The turn's mails already answered (ADR-379)
     )
     # ADR-079 commit 3: ambient diffusion of the user-model portrait.
     # Appended after the base prompt so it is read alongside (not in place
@@ -1736,7 +1768,7 @@ def _build_response_system_prompt(
         base_system_prompt = inject_before_final_reminder(
             base_system_prompt, str(load_prompt("psyche_self_report_instruction"))
         )
-    base_system_prompt = inject_tone_instruction(base_system_prompt)
+    base_system_prompt = inject_answer_annotations(base_system_prompt)
     # Self-diagnostics honesty block (spec 2026-08-27, pillar 7): typed
     # failures + platform degradations, computed by the caller (async path);
     # empty string on a clean turn = zero prompt-token impact.
@@ -2272,10 +2304,14 @@ async def _prepare_conversational_messages(
             attachments=current_turn_attachments,
             storage_path=settings.attachments_storage_path,
         )
-        # Replace last HumanMessage in conversational_messages (local copy)
+        # Replace last HumanMessage in conversational_messages (local copy); the
+        # words it stands for keep the instant they were written (lot 17).
         for i in range(len(conversational_messages) - 1, -1, -1):
             if isinstance(conversational_messages[i], HumanMessage):
-                conversational_messages[i] = multimodal_msg
+                moment = written_at(conversational_messages[i])
+                conversational_messages[i] = (
+                    stamped_now(multimodal_msg, moment) if moment else multimodal_msg
+                )
                 break
         logger.info(
             "response_node_vision_content_injected",
@@ -2283,7 +2319,8 @@ async def _prepare_conversational_messages(
             attachment_count=len(current_turn_attachments),
             has_images=has_vision_content,
         )
-    return conversational_messages
+    # Each message the person wrote reads with its instant, in their zone (lot 17).
+    return with_written_at(conversational_messages, resolve_zone(state.get("user_timezone")))
 
 
 def _detect_response_result_domains(
@@ -2492,6 +2529,9 @@ def _build_conversation_history(
     user_query_for_prompt = get_qi_attr(state, "original_query", default=None)
     if not user_query_for_prompt:
         user_query_for_prompt = last_user_message
+    # ADR-385: the request as the person completed it while the loop worked — the
+    # same text the loop's exit folded into the question.
+    user_query_for_prompt = with_turn_notes(user_query_for_prompt, state)
     # Exclude the user_query_for_prompt from history - it's passed separately via {user_query}
     # This prevents the current query from appearing twice in the prompt.
     # HITL FIX 2026-01-22: In HITL resumption, last HumanMessage is "ok" but original_query
@@ -2508,7 +2548,9 @@ def _build_conversation_history(
             and msg.content.strip().lower() == query_to_exclude
         )
     ]
-    conversation_history = format_conversation_history(history_messages)
+    # Stamped after the query was set apart: its words are matched as written (lot 17).
+    zone = resolve_zone(state.get("user_timezone"))
+    conversation_history = format_conversation_history(with_written_at(history_messages, zone))
     return conversation_history, last_user_message, user_query_for_prompt
 
 
@@ -2952,6 +2994,8 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         )
 
         data_for_filtering = _build_data_for_filtering(current_turn_registry, run_id)
+        # The items the data block lists, read for what is stated apart from it (ADR-379).
+        answered_mail = answered_mail_lines(current_turn_registry)
 
         # =====================================================================
         # CONTEXT INJECTIONS (embedding + memory, RAG, journal, portrait, psyche)
@@ -3105,6 +3149,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             react_result=react_result,
             recent_entities=recent_entities,
             peer_context=peer_context,
+            answered_mail=answered_mail,
         )
 
         (
@@ -3331,7 +3376,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         psyche_appraisal, final_content = _parse_psyche_appraisal(
             final_content, user_psyche_enabled, run_id
         )
-        final_content = take_tone_annotation(final_content, run_id)
+        final_content = take_answer_annotations(final_content, run_id)
 
         # Intelligent filtering: parse <relevant_ids> and filter the current-turn registry.
         final_content, current_turn_registry = _apply_relevant_ids_filtering(

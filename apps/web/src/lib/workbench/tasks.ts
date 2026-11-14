@@ -10,7 +10,7 @@
 import { getIntlLocale, type Language } from '@/i18n/settings';
 
 import { instantToWall, wallTimeToInstant } from './calendar/zoned';
-import type { WorkbenchTask, WorkbenchTaskView } from './types';
+import type { ViewTask, WorkbenchTask, WorkbenchTaskView } from './types';
 
 /** A top-level task and the subtasks under it. */
 export interface TaskNode {
@@ -21,12 +21,52 @@ export interface TaskNode {
 /** How a due day reads against today. */
 export type DueTone = 'overdue' | 'today' | 'later';
 
-/** The views across the lists, in the pane's order. */
-export const TASK_VIEWS: readonly WorkbenchTaskView[] = ['today', 'overdue', 'upcoming'];
+/** The views across the lists, in the pane's order: the three together first. */
+export const TASK_VIEWS: readonly WorkbenchTaskView[] = [
+  'timeline',
+  'today',
+  'overdue',
+  'upcoming',
+];
+
+/** Every open task of every list: a view too, which the pane draws among the lists. */
+export const ALL_TASKS_VIEW = 'all' satisfies WorkbenchTaskView;
+
+/** Every view the address or the phone's select may name. */
+export const NAMED_TASK_VIEWS: readonly WorkbenchTaskView[] = [...TASK_VIEWS, ALL_TASKS_VIEW];
 
 /** What the address names, when it is a view. */
 export function taskView(raw: string | null): WorkbenchTaskView | null {
-  return TASK_VIEWS.find(view => view === raw) ?? null;
+  return NAMED_TASK_VIEWS.find(view => view === raw) ?? null;
+}
+
+/** The stretches of the timeline, in time order. */
+const TIMELINE_PARTS = ['overdue', 'today', 'upcoming'] as const;
+
+/** One stretch of the timeline, named as the view that shows it alone. */
+export type TimelinePart = (typeof TIMELINE_PARTS)[number];
+
+/** A stretch of the timeline and the tasks that fall in it. */
+export interface TimelineSection {
+  part: TimelinePart;
+  tasks: ViewTask[];
+}
+
+function timelinePart(due: string, today: string): TimelinePart {
+  if (due < today) return 'overdue';
+  return due === today ? 'today' : 'upcoming';
+}
+
+/**
+ * @param tasks - What the timeline gathers, in the server's order.
+ * @param today - Today in the account's zone (`dayIn`).
+ * @returns Its stretches that hold something, in time order, each task once.
+ */
+export function timelineSections(tasks: readonly ViewTask[], today: string): TimelineSection[] {
+  return TIMELINE_PARTS.map(part => ({
+    part,
+    tasks: tasks.filter(task => task.due !== null && timelinePart(task.due, today) === part),
+  })).filter(section => section.tasks.length > 0);
 }
 
 /** The tasks a task sits among: its parent's, or the top level. */
@@ -116,7 +156,10 @@ export function dayIn(zone: string | undefined, now: Date): string {
  * @param today - Today in the account's zone (`dayIn`).
  * @returns How its due day reads; a done task is never late; null without a day.
  */
-export function dueTone(task: WorkbenchTask, today: string): DueTone | null {
+export function dueTone(
+  task: Pick<WorkbenchTask, 'due' | 'completed'>,
+  today: string
+): DueTone | null {
   if (!task.due) return null;
   if (task.completed || task.due > today) return 'later';
   return task.due === today ? 'today' : 'overdue';

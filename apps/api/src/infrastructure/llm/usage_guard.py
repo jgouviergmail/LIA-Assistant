@@ -31,6 +31,7 @@ import structlog
 
 from src.core.field_names import FIELD_USER_ID
 from src.infrastructure.llm.instrumentation import extract_session_user_from_state
+from src.infrastructure.streaming.run_admission import authorize_external_work
 
 logger = structlog.get_logger(__name__)
 
@@ -146,13 +147,12 @@ async def enforce_usage_limit(
         decision = await UsageLimitService.instance_budget_block()
         if decision is not None:
             raise_for_blocked_verdict(decision, layer=layer)
-        return
-
-    # Asks the instance ceiling first and the per-account one after, both in
-    # the one implementation that owns them.
-    verdict = await UsageLimitService.check_user_allowed(owner)
-    if not verdict.allowed:
-        raise_for_blocked_verdict(verdict, layer=layer)
+    else:
+        # Both ceilings are evaluated by the same service, in their declared order.
+        verdict = await UsageLimitService.check_user_allowed(owner)
+        if not verdict.allowed:
+            raise_for_blocked_verdict(verdict, layer=layer)
+    await authorize_external_work()
 
 
 __all__ = ["LLM_CHOKEPOINTS", "enforce_usage_limit", "resolve_owner"]

@@ -41,6 +41,7 @@ async def test_nothing_runs_on_no_rows() -> None:
             rows=[],
             language="fr",
             run_inline=True,
+            timezone="UTC",
         )
     tracking.assert_not_called()
 
@@ -60,6 +61,7 @@ async def test_memory_is_skipped_when_the_person_switched_it_off() -> None:
             rows=ROWS,
             language="fr",
             run_inline=True,
+            timezone="UTC",
         )
     memories.assert_not_awaited()
     interests.assert_awaited_once()
@@ -80,6 +82,7 @@ async def test_both_run_under_the_session_run_id() -> None:
             rows=ROWS,
             language="fr",
             run_inline=True,
+            timezone="UTC",
         )
     assert memories.call_args.kwargs["parent_run_id"] == "live_session_x"
     assert interests.call_args.kwargs["parent_run_id"] == "live_session_x"
@@ -100,6 +103,7 @@ async def test_a_failing_extractor_never_raises() -> None:
             rows=ROWS,
             language="fr",
             run_inline=True,
+            timezone="UTC",
         )
 
 
@@ -125,6 +129,7 @@ async def test_the_card_is_restated_once_the_learning_persisted_its_spend() -> N
             language="fr",
             run_inline=True,
             after=after,
+            timezone="UTC",
         )
     assert order == ["persisted", "restated"]
 
@@ -146,6 +151,7 @@ async def test_a_failed_learning_still_restates_what_it_spent() -> None:
             language="fr",
             run_inline=True,
             after=after,
+            timezone="UTC",
         )
     after.assert_awaited_once()
 
@@ -161,5 +167,6 @@ async def test_no_learning_restates_nothing() -> None:
         language="fr",
         run_inline=True,
         after=after,
+        timezone="UTC",
     )
     after.assert_not_awaited()

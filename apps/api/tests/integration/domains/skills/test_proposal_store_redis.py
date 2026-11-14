@@ -17,17 +17,20 @@ from dataclasses import replace
 import pytest
 from redis.asyncio import Redis
 
-from src.core.config import settings
+from src.core.conversation_execution import RunAdmission
 from src.domains.skills.proposals import ProposalStore, SkillProposal, index_key, proposal_key
+from src.infrastructure.streaming.run_admission import owned_execution
+from tests.fixtures.conversation_executions import redis_client as redis_client
+from tests.fixtures.conversation_executions import reserved as reserved
 
 pytestmark = pytest.mark.integration
 
 
 async def test_attempt_transition_is_atomic_owned_and_preserves_the_original_ttl(
-    redis_client, owner
-):
+    redis_client: Redis, owner: str, reserved: RunAdmission
+) -> None:
     store = ProposalStore(redis_client)
-    proposal = _proposal(owner, uuid.uuid4().hex)
+    proposal = _proposal(reserved, uuid.uuid4().hex)
     await store.save(proposal, ttl_seconds=600, max_per_owner=2, now=time.time())
     key = proposal_key(owner, proposal.id)
     before = await redis_client.ttl(key)
@@ -47,30 +50,27 @@ async def test_attempt_transition_is_atomic_owned_and_preserves_the_original_ttl
         await store.transition(winner, replace(winner, owner_id=str(uuid.uuid4())))
 
 
-@pytest.fixture
-async def redis_client() -> AsyncIterator[Redis]:
-    try:
-        redis = Redis.from_url(str(settings.redis_url), decode_responses=True)
-        await redis.ping()
-    except Exception as exc:  # noqa: BLE001 — environment guard, not logic
-        pytest.skip(f"Redis not available: {exc}")
-    yield redis
-    await redis.aclose()
+@pytest.fixture(autouse=True)
+async def authority(reserved: RunAdmission) -> AsyncIterator[None]:
+    """Every proposal write has a real SQL admission and matching Redis grant."""
+    async with owned_execution(reserved):
+        yield
 
 
 @pytest.fixture
-async def owner(redis_client: Redis) -> AsyncIterator[str]:
-    owner_id = str(uuid.uuid4())
+async def owner(redis_client: Redis, reserved: RunAdmission) -> AsyncIterator[str]:
+    owner_id = str(reserved.target.owner_id)
     yield owner_id
     keys = [key async for key in redis_client.scan_iter(f"skill_proposal*{owner_id}*")]
     if keys:
         await redis_client.delete(*keys)
 
 
-def _proposal(owner_id: str, proposal_id: str) -> SkillProposal:
+def _proposal(admission: RunAdmission, proposal_id: str) -> SkillProposal:
     return SkillProposal(
         id=proposal_id,
-        owner_id=owner_id,
+        owner_id=str(admission.target.owner_id),
+        runtime_id=str(admission.target.runtime_id),
         name="ma-skill",
         description="Useful.",
         files={"SKILL.md": "manifest"},
@@ -83,7 +83,9 @@ def _proposal(owner_id: str, proposal_id: str) -> SkillProposal:
 
 
 @pytest.mark.asyncio
-async def test_the_oldest_live_proposal_makes_room(redis_client: Redis, owner: str) -> None:
+async def test_the_oldest_live_proposal_makes_room(
+    redis_client: Redis, owner: str, reserved: RunAdmission
+) -> None:
     store = ProposalStore(redis_client)
     now = time.time()
     ids = [uuid.uuid4().hex for _ in range(3)]
@@ -92,7 +94,7 @@ async def test_the_oldest_live_proposal_makes_room(redis_client: Redis, owner: s
     for offset, proposal_id in enumerate(ids):
         evicted.append(
             await store.save(
-                _proposal(owner, proposal_id), ttl_seconds=600, max_per_owner=2, now=now + offset
+                _proposal(reserved, proposal_id), ttl_seconds=600, max_per_owner=2, now=now + offset
             )
         )
 
@@ -105,16 +107,16 @@ async def test_the_oldest_live_proposal_makes_room(redis_client: Redis, owner: s
 
 @pytest.mark.asyncio
 async def test_an_expired_member_never_costs_a_live_one_its_place(
-    redis_client: Redis, owner: str
+    redis_client: Redis, owner: str, reserved: RunAdmission
 ) -> None:
     store = ProposalStore(redis_client)
     now = time.time()
     first, second = uuid.uuid4().hex, uuid.uuid4().hex
-    await store.save(_proposal(owner, first), ttl_seconds=60, max_per_owner=1, now=now)
+    await store.save(_proposal(reserved, first), ttl_seconds=60, max_per_owner=1, now=now)
 
     # Saved as if 61 s later: the first one's index member has expired.
     evicted = await store.save(
-        _proposal(owner, second), ttl_seconds=60, max_per_owner=1, now=now + 61
+        _proposal(reserved, second), ttl_seconds=60, max_per_owner=1, now=now + 61
     )
 
     assert evicted == 0, "an expired member was counted as a live proposal"
@@ -123,10 +125,10 @@ async def test_an_expired_member_never_costs_a_live_one_its_place(
 
 @pytest.mark.asyncio
 async def test_a_proposal_lives_its_ttl_and_the_install_keeps_it(
-    redis_client: Redis, owner: str
+    redis_client: Redis, owner: str, reserved: RunAdmission
 ) -> None:
     store = ProposalStore(redis_client)
-    proposal = _proposal(owner, uuid.uuid4().hex)
+    proposal = _proposal(reserved, uuid.uuid4().hex)
     await store.save(proposal, ttl_seconds=600, max_per_owner=5, now=time.time())
     ttl_before = await redis_client.ttl(proposal_key(owner, proposal.id))
 
@@ -140,19 +142,21 @@ async def test_a_proposal_lives_its_ttl_and_the_install_keeps_it(
 
 @pytest.mark.asyncio
 async def test_an_install_on_an_expired_proposal_writes_nothing(
-    redis_client: Redis, owner: str
+    redis_client: Redis, owner: str, reserved: RunAdmission
 ) -> None:
     store = ProposalStore(redis_client)
-    proposal = _proposal(owner, uuid.uuid4().hex)
+    proposal = _proposal(reserved, uuid.uuid4().hex)
 
     assert await store.mark_installed(proposal) is False
     assert await redis_client.exists(proposal_key(owner, proposal.id)) == 0
 
 
 @pytest.mark.asyncio
-async def test_another_account_never_reads_it(redis_client: Redis, owner: str) -> None:
+async def test_another_account_never_reads_it(
+    redis_client: Redis, owner: str, reserved: RunAdmission
+) -> None:
     store = ProposalStore(redis_client)
-    proposal = _proposal(owner, uuid.uuid4().hex)
+    proposal = _proposal(reserved, uuid.uuid4().hex)
     await store.save(proposal, ttl_seconds=600, max_per_owner=5, now=time.time())
 
     assert await store.load(str(uuid.uuid4()), proposal.id) is None

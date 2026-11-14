@@ -96,11 +96,14 @@ async def _board(
         query=query.query,
         include_closed_before=datetime.now(UTC) - timedelta(days=days),
         sort=query.sort,
+        categories=query.categories,
+        uncategorized=query.uncategorized,
     )
     rows, result.total, result.counts_by_status = await service.board(
         actor, filters, limit=query.limit, offset=query.offset
     )
     result.tickets = [TicketRow.model_validate(row) for row in rows]
+    result.lanes = await service.categories.lanes(actor, filters)
 
 
 async def _verify_observed_visibility(

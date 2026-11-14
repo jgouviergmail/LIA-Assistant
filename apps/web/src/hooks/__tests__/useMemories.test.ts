@@ -34,6 +34,8 @@ const LIMITS: MemoryLimits = {
   content_max_chars: 500,
   trigger_topic_max_chars: 100,
   usage_nuance_max_chars: 300,
+  import_max_memories: 500,
+  import_max_file_kb: 2048,
 };
 
 function memory(over: Partial<Memory> = {}): Memory {
@@ -52,16 +54,24 @@ function memory(over: Partial<Memory> = {}): Memory {
   };
 }
 
-/** The four mutations, in the order the hook declares them. */
+/** The five mutations, in the order the hook declares them. */
 const mutate = {
   create: mutateSpy(),
   remove: mutateSpy(),
   update: mutateSpy(),
   removeAll: mutateSpy(),
+  importFile: mutateSpy(),
 };
-const ORDER = [mutate.create, mutate.remove, mutate.update, mutate.removeAll];
+const ORDER = [
+  mutate.create,
+  mutate.remove,
+  mutate.update,
+  mutate.removeAll,
+  mutate.importFile,
+];
 
 const setData = setDataSpy<MemoryListResponse>();
+const refetchVerified = vi.fn().mockResolvedValue(true);
 
 function cache(over: Partial<MemoryListResponse> = {}): MemoryListResponse {
   return {
@@ -86,7 +96,7 @@ function setupWith(data: MemoryListResponse | undefined) {
       if (collection && observedData !== undefined) notify?.(observedData);
     }, [collection, observedData, notify]);
     return collection
-      ? queryResult<MemoryListResponse>({ data, setData })
+      ? queryResult<MemoryListResponse>({ data, setData, refetchVerified })
       : dataQuery({ categories: [{ category: 'preference', count: 1, label: 'Préférences' }] });
   });
   return renderHook(() => useMemories());
@@ -269,6 +279,59 @@ describe('useMemories — pinning', () => {
     const next = applyUpdater(cache());
     expect(next?.items[0].pinned).toBe(true);
     expect(next?.by_category).toEqual({ preference: 1 });
+  });
+});
+
+describe('useMemories — importing an export', () => {
+  const file = new File(['content,category\nA fact,personal\n'], 'memories.csv');
+  const report = (imported: number) => ({
+    total: 2,
+    imported,
+    already_present: 2 - imported,
+    duplicates: 0,
+    invalid: 0,
+  });
+
+  it('sends the file as it is to the import route and answers what became of it', async () => {
+    mutate.importFile.mockResolvedValue(report(2));
+    const { result } = setup();
+
+    let answered: Awaited<ReturnType<typeof result.current.importMemories>>;
+    await act(async () => {
+      answered = await result.current.importMemories(file);
+    });
+
+    expect(answered!).toEqual(report(2));
+    const [endpoint, form] = mutate.importFile.mock.calls[0] as [string, FormData];
+    expect(endpoint).toBe('/memories/import');
+    expect(form.get('file')).toBe(file);
+    // What was created has identifiers only the API knows: the list is read again.
+    expect(refetchVerified).toHaveBeenCalledOnce();
+  });
+
+  it('does not read the list again for a file that brought nothing new', async () => {
+    mutate.importFile.mockResolvedValue(report(0));
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.importMemories(file);
+    });
+
+    expect(refetchVerified).not.toHaveBeenCalled();
+  });
+
+  it('still answers the report when the list cannot be read again', async () => {
+    // A refresh that fails must not undo the thing it follows: the memories exist.
+    mutate.importFile.mockResolvedValue(report(2));
+    refetchVerified.mockResolvedValueOnce(false);
+    const { result } = setup();
+
+    let answered: Awaited<ReturnType<typeof result.current.importMemories>>;
+    await act(async () => {
+      answered = await result.current.importMemories(file);
+    });
+
+    expect(answered!).toEqual(report(2));
   });
 });
 

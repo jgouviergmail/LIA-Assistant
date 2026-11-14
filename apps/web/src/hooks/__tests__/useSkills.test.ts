@@ -48,7 +48,7 @@ function skill(over: Partial<Skill> = {}): Skill {
   };
 }
 
-/** The eight mutations, in the order the hook declares them. */
+/** The ten mutations, in the order the hook declares them. */
 const mutate = {
   remove: mutateSpy(),
   reload: mutateSpy(),
@@ -58,6 +58,8 @@ const mutate = {
   translate: mutateSpy(),
   describe: mutateSpy(),
   removeAdmin: mutateSpy(),
+  restorePrevious: mutateSpy(),
+  dormantDecision: mutateSpy(),
 };
 const ORDER = [
   mutate.remove,
@@ -68,10 +70,13 @@ const ORDER = [
   mutate.translate,
   mutate.describe,
   mutate.removeAdmin,
+  mutate.restorePrevious,
+  mutate.dormantDecision,
 ];
 
 const setData = setDataSpy<SkillListResponse>();
-const refetch = vi.fn();
+// The real refetch is async and rejects on a failed re-read: the double keeps that contract.
+const refetch = vi.fn().mockResolvedValue(undefined);
 const fetchMock = vi.fn();
 const createObjectURL = vi.fn(() => 'blob:archive');
 const revokeObjectURL = vi.fn();
@@ -120,7 +125,7 @@ describe('useSkills — reading', () => {
   it('reads the user catalogue by default', () => {
     const { result } = setup();
 
-    expect(useApplicationAccountQuery).toHaveBeenCalledWith(ENDPOINT, 'Skills');
+    expect(useApplicationAccountQuery).toHaveBeenCalledWith(ENDPOINT, 'Skills', true);
     expect(result.current.skills).toHaveLength(1);
     expect(result.current.total).toBe(1);
   });
@@ -128,7 +133,11 @@ describe('useSkills — reading', () => {
   it('reads the admin catalogue in admin view', () => {
     setup(cache(), true);
 
-    expect(useApplicationAccountQuery).toHaveBeenCalledWith(`${ENDPOINT}/admin/list`, 'Skills');
+    expect(useApplicationAccountQuery).toHaveBeenCalledWith(
+      `${ENDPOINT}/admin/list`,
+      'Skills',
+      true
+    );
   });
 
   it('degrades to an empty catalogue on a missing payload', () => {
@@ -257,6 +266,80 @@ describe('useSkills — toggles', () => {
     });
 
     expect(setData).not.toHaveBeenCalled();
+  });
+});
+
+describe("useSkills — a skill's life (lot 14)", () => {
+  it('publishes the dormancy period the server measured with', () => {
+    const { result } = setup(cache({ dormant_after_days: 60 }));
+
+    expect(result.current.dormantAfterDays).toBe(60);
+  });
+
+  it('restores the previous version, then re-reads its use and way back', async () => {
+    mutate.restorePrevious.mockResolvedValue(skill({ description: 'Previous words' }));
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.restorePreviousSkill('weather-report');
+    });
+
+    expect(mutate.restorePrevious).toHaveBeenCalledWith(
+      `${ENDPOINT}/weather-report/restore-previous`
+    );
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-reads the catalogue when the restoration is refused, so a stale way back leaves', async () => {
+    mutate.restorePrevious.mockRejectedValue(new Error('404'));
+    const { result } = setup();
+
+    await act(async () => {
+      await expect(result.current.restorePreviousSkill('weather-report')).rejects.toThrow('404');
+    });
+
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('switches off exactly the skills the server settled', async () => {
+    mutate.dormantDecision.mockResolvedValue({
+      decision: 'switch_off',
+      settled: ['weather-report'],
+    });
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.settleDormant(['id-weather', 'id-other'], 'switch_off');
+    });
+
+    expect(mutate.dormantDecision).toHaveBeenCalledWith(`${ENDPOINT}/dormant-decision`, {
+      skill_ids: ['id-weather', 'id-other'],
+      decision: 'switch_off',
+    });
+    const next = applyUpdater(
+      cache({
+        skills: [skill({ dormant: true }), skill({ name: 'other', dormant: true })],
+      })
+    );
+    expect(next?.skills[0]).toMatchObject({ dormant: false, enabled_for_user: false });
+    // Used meanwhile, the server left it alone: so does the screen…
+    expect(next?.skills[1]).toMatchObject({ dormant: true, enabled_for_user: true });
+    // …until the fresh read that says what it is now: no longer proposed.
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the settled skills on and stops proposing them', async () => {
+    mutate.dormantDecision.mockResolvedValue({ decision: 'keep', settled: ['weather-report'] });
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.settleDormant(['id-weather'], 'keep');
+    });
+
+    const next = applyUpdater(cache({ skills: [skill({ dormant: true })] }));
+    expect(next?.skills[0]).toMatchObject({ dormant: false, enabled_for_user: true });
+    // Everything asked was settled: the answer is the whole truth, nothing is re-read.
+    expect(refetch).not.toHaveBeenCalled();
   });
 });
 

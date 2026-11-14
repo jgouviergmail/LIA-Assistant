@@ -30,8 +30,16 @@ RULE 5 - PARSING:
     Use parse_datetime() to parse any format.
     This function ALWAYS returns an aware datetime (UTC by default).
 
+RULE 6 - A TIME A PERSON SAYS (ADR-380):
+    « Half past nine in Paris » is a WALL time: it names an instant only with
+    its zone. It is carried as a WallTime (core/wall_time), which never splits
+    the two, and is never parsed as an instant: parse_datetime() reads a time
+    that names no offset as UTC and normalize_to_rfc3339() stamps it « Z » —
+    right for an instant, ANOTHER hour for a person's time.
+
 ANTI-PATTERNS TO AVOID:
     ❌ datetime.now() - use datetime.now(UTC)
+    ❌ Reading a person's time as an instant - use WallTime.read(text, zone)
     ❌ dt.replace(tzinfo=None) - loses timezone information
     ❌ dt.replace(tzinfo=tz) on aware datetime - use dt.astimezone(tz)
     ❌ pytz.localize() - use ZoneInfo + replace(tzinfo=) on naive only
@@ -210,8 +218,13 @@ def normalize_to_rfc3339(dt_str: str | None) -> str | None:
     """
     Normalize datetime/date string to RFC 3339 format with timezone.
 
-    Google APIs (Calendar, Tasks) require RFC 3339 format with timezone suffix.
-    LLM may output various formats that need normalization.
+    Google's search bounds (``timeMin``/``timeMax``) and Tasks dates require RFC
+    3339 with an offset. LLM may output various formats that need normalization.
+
+    For INSTANTS only. A time a person said is a wall time, not an instant:
+    stamped ``Z`` here it becomes that hour in UTC — an event moved to 09:30 in
+    Paris landed at 10:30 (production, 2026-11-12). Such a time is carried by
+    ``core/wall_time.WallTime`` and reaches a provider beside its zone (ADR-380).
 
     Handles:
     - Date only: "2026-01-27" -> "2026-01-27T00:00:00Z"
@@ -1309,9 +1322,22 @@ def resolve_user_timezone(user: Any) -> ZoneInfo:
     Returns:
         The resolved zone, never raising.
     """
+    return resolve_zone(getattr(user, "timezone", None))
+
+
+def resolve_zone(name: str | None) -> ZoneInfo:
+    """A display zone by its IANA name, with the doctrine's safe fallback.
+
+    Args:
+        name: The zone's name; a missing, empty or unknown one falls back to
+            ``DEFAULT_USER_DISPLAY_TIMEZONE`` rather than to a hardcoded literal.
+
+    Returns:
+        The resolved zone, never raising.
+    """
     from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 
     try:
-        return ZoneInfo(user.timezone)
-    except KeyError, ValueError, AttributeError, TypeError:
+        return ZoneInfo(name or DEFAULT_USER_DISPLAY_TIMEZONE)
+    except KeyError, ValueError, TypeError:
         return ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)

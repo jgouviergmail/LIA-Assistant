@@ -9,16 +9,11 @@
  * unanswered read offers no call rather than one nothing could place. Relations and the contacts
  * tool read this one verdict.
  */
-import { TELEPHONY_CONNECTOR_TYPES } from '@/components/settings/connectors/constants';
-import { isConnectorActive, type Connector } from '@/components/settings/connectors/types';
+import { isTelephonyConnectorType } from '@/components/settings/connectors/constants';
+import { isConnectorActive } from '@/components/settings/connectors/types';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { useApplicationConnectors } from '@/hooks/useApplicationConnectors';
 import { capabilityEnabled } from '@/lib/capability-state';
-
-function isTelephony(connector: Connector): boolean {
-  const type = connector.connector_type.toLowerCase();
-  return (TELEPHONY_CONNECTOR_TYPES as readonly string[]).includes(type);
-}
 
 /** @returns Whether LIA can be asked to place a call for this account. */
 export function useTelephonyCallable(): boolean {
@@ -26,6 +21,6 @@ export function useTelephonyCallable(): boolean {
   const { data } = useApplicationConnectors();
   if (!capabilityEnabled(config?.capabilities, 'telephony', false)) return false;
   return (data?.connectors ?? []).some(
-    connector => isTelephony(connector) && isConnectorActive(connector)
+    connector => isTelephonyConnectorType(connector.connector_type) && isConnectorActive(connector)
   );
 }

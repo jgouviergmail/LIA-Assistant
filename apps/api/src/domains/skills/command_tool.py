@@ -416,7 +416,8 @@ async def run_skill_command(
     delivery = await deliver_outputs(
         output.files,
         user_id=UUID(config.user_id),
-        conversation_id=context.conversation_id if context is not None else "",
+        conversation_id=context.source_conversation_id if context is not None else None,
+        delivery_runtime_id=context.delivery_runtime_id if context is not None else None,
     )
     logger.info(
         "skill_command_ran",

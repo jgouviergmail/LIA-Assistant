@@ -45,6 +45,21 @@ def test_lan_local_report_names_url_mode_and_backup_path() -> None:
     assert "vision_analysis" in report
 
 
+def test_the_report_says_whether_the_instance_searches_the_web() -> None:
+    import dataclasses
+
+    public = _public(InstallMode.LOCAL, Exposure.LAN)
+    kwargs = {
+        "release_summary": "local build",
+        "backup_dir": Path("/srv/backups"),
+        "optional_unkeyed": {},
+    }
+    on = render_report(dataclasses.replace(public, web_search=True), **kwargs)
+    off = render_report(public, **kwargs)
+    assert "Instance web search: enabled (profile 'searxng')" in on
+    assert "searxng" not in off
+
+
 def test_prebuilt_report_states_the_firebase_limitation() -> None:
     report = render_report(
         _public(InstallMode.PREBUILT, Exposure.CADDY),

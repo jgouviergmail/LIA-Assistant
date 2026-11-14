@@ -88,6 +88,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "Offer LIA World? A shared isometric space with private native LIA panels and human text; each participant consents to presence and each paid translation requires consent (yes/no)",
         "fr": "Proposer le monde LIA ? Un espace isométrique partagé avec les panneaux privés de LIA et des échanges écrits ; chaque personne consent à sa présence et chaque traduction payante exige un accord (yes/no)",
     },
+    "question.web_search": {
+        "en": "Search the web for people with no search key of their own? The instance runs SearXNG, which asks public engines (Google, Brave, DuckDuckGo, Bing News...) from this server's address, unfiltered; a person's own Brave key always wins (yes/no)",
+        "fr": "Chercher sur le web pour les personnes sans clé de recherche ? L'instance fait tourner SearXNG, qui interroge des moteurs publics (Google, Brave, DuckDuckGo, Bing News...) depuis l'adresse de ce serveur, sans filtrage ; la clé Brave d'une personne passe toujours en premier (yes/no)",
+    },
     "question.admin_password": {
         "en": "Administrator password (min {min_length} chars, {min_uppercase} uppercase, {min_digits} digits, {min_special} special; input hidden)",
         "fr": "Mot de passe administrateur (min {min_length} caractères, {min_uppercase} majuscules, {min_digits} chiffres, {min_special} spéciaux ; saisie masquée)",
@@ -97,8 +101,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "fr": "Clé API pour {provider} (requise par le cœur seedé ; saisie masquée)",
     },
     "question.optional_provider_key.gemini": {
-        "en": "Google Gemini API key (optional: memory recall, search in documents, journals and interests, and image analysis run on it; leave empty to skip and add it later in the Admin UI; input hidden)",
-        "fr": "Clé API Google Gemini (facultative : le rappel des souvenirs, la recherche dans les documents, les journaux et les centres d'intérêt, et l'analyse d'images s'en servent ; laissez vide pour passer et l'ajouter plus tard dans l'interface d'administration ; saisie masquée)",
+        "en": "Google Gemini API key (optional: memory recall and the search in documents, journals and interests run on it; leave empty to skip and add it later in the Admin UI; input hidden)",
+        "fr": "Clé API Google Gemini (facultative : le rappel des souvenirs et la recherche dans les documents, les journaux et les centres d'intérêt s'en servent ; laissez vide pour passer et l'ajouter plus tard dans l'interface d'administration ; saisie masquée)",
     },
     "info.env_changes": {
         "en": "These .env values, each decided by an answer, would change from the file in force (a value edited by hand would be replaced):",

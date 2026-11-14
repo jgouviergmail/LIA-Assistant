@@ -5,19 +5,31 @@
  *
  * Each card is a real `<button>` opening the detail modal; the per-user
  * toggle stays inline as a SIBLING control (never nested inside the button —
- * a11y invariant). Badges surface category and capability hints at a glance.
+ * a11y invariant). Badges surface category and capability hints at a glance;
+ * a line says how often the skill was used, and a grey badge marks one that
+ * sleeps (lot 14).
  */
 
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { isThirdPartySkill, type Skill } from '@/hooks/useSkills';
 import type { SkillsTranslator } from '@/components/settings/SkillDetailModal';
+import type { Language } from '@/i18n/settings';
+import { skillUsageLine } from '@/lib/skill-life';
 import { skillTraitTone } from '@/lib/status-tone';
 import { Send } from '@/lib/icons';
 import { RowActions } from '@/components/ui/row-actions';
 import { CapabilityProvenance } from '@/components/peers/CapabilityProvenance';
 
-function CardBadges({ skill, t }: { skill: Skill; t: SkillsTranslator }) {
+function CardBadges({
+  skill,
+  t,
+  dormantAfterDays,
+}: {
+  skill: Skill;
+  t: SkillsTranslator;
+  dormantAfterDays?: number;
+}) {
   return (
     <>
       {/* Toned by TYPE through `skillTraitTone` (ADR-207): identity in the
@@ -49,6 +61,11 @@ function CardBadges({ skill, t }: { skill: Skill; t: SkillsTranslator }) {
           {t(`settings.skills.gallery.origin_${skill.provenance}`)}
         </Badge>
       )}
+      {skill.dormant && dormantAfterDays !== undefined && (
+        <Badge variant={skillTraitTone('dormant')} className="shrink-0 text-xs">
+          {t('settings.skills.usage.dormant_badge', { days: dormantAfterDays })}
+        </Badge>
+      )}
     </>
   );
 }
@@ -65,7 +82,7 @@ function SkillCardFooter({
   onShare,
 }: {
   skill: Skill;
-  lng: string;
+  lng: Language;
   t: SkillsTranslator;
   onShare?: (skill: Skill) => void;
 }) {
@@ -93,6 +110,13 @@ function SkillCardFooter({
   );
 }
 
+/** How often the skill was used since counting began (lot 14). */
+function SkillUsage({ skill, lng, t }: { skill: Skill; lng: Language; t: SkillsTranslator }) {
+  const usage = skillUsageLine(skill, t, lng);
+  if (!usage) return null;
+  return <span className="mt-1 block text-xs text-muted-foreground">{usage}</span>;
+}
+
 export function SkillGallery({
   skills,
   lng,
@@ -101,14 +125,17 @@ export function SkillGallery({
   onToggle,
   toggling,
   onShare,
+  dormantAfterDays,
 }: {
   skills: Skill[];
-  lng: string;
+  lng: Language;
   t: SkillsTranslator;
   onOpen: (skill: Skill) => void;
   onToggle: (skill: Skill) => void;
   toggling: boolean;
   onShare?: (skill: Skill) => void;
+  /** `SKILLS_DORMANT_AFTER_DAYS`, worded on a dormant card's badge (lot 14). */
+  dormantAfterDays?: number;
 }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2">
@@ -137,16 +164,17 @@ export function SkillGallery({
               >
                 <span className="flex items-center gap-2 flex-wrap">
                   <span className="font-medium text-sm truncate">{skill.name}</span>
-                  <CardBadges skill={skill} t={t} />
+                  <CardBadges skill={skill} t={t} dormantAfterDays={dormantAfterDays} />
                 </span>
                 <span className="mt-1 block text-xs text-muted-foreground line-clamp-2">
                   {description}
                 </span>
+                <SkillUsage skill={skill} lng={lng} t={t} />
               </button>
               <Switch
                 checked={skill.enabled_for_user}
                 onCheckedChange={() => onToggle(skill)}
-                disabled={toggling}
+                busy={toggling}
                 aria-label={t('settings.skills.toggle_skill', { name: skill.name })}
               />
             </div>

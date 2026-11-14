@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import apiClient from '@/lib/api-client';
 import { getApiErrorDetail } from '@/lib/api-error';
 import { logger } from '@/lib/logger';
-import { KeyRound, Lightbulb, Phone, Plug, Save } from '@/lib/icons';
+import { KeyRound, Lightbulb, Plug, Save } from '@/lib/icons';
 import { AppleMark, GoogleMark, MicrosoftMark } from '@/components/icons/BrandMarks';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useApplicationConnectors } from '@/hooks/useApplicationConnectors';
@@ -30,7 +30,6 @@ import {
   APPLE_CONNECTOR_TYPES,
   MICROSOFT_CONNECTOR_TYPES,
   HUE_CONNECTOR_TYPES,
-  TELEPHONY_CONNECTOR_TYPES,
   APPLE_CONNECTORS_METADATA,
   MICROSOFT_CONNECTORS_METADATA,
   API_KEY_CONNECTOR_TYPES,
@@ -55,7 +54,7 @@ import {
 } from './connectors';
 import { AppleCredentialForm } from './connectors/AppleCredentialForm';
 import { HueBridgePairingForm } from './connectors/HueBridgePairingForm';
-import { TelephonyConnectorForm } from './connectors/TelephonyConnectorForm';
+import { TelephonyConnectorGroup } from './connectors/TelephonyConnectorGroup';
 import { LiveConnectorGroup } from './connectors/LiveConnectorGroup';
 import { isLiveConnectorType } from '@/lib/live/providers';
 import { bumpRevision } from '@/stores/revisionStore';
@@ -374,15 +373,6 @@ function AccountUserConnectorsSection({ lng }: BaseSettingsProps) {
   );
 
   const [showHuePairing, setShowHuePairing] = useState(false);
-
-  const connectedTelephonyConnectors = connectors.filter(
-    c =>
-      TELEPHONY_CONNECTOR_TYPES.includes(
-        c.connector_type.toLowerCase() as (typeof TELEPHONY_CONNECTOR_TYPES)[number]
-      ) && isConnectorActive(c)
-  );
-
-  const [showTelephonyWizard, setShowTelephonyWizard] = useState(false);
 
   const connectedMicrosoftConnectors = connectors.filter(
     c =>
@@ -904,89 +894,9 @@ function AccountUserConnectorsSection({ lng }: BaseSettingsProps) {
             </AccordionItem>
           )}
 
-          {/* Connected Telephony (agentic calls) */}
-          {connectedTelephonyConnectors.length > 0 && (
-            <AccordionItem
-              value="connected-telephony"
-              className="border rounded-lg bg-background [--lia-field-background:var(--color-card)] px-3"
-            >
-              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
-                <ConnectorGroupTrigger
-                  state="connected"
-                  label={t('settings.connectors.connected_telephony')}
-                  icon={Phone}
-                  count={connectedTelephonyConnectors.length}
-                  t={t}
-                />
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-3">
-                  {connectedTelephonyConnectors.map(connector => (
-                    <ConnectedConnectorCard
-                      key={connector.id}
-                      connector={connector}
-                      lng={lng}
-                      t={t}
-                      deleteLoading={false}
-                      onDisconnect={() => {
-                        // Telephony-specific: also deletes the LIA ElevenLabs agent.
-                        apiClient.delete('/telephony/connector').then(() => refetch());
-                      }}
-                    />
-                  ))}
-                  {/* The call history is NOT repeated here: it has its own
-                      deep-linkable section on this page (A6,
-                      `TelephonyCallsSection`), which the in-call banner links
-                      to. Two lists of the same rows on one page is noise, and
-                      it made the same request twice. */}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          )}
-
-          {/* Available Telephony */}
-          {connectedTelephonyConnectors.length === 0 && (
-            <AccordionItem
-              value="available-telephony"
-              className="border rounded-lg bg-background [--lia-field-background:var(--color-card)] px-3"
-            >
-              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
-                <ConnectorGroupTrigger
-                  state="available"
-                  label={t('settings.connectors.available_telephony')}
-                  icon={Phone}
-                  count={1}
-                  t={t}
-                />
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-3">
-                  {!showTelephonyWizard ? (
-                    <AvailableConnectorCard
-                      connectorType="elevenlabs_telephony"
-                      label={t('settings.connectors.telephony.label')}
-                      description={t('settings.connectors.telephony.description')}
-                      onConnect={() => setShowTelephonyWizard(true)}
-                    />
-                  ) : (
-                    <TelephonyConnectorForm
-                      lng={lng}
-                      onSuccess={() => {
-                        setShowTelephonyWizard(false);
-                        refetch();
-                      }}
-                      onCancel={() => setShowTelephonyWizard(false)}
-                    />
-                  )}
-                  {/* Past calls belong to the USER, not the connector, so they
-                      stay visible after a disconnect — which is precisely why
-                      they now live in their own section outside this accordion
-                      (A6, `TelephonyCallsSection`) rather than being repeated
-                      inside it. */}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          )}
+          {/* Telephony (agentic calls) — the group decides its own presence
+              (instance capability) and holds either accordion item. */}
+          <TelephonyConnectorGroup connectors={connectors} lng={lng} t={t} refetch={refetch} />
 
           {/* Live voice connector (ADR-299) — the group decides its own
               presence (instance capability) and holds both accordion items. */}

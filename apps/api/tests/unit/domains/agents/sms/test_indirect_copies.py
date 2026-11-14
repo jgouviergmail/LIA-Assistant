@@ -1,5 +1,6 @@
 """360-degree source copies obey the same withdrawal contract as SMS tools."""
 
+from datetime import UTC
 from uuid import uuid4
 
 from langchain_core.messages import HumanMessage, ToolMessage
@@ -36,7 +37,7 @@ def test_sms_in_person_result_never_enters_automatic_memory_extraction():
         name="get_person_overview_tool",
         response_metadata={"sms_snapshot": "proof"},
     )
-    assert "private indirect SMS" not in format_messages_for_extraction([message])
+    assert "private indirect SMS" not in format_messages_for_extraction([message], zone=UTC)
 
 
 def test_oversized_context_copy_cannot_hide_its_sms_proof():

@@ -43,9 +43,9 @@
   "bricks": {
     "f.chat": {
       "name": "Conversazione",
-      "role": "L'unico filo in cui parli con LIA, per iscritto o a voce: risposte in streaming, allegati, schede visive e costo mostrato sotto ogni risposta. Se il contenuto non cambia, le schede interattive e i widget conservano il proprio stato durante gli aggiornamenti automatici della visualizzazione.",
-      "goal": "Rispondere con esattezza e in fretta, in un solo filo, mostrando quanto è costata ogni risposta.",
-      "src": "27744283b4cf"
+      "role": "Parla con LIA per iscritto o a voce in Principale o in una conversazione con un titolo. Ognuna conserva la propria cronologia, gli allegati e l’indicatore di sessione. Le risposte arrivano in streaming con schede visive e costo per messaggio. Schede interattive e widget mantengono il loro stato durante gli aggiornamenti in background se il contenuto resta uguale.",
+      "goal": "Seguire ogni argomento nella propria cronologia con le preferenze e gli apprendimenti dell’account.",
+      "src": "7291719e0f81"
     },
     "f.routing": {
       "name": "Comprensione della richiesta",

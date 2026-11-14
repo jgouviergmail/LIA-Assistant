@@ -26,6 +26,13 @@ from src.domains.rag_spaces.document_access import raise_document_managed
 from src.domains.rag_spaces.models import RAGDocumentSourceType, RAGDocumentStatus
 from src.domains.rag_spaces.schemas import RAGDocumentMoveRequest
 from src.domains.rag_spaces.service import RAGSpaceService
+from tests.helpers.account_file_writes import account_writer_sql_stub as account_writer_sql_stub
+
+
+@pytest.fixture(autouse=True)
+def _writer_sql(account_writer_sql_stub: None) -> None:
+    """Only SQL is substituted; disk and task ownership stay real."""
+
 
 # ---------------------------------------------------------------------------
 # Fixtures

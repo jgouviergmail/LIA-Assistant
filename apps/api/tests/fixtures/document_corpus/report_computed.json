@@ -1,0 +1,84 @@
+{
+  "doc_types": [
+    "docx",
+    "pdf",
+    "md",
+    "txt"
+  ],
+  "language": "en",
+  "content": {
+    "filename_stem": "cost-review",
+    "title": "Cost review",
+    "subtitle": "Board pack",
+    "blocks": [
+      {
+        "kind": "paragraph",
+        "text": "The table below states revenue, cost and the computed margin of each unit."
+      },
+      {
+        "kind": "table",
+        "caption": "Margin by unit",
+        "table": {
+          "name": "Units",
+          "headers": [
+            "Unit",
+            "Revenue",
+            "Cost"
+          ],
+          "rows": [
+            [
+              "Retail",
+              "1200000.5",
+              "800000"
+            ],
+            [
+              "Online",
+              "450000",
+              "390000"
+            ],
+            [
+              "Wholesale",
+              "300000",
+              "0"
+            ]
+          ],
+          "columns": [
+            {
+              "header": "Revenue",
+              "kind": "amount",
+              "unit": "USD",
+              "total": "sum"
+            },
+            {
+              "header": "Cost",
+              "kind": "amount",
+              "unit": "USD",
+              "total": "sum"
+            },
+            {
+              "header": "Margin",
+              "formula": "{Revenue} - {Cost}",
+              "kind": "amount",
+              "unit": "USD",
+              "total": "sum"
+            },
+            {
+              "header": "Margin rate",
+              "formula": "({Revenue} - {Cost}) / {Revenue}",
+              "kind": "percent"
+            },
+            {
+              "header": "Cost ratio",
+              "formula": "{Revenue} / {Cost}",
+              "kind": "quantity"
+            }
+          ],
+          "summary": {
+            "by": "Unit",
+            "function": "count"
+          }
+        }
+      }
+    ]
+  }
+}

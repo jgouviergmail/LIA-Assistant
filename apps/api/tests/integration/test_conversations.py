@@ -20,13 +20,15 @@ from src.domains.attachments.models import (
 )
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.users.models import User
+from tests.fixtures.conversation_executions import legacy_reset_runtime as legacy_reset_runtime
+from tests.helpers.committed_account_session import async_session as async_session
 
 
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_get_conversation_not_found(
     authenticated_client: tuple[AsyncClient, User],
-):
+) -> None:
     """Test getting conversation that doesn't exist returns null (lazy creation)."""
     client, user = authenticated_client
 
@@ -42,7 +44,7 @@ async def test_get_conversation_not_found(
 async def test_get_conversation_after_creation(
     authenticated_client: tuple[AsyncClient, User],
     async_session: AsyncSession,
-):
+) -> None:
     """Test getting conversation after it's created."""
     client, user = authenticated_client
 
@@ -73,7 +75,7 @@ async def test_get_conversation_after_creation(
 async def test_list_conversation_messages_empty(
     authenticated_client: tuple[AsyncClient, User],
     async_session: AsyncSession,
-):
+) -> None:
     """Test listing messages for conversation with no messages."""
     client, user = authenticated_client
 
@@ -103,7 +105,7 @@ async def test_list_conversation_messages_empty(
 async def test_list_conversation_messages_with_pagination(
     authenticated_client: tuple[AsyncClient, User],
     async_session: AsyncSession,
-):
+) -> None:
     """Test listing messages with pagination (current contract).
 
     ``total_count`` is NOT a global message total: it counts the USER messages
@@ -157,7 +159,7 @@ async def test_list_conversation_messages_with_pagination(
 async def test_history_restates_each_file_card_from_its_row(
     authenticated_client: tuple[AsyncClient, User],
     async_session: AsyncSession,
-):
+) -> None:
     """A file card states the lifetime its file has NOW, not the one it was written with.
 
     The cards were written when the files were produced; since then one file
@@ -238,17 +240,12 @@ async def test_history_restates_each_file_card_from_its_row(
 
 @pytest.mark.asyncio
 @pytest.mark.integration
+@pytest.mark.usefixtures("legacy_reset_runtime")
 async def test_reset_conversation_preserves_record_and_purges(
     authenticated_client: tuple[AsyncClient, User],
     async_session: AsyncSession,
-):
-    """Reset endpoint (current contract): purge + counters to zero, NO soft delete.
-
-    ``reset_conversation`` deliberately does NOT set ``deleted_at`` (it would
-    hit the id=user_id unique constraint on recreation — see the service
-    docstring): the conversation record survives with its counters reset and
-    its messages purged, and GET /me keeps returning it.
-    """
+) -> None:
+    """The historical reset route purges the history and preserves Main's identity."""
     client, user = authenticated_client
 
     # Create conversation with one real message to prove the purge.
@@ -260,6 +257,8 @@ async def test_reset_conversation_preserves_record_and_purges(
         total_tokens=100,
     )
     async_session.add(conversation)
+    await async_session.flush()
+    runtime = conversation.runtime_id
     async_session.add(
         ConversationMessage(conversation_id=user.id, role="user", content="Before reset")
     )
@@ -277,6 +276,7 @@ async def test_reset_conversation_preserves_record_and_purges(
     assert conversation.deleted_at is None
     assert conversation.message_count == 0
     assert conversation.total_tokens == 0
+    assert conversation.runtime_id != runtime
 
     # Messages are purged.
     result = await async_session.execute(
@@ -294,9 +294,10 @@ async def test_reset_conversation_preserves_record_and_purges(
 
 @pytest.mark.asyncio
 @pytest.mark.integration
+@pytest.mark.usefixtures("legacy_reset_runtime")
 async def test_reset_nonexistent_conversation(
     authenticated_client: tuple[AsyncClient, User],
-):
+) -> None:
     """Test resetting conversation that doesn't exist returns 404."""
     client, user = authenticated_client
 
@@ -310,7 +311,7 @@ async def test_reset_nonexistent_conversation(
 async def test_get_conversation_stats(
     authenticated_client: tuple[AsyncClient, User],
     async_session: AsyncSession,
-):
+) -> None:
     """Test getting conversation statistics."""
     client, user = authenticated_client
 
@@ -339,7 +340,7 @@ async def test_get_conversation_stats(
 async def test_user_can_only_access_own_conversation(
     authenticated_client: tuple[AsyncClient, User],
     async_session: AsyncSession,
-):
+) -> None:
     """Test users can only access their own conversations via /me endpoint."""
     client, user = authenticated_client
 

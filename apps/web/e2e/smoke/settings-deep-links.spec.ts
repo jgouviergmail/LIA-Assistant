@@ -34,7 +34,9 @@ const ROUTES: MockRoute[] = [
       sse: { heartbeat_interval_seconds: 30 },
       rate_limits: { enabled: false, per_minute: 60, burst: 10 },
       i18n: { supported_languages: ['fr', 'en'], default_language: 'en' },
-      features: { open_loops_enabled: true },
+      // `journals_enabled`: the journals section is listed where the
+      // deployment mounts its routes — the API always says which.
+      features: { open_loops_enabled: true, journals_enabled: true },
       api_version: 'v1',
     },
   },

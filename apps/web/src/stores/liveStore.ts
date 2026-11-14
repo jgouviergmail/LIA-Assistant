@@ -32,6 +32,7 @@ import type {
   LiveUsageReport,
 } from '@/lib/live/types';
 import type { VoiceModeState } from '@/stores/voiceModeStore';
+import type { ConversationSelection } from '@/types/conversation';
 
 export interface LiveCaption {
   role: LiveTranscriptRole;
@@ -52,6 +53,9 @@ export interface LiveStore {
   status: LiveStatus;
   voiceState: VoiceModeState;
   sessionId: string | null;
+  startNoticeShown: boolean;
+  /** The source view remains mounted while its Live session is open. */
+  discussion: ConversationSelection | null;
   /** The last lines said on either side, bounded (`LIVE_CAPTIONS_MAX`). */
   captions: LiveCaption[];
   muted: boolean;
@@ -112,8 +116,13 @@ export interface LiveStore {
   mode: LiveSessionMode;
   requestStart: (mode?: LiveSessionMode, ownerId?: string) => void;
   consumeStart: (ownerId?: string) => LiveSessionMode | null;
-  begin: (sessionId: string | null, mode?: LiveSessionMode) => void;
+  begin: (
+    sessionId: string | null,
+    mode?: LiveSessionMode,
+    discussion?: ConversationSelection
+  ) => void;
   apply: (event: LiveEvent) => void;
+  claimStartNotice: (sessionId: string) => boolean;
   setVoiceState: (state: VoiceModeState) => void;
   /**
    * Appends to the last caption of the same role while a turn grows, else opens a
@@ -158,6 +167,8 @@ const INITIAL = {
   status: 'idle' as LiveStatus,
   voiceState: 'idle' as VoiceModeState,
   sessionId: null,
+  startNoticeShown: false,
+  discussion: null,
   captions: [],
   muted: false,
   delegating: false,
@@ -199,8 +210,16 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
     return owner !== null && owner !== ownerId ? null : mode;
   },
   recordActivity: event => set({ lastActivity: { event, at: Date.now() } }),
-  begin: (sessionId, mode = 'delegated') => set({ ...INITIAL, sessionId, mode, status: 'minting' }),
+  begin: (sessionId, mode = 'delegated', discussion) =>
+    set({ ...INITIAL, sessionId, mode, discussion: discussion ?? null, status: 'minting' }),
   apply: event => set(state => ({ status: transition(state.status, event) })),
+  claimStartNotice: sessionId => {
+    const state = get();
+    if (state.status !== 'live' || state.sessionId !== sessionId || state.startNoticeShown)
+      return false;
+    set({ startNoticeShown: true });
+    return true;
+  },
   setVoiceState: voiceState => set({ voiceState }),
   pushCaption: (role, text, newTurn, show = asHeard) =>
     set(state => {

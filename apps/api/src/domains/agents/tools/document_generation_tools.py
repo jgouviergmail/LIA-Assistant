@@ -18,12 +18,18 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 
 from src.core.config import settings
+from src.core.document_preferences import DocumentPreferences, document_preferences
 from src.core.i18n import normalize_language
 from src.domains.agents.constants import AGENT_DOCUMENT_GENERATION
-from src.domains.agents.context.runtime_context import LiaRuntimeContext, tool_user_id_str
+from src.domains.agents.context.runtime_context import (
+    LiaRuntimeContext,
+    tool_runtime_context,
+    tool_user_id_str,
+)
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.tool_registry import registered_tool
 from src.domains.agents.utils.rate_limiting import rate_limit
+from src.domains.document_generation.illustrations import IllustrationReport
 from src.domains.document_generation.schemas import DocumentType
 from src.domains.document_generation.service import (
     DocumentOutputTruncatedError,
@@ -57,6 +63,61 @@ async def _load_user(user_id: uuid.UUID) -> User | None:
 
     async with get_db_context() as db:
         return await db.get(User, user_id)
+
+
+async def _preferences_of(user: User) -> DocumentPreferences:
+    """What the person asked of their documents, read once per generation.
+
+    An illustration is an image generation: it needs the person's own opt-in
+    AND the operator's switch, and the instance is asked only when the person
+    said yes.
+
+    Args:
+        user: The loaded account.
+
+    Returns:
+        The stored choices, read through their one door, and whether images may be made.
+    """
+    images_allowed = bool(user.image_generation_enabled) and await is_capability_enabled(
+        PlatformCapability.IMAGE_GENERATION
+    )
+    return document_preferences(
+        illustrations=user.document_illustrations,
+        animations=user.document_animations,
+        images_allowed=images_allowed,
+        image_quality=user.image_generation_default_quality,
+        image_size=user.image_generation_default_size,
+    )
+
+
+def _illustration_note(report: IllustrationReport) -> str:
+    """What became of the pictures, told to the model by their facts (ADR-256, ADR-303).
+
+    Args:
+        report: The document's illustration report.
+
+    Returns:
+        A sentence for the tool message, empty when no picture was asked for.
+    """
+    if report.requested == 0:
+        return ""
+    if report.skipped == "usage_limit":
+        return (
+            f" Its {report.requested} illustration(s) were not drawn: the usage limit is "
+            "reached, and the document was laid out without them."
+        )
+    if report.skipped == "model_not_served":
+        return (
+            f" Its {report.requested} illustration(s) were not drawn: no image model is "
+            "available, and the document was laid out without them."
+        )
+    if not report.failures:
+        return f" It carries {report.drawn} illustration(s)."
+    reasons = ", ".join(sorted(set(report.failures)))
+    return (
+        f" {report.drawn} of {report.requested} illustrations were drawn; the others failed "
+        f"({reasons}) and the document was laid out without them."
+    )
 
 
 @registered_tool
@@ -95,7 +156,6 @@ async def generate_document(
     start_time = time.time()
 
     # --- 1. Extract runtime context ---
-    configurable = runtime.config.get("configurable", {}) if runtime else {}
     user_id_raw = tool_user_id_str(runtime)
     if not user_id_raw:
         logger.warning("document_generation_no_user_id", has_runtime=runtime is not None)
@@ -125,9 +185,10 @@ async def generate_document(
             error_code="TOOL_ERROR",
         )
 
-    # --- 4. Load user (content language) ---
-    # No per-user opt-in (owner decision 2026-08-18): the feature is governed
-    # by the deployment flag and the admin platform capability only.
+    # --- 4. Load user (content language, document preferences) ---
+    # No per-user opt-in (owner decision 2026-08-18): whether documents exist is
+    # governed by the deployment flag and the admin platform capability only;
+    # the person's preferences shape a document, never whether it is made.
     from src.domains.agents.tools.runtime_helpers import parse_user_id
 
     user_id = parse_user_id(user_id_raw)
@@ -143,11 +204,13 @@ async def generate_document(
         return UnifiedToolOutput.failure(message="User not found.", error_code="TOOL_ERROR")
 
     # --- 5. Generate via the service (LLM -> render -> attachment -> card) ---
-    conversation_id = str(configurable.get("thread_id", "unknown"))
+    context = tool_runtime_context(runtime)
+    assert context is not None  # The typed user identity was required above.
     try:
         result = await generate_document_for_user(
             user_id=user_id,
-            conversation_id=conversation_id,
+            conversation_id=context.source_conversation_id,
+            delivery_runtime_id=context.delivery_runtime_id,
             doc_type=parsed_type,
             instructions=instructions,
             source_data=source_data,
@@ -155,6 +218,7 @@ async def generate_document(
             language=normalize_language(user.language),
             timezone=user.timezone,
             config=runtime.config if runtime else None,
+            preferences=await _preferences_of(user),
         )
     except DocumentOutputTruncatedError as exc:
         # The model was cut at the slot's output budget: no card, no retry, and
@@ -200,10 +264,12 @@ async def generate_document(
         if result.truncated_source
         else ""
     )
+    report = result.illustrations
     return UnifiedToolOutput.action_success(
         message=(
             f"Document '{result.filename}' generated successfully and displayed as a "
-            f"downloadable card below the response.{truncation_note}\n"
+            f"downloadable card below the response.{truncation_note}"
+            f"{_illustration_note(report)}\n"
             "Do NOT include any markdown link to the document — the card is already shown."
         ),
         structured_data={
@@ -211,5 +277,11 @@ async def generate_document(
             "filename": result.filename,
             "doc_type": result.doc_type,
             "size_bytes": result.size_bytes,
+            "illustrations": {
+                "requested": report.requested,
+                "drawn": report.drawn,
+                "failures": list(report.failures),
+                "skipped": report.skipped,
+            },
         },
     )

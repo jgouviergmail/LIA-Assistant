@@ -65,6 +65,21 @@ RENDERED_BY: dict[str, tuple[str, ...]] = {
     "briefing_greeting_prompt": ("domains/briefing/llm.py",),
     # The name is a constant of ``interactive_pages/prompts.py``; the service formats.
     "interactive_page_prompt": ("domains/interactive_pages/service.py",),
+    # ``document_generation/prompts.py`` composes the common rules and one family's;
+    # the service formats the composed template.
+    "document_generation_prompt": ("domains/document_generation/service.py",),
+    "document_generation_tabular_prompt": ("domains/document_generation/service.py",),
+    "document_generation_sectioned_prompt": ("domains/document_generation/service.py",),
+    "document_generation_slides_prompt": ("domains/document_generation/service.py",),
+    # Loaded by ``document_generation/prompts.document_lines``; the illustration
+    # rules are rendered by the service, an image's prompt by the illustrations.
+    "document_generation_lines": (
+        "domains/document_generation/service.py",
+        "domains/document_generation/illustrations.py",
+    ),
+    # Loaded by ``interactive_pages/prompts.load_page_lines``; the service renders
+    # one line per map tile source.
+    "interactive_page_lines": ("domains/interactive_pages/service.py",),
     "briefing_synthesis_prompt": ("domains/briefing/llm.py",),
     # ``{language}`` is deliberately left for the per-language batch in
     # ``diagnostics/diagnosis.py`` (one variant per admin language).
@@ -78,6 +93,7 @@ RENDERED_BY: dict[str, tuple[str, ...]] = {
     # consolidation service for its own two scaffolds); each portrait source
     # renders its own keys (2026-09-16 design, part B).
     "journal_portrait_source_lines": (
+        "domains/journals/conversation_sources.py",
         "domains/memories/portrait_source.py",
         "domains/interests/portrait_source.py",
         "domains/habits/portrait_source.py",

@@ -14,6 +14,7 @@ import { useEffect, useState, type RefObject } from 'react';
 
 import { prefersReducedMotion } from '@/lib/utils/motion';
 import type { Gaze } from '@/components/eyes/expression-engine';
+import { gazeToward } from '@/components/eyes/gaze-target';
 
 /** A still cursor hands the gaze back to the idle wander after this long. */
 export const PARALLAX_IDLE_MS = 2500;
@@ -36,12 +37,13 @@ export function useEyesParallax(
         raf = null;
         const rect = rootRef.current?.getBoundingClientRect();
         if (!rect) return;
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        setParallax({
-          x: Math.min(1, Math.max(-1, (e.clientX - cx) / (window.innerWidth / 2))),
-          y: Math.min(1, Math.max(-1, (e.clientY - cy) / (window.innerHeight / 2))),
-        });
+        setParallax(
+          gazeToward(
+            rect,
+            { x: e.clientX, y: e.clientY },
+            { width: window.innerWidth, height: window.innerHeight }
+          )
+        );
         if (expiry) clearTimeout(expiry);
         expiry = setTimeout(() => setParallax(null), PARALLAX_IDLE_MS);
       });

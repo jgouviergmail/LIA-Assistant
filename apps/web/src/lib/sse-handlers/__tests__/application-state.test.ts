@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { processSSEChunk } from '..';
+import { createSSEProcessor } from '..';
 import { buildHandlerContext } from './context-fixture';
+
+const { processSSEChunk } = createSSEProcessor();
 
 const change = {
   schema_version: 1,

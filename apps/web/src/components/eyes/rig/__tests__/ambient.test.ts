@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { createEyeRig } from '../runtime';
 import { NEUTRAL_CONTEXT } from '../direction';
-import { ambientChannels } from '../ambient';
+import { ambientChannels, weatherConditions } from '../ambient';
 import type { WeatherFeeling } from '../../environment';
 
 const weatherKinds: WeatherFeeling[] = [
@@ -111,4 +111,77 @@ it('keeps a cold scarf still until a head turn and lets its free end settle agai
   expect(rig.values().scarfTrail).toBeGreaterThan(0.08);
   rig.setReducedMotion(true);
   expect(rig.values().scarfTrail).toBe(0);
+});
+
+it('wears every condition observed together, and the dominant one only when told no other', () => {
+  // A cold rain is a scarf AND an umbrella: the dominant feeling names one.
+  expect(weatherConditions('rain', ['rain', 'cold'])).toEqual(['rain', 'cold']);
+  const worn = ambientChannels('rain', 'noon', true, ['rain', 'cold']);
+  expect(worn.weatherRain).toBeGreaterThan(0);
+  expect(worn.weatherCold).toBeGreaterThan(0);
+  // A context that carries no flags is read by its dominant feeling...
+  expect(weatherConditions('cold', [])).toEqual(['cold']);
+  expect(weatherConditions('cold')).toEqual(['cold']);
+  // ...and no weather at all is nothing, never undefined.
+  expect(weatherConditions(null, [])).toEqual([]);
+  expect(ambientChannels(null, 'noon', true).weatherCold).toBe(0);
+});
+
+it('draws the sky of an ordinary day by day only: a sun, and a cloud that passes on a cloudy day', () => {
+  const clear = ambientChannels(null, 'noon', true, [], 'clear');
+  expect(clear.weatherSun).toBe(1);
+  expect(clear.weatherCloud).toBe(0);
+  const cloudy = ambientChannels(null, 'afternoon', true, [], 'clouds');
+  expect(cloudy.weatherSun).toBe(1);
+  expect(cloudy.weatherCloud).toBe(1);
+  // The night has its own crescent; a hidden ambience draws no sky either.
+  for (const night of [
+    ambientChannels(null, 'night', true, [], 'clear'),
+    ambientChannels(null, 'noon', false, [], 'clouds'),
+  ]) {
+    expect(night.weatherSun).toBe(0);
+    expect(night.weatherCloud).toBe(0);
+  }
+  expect(ambientChannels(null, 'noon', true).weatherSun).toBe(0);
+});
+
+it('moves the sky and what falls on the rig own clock: drops quicker than the fall, the drift slower', () => {
+  const rig = createEyeRig();
+  rig.setContext({ ...NEUTRAL_CONTEXT, weather: 'rain', sky: 'clouds' });
+  const wraps = { ambientFall: 0, ambientDrop: 0, ambientDrift: 0 };
+  let previous = { ...rig.values() };
+  for (let i = 0; i < 625; i++) {
+    rig.step(16);
+    const values = rig.values();
+    for (const key of Object.keys(wraps) as (keyof typeof wraps)[])
+      if (values[key] < previous[key] - 0.5) wraps[key] += 1;
+    previous = { ...values };
+  }
+  // Ten seconds: three falls, nine drops, one drift at most.
+  expect(wraps.ambientFall).toBe(3);
+  expect(wraps.ambientDrop).toBe(9);
+  expect(wraps.ambientDrift).toBeLessThanOrEqual(1);
+  expect(rig.values().weatherSun).toBeGreaterThan(0.9);
+  expect(rig.values().weatherCloud).toBeGreaterThan(0.9);
+});
+
+it('keeps the sky still under reduced motion, its drift parked like the fall', () => {
+  const rig = createEyeRig({ reducedMotion: true });
+  rig.setContext({ ...NEUTRAL_CONTEXT, sky: 'clear' });
+  rig.step(16);
+  expect(rig.values().weatherSun).toBe(1);
+  const frame = { ...rig.values() };
+  for (let i = 0; i < 100; i++) rig.step(16);
+  expect(rig.values()).toEqual(frame);
+  expect(frame.ambientDrift).toBe(0.5);
+  expect(frame.ambientDrop).toBe(0.5);
+});
+
+it('turns the rays of a clear day: the sky alone keeps the clock running', () => {
+  const rig = createEyeRig();
+  rig.setContext({ ...NEUTRAL_CONTEXT, sky: 'clear' });
+  for (let i = 0; i < 120; i++) rig.step(16);
+  const drift = rig.values().ambientDrift;
+  for (let i = 0; i < 60; i++) rig.step(16);
+  expect(rig.values().ambientDrift).not.toBe(drift);
 });

@@ -1,5 +1,7 @@
 # File Attachments & Vision Analysis Integration (evolution F4)
 
+L'usage d'un fichier est rattaché à la génération de la discussion qui l'utilise. La purge retire un téléversement seulement quand le dernier usage admissible a été libéré. Les fichiers produits suivent le cycle de la galerie. Voir le [cycle de vie des discussions](SECONDARY_CONVERSATIONS.md#target-and-storage).
+
 > Architecture et guide d'integration pour les pieces jointes (images, PDF) avec analyse vision LLM.
 
 **Phase**: evolution Feature 4 — File Attachments & Vision Analysis
@@ -11,7 +13,7 @@
 
 ## Vue d'Ensemble
 
-LIA supporte les **pieces jointes** (images et documents PDF) dans les conversations. Les utilisateurs peuvent joindre des fichiers a leurs messages ; les images sont analysees par un modele LLM vision, les PDF sont extraits en texte. L'ensemble est integre au pipeline agent pour enrichir les reponses contextuelles.
+LIA supporte les **pieces jointes** (images et documents : tous les formats que lit un espace de connaissances) dans les conversations. Les utilisateurs peuvent joindre des fichiers a leurs messages ; les images sont analysees par un modele LLM vision, les PDF sont extraits en texte. L'ensemble est integre au pipeline agent pour enrichir les reponses contextuelles.
 
 L'architecture utilise le pattern **"Reference + Late Resolution"** : les fichiers sont uploades separement, references par ID dans le message chat, puis resolus en contenu (base64/texte) uniquement au moment de l'appel LLM. Ce design minimise la taille des checkpoints LangGraph et isole les donnees binaires du graph state.
 
@@ -20,7 +22,8 @@ L'architecture utilise le pattern **"Reference + Late Resolution"** : les fichie
 | Fonctionnalite | Description |
 |---------------|-------------|
 | Upload images | JPEG, PNG, WebP, GIF — validation MIME par magic bytes |
-| Upload PDF | Extraction texte (PyPDF2/pdfplumber), tronque a `ATTACHMENTS_MAX_PDF_TEXT_CHARS` |
+| Upload PDF | Extraction texte (PyMuPDF), tronque a `ATTACHMENTS_MAX_PDF_TEXT_CHARS` |
+| Upload d'un autre document | Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, CSV, texte, Markdown, HTML, JSON, XML — type décidé par le CONTENU (`attachments/document_formats.py`), texte extrait par les lecteurs des espaces de connaissances sous le même plafond (ADR-295, amendement 2026-11-12) |
 | Compression client | Canvas API (1600px max, JPEG 0.82) avant upload |
 | Vision LLM | Analyse d'image via modele configurable (35e type LLM) |
 | Annotation planner | `[Piece jointe: image/jpeg, 1.2 MB]` injecte dans le contexte router/planner |
@@ -124,7 +127,7 @@ class AttachmentsSettings(BaseSettings):
 | Upload malveillant | Validation MIME par magic bytes (`filetype` lib), pas par extension |
 | Depassement taille | Limites separees images vs docs, verifiees cote serveur avant ecriture |
 | Fuite cross-user | Segmentation repertoire `{storage_path}/{user_id}/`, isolation stricte |
-| Accumulation disque | Dual cleanup : reset conversation + scheduler TTL (24h, toutes les 6h) |
+| Accumulation disque | Retrait logique et nettoyage physique repris après panne ; échéance, cadence et taille de lot définies par les settings de pièces jointes |
 | Fichier reference invalide | Validation a l'upload ET au moment de la reference dans `ChatRequest` |
 
 ### Isolation par User
@@ -162,6 +165,16 @@ Sur la boucle, ils gelaient le worker entier : jusqu'à 1,2 s d'arrêt pour une 
 HEIC de 12 Mpx, contre moins de 20 ms en thread (mesuré sur un poste de travail,
 2026-10-25). PyMuPDF garde le GIL pendant chacun de ses appels : l'arrêt reste borné
 par son plus long appel (15 à 20 ms ici) au lieu de croître avec les pages lues.
+
+**Type d'un document** (ADR-295, amendement 2026-11-12). Le composeur accepte par envoi ce qu'il acceptait déjà par copie depuis un espace : les formats de `ATTACHMENTS_ALLOWED_DOC_TYPES`, par défaut les mêmes que ceux des espaces (`EXTRACTABLE_DOCUMENT_TYPES_DEFAULT`, une liste pour les deux portes). Le type déclaré par la requête n'est jamais lu : `document_formats.detect_document_type` décide sur le contenu ENTIER, lu sous le plafond des documents.
+
+- Un format **signé** (PDF, RTF, archives Office et OpenDocument, EPUB) est reconnu par ses octets ; les archives commencent toutes par les mêmes quatre octets, donc une archive est départagée par ce qu'elle CONTIENT — la partie autour de laquelle un fichier Office est construit, ou le membre `mimetype` par lequel un fichier OpenDocument ou EPUB se déclare. Une archive qui n'a ni l'un ni l'autre n'est pas un document, quel que soit son nom.
+- Un format **non signé** (texte, Markdown, CSV, HTML, JSON, XML) n'a pas de signature : son NOM dit quel texte il est, et son contenu doit ÊTRE du texte — un octet nul le refuse. Un encodage ancien reste du texte (un export de tableur sur un poste français est en cp1252) et se lit dans ses lettres : chaque lecteur de texte des espaces passe par une seule porte, `core/text_decoding.decode_text` — une marque UTF-16 est crue, des octets UTF-8 sont de l'UTF-8 (sa marque n'est pas une lettre), et le reste se départage sur ce qu'il est en majorité : un UTF-8 abîmé ne perd que l'octet abîmé, un texte aux accents d'un seul octet se lit dans les lettres de Windows. L'aperçu des Outils lit la même porte. Un texte que Windows écrit en UTF-16 porte un octet nul dans chaque lettre ASCII, l'octet qui refuse un binaire : sa marque d'ordre des octets dit ce qu'il est, et le composeur l'accepte quand ce qui suit la marque se décode entier sans caractère nul (`document_formats._is_utf16_text`).
+- La table `DOCUMENT_FORMATS` nomme chaque format une fois ; un assert à l'import refuse un format qu'aucun lecteur des espaces ne sait lire (`rag_spaces.processing.EXTRACTABLE_CONTENT_TYPES`).
+- Le texte est extrait par `document_formats.extract_capped_text`, hors de la boucle d'événements avec l'écriture du fichier ; une extraction qui échoue coûte le texte, jamais l'envoi (comme un PDF scanné).
+- Un document zippé (Office, OpenDocument, EPUB) envoyé petit peut se décompresser grand, et ses lecteurs décompressent des parties entières en mémoire, pendant la requête d'envoi. Ce qu'une archive pèse une fois décompressée est DÉCLARÉ dans son répertoire, et les lecteurs zip ne décompressent jamais un membre au-delà de ce qu'il déclare : au-delà de `ATTACHMENTS_MAX_INFLATED_MB`, le lecteur n'est pas lancé (`document_formats._inflates_too_far`, lu sans rien décompresser) — le fichier est gardé, son texte n'est pas lu, le fait est journalisé (`attachment_text_extraction_skipped`). Cette borne est celle de l'envoi depuis le composeur : un espace de connaissances garde ses propres limites, sur la taille d'un fichier et sur les fragments qu'il indexe.
+- `/config` publie ce que le composeur peut proposer (`attachments.image_types`, `attachments.document_extensions`, ADR-184) : le sélecteur et la zone de dépôt filtrent sur le NOM, car un navigateur ne rapporte aucun type pour un `.md` et celui d'un tableur pour un `.csv` (`apps/web/src/lib/attachment-formats.ts`).
+- Un opérateur dont le `.env` fixe `ATTACHMENTS_ALLOWED_DOC_TYPES=application/pdf` (l'ancienne valeur des gabarits) garde le PDF seul : l'environnement prime sur la constante. Retirer la ligne, ou la mettre à jour, ouvre les autres formats.
 
 **Response** (201 Created) :
 ```json
@@ -528,7 +541,7 @@ Affiche les pieces jointes en attente d'envoi ou deja envoyees :
 ### Integration `ChatInput`
 
 - Le contrôle **+** est porté par [`ComposerAttachmentsControl`](../../apps/web/src/components/chat/ComposerAttachmentsControl.tsx), à gauche du champ de saisie.
-- Une seule action disponible ouvre directement le sélecteur natif (images + PDF) ; plusieurs actions ouvrent le menu des sources activées.
+- Une seule action disponible ouvre directement le sélecteur natif (images + les extensions de documents publiées par `/config`) ; plusieurs actions ouvrent le menu des sources activées.
 - Drag & drop supporte sur la zone de chat
 - Paste d'image depuis le clipboard (Ctrl+V)
 - Les `attachment_ids` sont envoyes dans `ChatRequest.attachment_ids[]`
@@ -555,41 +568,65 @@ ainsi depuis un contrôle visible du compositeur.
 
 Deux mecanismes complementaires pour eviter l'accumulation de fichiers :
 
-#### 1. Reset Conversation
+#### 1. Réinitialisation ou suppression d'une discussion
 
-Quand un utilisateur reinitialise sa conversation
-(`POST /api/v1/conversations/me/reset`), les pieces jointes **qu'il a
-televersees lui-meme** sont supprimees :
-- Suppression des fichiers sur disque
-- Suppression des metadonnees en DB
-- Synchrone dans le flow de reset
+Réinitialiser une discussion (`POST /api/v1/conversations/{conversation_id}/reset`)
+ou supprimer une annexe (`DELETE /api/v1/conversations/{conversation_id}`)
+retire, dans la transaction même de l'opération, les usages de fichiers de
+**cette** discussion (`release_conversation_usages`, ADR-378) :
+- un fichier **téléversé par la personne** dont c'était le dernier usage passe
+  DELETING, avec la raison `conversation_reset` ;
+- son fichier disque est supprimé ensuite, par le nettoyage du reçu de
+  l'opération, hors de la requête et avec reprise (voir le point 2).
 
-**Ce que LIA a produit n'est PAS supprime** (ADR-279) : le service recoit
-`origins={upload}` et retire ce que la personne a mis, rien d'autre. Avant ce
-lot, la reinitialisation appelait `delete_all_for_user(user_id)` sans filtre :
-« effacer cette conversation » effacait aussi les images generees la semaine
-precedente, dans d'autres conversations. C'est la doctrine d'ADR-260 appliquee
-aux fichiers — une purge retire ce que sa famille declare, jamais ce qui lui
-ressemble.
+**Ce que LIA a produit n'est PAS supprimé** (ADR-279), pas plus qu'un fichier
+encore utilisé par une autre discussion, conservé ou non attribué. Le retrait
+porte sur une discussion, jamais sur le compte : « effacer cette conversation »
+n'efface pas les images générées la semaine précédente dans d'autres
+conversations. C'est la doctrine d'ADR-260 appliquée aux fichiers — une purge
+retire ce que sa famille déclare, jamais ce qui lui ressemble.
 
-#### 2. Scheduler TTL
+#### 2. Scheduler TTL et reprise du retrait
 
-Job APScheduler periodique (`infrastructure/scheduler/attachment_cleanup.py`,
-enregistre dans `startup/schedulers.py`), qui appelle
-`AttachmentService.cleanup_expired` :
-- chaque piece jointe recoit a l'ecriture `expires_at = now + ATTACHMENTS_TTL_HOURS` ;
-- **UNE instruction conditionnelle** supprime toutes les lignes dont
-  `expires_at <= now()` et rend leurs fichiers (`delete_expired`,
-  `DELETE … RETURNING file_path`) — la condition est evaluee par l'instruction
-  qui supprime, jamais par une lecture anterieure ;
-- la transaction est validee, PUIS les fichiers sont retires du disque hors de la
-  boucle d'evenements (`asyncio.to_thread`) : un arret entre les deux laisse un
-  fichier orphelin, jamais une ligne qui pointe vers rien ;
-- **s'applique aussi aux fichiers generes, sauf a ceux que la personne a
-  conserves** (ADR-319) : un fichier conserve n'a pas d'echeance, la condition ne
-  le voit pas ;
-- publie `attachments_active_count`, `attachments_kept_count` et
-  `attachments_kept_bytes` a chaque passe.
+Le job `infrastructure/scheduler/attachment_cleanup.py`, enregistré dans
+`startup/schedulers.py`, appelle `AttachmentService.cleanup_expired`.
+La cadence vient de `ATTACHMENTS_CLEANUP_INTERVAL_SECONDS`, la quantité de
+travail de `ATTACHMENTS_CLEANUP_BATCH_SIZE` et le délai de reprise d'un unlink
+de `ATTACHMENTS_REMOVAL_CLAIM_SECONDS`.
+
+- Les fichiers READY arrivés à échéance sont sélectionnés par lot sous
+  `FOR UPDATE SKIP LOCKED`, puis marqués DELETING par une mise à jour qui
+  revérifie leur échéance. Un fichier conservé n'a pas d'échéance et reste
+  exclu. « Conserver » verrouille également les lignes déjà conservées.
+- La ligne DELETING garde son chemin et sa raison. Elle disparaît des lecteurs
+  de fichiers, des cartes et du quota de conservation, mais demeure en base
+  jusqu'à la suppression physique explicitement réussie.
+- Un token et un compteur de clôture protègent chaque tentative. La transaction
+  est validée avant le travail disque, exécuté hors de la boucle d'événements.
+  Un échec laisse la ligne disponible pour une prochaine passe ; un crash après
+  unlink se résout en constatant l'absence du chemin immuable.
+- Une suppression native confirmée conserve aussi l'identité du fichier
+  approuvé. Un remplacement n'est pas effacé lors d'une nouvelle tentative.
+- Les indicateurs existants de suppression et de conservation sont alimentés
+  à partir du résultat réel, et non de l'absence d'exception.
+
+#### 3. Publication et usages par discussion
+
+Les uploads, les copies depuis un espace, un favori ou un fichier généré et
+les pièces jointes choisies dans les outils partagent `publish_file`. La ligne
+UPLOADED avec son worker, son token et son chemin est validée **avant** l'écriture.
+Le travail disque est joint même après annulation répétée. La publication READY
+revérifie le compte et la révision de la discussion source ; un échec conserve
+une intention de nettoyage. Un worker inconnu n'est jamais réputé mort à cause
+d'un délai : la [reprise opérateur](../runbooks/CONVERSATION_EXECUTION_RECOVERY.md)
+exige la preuve de son arrêt et de celui de ses enfants.
+
+L'usage accepté d'un fichier est distinct de `Attachment.conversation_id`, qui
+reste sa provenance de génération. `conversation_attachment_usages` enregistre
+l'usage avant l'archive best-effort du message. Le retrait d'un usage ne rend
+supprimable que le dernier usage d'un upload ; les fichiers partagés, générés,
+conservés et non attribués restent protégés. La réinitialisation et la
+suppression d'une discussion appliquent ce protocole (point 1).
 
 ---
 
@@ -606,8 +643,8 @@ Definies dans `infrastructure/observability/metrics_attachments.py`, suivant la 
 | `attachments_upload_duration_seconds` | Histogram | content_type | Duree du traitement upload (validation + save + extraction) |
 | `vision_llm_requests_total` | Counter | model | Total des requetes vision LLM |
 | `vision_llm_duration_seconds` | Histogram | model | Duree des appels vision LLM |
-| `attachments_cleanup_deleted_total` | Counter | reason | Fichiers supprimes (reason: expired\|conversation_reset\|user_deleted, vocabulaire clos — ADR-279) |
-| `attachments_active_count` | Gauge | — | Nombre courant de pieces jointes actives (non expirees) |
+| `attachments_cleanup_deleted_total` | Counter | reason | Suppressions physiques réussies (reason: expired\|conversation_reset\|user_deleted\|upload_failed, vocabulaire clos — ADR-279) |
+| `attachments_active_count` | Gauge | — | Lignes de pièces jointes encore persistées, y compris les retraits en attente |
 | `attachments_kept_count` | Gauge | — | Fichiers generes conserves par les personnes, toute l'instance (ADR-319) |
 | `attachments_kept_bytes` | Gauge | — | Octets que tiennent ces fichiers : le disque que le balayage ne recuperera pas (ADR-319) |
 

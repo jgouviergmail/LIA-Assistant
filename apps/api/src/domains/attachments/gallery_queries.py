@@ -30,7 +30,7 @@ from typing import Any
 from sqlalchemy import Select, func, or_, select
 
 from src.core.sql_search import escape_like
-from src.domains.attachments.models import Attachment, AttachmentOrigin
+from src.domains.attachments.models import Attachment, AttachmentOrigin, AttachmentStatus
 
 __all__ = ["GALLERY_SORTS", "GalleryFilters", "build_gallery_statement"]
 
@@ -112,6 +112,7 @@ def build_gallery_statement(
     columns = func.count() if count else Attachment
     statement = select(columns).where(
         Attachment.user_id == user_id,
+        Attachment.status == AttachmentStatus.READY,
         Attachment.origin == filters.origin.value,
     )
 

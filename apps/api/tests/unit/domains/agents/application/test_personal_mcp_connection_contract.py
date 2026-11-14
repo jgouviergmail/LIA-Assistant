@@ -43,11 +43,13 @@ def test_probe_is_registered_as_one_owned_nonadministrative_draft():
 
 
 def test_original_probe_result_growth_requires_a_projection_review():
-    # success -> connection_success; error -> error_kind; description/count ->
-    # stored server metadata; schemas/raw errors stay private, tools use paged read.
+    # success -> connection_success; error/error_code -> error_kind (the code alone
+    # decides ``authorization_required``); description/count -> stored server
+    # metadata; schemas/raw errors stay private, tools use paged read.
     assert set(UserMCPTestConnectionResponse.model_fields) == {
         "success",
         "error",
+        "error_code",
         "domain_description",
         "tool_count",
         "tools",

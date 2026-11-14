@@ -7,7 +7,11 @@ from sqlalchemy import Select, select
 
 from src.core.exceptions import ResourceNotFoundError
 from src.core.recurrence import RecurrenceSpec
-from src.domains.scheduled_actions.models import ScheduledAction, ScheduledActionStatus
+from src.domains.scheduled_actions.models import (
+    ScheduledAction,
+    ScheduledActionStatus,
+    TriggerKind,
+)
 from src.domains.shared.discussion_sources import (
     DiscussionEvidence,
     DiscussionValue,
@@ -67,6 +71,8 @@ def _query(request: SourceReadRequest) -> Select[tuple[object, ...]]:
         )
     elif request.request.operation == "future":
         statement = statement.where(
+            # A webhook routine's trigger is a look at its calls, never a planned run.
+            row.trigger_kind != TriggerKind.WEBHOOK.value,
             row.is_enabled.is_(True),
             row.next_trigger_at >= request.window_start,
             row.next_trigger_at < request.window_end,

@@ -369,6 +369,12 @@ CAPABILITIES_OFF_THE_MAP: dict[PlatformCapability, str] = {
         "the answer is a proposal, and nothing is kept (ADR-372). A star for it "
         "could only ever be lit."
     ),
+    PlatformCapability.ROUTINE_WEBHOOKS: (
+        "A routine's third clock, not a thing of its own: a routine started by a "
+        "signed call is set up in the routine's form and counted under the "
+        "routines node the map already draws (ADR-386). A second node would count "
+        "the same routines twice."
+    ),
 }
 
 

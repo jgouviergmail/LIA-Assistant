@@ -13,6 +13,7 @@ from src.core.constants import HTML_EMAIL_VISIBLE_MESSAGES
 from src.core.i18n_cards import CardLabel, card_label
 from src.core.i18n_drafts import get_draft_preview_labels
 from src.core.i18n_v3 import V3Messages
+from src.core.mail_reply_state import REPLY_STATE_KEY
 from src.domains.agents.display.components.base import (
     BaseComponent,
     RenderContext,
@@ -37,6 +38,11 @@ from src.domains.agents.display.components.card_content import (
 from src.domains.agents.display.components.classification_badges import classification_badges
 from src.domains.agents.display.components.email_body import render_email_body
 from src.domains.agents.display.components.email_parties import render_email_parties
+from src.domains.agents.display.components.reply_state_chips import (
+    conversation_size,
+    is_answered,
+    reply_state_chips,
+)
 from src.domains.agents.display.icons import Icons, icon
 from src.domains.agents.display.mailbox_draft import is_mailbox_draft
 from src.domains.agents.display.values import list_values, nonnegative_integer, scalar_text
@@ -94,7 +100,13 @@ class EmailCard(BaseComponent):
         is_important = data.get("isImportant") is True or "IMPORTANT" in list_values(
             data.get("labelIds")
         )
-        thread_count = nonnegative_integer(data.get("threadCount")) or 1
+        # The conversation's size as its mailbox told it (ADR-379), else a count a
+        # producer wrote on the message.
+        thread_count = (
+            conversation_size(data.get(REPLY_STATE_KEY))
+            or nonnegative_integer(data.get("threadCount"))
+            or 1
+        )
 
         # Build email web URL (provider-aware: Gmail has per-message URLs, Apple does not)
         url = self._build_email_web_url(data)
@@ -232,6 +244,7 @@ class EmailCard(BaseComponent):
             else []
         )
         chips.extend(self._source_state_chips(data, ctx))
+        chips.extend(reply_state_chips(data.get(REPLY_STATE_KEY), ctx.language))
         # Labels first
         user_labels = self._get_user_label_names(data.get("labelIds"))
         for label in user_labels:
@@ -248,7 +261,11 @@ class EmailCard(BaseComponent):
         if thread_count > 1:
             chips.append(render_chip(f"{thread_count}", "thread", Icons.FORUM))
         chip_row_html = render_chip_row(" ".join(chips)) if chips else ""
-        chip_row_html += classification_badges(data.get("classification"), ctx.language)
+        chip_row_html += classification_badges(
+            data.get("classification"),
+            ctx.language,
+            answered=is_answered(data.get(REPLY_STATE_KEY)),
+        )
 
         # --- Snippet ---
         snippet_html = (

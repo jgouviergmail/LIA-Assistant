@@ -17,11 +17,11 @@ import {
   CloudSun,
   FileText,
   Heart,
-  LayoutGrid,
   ListTodo,
   Mail,
   MessageSquare,
   Sparkles,
+  SquareKanban,
 } from '@/lib/icons';
 
 import type { BriefingSection } from '@/types/briefing';
@@ -37,6 +37,6 @@ export const BRIEFING_CARD_ICONS: Record<BriefingSection, LucideIcon> = {
   for_you: Sparkles,
   tasks: ListTodo,
   documents: FileText,
-  // The hub's and the settings section's own workboard icon.
-  workboard: LayoutGrid,
+  // The workboard's own glyph: its header destination, its page, its hub section.
+  workboard: SquareKanban,
 };

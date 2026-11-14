@@ -20,6 +20,7 @@ import { act, renderWithProviders, screen } from '@/__tests__/test-utils';
 import { makeMessage, makePsycheState } from '@/__tests__/factories';
 import type { Message } from '@/types/chat';
 import { usePsycheStore } from '@/stores/psycheStore';
+import { GAZE_TARGET_ATTRIBUTE } from '@/components/eyes/gaze-target';
 
 const { logger } = vi.hoisted(() => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -79,7 +80,9 @@ const lastObserver = () => {
 async function render(props: Partial<ChatMessageListProps> = {}) {
   // usePsyche starts its initial reads in microtasks. Keep their completion in
   // the mount's act scope before inspecting or unmounting the conversation.
-  return act(async () => renderWithProviders(<ChatMessageList messages={[]} {...props} />));
+  return act(async () =>
+    renderWithProviders(<ChatMessageList messages={[]} psycheOffered {...props} />)
+  );
 }
 
 const user = (id: string, content = 'Bonjour') =>
@@ -199,6 +202,19 @@ describe('ChatMessageList — rendering the conversation', () => {
     expect(container.querySelectorAll('[data-message-role="assistant"]')).toHaveLength(2);
     expect(container.querySelector('[data-message-id="a2"]')).not.toBeNull();
   });
+
+  it('declares the answer being written as what the companion looks at, and nothing else', async () => {
+    const messages = [assistant('a1'), user('u1'), assistant('a2')];
+    const { container, unmount } = await render({ messages, activeStreamId: 'a2' });
+    const declared = [...container.querySelectorAll(`[${GAZE_TARGET_ATTRIBUTE}]`)];
+    expect(declared.map(row => row.getAttribute('data-message-id'))).toEqual(['a2']);
+    expect(declared[0].getAttribute(GAZE_TARGET_ATTRIBUTE)).toBe('answer');
+    unmount();
+
+    // Delivered: there is nothing left to follow.
+    const settled = await render({ messages, activeStreamId: null });
+    expect(settled.container.querySelector(`[${GAZE_TARGET_ATTRIBUTE}]`)).toBeNull();
+  });
 });
 
 /*
@@ -290,7 +306,12 @@ describe('ChatMessageList — loading older history', () => {
     const observer = lastObserver();
 
     rerender(
-      <ChatMessageList messages={messages} onLoadOlder={onLoadOlder} hasMoreOlder={false} />
+      <ChatMessageList
+        messages={messages}
+        psycheOffered
+        onLoadOlder={onLoadOlder}
+        hasMoreOlder={false}
+      />
     );
 
     expect(observer.disconnected).toBe(true);

@@ -27,6 +27,7 @@ from src.core.constants import (
     CHAT_SHORTCUTS_MAX_COUNT_DEFAULT,
     CONVERSATION_HISTORY_DEFAULT_LIMIT_DEFAULT,
     CONVERSATION_HISTORY_MAX_LIMIT_DEFAULT,
+    CONVERSATION_SEARCH_TOOL_MAX_RESULTS_DEFAULT,
     CURRENCY_API_TIMEOUT_SECONDS_DEFAULT,
     CURRENCY_API_URL_DEFAULT,
     CURRENCY_CACHE_TTL_HOURS_DEFAULT,
@@ -148,6 +149,15 @@ class AdvancedSettings(BaseSettings):
         ge=1,
         le=1000,
         description="Hard cap on the ``limit`` query param (prevents pathological page sizes)",
+    )
+    conversation_search_tool_max_results: int = Field(
+        default=CONVERSATION_SEARCH_TOOL_MAX_RESULTS_DEFAULT,
+        ge=1,
+        le=50,
+        description=(
+            "Most passages the assistant's search across discussions returns per call "
+            "(published to the planner as max_results' maximum)"
+        ),
     )
 
     # ========================================================================

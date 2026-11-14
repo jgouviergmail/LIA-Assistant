@@ -4,15 +4,16 @@ The deterministic half of this corpus is a unit test
 (``tests/unit/domains/agents/workboard/test_routing_corpus.py``): it asks
 whether the vocabulary can REACH the board at all, and it runs in CI with no
 network. This is the other half — whether a model, offered the catalogue as it
-actually ships, picks the right capability for each of the 72 utterances.
+actually ships, picks the right capability for each utterance of the corpus
+(every family, in six languages).
 
 It is a MEASUREMENT, never a gate. CI holds no provider key, and a paid call on
 a path someone must pass to merge is not a build verdict; a test that skipped
 on a missing key would be green and would rot (ADR-155). The number belongs in
 the ADR, with its date and its model.
 
-**The oracle is the TOOL selected**, per sentence. Two of the twelve families
-are NOT workboard families at all: a provider to-do, a timed notification and a
+**The oracle is the TOOL selected**, per sentence. Three families are NOT
+workboard families at all: a provider to-do, a timed notification and a
 scheduled routine must go elsewhere, and a measurement that only counted the
 happy cases would say nothing about the confusion that actually happens.
 
@@ -22,7 +23,8 @@ corpus is a fixture, and the only network call goes to the configured provider.
 What it spends is NOT in the ledger: the calls go through the client directly,
 outside any tracking context, exactly like the recurrence corpus's script. An
 operator runs it on purpose, on demand, and reads the cost from the provider's
-own console (measured 2026-09-09: about 48 k input tokens per model, a cent).
+own console (measured 2026-11-11 on three models: 108 sentences, 133 k to 202 k
+input tokens a pass depending on the tokenizer, one to three cents).
 """
 
 from __future__ import annotations
@@ -61,6 +63,50 @@ The sentence is between the markers.
 <<<{utterance}>>>"""
 
 
+def _manifests() -> list[Any]:
+    """The board's capabilities, as the ticket agent ships them.
+
+    EVERY one of them: the corpus expects the category reader for two of its
+    families, and a model that is not offered a tool cannot choose it — the
+    measurement could never be right for them
+    (``tests/unit/scripts/test_workboard_routing_measure.py`` holds this list
+    equal to the ticket agent's own).
+
+    Returns:
+        The tool manifests, in the order a planner reads them.
+    """
+    from src.domains.agents.workboard.catalogue_manifests import (
+        comment_ticket_catalogue_manifest,
+        create_ticket_catalogue_manifest,
+        delete_ticket_catalogue_manifest,
+        get_ticket_catalogue_manifest,
+        list_tickets_catalogue_manifest,
+        update_ticket_catalogue_manifest,
+    )
+    from src.domains.agents.workboard.category_manifest import (
+        list_ticket_categories_catalogue_manifest,
+    )
+
+    return [
+        create_ticket_catalogue_manifest,
+        update_ticket_catalogue_manifest,
+        comment_ticket_catalogue_manifest,
+        list_tickets_catalogue_manifest,
+        get_ticket_catalogue_manifest,
+        delete_ticket_catalogue_manifest,
+        list_ticket_categories_catalogue_manifest,
+    ]
+
+
+def _workboard_tools() -> set[str]:
+    """The names of the board's capabilities.
+
+    Returns:
+        What a sentence meant for a neighbour must NOT land on.
+    """
+    return {manifest.name for manifest in _manifests()}
+
+
 def _catalogue() -> str:
     """The tools as a planner sees them, plus the three neighbours.
 
@@ -71,26 +117,7 @@ def _catalogue() -> str:
     Returns:
         One line per capability.
     """
-    from src.domains.agents.workboard.catalogue_manifests import (
-        comment_ticket_catalogue_manifest,
-        create_ticket_catalogue_manifest,
-        delete_ticket_catalogue_manifest,
-        get_ticket_catalogue_manifest,
-        list_tickets_catalogue_manifest,
-        update_ticket_catalogue_manifest,
-    )
-
-    lines = [
-        f"- {manifest.name}: {manifest.description}"
-        for manifest in (
-            create_ticket_catalogue_manifest,
-            update_ticket_catalogue_manifest,
-            comment_ticket_catalogue_manifest,
-            list_tickets_catalogue_manifest,
-            get_ticket_catalogue_manifest,
-            delete_ticket_catalogue_manifest,
-        )
-    ]
+    lines = [f"- {manifest.name}: {manifest.description}" for manifest in _manifests()]
     lines += [
         "- create_task_tool: adds a to-do to the user's own provider account "
         + "(Google Tasks and the like).",
@@ -124,6 +151,8 @@ def _verdict(family: dict[str, Any], chosen: str | None) -> str:
     A NEGATIVE family passes when the model picks anything that is NOT a
     workboard tool: which of the three neighbours it prefers is that domain's
     own business, and judging it here would measure somebody else's wording.
+    « A workboard tool » is read from the tools themselves, never from the
+    shape of a name: the category reader does not end like the six others.
 
     Args:
         family: The corpus entry.
@@ -134,7 +163,7 @@ def _verdict(family: dict[str, Any], chosen: str | None) -> str:
     """
     if family["expect_tool"]:
         return "exact" if chosen == family["expect_tool"] else "wrong"
-    return "wrong" if (chosen or "").endswith("_ticket_tool") else "exact"
+    return "wrong" if chosen in _workboard_tools() else "exact"
 
 
 async def main() -> int:

@@ -13,6 +13,9 @@ import type { AppConfig } from '@/hooks/useAppConfig';
 import { canRecordVoice } from '@/hooks/useVoiceInput';
 import type { Language } from '@/i18n/settings';
 import { capabilityEnabled } from '@/lib/capability-state';
+import { meetingsAvailable } from '@/lib/meetings/availability';
+import { ragSpacesAvailable } from '@/lib/rag-spaces/availability';
+import { workboardAvailable } from '@/lib/workboard/availability';
 import { toolAssistsAvailable } from '@/lib/workbench/availability';
 
 import { ConfideDialog, type Confiding } from './ConfideDialog';
@@ -42,13 +45,10 @@ export interface AssistHost {
 /** What this instance leaves open: the operator's switch, then the deployment's ceiling. */
 function openings(config: AppConfig | null) {
   const capabilities = config?.capabilities;
-  const features = config?.features;
   return {
-    board: capabilityEnabled(capabilities, 'workboard', features?.workboard_enabled),
-    spaces:
-      capabilityEnabled(capabilities, 'rag_spaces', features?.rag_spaces_enabled) &&
-      toolAssistsAvailable(config),
-    meetings: capabilityEnabled(capabilities, 'meetings', features?.meetings_enabled),
+    board: workboardAvailable(config),
+    spaces: ragSpacesAvailable(config) && toolAssistsAvailable(config),
+    meetings: meetingsAvailable(config),
     dictates: capabilityEnabled(capabilities, 'stt', undefined) && canRecordVoice(),
     reads: capabilityEnabled(capabilities, 'tts', undefined),
   };

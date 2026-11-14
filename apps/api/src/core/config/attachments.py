@@ -21,10 +21,14 @@ from pydantic_settings import BaseSettings
 from src.core.constants import (
     ATTACHMENTS_ALLOWED_DOC_TYPES_DEFAULT,
     ATTACHMENTS_ALLOWED_IMAGE_TYPES_DEFAULT,
+    ATTACHMENTS_CLEANUP_BATCH_SIZE_DEFAULT,
+    ATTACHMENTS_CLEANUP_INTERVAL_SECONDS_DEFAULT,
     ATTACHMENTS_MAX_DOC_SIZE_MB_DEFAULT,
     ATTACHMENTS_MAX_IMAGE_SIZE_MB_DEFAULT,
+    ATTACHMENTS_MAX_INFLATED_MB_DEFAULT,
     ATTACHMENTS_MAX_PDF_TEXT_CHARS_DEFAULT,
     ATTACHMENTS_MAX_PER_MESSAGE_DEFAULT,
+    ATTACHMENTS_REMOVAL_CLAIM_SECONDS_DEFAULT,
     ATTACHMENTS_STORAGE_PATH_DEFAULT,
     ATTACHMENTS_TTL_HOURS_DEFAULT,
     GENERATED_ASSETS_KEEP_MAX_FILES_DEFAULT,
@@ -103,6 +107,25 @@ class AttachmentsSettings(BaseSettings):
         description="TTL safety net for orphan files in hours (cleanup scheduler).",
     )
 
+    attachments_cleanup_batch_size: int = Field(
+        default=ATTACHMENTS_CLEANUP_BATCH_SIZE_DEFAULT,
+        ge=1,
+        le=10000,
+        description="Maximum durable file removals attempted in one cleanup sweep.",
+    )
+    attachments_cleanup_interval_seconds: int = Field(
+        default=ATTACHMENTS_CLEANUP_INTERVAL_SECONDS_DEFAULT,
+        ge=10,
+        le=3600,
+        description="Interval between bounded TTL and pending-file cleanup sweeps.",
+    )
+    attachments_removal_claim_seconds: int = Field(
+        default=ATTACHMENTS_REMOVAL_CLAIM_SECONDS_DEFAULT,
+        ge=1,
+        le=3600,
+        description="Retry delay for an interrupted immutable-file unlink; never an upload lease.",
+    )
+
     generated_assets_keep_max_files: int = Field(
         default=GENERATED_ASSETS_KEEP_MAX_FILES_DEFAULT,
         ge=0,
@@ -142,4 +165,16 @@ class AttachmentsSettings(BaseSettings):
         ge=1000,
         le=200000,
         description="Maximum characters of extracted PDF text sent to LLM.",
+    )
+    attachments_max_inflated_mb: int = Field(
+        default=ATTACHMENTS_MAX_INFLATED_MB_DEFAULT,
+        ge=1,
+        le=2048,
+        description=(
+            "Most megabytes a zipped document (Word, Excel, PowerPoint, OpenDocument, "
+            "EPUB) may declare once inflated before its text is read. A file sent small "
+            "can inflate large, and its readers inflate whole parts in memory during "
+            "the upload: past this, the file is kept and its text is not read. Symptom "
+            "if too low: LIA cannot read a large spreadsheet attached in the chat."
+        ),
     )

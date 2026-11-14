@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayPhaseAt, parseEnvironment, weatherAt, weatherFlagsAt } from '../environment';
+import { dayPhaseAt, parseEnvironment, skyAt, weatherAt, weatherFlagsAt } from '../environment';
 
 const now = Date.parse('2026-09-21T12:00:00Z');
 const payload = (temperature_c = 20, condition_code = 'Clear', wind_speed_kmh = 0) => ({
@@ -82,6 +82,34 @@ describe('weather is evidence, not a randomly selected decoration', () => {
         now
       )
     ).toBe('cold');
+  });
+});
+
+describe('the sky of an ordinary day', () => {
+  it.each([
+    ['Clear', 'clear'],
+    ['Clouds', 'clouds'],
+    ['Rain', null],
+    ['Snow', null],
+    ['Fog', null],
+    ['Unknown', null],
+    ['__proto__', null],
+  ] as const)('reads a current %s sky as %s', (condition, expected) => {
+    expect(skyAt(parseEnvironment(payload(20, condition)), now)).toBe(expected);
+  });
+
+  it('keeps the sky apart from the weather a face plays: a clear day is no condition', () => {
+    const context = parseEnvironment(payload(28, 'Clear'));
+    expect(skyAt(context, now)).toBe('clear');
+    expect(weatherFlagsAt(context, now)).toEqual(['hot']);
+    expect(weatherAt(context, now)).toBe('hot');
+  });
+
+  it('forgets the sky with the rest of the observation, at its deadline', () => {
+    const context = parseEnvironment(payload(20, 'Clouds'));
+    expect(skyAt(context, now + 1000)).toBeNull();
+    expect(skyAt(context, now - 2000)).toBeNull();
+    expect(skyAt(null, now)).toBeNull();
   });
 });
 

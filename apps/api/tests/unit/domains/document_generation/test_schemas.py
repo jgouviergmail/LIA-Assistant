@@ -5,9 +5,16 @@ from pydantic import ValidationError
 
 from src.domains.document_generation.schemas import (
     BLOCK_KINDS,
+    COLUMN_KINDS,
+    DECK_DELIVERIES,
+    FIGURE_KINDS,
     SCHEMA_BY_DOC_TYPE,
+    SLIDE_ICONS,
     SLIDE_KINDS,
+    ChartSpec,
     DocumentType,
+    Illustration,
+    KeyFigure,
     SectionBlock,
     SectionedContent,
     Slide,
@@ -15,6 +22,7 @@ from src.domains.document_generation.schemas import (
     SlideContent,
     TableSheet,
     TabularContent,
+    WorkbookFigure,
 )
 
 
@@ -107,6 +115,10 @@ class TestDocumentSchemas:
         The alternative — hoisting tables to the document root and referencing
         them by index — buys strict mode by handing the model an index it can
         get wrong, which is the trade ADR-184 refuses.
+
+        2026-11-13 (ADR-274 amendment): a table may now say what its columns ARE
+        (``columns`` → ``ColumnSpec`` → ``choices``), one level more for every
+        family — 6, 7 and 7. None was strict before; the verdicts do not move.
         """
         from src.infrastructure.llm.strict_schema import (
             _analyze_schema_strict_compatibility,
@@ -114,9 +126,9 @@ class TestDocumentSchemas:
         )
 
         expected = {
-            TabularContent: (5, False),
-            SectionedContent: (6, False),
-            SlideContent: (6, False),
+            TabularContent: (6, False),
+            SectionedContent: (7, False),
+            SlideContent: (7, False),
         }
         for schema, (depth, strict) in expected.items():
             assert _get_max_nesting_depth(schema.model_json_schema()) == depth, schema.__name__
@@ -152,8 +164,88 @@ class TestDocumentSchemas:
             TableSheet,
             Slide,
             SlideColumn,
+            ChartSpec,
+            KeyFigure,
+            Illustration,
+            WorkbookFigure,
         ):
             assert "\n" not in (schema.__doc__ or "").strip(), schema.__name__
+
+    def test_a_workbook_figure_is_offered_the_kinds_it_can_be(self) -> None:
+        """A key figure is a number or a date: a text kind is never offered (ADR-184)."""
+        published = TabularContent.model_json_schema()["$defs"]["WorkbookFigure"]["properties"]
+        assert published["kind"]["enum"] == list(FIGURE_KINDS)
+        assert set(COLUMN_KINDS) - set(FIGURE_KINDS) == {"text", "code"}
+
+    def test_an_input_is_offered_the_kinds_a_formula_can_read(self) -> None:
+        """An input is read by formulas as a number or a date: what normalization
+        keeps is what the writer is offered (ADR-184)."""
+        published = TabularContent.model_json_schema()["$defs"]["SheetInput"]["properties"]
+        assert published["kind"]["enum"] == list(FIGURE_KINDS)
+
+
+def _slide_properties() -> dict[str, dict[str, object]]:
+    schema = SlideContent.model_json_schema()
+    properties: dict[str, dict[str, object]] = schema["$defs"]["Slide"]["properties"]
+    return properties
+
+
+@pytest.mark.unit
+class TestTheDeckVocabulary:
+    """Key figures, quotes, icons and delivery: published, never refused (ADR-184, ADR-269)."""
+
+    def test_a_key_figure_needs_only_its_value(self) -> None:
+        figure = KeyFigure(value="42 %")
+        assert (figure.label, figure.icon) == ("", "")
+
+    def test_the_new_slide_fields_default_to_nothing(self) -> None:
+        slide = Slide(title="t")
+        assert (slide.figures, slide.quote, slide.icon) == ([], "", "")
+        assert SlideContent(filename_stem="d", title="D", slides=[slide]).delivery == ""
+
+    def test_the_icon_names_are_published_on_the_slide(self) -> None:
+        assert _slide_properties()["icon"]["enum"] == list(SLIDE_ICONS)
+
+    def test_the_deliveries_are_published_on_the_deck(self) -> None:
+        delivery = SlideContent.model_json_schema()["properties"]["delivery"]
+        assert delivery["enum"] == list(DECK_DELIVERIES)
+        assert set(DECK_DELIVERIES) == {"presented", "read"}
+
+    def test_a_figure_s_icon_points_at_the_one_published_list(self) -> None:
+        """The list is published ONCE: a second copy would cost its tokens twice."""
+        figure = SlideContent.model_json_schema()["$defs"]["KeyFigure"]["properties"]["icon"]
+        assert "enum" not in figure
+        assert "`icon`" in str(figure["description"])
+
+    def test_an_unknown_icon_or_delivery_is_accepted_for_repair(self) -> None:
+        assert Slide(title="t", icon="unicorn").icon == "unicorn"
+        assert KeyFigure(value="1", icon="unicorn").icon == "unicorn"
+        deck = SlideContent(
+            filename_stem="d", title="D", delivery="keynote", slides=[Slide(title="t")]
+        )
+        assert deck.delivery == "keynote"
+
+    def test_a_picture_is_asked_for_by_its_subject_and_described_by_its_alt(self) -> None:
+        picture = Illustration(subject="a lighthouse at dawn")
+        assert picture.alt == ""
+        assert Slide(title="t").illustration is None
+        deck = SlideContent(filename_stem="d", title="D", slides=[Slide(title="t")])
+        assert (deck.illustration, deck.image_style) == (None, "")
+
+    def test_the_cover_and_the_slides_can_ask_for_a_picture_in_one_style(self) -> None:
+        schema = SlideContent.model_json_schema()
+        assert "illustration" in schema["properties"]
+        assert "image_style" in schema["properties"]
+        assert "illustration" in _slide_properties()
+        illustration = schema["$defs"]["Illustration"]["properties"]
+        assert set(illustration) == {"subject", "alt"}
+
+    def test_icon_names_are_lucide_names(self) -> None:
+        import re
+
+        assert len(set(SLIDE_ICONS)) == len(SLIDE_ICONS)
+        for name in SLIDE_ICONS:
+            assert re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name), name
 
 
 @pytest.mark.unit
@@ -174,8 +266,19 @@ class TestEveryRendererCoversTheVocabulary:
             "quote",
             "callout",
             "table",
+            "chart",
+            "figures",
+            "illustration",
         }
-        assert SLIDE_KINDS == {"content", "section", "comparison", "table"}
+        assert SLIDE_KINDS == {
+            "content",
+            "section",
+            "comparison",
+            "table",
+            "chart",
+            "figures",
+            "quote",
+        }
 
     def test_the_total_registries_cover_every_block_kind(self) -> None:
         from src.domains.document_generation.renderers.docx import _BLOCKS
@@ -202,3 +305,18 @@ class TestEveryRendererCoversTheVocabulary:
         from src.domains.document_generation.normalize import _NORMALIZERS
 
         assert set(_NORMALIZERS) == set(SCHEMA_BY_DOC_TYPE.values())
+
+
+@pytest.mark.unit
+class TestTheReportVocabulary:
+    def test_a_report_can_carry_figures_pictures_and_its_sources(self) -> None:
+        schema = SectionedContent.model_json_schema()
+        for name in ("illustration", "image_style", "sources"):
+            assert name in schema["properties"], name
+        assert set(schema["$defs"]["Source"]["properties"]) == {"title", "url"}
+        assert {"figures", "illustration"} <= set(schema["$defs"]["SectionBlock"]["properties"])
+
+    def test_a_source_is_named_by_its_title_alone_when_it_has_no_address(self) -> None:
+        from src.domains.document_generation.schemas import Source
+
+        assert Source(title="A book").url == ""

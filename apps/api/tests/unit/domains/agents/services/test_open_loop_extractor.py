@@ -4,6 +4,7 @@ The LLM is mocked (structured output); the tests pin the application rules:
 guards, per-user cap, conversational closure, tolerant parsing.
 """
 
+from datetime import UTC
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -77,6 +78,7 @@ class TestApplyExtraction:
             user_id=uuid4(),
             session_id="thread-1",
             settings=settings,
+            zone=UTC,
         )
 
         assert stats == {"opened": 1, "closed": 0, "skipped": 0}
@@ -106,6 +108,7 @@ class TestApplyExtraction:
             user_id=uuid4(),
             session_id="t",
             settings=settings,
+            zone=UTC,
         )
 
         due = repo.create.await_args.args[0]["due_hint"]
@@ -126,6 +129,7 @@ class TestApplyExtraction:
             user_id=uuid4(),
             session_id="t",
             settings=settings,
+            zone=UTC,
         )
 
         assert repo.create.await_args.args[0]["due_hint"] is None
@@ -146,6 +150,7 @@ class TestApplyExtraction:
             user_id=user_id,
             session_id="t",
             settings=settings,
+            zone=UTC,
         )
 
         assert stats["closed"] == 1
@@ -168,6 +173,7 @@ class TestApplyExtraction:
             user_id=uuid4(),
             session_id="t",
             settings=settings,
+            zone=UTC,
         )
 
         assert stats["closed"] == 0
@@ -187,6 +193,7 @@ class TestApplyExtraction:
             user_id=uuid4(),
             session_id="t",
             settings=settings,
+            zone=UTC,
         )
 
         assert stats == {"opened": 0, "closed": 0, "skipped": 1}
@@ -204,6 +211,7 @@ class TestApplyExtraction:
             user_id=uuid4(),
             session_id="t",
             settings=settings,
+            zone=UTC,
         )
 
         assert stats["skipped"] == 1
@@ -223,6 +231,7 @@ class TestApplyExtraction:
             user_id=uuid4(),
             session_id="t",
             settings=settings,
+            zone=UTC,
         )
 
         assert stats["opened"] == 2
@@ -249,6 +258,7 @@ class TestExtractionEntryGuards:
                 messages=[HumanMessage(content="je dois rappeler le plombier")],
                 session_id="t",
                 run_id="r",
+                user_timezone=None,
             )
 
         run_mock.assert_not_awaited()
@@ -265,7 +275,7 @@ class TestExtractionEntryGuards:
             ) as run_mock,
         ):
             await extract_open_loops_background(
-                user_id=str(uuid4()), messages=[], session_id="t", run_id="r"
+                user_id=str(uuid4()), messages=[], session_id="t", run_id="r", user_timezone=None
             )
 
         run_mock.assert_not_awaited()
@@ -290,6 +300,7 @@ class TestExtractionEntryGuards:
                 ],
                 session_id="t",
                 run_id="r",
+                user_timezone=None,
             )
 
 
@@ -309,6 +320,7 @@ class TestExtractionTokenTracking:
         async def _db_ctx():
             session = MagicMock()
             session.commit = AsyncMock()
+            session.scalar = AsyncMock(return_value=0)
             yield session
 
         track_mock = AsyncMock()
@@ -325,10 +337,6 @@ class TestExtractionTokenTracking:
                     open_loops_max_open_per_user=30,
                     open_loops_extraction_max_items=5,
                 ),
-            ),
-            patch(
-                "src.domains.agents.prompts.prompt_loader.load_prompt",
-                return_value="prompt {current_datetime} {max_items}",
             ),
             patch("src.infrastructure.llm.get_llm", return_value=MagicMock()),
             patch(
@@ -349,6 +357,7 @@ class TestExtractionTokenTracking:
                 [HumanMessage(content="je dois rappeler le plombier")],
                 "thread-1",
                 "run-1",
+                zone=UTC,
             )
 
         track_mock.assert_awaited_once()
@@ -397,6 +406,7 @@ class TestExtractionDebugCache:
         async def _db_ctx():
             session = MagicMock()
             session.commit = AsyncMock()
+            session.scalar = AsyncMock(return_value=0)
             yield session
 
         extraction = OpenLoopExtraction(
@@ -415,10 +425,6 @@ class TestExtractionDebugCache:
                     open_loops_max_open_per_user=30,
                     open_loops_extraction_max_items=5,
                 ),
-            ),
-            patch(
-                "src.domains.agents.prompts.prompt_loader.load_prompt",
-                return_value="prompt {current_datetime} {max_items}",
             ),
             patch("src.infrastructure.llm.get_llm", return_value=MagicMock()),
             patch(
@@ -439,6 +445,7 @@ class TestExtractionDebugCache:
                 [HumanMessage(content="je dois envoyer le devis à Marie")],
                 "thread-1",
                 "run-dbg-2",
+                zone=UTC,
             )
 
         dbg = pop_extraction_debug("run-dbg-2")

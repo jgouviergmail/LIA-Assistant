@@ -218,6 +218,14 @@ class MemoryLimits(BaseModel):
         default=MEMORY_USAGE_NUANCE_MAX_CHARS,
         description="Longest accepted usage nuance",
     )
+    import_max_memories: int = Field(
+        default=settings.memory_import_max_memories,
+        description="Most memories one import of an export takes",
+    )
+    import_max_file_kb: int = Field(
+        default=settings.memory_import_max_file_kb,
+        description="Largest export file one import reads, in kilobytes",
+    )
 
 
 class MemoryListResponse(BaseModel):
@@ -239,6 +247,16 @@ class MemoryListResponse(BaseModel):
         default_factory=MemoryLimits,
         description="The bounds a memory's text is held to on every write",
     )
+
+
+class MemoryImportResponse(BaseModel):
+    """What became of every entry of an imported export: the counts are exact."""
+
+    total: int = Field(ge=0, description="Every entry the file held")
+    imported: int = Field(ge=0, description="Memories created")
+    already_present: int = Field(ge=0, description="Entries whose content the account already held")
+    duplicates: int = Field(ge=0, description="Entries whose content the file already held")
+    invalid: int = Field(ge=0, description="Entries the write bounds refuse")
 
 
 class MemoryExportResponse(BaseModel):

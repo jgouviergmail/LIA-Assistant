@@ -48,6 +48,13 @@ class UserMCPServerStatus(str, Enum):
     ERROR = "error"  # Connection or protocol error
 
 
+class UserMCPTestErrorCode(str, Enum):
+    """Why a connection test did not succeed, for every client to state in its own language."""
+
+    # An OAuth server holds no usable token: the remedy is an authorization, not a retry.
+    OAUTH_AUTHORIZATION_REQUIRED = "oauth_authorization_required"
+
+
 class UserMCPServer(BaseModel):
     """
     Per-user MCP server configuration.

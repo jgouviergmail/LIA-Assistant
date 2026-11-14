@@ -15,7 +15,8 @@ import {
 } from '@/components/eyes/rig/gestures';
 import { tapeDurationMs, type Tape } from '@/components/eyes/rig/tape';
 import { createEyeRig } from '@/components/eyes/rig/runtime';
-import { CHANNELS } from '@/components/eyes/rig/channels';
+import { CHANNELS, type ChannelKey, type ChannelValues } from '@/components/eyes/rig/channels';
+import { isLimbChannel, LIMB_LIMITS } from '@/components/eyes/rig/limbs';
 import { resolvePose } from '@/components/eyes/rig/poses';
 import {
   GESTURE_DURATION_MS,
@@ -240,6 +241,30 @@ describe('tapesForGesture', () => {
     expect(pitch.at(-1)).toBeCloseTo(0, 2);
   });
 
+  it('nods so that it READS on a sculpted character: the head dips, the eyes and the body go with it', () => {
+    // Measured on the bench: a pitch of a few degrees of a flat painting is
+    // invisible. A nod a person sees is the head going down and coming back.
+    const build = () =>
+      createEyeRig({ initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' } });
+    const rig = build();
+    const twin = build();
+    rig.play(...tapesForGesture('nod'));
+    const peak = { massY: 0, gazeY: 0, bodySy: 0 };
+    for (let frame = 0; frame < 160; frame += 1) {
+      rig.step(16);
+      twin.step(16);
+      const [values, rest] = [rig.values(), twin.values()];
+      peak.massY = Math.max(peak.massY, values.massY - rest.massY);
+      peak.gazeY = Math.max(peak.gazeY, values.gazeY - rest.gazeY);
+      peak.bodySy = Math.min(peak.bodySy, values.bodySy - rest.bodySy);
+    }
+    expect(peak.massY).toBeGreaterThan(0.04);
+    expect(peak.gazeY).toBeGreaterThan(0.2);
+    expect(peak.bodySy).toBeLessThan(-0.01);
+    expect(Math.abs(rig.values().massY - twin.values().massY)).toBeLessThan(0.005);
+    expect(Math.abs(rig.values().gazeY - twin.values().gazeY)).toBeLessThan(0.005);
+  });
+
   it('holds a thoughtful inclination on one side without oscillating through the other', () => {
     const rig = createEyeRig();
     rig.play(...tapesForGesture('consider'));
@@ -284,5 +309,99 @@ describe('the mask blink', () => {
     expect(tapeDurationMs(right)).toBeGreaterThan(tapeDurationMs(left));
     // ...and it is still a blink: the same spring, the same closure.
     expect(left.spring).toEqual(blinkTapes()[0].spring);
+  });
+});
+
+describe('the delivery of an answer', () => {
+  const PRESENTATIONS = [
+    'present-factual',
+    'present-assured',
+    'present-careful',
+    'present-warm',
+    'present-soft',
+  ] as const satisfies readonly IdleGesture[];
+
+  /**
+   * Play a performance on a resting character with hands, beside a twin that
+   * plays nothing: the face breathes, so « back to rest » means « back to
+   * what it would be without the performance ».
+   */
+  function perform(gesture: IdleGesture, ms: number) {
+    const build = () =>
+      createEyeRig({
+        initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' },
+        characterId: 'boulon',
+      });
+    const rig = build();
+    const twin = build();
+    rig.play(...tapesForGesture(gesture));
+    const frames: { atMs: number; values: ChannelValues; twin: ChannelValues }[] = [];
+    for (let atMs = 16; atMs <= ms; atMs += 16) {
+      rig.step(16);
+      twin.step(16);
+      frames.push({ atMs, values: { ...rig.values() }, twin: { ...twin.values() } });
+    }
+    return frames;
+  }
+
+  /** How far the performer still is from its twin on one channel. */
+  const apart = (frame: { values: ChannelValues; twin: ChannelValues }, key: ChannelKey) =>
+    Math.abs(frame.values[key] - frame.twin[key]);
+
+  it('presents it: a look at the answer, an open hand toward it, and all of it comes back', () => {
+    const frames = perform('present-factual', 5000);
+    const before = (ms: number) => frames.filter(frame => frame.atMs <= ms);
+    expect(Math.max(...before(700).map(frame => frame.values.gazeY))).toBeGreaterThan(0.45);
+    expect(Math.min(...frames.map(frame => frame.values.armR))).toBeLessThan(-15);
+    expect(Math.min(...frames.map(frame => frame.values.wristR))).toBeLessThan(-11);
+    const last = frames.at(-1)!;
+    for (const key of ['gazeY', 'massY', 'armR', 'wristR', 'mouthCurve', 'syL'] as const)
+      expect(apart(last, key)).toBeLessThan(0.01);
+  });
+
+  it('asks no joint for more than its envelope: a clamped hand stops dead mid-gesture', () => {
+    for (const gesture of PRESENTATIONS)
+      for (const tape of tapesForGesture(gesture))
+        if (isLimbChannel(tape.channel))
+          for (const key of tape.keys)
+            expect(Math.abs(key.value)).toBeLessThanOrEqual(LIMB_LIMITS[tape.channel]);
+  });
+
+  it('says « voilà » its own way for each family: no two presentations play the same channels', () => {
+    const signatures = PRESENTATIONS.map(gesture =>
+      [...new Set(tapesForGesture(gesture).map(tape => tape.channel))].sort().join(',')
+    );
+    expect(new Set(signatures).size).toBe(PRESENTATIONS.length);
+  });
+
+  it('closes both eyes together on the delivery: a blink, never a wink', () => {
+    // A 60-70 ms trail between the two lids reads as a wink on a recording.
+    for (const gesture of PRESENTATIONS) {
+      const tapes = tapesForGesture(gesture);
+      const left = tapes.find(tape => tape.channel === 'blinkL')!;
+      const right = tapes.find(tape => tape.channel === 'blinkR')!;
+      expect(right.keys[0].atMs - left.keys[0].atMs).toBeLessThanOrEqual(20);
+    }
+  });
+
+  it('smiles with the whole eye, never with a lower lid alone a sculpted eye would crop', () => {
+    for (const gesture of [...PRESENTATIONS, 'listen'] as const)
+      expect(tapesForGesture(gesture).some(tape => tape.channel.startsWith('lidBot'))).toBe(false);
+    expect(tapesForGesture('present-factual').some(tape => tape.channel === 'syL')).toBe(true);
+  });
+
+  it('hands it over: « à toi » leans in a little, lifts the brows a hair, then lets go', () => {
+    const frames = perform('listen', 6000);
+    const early = frames.filter(frame => frame.atMs <= 2500);
+    expect(Math.max(...early.map(frame => frame.values.mass - frame.twin.mass))).toBeGreaterThan(
+      0.025
+    );
+    expect(Math.min(...early.map(frame => frame.values.browYL - frame.twin.browYL))).toBeLessThan(
+      -0.015
+    );
+    expect(Math.max(...early.map(frame => frame.values.tilt))).toBeGreaterThan(2);
+    const last = frames.at(-1)!;
+    for (const key of ['mass', 'tilt', 'browYL', 'mouthCurve'] as const)
+      expect(apart(last, key)).toBeLessThan(0.01);
   });
 });

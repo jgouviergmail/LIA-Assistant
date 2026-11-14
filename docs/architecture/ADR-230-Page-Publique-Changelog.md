@@ -112,6 +112,46 @@ chaque route soit d'un côté ou de l'autre. Une page ajoutée sans décision fa
 - Une release ajoutée à `CHANGELOG_VERSION_KEYS` apparaît désormais sur trois
   surfaces d'un coup, toutes alimentées par la même liste.
 
+## Amendement du 2026-11-14 — ce que la déclaration publie, et sous quelle adresse
+
+Un audit des pages publiques, lu sur le serveur lui-même (statut, `<title>`,
+canonique, jeu de `hreflang`, données structurées), a trouvé quatre écarts que
+la déclaration unique ne couvrait pas. Chacun est corrigé à la porte que les
+pages partagent déjà.
+
+1. **Une adresse nommée répond, elle ne redirige pas.** L'accueil d'une langue
+   préfixée était nommé `/{lng}/` dans sa canonique, dans chaque alternate et
+   dans le sitemap, alors que le serveur répond 308 vers `/{lng}`. Un alternate
+   qui redirige est un alternate qu'un moteur peut écarter du jeu de langues.
+   `localizedUrl` (`lib/site-origin.ts`) nomme désormais `/{lng}`.
+2. **Le sitemap annonce chaque version de langue.** Seule l'adresse française
+   était une entrée ; les cinq autres n'apparaissaient que comme alternates
+   d'une autre. Chaque version est une entrée, et chaque entrée porte le jeu
+   complet, elle-même comprise. `lastmod` n'est plus l'instant de la requête :
+   une page que la release réécrit prend le jour de la release, un article son
+   jour de révision, et une page sans date connue n'en déclare pas
+   (`PublicPage.lastModified`).
+3. **Une route hors index le dit sur le fil.** `robots.txt` interdit
+   l'exploration, pas l'indexation d'une adresse liée ailleurs, et plusieurs de
+   ces routes portent un jeton. `next.config.ts` envoie
+   `X-Robots-Tag: noindex, nofollow` sur chaque segment de
+   `NON_INDEXED_SEGMENTS`, dans toutes les langues.
+4. **Le titre du document est celui de la page.** Le point 1 de la décision
+   tient pour ce que le visiteur lit : le titre et le sous-titre affichés
+   réutilisent toujours `faq.changelog.title` et `faq.changelog.description`.
+   Le `<title>` et la description du document, eux, concaténaient le titre
+   générique de la landing (90 à 98 caractères, coupé dans une ligne de
+   résultats) sur une description de 41 caractères. `/changelog`, `/faq` et
+   `/demo` reçoivent un titre et une description à eux (`faq.changelog.meta_*`,
+   `faq.meta_*`, `landing.product_demo.meta_title`) : ce n'est pas une seconde
+   formulation du même objet, c'est ce qu'une ligne de résultats doit dire.
+
+Les métadonnées de ces pages, de l'accueil et des pages de connexion passent par
+une seule fabrique, `publicPageMetadata` (`lib/public-page-metadata.ts`), que les
+cartes utilisaient déjà sous leur propre nom. Les données structurées `HowTo` de
+l'accueil sont retirées avec les clés qui les nourrissaient : elles décrivaient
+une section que la page n'affiche plus.
+
 ## Alternatives écartées
 
 - **Une section changelog dans la FAQ publique** (`/faq#changelog`) : diff
@@ -135,5 +175,8 @@ chaque route soit d'un côté ou de l'autre. Une page ajoutée sans décision fa
 - `docs/technical/LANDING_PAGE.md` §8 — pages publiques et garde 401
 - `apps/web/src/lib/changelog.ts` — source unique des versions
 - `apps/web/src/lib/public-pages.ts` — source unique des pages publiques
+- `apps/web/src/lib/public-page-metadata.ts` — fabrique des métadonnées d'une
+  page publique (amendement du 2026-11-14)
+- `apps/web/src/app/sitemap.ts` — une entrée par version de langue, dates tenues
 - `apps/web/src/components/__tests__/changelog-destination.test.tsx` — garde des
   destinations promises

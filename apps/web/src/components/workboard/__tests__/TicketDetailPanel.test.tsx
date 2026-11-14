@@ -9,8 +9,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
-import { TicketDetailPanel } from '@/components/workboard/TicketDetailPanel';
-import type { TicketDetail, TicketRow } from '@/types/workboard';
+import {
+  TicketDetailPanel,
+  type TicketDetailPanelProps,
+} from '@/components/workboard/TicketDetailPanel';
+import type { CategoryRow, TicketDetail, TicketRow } from '@/types/workboard';
+import { makeTicket } from '@/__tests__/factories';
 
 const api = vi.hoisted(() => ({ detail: vi.fn() }));
 vi.mock('@/lib/workboard/api', () => ({ workboardApi: api }));
@@ -21,44 +25,15 @@ const account = vi.hoisted(() => ({ value: { id: 'me', tokens_display_enabled: f
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: account.value }) }));
 
 function ticket(overrides: Partial<TicketRow> = {}): TicketRow {
-  return {
+  return makeTicket({
     id: 't1',
     owner_user_id: 'me',
-    parent_id: null,
     title: 'Réserver la salle',
-    description: null,
-    status: 'todo',
-    priority: 'medium',
-    start_at: null,
-    due_at: null,
-    assignee_kind: 'human',
-    assignee_user_id: null,
     effective_assignee_id: 'me',
-    position: 0,
-    follow_owner: false,
-    follow_assignee: false,
-    created_by: 'user',
-    status_changed_at: '2026-09-09T10:00:00Z',
     run_count: 1,
-    run_claimed_at: null,
     last_run_at: '2026-09-09T10:00:00Z',
-    last_run_outcome: null,
-    last_run_error: null,
-    last_run_tokens_in: null,
-    last_run_tokens_out: null,
-    last_run_tokens_cache: null,
-    last_run_google_requests: null,
-    last_run_cost_eur: null,
-    created_at: '2026-09-09T10:00:00Z',
-    execution_mode: 'react',
-    total_tokens_in: 0,
-    total_tokens_out: 0,
-    total_tokens_cache: 0,
-    total_google_requests: 0,
-    total_cost_eur: 0,
-    updated_at: '2026-09-09T10:00:00Z',
     ...overrides,
-  };
+  });
 }
 
 function detail(row: TicketRow): TicketDetail {
@@ -73,9 +48,9 @@ const handlers = {
   onDelete: vi.fn(),
 };
 
-function render() {
+function render(extra: Partial<TicketDetailPanelProps> = {}) {
   return renderWithProviders(
-    <TicketDetailPanel ticketId="t1" meId="me" peers={[]} lng="fr" {...handlers} />
+    <TicketDetailPanel ticketId="t1" meId="me" peers={[]} lng="fr" {...handlers} {...extra} />
   );
 }
 
@@ -243,5 +218,66 @@ describe('the seven panels', () => {
     await waitFor(() => expect(screen.getByText('Réserver la salle')).toBeInTheDocument());
     expect(screen.queryByRole('region', { name: 'workboard.detail.last_run' })).toBeNull();
     expect(screen.queryByRole('region', { name: 'workboard.detail.usage' })).toBeNull();
+  });
+});
+
+describe('the category of a ticket', () => {
+  // The category is the OWNER's: they file the ticket from here wherever
+  // nothing drags; whoever holds it for them reads the lane and changes nothing.
+  const CATEGORIES: CategoryRow[] = [
+    { id: 'home', owner_user_id: 'me', name: 'Maison', position: 0, ticket_count: 1 },
+    { id: 'work', owner_user_id: 'me', name: 'Travail', position: 1, ticket_count: 0 },
+  ];
+  const list = () => screen.queryByRole('combobox', { name: 'workboard.form.category' });
+
+  it('lets the owner file the ticket under another of their categories', async () => {
+    api.detail.mockResolvedValue(detail(ticket({ category_id: 'home' })));
+    const { user } = render({ categories: CATEGORIES });
+
+    await waitFor(() => expect(list()).toHaveTextContent('Maison'));
+    await user.click(screen.getByRole('combobox', { name: 'workboard.form.category' }));
+    await user.click(await screen.findByRole('option', { name: 'Travail' }));
+
+    expect(handlers.onPatch).toHaveBeenCalledWith('t1', { category_id: 'work' });
+  });
+
+  it('un-files it explicitly: null and « unchanged » are one wire value', async () => {
+    api.detail.mockResolvedValue(detail(ticket({ category_id: 'home' })));
+    const { user } = render({ categories: CATEGORIES });
+
+    await waitFor(() => expect(list()).not.toBeNull());
+    await user.click(screen.getByRole('combobox', { name: 'workboard.form.category' }));
+    await user.click(await screen.findByRole('option', { name: 'workboard.categories.none' }));
+
+    expect(handlers.onPatch).toHaveBeenCalledWith('t1', { clear_category: true });
+  });
+
+  it('asks nothing of an owner who has no category', async () => {
+    api.detail.mockResolvedValue(detail(ticket()));
+    render();
+
+    await screen.findByLabelText('workboard.form.due_at');
+    expect(list()).toBeNull();
+    expect(screen.queryByTestId('category-badge')).toBeNull();
+  });
+
+  it('shows a holder the owner’s lane, as a fact and not as a control', async () => {
+    api.detail.mockResolvedValue(detail(ticket({ owner_user_id: 'peer', category_id: 'theirs' })));
+    render({
+      categories: CATEGORIES,
+      categoryName: id => (id === 'theirs' ? 'Chantier' : undefined),
+    });
+
+    expect(await screen.findByTestId('category-badge')).toHaveTextContent('Chantier');
+    expect(list()).toBeNull();
+  });
+
+  it('shows a holder nothing for a ticket its owner filed under nothing', async () => {
+    api.detail.mockResolvedValue(detail(ticket({ owner_user_id: 'peer', category_id: null })));
+    render({ categories: CATEGORIES, categoryName: () => undefined });
+
+    await screen.findByLabelText('workboard.form.due_at');
+    expect(list()).toBeNull();
+    expect(screen.queryByTestId('category-badge')).toBeNull();
   });
 });

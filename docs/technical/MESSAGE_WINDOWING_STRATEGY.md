@@ -1,8 +1,8 @@
 # MESSAGE_WINDOWING_STRATEGY.md
 
 **Documentation Technique - LIA**
-**Version**: 1.2
-**Dernière mise à jour**: 2026-09-24
+**Version**: 1.3
+**Dernière mise à jour**: 2026-11-13
 **Statut**: ✅ Production-Ready
 
 > **⚠️ Mise à jour v1.21.3 ([ADR-094](../architecture/ADR-094-Remove-Dead-Per-Node-Windowing-Helpers.md)) — lire avant les sections « Stratégies par node ».**
@@ -10,6 +10,8 @@
 > **Ce qui reste vivant** : `get_windowed_messages(messages, window_size=…)` (le cœur, utilisé par le nœud **ReAct** avec `react_agent_history_window_turns`) et `get_response_windowed_messages` (nœud **response**, `response_message_window_size`). Les sections 3 et « Stratégies par node » ci-dessous décrivant Router/Planner/Orchestrator sont **historiques** — le windowing per-nœud délibéré (router/planner) est reporté au chantier latence, à réintroduire avec benchmarks de qualité de routage/planification.
 >
 > **Mise à jour v1.47.3 ([ADR-309](../architecture/ADR-309-One-Prompt-Layout-For-Every-Cache-Mechanism.md), amendement 2026-09-24 ; [ADR-311](../architecture/ADR-311-Exchange-Rhythm-Is-The-Persons-Choice.md))** — quand la personne a choisi les échanges fréquents, le nœud ReAct fenêtre avec `get_block_windowed_messages(messages, window_size, block_size, turn_id)` : l'historique tombe par blocs de tours ENTIERS (un tour commence à un `HumanMessage`), et le nombre de tours gardés, `block_window_turns(window_size, block_size, turn_id) = W + ((T − 1 − W) mod B)`, se calcule sur le compteur de tours de la conversation (`current_turn_id`), jamais sur la longueur de `messages` — que le reducer rogne par la tête à chaque résultat d'outil d'un long tour, ce qui déplaçait le premier message montré en plein tour et cassait le cache du fournisseur (mesuré en production le 2026-09-24). Moins de tours disponibles que voulus : la fenêtre propre ; historique court : gardé entier, préambule compris. `get_windowed_messages` a perdu son paramètre `block_size` et retrouvé son code d'avant ADR-309.
+>
+> **Mise à jour 2026-11-13 ([ADR-381](../architecture/ADR-381-A-Model-Reads-When-Each-Message-Was-Written.md))** — la fenêtre dit aussi QUAND : chaque message de la personne porte l'instant où il a été écrit (`original_created_at`, posé au début de son tour par `orchestration/person_message`), et toute projection lue par un modèle le préfixe dans le fuseau de la personne, par une seule porte (`infrastructure/llm/message_view.py` : `with_written_at` pour des messages, `written_prefix` pour un lecteur qui aplatit en texte). Lecteurs : réponse, ReAct (question courante comprise, pour que ses octets ne changent pas d'un tour à l'autre), analyseur de requête (chaque tour garde ses `QUERY_ANALYZER_HISTORY_TURN_MAX_CHARS` caractères, le moment écrit avant), compaction, contexte d'un appel téléphonique. Les quatre extractions d'arrière-plan n'en lisent pas encore : leur prompt pose le présent en UTC (voir l'ADR).
 
 ---
 

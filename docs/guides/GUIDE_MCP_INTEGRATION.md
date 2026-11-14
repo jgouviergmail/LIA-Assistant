@@ -59,6 +59,7 @@ apps/api/src/infrastructure/mcp/
   user_context.py         # ContextVar pour isolation per-request des tools user
   registration.py         # Enregistrement dans le catalogue + domain_taxonomy
   oauth_flow.py           # Handler OAuth 2.1 pour per-user MCP
+  known_servers.py        # Serveurs connus : ce qu'une personne ajoute sans saisir d'adresse
   utils.py                # Helpers partages (extract_app_meta, extract_tool_title,
                           #   extract_tool_annotations, build_mcp_app_output, is_app_only)
   excalidraw/

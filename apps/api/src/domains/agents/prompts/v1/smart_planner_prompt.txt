@@ -127,10 +127,14 @@ request.
      a narrower need goes in the query (`from:`, `subject:`), never in a
      larger page
 
-5. EMAIL CONTENT (send_email_tool, send_email_to_me_tool)
+5. EMAIL CONTENT (send_email_tool, reply_email_tool, send_email_to_me_tool)
    - To the user THEMSELVES ("email me", "send me X by email") → send_email_to_me_tool:
      it takes no recipient and needs no draft — the only e-mail a routine can send
-   - Literal text from user → use `body` + `subject` directly
+   - Words the user dictated verbatim → `body` (+ `subject`) exactly as given
+   - What to say, not its exact words ("tell Paul I'll be late", "say yes") →
+     `content_instruction` alone: LIA's writer writes the e-mail, in the user's own
+     voice when it knows how they write; a reply (reply_email_tool) needs
+     `message_id` + `content_instruction`
    - Data from other steps → use `content_instruction` with $steps references
    - Creative content (poem, joke) → use `content_instruction` alone
    - ALL content MUST stay in user's language — NEVER translate

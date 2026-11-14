@@ -23,7 +23,6 @@ import { ConnectorHealthAlert } from '@/components/connectors/ConnectorHealthAle
 import { OnboardingTutorial } from '@/components/onboarding';
 import { AvatarProvider } from '@/components/avatars/AvatarProvider';
 import { AvatarPreferenceSaveProvider } from '@/components/avatars/AvatarPreferenceSaveProvider';
-import { worldAvailable } from '@/features/world/availability';
 import { ApplicationEyes } from '@/components/eyes/ApplicationEyes';
 import { usePsycheStore } from '@/stores/psycheStore';
 import { ShortcutsDock } from '@/components/shortcuts/ShortcutsDock';
@@ -47,13 +46,14 @@ import {
   HEADER_ICON_SLOT,
   PAGE_FRAME_RAIL,
   PAGE_FRAME_WINDOW,
-  visibleDestinations,
 } from '@/lib/dashboard-nav';
-import { workbenchAvailable } from '@/lib/workbench/availability';
+import { offeredDestinations } from '@/components/dashboard/offered-destinations';
+import { meetingsAvailable } from '@/lib/meetings/availability';
 import { smsAvailable } from '@/lib/sms/availability';
 import { DESTINATION_ICONS } from '@/lib/dashboard-nav-icons';
 import { useTranslation } from '@/i18n/client';
 import { LogOut } from '@/lib/icons';
+import { MonochromeIcons } from '@/lib/icon-style-context';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface DashboardLayoutProps {
@@ -96,13 +96,9 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
   // and handed to every page under the layout as its starting point.
   const { config: appConfig } = useAppConfig();
   // ADR-258: the meetings destination exists only where the instance offers
-  // the feature — the same list feeds the desktop nav and the mobile menu.
-  const destinations = visibleDestinations({
-    ...appConfig?.features,
-    world_enabled: worldAvailable(appConfig),
-    workbench_enabled: workbenchAvailable(appConfig),
-    sms_enabled: smsAvailable(appConfig),
-  });
+  // the feature — the same list feeds the desktop nav, the mobile menu and
+  // the world's « Application » links (`offeredDestinations`).
+  const destinations = offeredDestinations(appConfig);
   // ADR-324: the radio is offered — header control, logo-menu entry, bar —
   // only where the instance offers it NOW (the operator's switch included).
   const radioEnabled = radioAvailable(appConfig);
@@ -210,11 +206,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
 
         {/* ADR-258/259: the recorder lives ABOVE the header so a recording
           survives navigation and the header's controls can read it. */}
-        <MeetingRecorderProvider
-          ownerId={user.id}
-          lng={lng}
-          enabled={appConfig?.features?.meetings_enabled ?? false}
-        >
+        <MeetingRecorderProvider ownerId={user.id} lng={lng} enabled={meetingsAvailable(appConfig)}>
           <ApplicationRecordingDeviceRegistration />
           <AvatarPreferenceSaveProvider key={user.id}>
             <AvatarProvider>
@@ -351,7 +343,9 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                         title={t('navigation.logout')}
                         aria-label={t('navigation.logout')}
                       >
-                        <LogOut className="h-4 w-4" />
+                        <MonochromeIcons>
+                          <LogOut className="h-4 w-4" />
+                        </MonochromeIcons>
                       </button>
                     </div>
                   </div>

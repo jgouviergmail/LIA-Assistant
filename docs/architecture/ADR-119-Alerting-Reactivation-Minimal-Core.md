@@ -200,3 +200,44 @@ first useful byte, cancellation and interruption closed explicitly), and the bro
 (`product_client_timing_seconds`: chat first token, dashboard first card, all cards, text — durations
 only, a bounded vocabulary, panels on dashboards 01 and 26). `SSELatencyP95High` migrates to the
 journey only after two weeks of observation; until then both are read side by side.
+
+## Amendment 2026-11-10 — an alert judges what cannot be dropped, and three silences get a rule
+
+The daily report of 2026-11-09 was read as six problems; measured on production, four were not
+there, and three real silences were.
+
+- **`ContainerMemoryNearLimit` subtracts the ACTIVE page cache.** The working set still counts file
+  pages the kernel holds as active. Alloy (a 507 MB binary under a 256 MB limit) showed 98% for an
+  hour and fired for 29 minutes with 122 MB of anonymous memory; its working set then fell from 233
+  to 118 MB in one minute while its usage stayed at 251 MB. cAdvisor publishes
+  `container_memory_total_active_file_bytes`, which joins the keep-list. An `or … * 0` fallback
+  subtracts nothing when that series is missing, so the alert judges the working set as before
+  rather than go silent.
+- **`OOMKillDetected` reads the kernel's count** (`node_vmstat_oom_kill`), not cAdvisor's
+  `container_oom_events_total`: on a 32 MB container killed on purpose the kernel counter went from
+  0 to 1 and cAdvisor no longer knew the container, its cgroup having ended with its main process.
+  One kill restarts one container once, which `ContainerRestartLoop` never sees.
+- **`RagSourceRecoveryLoop`**: a source sync the reaper re-drives five times in six hours is a
+  lease nobody returns, not a crash (ADR-262 amendment of the same day: two months unseen).
+- **`AlertNotificationsFailing`** watches the human channels only. The self-diagnostics webhook
+  targets the API and fails whenever the API is what is down (22 failures during the 53 minutes of
+  `ServiceDown` on 2026-11-09, the e-mail leaving normally): the daily report now says so beside
+  the count instead of flagging it.
+
+What stays true and unsolved: Prometheus, Alertmanager and the host have no witness outside the
+host. E-mail is the only human channel until `ALERTMANAGER_SLACK_WEBHOOK_CRITICAL` or
+`ALERTMANAGER_PAGERDUTY_ROUTING_KEY` is set in `.env.prod`.
+
+## Amendment 2026-11-13 — the disk alert watches what can fill
+
+`DiskSpaceCritical` fired on a development host for a filesystem nothing can fill: WSL's
+read-only system image, mounted ext4 and reading 100 %, while C: and D: stood at 88 %. A
+read-only filesystem is full by construction, so the rule now leaves it out
+(`unless node_filesystem_readonly == 1`, node-exporter's own series, scraped with no
+keep-list on the `node` job). The self-diagnostics check « Host disk usage » and the alert's
+evidence pack read the same exclusion (`disk_usage_percent` in
+`apps/api/src/domains/diagnostics/query_catalogue.py`; a unit test holds the query and the
+rule together), and the promtool suite proves both sides: a full read-only filesystem stays
+silent, a full writable one that reports `readonly=0` still fires. The legacy, unloaded rule
+files (`alerts.yml`, `alert_rules.yml`) are left as they are: their committed render already
+differs from their template.

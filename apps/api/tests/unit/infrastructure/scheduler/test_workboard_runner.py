@@ -20,6 +20,7 @@ for.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -29,13 +30,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.core.constants import WORKBOARD_RUN_ERROR_MAX_CHARS
-from src.domains.workboard.constants import RunError, RunOutcome, TicketStatus
+from src.domains.workboard.constants import RunError, RunOutcome, TicketEventKind, TicketStatus
 from src.domains.workboard.notifications import WorkboardEvent
 from src.infrastructure.scheduler import workboard_runner
 from src.infrastructure.scheduler.out_of_turn_run import RunOutcome as StreamOutcome
-from src.infrastructure.scheduler.out_of_turn_run import RunResult, TurnInterrupt
+from src.infrastructure.scheduler.out_of_turn_run import RunResult, StreamRequest, TurnInterrupt
 from src.infrastructure.scheduler.workboard_runner import plan_settle, sweep_workboard_runs
-from src.infrastructure.streaming.run_stream_broker import ActiveRunLockLost
 
 pytestmark = pytest.mark.unit
 
@@ -188,6 +188,7 @@ def _repository(ticket: Any | None) -> Any:
     repository.release_claim = AsyncMock(return_value=True)
     repository.add_comment = AsyncMock()
     repository.add_event = AsyncMock()
+    repository.lock_owned_run = AsyncMock(return_value=True)
     repository.run_usage = AsyncMock(return_value=_usage())
     repository.hidden_volume = AsyncMock(return_value=(4, 9600))
     repository.db.execute = AsyncMock(
@@ -227,16 +228,26 @@ class _Env:
         self.repository = repository
         self.stream = AsyncMock(return_value=RunResult(outcome=StreamOutcome.SUCCESS, text="Done."))
         self.blocked = AsyncMock(return_value=False)
-        self.pending = AsyncMock(return_value=(False, uuid.uuid4()))
+        self.pending = False
         self.context = AsyncMock(return_value=_context())
-        self.lease_acquired = True
+        self.admission_available = True
         # The dispatch itself is tested on its own; here it only has to be
         # OBSERVED, so a tick never opens Redis or a notification channel.
         self.notify = AsyncMock()
 
-    @asynccontextmanager
-    async def _lease(self, *args: Any, **kwargs: Any) -> Any:
-        yield self.lease_acquired
+    async def instruction(
+        self, request: StreamRequest, *, before_run: Callable[[], Awaitable[None]] | None = None
+    ) -> RunResult:
+        """The admission seam is covered on real SQL/Redis in its integration suite."""
+        if not self.admission_available:
+            return RunResult(outcome=StreamOutcome.BUSY)
+        if self.pending:
+            return RunResult(outcome=StreamOutcome.PENDING_QUESTION)
+        if before_run is not None:
+            await before_run()
+        result = await self.stream(request)
+        assert isinstance(result, RunResult)
+        return result
 
 
 @asynccontextmanager
@@ -246,26 +257,37 @@ async def _running(env: _Env) -> Any:
     # The scan runs on the SESSION, not on the repository: the statement is the
     # repository's, the execution is the caller's.
     db.execute = env.repository.db.execute
+    env.repository.db = db
     with (
         patch(f"{MODULE}.get_db_context", lambda: _session(db)),
         patch(f"{MODULE}.WorkboardRepository", return_value=env.repository),
         patch(f"{MODULE}.resolve_run_context", env.context),
-        patch(f"{MODULE}.conversation_has_pending_hitl", env.pending),
         patch(f"{MODULE}.build_ticket_brief", AsyncMock(return_value="Do the thing.")),
-        patch(f"{MODULE}.stream_instruction", env.stream),
-        patch(f"{MODULE}.active_run_lease", env._lease),
+        patch(f"{MODULE}.stream_instruction", env.instruction),
         patch(
             "src.domains.usage_limits.service.UsageLimitService.is_user_blocked_for_llm",
             env.blocked,
         ),
         patch("src.infrastructure.cache.redis.get_redis_cache", AsyncMock()),
-        patch(f"{MODULE}._clear_pending_question", AsyncMock()),
+        patch(f"{MODULE}.clear_question_of_run", AsyncMock()),
         patch(f"{MODULE}._notify", env.notify),
     ):
         yield env
 
 
 class TestTheTick:
+    async def test_a_ticket_lost_before_admission_runs_and_announces_nothing(self) -> None:
+        env = _Env(_repository(_ticket()))
+        env.repository.lock_owned_run.return_value = False
+        env.repository.settle_run.return_value = False
+        async with _running(env):
+            await sweep_workboard_runs()
+        env.stream.assert_not_awaited()
+        env.notify.assert_not_awaited()
+        assert TicketEventKind.RUN_STARTED.value not in [
+            call.kwargs["kind"] for call in env.repository.add_event.await_args_list
+        ]
+
     async def test_housekeeping_runs_even_when_nothing_is_claimable(self) -> None:
         """The reaper and the retention are not a reward for having work."""
         env = _Env(_repository(None))
@@ -408,7 +430,7 @@ class TestTheGates:
     async def test_a_pending_question_on_the_thread_releases_without_a_back_off(self) -> None:
         """Busy now, free in a minute: a back-off would be a punishment."""
         env = _Env(_repository(_ticket()))
-        env.pending = AsyncMock(return_value=(True, uuid.uuid4()))
+        env.pending = True
         async with _running(env):
             await sweep_workboard_runs()
 
@@ -420,7 +442,7 @@ class TestTheGates:
     async def test_a_live_conversation_keeps_its_thread(self) -> None:
         """The person typing owns the conversation; the ticket can wait."""
         env = _Env(_repository(_ticket()))
-        env.lease_acquired = False
+        env.admission_available = False
         async with _running(env):
             await sweep_workboard_runs()
 
@@ -431,11 +453,10 @@ class TestTheGates:
             == RunOutcome.SKIPPED_BUSY.value
         )
 
-    async def test_an_unresolvable_conversation_still_runs(self) -> None:
-        """The probe FAILS OPEN by contract: « I could not ask » must not
-        become « I will not run » for the whole board."""
+    async def test_a_run_with_no_precreated_main_uses_the_shared_engine(self) -> None:
+        """The shared engine, never a preliminary probe, resolves Main."""
         env = _Env(_repository(_ticket()))
-        env.pending = AsyncMock(return_value=(False, None))
+        env.pending = False
         async with _running(env):
             await sweep_workboard_runs()
 
@@ -491,7 +512,7 @@ class TestAStoppedRunClearsItsQuestion:
         env.stream = AsyncMock(return_value=RunResult(outcome=StreamOutcome.WAITING))
         cleared = AsyncMock()
         async with _running(env):
-            with patch(f"{MODULE}._clear_pending_question", cleared):
+            with patch(f"{MODULE}.clear_question_of_run", cleared):
                 await sweep_workboard_runs()
 
         cleared.assert_awaited_once()
@@ -500,7 +521,7 @@ class TestAStoppedRunClearsItsQuestion:
         env = _Env(_repository(_ticket()))
         cleared = AsyncMock()
         async with _running(env):
-            with patch(f"{MODULE}._clear_pending_question", cleared):
+            with patch(f"{MODULE}.clear_question_of_run", cleared):
                 await sweep_workboard_runs()
 
         cleared.assert_not_awaited()
@@ -650,7 +671,7 @@ class TestTheAnswerLandsBeforeTheNotification:
         """A claim released for a busy thread ran nothing; a person following
         the ticket must not be told about work that did not happen."""
         env = _Env(_repository(_ticket()))
-        env.lease_acquired = False
+        env.admission_available = False
         async with _running(env):
             await sweep_workboard_runs()
 
@@ -671,7 +692,7 @@ class TestTheAnswerLandsBeforeTheNotification:
     async def test_a_released_claim_tells_nobody(self) -> None:
         """Nothing ran; there is nothing to report."""
         env = _Env(_repository(_ticket()))
-        env.lease_acquired = False
+        env.admission_available = False
         async with _running(env):
             await sweep_workboard_runs()
 
@@ -851,7 +872,6 @@ def _prepared() -> Any:
         timezone="Europe/Paris",
         display_name="Jean",
         display_mode="cards",
-        conversation_id=uuid.uuid4(),
         brief="Do the thing.",
         claimed_at=NOW,
         execution_mode="react",
@@ -1043,7 +1063,7 @@ class TestAConfirmationLandsOnTheTicket:
         )
         cleared = AsyncMock()
         async with _running(env):
-            with patch(f"{MODULE}._clear_pending_question", cleared):
+            with patch(f"{MODULE}.clear_question_of_run", cleared):
                 await sweep_workboard_runs()
 
         kwargs = env.repository.settle_run.await_args.kwargs
@@ -1273,37 +1293,20 @@ class TestACeilingRefusalIsNotAFailedRun:
         assert env.notify.await_args.args[2] is WorkboardEvent.RUN_STARTED
 
 
-class TestAConversationTakenOverMidRun:
-    """A ticket run that loses its conversation steps aside, it does not fail.
+class TestAnInvocationRevokedMidRun:
+    """Unknown work is a failed run, never an unused claim that can run again."""
 
-    The lease aborts the block when another producer takes the conversation
-    (ADR-117's lock, ADR-276's lease). What reaches the tick is
-    ``ActiveRunLockLost`` — and the honest answer is the one the pre-checks
-    already give when the conversation is busy: give the claim back, retry
-    later. Settling it FAILED would spend one of the ticket's ten runs and tell
-    the person LIA stumbled, when what happened is that they started talking.
-    """
-
-    def _env(self) -> Any:
+    async def test_the_started_run_is_settled_without_an_automatic_retry(self) -> None:
         env = _Env(_repository(_ticket()))
-        env.stream = AsyncMock(side_effect=ActiveRunLockLost("taken over"))
-        return env
-
-    async def test_the_claim_goes_back_as_busy(self) -> None:
-        env = self._env()
-        async with _running(env):
-            await sweep_workboard_runs()
-
-        env.repository.settle_run.assert_not_awaited()
-        env.repository.release_claim.assert_awaited_once()
-        assert (
-            env.repository.release_claim.await_args.kwargs["outcome"]
-            == RunOutcome.SKIPPED_BUSY.value
+        env.stream.return_value = RunResult(
+            outcome=StreamOutcome.FAILED,
+            attempts=1,
+            error="ExecutionRevoked",
+            error_code="ExecutionRevoked",
         )
-
-    async def test_nothing_is_said_about_a_run_that_stepped_aside(self) -> None:
-        env = self._env()
         async with _running(env):
             await sweep_workboard_runs()
 
-        env.repository.add_comment.assert_not_awaited()
+        env.repository.release_claim.assert_not_awaited()
+        env.repository.settle_run.assert_awaited_once()
+        assert env.repository.settle_run.await_args.kwargs["outcome"] == RunOutcome.FAILED.value

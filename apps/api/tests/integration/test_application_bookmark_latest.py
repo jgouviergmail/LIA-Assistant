@@ -1,8 +1,11 @@
 """Natural 'save the last answer' resolves a real visible archived id before confirmation."""
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.conversation_source import conversation_source_scope
+from src.core.conversation_target import ConversationKind, ConversationRef
 from src.domains.agents.application.bookmark_keep import (
     execute_bookmark_keep,
     prepare_bookmark_keep,
@@ -13,6 +16,8 @@ from src.domains.agents.application.bookmark_keep_schemas import (
 )
 from src.domains.agents.application.command_service import CommandRejected
 from src.domains.bookmarks.service import BookmarkService
+from src.domains.conversations.models import Conversation
+from src.domains.users.models import User
 from src.domains.users.preference_cas import PreferenceWriteReceipt
 from tests.integration.domains.bookmarks.test_bookmarks_db import _conversation, _message, _user
 
@@ -21,12 +26,30 @@ pytestmark = pytest.mark.integration
 
 @pytest.mark.parametrize("deleted", [False, True])
 async def test_latest_selection_excludes_foreign_hidden_user_and_deleted_conversation_rows(
-    async_session, test_user, monkeypatch, deleted
-):
+    async_session: AsyncSession,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+    deleted: bool,
+) -> None:
     monkeypatch.setattr(settings, "application_tools_enabled", True)
     monkeypatch.setattr(settings, "bookmarks_enabled", True)
     monkeypatch.setattr(settings, "bookmarks_max_per_user", 100)
-    conversation = await _conversation(async_session, test_user)
+    main = await _conversation(async_session, test_user)
+    await _message(async_session, main, role="assistant", content="Newer Main answer", minutes=7)
+    conversation = Conversation(
+        user_id=test_user.id,
+        kind=ConversationKind.SECONDARY,
+        title="Annex",
+    )
+    async_session.add(conversation)
+    await async_session.flush()
+    source = ConversationRef(
+        owner_id=test_user.id,
+        id=conversation.id,
+        kind=conversation.kind,
+        revision=conversation.revision,
+        runtime_id=conversation.runtime_id,
+    )
     wanted = await _message(
         async_session,
         conversation,
@@ -48,11 +71,12 @@ async def test_latest_selection_excludes_foreign_hidden_user_and_deleted_convers
     if deleted:
         conversation.deleted_at = wanted.created_at
     await async_session.flush()
-    if deleted:
-        with pytest.raises(CommandRejected, match="NOT_FOUND_OR_UNAUTHORIZED"):
-            await prepare_bookmark_keep(async_session, test_user.id, BookmarkKeepInput())
-        return
-    draft = await prepare_bookmark_keep(async_session, test_user.id, BookmarkKeepInput())
+    with conversation_source_scope(source):
+        if deleted:
+            with pytest.raises(CommandRejected, match="NOT_FOUND_OR_UNAUTHORIZED"):
+                await prepare_bookmark_keep(async_session, test_user.id, BookmarkKeepInput())
+            return
+        draft = await prepare_bookmark_keep(async_session, test_user.id, BookmarkKeepInput())
     selected = BookmarkKeepPatch.model_validate(draft.intent).saved_answer_to_keep
     assert selected.request.message_id == wanted.id
     assert selected.answer_preview == "Actual last visible answer"
@@ -72,4 +96,4 @@ async def test_latest_selection_excludes_foreign_hidden_user_and_deleted_convers
         is None
     )
     kept = await BookmarkService(async_session).repository.get_by_message(test_user.id, wanted.id)
-    assert kept.content == "Actual last visible answer"
+    assert kept is not None and kept.content == "Actual last visible answer"

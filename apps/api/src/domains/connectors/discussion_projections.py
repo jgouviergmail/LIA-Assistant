@@ -161,12 +161,20 @@ class EmailRecord(ProviderValue):
     to: str = ""
     date: str = ""
     internalDate: str | None = None
+    #: What the mailbox itself marks of the message (ADR-379): ahead of the body, which
+    #: an excerpt may cut.
+    reply_state: str = ""
     body: str = ""
     snippet: str = ""
 
 
 def email_evidence(raw: object, *, account: str, now: datetime, chars: int) -> DiscussionEvidence:
     """Project an e-mail into reported evidence, dated by its internal timestamp.
+
+    What its mailbox marks of it is part of the fact — a mail answered since it was read
+    is another version — and a mail nothing is marked of keeps the text, so the
+    version, it had before the mark was read. A marked mail says how its mark reads
+    (its usage nuance).
 
     Args:
         raw: The provider record.
@@ -178,7 +186,9 @@ def email_evidence(raw: object, *, account: str, now: datetime, chars: int) -> D
         The evidence.
     """
     record = EmailRecord.model_validate(raw)
-    text = record.model_dump_json(by_alias=True)
+    text = record.model_dump_json(
+        by_alias=True, exclude=None if record.reply_state else {"reply_state"}
+    )
     recorded = (
         datetime.fromtimestamp(int(record.internalDate) / 1000, UTC)
         if record.internalDate and record.internalDate.isdigit()
@@ -194,6 +204,7 @@ def email_evidence(raw: object, *, account: str, now: datetime, chars: int) -> D
         recorded_at=recorded,
         assertion="reported",
         category="email_message",
+        usage_nuance=evidence_lines()["email_answered_nuance"] if record.reply_state else None,
         excerpt=text[:chars],
         excerpt_truncated=len(text) > chars,
     )

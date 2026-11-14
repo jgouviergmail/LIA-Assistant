@@ -88,3 +88,59 @@ class TestProactiveMessages:
 
     def test_sources_label_unknown_language_falls_back(self) -> None:
         assert ProactiveMessages.sources_label("xx") == "Sources"
+
+
+ROUTINES_URL = "https://lia.example/dashboard/settings?section=scheduled-actions"
+
+
+@pytest.mark.unit
+class TestRoutineNoticeBodies:
+    """What a routine tells its owner when it did NOT run as planned."""
+
+    @pytest.mark.parametrize("kind", sorted(ProactiveMessages._ROUTINE_NOTICE_BODIES))
+    @pytest.mark.parametrize("language", SUPPORTED_LANGUAGES)
+    def test_a_notice_names_the_routine_and_links_to_its_screen(
+        self, kind: str, language: str
+    ) -> None:
+        body = ProactiveMessages.routine_notice_body(
+            kind, "Morning briefing", language, routines_url=ROUTINES_URL, max_failures=5
+        )
+
+        assert "Morning briefing" in body
+        assert f"]({ROUTINES_URL})" in body
+        # Every placeholder the template names was produced.
+        assert "{" not in body and "}" not in body
+
+    @pytest.mark.parametrize("kind", ["failed", "disabled"])
+    def test_a_failure_notice_states_the_enforced_threshold(self, kind: str) -> None:
+        body = ProactiveMessages.routine_notice_body(
+            kind, "Morning briefing", "en", routines_url=ROUTINES_URL, max_failures=7
+        )
+
+        assert "7" in body
+
+    @pytest.mark.parametrize("kind", sorted(ProactiveMessages._ROUTINE_NOTICE_BODIES))
+    def test_chinese_is_not_served_the_english_sentence(self, kind: str) -> None:
+        zh, en = (
+            ProactiveMessages.routine_notice_body(
+                kind, "T", language, routines_url=ROUTINES_URL, max_failures=5
+            )
+            for language in ("zh-CN", "en")
+        )
+
+        assert zh != en
+
+    def test_a_title_holding_braces_is_quoted_as_written(self) -> None:
+        body = ProactiveMessages.routine_notice_body(
+            "failed", "Report {week}", "en", routines_url=ROUTINES_URL, max_failures=5
+        )
+
+        assert "Report {week}" in body
+
+    def test_an_unknown_kind_says_nothing_rather_than_a_placeholder(self) -> None:
+        assert (
+            ProactiveMessages.routine_notice_body(
+                "nope", "T", "en", routines_url=ROUTINES_URL, max_failures=5
+            )
+            == ""
+        )

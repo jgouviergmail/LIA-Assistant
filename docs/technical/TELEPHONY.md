@@ -40,10 +40,11 @@ flowchart TD
 | File | Role |
 |---|---|
 | `connector.py` | Activation wizard backend (validate key → provision guardrailed agent → store encrypted connector); `get_active` capability guard. |
+| `router.py` | Two routers under `/telephony`, both mounted by `TELEPHONY_ENABLED`: `router` is the capability and refuses under the operator's switch; `record_router` serves what the switch leaves reachable (ADR-280) — what the person already has, and the end of a call already placed: `DELETE /connector`, `GET /identity`, `DELETE /identity/number`, `GET /calls`, `GET /calls/{call_id}`, `POST /webhook`. |
 | `client.py` | Thin async ElevenLabs Agents client (`xi-api-key`); `call_recording_enabled=false`; injectable transport for tests. |
 | `agent_prompt.py` | Fixed guardrail system prompt + per-call dynamic vars — including the localized `current_datetime` anchor: the voice agent has no clock of its own, so a callee's "tomorrow" was unresolvable without it (observed: agreed "tomorrow"=Saturday spoken back as Sunday) — + the `data_collection` schema (contract with the webhook extractor) + the config fingerprint powering the lazy agent re-sync (`initiate_call` PATCHes the vendor agent on drift — prompt/settings changes need no reactivation). |
 | `availability.py` | Free/busy projection — **busy ranges only**, never titles/attendees/locations. |
-| `service.py` | `initiate_call`: guard → **self-healing** one-active pre-check (vendor conversation-status probe closes rows whose webhook never arrived, then the stale threshold inline — the guard no longer depends on the reaper's tick) → lazy agent config re-sync → availability → **commit dialing row → dial → persist conversation id**. |
+| `service.py` | `initiate_call`: guard → **self-healing** one-active pre-check (vendor conversation-status probe closes rows whose webhook never arrived, then the stale threshold inline — the guard no longer depends on the reaper's tick) → lazy agent config re-sync → ONE read of the agent, its tools put in the call's exact state (refused when they cannot be) and its palette → availability → **commit dialing row → dial → persist conversation id**. |
 | `webhook_handler.py` | Foreign-filter → resolve → agent match → per-user HMAC verify (Stripe-style `t=,v0=`). |
 | `return_synthesis.py` | Tool-less synthesis (structured output **through the central `get_structured_output_with_retry` chokepoint** — a direct `with_structured_output` bypasses the provider constraints it carries, e.g. DeepSeek V4 thinking rejects the forced `tool_choice` with a 400 (prod incident 2026-07-29: every return degraded to the raw English vendor summary); enforced repo-wide by the AST guard `test_no_direct_structured_output_guard`. Token usage is read via the shared `TokenCaptureHandler`, and the `telephony_synthesis` budget is calibrated for the debrief-era output *plus* reasoning tokens on thinking models) + `process_completed_call` (exactly-once, minimized persistence, token tracking, **arms + delivers the durable return outbox**). |
 | `repository.py` | `PhoneCall` data access: F12 active-guard, `mark_completed` (atomic conditional UPDATE **+ PENDING outbox arm + SYNTHESIZED inbox close + transcript purge**), `mark_notification_delivered` / `fetch_recoverable_notifications` / `record_notification_failure`, **`persist_return_inbox` / `fetch_recoverable_returns` / `expire_stale_returns` (T1-A inbox)**, reaper queries. |
@@ -54,11 +55,12 @@ flowchart TD
 | `identity.py` | `TelephonyIdentityService`: the declared number (encrypted), its verification date, the rich-context switch; `verified_number` is the ONE seam the no-card exception rests on. |
 | `verification.py` | `TelephonyVerificationService`: places a `VERIFICATION` call reading a `secrets`-drawn code aloud; code + attempt counter in Redis (`telephony_verify*`, `USER_RUNTIME`), constant-time compare, 429 lock past the attempt cap. |
 | `mandates.py` | One vendor agent, three mandates (`CallKind`): the baked third-party mandate, and the owner / verification overrides rendered server-side (`build_override`), boot-asserted (ADR-085). |
-| `self_call_context.py` | The context block an owner call carries — memories, agenda, reminders, open loops, recent exchanges — under `TELEPHONY_SELF_CONTEXT_MAX_TOKENS`, cuts stated, every read filed on the `phone_call` surface. |
+| `self_call_context.py` | The context block an owner call carries — memories, agenda, reminders, open loops, recent exchanges (each with when it was written, in the person's zone and words, [ADR-381](../architecture/ADR-381-A-Model-Reads-When-Each-Message-Was-Written.md)) — under `TELEPHONY_SELF_CONTEXT_MAX_TOKENS`, cuts stated, every read filed on the `phone_call` surface. |
 | `owner_call.py` + `infrastructure/scheduler/voice_relay.py` | The owner-call completion path by the mode the row RAN (ADR-301): a DIRECT call is synthesised (`synthesize_relay`, the chokepoint, `SelfCallRelay`: `owner_confirmed`, `relay_message`, `summary`) and relayed (RELAYING outbox, fallback notification, `RelayOutcome`); a LIVE call closes with no return to deliver and the voice session's own books (`voice_session_closing`). |
-| `delegation_tool.py` + `callback.py` | The Live mode's ONE vendor tool (`send_to_lia`, asynchronous, the browser's own description and schema), provisioned by fingerprint; where the vendor calls back (`TELEPHONY_CALLBACK_BASE_URL`, else `API_URL`) and whether it can (`is_public_host` — a private host makes Live unavailable). |
+| `delegation_tool.py` + `callback.py` | The Live mode's ONE vendor tool (`send_to_lia`, asynchronous, the browser's own description and schema), provisioned by fingerprint and held against the workspace before every Live owner call; where the vendor calls back (`TELEPHONY_CALLBACK_BASE_URL`, else `API_URL`) and whether it can (`is_public_host` — a private host makes Live unavailable). |
 | `infrastructure/scheduler/phone_relay_runner.py` | Runs the relayed turn through `stream_instruction(spoken_by_person=True)` with a VISIBLE `phone_call` origin; retries a busy thread, stands aside for a pending question, settles the outbox. Lives outside `telephony` so the domain never imports `agents`. |
-| `live_tools.py` (telephony) + `agents/telephony/live_tools.py` + `live_tools_router.py` | Live read-only lookups during an owner call (flagged): derived token, vendor tool bodies, fingerprinted provisioning, the session-less call-back. |
+| `live_tools.py` (telephony) + `agents/telephony/live_tools.py` + `agents/telephony/live_provisioning.py` + `live_tools_router.py` | Live read-only lookups during an owner call (flagged): derived token, vendor tool bodies, fingerprinted provisioning verified against the workspace before every owner call (`live_provisioning.py`), the session-less call-back. |
+| `workspace_tools.py` | The ONE door both voice surfaces use to keep LIA's tools exact in the person's ElevenLabs workspace (ADR-373 amendment 2026-11-11): `holds` (everything LIA sent served as sent), `repair_set` (a drifted tool rewritten in place, a lost one re-created), `create_tools` (all or nothing), `agent_tool_ids`. |
 | Tool | `agents/tools/telephony_self_tools.py::call_me` — `reversible` with a written reason: no card, and a routine may plan it. |
 
 ## Voicemail: the portal owns the spoken message
@@ -374,10 +376,22 @@ flowchart TD
   (`users.phone_disabled_domains`, the DISABLED set so a new domain is on by
   default; switches in *Mon téléphone*, vocabulary published by
   the API as `available_domains`) — and detached once it ended (`owner_call`)
-  or before the next stranger is dialled (`_arm_live_tools`); measured
+  or before the next stranger is dialled (`_arm_agent_tools`); measured
   2026-09-16 on a real owner call, the vendor refuses `tool_ids` inside the
   per-call override (« Tool IDs not attached to this agent ») and the call
-  dies at pickup. The owner prompt names the DOMAINS it may look into, in
+  dies at pickup. **Never out of date or incomplete** (owner decision
+  2026-11-11, ADR-290 and ADR-373 amendments): before every owner call the
+  recorded tools — the lookups and the Live delegation tool — are held against
+  the workspace's webhook tools through the door the live sessions share
+  (`telephony/workspace_tools.py`): edited on the portal, rewritten in place;
+  lost, re-created and recorded (`live_agent_tools_repaired_total{surface="phone"}`).
+  Before EVERY dial the agent is read once (`TelephonyService._read_agent`,
+  the palette's read too) and put in the call's exact tool state — a stranger
+  or a verification gets an agent carrying nothing, whatever
+  `live_tools_attached` says. Tools that cannot be made exact, or an agent that
+  cannot be put in the call's state, refuse the call (`agent_sync_failed`)
+  instead of dialling it without its tools or with someone else's. The owner
+  prompt names the DOMAINS it may look into, in
   words, never fifty tool names. The call-back runs the
   registered tool on a synthetic runtime, arguments validated through the
   tool's own call schema, bounded `TELEPHONY_LIVE_TOOL_INNER_MARGIN_SECONDS`

@@ -1,6 +1,7 @@
 """Host-fabricated history cannot become the person's intent or commitments."""
 
 from contextlib import ExitStack, asynccontextmanager
+from datetime import UTC
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -46,7 +47,7 @@ def test_synthetic_only_history_is_not_an_initiative_query():
 
 
 def test_open_loop_tail_ignores_host_scaffold_and_proactive_proposals():
-    assert loops._format_messages_tail(_history()) == (
+    assert loops._format_messages_tail(_history(), zone=UTC) == (
         f"USER: {ACTUAL_REQUEST}\nASSISTANT: Merci pour la précision."
     )
 
@@ -94,6 +95,7 @@ async def test_open_loop_observer_and_extractor_receive_identical_cleaned_tail()
     async def database():
         session = MagicMock()
         session.commit = AsyncMock()
+        session.scalar = AsyncMock(return_value=0)
         yield session
 
     native = AsyncMock(return_value=DecisionAttempt(outcome="disabled"))
@@ -115,7 +117,11 @@ async def test_open_loop_observer_and_extractor_receive_identical_cleaned_tail()
         patch.object(observer, "record_action", AsyncMock()),
     ):
         await loops.extract_open_loops_background(
-            user_id=str(uuid4()), messages=_history(), session_id="test", run_id="synthetic-test"
+            user_id=str(uuid4()),
+            messages=_history(),
+            session_id="test",
+            run_id="synthetic-test",
+            user_timezone=None,
         )
 
     prompt = "\n\n".join(message.text for message in generative.await_args.kwargs["messages"])

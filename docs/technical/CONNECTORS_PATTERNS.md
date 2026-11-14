@@ -384,12 +384,14 @@ pièces jointes d'un e-mail (amendement d'ADR-194 du 2026-10-22).
 
 A connector that asks NOTHING of the person (no OAuth consent, no personal key) belongs
 to the INSTANCE, not to the account: Wikipedia, the browser, Google Places, Google
-Weather and Google Environment serve every account, have **no per-account row**, and
+Weather, Google Environment and the instance's own web search (SearXNG, ADR-382) serve
+every account, have **no per-account row**, and
 « My connectors » neither lists nor offers them. The list is ONE declaration,
 `ConnectorType.get_keyless_types()` (`connectors/models.py`), and whether a type serves
-the instance is ONE predicate, `connectors/keyless.py`, which refuses on three grounds:
+the instance is ONE predicate, `connectors/keyless.py`, which refuses on four grounds:
 the administrator disabled the type globally, a platform-key type runs on an instance
-with no `GOOGLE_API_KEY`, or the browser runs where `BROWSER_ENABLED=false`.
+with no `GOOGLE_API_KEY`, the browser runs where `BROWSER_ENABLED=false`, or the
+operator runs no SearXNG (`SEARXNG_URL` empty — [WEB_SEARCH.md](./WEB_SEARCH.md)).
 `ConnectorService.is_connector_active` returns that predicate for every keyless type
 without reading rows; in the « weather » category the person's own OpenWeatherMap wins
 and Google Weather is the default (`provider_resolver._instance_default`).

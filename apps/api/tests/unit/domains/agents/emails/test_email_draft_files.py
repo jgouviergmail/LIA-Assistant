@@ -97,6 +97,8 @@ def _mail_client(ceiling: int = 1000) -> AsyncMock:
     client.OUTGOING_FILE_MAX_BYTES = ceiling
     client.get_message = AsyncMock(return_value=dict(ORIGINAL))
     client.get_own_address = AsyncMock(return_value="me@example.com")
+    # A mailbox that tells no reply state (ADR-379): those are tested on their own.
+    client.conversations_of = AsyncMock(return_value={})
     for act in ("send_email", "reply_email", "forward_email"):
         setattr(client, act, AsyncMock(return_value={"id": "s1", "threadId": "t1"}))
     return client

@@ -37,8 +37,9 @@ from src.domains.plugins.schemas import (
     PluginComponentStatus,
     PluginIssueCode,
 )
+from tests.helpers.account_file_writes import account_writer_sql_stub as account_writer_sql_stub
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("account_writer_sql_stub")]
 
 _OWNER = uuid4()
 _PLUGIN_ROW_ID = uuid4()

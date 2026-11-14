@@ -52,7 +52,16 @@ export const ADMIN_CONNECTOR_CATEGORIES = {
   // Platform-key Google services (global GOOGLE_API_KEY, no per-user OAuth):
   // the operator switches them on for the whole deployment.
   google_api: ['google_routes', 'google_weather', 'google_environment'],
-  external: ['openweathermap', 'wikipedia', 'perplexity', 'brave_search', 'browser'],
+  external: [
+    'openweathermap',
+    'wikipedia',
+    'perplexity',
+    'brave_search',
+    // The instance's own web search (lot 18): the operator runs it, the
+    // administrator can switch it off like any keyless service.
+    'searxng',
+    'browser',
+  ],
   smart_home: ['philips_hue'],
   telephony: ['elevenlabs_telephony'],
 } as const;

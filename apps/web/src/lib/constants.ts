@@ -81,6 +81,13 @@ export const CHAT_SEARCH_RESULTS_PAGE_SIZE = 20;
  */
 export const CHAT_SEARCH_MIN_CHARS = 2;
 
+/**
+ * How long a jump to a message of another discussion waits for that discussion
+ * to open (`lib/discussion-jump.ts`): a jump whose discussion never opened is
+ * never replayed later.
+ */
+export const DISCUSSION_JUMP_TTL_MS = 15_000;
+
 // ============================================================================
 // PORTRAIT DISCOVERABILITY (QW-10)
 // ============================================================================
@@ -459,6 +466,17 @@ export const EYES_WIDGET_PREFS_KEY = 'lia_eyes_widget_prefs';
  * preference of the device. WHAT is pinned is on the account, not here.
  */
 export const SHORTCUTS_DOCK_PREFS_KEY = 'lia_shortcuts_dock_prefs';
+
+/**
+ * LocalStorage key persisting which lanes of the workboard this device folded,
+ * and whether it unfolded the board's figures (ADR-276).
+ *
+ * Outside the SEC-035 purge registry for the eyes' reason: a display
+ * preference of the device, holding lane keys — opaque category ids — a
+ * boolean, and no name. WHICH categories exist, and what they are called, is
+ * on the account.
+ */
+export const WORKBOARD_LANES_PREFS_KEY = 'lia_workboard_lanes_prefs';
 
 /**
  * LocalStorage key persisting the debug panel's width, as the person dragged it.

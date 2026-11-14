@@ -46,6 +46,7 @@ from src.core.constants import (
 from src.core.constants import (
     REMINDER_NOTIFICATION_BATCH_LIMIT as REMINDER_BATCH_LIMIT,
 )
+from src.core.conversation_publication import CurrentPrimaryPublication
 from src.core.i18n import get_language_name, normalize_language
 from src.core.i18n_dates import format_elapsed, format_short_stamp, neutral_persona
 from src.core.i18n_proactive import ProactiveMessages
@@ -859,7 +860,7 @@ async def _archive(
             # Archive with run_id: the message and its token summary point at
             # each other.
             await conv_service.archive_message(
-                conversation_id=conversation.id,
+                conversation_id=CurrentPrimaryPublication(reminder.user_id),
                 role="assistant",
                 content=message,
                 metadata={

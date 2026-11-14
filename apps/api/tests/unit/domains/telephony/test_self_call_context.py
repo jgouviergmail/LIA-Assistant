@@ -242,9 +242,11 @@ async def test_recent_exchanges_are_flattened_visible_only_and_bounded(
             seen["kwargs"] = kwargs
             return [
                 SimpleNamespace(
-                    role="assistant", content="<div class='lia-card'>Dentist at ten</div>"
+                    role="assistant",
+                    content="<div class='lia-card'>Dentist at ten</div>",
+                    created_at=None,
                 ),
-                SimpleNamespace(role="user", content="  what's   next  "),
+                SimpleNamespace(role="user", content="  what's   next  ", created_at=None),
             ]
 
     class _Db:
@@ -261,10 +263,59 @@ async def test_recent_exchanges_are_flattened_visible_only_and_bounded(
     lines = await _fetch_recent_exchanges(
         uuid4(),
         flatten=lambda text: text.replace("<div class='lia-card'>", "").replace("</div>", ""),
+        timezone="Asia/Tokyo",
+        language="en",
     )
 
     assert lines == ["user: what's next", "assistant: Dentist at ten"]
     assert seen["kwargs"].get("include_hidden", False) is False  # type: ignore[union-attr]
+
+
+@pytest.mark.unit
+async def test_each_recent_exchange_reads_with_when_it_was_written(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Lot 17: a call days after the chat must not hear « the dentist tomorrow »
+    as tomorrow — each exchange carries its moment, in the person's zone and
+    words, the form the agenda and reminders sections already use."""
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+    from uuid import uuid4
+
+    import src.domains.conversations.repository as crepo
+    import src.infrastructure.database.session as dbsession
+    from src.domains.telephony.self_call_context import _fetch_recent_exchanges
+
+    tuesday = datetime(2026, 11, 10, 0, 12, tzinfo=UTC)  # 09:12 in Tokyo
+
+    class _Repo:
+        def __init__(self, _db) -> None:  # noqa: ANN001
+            pass
+
+        async def get_messages_for_conversation(self, conversation_id, **kwargs):  # noqa: ANN001
+            return [
+                SimpleNamespace(role="user", content="Dentist tomorrow at 10", created_at=tuesday)
+            ]
+
+    class _Db:
+        async def __aenter__(self):  # noqa: ANN204
+            return object()
+
+        async def __aexit__(self, *exc):  # noqa: ANN002, ANN204
+            return False
+
+    monkeypatch.setattr(crepo, "ConversationRepository", _Repo)
+    monkeypatch.setattr(dbsession, "get_db_context", lambda: _Db())
+
+    lines = await _fetch_recent_exchanges(
+        uuid4(),
+        flatten=lambda text: text,
+        timezone="Asia/Tokyo",
+        language="en",
+        conversation_id=uuid4(),
+    )
+
+    assert lines == ["[Tuesday 10 November 2026 at 09:12] user: Dentist tomorrow at 10"]
 
 
 @pytest.mark.unit

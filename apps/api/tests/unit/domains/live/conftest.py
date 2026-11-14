@@ -17,6 +17,13 @@ import pytest
 
 from src.infrastructure.cache import pricing_cache
 from src.infrastructure.cache.pricing_cache import CachedModelPrice, PricingCacheData
+from tests.fixtures.live_work import detached_live_work as detached_live_work
+
+
+@pytest.fixture(autouse=True)
+def live_work_boundary(detached_live_work: None) -> None:
+    """Provider unit tests use detached identities; DB and worker races have native tests."""
+
 
 #: The Gemini live tier as the seed declares it: text and audio, per 1M tokens.
 GEMINI_LIVE_PRICE = CachedModelPrice(

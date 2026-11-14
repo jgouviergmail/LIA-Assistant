@@ -20,7 +20,6 @@ from langchain.tools import ToolRuntime
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.browser_tools import (
     _emit_progressive_screenshot,
-    _screenshot_debounce,
 )
 from tests.helpers.runtime_context import DEFAULT_TEST_USER_ID, make_tool_runtime
 
@@ -30,43 +29,35 @@ from tests.helpers.runtime_context import DEFAULT_TEST_USER_ID, make_tool_runtim
 
 FAKE_FULL_RES = b"\xff\xd8\xff\xe0" + b"\x00" * 1000  # Fake JPEG header + padding
 FAKE_THUMBNAIL = b"\xff\xd8\xff\xe0" + b"\x00" * 200
-
-
-@pytest.fixture(autouse=True)
-def _clear_debounce() -> None:
-    """Clear the debounce dict before each test to prevent cross-test leaks."""
-    _screenshot_debounce.clear()
+_CONVERSATION = "00000000-0000-4000-8000-000000000101"
+_RUNTIME = UUID("00000000-0000-4000-8000-000000000102")
 
 
 def _make_runtime(
     queue: object | None = None,
     user_id: UUID = DEFAULT_TEST_USER_ID,
     thread_id: str = "conv-456",
-    parent_thread_id: str | None = None,
+    runtime_id: UUID = _RUNTIME,
 ) -> ToolRuntime[LiaRuntimeContext, Any]:
     """The ToolRuntime the tool layer injects (ADR-231).
 
-    The side channel and the acting user travel on the typed run context;
-    __parent_thread_id stays in configurable — it is thread plumbing a
-    nested call writes for its own callee, deliberately read by browser_tools.
+    The side channel and parent runtime travel on the typed run context.
 
     Args:
         queue: The side-channel queue (or None to omit).
         user_id: The acting user.
         thread_id: The run's thread.
-        parent_thread_id: Parent thread ID (forwarded from parent graph).
+        runtime_id: Explicit root runtime, independent of a child thread name.
 
     Returns:
         A ready-to-inject ToolRuntime.
     """
-    configurable: dict = {}
-    if parent_thread_id is not None:
-        configurable["__parent_thread_id"] = parent_thread_id
     return make_tool_runtime(
-        configurable=configurable,
         user_id=user_id,
         thread_id=thread_id,
-        conversation_id=thread_id,
+        conversation_id=_CONVERSATION,
+        runtime_id=runtime_id,
+        conversation_revision=2,
         side_channel_queue=queue,
     )
 
@@ -85,6 +76,7 @@ def _make_session(
         AsyncMock session.
     """
     session = AsyncMock()
+    session.last_screenshot_at = 0.0
     session.screenshot_with_thumbnail = AsyncMock(return_value=(full_res, thumbnail))
     return session
 
@@ -92,6 +84,22 @@ def _make_session(
 # ============================================================================
 # TESTS
 # ============================================================================
+
+
+async def test_a_fresh_runtime_is_not_debounced_by_the_previous_discussion() -> None:
+    first_queue, second_queue = MagicMock(), MagicMock()
+    with (
+        patch("src.domains.agents.tools.browser_tools.settings") as config,
+        patch("src.domains.agents.tools.browser_tools.time.monotonic", return_value=100),
+    ):
+        config.browser_progressive_screenshots = True
+        config.browser_screenshot_debounce_seconds = 0.5
+        await _emit_progressive_screenshot(_make_runtime(queue=first_queue), _make_session())
+        await _emit_progressive_screenshot(
+            _make_runtime(queue=second_queue, runtime_id=UUID(int=321)), _make_session()
+        )
+    first_queue.put_nowait.assert_called_once()
+    second_queue.put_nowait.assert_called_once()
 
 
 class TestEmitProgressiveScreenshot:
@@ -231,7 +239,7 @@ class TestEmitProgressiveScreenshot:
         mock_settings.browser_progressive_screenshots = True
         mock_settings.browser_screenshot_debounce_seconds = 0.5
         queue = MagicMock()
-        runtime = _make_runtime(queue=queue, parent_thread_id="conv-final-123")
+        runtime = _make_runtime(queue=queue, thread_id="research-child")
         session = _make_session()
 
         # Patch the lazy import inside the function
@@ -239,7 +247,7 @@ class TestEmitProgressiveScreenshot:
             "src.domains.agents.tools.browser_screenshot_store.store_last_browser_screenshot"
         ) as patched_store:
             await _emit_progressive_screenshot(runtime, session, "https://example.com", "Example")
-            patched_store.assert_called_once_with("conv-final-123", FAKE_FULL_RES)
+            patched_store.assert_called_once_with(str(_RUNTIME), FAKE_FULL_RES)
 
     @pytest.mark.asyncio
     @patch("src.domains.agents.tools.browser_tools.settings")

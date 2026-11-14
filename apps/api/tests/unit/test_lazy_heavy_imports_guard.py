@@ -39,6 +39,7 @@ LAZY_ONLY: dict[str, str] = {
     "sherpa_onnx": "18 MB per process before any model, 1.6 GB after (STT, 2026-09-12)",
     "onnxruntime": "the runtime under sherpa_onnx",
     "playwright": "spawns a browser; the module alone drags its protocol bindings",
+    "xlsxwriter": "5.8 MB and 55-100 ms per process (x86_64 2026-11-13); only a workbook needs it",
 }
 
 

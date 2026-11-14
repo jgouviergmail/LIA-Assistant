@@ -379,25 +379,93 @@
    nose for a scowl and spread for a startle.
 
    The contour is projected from the rig's arch and articulated endpoints.
-   Its box stays stable; changing curvature never rescales the ink. */
+   Its box stays stable; changing curvature never rescales the ink.
+
+   It is NEVER DRAWN ON THE EYE (owner rule, 2026-11-12). The authored
+   placement holds wherever it already clears the eye; where a lowered lid,
+   a pressed brow or a tilt would bring the ink onto the eye, the brow stops
+   a line of skin above it. The placement is ONE transform, the smaller of
+   the two: the box is as tall as the eye, so a percentage in its own
+   `translate` is a percentage of the eye — which is what the lid and the
+   anchor are — and nothing here is ever laid out again, however the face
+   moves. The contour is drawn in the first `--brow-h` of that box.
+
+   The limit is the eye's top edge under the middle of the brow
+   (`--eye-crest`, carried sideways by `--eye-slope` when the brows knit),
+   less the skin kept (`--brow-clear`), less how far down its box the ink
+   reaches (`--brow-floor`, the drawn contour's own arithmetic), less the
+   drop of the brow's low end against the edge under it (`--brow-skew`: both
+   lean, and two lines that lean together need no more room than two level
+   ones). */
 .lia-eye-brow {
+  /* Where the authored placement hangs from: the top of a shape squashed
+     around its anchor and clipped by its lid. */
+  --brow-anchor: calc(var(--oy) * (1 - var(--sy)) + var(--lid-top) * var(--sy));
+  /* The same edge once the shape TURNS: it pivots around its anchor, so its
+     middle rises (one over the cosine) and it leans; clockwise is positive,
+     here as for the brow. The squash is applied last and flattens the lean. */
+  --eye-crest: calc(var(--oy) - (var(--oy) - var(--lid-top)) * var(--sy) / cos(var(--rot)));
+  --eye-slope: calc(tan(var(--rot)) * var(--sy) / var(--sx));
+  --brow-w: calc(var(--eye-w, 1.3em) * 0.72);
+  --brow-h: 0.3em;
+  /* The authored rest: the whole box above the anchor, and a breath. */
+  --brow-lift: calc(var(--brow-h) + 0.06em);
+  /* The skin kept, at the size the viewer SEES it: a face drawn smaller on
+     its screen keeps more of its own em. */
+  --brow-skin: 0.024em;
+  --brow-clear: var(--brow-skin);
+  --brow-weight: clamp(0.94, var(--brow-s), 1.06);
+  /* The tilt in degrees, as a NUMBER: a stylesheet cannot divide an angle,
+     and (tan + 2 sin) / 3 is the angle in radians to four parts in a
+     thousand at thirty degrees, where the contour stops tilting. */
+  --brow-degrees: clamp(-30, (tan(var(--brow-rot)) + 2 * sin(var(--brow-rot))) * 19.0986, 30);
+  /* A stroked brow: its centre line, half its ink, and an end that drops
+     half a unit per degree (`browPath`). */
+  --brow-ink: 10;
+  --brow-floor: calc((22 + var(--brow-ink) * 0.5 * var(--brow-weight)) / 36);
+  --brow-pitch: 0.5;
+  --brow-skew: calc(
+    var(--brow-h) * var(--brow-pitch) * var(--brow-degrees) / 36 - var(--eye-slope) *
+      var(--brow-w) * 0.43
+  );
   position: absolute;
-  top: calc(var(--oy) * (1 - var(--sy)) + var(--lid-top) * var(--sy));
+  top: 0;
   left: 50%;
-  width: calc(var(--eye-w, 1.3em) * 0.72);
-  height: 0.3em;
-  translate: calc(-50% + var(--brow-x)) calc(-100% - 0.06em + var(--brow-y));
+  width: var(--brow-w);
+  height: 100%;
+  translate: calc(-50% + var(--brow-x))
+    min(
+      calc(var(--brow-anchor) - var(--brow-lift) + var(--brow-y)),
+      calc(
+        var(--eye-crest) + var(--eye-slope) * var(--brow-x) - var(--brow-clear) - var(--brow-h) *
+          var(--brow-floor) - max(var(--brow-skew), -1 * var(--brow-skew))
+      )
+    );
   opacity: var(--has-brow);
   pointer-events: none;
 }
+/* A sculpted brow is a filled volume: its underside is the lower of its two
+   ends and of its belly, and an end drops 0.65 of a unit per degree
+   (`sculptedBrowPath`). */
+.lia-eye-brow:has([data-rig-brow-shape='sculpted']) {
+  --brow-floor: calc(
+    max(
+        22 + 12 * var(--brow-weight),
+        17 - 25 * clamp(0, var(--brow-arc), 1) + 20 * var(--brow-weight)
+      ) /
+      36
+  );
+  --brow-pitch: 0.65;
+}
 
 .lia-eye-brow svg {
+  display: block;
   width: 100%;
-  height: 100%;
+  height: var(--brow-h);
   overflow: visible;
   fill: none;
   stroke: var(--brow-color, var(--eyes-color));
-  stroke-width: calc(10px * clamp(0.94, var(--brow-s), 1.06));
+  stroke-width: calc(var(--brow-ink) * 1px * var(--brow-weight));
   stroke-linecap: round;
 }
 
@@ -834,6 +902,30 @@
   pointer-events: none;
   color: #558994;
   transform: translateZ(0.28em) rotate(calc(var(--rig-ambient-sway, 0) * 3deg));
+  /* Out of the style tree until the rig announces its weather. A slot held at
+     zero opacity is still restyled on every frame the rig writes: these slots
+     are 59 of the 100 elements under the default avatar, and about half of its
+     style cost (measured on the public page, 2026-11-11). Nothing is lost to
+     the eye: an unannounced slot has no bitmap, so it already painted nothing. */
+  display: none;
+}
+/* The announcement is the ONE switch: it installs the bitmap below and puts the
+   slot back here, at the same instant. A new prop needs its line in both. */
+[data-weather-props~='rain'] .lia-ambient-weather--rain,
+[data-weather-props~='storm'] .lia-ambient-weather--storm,
+[data-weather-props~='cold'] .lia-ambient-weather--cold,
+[data-weather-props~='freezing'] .lia-ambient-weather--freezing,
+[data-weather-props~='snow'] .lia-ambient-weather--snow,
+[data-weather-props~='hot'] .lia-ambient-weather--hot,
+[data-weather-props~='heat'] .lia-ambient-weather--heat,
+[data-weather-props~='fog'] .lia-ambient-weather--fog,
+[data-weather-props~='wind'] .lia-ambient-weather--wind,
+[data-weather-props~='night'] .lia-ambient-weather--night,
+[data-weather-props~='sun'] .lia-ambient-weather--sun,
+[data-weather-props~='cloud'] .lia-ambient-weather--cloud,
+[data-weather-props~='drop'] .lia-ambient-weather--drop,
+[data-weather-props~='flake'] .lia-ambient-weather--flake {
+  display: block;
 }
 .lia-ambient-prop {
   position: absolute;
@@ -878,6 +970,33 @@
 [data-weather-props~='night'] .lia-ambient-weather--night .lia-ambient-prop {
   background-image: url('/avatars/context/v1/night.webp');
 }
+[data-weather-props~='rain'] .lia-ambient-weather--rain .lia-ambient-cloud {
+  background-image: url('/avatars/sky/v1/cloud-rain.svg');
+}
+[data-weather-props~='rain'] .lia-ambient-drop,
+[data-weather-props~='rain'] .lia-ambient-rimdrop {
+  background-image: url('/avatars/sky/v1/drop.svg');
+}
+[data-weather-props~='snow'] .lia-ambient-weather--snow .lia-ambient-cloud {
+  background-image: url('/avatars/sky/v1/cloud-snow.svg');
+}
+/* The sun's slot paints its glow and its core (the rays never cross the core):
+   one box fewer on a sky that is there most days. */
+[data-weather-props~='sun'] .lia-ambient-weather--sun {
+  background-image: url('/avatars/sky/v1/sun-core.svg'), url('/avatars/sky/v1/sun-glow.svg');
+}
+[data-weather-props~='sun'] .lia-sky-rays {
+  background-image: url('/avatars/sky/v1/sun-rays.svg');
+}
+[data-weather-props~='cloud'] .lia-ambient-weather--cloud {
+  background-image: url('/avatars/sky/v1/cloud-fair.svg');
+}
+[data-weather-props~='drop'] .lia-ambient-scene-drop {
+  background-image: url('/avatars/sky/v1/drop.svg');
+}
+[data-weather-props~='flake'] .lia-ambient-scene-flake {
+  background-image: url('/avatars/context/v1/snow.webp');
+}
 .lia-ambient-weather--rain {
   width: calc(1.4em * var(--avatar-accessory-scale, 1));
   height: calc(1.4em * var(--avatar-accessory-scale, 1));
@@ -885,7 +1004,7 @@
     50% - var(--avatar-face-half-width, 1.25em) - 0.85em * var(--avatar-accessory-scale, 1)
   );
   top: calc(var(--avatar-crown-y, 0%) - 0.65em * var(--avatar-accessory-scale, 1));
-  opacity: clamp(0, calc(var(--rig-weather-rain, 0) * 1.43), 1);
+  opacity: clamp(0, calc(var(--rig-weather-rain, 0) * 4), 1);
   transform-origin: 70% 100%;
 }
 .lia-ambient-weather--cold {
@@ -1037,14 +1156,14 @@
   transform: translate3d(calc(var(--rig-ambient-sway, 0) * 0.06em), 0, 0.3em)
     rotate(calc(var(--rig-ambient-sway, 0) * 7deg));
 }
+/* The frost laurel is WORN: each layout seats its square on the head, the bands
+   resting on the painted contour (`layout-profiles.ts`, ADR-294 follow-up of
+   2026-11-13). The fallback is the seat it had before any head was fitted. */
 .lia-ambient-weather--freezing {
-  width: calc(2.5em * var(--avatar-accessory-scale, 1));
-  height: calc(1.6em * var(--avatar-accessory-scale, 1));
-  left: calc(50% - 1.25em * var(--avatar-accessory-scale, 1));
-  top: min(
-    calc(var(--avatar-crown-y, 0%) - 0.24em * var(--avatar-accessory-scale, 1)),
-    calc(var(--avatar-face-y, 52%) - 1.25em * var(--avatar-accessory-scale, 1))
-  );
+  width: calc(1.6em * var(--avatar-laurel-scale, 1));
+  height: calc(1.6em * var(--avatar-laurel-scale, 1));
+  left: calc(50% - 0.8em * var(--avatar-laurel-scale, 1));
+  top: calc(var(--avatar-laurel-y, 21.5%) - 0.8em * var(--avatar-laurel-scale, 1));
   opacity: var(--rig-weather-freezing, 0);
   transform: var(--volume-crown-transform, none);
   transform-origin: center;
@@ -1064,51 +1183,6 @@
   );
   top: calc(var(--avatar-face-y, 52%) + 0.2em * var(--avatar-accessory-scale, 1));
   opacity: clamp(0, calc(var(--rig-weather-hot, 0) * 1.18), 1);
-}
-.lia-ambient-weather-fall {
-  opacity: var(--rig-ambient-pulse, 1);
-  transform: translateY(calc(var(--rig-ambient-fall, 0.5) * 16px));
-}
-.lia-ambient-weather-fall--slant {
-  transform: translate(
-    calc(var(--rig-ambient-fall, 0.5) * -8px),
-    calc(var(--rig-ambient-fall, 0.5) * 18px)
-  );
-}
-.lia-ambient-weather-fall--snow {
-  position: absolute;
-  inset: 0;
-  opacity: 1;
-  transform: translate(
-    calc(var(--rig-ambient-sway, 0) * 0.12em),
-    calc(var(--rig-ambient-pulse, 1) * 0.18em)
-  );
-}
-.lia-ambient-prop--snow-a,
-.lia-ambient-prop--snow-b,
-.lia-ambient-prop--snow-c {
-  width: 0.28em;
-  height: 0.28em;
-  inset: auto;
-}
-.lia-ambient-prop--snow-a {
-  left: 0.08em;
-  top: 0.24em;
-  rotate: -18deg;
-}
-.lia-ambient-prop--snow-b {
-  right: 0.1em;
-  top: 0.08em;
-  rotate: 12deg;
-}
-.lia-ambient-prop--snow-c {
-  left: 0.01em;
-  bottom: 0.02em;
-  scale: 0.8;
-}
-.lia-ambient-weather-breath {
-  opacity: calc(var(--rig-ambient-pulse, 1) * 0.45);
-  transform: translateX(calc(var(--rig-ambient-fall, 0.5) * 8px));
 }
 .lia-ambient-weather-fan {
   transform-origin: 50% 90%;
@@ -1139,15 +1213,9 @@
   transform: translate3d(calc(var(--rig-ambient-sway, 0) * 0.1em), 0, 0.3em);
 }
 .lia-ambient-weather--wind {
-  width: calc(0.55em * var(--avatar-accessory-scale, 1));
-  height: calc(0.72em * var(--avatar-accessory-scale, 1));
-  left: calc(
-    50% - var(--avatar-face-half-width, 1.25em) - 0.5em * var(--avatar-accessory-scale, 1)
-  );
-  top: calc(var(--avatar-face-y, 52%) + 0.35em * var(--avatar-accessory-scale, 1));
+  inset: 0;
   opacity: var(--rig-weather-wind, 0);
-  transform: translate3d(calc(var(--rig-ambient-sway, 0) * 0.12em), 0, 0.3em)
-    rotate(calc(var(--rig-ambient-sway, 0) * 14deg));
+  transform: translateZ(0.3em);
 }
 .lia-ambient-weather--night {
   width: calc(0.42em * var(--avatar-accessory-scale, 1));
@@ -1158,17 +1226,410 @@
   top: calc(var(--avatar-crown-y, 0%) - 0.24em * var(--avatar-accessory-scale, 1));
   opacity: clamp(0, calc(var(--rig-weather-night, 0) * 1.43), 1);
 }
-/* A warm gust shows both objects. Give the floating leaf the opposite side
-   rather than concealing it behind the moving fan. */
-[data-weather-props~='hot'] .lia-ambient-weather--wind {
-  left: auto;
-  right: calc(
-    50% - var(--avatar-face-half-width, 1.25em) - 0.64em * var(--avatar-accessory-scale, 1)
-  );
-  top: calc(var(--avatar-face-y, 52%) + 0.24em * var(--avatar-accessory-scale, 1));
+/* =============================================================================
+   The weather happens around the face (ADR-294, follow-up of 2026-11-13).
+
+   Chosen by the owner on the bench, played here on the rig's own clock: every
+   particle reads one of the sawtooth phases `ambientMotion` publishes
+   (`--rig-ambient-fall` 3.2 s, `--rig-ambient-drop` a third of it,
+   `--rig-ambient-drift` three times it, all parked at 0.5 when nothing moves)
+   and draws its own path from it. No keyframe, no timer of the sheet's own.
+
+   A particle's phase is the fractional part of the clock plus its offset,
+   written with clamps (`mod()` is unknown to Chrome before 125): for p in
+   [0, 3), frac(p) = p - [p >= 1] - [p >= 2], each step a clamp of p - 1 or
+   p - 2 scaled past any pixel. Every path ends where it starts invisible, so
+   the wrap is never seen.
+   ============================================================================= */
+
+.lia-ambient-cloud,
+.lia-ambient-drop,
+.lia-ambient-rimdrop,
+.lia-ambient-gust-line,
+.lia-ambient-breath-puff,
+.lia-sky-rays {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+  background-position: center;
+  background-size: contain;
+  background-repeat: no-repeat;
 }
+
+/* Clouds arrive with their weather and float on the slow drift. */
+.lia-ambient-cloud {
+  translate: calc(
+      -0.4em * (1 - var(--cloud-arrive)) + 0.06em * sin(var(--rig-ambient-drift, 0.5) * 360deg)
+    )
+    calc(-0.04em * sin(var(--rig-ambient-drift, 0.5) * 360deg));
+  scale: calc(0.85 + 0.15 * var(--cloud-arrive));
+  filter: drop-shadow(0 0.02em 0.03em rgb(40 60 90 / 0.16));
+}
+.lia-ambient-weather--rain .lia-ambient-cloud {
+  --cloud-arrive: clamp(0, calc(var(--rig-weather-rain, 0) / 0.7), 1);
+  left: 2%;
+  top: -76%;
+  width: 96%;
+  height: 56%;
+}
+.lia-ambient-weather--snow .lia-ambient-cloud {
+  --cloud-arrive: clamp(0, var(--rig-weather-snow, 0), 1);
+  left: 12%;
+  top: -58%;
+  width: 76%;
+  height: 60%;
+}
+
+/* The umbrella OPENS as its weather arrives — a pop past its size, then
+   settled — and rocks a little in the hand. */
+.lia-ambient-weather--rain > .lia-ambient-prop {
+  --umbrella-open: clamp(0, calc(var(--rig-weather-rain, 0) / 0.7), 1);
+  transform-origin: 63% 94%;
+  scale: calc(0.18 + 0.82 * var(--umbrella-open))
+    calc(var(--umbrella-open) + 0.53 * sin(var(--umbrella-open) * 180deg));
+  rotate: calc(
+    -10deg * (1 - var(--umbrella-open)) + 8deg * sin(var(--umbrella-open) * 180deg) +
+      var(--rig-ambient-sway, 0) * 2.6deg
+  );
+}
+
+/* Rain from its cloud onto the umbrella: three falls to the fall's one. */
+.lia-ambient-drop {
+  --drop-p: calc(var(--rig-ambient-drop, 0.5) + var(--drop-offset));
+  --drop-t: calc(var(--drop-p) - clamp(0, (var(--drop-p) - 1) * 100000, 1));
+  --drop-fall: clamp(0, calc(var(--drop-t) / 0.8), 1);
+  --drop-splash: clamp(0, calc((var(--drop-t) - 0.8) / 0.2), 1);
+  top: -28%;
+  width: 6%;
+  height: 8.5%;
+  translate: 0 calc(380% * var(--drop-fall) * var(--drop-fall) + 60% * var(--drop-splash));
+  scale: calc(0.7 + 0.1 * var(--drop-fall) + 0.6 * var(--drop-splash))
+    calc(0.9 + 0.25 * var(--drop-fall) - 0.75 * var(--drop-splash));
+  opacity: min(calc(clamp(0, calc(var(--drop-t) / 0.15), 1) * 0.95), calc(1 - var(--drop-splash)));
+}
+.lia-ambient-drop--0 {
+  --drop-offset: 0;
+  left: 18%;
+}
+.lia-ambient-drop--1 {
+  --drop-offset: 0.53;
+  left: 36%;
+}
+.lia-ambient-drop--2 {
+  --drop-offset: 0.21;
+  left: 52%;
+}
+.lia-ambient-drop--3 {
+  --drop-offset: 0.74;
+  left: 68%;
+}
+.lia-ambient-drop--4 {
+  --drop-offset: 0.37;
+  left: 82%;
+}
+
+/* Drops gather at the rim, hang, and fall. */
+.lia-ambient-rimdrop {
+  --rim-p: calc(var(--rig-ambient-fall, 0.5) + var(--drop-offset));
+  --rim-t: calc(var(--rim-p) - clamp(0, (var(--rim-p) - 1) * 100000, 1));
+  --rim-gather: clamp(0, calc(var(--rim-t) / 0.14), 1);
+  --rim-hang: clamp(0, calc((var(--rim-t) - 0.14) / 0.24), 1);
+  --rim-fall: clamp(0, calc((var(--rim-t) - 0.38) / 0.54), 1);
+  width: 6.5%;
+  height: 9%;
+  translate: 0
+    calc(
+      -12% + 12% * var(--rim-gather) + 8% * var(--rim-hang) + 632% * var(--rim-fall) *
+        var(--rim-fall)
+    );
+  scale: calc(0.3 + 0.55 * var(--rim-gather) + 0.15 * var(--rim-hang))
+    calc(0.3 + 0.55 * var(--rim-gather) + 0.27 * var(--rim-hang) + 0.08 * var(--rim-fall));
+  opacity: min(var(--rim-gather), calc(1 - clamp(0, calc((var(--rim-t) - 0.8) / 0.12), 1)));
+}
+.lia-ambient-rimdrop--0 {
+  --drop-offset: 0;
+  left: 5%;
+  top: 41%;
+}
+.lia-ambient-rimdrop--1 {
+  --drop-offset: 0.67;
+  left: 88%;
+  top: 41%;
+}
+.lia-ambient-rimdrop--2 {
+  --drop-offset: 0.33;
+  left: 24%;
+  top: 47%;
+}
+
+/* The snow really falls, from its cloud and past the face, drifting. */
+.lia-ambient-flake {
+  --flake-p: calc(var(--rig-ambient-drift, 0.5) + var(--flake-offset));
+  --flake-t: calc(var(--flake-p) - clamp(0, (var(--flake-p) - 1) * 100000, 1));
+  inset: auto;
+  top: -22%;
+  width: 0.22em;
+  height: 0.22em;
+  translate: calc(0.12em * sin((var(--rig-ambient-drift, 0.5) * 3 + var(--flake-offset)) * 360deg))
+    calc(4.2em * var(--flake-t));
+  rotate: calc(160deg * var(--flake-t));
+  opacity: min(
+    calc(clamp(0, calc(var(--flake-t) / 0.1), 1) * 0.95),
+    calc(clamp(0, calc((1 - var(--flake-t)) / 0.2), 1) * 0.9)
+  );
+  filter: drop-shadow(0 0.01em 0.02em rgb(60 100 150 / 0.25));
+}
+.lia-ambient-flake--0 {
+  --flake-offset: 0.11;
+  left: 18%;
+  width: 0.17em;
+  height: 0.17em;
+}
+.lia-ambient-flake--1 {
+  --flake-offset: 0.62;
+  left: 33%;
+  width: 0.2em;
+  height: 0.2em;
+}
+.lia-ambient-flake--2 {
+  --flake-offset: 0.35;
+  left: 61%;
+  width: 0.24em;
+  height: 0.24em;
+}
+.lia-ambient-flake--3 {
+  --flake-offset: 0.83;
+  left: 74%;
+  width: 0.16em;
+  height: 0.16em;
+}
+.lia-ambient-flake--4 {
+  --flake-offset: 0.48;
+  left: 86%;
+  width: 0.21em;
+  height: 0.21em;
+}
+.lia-ambient-flake--5 {
+  --flake-offset: 0.02;
+  left: 47%;
+  width: 0.18em;
+  height: 0.18em;
+}
+.lia-ambient-flake--6 {
+  --flake-offset: 0.71;
+  left: 10%;
+  width: 0.2em;
+  height: 0.2em;
+}
+
+/* A gust: two lines and a leaf cross the face, right to left, twice a drift. */
+.lia-ambient-gust-line,
+.lia-ambient-gust-leaf {
+  --gust-p: calc(var(--rig-ambient-drift, 0.5) * 2 + var(--gust-offset));
+  --gust-t: calc(
+    var(--gust-p) - clamp(0, (var(--gust-p) - 1) * 100000, 1) -
+      clamp(0, (var(--gust-p) - 2) * 100000, 1)
+  );
+}
+.lia-ambient-gust-line {
+  --gust-c: clamp(0, calc(var(--gust-t) / 0.26), 1);
+  left: 50%;
+  height: 0.16em;
+  width: 1.5em;
+  border-top: 0.022em solid rgb(150 182 204 / 0.85);
+  border-radius: 50%;
+  mask-image: linear-gradient(90deg, transparent, #000 35%, #000 65%, transparent);
+  translate: calc(1.8em - 4.4em * var(--gust-c)) 0;
+  scale: calc(0.6 + 0.5 * var(--gust-c)) 1;
+  opacity: calc(
+    min(clamp(0, calc(var(--gust-t) / 0.08), 1), clamp(0, calc((0.26 - var(--gust-t)) / 0.18), 1)) *
+      0.9
+  );
+}
+.lia-ambient-gust-line--a {
+  --gust-offset: 0.952;
+  top: calc(var(--avatar-crown-y, 0%) - 0.12em * var(--avatar-accessory-scale, 1));
+}
+.lia-ambient-gust-line--b {
+  --gust-offset: 0.913;
+  top: calc(var(--avatar-face-y, 52%) + 0.62em * var(--avatar-accessory-scale, 1));
+  width: 1.15em;
+}
+.lia-ambient-gust-leaf {
+  --gust-offset: 0.923;
+  --gust-c: clamp(0, calc(var(--gust-t) / 0.36), 1);
+  inset: auto;
+  left: 50%;
+  top: calc(var(--avatar-face-y, 52%) + 0.45em * var(--avatar-accessory-scale, 1));
+  width: 0.5em;
+  height: 0.62em;
+  translate: calc(2.6em - 5em * var(--gust-c)) calc(-0.1em + 0.22em * cos(var(--gust-c) * 600deg));
+  rotate: calc(-560deg * var(--gust-c));
+  opacity: min(
+    clamp(0, calc(var(--gust-t) / 0.06), 1),
+    calc(1 - clamp(0, calc((var(--gust-t) - 0.3) / 0.06), 1))
+  );
+}
+
+/* The freezing cold shows a breath at the mouth: a stage over the head,
+   switched by the same announcement as the frost on the crown. */
+.lia-ambient-weather--freezing.lia-ambient-breath {
+  inset: 0;
+  width: auto;
+  height: auto;
+  opacity: var(--rig-weather-freezing, 0);
+  transform: translateZ(0.3em);
+  /* In front of a monitor's screen, which stacks above the head. */
+  z-index: 2;
+}
+.lia-ambient-breath-puff {
+  --breath-t: var(--rig-ambient-fall, 0.5);
+  --breath-c: clamp(0, calc(var(--breath-t) / 0.7), 1);
+  /* Born at the mouth, by the mouth's own anchor (`.lia-mouth`), and
+     drifting off to one side as it thins. */
+  left: 50%;
+  top: calc(0.38em + var(--eye-h, 1.05em) + var(--mouth-gap, 0em));
+  width: 0.6em;
+  height: 0.38em;
+  margin: -0.19em 0 0 -0.3em;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    rgb(255 255 255 / 0.95),
+    rgb(236 246 255 / 0.6) 55%,
+    rgb(236 246 255 / 0)
+  );
+  filter: blur(0.012em);
+  translate: calc(-0.1em + 0.55em * var(--breath-c)) calc(-0.2em * var(--breath-c));
+  scale: calc(0.25 + 1.1 * var(--breath-c));
+  opacity: calc(
+    min(
+        clamp(0, calc(var(--breath-t) / 0.12), 1),
+        clamp(0, calc((0.7 - var(--breath-t)) / 0.58), 1)
+      ) *
+      0.95
+  );
+}
+
+/* A sculpted face's mask covers the head box, as this stage does: its mouth
+   anchor is the character's own. */
+.lia-spirit-companion .lia-ambient-breath-puff {
+  top: var(--companion-mouth-y, 65.43%);
+}
+
+/* =============================================================================
+   The weather LIVED (ADR-294, follow-up of 2026-11-13): what a scene carries.
+
+   The first drop of a rain lands on the head (`--avatar-head-top-y`, the head's
+   top on the middle column, measured on every head's paint), the first flake of
+   a snow on the nose. Their path is the scene's own channel — 0 where they
+   appear, 1 where they land, past 1 a splash — not a phase of the ambient clock:
+   each falls once, on the beat the face meets it (`weather-scenes.ts`). The
+   stage covers the head box and leaves out the ambient sway: a slot of that size
+   turning about its centre would move the drop off the head it falls on.
+   ============================================================================= */
+.lia-ambient-weather--drop,
+.lia-ambient-weather--flake {
+  inset: 0;
+  width: auto;
+  height: auto;
+  transform: translateZ(0.3em);
+  /* In front of a monitor's screen, which stacks above the head. */
+  z-index: 2;
+}
+/* Like every slot, its opacity is its weather's: none outside its scene, whole as
+   soon as the path starts (the prop draws its own fade). */
+.lia-ambient-weather--drop {
+  opacity: clamp(0, calc(var(--rig-weather-drop, 0) * 100), 1);
+}
+.lia-ambient-weather--flake {
+  opacity: clamp(0, calc(var(--rig-weather-flake, 0) * 100), 1);
+}
+.lia-ambient-scene-drop,
+.lia-ambient-scene-flake {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+  background-position: center;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+/* The drop falls an em and a half, quicker as it goes, its foot on the head
+   when it lands; then it splashes there, flattened about that foot. */
+.lia-ambient-scene-drop {
+  --scene-p: clamp(0, var(--rig-weather-drop, 0), 1);
+  --scene-splash: clamp(0, calc((var(--rig-weather-drop, 0) - 1) * 10), 1);
+  left: calc(50% - 0.065em);
+  top: calc(var(--avatar-head-top-y, 12%) - 0.18em);
+  width: 0.13em;
+  height: 0.18em;
+  transform-origin: 50% 100%;
+  translate: 0 calc(-1.5em * (1 - var(--scene-p) * var(--scene-p)));
+  scale: calc(1 + 1.1 * var(--scene-splash))
+    calc(1 + 0.15 * var(--scene-p) - 0.8 * var(--scene-splash));
+  opacity: min(clamp(0, calc(var(--scene-p) / 0.12), 1), calc(1 - 0.5 * var(--scene-splash)));
+  filter: drop-shadow(0 0.01em 0.02em rgb(40 60 90 / 0.25));
+}
+/* The flake comes from above, to the left, swaying as it falls, and settles on
+   the root of the nose (`--avatar-flake-y`, measured on every face): below the
+   eyes the mouth leaves no room on most heads, between them the eyes too little. */
+.lia-ambient-scene-flake {
+  --scene-p: clamp(0, var(--rig-weather-flake, 0), 1);
+  --scene-left: calc(1 - var(--scene-p));
+  left: calc(50% - 0.08em);
+  top: calc(var(--avatar-flake-y, 40%) - 0.08em);
+  width: 0.16em;
+  height: 0.16em;
+  translate: calc(
+      -0.55em * var(--scene-left) + 0.12em * sin(var(--scene-p) * 540deg) * var(--scene-left)
+    )
+    calc(-1.7em * var(--scene-left));
+  rotate: calc(var(--scene-p) * 200deg);
+  opacity: clamp(0, calc(var(--scene-p) / 0.1), 1);
+  filter: drop-shadow(0 0.01em 0.02em rgb(60 100 150 / 0.3));
+}
+
+/* The sky of an ordinary day, beside the head: a sun whose rays turn (a
+   tenth of a turn per drift: ten rays, so the wrap is never seen) and
+   breathe, and a cloud that passes before it. */
+.lia-ambient-weather--sun {
+  right: -12%;
+  top: -20%;
+  width: 0.95em;
+  height: 0.95em;
+  background-position: center;
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: var(--rig-weather-sun, 0);
+  scale: calc(0.75 + 0.25 * var(--rig-weather-sun, 0));
+}
+.lia-sky-rays {
+  inset: 0;
+  rotate: calc(var(--rig-ambient-drift, 0.5) * 36deg);
+  scale: calc(1 + 0.05 * sin(var(--rig-ambient-drift, 0.5) * 720deg));
+}
+.lia-ambient-weather--sun > .lia-ambient-weather--cloud {
+  left: -22%;
+  top: 46%;
+  width: 92%;
+  height: 56%;
+  background-position: center;
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: var(--rig-weather-cloud, 0);
+  transform: none;
+  translate: calc(0.17em + 0.25em * sin(var(--rig-ambient-drift, 0.5) * 360deg)) 0;
+  filter: drop-shadow(0 0.02em 0.03em rgb(40 60 90 / 0.14));
+}
+
+/* The native cloth draws the scarf: its fitted fallback leaves the style tree.
+   Kept in it and merely invisible, it was restyled on every frame — with cold
+   weather the avatar cost what it did before the slots above were taken out
+   (measured 2026-11-11: 73 elements with a box, 35 without the fallback). It
+   is back, in step, the instant the cloth is lost: a declaration has no state
+   to catch up on. */
 .lia-eyes[data-volume-scarf-ready='true'] .lia-ambient-weather--cold {
-  visibility: hidden;
+  display: none;
 }
 
 /* =============================================================================
@@ -1178,6 +1639,20 @@
    ============================================================================= */
 
 @media (prefers-reduced-motion: reduce) {
+  /* What only exists by moving is not drawn standing still; the leaf of a
+     gust waits beside the face, as the wind's leaf always did. */
+  .lia-ambient-drop,
+  .lia-ambient-rimdrop,
+  .lia-ambient-flake,
+  .lia-ambient-gust-line,
+  .lia-ambient-breath-puff {
+    display: none;
+  }
+  .lia-ambient-gust-leaf {
+    translate: -1.2em 0;
+    rotate: -20deg;
+    opacity: 1;
+  }
   .lia-eyes .lia-eyes-gaze,
   .lia-eyes .lia-eye,
   .lia-eyes .lia-eye-blink,
@@ -1206,6 +1681,11 @@
   --spirit-iris-url: url('/avatars/spirit/v1/female/iris.webp');
   --spirit-sclera-url: url('/avatars/spirit/v1/female/sclera-mask.webp');
   --spirit-sclera-right-url: url('/avatars/spirit/v1/female/sclera-mask-right.webp');
+  /* Where the painted eye starts in its transparent square (`eye.webp`) —
+     and where it ends, the margin being the same at the bottom — and how much
+     taller a quarter turn would make its oval. */
+  --spirit-eye-crest: 6.25%;
+  --spirit-eye-swell: 1%;
 }
 .lia-spirit-companion[data-spirit-companion='male'] {
   --spirit-body-url: url('/avatars/spirit/v1/male/body.webp');
@@ -1214,6 +1694,8 @@
   --spirit-iris-url: url('/avatars/spirit/v1/male/iris.webp');
   --spirit-sclera-url: url('/avatars/spirit/v1/male/sclera-mask.webp');
   --spirit-sclera-right-url: url('/avatars/spirit/v1/male/sclera-mask-right.webp');
+  --spirit-eye-crest: 15.625%;
+  --spirit-eye-swell: 9%;
 }
 .lia-spirit-companion .lia-spirit-rig {
   --companion-frame-size: 2.6em;
@@ -1349,6 +1831,9 @@
   transform: translate3d(0, 0, var(--face-eye-depth));
 }
 .lia-spirit-companion .lia-eye {
+  /* How far a smile closes a sculpted eye from both sides. Declared on the
+     eye's box: the shape clips by it, and the brow above stops by it. */
+  --spirit-squint: calc(max(0, 1 - var(--sy)) * 0.35);
   transform: translate(clamp(-0.08em, var(--tx), 0.08em), clamp(-0.1em, var(--ty), 0.1em))
     rotate(var(--base-rot));
 }
@@ -1377,24 +1862,35 @@
   filter: drop-shadow(0 0.012em 0.012em rgb(34 18 27 / 0.22));
 }
 .lia-spirit-companion .lia-eye-brow {
-  height: 0.13em;
-  translate: calc(-50% + var(--brow-x)) calc(-50% + var(--brow-y));
+  --brow-h: 0.13em;
+  --brow-ink: 4;
+  /* The sculpt's rest: the brow straddles the top of the eye's SQUARE, which
+     the texture leaves transparent — it floats above the painted eye. */
+  --brow-lift: calc(var(--brow-h) * 0.5);
+  /* The painted eye starts below the top of its square — a little higher
+     when the oval turns, being wider than tall — and a lowered lid starts
+     lower still: the clip the shape takes below, pivoting with it. A sculpted
+     eye is never squashed, only widened. */
+  --eye-lid-line: calc(var(--lid-top) + var(--spirit-squint) * var(--oy));
+  --eye-crest: max(
+    calc(var(--spirit-eye-crest) - sin(var(--rot)) * sin(var(--rot)) * var(--spirit-eye-swell)),
+    calc(var(--oy) - (var(--oy) - var(--eye-lid-line)) / cos(var(--rot)))
+  );
+  --eye-slope: calc(tan(var(--rot)) / var(--sx));
 }
 .lia-spirit-companion[data-spirit-companion='female'] .lia-eye-brow {
-  height: 0.085em;
+  --brow-h: 0.085em;
 }
 .lia-spirit-companion[data-character='oscar'] .lia-eye-brow {
-  height: 0.088em;
+  --brow-h: 0.088em;
+  /* A globe does not rotate in the picture plane (see its shape below). */
+  --eye-slope: 0;
 }
 .lia-spirit-companion[data-character='oscar'][data-spirit-companion='female'] .lia-eye-brow {
-  height: 0.057em;
+  --brow-h: 0.057em;
 }
-.lia-spirit-companion .lia-eye-brow svg {
-  display: block;
-  stroke-width: calc(4px * clamp(0.94, var(--brow-s), 1.06));
-}
-.lia-spirit-companion[data-spirit-companion='male'] .lia-eye-brow svg {
-  stroke-width: calc(6px * clamp(0.94, var(--brow-s), 1.06));
+.lia-spirit-companion[data-spirit-companion='male'] .lia-eye-brow {
+  --brow-ink: 6;
 }
 .lia-spirit-companion [data-rig-brow-shape='sculpted'] {
   fill: var(--brow-color);
@@ -1410,7 +1906,6 @@
   filter: drop-shadow(0 0.025em 0.022em rgb(24 22 37 / 0.23));
 }
 .lia-spirit-companion .lia-eye-shape {
-  --spirit-squint: calc(max(0, 1 - var(--sy)) * 0.35);
   background: var(--spirit-eye-url) center / 100% 100% no-repeat;
   box-shadow: inset 0 0 0 transparent;
   mask-image: var(--spirit-eye-url);
@@ -1420,10 +1915,29 @@
   /* Texture alpha owns the approved oval and sculpted lashes. Native
      expression lids and the independent blink still cover these organs. */
   border-radius: 0;
+  /* The WIND narrows the painted band, the margin above and below it being
+     transparent (`--spirit-eye-crest`, the same at both ends of the texture):
+     a squash, or a lid counted from the box, cut that margin and not one
+     pixel of the eye (measured 2026-11-12: 100 % of the height kept). In a
+     full wind its lids reach 12 % of the band inside the painted edge from
+     above, 5 % from below — what reads, through the antialiased edge of a
+     texture, as the 14 % a drawn eye gives up to the same wind. With no
+     wind they reach nothing at all — a clip resting ON the
+     painted edge took the half pixel the scaled texture bleeds into its
+     margin (measured: one row of a small eye). */
+  --spirit-eye-band: calc(100% - 2 * var(--spirit-eye-crest));
+  --spirit-wind: var(--rig-weather-wind, 0);
   clip-path: inset(
-    calc(var(--lid-top) + var(--spirit-squint) * var(--oy)) 0%
-      calc(var(--lid-bot) + var(--spirit-squint) * (100% - var(--oy))) 0% round
-      calc(var(--spirit-squint) * 0.32em + min(var(--lid-r), 0.08em))
+    max(
+        calc(var(--lid-top) + var(--spirit-squint) * var(--oy)),
+        calc((var(--spirit-eye-crest) + var(--spirit-eye-band) * 0.12) * var(--spirit-wind))
+      )
+      0%
+      max(
+        calc(var(--lid-bot) + var(--spirit-squint) * (100% - var(--oy))),
+        calc((var(--spirit-eye-crest) + var(--spirit-eye-band) * 0.05) * var(--spirit-wind))
+      )
+      0% round calc(var(--spirit-squint) * 0.32em + min(var(--lid-r), 0.08em))
   );
   /* A smiling squint covers an intact sculpt. It never crushes the iris. */
   transform: scaleX(var(--sx)) rotate(var(--rot));
@@ -1542,7 +2056,7 @@
   filter: drop-shadow(0 0 0.05em rgb(36 200 255 / 0.35));
 }
 .lia-spirit-companion[data-character='bip'] .lia-eye-brow {
-  height: 0.15em;
+  --brow-h: 0.15em;
 }
 .lia-spirit-companion[data-character='bip'] .lia-eye-brow svg,
 .lia-spirit-companion[data-character='bip'] .lia-mouth-shape {
@@ -1655,12 +2169,11 @@
 .lia-monitor .lia-mouth-shape {
   filter: drop-shadow(0 0 0.055em var(--eyes-glow));
 }
-.lia-monitor .lia-eye-brow svg {
-  stroke-width: calc(22px * clamp(0.94, var(--brow-s), 1.06));
-}
 .lia-monitor .lia-eye-brow {
-  width: max(1.05em, calc(var(--eye-w, 1.3em) * 0.9));
-  height: 0.6em;
+  --brow-w: max(1.05em, calc(var(--eye-w, 1.3em) * 0.9));
+  --brow-h: 0.6em;
+  --brow-ink: 22;
+  --brow-clear: calc(var(--brow-skin) / var(--monitor-face-scale));
 }
 .lia-monitor .lia-eye-brow [data-rig-brow-shape='sculpted'] {
   fill: var(--brow-color);

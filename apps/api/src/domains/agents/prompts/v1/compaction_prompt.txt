@@ -29,6 +29,7 @@ Heuristic 2: State Mutation and Conflict Resolution (Last-Write-Wins):
 - Document superseded requests only if an operational action was already executed prior to revocation (e.g., "Deployed staging cluster, later rolled back per user update").
 
 Heuristic 3: Temporal Anchoring and ISO Resolution:
+- A message may start with the date and time it was written, in brackets: that moment is the reference date of what the message says.
 - Translate all relative temporal references ("tomorrow", "next Monday", "in 2 hours", "yesterday") into absolute calendar dates or ISO timestamps whenever the conversation states the reference date; when it does not, keep the expression and quote the message it came from.
 - Note the resolved date explicitly (e.g., "Rescheduled sync to 2026-09-18 (originally stated as 'this Friday')").
 

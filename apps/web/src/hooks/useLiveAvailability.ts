@@ -12,6 +12,7 @@
  */
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { capabilityAvailable } from '@/lib/capability-availability';
 import type { LiveConnectorsResponse } from '@/lib/live/types';
 import { useResourceRevision } from '@/stores/revisionStore';
 
@@ -28,7 +29,9 @@ export interface LiveAvailability {
 
 export function useLiveAvailability(): LiveAvailability {
   const { config } = useAppConfig();
-  const liveEnabled = !!config?.features?.live_enabled;
+  // What the instance offers NOW: the routes refuse once the operator
+  // switched the live mode off, and a refused read is not asked.
+  const liveEnabled = capabilityAvailable(config, 'live');
   const revision = useResourceRevision('live_connectors');
   const { data } = useApiQuery<LiveConnectorsResponse>('/live/connectors', {
     componentName: 'useLiveAvailability',

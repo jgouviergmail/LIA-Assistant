@@ -19,18 +19,25 @@ The same door feeds the JOURNEY histograms (spec 2026-10-21, O1 and C1): they
 start with the request rather than the graph, so the wait before the graph —
 its phases, the first answer token after them, and the turns that ended
 without one — is a person's wait too, and a routine never feeds it.
+
+And the gap between two answer tokens (``sse_token_gap_seconds``, lot 26
+follow-up): a stalled model stream is a long gap no timeout ends, a long answer
+is many short ones — the histogram tells them apart, for a wait someone has.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import time
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass, field
 from typing import Literal
 
 from src.infrastructure.observability.metrics_agents import (
     sse_streaming_duration_seconds,
     sse_time_to_first_token_seconds,
+    sse_token_gap_seconds,
 )
 from src.infrastructure.observability.metrics_chat_journey import (
     chat_journey_first_token_seconds,
@@ -128,3 +135,43 @@ def observe_journey_unanswered(outcome: UnansweredOutcome, seconds: float) -> No
     """
     if a_person_is_waiting():
         chat_journey_unanswered_seconds.labels(outcome=outcome).observe(seconds)
+
+
+def observe_token_gap(seconds: float) -> None:
+    """Record the gap between two answer tokens, when someone waited for them.
+
+    Args:
+        seconds: From the previous answer token to this one.
+    """
+    if a_person_is_waiting():
+        sse_token_gap_seconds.observe(seconds)
+
+
+@dataclass
+class TokenGapClock:
+    """The time between two answer tokens of ONE stream (one clock per stream).
+
+    The first token has no gap; any other chunk (a step, a tool event, a card) is
+    no token and moves nothing, so a gap spans everything between two tokens.
+
+    Attributes:
+        observe: Where a gap goes (the door above).
+        now: A monotonic clock, in seconds.
+    """
+
+    observe: Callable[[float], None] = observe_token_gap
+    now: Callable[[], float] = time.perf_counter
+    _previous: float | None = field(default=None, init=False)
+
+    def tick(self, chunk_type: str) -> None:
+        """Account for one emitted chunk.
+
+        Args:
+            chunk_type: The chunk's type; only ``token`` is an answer token.
+        """
+        if chunk_type != "token":
+            return
+        instant = self.now()
+        if self._previous is not None:
+            self.observe(instant - self._previous)
+        self._previous = instant

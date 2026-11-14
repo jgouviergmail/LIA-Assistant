@@ -3,7 +3,10 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 const { open, config } = vi.hoisted(() => ({
   open: vi.fn(),
-  config: { features: { attachments_enabled: true } },
+  config: {
+    features: { attachments_enabled: true },
+    capabilities: undefined as Record<string, { enabled: boolean; family: string }> | undefined,
+  },
 }));
 vi.mock('@/lib/chat-deep-link', () => ({ openChatDeepLink: open }));
 vi.mock('@/hooks/useAppConfig', () => ({ useAppConfig: () => ({ config }) }));
@@ -26,6 +29,16 @@ describe('UseInChatButton', () => {
       kind: 'generated',
       id: ID,
     });
+  });
+
+  it('stays once the operator switched the attachments off: a produced file is a record', () => {
+    // The switch closes the UPLOAD. A file LIA produced joins the discussion
+    // by reference, so its button is the record's, not the capability's.
+    config.capabilities = { attachments: { enabled: false, family: 'media' } };
+    render(<UseInChatButton lng="fr" source={{ kind: 'generated', id: ID }} label="Use it" />);
+    config.capabilities = undefined;
+
+    expect(screen.getByRole('button', { name: 'Use it' })).toBeInTheDocument();
   });
 
   it('is not drawn where the instance takes no attachment', () => {

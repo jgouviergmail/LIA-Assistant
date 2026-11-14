@@ -61,6 +61,7 @@
         "apps/web/src/app",
         "apps/web/src/components",
         "apps/web/src/hooks",
+        "apps/web/src/components/chat/ChatDiscussionHost.tsx",
         "apps/web/src/components/chat/markdown-presentation-div.tsx"
       ],
       "deps": [
@@ -142,7 +143,8 @@
         "apps/api/src/domains/auth",
         "apps/api/src/core/session_dependencies.py",
         "apps/api/src/core/oauth",
-        "apps/api/src/infrastructure/email"
+        "apps/api/src/infrastructure/email",
+        "apps/api/src/infrastructure/account_cleanup_runtime.py"
       ],
       "domains": [
         "auth",
@@ -150,7 +152,8 @@
       ],
       "infra": [
         "email",
-        "application_sessions"
+        "application_sessions",
+        "account_cleanup_runtime"
       ],
       "deps": [
         "t.redis",
@@ -197,10 +200,12 @@
       "icon": "radio",
       "paths": [
         "apps/api/src/infrastructure/streaming",
-        "apps/api/src/domains/agents/api"
+        "apps/api/src/domains/agents/api",
+        "apps/api/src/infrastructure/conversation_cleanup_runtime.py"
       ],
       "infra": [
-        "streaming"
+        "streaming",
+        "conversation_cleanup_runtime"
       ],
       "deps": [
         "t.langgraph"

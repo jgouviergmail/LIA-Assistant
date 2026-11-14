@@ -27,6 +27,10 @@ import { logger } from '@/lib/logger';
 import { redirectToLogin } from '@/lib/api-client';
 import { onForegroundMessage } from '@/lib/firebase';
 import type { MessagePayload } from 'firebase/messaging';
+import {
+  COMPANION_WEATHER_SIGNAL,
+  useCompanionEnvironmentStore,
+} from '@/stores/companionEnvironmentStore';
 
 export type NotificationType =
   | 'reminder'
@@ -42,11 +46,19 @@ export type NotificationType =
   | 'admin_broadcast';
 
 /** The thread's own sync signals (ADR-320) — never shown as notifications. */
-export type ConversationSignal = 'conversation_updated' | 'conversation_reset';
+type ConversationSignalType =
+  | 'conversation_updated'
+  | 'conversation_reset'
+  | 'conversation_metadata';
+export interface ConversationSignal {
+  type: ConversationSignalType;
+  conversation_id: string;
+}
 
-const CONVERSATION_SIGNALS: ReadonlySet<string> = new Set<ConversationSignal>([
+const CONVERSATION_SIGNALS: ReadonlySet<string> = new Set<ConversationSignalType>([
   'conversation_updated',
   'conversation_reset',
+  'conversation_metadata',
 ]);
 
 /** First reconnect delay; each further failure waits one unit more. */
@@ -435,6 +447,8 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
         if (droppedRef.current) {
           droppedRef.current = false;
           refreshSms();
+          // A newer weather said while the stream was down was not heard.
+          useCompanionEnvironmentStore.getState().requestRefresh();
           onReconnectedRef.current?.();
         }
 
@@ -452,9 +466,19 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
             receiveSms(data);
             return;
           }
+          if (data.type === COMPANION_WEATHER_SIGNAL) {
+            // LIA read newer weather at the person's place: the face reads it (ADR-294).
+            useCompanionEnvironmentStore.getState().requestRefresh();
+            return;
+          }
           if (CONVERSATION_SIGNALS.has(data.type)) {
             // The thread's own sync signal, not a notification (ADR-320).
-            onConversationEventRef.current?.(data.type as ConversationSignal);
+            if (typeof data.conversation_id === 'string' && data.conversation_id) {
+              onConversationEventRef.current?.({
+                type: data.type as ConversationSignalType,
+                conversation_id: data.conversation_id,
+              });
+            }
             return;
           }
 

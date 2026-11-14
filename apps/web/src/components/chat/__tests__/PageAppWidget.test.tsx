@@ -82,6 +82,12 @@ const sizeMessage = (height: number) => ({
   params: { height },
 });
 
+const blockedMessage = (directive: string) => ({
+  jsonrpc: '2.0',
+  method: 'ui/notifications/blocked',
+  params: { directive },
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
   useRegistryItem.mockReturnValue(pageItem());
@@ -293,8 +299,67 @@ describe('PageAppWidget — what the frame may say', () => {
     postFromFrame(null);
     postFromFrame({ jsonrpc: '2.0', method: 'ui/notifications/error', params: { message: 3 } });
     postFromFrame({ jsonrpc: '2.0', method: 'ui/notifications/size-changed', params: {} });
+    postFromFrame({ jsonrpc: '2.0', method: 'ui/notifications/blocked', params: {} });
+    postFromFrame({ jsonrpc: '2.0', method: 'ui/notifications/blocked', params: { directive: 3 } });
     expect(screen.queryByRole('status')).toBeNull();
     expect(frame()?.style.height).toBe('');
+  });
+});
+
+describe('PageAppWidget — what the frame was refused', () => {
+  it.each([
+    ['frame-src', 'page_apps.blocked_frame'],
+    ['child-src', 'page_apps.blocked_frame'],
+    ['img-src', 'page_apps.blocked_image'],
+    ['connect-src', 'page_apps.blocked_resource'],
+    ['script-src-elem', 'page_apps.blocked_resource'],
+  ])('says in words what %s left out of the page', async (directive, notice) => {
+    await render();
+    postFromFrame(blockedMessage(directive));
+    expect(screen.getByRole('status').textContent).toBe(notice);
+  });
+
+  it('says a refusal once, however often the page tries', async () => {
+    await render();
+    postFromFrame(blockedMessage('frame-src'));
+    postFromFrame(blockedMessage('child-src'));
+    postFromFrame(blockedMessage('frame-src'));
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+  });
+
+  it('says each kind of refusal on its own line', async () => {
+    await render();
+    postFromFrame(blockedMessage('img-src'));
+    postFromFrame(blockedMessage('frame-src'));
+    expect(screen.getAllByRole('status').map(notice => notice.textContent)).toEqual([
+      'page_apps.blocked_image',
+      'page_apps.blocked_frame',
+    ]);
+  });
+
+  it('never shows a word the page chose', async () => {
+    await render();
+    const forged = '<img src=x onerror=alert(1)> https://exfil.example/?secret';
+    postFromFrame(blockedMessage(forged));
+    const notice = screen.getByRole('status');
+    expect(notice.textContent).toBe('page_apps.blocked_resource');
+    expect(notice.querySelector('img')).toBeNull();
+  });
+
+  it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty'])(
+    'reads %s as a directive it does not know, never as a property of its table',
+    async forged => {
+      await render();
+      postFromFrame(blockedMessage(forged));
+      expect(screen.getByRole('status').textContent).toBe('page_apps.blocked_resource');
+    }
+  );
+
+  it('hears a refusal from its own frame only', async () => {
+    await render();
+    postFromFrame(blockedMessage('frame-src'), { source: window });
+    postFromFrame(blockedMessage('frame-src'), { origin: 'https://example.org' });
+    expect(screen.queryByRole('status')).toBeNull();
   });
 });
 
@@ -303,6 +368,7 @@ describe('PageAppWidget — restart', () => {
     await render();
     const before = frame();
     postFromFrame({ jsonrpc: '2.0', method: 'ui/notifications/error', params: { message: 'x' } });
+    postFromFrame(blockedMessage('frame-src'));
     fireEvent.click(screen.getByRole('button', { name: 'page_apps.restart' }));
     const browserFocus = await waitForFrameLoad();
     expect(frame()).not.toBe(before);

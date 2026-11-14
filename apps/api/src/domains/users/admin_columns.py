@@ -35,6 +35,7 @@ ADMIN_USER_SWITCHES: Final[tuple[str, ...]] = (
     "journals_enabled",
     "journal_consolidation_enabled",
     "journal_consolidation_with_history",
+    "writing_style_enabled",
     "voice_enabled",
     "speaking_avatar_enabled",
     "voice_mode_enabled",

@@ -61,7 +61,7 @@ _ENV_FALLBACK: dict[str, str] = {
     "qwen": "QWEN_API_KEY",
 }
 
-# Base URLs for OpenAI-compatible providers. Resolution order:
+# Base URLs a deployment may override, per provider. Resolution order:
 # 1. ``{PROVIDER}_BASE_URL`` environment variable (per-deployment override)
 # 2. Hardcoded default below (vendor's official endpoint)
 # Used by the Perplexity and Qwen branches in ``create_llm`` so an admin can
@@ -70,18 +70,20 @@ _ENV_FALLBACK: dict[str, str] = {
 _BASE_URL_DEFAULTS: dict[str, str] = {
     "perplexity": "https://api.perplexity.ai",
     "qwen": "https://dashscope-us.aliyuncs.com/compatible-mode/v1",
-    # OpenAI/DeepSeek overrides exist so the installer's DISPOSABLE
+    # OpenAI/DeepSeek/Anthropic overrides exist so the installer's DISPOSABLE
     # qualification can run one hermetic fake provider for the whole seeded
     # core (ADR-215/B10-bis). The defaults equal the SDK defaults, so
     # passing them explicitly changes nothing in normal operation, and the
     # installer never exposes an arbitrary-endpoint question (G6 untouched).
     "openai": "https://api.openai.com/v1",
     "deepseek": "https://api.deepseek.com",
+    # Not OpenAI-compatible: the Anthropic SDK appends ``/v1/messages`` itself.
+    "anthropic": "https://api.anthropic.com",
 }
 
 
 def _get_base_url(provider: str) -> str:
-    """Resolve the OpenAI-compatible base URL for ``provider``.
+    """Resolve the base URL of ``provider``'s API.
 
     Reads ``{PROVIDER}_BASE_URL`` from the environment, falling back to the
     vendor's documented endpoint if unset or empty. Logs a debug record so
@@ -1038,6 +1040,9 @@ class ProviderAdapter:
         elif provider == "anthropic":
             # What each Claude generation accepts (ADR-306): anthropic_kwargs.py.
             additional_kwargs["anthropic_api_key"] = _require_api_key("anthropic")
+            # Overridable via ANTHROPIC_BASE_URL (hermetic qualification only;
+            # the default equals the SDK's own).
+            additional_kwargs["base_url"] = _get_base_url("anthropic")
             provider_for_init = "anthropic"
             sent = prepare_anthropic_kwargs(model, temperature, additional_kwargs)
             temperature_override = "__OMIT__" if sent is None else sent

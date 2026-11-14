@@ -8,7 +8,7 @@ import uuid
 from contextlib import suppress
 from pathlib import Path
 
-from src.infrastructure.async_utils import write_through_cancellation
+from src.infrastructure.async_utils import finish_owned_task, write_through_cancellation
 
 
 async def prepare_space_directory(root: str, user_id: uuid.UUID, space_id: uuid.UUID) -> Path:
@@ -22,7 +22,9 @@ async def prepare_space_directory(root: str, user_id: uuid.UUID, space_id: uuid.
     Raises:
         RuntimeError: The resolved directory escapes the storage root.
     """
-    return await asyncio.to_thread(_space_directory, root, user_id, space_id)
+    return await finish_owned_task(
+        asyncio.create_task(asyncio.to_thread(_space_directory, root, user_id, space_id))
+    )
 
 
 def _space_directory(root: str, user_id: uuid.UUID, space_id: uuid.UUID) -> Path:

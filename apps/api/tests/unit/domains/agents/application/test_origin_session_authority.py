@@ -10,6 +10,7 @@ import pytest
 
 from src.core.exceptions import AuthorizationError
 from src.domains.agents.context.runtime_context_builder import build_runtime_context
+from tests.fixtures.conversation_cases import conversation_target
 
 pytestmark = pytest.mark.unit
 
@@ -92,8 +93,7 @@ def test_builder_injects_the_live_origin_only_on_human_runs(automated: bool) -> 
     origin = module.ApplicationOrigin(user_id=actor, binding_id="a" * 64, read_current=AsyncMock())
     context = build_runtime_context(
         state={"messages": []},
-        user_id=actor,
-        conversation_id=uuid4(),
+        target=conversation_target(actor, uuid4()),
         application_origin=origin,
         is_automated_source=automated,
     )

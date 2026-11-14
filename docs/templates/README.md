@@ -18,7 +18,7 @@ Ce repertoire contient les templates et checklists pour ajouter rapidement de no
 | **NEW_CONNECTOR_CHECKLIST.md** | Checklist creation d'un nouveau connecteur OAuth/API Key | Guide step-by-step (~6-9h) |
 | **NEW_MCP_SERVER_CHECKLIST.md** | Checklist integration d'un nouveau serveur MCP | Guide step-by-step (~2-4h) |
 | **NEW_PROACTIVE_TASK_CHECKLIST.md** | Checklist creation d'une nouvelle notification proactive | Guide step-by-step (~3-5h) |
-| **NEW_CHANNEL_CHECKLIST.md** | Checklist ajout d'un nouveau canal de messagerie | Guide step-by-step (~4-8h) |
+| **NEW_CHANNEL_CHECKLIST.md** | Checklist ajout d'un nouveau canal de messagerie | Guide pas à pas ; commence par généraliser le domaine, encore câblé sur Telegram |
 
 ---
 
@@ -169,9 +169,9 @@ Utiliser **NEW_PROACTIVE_TASK_CHECKLIST.md** pour creer un nouveau type de notif
 
 ### Pour ajouter un canal de messagerie
 
-Utiliser **NEW_CHANNEL_CHECKLIST.md** pour ajouter un nouveau canal de messagerie (Discord, WhatsApp, Slack...). Couvre : BaseChannelSender, webhook handler, OTP linking, NotificationDispatcher integration, tests.
+Utiliser **NEW_CHANNEL_CHECKLIST.md** pour ajouter un nouveau canal de messagerie (Discord, WhatsApp, Slack...). Couvre : la généralisation préalable du domaine (encore câblé sur Telegram), l'envoi (`BaseChannelSender`), l'entrée, la liaison par code, les questions HITL, les notifications, la configuration, les langues, l'écran, les tests.
 
-**Temps estime** : 4-8h | **Reference** : [GUIDE_TELEGRAM_INTEGRATION.md](../guides/GUIDE_TELEGRAM_INTEGRATION.md)
+**Temps estimé** : aucun second canal n'a encore été ajouté, il n'existe pas de durée mesurée | **Références** : [CHANNELS_INTEGRATION.md](../technical/CHANNELS_INTEGRATION.md) · [GUIDE_TELEGRAM_INTEGRATION.md](../guides/GUIDE_TELEGRAM_INTEGRATION.md)
 
 ---
 

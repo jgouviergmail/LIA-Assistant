@@ -9,10 +9,10 @@ import {
   Bell,
   CalendarClock,
   History,
-  LayoutGrid,
   Lightbulb,
   MessageSquare,
   Sparkles,
+  SquareKanban,
   Star,
   type LucideIcon,
 } from '@/lib/icons';
@@ -45,6 +45,7 @@ import {
   type AlertCategory,
 } from '@/lib/alert-query';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { capabilityAvailable } from '@/lib/capability-availability';
 import {
   useProposalDecisions,
   type HabitProposal,
@@ -80,7 +81,8 @@ function useHubSections(criteria: AlertCriteria) {
   const display = { params: alertParams(criteria), selectAsOf: (page: HubPage) => page.as_of };
   const { config } = useAppConfig();
   const available = alertCategoryAvailability(config);
-  const habitsEnabled = Boolean(config?.features?.habits_enabled);
+  // The proposals' router refuses once the operator switched the habits off.
+  const habitsEnabled = capabilityAvailable(config, 'habits');
   // ONE read for all badges, so a folded section can be chosen from
   // rather than opened to find out whether it holds anything.
   const {
@@ -169,7 +171,7 @@ function useHubSections(criteria: AlertCriteria) {
   // The workboard (ADR-276): tickets that need THIS person — a run stopped on
   // their answer, or something overdue. Flag-gated like every program section.
   const workboard = usePagedSection<
-    { tickets: TicketRow[]; total: number; as_of?: string },
+    { tickets: TicketRow[]; total: number; as_of?: string; categories?: Record<string, string> },
     TicketRow
   >({
     path: '/workboard/needs-me',
@@ -195,6 +197,7 @@ function useHubSections(criteria: AlertCriteria) {
 
   return {
     config,
+    available,
     counts,
     criteria,
     selected,
@@ -260,17 +263,20 @@ function WorkboardHubSection({
   enabled,
   section,
   tickets,
+  categories,
   lng,
 }: {
   enabled: boolean;
   section: Omit<HubSectionProps, 'icon' | 'children'>;
   tickets: readonly TicketRow[] | undefined;
+  /** Name of each category the page's tickets are filed under, by id. */
+  categories: Readonly<Record<string, string>> | undefined;
   lng: string;
 }) {
   if (!enabled) return null;
   return (
-    <HubSection icon={LayoutGrid} {...section}>
-      <NeedsMeList tickets={tickets ?? []} lng={lng as Language} />
+    <HubSection icon={SquareKanban} {...section}>
+      <NeedsMeList tickets={tickets ?? []} categories={categories} lng={lng as Language} />
     </HubSection>
   );
 }
@@ -357,7 +363,7 @@ function DeliveredNotifications({
   locale: string;
 }) {
   const { t } = useTranslation();
-  const { config, counts, track, peers, proactive, interests } = sections;
+  const { available, counts, track, peers, proactive, interests } = sections;
   const shell = <TItem,>(key: string, section: PagedSection<TItem>, countKey: keyof HubCounts) =>
     sectionShell(
       key,
@@ -370,7 +376,7 @@ function DeliveredNotifications({
   return (
     <>
       {' '}
-      {config?.features?.peers_enabled && (
+      {available.peer_messages && (
         <div hidden={!sections.selected('peer_messages')}>
           <HubSection icon={MessageSquare} {...shell('peer_messages', peers, 'peer_messages')}>
             <RelayedMessagesList
@@ -381,7 +387,7 @@ function DeliveredNotifications({
           </HubSection>
         </div>
       )}
-      {config?.features?.heartbeat_enabled && (
+      {available.proactive && (
         <div hidden={!sections.selected('proactive')}>
           <HubSection icon={Sparkles} {...shell('proactive', proactive, 'proactive')}>
             <HeartbeatHistory
@@ -524,6 +530,7 @@ function OwnedNotificationsHub({
             enabled={workboardEnabled && sections.selected('workboard')}
             section={shell('workboard', workboard, 'workboard')}
             tickets={workboard.items}
+            categories={workboard.payload?.categories}
             lng={lng}
           />
         </NotificationRegister>

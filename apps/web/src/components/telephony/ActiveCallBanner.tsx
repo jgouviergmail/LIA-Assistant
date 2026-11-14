@@ -43,11 +43,18 @@ export interface ActiveCallBannerProps {
    * its start without polling an idle account forever.
    */
   conversationTick?: number;
+  /**
+   * Whether the instance offers telephony now (`capabilityAvailable`). The
+   * band sits on every chat page and re-reads on every turn; the telephony
+   * router refuses every route under the operator's switch (ADR-280), so
+   * nothing is asked where it is not offered.
+   */
+  offered: boolean;
 }
 
-export function ActiveCallBanner({ lng, conversationTick = 0 }: ActiveCallBannerProps) {
+export function ActiveCallBanner({ lng, conversationTick = 0, offered }: ActiveCallBannerProps) {
   const { t } = useTranslation();
-  const { calls, hasActiveCall, refetch } = useTelephonyCalls();
+  const { calls, hasActiveCall, refetch } = useTelephonyCalls(offered);
 
   useEffect(() => {
     // Skip the mount read: the hook already did it.

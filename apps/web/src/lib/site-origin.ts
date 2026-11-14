@@ -60,9 +60,16 @@ export function buildAbsoluteUrl(origin: string, path: string): string {
  * Localized URL in the historical shape: French (default locale) is
  * unprefixed, every other locale is `/{lng}` — absolute when an origin is
  * configured, honest RELATIVE otherwise.
+ *
+ * A prefixed home is `/{lng}`, never `/{lng}/`: the server answers the
+ * trailing-slash form with a permanent redirect, and a canonical URL or a
+ * language alternate that redirects is one a search engine may drop from the
+ * set (measured 2026-11-14: `/en/` answered 308 to `/en`).
  */
 export function localizedUrl(origin: string | null, path: string, lng: string): string {
-  const localizedPath = lng === fallbackLng ? path : `/${lng}${path}`;
+  const isHome = path === '/' || path === '';
+  const prefixedPath = isHome ? `/${lng}` : `/${lng}${path}`;
+  const localizedPath = lng === fallbackLng ? path : prefixedPath;
   if (origin === null) {
     return localizedPath === '' ? '/' : localizedPath;
   }

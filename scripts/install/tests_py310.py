@@ -73,7 +73,7 @@ def check_imports_and_enums() -> None:
     check(model.Exposure("caddy") is model.Exposure.CADDY, "Exposure")
     check(state.Step("bootstrap") is state.Step.BOOTSTRAP, "Step")
     check(
-        model.REQUIRED_PROVIDER_IDS == ("deepseek", "openai"),
+        model.REQUIRED_PROVIDER_IDS == ("anthropic", "deepseek"),
         "provider tuple drifted",
     )
     check(len(questions.build_questions()) >= 13, "questionnaire too short")

@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql import Select
 
+from src.core.conversation_source import current_conversation_source
+from src.domains.users.conversation_authority import conversation_source_is_current
 from src.domains.users.models import User
 
 
@@ -49,7 +51,7 @@ async def snapshot_extraction_revision(
 ) -> int | None:
     """Fence writers whose source has no per-account learning consent."""
     revision: int | None = await db.scalar(_revision_query(actor_id, expected_revision, lock))
-    return revision
+    return await _current_source_revision(db, actor_id, revision, lock=lock)
 
 
 async def snapshot_extraction_consent(
@@ -62,4 +64,15 @@ async def snapshot_extraction_consent(
 ) -> int | None:
     query = _revision_query(actor_id, expected_revision, lock).where(_CONSENT_COLUMNS[kind])
     revision: int | None = await db.scalar(query)
+    return await _current_source_revision(db, actor_id, revision, lock=lock)
+
+
+async def _current_source_revision(
+    db: AsyncSession, actor_id: UUID, revision: int | None, *, lock: bool
+) -> int | None:
+    """A consent revision alone cannot authorize a result from a retired discussion."""
+    if revision is None or not await conversation_source_is_current(
+        db, actor_id, current_conversation_source(), lock=lock
+    ):
+        return None
     return revision

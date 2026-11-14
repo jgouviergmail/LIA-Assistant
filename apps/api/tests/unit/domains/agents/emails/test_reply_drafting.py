@@ -8,14 +8,18 @@ its spend reaches the turn's ledger (ADR-272).
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 from unittest.mock import AsyncMock, patch
+from zoneinfo import ZoneInfo
 
 import pytest
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
 from src.core.constants import EMAIL_RECIPIENTS_READ_MAX_CHARS, EXTERNAL_CONTENT_OPEN_TAG
+from src.domains.agents.emails import writing_style
+from src.domains.agents.emails.previous_reply import PreviousReply
 from src.domains.agents.emails.reply_drafting import (
     DraftedReply,
     draft_reply_body,
@@ -37,11 +41,13 @@ ORIGINAL = {
 
 async def _draft(**overrides: Any) -> tuple[str, dict[str, Any]]:
     structured = AsyncMock(return_value=DraftedReply(body="  Hi Paul,\n\nFriday works.  "))
+    style = AsyncMock(return_value=overrides.get("style"))
     config = RunnableConfig(metadata={"run_id": "turn-1"})
     with (
         patch(f"{MODULE}.get_structured_output", structured),
         patch(f"{MODULE}.get_llm"),
         patch(f"{MODULE}.get_llm_config_for_agent"),
+        patch.object(writing_style, "writing_style_for", style),
     ):
         body = await draft_reply_body(
             ORIGINAL,
@@ -50,8 +56,38 @@ async def _draft(**overrides: Any) -> tuple[str, dict[str, Any]]:
             user_language="fr",
             user_id="user-1",
             config=config,
+            style_reading=overrides.get("style_reading"),
         )
-    return body, {"call": structured.await_args, "config": config}
+    return body, {"call": structured.await_args, "config": config, "style": style.await_args}
+
+
+async def test_the_persons_style_is_read_just_before_the_received_email() -> None:
+    """ADR-383: the measured place, in the per-call part — the static rules stay cached."""
+    _body, seen = await _draft(style="Writes « Salut », signs « Seb ».")
+
+    system, human = seen["call"].args[1]
+    text = str(human.content)
+    assert "signs « Seb »" not in str(system.content)
+    assert text.index("signs « Seb »") < text.index("The received e-mail:")
+    assert "never their facts" in text
+
+
+async def test_without_a_style_the_prompt_is_what_it_was() -> None:
+    _body, seen = await _draft(style=None)
+
+    _system, human = seen["call"].args[1]
+    assert "How the person writes" not in str(human.content)
+    assert "\n\nThe received e-mail:" in str(human.content)
+
+
+async def test_the_style_is_asked_for_the_account_on_the_writers_own_run() -> None:
+    async def reading() -> None:  # pragma: no cover - only passed through
+        return None
+
+    _body, seen = await _draft(style_reading=reading)
+
+    assert seen["style"].args == ("user-1",)
+    assert seen["style"].kwargs == {"config": seen["config"], "reading": reading}
 
 
 async def test_the_received_email_is_external_data_in_the_per_call_part() -> None:
@@ -106,3 +142,47 @@ class TestWhomItWentTo:
         assert len(line) <= len("To: ") + EMAIL_RECIPIENTS_READ_MAX_CHARS + len(", …")
         assert line.endswith(", …")
         assert line[: -len(", …")].endswith(">"), "never half an address"
+
+
+class TestWhatThePersonAlreadyAnswered:
+    """ADR-379: a second reply continues from the first — it reads it, as data."""
+
+    async def _human(self, previous: PreviousReply | None) -> tuple[str, str]:
+        structured = AsyncMock(return_value=DraftedReply(body="One more thing."))
+        with (
+            patch(f"{MODULE}.get_structured_output", structured),
+            patch(f"{MODULE}.get_llm"),
+            patch(f"{MODULE}.get_llm_config_for_agent"),
+        ):
+            await draft_reply_body(
+                ORIGINAL,
+                instruction=None,
+                sender_name=None,
+                user_language="fr",
+                user_id="user-1",
+                config=RunnableConfig(),
+                previous_reply=previous,
+            )
+        system, human = structured.await_args.args[1]
+        return str(system.content), str(human.content)
+
+    async def test_the_earlier_answer_reaches_the_model_as_data_with_its_instant(self) -> None:
+        sent = datetime(2026, 10, 12, 11, 0, tzinfo=ZoneInfo("Europe/Paris"))
+
+        system, human = await self._human(PreviousReply(at=sent, words="Friday is fine for me."))
+
+        assert "Friday is fine for me." not in system
+        answered = human.split("earlier answer", 1)[1]
+        assert EXTERNAL_CONTENT_OPEN_TAG in answered
+        assert "Friday is fine for me." in answered
+        assert "2026-10-12T11:00+02:00" in answered
+
+    async def test_an_answer_the_mailbox_only_marked_is_said_without_words(self) -> None:
+        _system, human = await self._human(PreviousReply(at=None, words=""))
+
+        assert "answered already; its words were not found" in human
+
+    async def test_a_first_reply_is_told_there_is_none(self) -> None:
+        _system, human = await self._human(None)
+
+        assert "The person's earlier answer to this e-mail: none" in human.splitlines()

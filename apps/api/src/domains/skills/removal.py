@@ -15,6 +15,7 @@ from src.domains.skills.cache import SkillsCache
 from src.domains.skills.lifecycle_lock import lock_skill_owner
 from src.domains.skills.models import Skill, UserSkillState
 from src.domains.skills.preference_service import SkillPreferenceService
+from src.domains.skills.previous_version import forget_previous
 from src.domains.skills.ui_projection import merge_skill_metadata
 
 
@@ -130,6 +131,10 @@ async def cleanup_removal(db: AsyncSession, observed: SkillRemoval) -> bool:
     if replaced is not None:
         return False
     try:
-        return await asyncio.to_thread(_cleanup_removal, observed)
+        cleaned = await asyncio.to_thread(_cleanup_removal, observed)
     except OSError, ValueError:
         return False
+    if cleaned:
+        # Its previous version goes with it (lot 14): nothing is left to restore.
+        await forget_previous(observed.actor_id, observed.name)
+    return cleaned

@@ -9,9 +9,9 @@ import { Switch } from '@/components/ui/switch';
 import { useTranslation } from '@/i18n/client';
 import {
   areHapticsEnabled,
-  isHapticsSupported,
   setHapticsEnabled,
   subscribeHaptics,
+  useHapticsSupported,
 } from '@/lib/haptics';
 import type { BaseSettingsProps } from '@/types/settings';
 
@@ -29,7 +29,8 @@ import type { BaseSettingsProps } from '@/types/settings';
  *
  * Renders NOTHING where the capability is absent (iOS Safari, desktop): a
  * switch that cannot change anything is worse than no switch — it invites the
- * reader to fix something that was never broken.
+ * reader to fix something that was never broken. The settings index reads the
+ * same fact (`deviceHaptics`), so the section is listed nowhere there either.
  */
 export function HapticsSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
@@ -37,7 +38,7 @@ export function HapticsSettings({ lng }: BaseSettingsProps) {
   // through the external store rather than copied into React state from an
   // effect: the server snapshot is explicit (no hydration mismatch), and no
   // `setState` runs inside an effect.
-  const supported = useSyncExternalStore(subscribeHaptics, isHapticsSupported, () => false);
+  const supported = useHapticsSupported();
   const enabled = useSyncExternalStore(subscribeHaptics, areHapticsEnabled, () => true);
 
   if (!supported) return null;

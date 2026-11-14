@@ -12,6 +12,12 @@
  * unchecked boxes are `aria-disabled` and guarded by their handler — never
  * `disabled`, which would drop a keyboard reader's focus on `<body>` — and
  * the counter says why.
+ *
+ * The counter counts what the dock draws. A pinned section the account cannot
+ * open now (its capability switched off, a device that cannot offer it) has no
+ * box here and no link there: it is neither counted nor what blocks a box, it
+ * stays stored while there is room, and it gives its place to the next choice
+ * when there is none (`nextShortcutTokens`).
  */
 
 import { useMemo } from 'react';
@@ -21,8 +27,16 @@ import { toast } from 'sonner';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { useSettingsAvailability } from '@/hooks/useSettingsAvailability';
-import { MY_SHORTCUTS_TOKEN, useSettingsShortcuts } from '@/hooks/useSettingsShortcuts';
+import {
+  usePassiveSettingsAvailability,
+  useSettingsAvailability,
+} from '@/hooks/useSettingsAvailability';
+import {
+  MY_SHORTCUTS_TOKEN,
+  nextShortcutTokens,
+  openableShortcutTokens,
+  useSettingsShortcuts,
+} from '@/hooks/useSettingsShortcuts';
 import { useTranslation } from '@/i18n/client';
 import { toneForSection } from '@/lib/settings-group-tones';
 import { SETTINGS_SECTION_ICONS } from '@/lib/settings-section-icons';
@@ -86,13 +100,12 @@ export function MyShortcutsSettings({ lng }: BaseSettingsProps) {
   const availability = useSettingsAvailability();
   const model = useMemo(() => buildSettingsShellModel(availability), [availability]);
   const { shortcuts, maxCount, save } = useSettingsShortcuts();
-  const atCap = maxCount > 0 && shortcuts.length >= maxCount;
+  // Read as the dock reads them, so that the counter says what the dock shows.
+  const openable = openableShortcutTokens(shortcuts, usePassiveSettingsAvailability());
+  const atCap = maxCount > 0 && openable.length >= maxCount;
 
   const toggle = async (token: SettingsSectionToken) => {
-    const next = shortcuts.includes(token)
-      ? shortcuts.filter(pinned => pinned !== token)
-      : [...shortcuts, token];
-    const ok = await save(next);
+    const ok = await save(nextShortcutTokens(shortcuts, openable, token, maxCount));
     if (!ok) toast.error(t('common.error'));
   };
 
@@ -109,7 +122,7 @@ export function MyShortcutsSettings({ lng }: BaseSettingsProps) {
             aria-atomic="true"
             aria-describedby={atCap ? 'shortcuts-limit' : undefined}
           >
-            {t('settings.my_shortcuts.count', { current: shortcuts.length, max: maxCount })}
+            {t('settings.my_shortcuts.count', { current: openable.length, max: maxCount })}
           </Badge>
         )
       }
@@ -122,7 +135,7 @@ export function MyShortcutsSettings({ lng }: BaseSettingsProps) {
             <span className="text-destructive">{t('settings.my_shortcuts.limit_reached')}</span>
           )}
         </p>
-        {shortcuts.length === 0 && (
+        {openable.length === 0 && (
           <p className="text-xs text-muted-foreground">{t('settings.my_shortcuts.empty')}</p>
         )}
       </div>

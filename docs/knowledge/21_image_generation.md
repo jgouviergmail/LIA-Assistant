@@ -12,6 +12,9 @@ Go to **Settings › Preferences › Voice & Media › Image generation**. You c
 ## How much does image generation cost?
 Cost depends on the image model the administrator configured, the quality and the size: the settings show each quality's price range per image. Editing an image can also bill the image it starts from, when the model prices it per image. Image generation costs are tracked and consolidated with text LLM costs in your usage summary; the debug panel gives each generation its own section (model, quality, size, image count, reference images, duration, cost) and positions it on the request timeline.
 
+## Can a generated document carry images?
+Yes: a PowerPoint, Word or PDF document LIA writes for you may carry illustrations, drawn with the same image model, your quality and your size. Each one is an image generation, counted in your costs and within your usage limits like any other. Whether your documents are illustrated is your choice in **Settings › Documents** (*LIA judges*, *On request* or *Never*), and it needs image generation turned on here; the administrator caps how many pictures one document may carry. A picture that fails is left out of the document, and LIA says so.
+
 ## Is there a limit to how many images I can generate?
 Two safeguards apply. Your account's **usage limits** (cost caps per billing cycle, set by the administrator) cover image generation costs like any other cost. On top of that, a **technical rate limit** protects against runaway loops: 10 image generations (and 10 edits) per 5 minutes per person by default. Normal use is unaffected; if the limit is reached, the assistant tells you how long to wait before trying again. The administrator can tune both the threshold and the window via the IMAGE_GENERATION_RATE_LIMIT_CALLS and IMAGE_GENERATION_RATE_LIMIT_WINDOW environment variables.
 

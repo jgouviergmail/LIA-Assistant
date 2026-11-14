@@ -11,6 +11,8 @@ import type {
 const SESSION = 'a'.repeat(32);
 const START: LiveSessionStart = {
   session_id: SESSION,
+  conversation_id: '8151d469-fd4b-4191-bd20-75a6f0d4f25',
+  conversation_revision: 2,
   provider: 'gemini',
   model: 'm',
   mode: 'delegated',

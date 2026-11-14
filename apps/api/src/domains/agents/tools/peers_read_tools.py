@@ -37,6 +37,9 @@ import structlog
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 
+from src.core.constants import TASK_LISTS_READ_MAX
+from src.core.task_due import in_due_order
+from src.core.time_utils import resolve_user_timezone
 from src.domains.agents.constants import AGENT_PEER
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.peer.name_directory import PeerNameOutcome, resolve_connected_peer
@@ -48,9 +51,10 @@ from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import get_user_preferences, validate_runtime_config
 from src.domains.connectors.active_client import ActiveClient, open_active_client
 from src.domains.connectors.calendar_access import CalendarAccess, open_active_calendar
-from src.domains.connectors.preferences.owner_defaults import (
-    TASK_LIST,
-    resolve_owner_container_id,
+from src.domains.connectors.clients.task_lists import (
+    PROVIDER_FAILURES,
+    TaskListing,
+    read_every_task_list,
 )
 from src.domains.connectors.provider_resolver import find_error_connector_type
 from src.domains.connectors.service import ConnectorService
@@ -416,7 +420,7 @@ async def get_peer_tasks_tool(
         await db.commit()
 
     try:
-        titles = await _peer_task_titles(peer)
+        titles, partial = await _peer_task_titles(peer)
     except LookupError:
         return await _connector_failure(peer, "tasks", "task list")
 
@@ -429,38 +433,47 @@ async def get_peer_tasks_tool(
     return UnifiedToolOutput.data_success(
         # Same contract as the availability path: the titles, not a sentence
         # announcing that titles exist.
-        message=format_peer_tasks(titles, peer_name=peer.full_name),
+        message=format_peer_tasks(titles, peer_name=peer.full_name, partial=partial),
         structured_data={
             "peer_name": peer.full_name,
             "task_titles": titles,
+            # More exist than were read (a bound, or a list that failed): never the whole.
+            "partial": partial,
             "provenance": "peer_shared_data",
         },
     )
 
 
-async def _peer_task_titles(peer: User) -> list[str]:
-    """List the peer's pending task titles, from THEIR default list.
+async def _peer_task_titles(peer: User) -> tuple[list[str], bool]:
+    """List the peer's pending task titles, from EVERY list of theirs.
+
+    Owner decision, 2026-11-10 (it amends ADR-182 §D1ter): whoever reads a person's tasks
+    reads all their lists, a peer's included — their default list is where THEY create a
+    task, not what they share. What leaves stays what the share level names: the TITLES,
+    the most pressing first; never a list's name.
 
     Same door and same reasoning as the calendar path (ADR-304).
 
+    Returns:
+        The titles, ``_PEER_TASKS_MAX`` at most, and whether more exist than are given
+        (that bound, a list holding more than was read, or a list that failed).
+
     Raises:
         LookupError: when the peer has no usable tasks connector.
+        Exception: The provider's own failure, when it left nothing to show.
     """
-    async with open_active_client("tasks", peer.id, container=TASK_LIST) as opened:
+    async with open_active_client("tasks", peer.id) as opened:
         if not isinstance(opened, ActiveClient):
             raise LookupError("tasks_not_connected")
-        task_list_id = await resolve_owner_container_id(
-            client=opened.client,
-            name=opened.preferred_name,
-            owner_id=peer.id,
-            container=TASK_LIST,
+        every = await read_every_task_list(
+            opened.client,
+            TaskListing(max_results=_PEER_TASKS_MAX),
+            lists_max=TASK_LISTS_READ_MAX,
+            failures=PROVIDER_FAILURES,
         )
-        result = await opened.client.list_tasks(
-            task_list_id=task_list_id, max_results=_PEER_TASKS_MAX
-        )
-    tasks = result.get("items", []) or []
-    return [
-        task.get("title") or ""
-        for task in tasks
+    titles = [
+        str(task["title"])
+        for task in in_due_order(every.tasks_or_failure(), resolve_user_timezone(peer))
         if task.get("status") == "needsAction" and task.get("title")
     ]
+    return titles[:_PEER_TASKS_MAX], every.partial or len(titles) > _PEER_TASKS_MAX

@@ -106,7 +106,13 @@ export interface MCPServerCardProps {
   onShare?: (server: UserMCPServer) => void;
 }
 
-/** The OAuth call to action the server's state asks for, or nothing. */
+/**
+ * The OAuth call to action the server's state asks for, or nothing.
+ *
+ * An OAuth server that is not working (`auth_required`, or `error`, whatever caused it)
+ * always offers its authorization: it is the one remedy the card can give, and a server
+ * left in `error` without it had no way back but deleting it (2026-11-13).
+ */
 function OAuthAction({
   server,
   t,
@@ -117,7 +123,7 @@ function OAuthAction({
   t: TFunction;
 }) {
   if (server.auth_type !== 'oauth2') return null;
-  if (server.status === 'auth_required') {
+  if (server.status === 'auth_required' || server.status === 'error') {
     return (
       <Button size="sm" variant="outline" onClick={() => onConnectOAuth(server)}>
         <Plug className="mr-1 h-3.5 w-3.5" aria-hidden="true" />

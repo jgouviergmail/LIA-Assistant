@@ -2,9 +2,8 @@
 
 import { useCallback } from 'react';
 import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
-import { Plug, Plus, Server } from '@/lib/icons';
+import { Plug, Server } from '@/lib/icons';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +19,7 @@ import { type Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useUserMCPServers, type UserMCPServer } from '@/hooks/useUserMCPServers';
 import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';
+import { mcpTestFailureMessage } from '@/lib/mcp-test-result';
 
 import { MCPServerCard } from './MCPServerCard';
 import { useCapabilitySharing } from '@/hooks/useCapabilitySharing';
@@ -27,6 +27,7 @@ import { blockedRecipients } from '@/lib/capability-sharing';
 import { CapabilitySharingDialog } from '@/components/peers/CapabilitySharingDialog';
 import { MCPConfirmationStrategy } from './MCPConfirmationStrategy';
 import { MCPServerBehaviorDialog, type MCPServerInspection } from './MCPServerBehaviorDialog';
+import { MCPServerCreation } from './MCPServerCreation';
 import { MCPServerFormDialog } from './MCPServerFormDialog';
 
 interface MCPServersSettingsProps {
@@ -60,8 +61,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
   const sharing = useCapabilitySharing(ownerId);
   const sharingEnabled = sharing.enabled;
 
-  // Dialog state
-  const [showCreateDialog, setShowCreateDialog] = useApplicationAccountState(ownerId, false);
+  // Dialog state (creation lives in MCPServerCreation)
   const [editingServer, setEditingServer] = useApplicationAccountState<UserMCPServer | null>(
     ownerId,
     null
@@ -129,7 +129,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
           if (result.success) {
             toast.success(t('settings.mcp.test_success', { count: result.tool_count }));
           } else {
-            toast.error(result.error || t('settings.mcp.test_failed'));
+            toast.error(mcpTestFailureMessage(result, t));
           }
         }
       } catch (err) {
@@ -178,15 +178,18 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
         <MCPConfirmationStrategy ownerId={ownerId} defaults={defaults} onSaved={refetch} t={t} />
       </div>
 
-      {/* Header: count + add button */}
-      <div className="flex items-center justify-between mb-4">
+      {/* Header: count, then the two ways to add a server (known servers' gallery, typed) */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <span className="text-sm text-muted-foreground">
           {t('settings.mcp.server_count', { count: total })}
         </span>
-        <Button size="sm" onClick={() => setShowCreateDialog(true)}>
-          <Plus className="h-4 w-4 mr-1" />
-          {t('settings.mcp.add_server')}
-        </Button>
+        <MCPServerCreation
+          ownerId={ownerId}
+          servers={servers}
+          defaults={defaults}
+          actions={mcp}
+          t={t}
+        />
       </div>
 
       {/* Loading */}
@@ -239,16 +242,6 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
       )}
 
       <CapabilitySharingDialog sharing={sharing} ownerId={ownerId} enabled={sharingEnabled} />
-      {showCreateDialog && (
-        <MCPServerFormDialog
-          server={null}
-          defaults={defaults}
-          ownerId={ownerId}
-          actions={mcp}
-          onClose={() => setShowCreateDialog(false)}
-          t={t}
-        />
-      )}
       {editingServer && (
         <MCPServerFormDialog
           key={editingServer.id}

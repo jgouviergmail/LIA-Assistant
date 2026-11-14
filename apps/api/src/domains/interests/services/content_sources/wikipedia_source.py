@@ -181,11 +181,9 @@ class WikipediaContentSource:
             )
             return None
 
-    def is_available(self, user_id: str | None = None) -> bool:
+    async def applies(self, user_id: str | None) -> bool:
         """
-        Check if Wikipedia source is available.
-
-        Wikipedia API is always available (no auth required).
+        Whether Wikipedia would be asked: always, it needs no key.
 
         Args:
             user_id: Not used (Wikipedia doesn't need per-user auth)

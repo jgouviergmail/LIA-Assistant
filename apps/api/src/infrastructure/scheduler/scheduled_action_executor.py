@@ -5,15 +5,28 @@ Runs every 60s to check for due actions and execute them through the agent pipel
 Uses FOR UPDATE SKIP LOCKED to prevent concurrent processing.
 
 Flow (for each due action):
-1. Condition routines only: check the condition, and go on only for a NEW fact
+0. Catch-up window (time routines): an occurrence reached past its window is
+   not run late — its slot says « missed », and the routine re-arms on the most
+   recent occurrence that may still start, else on the next one (ADR-265
+   amendment 2026-11-12 b)
+1. Usage ceiling: an account past it stands aside BEFORE any source is asked —
+   re-armed, never counted as a failure (ADR-272), its reason left on the week
+   (a time routine's row) or on the ledger (a condition routine)
+2. Condition routines only: check the condition, and go on only for a NEW fact
    under the daily cap (ADR-322) — a check that finds nothing new re-arms and
-   ends there, with no run row
-2. Propose-first routines: notify with a link and stop
-3. Guard: check no HITL interrupt pending on user's conversation
-4. Execute via stream_chat_response(auto_approve_plan=True) with timeout
-5. Mark success or failure (auto-disable after N consecutive failures) and
+   ends there, with no run row. Webhook routines only: take the calls that wait
+   (ADR-386) — with none, the routine rests until a call wakes it, no run row
+3. Propose-first routines: notify with a link and stop
+4. Guard: check no HITL interrupt pending on user's conversation
+5. Execute via stream_chat_response(auto_approve_plan=True) with timeout — an
+   account found busy keeps a time routine's occurrence armed for the next
+   pass, inside the same window, instead of losing it to the next occurrence
+6. Mark success or failure (auto-disable after N consecutive failures) and
    re-arm from the routine's clock (``trigger.TriggerPlan``)
-6. Dispatch notification (FCM + SSE, archive handled by stream_chat_response)
+7. Tell the owner (``scheduled_action_notices``): the result (FCM + SSE, archive
+   handled by stream_chat_response), or why there is none — a failure at the
+   first of its series and when it pauses the routine, the ceiling once per
+   account per window
 
 No transaction is held across a wait (ADR-304): the reads are committed before
 the condition's source answers, before the model runs and before any push.
@@ -26,14 +39,12 @@ Metrics:
 from __future__ import annotations
 
 import asyncio
-import json
 import time
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
-from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 import structlog
@@ -43,44 +54,59 @@ from src.core.config import settings
 from src.core.constants import (
     DEFAULT_USER_DISPLAY_TIMEZONE,
     SCHEDULED_ACTIONS_BATCH_SIZE,
+    SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS,
     SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES,
     SCHEDULED_ACTIONS_MAX_RETRIES,
     SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS,
     SCHEDULED_ACTIONS_SESSION_PREFIX,
-    SCHEDULED_ACTIONS_SSE_PREVIEW_MAX_LENGTH,
 )
 from src.core.exceptions import ResourceNotFoundError
 from src.core.i18n import normalize_language
-from src.core.i18n_drafts import label_separator
 from src.core.time_utils import now_utc
 from src.core.user_display import resolve_user_display_name
 from src.domains.agents.utils.helpers import generate_run_id
-from src.domains.scheduled_actions.condition_ledger import ConditionLedger
+from src.domains.scheduled_actions.condition_ledger import ConditionLedger, with_check_error
 
 # CRITICAL: Import model at module level to register with SQLAlchemy metadata
 from src.domains.scheduled_actions.models import (  # noqa: F401
     ScheduledAction,
+    ScheduledActionStatus,
     ScheduledRunOutcome,
     TriggerKind,
 )
-from src.domains.scheduled_actions.runs import record_run
-from src.domains.scheduled_actions.trigger import TriggerPlan
-from src.infrastructure.cache.user_channel import user_notifications_channel
+from src.domains.scheduled_actions.runs import is_manual_run, record_run
+from src.domains.scheduled_actions.trigger import DueOccurrence, TriggerPlan
 from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
     background_job_errors_total,
 )
-from src.infrastructure.proactive.notification import plain_text_for_notification
 from src.infrastructure.scheduler.out_of_turn_run import (
     RunOutcome,
     RunResult,
     StreamRequest,
     clear_question_of_run,
-    conversation_has_pending_hitl,
     interrupt_log_facts,
     stream_instruction,
     unattended_turn_seconds,
     worst_case_run_seconds,
+)
+from src.infrastructure.scheduler.routine_webhook_gate import (
+    rest_until,
+    serve_calls,
+    waiting_calls,
+)
+from src.infrastructure.scheduler.scheduled_action_housekeeping import (
+    close_finished_routines,
+    purge_run_history,
+    purge_served_calls,
+)
+from src.infrastructure.scheduler.scheduled_action_notices import (
+    RoutineNotice,
+    claim_quota_notice,
+    failure_notice,
+    notify_result,
+    send_approval_notification,
+    send_routine_notice,
 )
 
 if TYPE_CHECKING:
@@ -91,45 +117,9 @@ logger = structlog.get_logger(__name__)
 ExecutionGuard = Callable[[AsyncSession, ScheduledAction], Awaitable[bool]]
 
 
-def _get_localized_title(language: str) -> str:
-    """Get the localized notification title for scheduled action results.
-
-    Delegates to the centralized ``ProactiveMessages`` (i18n systemic rule).
-    The previous inline table was keyed "zh" while ``User.language`` is
-    backend-canonical "zh-CN" — Chinese users silently got the English title.
-
-    Args:
-        language: Backend-canonical user language code (e.g. "zh-CN").
-
-    Returns:
-        Localized title string.
-    """
-    from src.core.i18n_proactive import ProactiveMessages
-
-    return ProactiveMessages.notification_title("scheduled_action", language)
-
-
-def _truncate(text: str, max_length: int | None = None) -> str:
-    """Truncate already-flattened text for a notification body.
-
-    Args:
-        text: Plain text — run it through ``plain_text_for_notification`` first;
-            truncating raw HTML cuts mid-tag.
-        max_length: Character budget. Defaults to
-            ``settings.proactive_notification_max_length``, the same
-            user-facing setting the proactive dispatcher honors.
-
-    Returns:
-        The text, ellipsized when it exceeds the budget.
-    """
-    if max_length is None:
-        max_length = settings.proactive_notification_max_length
-    if len(text) <= max_length:
-        return text
-    return text[: max_length - 3] + "..."
-
-
-def _next_trigger(action: ScheduledAction, due_at: datetime | None) -> datetime | None:
+def _next_trigger(
+    action: ScheduledAction, due_at: datetime | None, *, failed: bool = False
+) -> datetime | None:
     """When to arm this routine after the tick that has just ended.
 
     Every exit of :func:`execute_single_action` — nothing new to act on,
@@ -147,28 +137,84 @@ def _next_trigger(action: ScheduledAction, due_at: datetime | None) -> datetime 
         due_at: The pending due instant when the tick started (UTC), or
             ``None`` when nothing was pending — a manual run on an exhausted
             series reaches here.
+        failed: Whether the run failed: a webhook routine backs off (ADR-386).
 
     Returns:
         The next instant, or ``None`` when nothing follows — which the
         repository stores as a null trigger.
     """
-    return TriggerPlan.of(action).after_tick(due_at=due_at, now=now_utc())
+    return TriggerPlan.of(action).after_tick(due_at=due_at, now=now_utc(), failed=failed)
 
 
 @dataclass(frozen=True, slots=True)
 class _ConditionGate:
-    """What a condition check decided, for the rest of the tick (ADR-322)."""
+    """What a condition check — or a webhook routine's calls — decided for the tick."""
 
     note: str | None
-    """The context line naming the NEW facts, for the routine's prompt."""
+    """The context naming the NEW facts, or the calls, for the routine's prompt."""
     served_state: dict[str, Any] | None
     """The ledger once the new facts are served (a run answered, a proposal sent)."""
     unserved_state: dict[str, Any] | None
     """The ledger if they are not (a pending question, a failed run): still new."""
+    deliveries: tuple[uuid.UUID, ...] = ()
+    """The calls the run is shown, served if it answers (ADR-386)."""
 
 
 #: A time routine's gate: no fact, and no ledger to write.
 _NO_CONDITION = _ConditionGate(note=None, served_state=None, unserved_state=None)
+
+
+@dataclass(frozen=True, slots=True)
+class _Tick:
+    """One tick of one routine: what each of its settles needs."""
+
+    db: AsyncSession
+    repo: ScheduledActionRepository
+    action: ScheduledAction
+    token: uuid.UUID | None
+    """The reservation the tick was handed; a tick that lost it writes nothing."""
+    due_at: datetime | None
+    """The pending due instant when the tick started, read BEFORE any re-arm."""
+    started_at: datetime
+    occurrence: DueOccurrence | None = None
+    """What was due, for a time routine; None for a run the person started and a watch."""
+
+
+@dataclass(frozen=True, slots=True)
+class _TickEnd:
+    """What a tick leaves for the routine's owner once its outcome is durable."""
+
+    text: str = ""
+    """The answer to push; empty when the routine did not answer."""
+    notice: RoutineNotice | None = None
+    """Why it did not run as planned, when the owner is owed a word about it."""
+    manual: bool = False
+    """Whether the person started the run: such a run is always told its end."""
+    silent: bool = False
+    """The answer stays in the chat and is not pushed: its owner asked to be
+    told only of something new, and the run declared it had nothing new."""
+
+
+#: A tick with nothing to tell: a check that found nothing new, a proposal
+#: (it notified already), a tick that lost the routine.
+_NOTHING = _TickEnd()
+
+#: The engine outcomes that ran nothing for a reason other than a ceiling, and
+#: the reason each leaves on the week.
+_STOOD_ASIDE: dict[RunOutcome, ScheduledRunOutcome] = {
+    RunOutcome.BUSY: ScheduledRunOutcome.SKIPPED_BUSY,
+    RunOutcome.PENDING_QUESTION: ScheduledRunOutcome.SKIPPED_HITL,
+}
+
+#: How long until the scheduler looks at a routine again: an occurrence whose
+#: wait would end before that has had its last attempt.
+_NEXT_PASS = timedelta(seconds=SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS)
+
+
+def _ledger_of(action: ScheduledAction) -> ConditionLedger:
+    """The routine's ledger, read as its condition type forgets (ADR-387)."""
+    condition_type = (action.condition_config or {}).get("type")
+    return ConditionLedger.read(action.condition_state, condition_type=condition_type)
 
 
 async def _daily_cap_reached(db: AsyncSession, action: ScheduledAction, now: datetime) -> bool:
@@ -242,7 +288,7 @@ async def _condition_gate(
         run_id=f"routine_condition_{action.id.hex[:12]}_{uuid.uuid4().hex[:8]}",
         session_id=f"{SCHEDULED_ACTIONS_SESSION_PREFIX}{action.id}",
     )
-    ledger = ConditionLedger.read(action.condition_state)
+    ledger = _ledger_of(action)
     fresh = [] if verdict.error else ledger.new_keys(verdict.keys)
     capped = bool(fresh) and await _daily_cap_reached(db, action, started_at)
     unserved = ledger.after_check(
@@ -253,7 +299,8 @@ async def _condition_gate(
         # or the model answers (ADR-304).
         await db.commit()
         return _ConditionGate(
-            note=verdict.note_for(fresh),
+            # Nothing served yet: the run is told nothing was reported (ADR-387).
+            note=verdict.note_for(fresh, first=ledger.last_fired_at is None),
             served_state=ledger.after_check(at=started_at, present=verdict.keys, fired=True),
             unserved_state=unserved,
         )
@@ -267,104 +314,6 @@ async def _condition_gate(
     return None
 
 
-async def _send_approval_notification(
-    db: AsyncSession,
-    *,
-    user: UserProfile,
-    action: ScheduledAction,
-    user_language: str,
-) -> None:
-    """Propose-first notification (N-07): a markdown [Run it now](?intent=) link.
-
-    The absolute URL omits the locale segment on purpose (the connectors
-    router precedent): the frontend middleware resolves the user's locale.
-    Best-effort — a dispatch failure must not break the tick, the routine
-    simply proposes again at its next one.
-    """
-    from src.core.i18n_proactive import ProactiveMessages
-    from src.infrastructure.proactive.notification import NotificationDispatcher
-
-    intent_url = f"{settings.frontend_url}/dashboard/chat?intent={quote(action.action_prompt)}"
-    body = ProactiveMessages.routine_approval_body(action.title, intent_url, user_language)
-    try:
-        await NotificationDispatcher().dispatch(
-            user=user,
-            content=body,
-            task_type="scheduled_action",
-            target_id=str(action.id),
-            metadata={"approval_proposal": True},
-            db=db,
-            title=ProactiveMessages.notification_title("scheduled_action", user_language),
-        )
-    except Exception as exc:  # noqa: BLE001 — the next tick proposes again
-        logger.warning(
-            "scheduled_action_approval_dispatch_failed",
-            action_id=str(action.id),
-            error_type=type(exc).__name__,
-        )
-
-
-async def _notify_result(
-    db: AsyncSession,
-    *,
-    user_id: uuid.UUID,
-    action: ScheduledAction,
-    content: str,
-    user_language: str,
-) -> None:
-    """Push the result (FCM) and toast it (SSE); each best-effort.
-
-    The archive is ``stream_chat_response``'s. The content is flattened ONCE
-    for both surfaces, before any truncation: the agent response is rich
-    content (HTML in ``html`` display mode, data cards in ``cards`` mode,
-    Markdown otherwise) while a push body and a toast description both render
-    their text verbatim.
-    """
-    from src.domains.notifications.service import FCMNotificationService
-    from src.infrastructure.cache.redis import get_redis_cache
-
-    notification_text = plain_text_for_notification(content)
-    try:
-        await FCMNotificationService(db).send_to_user(
-            user_id=user_id,
-            # The reader's punctuation joins the label to the routine's title (ADR-323).
-            title=f"{_get_localized_title(user_language)}"
-            f"{label_separator(user_language)}{action.title}",
-            body=_truncate(notification_text),
-            data={"type": "scheduled_action", "action_id": str(action.id)},
-        )
-    except Exception as fcm_err:
-        logger.warning(
-            "scheduled_action_fcm_failed",
-            action_id=str(action.id),
-            error_type=type(fcm_err).__name__,
-        )
-
-    try:
-        redis = await get_redis_cache()
-        if redis:
-            await redis.publish(
-                user_notifications_channel(user_id),
-                json.dumps(
-                    {
-                        "type": "scheduled_action",
-                        "content": _truncate(
-                            notification_text, SCHEDULED_ACTIONS_SSE_PREVIEW_MAX_LENGTH
-                        ),
-                        "action_id": str(action.id),
-                        "title": action.title,
-                    },
-                    ensure_ascii=False,
-                ),
-            )
-    except Exception as sse_err:
-        logger.warning(
-            "scheduled_action_sse_failed",
-            action_id=str(action.id),
-            error_type=type(sse_err).__name__,
-        )
-
-
 async def _load_tick(
     db: AsyncSession,
     repo: ScheduledActionRepository,
@@ -376,10 +325,9 @@ async def _load_tick(
     """The routine and its owner, or ``None`` when the tick must not run.
 
     Returns:
-        ``(action, user)`` for an existing routine of an active owner under
-        their usage limits; ``None`` otherwise (logged).
+        ``(action, user)`` for an existing routine of an active owner;
+        ``None`` otherwise (logged).
     """
-    from src.domains.usage_limits.service import UsageLimitService
     from src.domains.users.service import UserService
 
     action = await repo.get_by_id(action_id)
@@ -400,15 +348,18 @@ async def _load_tick(
             reservation_released=released,
         )
         return None
-
-    # Guard: usage limit pre-check (LLM-consuming task)
-    if await UsageLimitService.is_user_blocked_for_llm(
-        user_id,
-        layer="scheduled_action_executor",
-        extra_log_fields={"action_id": str(action_id)},
-    ):
-        return None
     return action, user
+
+
+async def _usage_ceiling_reached(action: ScheduledAction) -> bool:
+    """Whether the owner's usage ceiling refuses this tick (logged and counted)."""
+    from src.domains.usage_limits.service import UsageLimitService
+
+    return await UsageLimitService.is_user_blocked_for_llm(
+        action.user_id,
+        layer="scheduled_action_executor",
+        extra_log_fields={"action_id": str(action.id)},
+    )
 
 
 async def _execution_is_authorized(
@@ -462,6 +413,7 @@ async def execute_single_action(
     *,
     execution_guard: ExecutionGuard | None = None,
     execution_token: uuid.UUID | None = None,
+    started_by_person: bool = False,
 ) -> str:
     """
     Execute a single scheduled action through the agent pipeline.
@@ -475,6 +427,9 @@ async def execute_single_action(
         execution_guard: The caller's own authorization check (ADR-335).
         execution_token: The reservation the tick was handed; the run then
             renews it before the model and settles only while it holds it.
+        started_by_person: Declared by the call site (« run now », a run asked
+            in the chat): such a run is the person's act, so the age of the
+            pending slot is never a reason to give it up as missed.
 
     Returns:
         Response content from the agent.
@@ -500,117 +455,137 @@ async def execute_single_action(
         # push answers (ADR-304). The session is ``expire_on_commit=False``.
         await db.commit()
 
-        # === Condition gate (N-07, ADR-322) ===
-        gate = _NO_CONDITION
-        if action.trigger_kind == TriggerKind.CONDITION.value:
-            checked = await _condition_gate(
-                db,
-                repo,
-                action,
-                user_id,
-                started_at=started_at,
-                due_at=due_at,
-                execution_token=execution_token,
-            )
-            if checked is None:
-                return ""
-            gate = checked
-
-        async def _settle(outcome: ScheduledRunOutcome, state: dict[str, Any] | None) -> None:
-            """Re-arm without counting an execution, write the row, commit."""
-            await _rearm_reserved(repo, action, execution_token, due_at, state)
-            await record_run(
-                db, action, due_at=due_at, started_at=started_at, outcome=outcome, attempts=0
-            )
-            await db.commit()
-
-        if not await _execution_is_authorized(db, action, execution_guard, token=execution_token):
-            return ""
-        if action.requires_approval:
-            # Propose-first: the run belongs to the CHAT (?intent= — ADR-173),
-            # so it flows through the normal pipeline + HITL when the user
-            # clicks. The tick only notifies and re-arms.
-            await _send_approval_notification(
-                db, user=user, action=action, user_language=user_language
-            )
-            await _settle(ScheduledRunOutcome.PROPOSED, gate.served_state)
-            logger.info(
-                "scheduled_action_approval_proposed",
-                action_id=str(action_id),
-                user_id=str(user_id),
-            )
-            return ""
-
-        # === Guard: the thread must not already hold an unanswered question ===
-        # The probe FAILS OPEN (it is the engine's contract): failing to ask
-        # whether a question is pending must not become a reason to do nothing.
-        has_pending_hitl, pending_conversation_id = await conversation_has_pending_hitl(
-            db, user_id, user_language
-        )
-        if has_pending_hitl:
-            logger.info(
-                "scheduled_action_skipped_hitl_pending",
-                action_id=str(action_id),
-                user_id=str(user_id),
-                conversation_id=str(pending_conversation_id),
-            )
-            if action.trigger_kind != TriggerKind.CONDITION.value:
-                # A skipped slot counts no execution: nothing ran.
-                await _settle(ScheduledRunOutcome.SKIPPED_HITL, None)
-            else:
-                # The facts stay new and the next check tries again — with no
-                # row: a question can wait for days, a row at every check
-                # would say nothing the chat does not already show.
-                await _rearm_reserved(repo, action, execution_token, due_at, gate.unserved_state)
-                await db.commit()
-            return ""
-
-        # The probe's reads are done: nothing is held while the model runs.
-        await db.commit()
-        if not await _execution_is_authorized(db, action, execution_guard, token=execution_token):
-            return ""
-        response_content = await _run_pipeline(
-            db,
-            repo,
-            action,
-            user,
-            gate=gate,
-            started_at=started_at,
+        occurrence = TriggerPlan.of(action).due_occurrence(due_at=due_at, started_at=started_at)
+        tick = _Tick(
+            db=db,
+            repo=repo,
+            action=action,
+            token=execution_token,
             due_at=due_at,
-            user_language=user_language,
-            conversation_id=pending_conversation_id,
-            execution_token=execution_token,
+            started_at=started_at,
+            occurrence=occurrence,
         )
-        # The outcome is durable BEFORE any push: a crash during the
-        # notification must not re-run a routine that already answered.
+        if occurrence is not None and not started_by_person and occurrence.is_late(started_at):
+            ended = await _give_up_late(tick, occurrence)
+        elif await _usage_ceiling_reached(action):
+            ended = await _stand_aside_for_quota(tick, unserved_state=None)
+        else:
+            ended = await _serve_tick(
+                tick, user, guard=execution_guard, user_language=user_language
+            )
+        # The outcome is durable BEFORE anything leaves the process: a crash
+        # during a push must not re-run a routine that already answered.
         await db.commit()
 
-        if response_content:
-            await _notify_result(
+        if ended.text and not ended.silent:
+            await notify_result(
                 db,
                 user_id=user_id,
                 action=action,
-                content=response_content,
+                content=ended.text,
                 user_language=user_language,
+            )
+        notice = await _owed_notice(ended, user_id)
+        if notice is not None:
+            await send_routine_notice(
+                db, user=user, action=action, kind=notice, user_language=user_language
             )
         await db.commit()
 
-    return response_content
+    return ended.text
+
+
+async def _owed_notice(ended: _TickEnd, user_id: uuid.UUID) -> RoutineNotice | None:
+    """The notice to send once the tick is durable, if its owner is owed one.
+
+    The ceiling's notice is the ACCOUNT's, claimed once per window whichever
+    routine met the ceiling first; a run the person started is waited for, and
+    is told whatever the claim says. Claimed after the commit: nothing is held
+    while the cache answers (ADR-304).
+
+    Args:
+        ended: How the tick ended.
+        user_id: The routine's owner.
+
+    Returns:
+        The notice, or None when there is nothing to say or it was said already.
+    """
+    if ended.notice is not RoutineNotice.QUOTA:
+        return ended.notice
+    claimed = await claim_quota_notice(user_id)
+    return ended.notice if claimed or ended.manual else None
+
+
+async def _serve_tick(
+    tick: _Tick, user: UserProfile, *, guard: ExecutionGuard | None, user_language: str
+) -> _TickEnd:
+    """Serve a tick its owner's ceiling admitted: check, propose or run.
+
+    Nothing is held open across a wait (ADR-304), and the reservation is
+    revalidated before each one.
+
+    Args:
+        tick: The tick.
+        user: The routine's owner.
+        guard: The caller's own authorization check (ADR-335).
+        user_language: The owner's backend-canonical language.
+
+    Returns:
+        What the tick leaves for its owner.
+    """
+    db, repo, action = tick.db, tick.repo, tick.action
+    # === Condition gate (N-07, ADR-322) ===
+    gate = _NO_CONDITION
+    if action.trigger_kind == TriggerKind.CONDITION.value:
+        checked = await _condition_gate(
+            db,
+            repo,
+            action,
+            action.user_id,
+            started_at=tick.started_at,
+            due_at=tick.due_at,
+            execution_token=tick.token,
+        )
+        if checked is None:
+            return _NOTHING
+        gate = checked
+    elif action.trigger_kind == TriggerKind.WEBHOOK.value:
+        calls = await waiting_calls(db, action)
+        if not calls.delivery_ids:
+            if not await _settle_superseded(repo, action, tick.token, attempts=0):
+                rest = await rest_until(db, action.id, switch_open=calls.switch_open)
+                await repo.reschedule(action, rest)
+            return _NOTHING
+        gate = _ConditionGate(calls.note, None, None, calls.delivery_ids)
+
+    if not await _execution_is_authorized(db, action, guard, token=tick.token):
+        return _NOTHING
+    if action.requires_approval:
+        # Propose-first: the run belongs to the CHAT (?intent= — ADR-173),
+        # so it flows through the normal pipeline + HITL when the user
+        # clicks. The tick only notifies, re-arms without counting an
+        # execution, and writes its row.
+        await send_approval_notification(db, user=user, action=action, user_language=user_language)
+        await _rearm_reserved(repo, action, tick.token, tick.due_at, gate.served_state)
+        await _record_unserved(tick, ScheduledRunOutcome.PROPOSED)
+        await db.commit()
+        logger.info(
+            "scheduled_action_approval_proposed",
+            action_id=str(action.id),
+            user_id=str(action.user_id),
+        )
+        return _NOTHING
+
+    # The shared engine checks the question only AFTER account admission.
+    await db.commit()
+    if not await _execution_is_authorized(db, action, guard, token=tick.token):
+        return _NOTHING
+    return await _run_pipeline(tick, user, gate=gate, user_language=user_language)
 
 
 async def _run_pipeline(
-    db: AsyncSession,
-    repo: ScheduledActionRepository,
-    action: ScheduledAction,
-    user: UserProfile,
-    *,
-    gate: _ConditionGate,
-    started_at: datetime,
-    due_at: datetime | None,
-    user_language: str,
-    conversation_id: uuid.UUID | None,
-    execution_token: uuid.UUID | None = None,
-) -> str:
+    tick: _Tick, user: UserProfile, *, gate: _ConditionGate, user_language: str
+) -> _TickEnd:
     """Run the routine's instruction through the shared engine, and mark the outcome.
 
     The retry policy, the timeout, the fresh session per attempt and the
@@ -618,22 +593,17 @@ async def _run_pipeline(
     does with the outcome stays here.
 
     Args:
-        db: The tick's session; nothing is held open while the model runs.
-        repo: The routines' repository on that session.
-        action: The routine being run.
-        user: Its owner, for the language, zone and display preferences.
+        tick: The tick; nothing is held open on its session while the model
+            runs, and its settle writes only while its reservation still holds
+            the routine.
+        user: The routine's owner, for the language, zone and display preferences.
         gate: The condition gate's verdict (the fact to serve, if any).
-        started_at: When the tick started, for the run history.
-        due_at: The slot the tick serves, for the run history.
         user_language: The owner's backend-canonical language.
-        conversation_id: The owner's thread, from the pending-question probe;
-            None when the probe could not tell.
-        execution_token: The tick's reservation; when given, the settle writes
-            only while it still holds the routine.
 
     Returns:
-        The answer, empty on a failure.
+        The answer, or the notice of why there is none.
     """
+    action = tick.action
     # ONE id for the run, across its attempts: the registers, the token logs
     # and a question the turn may leave on the thread all name it.
     run_id = generate_run_id()
@@ -661,8 +631,19 @@ async def _run_pipeline(
             run_id=run_id,
             # Spec D9: the servers its form ticked — the only pre-approval there is.
             mcp_preapproval=action.mcp_preapproval,
+            quiet_when_nothing_new=action.notify_only_when_new,
         )
     )
+    if result.outcome is RunOutcome.BUSY and await _wait_for_account(tick):
+        return _NOTHING
+    if result.outcome in _STOOD_ASIDE:
+        await _stand_aside(tick, _STOOD_ASIDE[result.outcome], gate.unserved_state)
+        return _NOTHING
+    if result.outcome is RunOutcome.QUOTA_BLOCKED:
+        # A ceiling refused the call before anything was generated: the same
+        # exit as the pre-check's own refusal, never a failure (ADR-272) —
+        # until 2026-11-12 five of them paused the routine.
+        return await _stand_aside_for_quota(tick, unserved_state=gate.unserved_state)
     # A routine has nobody to ask, so a question it cannot ask is a failure —
     # the behaviour this path has always had. The workboard reads the same
     # outcome differently, which is why the engine names it rather than
@@ -673,64 +654,194 @@ async def _run_pipeline(
     error_msg: str | None = result.error
     if result.outcome is RunOutcome.WAITING:
         error_msg = "RuntimeError: HITL interrupt during scheduled action execution"
-        await clear_question_of_run(conversation_id, run_id)
-    # A ceiling refusal (``QUOTA_BLOCKED``) carries its message, so it takes the
-    # failure path and the OCCURRENCE is abandoned — the series re-arms on its
-    # own next slot. A routine has no « skipped » outcome to write:
-    # ``ScheduledRunOutcome`` declares five, one per exit, and the weekly grid
-    # colours a cell from them.
+        await clear_question_of_run(result.admission)
     outcome = ScheduledRunOutcome.SUCCESS if error_msg is None else ScheduledRunOutcome.FAILURE
-    if not await _settle_superseded(repo, action, execution_token, attempts=result.attempts):
-        await _mark_routine(repo, action, gate, result, error_msg=error_msg, due_at=due_at)
+    notice: RoutineNotice | None = None
+    if not await _settle_superseded(tick.repo, action, tick.token, attempts=result.attempts):
+        notice = await _mark_routine(tick, gate, result, error_msg=error_msg)
     # Written even when the routine is another tick's: the run happened, and a
     # condition routine's daily cap counts its runs from these rows (ADR-322).
     await record_run(
-        db,
+        tick.db,
         action,
-        due_at=due_at,
-        started_at=started_at,
+        due_at=tick.due_at,
+        started_at=tick.started_at,
         outcome=outcome,
         attempts=result.attempts,
         error=error_msg,
         run_id=run_id,
     )
-    return result.text
+    # The answer is archived either way; a run that declared it had nothing
+    # new is simply not pushed to an owner who asked for that. A failure is
+    # always told: its notice does not read this.
+    silent = action.notify_only_when_new and result.nothing_new
+    return _TickEnd(text=result.text, notice=notice, silent=silent)
+
+
+async def _record_unserved(tick: _Tick, outcome: ScheduledRunOutcome) -> None:
+    """Write the row of a tick that ran nothing: no attempt, no error."""
+    await record_run(
+        tick.db,
+        tick.action,
+        due_at=tick.due_at,
+        started_at=tick.started_at,
+        outcome=outcome,
+        attempts=0,
+    )
+
+
+async def _stand_aside(
+    tick: _Tick, outcome: ScheduledRunOutcome, condition_state: dict[str, Any] | None
+) -> bool:
+    """Re-arm a routine whose tick ran nothing, and leave the reason on its week.
+
+    Never counted as an execution or a failure. A time routine's unserved slot
+    gets its row; a condition routine's does not — its checks are recorded on
+    its ledger, and a row per check stood aside would write one every ten
+    minutes (ADR-322) — nor does a webhook routine's, whose calls wait (ADR-386).
+
+    Args:
+        tick: The tick.
+        outcome: Why nothing ran.
+        condition_state: The ledger to write, for a condition routine.
+
+    Returns:
+        True when this tick still held the routine, and so settled it.
+    """
+    action = tick.action
+    if not await _rearm_reserved(tick.repo, action, tick.token, tick.due_at, condition_state):
+        return False
+    # A webhook routine looks again at the next pass: a row per pass would be one a minute.
+    if action.trigger_kind == TriggerKind.TIME.value:
+        await _record_unserved(tick, outcome)
+    return True
+
+
+async def _give_up_late(tick: _Tick, occurrence: DueOccurrence) -> _TickEnd:
+    """Record an occurrence reached past its window, and arm what may still start.
+
+    A morning routine answered in the afternoon is not the morning's (ADR-265
+    amendment 2026-11-12 b). Not a failure, and nobody is told: the week says
+    « missed », where an outage that skipped five routines would otherwise
+    answer with five notices.
+
+    Args:
+        tick: The tick.
+        occurrence: The occurrence it was due for, now too old.
+
+    Returns:
+        Nothing to tell the owner.
+    """
+    armed = TriggerPlan.of(tick.action).after_missed(due_at=occurrence.at, now=tick.started_at)
+    if await _rearm_at(tick, armed):
+        await _record_unserved(tick, ScheduledRunOutcome.SKIPPED_LATE)
+        logger.info(
+            "scheduled_action_occurrence_missed",
+            action_id=str(tick.action.id),
+            late_seconds=int((tick.started_at - occurrence.at).total_seconds()),
+            next_trigger_at=armed.isoformat() if armed else None,
+        )
+    return _NOTHING
+
+
+async def _wait_for_account(tick: _Tick) -> bool:
+    """Leave a due occurrence armed for the scheduler's next pass.
+
+    A busy account is a turn under way — a matter of minutes. Re-armed on the
+    NEXT occurrence, as every other exit is, a daily routine was lost for a day
+    because its owner was typing at 08:00, or because two routines of one
+    account were due the same minute. Nothing is written while it waits: the
+    occurrence is still pending, and its row will be the run's, or the reason
+    it was given up. A question waiting for the person is not waited for: it
+    lasts as long as the person takes.
+
+    Args:
+        tick: The tick the engine found no room for.
+
+    Returns:
+        True when the occurrence stays armed (or the tick lost the routine);
+        False when its wait is over and the tick stands aside for good.
+    """
+    occurrence = tick.occurrence
+    if occurrence is None or now_utc() + _NEXT_PASS > occurrence.retry_until:
+        return False
+    await _rearm_at(tick, occurrence.at)
+    return True
+
+
+async def _rearm_at(tick: _Tick, next_trigger: datetime | None) -> bool:
+    """Arm the instant this tick chose, while it still holds the routine."""
+    if await _settle_superseded(tick.repo, tick.action, tick.token, attempts=0):
+        return False
+    await tick.repo.reschedule(tick.action, next_trigger)
+    return True
+
+
+async def _stand_aside_for_quota(tick: _Tick, *, unserved_state: dict[str, Any] | None) -> _TickEnd:
+    """Stand a routine aside for its account's usage ceiling, and say why.
+
+    A condition routine's reason goes on its ledger, in place of the row a
+    check never writes: refused before its check, nothing was read and nothing
+    it had seen is forgotten; refused inside its turn, the facts the check
+    found stay new.
+
+    Args:
+        tick: The tick.
+        unserved_state: The ledger of a check that already ran, or None when
+            the ceiling refused the tick before it.
+
+    Returns:
+        The ceiling's notice for the owner, or nothing for a tick that lost
+        the routine.
+    """
+    ledger: dict[str, Any] | None = None
+    if tick.action.trigger_kind == TriggerKind.CONDITION.value:
+        ledger = (
+            with_check_error(unserved_state, "quota_blocked")
+            if unserved_state is not None
+            # Refused before its check: nothing was read, so nothing moves but the reason.
+            else _ledger_of(tick.action).after_check(
+                at=tick.started_at, present=(), fired=False, error="quota_blocked"
+            )
+        )
+    if not await _stand_aside(tick, ScheduledRunOutcome.SKIPPED_QUOTA, ledger):
+        return _NOTHING
+    return _TickEnd(notice=RoutineNotice.QUOTA, manual=is_manual_run(tick.due_at, tick.started_at))
 
 
 async def _mark_routine(
-    repo: ScheduledActionRepository,
-    action: ScheduledAction,
-    gate: _ConditionGate,
-    result: RunResult,
-    *,
-    error_msg: str | None,
-    due_at: datetime | None,
-) -> None:
+    tick: _Tick, gate: _ConditionGate, result: RunResult, *, error_msg: str | None
+) -> RoutineNotice | None:
     """Mark the routine with its run's outcome and re-arm it.
 
     Args:
-        repo: The routines' repository on the tick's session.
-        action: The routine the tick still holds.
+        tick: The tick, which still holds the routine.
         gate: The condition gate's verdict (the ledger state to write).
         result: The engine's outcome of the run.
         error_msg: The failure message; None on a success.
-        due_at: The slot the tick serves, for the re-arm.
+
+    Returns:
+        The notice a failure owes the owner (the first of a series, the one
+        that pauses the routine, a run the person started); None otherwise.
     """
-    next_trigger = _next_trigger(action, due_at)
+    repo, action = tick.repo, tick.action
+    next_trigger = _next_trigger(action, tick.due_at, failed=error_msg is not None)
     if error_msg is None:
-        # The ledger's new facts are served only by a REAL run: a failed one
-        # leaves them new, so the next check tries the fact again.
+        # The ledger's new facts — and the calls — are served only by a REAL
+        # run: a failed one leaves them waiting for the next.
         await repo.mark_execution_success(action, next_trigger, condition_state=gate.served_state)
+        await serve_calls(tick.db, action.id, gate.deliveries)
         logger.info(
             "scheduled_action_executed_success",
             action_id=str(action.id),
             user_id=str(action.user_id),
             response_length=len(result.text),
+            nothing_new=result.nothing_new,
             next_trigger_at=next_trigger.isoformat() if next_trigger else None,
             attempt=result.attempts,
         )
-        return
-    await repo.mark_execution_failure(
+        return None
+    marked = await repo.mark_execution_failure(
         action,
         error_msg,
         next_trigger,
@@ -745,6 +856,12 @@ async def _mark_routine(
         error_type=result.error_code or result.outcome.value,
         total_attempts=result.attempts,
         **interrupt_log_facts(result.interrupt),
+    )
+    # Read from the row the repository returns: the threshold has ONE owner.
+    return failure_notice(
+        consecutive_failures=marked.consecutive_failures,
+        disabled=marked.status == ScheduledActionStatus.ERROR.value,
+        manual=is_manual_run(tick.due_at, tick.started_at),
     )
 
 
@@ -791,65 +908,6 @@ async def _settle_superseded(
         "scheduled_action_settle_superseded", action_id=str(action.id), attempts=attempts
     )
     return True
-
-
-async def _purge_run_history() -> int:
-    """Drop run rows older than the retention; best effort, never raises.
-
-    Returns:
-        How many rows went (0 when nothing was old enough or the purge failed).
-    """
-    from datetime import timedelta
-
-    from src.domains.scheduled_actions.run_repository import ScheduledActionRunRepository
-    from src.infrastructure.database.errors import database_error_fields
-    from src.infrastructure.database.session import get_db_context
-
-    cutoff = now_utc() - timedelta(days=settings.scheduled_actions_runs_retention_days)
-    try:
-        async with get_db_context() as db:
-            purged = await ScheduledActionRunRepository(db).purge_older_than(cutoff)
-            await db.commit()
-            return purged
-    except Exception as exc:
-        # A database failure is logged by its facts, never by its text (ADR-317).
-        logger.warning(
-            "scheduled_action_runs_purge_failed",
-            error_type=type(exc).__name__,
-            **database_error_fields(exc),
-        )
-        return 0
-
-
-async def _close_finished_routines() -> int:
-    """Close the routines with no future left; best effort, never raises.
-
-    A series ends three ways — its ``SeriesEnd`` date reached, its
-    ``after_count`` exhausted, its single occurrence consumed — and all three
-    leave the same state: a NULL trigger. Nothing closed those rows, so they
-    stayed enabled and « active » for good, indistinguishable from a pause.
-
-    Disabled, never deleted: the person must be able to see what they had
-    posted. In its OWN session so a failure cannot poison the batch that
-    follows.
-
-    Returns:
-        How many were closed (0 when none were due or the sweep failed).
-    """
-    from src.domains.scheduled_actions.repository import ScheduledActionRepository
-    from src.infrastructure.database.session import get_db_context
-
-    try:
-        async with get_db_context() as db:
-            closed = await ScheduledActionRepository(db).close_finished()
-            await db.commit()
-            return closed
-    except Exception as exc:  # noqa: BLE001 — housekeeping never costs the tick
-        logger.warning(
-            "scheduled_action_close_finished_failed",
-            error_type=type(exc).__name__,
-        )
-        return 0
 
 
 def _attempt_bound_seconds() -> int:
@@ -919,6 +977,7 @@ async def process_scheduled_actions() -> dict[str, Any]:
         "skipped": 0,
         "recovered": 0,
         "runs_purged": 0,
+        "calls_purged": 0,
         "finished_closed": 0,
     }
 
@@ -930,12 +989,13 @@ async def process_scheduled_actions() -> dict[str, Any]:
         # than a job of its own — no new interval to jitter, no new lock — in
         # its OWN session so a failed DELETE cannot poison the batch, and
         # BEFORE the empty-batch early return, which is the common tick.
-        stats["runs_purged"] = await _purge_run_history()
+        stats["runs_purged"] = await purge_run_history(now_utc())
+        stats["calls_purged"] = await purge_served_calls(now_utc())
         # 0b. Close the routines with no future left (ADR-281, lot 5). Beside
         # the retention for the same reasons — no new interval, no new lock —
         # and in the same place: a routine that will never fire again must stop
         # LOOKING active on the person's screen.
-        stats["finished_closed"] = await _close_finished_routines()
+        stats["finished_closed"] = await close_finished_routines()
 
         async with get_db_context() as db:
             repo = ScheduledActionRepository(db)

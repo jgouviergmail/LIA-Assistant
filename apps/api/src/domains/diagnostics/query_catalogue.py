@@ -30,6 +30,7 @@ EXTERNAL_METRICS_ALLOWLIST: dict[str, str] = {
     "up": "Synthesised by Prometheus itself for every scrape target.",
     "node_filesystem_avail_bytes": "Produced by node-exporter (host disk telemetry).",
     "node_filesystem_size_bytes": "Produced by node-exporter (host disk telemetry).",
+    "node_filesystem_readonly": "Produced by node-exporter (host disk telemetry).",
     "node_memory_MemAvailable_bytes": "Produced by node-exporter (host memory telemetry).",
     "node_memory_MemTotal_bytes": "Produced by node-exporter (host memory telemetry).",
     "probe_success": (
@@ -435,6 +436,48 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             external_metrics=(),
         ),
         NamedQuery(
+            query_id="conversation_cleanup_backlog",
+            title="Outstanding discussion cleanups by durable state",
+            promql_template="max by (state) (conversation_cleanup_operations)",
+            params=(),
+            unit="count",
+            lia_metrics=("conversation_cleanup_operations",),
+            external_metrics=(),
+        ),
+        NamedQuery(
+            query_id="conversation_cleanup_oldest_age",
+            title="Age of the oldest unfinished cleanup per state",
+            promql_template=(
+                "max by (state) ((time() - conversation_cleanup_oldest_timestamp_seconds) "
+                "* (conversation_cleanup_operations > bool 0))"
+            ),
+            params=(),
+            unit="seconds",
+            lia_metrics=(
+                "conversation_cleanup_oldest_timestamp_seconds",
+                "conversation_cleanup_operations",
+            ),
+            external_metrics=(),
+        ),
+        NamedQuery(
+            query_id="conversation_executions_in_recovery",
+            title="Discussion execution slots awaiting recovery",
+            promql_template="max(conversation_executions_recovering)",
+            params=(),
+            unit="count",
+            lia_metrics=("conversation_executions_recovering",),
+            external_metrics=(),
+        ),
+        NamedQuery(
+            query_id="conversation_cleanup_snapshot_age",
+            title="Age of the last successful discussion cleanup snapshot",
+            promql_template="time() - max(conversation_cleanup_snapshot_timestamp_seconds > 0)",
+            params=(),
+            unit="seconds",
+            lia_metrics=("conversation_cleanup_snapshot_timestamp_seconds",),
+            external_metrics=(),
+        ),
+        NamedQuery(
             query_id="radio_newsroom_ticks",
             title="Radio newsroom ticks by outcome (ADR-324)",
             promql_template=(
@@ -469,14 +512,21 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
         NamedQuery(
             query_id="disk_usage_percent",
             title="Host disk usage",
+            # A read-only filesystem is full by construction (WSL's system image
+            # reads 100%): left out, as the DiskSpaceCritical alert leaves it out.
             promql_template=(
                 '100 * (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}'
                 ' / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}))'
+                " unless node_filesystem_readonly == 1"
             ),
             params=(),
             unit="percent",
             lia_metrics=(),
-            external_metrics=("node_filesystem_avail_bytes", "node_filesystem_size_bytes"),
+            external_metrics=(
+                "node_filesystem_avail_bytes",
+                "node_filesystem_size_bytes",
+                "node_filesystem_readonly",
+            ),
         ),
         NamedQuery(
             query_id="memory_usage_percent",

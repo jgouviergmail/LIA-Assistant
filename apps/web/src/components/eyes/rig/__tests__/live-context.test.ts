@@ -5,6 +5,7 @@ import { usePsycheStore as psyche } from '@/stores/psycheStore';
 import { useEyesSignalsStore as signals } from '@/stores/eyesSignalsStore';
 import { useLiveStore as live } from '@/stores/liveStore';
 import type { Activity } from '../../activity';
+import { REACTION_HOLD_MS } from '../../expression-engine';
 import { useCompanionEnvironmentStore as environment } from '@/stores/companionEnvironmentStore';
 
 const event: Activity = {
@@ -48,6 +49,26 @@ it('borrows fresh weather without replacing Psyche, then releases it at expiry',
     dayPhase: 'night',
     pleasure: 0.8,
   });
+});
+
+it('tells the rig the sky of an ordinary day, and forgets it with the observation', () => {
+  const now = Date.parse('2026-09-21T12:00:00Z');
+  environment.getState().setEnvironment({
+    timezone: 'Europe/Paris',
+    weather: {
+      temperature_c: 18,
+      condition_code: 'Clouds',
+      wind_speed_kmh: 5,
+      observed_at: new Date(now - 1000).toISOString(),
+      expires_at: new Date(now + 1000).toISOString(),
+    },
+  });
+  expect(liveActingContext(now)).toMatchObject({
+    sky: 'clouds',
+    weatherFlags: [],
+    dayPhase: 'afternoon',
+  });
+  expect(liveActingContext(now + 1000).sky).toBeNull();
 });
 
 it('keeps concurrent environment evidence during real work and answer states independently of Psyche', () => {
@@ -98,6 +119,24 @@ it('uses neutral temperament when Psyche is disabled and expires answer release'
   signals.getState().setReaction('joy', 1, 'none', 100);
   expect(liveActingContext(200)).toMatchObject({ pleasure: 0.8, curiosity: 0.9, responding: true });
   expect(liveActingContext(20_000).responding).toBe(false);
+});
+
+it('gives the face back to its own life when the answer stops holding it, not when it has faded', () => {
+  signals.getState().setReaction('neutral', 1, 'none', 100);
+  expect(liveActingContext(100 + REACTION_HOLD_MS - 1).responding).toBe(true);
+  expect(liveActingContext(100 + REACTION_HOLD_MS).responding).toBe(false);
+  expect(signals.getState().liveReaction(100 + REACTION_HOLD_MS)).toBe('neutral');
+});
+
+it('tells the rig when the face follows text being written, by the one predicate of the store', () => {
+  expect(liveActingContext(1000).attending).toBe(false);
+  signals.getState().recordTyping(1000);
+  expect(liveActingContext(1500).attending).toBe(true);
+  expect(liveActingContext(60_000).attending).toBe(false);
+  signals.getState().beginTurn('answer');
+  expect(liveActingContext(60_000)).toMatchObject({ attending: true, responding: false });
+  signals.getState().completeTurn('answer');
+  expect(liveActingContext(60_000).attending).toBe(false);
 });
 
 it('uses the most recent real voice or chat activity and never turns a lookup into an act', () => {

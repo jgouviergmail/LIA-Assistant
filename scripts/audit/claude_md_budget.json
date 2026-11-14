@@ -6,7 +6,14 @@
     "heading": "### Concurrency & async"
   },
   "headroom_bytes": 4096,
-  "max_bytes": 133952,
-  "raises": [],
+  "max_bytes": 138661,
+  "raises": [
+    {
+      "date": "2026-11-12",
+      "from": 133952,
+      "to": 138661,
+      "reason": "ADR-378 had no line: the immutable discussion target, the execution authority and the no-timeout recovery doctrine bind every writer of the chat turn."
+    }
+  ],
   "long_blocks": []
 }

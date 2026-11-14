@@ -3,14 +3,15 @@
  *
  * Oracles by role/accessible name: status line, server results with marked
  * excerpts and jump buttons, history-view banner with "back to present",
- * mobile input row with Escape-to-close.
+ * mobile input row with Escape-to-close, and (lot 12) the discussion a result
+ * was found in, named when it is not the one on screen.
  */
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 import { ChatSearchBar, type ChatSearchBarProps } from '../ChatSearchBar';
-import type { ConversationMessage } from '@/hooks/useConversation';
+import type { DiscussionSearchResult } from '@/hooks/useConversation';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -24,25 +25,18 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-function row(overrides: Partial<ConversationMessage>): ConversationMessage {
+const HERE = 'main-1';
+
+function row(overrides: Partial<DiscussionSearchResult>): DiscussionSearchResult {
   return {
-    id: 'r1',
+    message_id: 'r1',
     role: 'assistant',
     content: 'On confirme la réunion de mardi matin',
-    message_metadata: null,
     created_at: '2026-06-01T10:00:00.000Z',
-    tokens_in: null,
-    tokens_out: null,
-    tokens_cache: null,
-    cost_eur: null,
-    google_api_requests: null,
-    stt_provider: null,
-    stt_audio_duration_seconds: null,
-    stt_cost_eur: null,
-    tts_provider: null,
-    tts_model: null,
-    tts_characters: null,
-    tts_cost_eur: null,
+    conversation_id: HERE,
+    conversation_kind: 'main',
+    conversation_title: null,
+    conversation_revision: 0,
     ...overrides,
   };
 }
@@ -61,6 +55,8 @@ function makeProps(overrides: Partial<ChatSearchBarProps> = {}): ChatSearchBarPr
     excerptTerm: '',
     historyView: false,
     jumpDisabled: false,
+    currentDiscussionId: HERE,
+    canOpenOtherDiscussions: true,
     mobileOpen: false,
     onCloseMobile: vi.fn(),
     onRunServerSearch: vi.fn(),
@@ -103,10 +99,12 @@ describe('ChatSearchBar', () => {
     const jump = screen.getByRole('button', { name: /chat\.search\.jump_aria/ });
     expect(jump.querySelector('mark.lia-search-mark')?.textContent).toBe('réunion');
     fireEvent.click(jump);
-    expect(props.onJump).toHaveBeenCalledWith(expect.objectContaining({ id: 'r1' }));
+    expect(props.onJump).toHaveBeenCalledWith(expect.objectContaining({ message_id: 'r1' }));
+    // A result of the discussion on screen names no discussion.
+    expect(screen.queryByText(/chat\.search\.in_discussion/)).toBeNull();
   });
 
-  it('disables jumps while a stream is active', () => {
+  it('holds jumps within this discussion while a stream is active, keeping them focusable', () => {
     const props = makeProps({
       searchQuery: 'reunion',
       panelOpen: true,
@@ -117,7 +115,89 @@ describe('ChatSearchBar', () => {
     render(<ChatSearchBar {...props} />);
 
     const jump = screen.getByRole('button', { name: /chat\.search\.jump_aria/ });
-    expect(jump).toHaveProperty('disabled', true);
+    // `aria-disabled`, never `disabled`: a stream starting under a focused
+    // result must not blur it (apps/web/CLAUDE.md, refresh/busy rule).
+    expect(jump).toHaveAttribute('aria-disabled', 'true');
+    expect(jump).not.toBeDisabled();
+    fireEvent.click(jump);
+    expect(props.onJump).not.toHaveBeenCalled();
+  });
+
+  it('keeps a result found elsewhere open while a stream runs here, when this discussion may be left', () => {
+    const elsewhere = row({ conversation_id: 'annex-1', conversation_kind: 'secondary', conversation_title: 'T' });
+    const props = makeProps({
+      searchQuery: 'reunion',
+      panelOpen: true,
+      excerptTerm: 'reunion',
+      serverResults: [elsewhere],
+      jumpDisabled: true,
+      canOpenOtherDiscussions: true,
+    });
+    render(<ChatSearchBar {...props} />);
+
+    const jump = screen.getByRole('button', { name: /chat\.search\.jump_other_aria/ });
+    expect(jump).not.toHaveAttribute('aria-disabled');
+    fireEvent.click(jump);
+    expect(props.onJump).toHaveBeenCalledWith(elsewhere);
+  });
+
+  it('names the discussion of a result found elsewhere, and opens it on click', () => {
+    const elsewhere = row({
+      message_id: 'r2',
+      conversation_id: 'annex-1',
+      conversation_kind: 'secondary',
+      conversation_title: 'Travaux',
+    });
+    const props = makeProps({
+      searchQuery: 'reunion',
+      panelOpen: true,
+      excerptTerm: 'reunion',
+      serverResults: [elsewhere, row({ message_id: 'r3', conversation_id: 'main-0' })],
+      currentDiscussionId: 'annex-0',
+    });
+    render(<ChatSearchBar {...props} />);
+
+    const annex = screen.getByRole('button', { name: /chat\.search\.jump_other_aria\|name=Travaux/ });
+    expect(annex.textContent).toContain('chat.search.in_discussion|name=Travaux');
+    // Main's name is the reader's translation, never a stored title.
+    expect(
+      screen.getByRole('button', { name: /chat\.search\.jump_other_aria\|name=chat\.discussions\.main/ })
+    ).toBeTruthy();
+    fireEvent.click(annex);
+    expect(props.onJump).toHaveBeenCalledWith(elsewhere);
+  });
+
+  it('holds results found elsewhere while this discussion cannot be left', () => {
+    const props = makeProps({
+      searchQuery: 'reunion',
+      panelOpen: true,
+      excerptTerm: 'reunion',
+      serverResults: [row({ conversation_id: 'annex-1', conversation_kind: 'secondary', conversation_title: 'T' })],
+      canOpenOtherDiscussions: false,
+    });
+    render(<ChatSearchBar {...props} />);
+
+    const jump = screen.getByRole('button', { name: /chat\.search\.jump_other_aria/ });
+    expect(jump).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(jump);
+    expect(props.onJump).not.toHaveBeenCalled();
+  });
+
+  it('counts the results as all there are only once no more follow (ADR-185)', () => {
+    const complete = makeProps({
+      searchQuery: 'reunion',
+      panelOpen: true,
+      excerptTerm: 'reunion',
+      serverResults: [row({})],
+    });
+    const { unmount } = render(<ChatSearchBar {...complete} />);
+    expect(screen.getByText('chat.search.remote_count|count=1')).toBeInTheDocument();
+    unmount();
+
+    // More follow: the count is the most recent ones', never « N results ».
+    render(<ChatSearchBar {...complete} serverHasMore />);
+    expect(screen.getByText('chat.search.remote_count_partial|count=1')).toBeInTheDocument();
+    expect(screen.queryByText('chat.search.remote_count|count=1')).toBeNull();
   });
 
   it('offers load-more when the server has more results', () => {

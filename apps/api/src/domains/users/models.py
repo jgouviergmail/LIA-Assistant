@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Numeric, String, Text
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -32,6 +32,7 @@ from src.core.constants import (
     JOURNAL_MAX_TOTAL_CHARS_DEFAULT,
 )
 from src.domains.users.display_preferences_columns import DisplayPreferencesColumns
+from src.domains.users.document_preferences_columns import DocumentPreferencesColumns
 from src.domains.users.image_generation_columns import ImageGenerationColumns
 from src.domains.users.journal_lifecycle_columns import JournalLifecycleColumns
 from src.domains.users.live_preferences_columns import LivePreferencesColumns
@@ -58,6 +59,7 @@ if TYPE_CHECKING:
 class User(
     JournalLifecycleColumns,
     DisplayPreferencesColumns,
+    DocumentPreferencesColumns,
     ImageGenerationColumns,
     LivePreferencesColumns,
     MCPConfirmationColumns,
@@ -71,6 +73,11 @@ class User(
     """
 
     __tablename__ = "users"
+    __table_args__ = (
+        CheckConstraint(
+            "deletion_started_at IS NULL OR NOT is_active", name="ck_users_deletion_inactive"
+        ),
+    )
 
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     hashed_password: Mapped[str | None] = mapped_column(
@@ -180,6 +187,16 @@ class User(
         nullable=False,
         server_default="true",
         comment="User preference for the daily relationship debrief. True = enabled.",
+    )
+
+    # Drafts in the person's own voice (ADR-383). ON by default: the profile is
+    # learned only when LIA first writes an e-mail for them, from their own sent
+    # mail, and it can be read, forgotten or switched off from the settings.
+    writing_style_enabled: Mapped[bool] = mapped_column(
+        default=True,
+        nullable=False,
+        server_default="true",
+        comment="User preference: drafts follow the style learned from the sent mail.",
     )
 
     # Peer email visibility opt-in (ADR-189). Separate from discovery on
@@ -300,6 +317,9 @@ class User(
     )
 
     # Account deletion (soft-delete with data purge)
+    deletion_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
@@ -562,6 +582,7 @@ class User(
     )
 
     # Image generation preferences: ImageGenerationColumns (image_generation_columns.py)
+    # Document preferences: DocumentPreferencesColumns (document_preferences_columns.py)
 
     # Admin MCP per-user toggle (evolution F2.5)
     admin_mcp_disabled_servers: Mapped[list[str]] = mapped_column(

@@ -19,11 +19,11 @@ cannot without importing ``agents``:
 - the **boot guard**: every derived entry files under a section the
   ``phone_call`` surface declares and can be described to the vendor; every
   native lookup has its own voice line;
-- **provisioning**, idempotent by fingerprint: the vendor tools are created
-  once per connector (concurrently, under a bound — sixty sequential
-  creations would hold a dial for a minute), replaced when anything drifts (a
-  wording, the host, a rotated secret), and a vendor failure leaves the call
-  WITHOUT tools rather than without a dial;
+- the **vendor bodies** of the set (:func:`vendor_bodies`), which
+  ``live_provisioning.py`` makes the workspace hold exactly — created once per
+  connector (concurrently, under a bound), replaced when anything drifts, and
+  held against the workspace before every owner call (owner decision
+  2026-11-11): a set that cannot be made exact refuses the call;
 - **execution** on a synthetic runtime: the registered tool runs for the
   person with its arguments validated through its own schema, under a bound
   shorter than the vendor's timeout, and its result is projected the way the
@@ -65,6 +65,7 @@ from src.core.constants import (
     TELEPHONY_LIVE_TOOL_PROVISIONING_CONCURRENCY,
 )
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
+from src.core.tool_context_scope import VoiceContextSurface, voice_context_id
 from src.core.tool_outcome import explicit_success
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.context.store import get_tool_context_store
@@ -95,18 +96,10 @@ from src.domains.shared.consultation_surfaces import (
     record_surface_consultations,
 )
 from src.domains.shared.phone_domains import is_phone_domain
-from src.domains.telephony.client import (
-    ElevenLabsAgentsClient,
-    ElevenLabsAgentsError,
-    first_refusal,
-)
 from src.domains.telephony.live_tools import (
     ARRAY_ITEM_DESCRIPTION,
-    LiveToolBinding,
     LiveToolParameter,
-    live_tool_token,
     live_tool_url,
-    live_tools_fingerprint,
     webhook_tool_body,
 )
 from src.domains.telephony.spend import phone_call_run_id
@@ -119,7 +112,6 @@ from src.infrastructure.observability.metrics_telephony import (
 )
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
 
     from src.domains.agents.registry.agent_registry import AgentRegistry
     from src.domains.agents.registry.catalogue import ToolManifest
@@ -166,13 +158,15 @@ class VoiceToolHost:
         consultation_run_id: The run id the consultation rows are filed under
             (the phone files them under the call id, the session under its run).
         spend_node: The node name the spend is filed under in ``token_usage_logs``.
+        conversation_id: The discussion pinned to a browser session's bill.
     """
 
-    surface: str
+    surface: VoiceContextSurface
     key: str
     spend_run_id: str
     consultation_run_id: str
     spend_node: str
+    conversation_id: UUID | None = None
 
     @classmethod
     def phone_call(cls, call_id: UUID) -> VoiceToolHost:
@@ -186,7 +180,9 @@ class VoiceToolHost:
         )
 
     @classmethod
-    def live_session(cls, session_id: str, run_id: str) -> VoiceToolHost:
+    def live_session(
+        cls, session_id: str, run_id: str, *, conversation_id: UUID | None = None
+    ) -> VoiceToolHost:
         """A direct live session's host: everything under the session's run id."""
         return cls(
             surface=LIVE_SESSION_SURFACE,
@@ -194,6 +190,7 @@ class VoiceToolHost:
             spend_run_id=run_id,
             consultation_run_id=run_id,
             spend_node=_LIVE_SPEND_NODE,
+            conversation_id=conversation_id,
         )
 
 
@@ -589,102 +586,6 @@ async def available_live_tools(
 
 
 # ---------------------------------------------------------------------------
-# Provisioning
-# ---------------------------------------------------------------------------
-
-
-async def ensure_vendor_live_tools(
-    db: AsyncSession,
-    *,
-    connector: Any,
-    api_key: str,
-    api_secret: str,
-    client_factory: Callable[[str], ElevenLabsAgentsClient] | None = None,
-) -> tuple[LiveToolBinding, ...]:
-    """Make sure the vendor holds every live tool this connector may offer.
-
-    Idempotent by fingerprint: when nothing drifted the stored ids are
-    returned without a vendor round trip. On drift the new tools are created
-    first (concurrently, under :data:`LIVE_TOOL_PROVISIONING_CONCURRENCY`),
-    the old ones deleted after (forced), and the metadata committed — a NEW
-    dict, never a mutation (the JSONB rule). A vendor failure leaves the call
-    WITHOUT tools rather than without a dial. The person's own domain switches
-    are applied by the caller on the bindings: the vendor holds the whole
-    set, one call attaches its subset.
-
-    Args:
-        db: Session the connector row is committed on.
-        connector: The active telephony connector.
-        api_key: The person's vendor key.
-        api_secret: The connector's webhook secret, which the token derives from.
-        client_factory: Test seam for the vendor client.
-
-    Returns:
-        The bindings the dial may attach; empty when nothing is available.
-    """
-    specs = await available_live_tools()
-    if not specs:
-        return ()
-    bodies = vendor_bodies(specs, token=live_tool_token(api_secret))
-    fingerprint = live_tools_fingerprint(bodies)
-    metadata: dict[str, Any] = dict(connector.connector_metadata or {})
-    stored: dict[str, Any] = metadata.get(METADATA_IDS) or {}
-    if metadata.get(METADATA_HASH) == fingerprint and all(s.name in stored for s in specs):
-        return tuple(LiveToolBinding(s.name, str(stored[s.name]), s.domain) for s in specs)
-
-    client = (client_factory or ElevenLabsAgentsClient)(api_key)
-    created = await _create_vendor_tools(client, specs, bodies)
-    if created is None:
-        return ()
-    for old_id in stored.values():
-        await client.delete_tool(str(old_id))
-    connector.connector_metadata = {**metadata, METADATA_IDS: created, METADATA_HASH: fingerprint}
-    await db.commit()
-    logger.info("telephony_live_tools_provisioned", count=len(created))
-    return tuple(LiveToolBinding(s.name, created[s.name], s.domain) for s in specs)
-
-
-async def _create_vendor_tools(
-    client: ElevenLabsAgentsClient,
-    specs: tuple[LiveToolSpec, ...],
-    bodies: list[dict[str, Any]],
-) -> dict[str, str] | None:
-    """Create every vendor tool, concurrently under a bound; None on a refusal.
-
-    Never leaves half a set behind: on a vendor failure what was created is
-    removed (forced) before answering None.
-    """
-    created: dict[str, str] = {}
-    gate = asyncio.Semaphore(LIVE_TOOL_PROVISIONING_CONCURRENCY)
-
-    async def _create(spec: LiveToolSpec, body: dict[str, Any]) -> None:
-        async with gate:
-            created[spec.name] = await client.create_tool(body)
-
-    # A TaskGroup, never `gather`: on a refusal the siblings are cancelled and
-    # awaited BEFORE the rollback reads the dict they were filling (measured
-    # 2026-09-19 on the live session's twin: fifty creations went on after the
-    # first refusal, all orphaned).
-    refused: ElevenLabsAgentsError | None = None
-    try:
-        async with asyncio.TaskGroup() as group:
-            for spec, body in zip(specs, bodies, strict=True):
-                group.create_task(_create(spec, body))
-    except* ElevenLabsAgentsError as refusals:
-        refused = first_refusal(refusals)
-    if refused is not None:
-        logger.warning(
-            "telephony_live_tools_provisioning_failed",
-            status_code=refused.status_code,
-            created=len(created),
-        )
-        for tool_id in list(created.values()):
-            await client.delete_tool(tool_id)
-        return None
-    return created
-
-
-# ---------------------------------------------------------------------------
 # Execution
 # ---------------------------------------------------------------------------
 
@@ -717,7 +618,7 @@ async def _synthetic_runtime(
 
     from src.domains.agents.orchestration.parallel_executor import NullStreamWriter
 
-    thread_id = f"{host.surface}:{host.key}"
+    thread_id = voice_context_id(host.surface, host.key)
     context = LiaRuntimeContext(
         user_id=user_id,
         thread_id=thread_id,
@@ -908,7 +809,9 @@ async def run_live_tool(
     async with (
         get_db_context() as db,
         treatment_recorder(run_id=host.consultation_run_id),
-        TrackingContext(run_id, user_id, f"{host.surface}_{host.key}", None) as tracker,
+        TrackingContext(
+            run_id, user_id, f"{host.surface}_{host.key}", host.conversation_id
+        ) as tracker,
     ):
         callbacks: list[Any] = [TokenTrackingCallback(tracker, run_id)]
         try:
@@ -988,7 +891,6 @@ __all__ = [
     "available_live_tools",
     "derive_live_tool_specs",
     "domain_of",
-    "ensure_vendor_live_tools",
     "function_declaration",
     "exposed_parameter_names",
     "live_tool_description",

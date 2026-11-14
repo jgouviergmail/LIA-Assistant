@@ -6,6 +6,31 @@ Personal Journals give the AI assistant a living, evolving personality through o
 
 **Key distinction from memories**: Memories store factual data about the user (psychological profile). Journals store the assistant's own perspective and reflections.
 
+## Discussion sources and deferred writes
+
+The [discussion contract](SECONDARY_CONVERSATIONS.md#target-and-storage) defines the shared account scope and the individual source generations.
+
+Journal entries belong to the account and can be learned from Main or a secondary
+discussion. A deferred extraction inherits the immutable originating discussion
+generation separately from the graph's execution authority. Its final SQL write
+rechecks both that generation and the captured account consent revision, in the
+same short transaction as the write. Resetting one discussion preserves learned
+entries and does not invalidate an extraction from another discussion. Source
+references to the retired messages become dated tombstones; paid work remains
+accounted even when its result can no longer be applied.
+
+Optional consolidation history is loaded by `conversation_sources.py` across all
+active discussions of the account. One global message limit applies, with a
+stable timestamp/primary-key order, SQL-bounded body excerpts, an exact total and
+an explicit cut. Independent dialogues are grouped separately. Hidden automated
+rows and foreign-account rows are excluded. The usage rhythm aggregates visible
+human messages across those discussions in the account's timezone. An unreadable
+source is explicitly marked unavailable, not interpreted as inactivity.
+
+The source reference is the stable business conversation identifier. The rotating
+runtime identifier remains available for execution tracing and must never be used
+as a journal provenance foreign key.
+
 ## Architectural evolution
 
 This document describes the journal in its current form, which combines:

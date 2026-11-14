@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, JsonValue, TypeAdapter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import BaseAPIException, ValidationError, raise_bad_gateway
+from src.domains.user_mcp.oauth_binding import authorization_binding
 from src.domains.user_mcp.schemas import UserMCPOAuthInitiateResponse
 from src.domains.user_mcp.service import UserMCPServerService
 from src.infrastructure.mcp.oauth_application_guard import MCPApplicationOAuthCheck
@@ -78,6 +79,7 @@ async def initiate_personal_mcp_authorization(
                 client_secret=client.client_secret,
                 requested_scopes=scopes,
                 stored_issuer=client.issuer,
+                binding=authorization_binding(server, client.client_id),
                 **_application_arguments(application_command_id, application_check),
             )
         except BaseAPIException:

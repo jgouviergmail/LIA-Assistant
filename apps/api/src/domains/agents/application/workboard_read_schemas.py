@@ -8,7 +8,13 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, model_
 
 from src.domains.workboard.board_queries import AssigneeFilter, SortKey
 from src.domains.workboard.constants import TicketPriority, TicketStatus
-from src.domains.workboard.schemas import BoardSummary, CommentRow, EventRow, TicketRow
+from src.domains.workboard.schemas import (
+    BoardSummary,
+    CommentRow,
+    EventRow,
+    LaneRow,
+    TicketRow,
+)
 
 WorkboardReadSection = Literal[
     "board", "summary", "needs_me", "ticket", "children", "comments", "events"
@@ -34,6 +40,10 @@ class WorkboardUIQuery(BaseModel):
     query: str | None = Field(default=None, max_length=200)
     closed_days: StrictInt | None = Field(default=None, ge=0, le=3650)
     sort: SortKey = "position"
+    # The lane filter of the board: category ids as the board's own `lanes`
+    # publish them, and what is filed under none. The two widen each other.
+    categories: tuple[UUID, ...] | None = Field(default=None, min_length=1, max_length=50)
+    uncategorized: StrictBool = False
 
     @model_validator(mode="after")
     def sections_accept_only_their_parameters(self) -> WorkboardUIQuery:
@@ -50,6 +60,8 @@ class WorkboardUIQuery(BaseModel):
             "query",
             "closed_days",
             "sort",
+            "categories",
+            "uncategorized",
         }
         if self.section != "board" and self.model_fields_set & board_fields:
             raise ValueError("Board filters apply only to the board section")
@@ -68,5 +80,8 @@ class WorkboardUIProjection(BaseModel):
     summary: BoardSummary | None = None
     total: int | None = Field(default=None, ge=0)
     counts_by_status: dict[str, int] = Field(default_factory=dict)
+    # The board's lanes — one per category in sight, named, with exact counts
+    # over the page's own filter. A ticket row only holds a category id.
+    lanes: list[LaneRow] = Field(default_factory=list)
     next_offset: int | None = None
     observed_at: datetime

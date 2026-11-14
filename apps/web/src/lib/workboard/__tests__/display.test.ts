@@ -22,50 +22,20 @@ import {
   holderParty,
 } from '@/lib/workboard/display';
 import type { TicketRow } from '@/types/workboard';
+import { makeTicket } from '@/__tests__/factories';
 
 const ME = 'me-id';
 const PEER = 'peer-id';
 const PEERS = [{ peer_id: PEER, peer_display_name: 'Marie' }];
 
 function ticket(overrides: Partial<TicketRow> = {}): TicketRow {
-  return {
+  return makeTicket({
     id: 't',
     owner_user_id: ME,
-    parent_id: null,
     title: 'T',
-    description: null,
-    status: 'todo',
-    priority: 'medium',
-    start_at: null,
-    due_at: null,
-    assignee_kind: 'human',
-    assignee_user_id: null,
     effective_assignee_id: ME,
-    position: 0,
-    follow_owner: false,
-    follow_assignee: false,
-    created_by: 'user',
-    status_changed_at: '2026-09-09T10:00:00Z',
-    run_count: 0,
-    run_claimed_at: null,
-    last_run_at: null,
-    last_run_outcome: null,
-    last_run_error: null,
-    last_run_tokens_in: null,
-    last_run_tokens_out: null,
-    last_run_tokens_cache: null,
-    last_run_google_requests: null,
-    last_run_cost_eur: null,
-    created_at: '2026-09-09T10:00:00Z',
-    execution_mode: 'react',
-    total_tokens_in: 0,
-    total_tokens_out: 0,
-    total_tokens_cache: 0,
-    total_google_requests: 0,
-    total_cost_eur: 0,
-    updated_at: '2026-09-09T10:00:00Z',
     ...overrides,
-  };
+  });
 }
 
 describe('who holds it', () => {

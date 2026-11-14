@@ -9,11 +9,12 @@ API contract (``ConditionConfig``), the clock (``trigger.py``) and the ledger
 
 Contract of an evaluator: ``(user, params) -> ConditionVerdict``, a list of
 FACTS. A fact is keyed by what it IS — a message id, a task id and its due
-date, an event id and its start, a file id, a forecast's kind and day — never by how the
-briefing DISPLAYS it: « 09:00 tomorrow » becomes « 09:00 » at midnight, and a
-key built on it announced the same event twice. Each key is hashed, so the
-ledger stores no title, subject or address. An evaluator may raise; the
-wrapper decides what a failure means.
+date, an event id and its start, a file id, a forecast's kind and day, a line
+of a watched page by what it says (ADR-387) — never by how the briefing
+DISPLAYS it: « 09:00 tomorrow » becomes « 09:00 » at midnight, and a key built
+on it announced the same event twice. Each key is hashed, so the ledger stores
+no title, subject or address. An evaluator may raise; the wrapper decides what
+a failure means.
 
 What this module used to claim and did not do: « their Redis caches bound the
 provider-API cost ». Only the Gmail search is cached; every other source is a
@@ -60,6 +61,7 @@ from src.domains.scheduled_actions.models import (
     CONDITION_TYPE_CALENDAR_EVENT,
     CONDITION_TYPE_DOCUMENT_ADDED,
     CONDITION_TYPE_MAIL_MATCH,
+    CONDITION_TYPE_PAGE_CHANGE,
     CONDITION_TYPE_TASK_OVERDUE,
     CONDITION_TYPE_WEATHER_CHANGE,
     CONDITION_TYPES,
@@ -72,6 +74,7 @@ from src.domains.shared.consultation_sink import (
 from src.domains.shared.consultation_surfaces import record_surface_consultations
 from src.domains.users.models import User
 from src.infrastructure.proactive.tracking import out_of_turn_spend
+from src.infrastructure.scheduler.page_reading import PageUnreadableError, page_note, read_page
 
 logger = structlog.get_logger(__name__)
 
@@ -95,6 +98,7 @@ CONDITION_SECTIONS: Final[Mapping[str, str]] = {
     CONDITION_TYPE_MAIL_MATCH: "mails",
     CONDITION_TYPE_DOCUMENT_ADDED: "documents",
     CONDITION_TYPE_CALENDAR_EVENT: "agenda",
+    CONDITION_TYPE_PAGE_CHANGE: "page",
 }
 
 
@@ -123,6 +127,14 @@ class ConditionVerdict:
     error: ConditionCheckError | None = None
     """Why the source could not be read; ``None`` when it answered."""
 
+    source_url: str | None = None
+    """Where the facts were read when they are another site's words — a watched
+    page (ADR-387): the note shows them wrapped as such, every new line."""
+
+    unread: int = 0
+    """How many more facts the source holds past the ones read — the lines of a
+    watched page beyond its bound: the note says so, a cut is never silent."""
+
     @property
     def met(self) -> bool:
         """Whether anything holds right now."""
@@ -133,18 +145,29 @@ class ConditionVerdict:
         """Every fact's key, in the source's order."""
         return [fact.key for fact in self.facts]
 
-    def note_for(self, keys: Collection[str]) -> str | None:
-        """The prompt's context line, naming the given facts only.
+    def note_for(self, keys: Collection[str], *, first: bool = False) -> str | None:
+        """The prompt's context, naming the given facts only.
 
         Args:
             keys: The facts the run is for — the new ones.
+            first: Whether nothing from the source was reported yet; read for a
+                watched page alone, whose first report has nothing to compare.
 
         Returns:
-            One factual line, or ``None`` when none of them is here.
+            One factual line — or, for a watched page, its new lines wrapped as
+            another site's words; ``None`` when none of them is here.
         """
         labels = [fact.label for fact in self.facts if fact.key in keys]
         if not labels:
             return None
+        if self.source_url is not None:
+            return page_note(
+                self.source_url,
+                labels,
+                first=first,
+                watched=len(self.facts),
+                unwatched=self.unread,
+            )
         return self.note_prefix + ", ".join(labels[:CONDITION_NOTE_MAX_ITEMS])
 
 
@@ -256,6 +279,8 @@ async def _eval_mail_match(user: User, params: dict[str, Any]) -> ConditionVerdi
         user_tz=_user_tz(user),
         language=normalize_language(user.language),
         qualify_items=False,
+        # A watch is told that a mail ARRIVED, answered since or not: nothing to situate.
+        situate_items=False,
     )
     facts = tuple(
         # With no id, the sender and the subject — never ``received_local``,
@@ -330,6 +355,23 @@ def _instant(value: datetime | None) -> str | None:
     return value.isoformat() if value is not None else None
 
 
+async def _eval_page_change(user: User, params: dict[str, Any]) -> ConditionVerdict:
+    """Each line of a watched public page, keyed by what it says (ADR-387).
+
+    Read with no model and as nobody in particular: a public page reads the
+    same for anyone. A line that leaves and comes back is news again — the
+    routine's ledger is a snapshot (``SNAPSHOT_CONDITION_TYPES``).
+    """
+    contains = params.get("contains")
+    reading = await read_page(
+        str(params.get("url") or ""), contains=str(contains) if contains else None
+    )
+    facts = tuple(ConditionFact(key=_key("page", line), label=line) for line in reading.lines)
+    return ConditionVerdict(
+        facts=facts, source_url=reading.url, unread=reading.total - len(reading.lines)
+    )
+
+
 ConditionEvaluator = Callable[[User, dict[str, Any]], Awaitable[ConditionVerdict]]
 
 CONDITION_EVALUATORS: dict[str, ConditionEvaluator] = {
@@ -338,6 +380,7 @@ CONDITION_EVALUATORS: dict[str, ConditionEvaluator] = {
     CONDITION_TYPE_MAIL_MATCH: _eval_mail_match,
     CONDITION_TYPE_DOCUMENT_ADDED: _eval_document_added,
     CONDITION_TYPE_CALENDAR_EVENT: _eval_calendar_event,
+    CONDITION_TYPE_PAGE_CHANGE: _eval_page_change,
 }
 
 # Boot-time completeness (ADR-085): a condition type without an evaluator or a
@@ -411,6 +454,8 @@ async def evaluate_condition(
                 "routine_condition_evaluation_failed",
                 condition_type=condition_type,
                 error_type=type(exc).__name__,
+                # How a watched page refused, in its bounded vocabulary (ADR-387).
+                error_code=exc.reason if isinstance(exc, PageUnreadableError) else None,
             )
             return ConditionVerdict(error="unavailable")
         _record(user, section, started, failed=False)

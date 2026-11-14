@@ -5,7 +5,7 @@ Tests the ContextAggregator with mocked data sources,
 parallel fetch behavior, and weather change detection.
 """
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 from zoneinfo import ZoneInfo
@@ -14,7 +14,6 @@ import pytest
 
 from src.domains.heartbeat.context_aggregator import (
     ContextAggregator,
-    _due_label,
     _format_event_time,
     _format_utc_datetime,
 )
@@ -301,66 +300,6 @@ class TestApplySourceResult:
 
         assert context.calendar_events is None
         assert "calendar" not in context.available_sources
-
-
-# ---------------------------------------------------------------------------
-# _format_email_date (email internalDate conversion)
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestFormatEmailDate:
-    """Tests for _format_email_date static method.
-
-    Same today-branch as _format_event_time → same pinned clock (audit F056):
-    fully deterministic dates instead of wall-clock arithmetic.
-    """
-
-    @pytest.fixture(autouse=True)
-    def _pin_clock(self, frozen_clock: datetime) -> None:
-        """Every date below is fixed relative to now == FROZEN_NOW."""
-
-    def test_epoch_ms_today_shows_time_only(self):
-        """Test that today's email shows only HH:MM."""
-        user_tz = ZoneInfo("Europe/Paris")
-        # 10:30 Paris on the frozen current day (2026-02-02).
-        target = datetime(2026, 2, 2, 10, 30, tzinfo=user_tz)
-        epoch_ms = str(int(target.timestamp() * 1000))
-
-        result = ContextAggregator._format_email_date(epoch_ms, user_tz)
-
-        assert result == "10:30"
-
-    def test_epoch_ms_past_date_shows_full(self):
-        """Test that past date email shows YYYY-MM-DD HH:MM."""
-        user_tz = ZoneInfo("Europe/Paris")
-        # 2026-01-15 14:00 UTC = 15:00 CET
-        dt = datetime(2026, 1, 15, 14, 0, tzinfo=UTC)
-        epoch_ms = str(int(dt.timestamp() * 1000))
-
-        result = ContextAggregator._format_email_date(epoch_ms, user_tz)
-
-        assert result == "2026-01-15 15:00"
-
-    def test_int_epoch_ms(self):
-        """Test integer input (not string) works correctly."""
-        user_tz = ZoneInfo("UTC")
-        dt = datetime(2026, 3, 10, 12, 0, tzinfo=UTC)
-        epoch_ms = int(dt.timestamp() * 1000)
-
-        result = ContextAggregator._format_email_date(epoch_ms, user_tz)
-
-        assert result == "2026-03-10 12:00"
-
-    def test_none_returns_question_mark(self):
-        """Test None input returns '?'."""
-        user_tz = ZoneInfo("Europe/Paris")
-        assert ContextAggregator._format_email_date(None, user_tz) == "?"
-
-    def test_invalid_value_returns_question_mark(self):
-        """Test invalid input returns '?'."""
-        user_tz = ZoneInfo("Europe/Paris")
-        assert ContextAggregator._format_email_date("not-a-number", user_tz) == "?"
 
 
 # ---------------------------------------------------------------------------
@@ -889,55 +828,6 @@ class TestFormatEventTime:
 # A task's due DAY, through the one door (core/task_due, 2026-11-07)
 # ---------------------------------------------------------------------------
 
-PARIS_ZONE = ZoneInfo("Europe/Paris")
-NEW_YORK_ZONE = ZoneInfo("America/New_York")
-
-
-@pytest.mark.unit
-class TestTheDueDay:
-    """A Google due is the date it names; a To Do due its instant read in the account's zone."""
-
-    def test_a_google_due_is_its_date_west_of_greenwich_too(self):
-        assert _due_label({"due": "2026-03-15T00:00:00.000Z"}, NEW_YORK_ZONE) == "2026-03-15"
-
-    def test_a_to_do_due_is_local_midnight_read_in_the_zone(self):
-        # Midnight in Paris, as To Do answers it: 23:00 UTC the evening before.
-        task = {"due": "2026-03-14T23:00:00.000Z", "_provider": "microsoft"}
-        assert _due_label(task, PARIS_ZONE) == "2026-03-15"
-
-    def test_a_plain_date_is_that_date(self):
-        assert _due_label({"due": "2026-03-15"}, PARIS_ZONE) == "2026-03-15"
-
-    @pytest.mark.parametrize("raw", [None, "", "soon"])
-    def test_no_readable_due_is_no_date(self, raw):
-        assert _due_label({"due": raw}, PARIS_ZONE) == "no date"
-
-
-@pytest.mark.unit
-class TestATaskIsOverdue:
-    """Overdue once its day has passed on the person's clock, never on the day itself."""
-
-    TODAY = date(2026, 3, 15)
-
-    def test_not_on_its_own_day(self):
-        task = {
-            "due": "2026-03-14T23:00:00.000Z",
-            "_provider": "microsoft",
-            "status": "needsAction",
-        }
-        assert ContextAggregator._is_task_overdue(task, self.TODAY, PARIS_ZONE) is False
-
-    def test_once_its_day_has_passed(self):
-        task = {"due": "2026-03-14T00:00:00.000Z", "status": "needsAction"}
-        assert ContextAggregator._is_task_overdue(task, self.TODAY, PARIS_ZONE) is True
-
-    def test_never_once_done_nor_without_a_day(self):
-        done = {"due": "2026-03-01T00:00:00.000Z", "status": "completed"}
-        undated = {"status": "needsAction"}
-        assert ContextAggregator._is_task_overdue(done, self.TODAY, PARIS_ZONE) is False
-        assert ContextAggregator._is_task_overdue(undated, self.TODAY, PARIS_ZONE) is False
-
-
 # ---------------------------------------------------------------------------
 # _format_utc_datetime (DB timestamp to user-local display)
 # ---------------------------------------------------------------------------
@@ -1155,7 +1045,10 @@ class TestSecondPassMemories:
             patch.object(aggregator, "_with_fresh_session", side_effect=_fake_fresh_session),
             # The connector fetchers hold no session (ADR-304): stubbed directly.
             patch.object(aggregator, "_fetch_calendar", AsyncMock(return_value=calendar_events)),
-            patch.object(aggregator, "_fetch_tasks", AsyncMock(return_value=None)),
+            patch(
+                "src.domains.heartbeat.context_aggregator.fetch_tasks_context",
+                AsyncMock(return_value=None),
+            ),
             patch.object(aggregator, "_fetch_emails", AsyncMock(return_value=None)),
             patch.object(aggregator, "_fetch_birthdays", AsyncMock(return_value=None)),
             patch(
@@ -1198,7 +1091,10 @@ class TestSecondPassMemories:
             patch.object(aggregator, "_with_fresh_session", side_effect=_fake_fresh_session),
             # The connector fetchers hold no session (ADR-304): stubbed directly.
             patch.object(aggregator, "_fetch_calendar", AsyncMock(return_value=None)),
-            patch.object(aggregator, "_fetch_tasks", AsyncMock(return_value=None)),
+            patch(
+                "src.domains.heartbeat.context_aggregator.fetch_tasks_context",
+                AsyncMock(return_value=None),
+            ),
             patch.object(aggregator, "_fetch_emails", AsyncMock(return_value=None)),
             patch.object(aggregator, "_fetch_birthdays", AsyncMock(return_value=None)),
             patch(
@@ -1521,7 +1417,10 @@ class TestProviderClientLifecycle:
             patch.object(active_client.ClientRegistry, "get_client_class", return_value=_build),
             patch.object(active_client, "read_owner_container_name", AsyncMock(return_value=None)),
         ):
-            fetcher = getattr(aggregator, fetcher_name)
+            # A method of the aggregator by its name, or a source module's own function.
+            fetcher = (
+                getattr(aggregator, fetcher_name) if isinstance(fetcher_name, str) else fetcher_name
+            )
             await fetcher(uuid4(), user, settings_view)
         client.close.assert_awaited_once()
         assert open_sessions == [0], "a session was open while the provider was called"
@@ -1535,8 +1434,14 @@ class TestProviderClientLifecycle:
     async def test_tasks_client_closed(self):
         from unittest.mock import AsyncMock
 
-        client = self._client(list_tasks=AsyncMock(return_value={"items": []}))
-        await self._run("_fetch_tasks", client)
+        from src.domains.heartbeat.tasks_context import fetch_tasks_context
+
+        client = self._client(
+            list_task_lists=AsyncMock(return_value={"items": [{"id": "l1", "title": "L1"}]}),
+            list_tasks=AsyncMock(return_value={"items": []}),
+        )
+        await self._run(fetch_tasks_context, client)
+        client.list_tasks.assert_awaited_once()
 
     async def test_emails_client_closed_even_on_error(self):
         from unittest.mock import AsyncMock, patch
@@ -1718,3 +1623,63 @@ class TestTheSecondPassReportsWhatItActuallyOpened:
 
         assert opened == ["departure"]
         assert "departure" in context.failed_sources
+
+
+# ---------------------------------------------------------------------------
+# The heartbeat's read of the present feeds the companion (ADR-294, 2026-11-13)
+# ---------------------------------------------------------------------------
+
+
+class TestWeatherFeedsTheCompanion:
+    async def _read(self, current: object) -> tuple[object, MagicMock]:
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        client = MagicMock()
+        client.get_current_weather = (
+            AsyncMock(side_effect=current)
+            if isinstance(current, Exception)
+            else AsyncMock(return_value=current)
+        )
+        client.get_forecast = AsyncMock(return_value={"list": []})
+        client.close = AsyncMock()
+        locator = MagicMock()
+        locator.get_effective_location_for_proactive = AsyncMock(
+            return_value=SimpleNamespace(lat=48.85, lon=2.35, source="home")
+        )
+        db = MagicMock()
+        db.commit = AsyncMock()
+        user_id = uuid4()
+        with (
+            patch(
+                "src.domains.connectors.weather_provider.resolve_weather_client",
+                AsyncMock(return_value=client),
+            ),
+            patch(
+                "src.domains.users.user_location_service.UserLocationService",
+                MagicMock(return_value=locator),
+            ),
+            patch(
+                "src.domains.heartbeat.geocoding.resolve_city_name", AsyncMock(return_value="Paris")
+            ),
+            patch(
+                "src.domains.heartbeat.context_aggregator.publish_companion_weather",
+                AsyncMock(return_value=True),
+            ) as offer,
+        ):
+            await ContextAggregator(db)._fetch_weather_with_changes(
+                db, user_id, _make_user(), _make_settings()
+            )
+        return user_id, offer
+
+    async def test_what_the_heartbeat_observed_is_offered_to_the_companion(self):
+        current = {"dt": 1_763_035_200, "main": {"temp": 2.0}, "weather": [{"main": "Snow"}]}
+
+        user_id, offer = await self._read(current)
+
+        offer.assert_awaited_once_with(user_id, current)
+
+    async def test_a_failed_read_offers_nothing(self):
+        _, offer = await self._read(ConnectionError("provider down"))
+
+        offer.assert_not_awaited()

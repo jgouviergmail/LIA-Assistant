@@ -17,7 +17,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from src.core.capability_origin import CapabilityOrigin, CapabilityShare
 from src.core.constants import MCP_DEFAULT_TIMEOUT_SECONDS
-from src.domains.user_mcp.models import UserMCPAuthType, UserMCPServerStatus
+from src.domains.user_mcp.models import (
+    UserMCPAuthType,
+    UserMCPServerStatus,
+    UserMCPTestErrorCode,
+)
 from src.infrastructure.mcp.confirmation import ToolChoice
 
 
@@ -364,6 +368,58 @@ class UserMCPServerListResponse(BaseModel):
     )
 
 
+class KnownMCPServerResponse(BaseModel):
+    """One server of the known catalogue, as the create form prefills it."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    key: str = Field(description="Stable identifier; the screen's wording is keyed on it")
+    name: str = Field(description="The brand's name, the server's default name once added")
+    url: str = Field(description="The vendor's Streamable HTTP endpoint (HTTPS, public)")
+    auth_type: UserMCPAuthType = Field(
+        description=(
+            "How the server authenticates: none, oauth2 at the vendor, or a key (api_key) "
+            "or a token (bearer) the vendor issues to the person, who types it in the form"
+        )
+    )
+    domain_description: str = Field(
+        description="What the server is about, for the assistant's routing (English)"
+    )
+    icon: str = Field(
+        description="The vendor's icon: a file name under the web application's /mcp-icons/"
+    )
+    header_name: str | None = Field(
+        default=None,
+        description="The header an api_key server reads its key from; null for other schemes",
+    )
+    oauth_scopes: str | None = Field(
+        default=None,
+        description="Scopes an oauth2 server must be asked for (space-separated), if any",
+    )
+    own_oauth_client: bool = Field(
+        default=False,
+        description=(
+            "Whether the person brings their own OAuth application (the vendor registers "
+            "no client for LIA)"
+        ),
+    )
+
+
+class KnownMCPServerListResponse(BaseModel):
+    """The known catalogue: what a person may add without typing an address."""
+
+    servers: list[KnownMCPServerResponse] = Field(
+        description="Every known server, in the order it is offered"
+    )
+    oauth_redirect_uri: str | None = Field(
+        default=None,
+        description=(
+            "This instance's OAuth callback, which a person declares in the OAuth "
+            "application they bring (own_oauth_client); null when OAuth is not configured"
+        ),
+    )
+
+
 class UserMCPOAuthInitiateResponse(BaseModel):
     """Response for OAuth 2.1 authorization initiation."""
 
@@ -377,6 +433,13 @@ class UserMCPTestConnectionResponse(BaseModel):
     tool_count: int = 0
     tools: list[MCPDiscoveredToolResponse] = Field(default_factory=list)
     error: str | None = None
+    error_code: UserMCPTestErrorCode | None = Field(
+        default=None,
+        description=(
+            "Why the test did not succeed when the failure has a remedy the client states "
+            "in the person's language (an OAuth server awaiting its authorization)"
+        ),
+    )
     domain_description: str | None = None
 
 

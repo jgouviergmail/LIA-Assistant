@@ -19,6 +19,7 @@ node end-to-end deterministically, mirroring ``test_response_node.py``.
 import html
 from collections.abc import Coroutine
 from contextlib import ExitStack
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
@@ -29,6 +30,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from src.core.i18n import language_scope
 from src.core.i18n_api_messages import APIMessages
 from src.core.i18n_draft_refusals import get_draft_refusal_message
+from src.core.mail_reply_state import REPLY_STATE_KEY, ReplyMessage, ReplyState
 from src.domains.agents.constants import (
     STATE_KEY_AGENT_RESULTS,
     STATE_KEY_MESSAGES,
@@ -132,7 +134,7 @@ def _patch_collaborators(
             Mock(return_value=False),
         )
     )
-    return {"get_llm": mock_get_llm, "chain": mock_chain}
+    return {"get_llm": mock_get_llm, "chain": mock_chain, "get_prompt": mock_get_prompt}
 
 
 def _base_config() -> dict:
@@ -485,6 +487,52 @@ async def test_char_skill_react_fast_path_uses_runner_answer():
     assert msg.tool_calls
     assert msg.tool_calls[0]["name"] == "activate_skill_tool"
     assert msg.tool_calls[0]["args"] == {"name": "my_skill"}
+
+
+@pytest.mark.asyncio
+async def test_char_the_turns_answered_mails_reach_the_prompt_apart_from_the_data():
+    """ADR-379: what the mailbox says the person already answered is handed to the prompt
+    as lines of its own, read from the SAME registry the data block lists.
+
+    Left among the data lines, the response model wrote its opening from the requests it
+    read in the mails' own words (measured 2026-11-11: 17 wrong openings of 24, 2 with
+    the block). The node is the one place that holds the turn's registry.
+    """
+    observed = datetime(2026, 11, 11, 9, 0, tzinfo=UTC)
+    answered = ReplyState(
+        status="answered",
+        message=ReplyMessage(
+            message_id="reply-1",
+            at=datetime(2026, 11, 10, 13, 40, tzinfo=UTC),
+            correspondents="Marc Dupont",
+            excerpt="Agreed.",
+        ),
+        observed_at=observed,
+        valid_until=observed + timedelta(minutes=2),
+    ).model_dump(mode="json")
+    registry = {
+        "email_a": {
+            "type": "EMAIL",
+            "payload": {"id": "m1", "subject": "Quote", REPLY_STATE_KEY: answered},
+        },
+        "email_b": {"type": "EMAIL", "payload": {"id": "m2", "subject": "Meeting"}},
+    }
+    state = MessagesState(
+        messages=[HumanMessage(content="Mes mails ?")],
+        agent_results={},
+        metadata={"user_id": "u"},
+    )
+
+    with ExitStack() as stack:
+        handles = _patch_collaborators(stack, llm_response="ok")
+        stack.enter_context(
+            patch(f"{_RESP}._filter_registry_by_current_turn", Mock(return_value=registry))
+        )
+        await response_node(state, _base_config())
+
+    told = handles["get_prompt"].call_args.kwargs
+    assert told["answered_mail"] == "- [email_a] answered on 2026-11-10T13:40+00:00"
+    assert "[email_a]" in told["data_for_filtering"]
 
 
 @pytest.mark.asyncio

@@ -167,6 +167,26 @@ class TestSkillRunnerReceivesHistory:
         assert "crée-moi une skill météo" in task
         # The latest message stays the primary instruction.
         assert "oui, archétype Advisory" in task
+        # Lot 17: the history carries each message's moment; the runner is told
+        # what the stamp is, with the history and only then (ADR-284).
+        assert "date and time it was written, in brackets" in task
+
+    async def test_a_one_shot_skill_is_never_told_about_stamps_it_does_not_read(self) -> None:
+        captured, _, _ = await _invoke("User: je veux jouer au morpion", dialogue=False)
+
+        assert "date and time it was written" not in captured["task"]
+
+    def test_the_task_wording_lives_in_the_versioned_lines_file(self) -> None:
+        from src.domains.agents.nodes.response_skill_runner import skill_runner_task
+
+        task = skill_runner_task(
+            "météo", "<i/>", "it's {not} a placeholder", history="", agent_data=""
+        )
+
+        assert task.startswith(
+            "Skill 'météo' is activated. Follow its instructions to respond to: "
+            "it's {not} a placeholder\n\n<skill_instructions>\n<i/>\n</skill_instructions>"
+        )
 
     async def test_a_one_shot_skill_never_gets_the_history_block(self) -> None:
         history = "User: je veux jouer au morpion\nAssistant: 1 | 2 | 3 ..."

@@ -14,13 +14,14 @@ Scopes required:
 
 from typing import Any, Final
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 import structlog
 from fastapi import status
 
-from src.core.constants import DEFAULT_TIMEZONE
 from src.core.exceptions import ConnectorAPIError
 from src.core.i18n_api_messages import APIMessages
+from src.core.wall_time import WallTime
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.base_microsoft_client import BaseMicrosoftClient
 from src.domains.connectors.clients.calendar_answers import GRAPH_ACTS, EventAnswer
@@ -29,7 +30,12 @@ from src.domains.connectors.clients.calendar_management import (
     EventNotMovableError,
 )
 from src.domains.connectors.clients.calendar_options import EventOptions, graph_options
-from src.domains.connectors.clients.normalizers.all_day import all_day_dates
+from src.domains.connectors.clients.event_bounds import (
+    BoundsChange,
+    DayBounds,
+    EventBounds,
+    TimedSides,
+)
 from src.domains.connectors.clients.normalizers.graph_paging import (
     graph_page_params,
     graph_page_token,
@@ -263,16 +269,13 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
     async def create_event(
         self,
         summary: str,
-        start_datetime: str,
-        end_datetime: str,
-        timezone: str | None = None,
+        bounds: EventBounds,
         description: str | None = None,
         location: str | None = None,
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
         add_conference: bool = False,
         idempotency_key: str | None = None,
-        all_day: bool = False,
         options: EventOptions | None = None,
     ) -> dict[str, Any]:
         """
@@ -280,9 +283,9 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
 
         Args:
             summary: Event title/summary.
-            start_datetime: Start datetime in ISO format.
-            end_datetime: End datetime in ISO format.
-            timezone: IANA timezone.
+            bounds: When it takes place (``event_bounds``, ADR-380): wall times in
+                their zone, or days — Graph stores those as ``isAllDay`` with
+                midnight bounds (ADR-369).
             description: Event description.
             location: Event location.
             attendees: List of attendee email addresses.
@@ -294,18 +297,14 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
                 ``transactionId`` is derived from it, so a create whose answer was
                 lost is sent again and Graph keeps one event (S1). None: a key
                 minted for this call.
-            all_day: The bounds are DATES, the end exclusive (``normalizers.all_day``):
-                Graph stores it as ``isAllDay`` with midnight bounds (ADR-369).
 
         Returns:
             Created event in Google Calendar format.
         """
-        effective_timezone = timezone or DEFAULT_TIMEZONE
-
         event_body: dict[str, Any] = {
             "transactionId": provider_idempotency_id(idempotency_key or uuid4().hex, "microsoft"),
             "subject": summary,
-            **_graph_bounds(start_datetime, end_datetime, effective_timezone, all_day=all_day),
+            **_graph_bounds(bounds),
         }
 
         if description:
@@ -345,14 +344,11 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         self,
         event_id: str,
         summary: str | None = None,
-        start_datetime: str | None = None,
-        end_datetime: str | None = None,
-        timezone: str | None = None,
+        bounds: BoundsChange | None = None,
         description: str | None = None,
         location: str | None = None,
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
-        all_day: bool | None = None,
         send_updates: str | None = None,
         add_conference: bool = False,
         options: EventOptions | None = None,
@@ -365,9 +361,9 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         Args:
             event_id: Event ID to update.
             summary: New title.
-            start_datetime: New start datetime.
-            end_datetime: New end datetime.
-            timezone: IANA timezone.
+            bounds: What changes of its bounds (``event_bounds``, ADR-380): a whole
+                new pair gives the event its shape, sides alone keep the shape it
+                has, None leaves its bounds as they are.
             description: New description.
             location: New location.
             attendees: New attendee list.
@@ -382,19 +378,7 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
 
         if summary is not None:
             event_body["subject"] = summary
-        if all_day is not None:
-            # A switch of shape carries both bounds and the flag (ADR-369).
-            if start_datetime is None or end_datetime is None:
-                raise ValueError("Turning an event all-day or timed needs its new start and end.")
-            event_body.update(
-                _graph_bounds(
-                    start_datetime, end_datetime, timezone or DEFAULT_TIMEZONE, all_day=all_day
-                )
-            )
-            # Stated both ways: an all-day event stays all-day unless told otherwise.
-            event_body["isAllDay"] = all_day
-            start_datetime = end_datetime = None
-        event_body.update(_changed_bounds(start_datetime, end_datetime, timezone))
+        event_body.update(_changed_bounds(bounds))
         if description is not None:
             event_body["body"] = {"contentType": "text", "content": description}
         if location is not None:
@@ -614,30 +598,40 @@ def _in_a_series(raw: dict[str, Any]) -> bool:
 _WINDOW_PAGE_SIZE = 100
 #: Pages one window read may take.
 _WINDOW_MAX_PAGES = 40
+#: The one wall every time is a single instant on.
+_UTC: Final = ZoneInfo("UTC")
 
 
-def _changed_bounds(
-    start: str | None, end: str | None, timezone: str | None
-) -> dict[str, dict[str, str]]:
-    """The bounds a change names.
+def _zoned(moment: WallTime) -> dict[str, str]:
+    """Graph's ``dateTimeTimeZone``: a time WITHOUT an offset, read in the zone named beside it.
 
-    Graph keeps an event's zone when a PATCH says none: it is said only when asked.
+    It has no offset to say which instant an hour skipped or shown twice is: such a
+    time is said on UTC's wall, where every time is one instant.
     """
-    zone = {"timeZone": timezone} if timezone is not None else {}
-    bounds = {"start": start, "end": end}
-    return {key: {"dateTime": value, **zone} for key, value in bounds.items() if value is not None}
+    if not moment.zone_suffices:
+        moment = WallTime.seen_from(moment.instant(), _UTC)
+    return {"dateTime": moment.iso(), "timeZone": moment.zone.key}
 
 
-def _graph_bounds(start: str, end: str, timezone: str, *, all_day: bool) -> dict[str, Any]:
+def _changed_bounds(bounds: BoundsChange | None) -> dict[str, Any]:
+    """The bounds a change names: a whole pair with its shape stated, or the sides given."""
+    if bounds is None:
+        return {}
+    if isinstance(bounds, TimedSides):
+        sides = {"start": bounds.start, "end": bounds.end}
+        return {name: _zoned(side) for name, side in sides.items() if side is not None}
+    # A switch of shape carries both bounds and the flag (ADR-369), stated both
+    # ways: an all-day event stays all-day unless told otherwise.
+    return {**_graph_bounds(bounds), "isAllDay": isinstance(bounds, DayBounds)}
+
+
+def _graph_bounds(bounds: EventBounds) -> dict[str, Any]:
     """A Graph event's bounds: ``isAllDay`` with midnight dates, or zoned times."""
-    if not all_day:
+    if isinstance(bounds, DayBounds):
+        zone = bounds.zone.key
         return {
-            "start": {"dateTime": start, "timeZone": timezone},
-            "end": {"dateTime": end, "timeZone": timezone},
+            "isAllDay": True,
+            "start": {"dateTime": f"{bounds.first.isoformat()}T00:00:00", "timeZone": zone},
+            "end": {"dateTime": f"{bounds.after_last.isoformat()}T00:00:00", "timeZone": zone},
         }
-    first, after_last = all_day_dates(start, end)
-    return {
-        "isAllDay": True,
-        "start": {"dateTime": f"{first.isoformat()}T00:00:00", "timeZone": timezone},
-        "end": {"dateTime": f"{after_last.isoformat()}T00:00:00", "timeZone": timezone},
-    }
+    return {"start": _zoned(bounds.start), "end": _zoned(bounds.end)}

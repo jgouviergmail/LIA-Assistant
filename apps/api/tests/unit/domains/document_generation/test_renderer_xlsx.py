@@ -128,7 +128,9 @@ class TestTheWorkbookIsUsable:
 
         sheet = _book(_sheet(headers=["h"], rows=[["x" * 500]])).active
         width = sheet.column_dimensions["A"].width
-        assert typography.XLSX_COLUMN_WIDTH_MIN <= width <= typography.XLSX_COLUMN_WIDTH_MAX
+        # XlsxWriter stores the width with Excel's cell padding (60 shown -> 60.71
+        # in the file): the bound is on what the reader sees, less than one more.
+        assert typography.XLSX_COLUMN_WIDTH_MIN <= width < typography.XLSX_COLUMN_WIDTH_MAX + 1
 
     def test_a_sheet_without_rows_has_no_table_but_keeps_its_header(self) -> None:
         """An empty Table reference is what Excel refuses to open."""
@@ -153,7 +155,6 @@ class TestColumnWidthFollowsTheGlyphs:
     ZH = "一丁丂七丄丅丆万丈三"
 
     def test_a_chinese_column_is_wider_than_a_latin_one_of_equal_length(self) -> None:
-        from src.domains.document_generation.renderers.xlsx import _column_width
+        from src.domains.document_generation.renderers.xlsx_parts import column_width
 
-        rows = [[self.ZH, "abcdefghij"]]
-        assert _column_width("h", rows, 0) > _column_width("h", rows, 1)
+        assert column_width("h", [self.ZH]) > column_width("h", ["abcdefghij"])

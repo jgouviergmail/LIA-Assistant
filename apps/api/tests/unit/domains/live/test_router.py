@@ -211,6 +211,8 @@ def test_start_relays_the_service(client: TestClient) -> None:
         "connect_deadline_at": "2030-01-01T00:00:00Z",
         "setup": {"model": "models/m"},
         "session_id": "a" * 32,
+        "conversation_id": "5ceec9de-789f-4f01-8c47-536ea6929978",
+        "conversation_revision": 0,
         "provider": "gemini",
         "model": "m",
         "run_id": "live_session_" + "a" * 32,

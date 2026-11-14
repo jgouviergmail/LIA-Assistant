@@ -12,7 +12,8 @@ from src.domains.agents.application.asset_delete import (
 )
 from src.domains.agents.application.asset_delete_schemas import AssetDeleteInput
 from src.domains.agents.application.command_service import CommandRejected
-from src.domains.attachments.models import Attachment
+from src.domains.attachments.file_cleanup import cleanup_files
+from src.domains.attachments.models import Attachment, AttachmentStatus
 from src.domains.users.preference_cas import PreferenceWriteReceipt
 from tests.integration.domains.attachments.test_keep_db import _file
 
@@ -57,21 +58,23 @@ async def test_generated_deletion_exact_file_identity_and_acknowledgement(
         async def refuse_cleanup(*args):
             return False
 
-        monkeypatch.setattr(
-            "src.domains.agents.application.asset_delete.cleanup_asset_file", refuse_cleanup
-        )
+        monkeypatch.setattr("src.domains.attachments.file_cleanup.unlink_claim", refuse_cleanup)
     commit_original = async_session.commit
+    commits = 0
 
     async def commit():
-        assert path.read_bytes() == original
-        if scenario == "before_commit_failed":
+        nonlocal commits
+        commits += 1
+        if commits == 1:
+            assert path.read_bytes() == original
+        if commits == 1 and scenario == "before_commit_failed":
             raise OSError("controlled failure")
         await commit_original()
-        if scenario == "post_ack_replaced":
+        if commits == 1 and scenario == "post_ack_replaced":
             path.write_bytes(b"replacement")
-        if scenario == "ack_lost":
+        if commits == 1 and scenario == "ack_lost":
             raise OSError("controlled acknowledgement loss")
-        if scenario == "cancelled":
+        if commits == 1 and scenario == "cancelled":
             raise asyncio.CancelledError()
 
     monkeypatch.setattr(async_session, "commit", commit)
@@ -94,9 +97,18 @@ async def test_generated_deletion_exact_file_identity_and_acknowledgement(
         "cleanup_pending",
         "post_ack_replaced",
     }
-    assert (
-        await async_session.scalar(select(Attachment.id).where(Attachment.id == identity)) is None
-    ) is committed
+    remaining = await async_session.scalar(
+        select(Attachment)
+        .where(Attachment.id == identity)
+        .execution_options(populate_existing=True)
+    )
+    assert (remaining is None or remaining.status == AttachmentStatus.DELETING) is committed
+    if committed and scenario != "valid":
+        assert remaining is not None, "Pending cleanup must retain its exact approved witness"
+        assert remaining.deletion_check_identity and remaining.deletion_expected_digest is not None
+    if scenario == "post_ack_replaced":
+        assert await cleanup_files(async_session, ids=[identity]) == {"deleted": 0, "errors": 1}
+        assert path.read_bytes() == b"replacement"
     assert (
         await async_session.scalar(select(Attachment.id).where(Attachment.id == neighbor_id))
         == neighbor_id

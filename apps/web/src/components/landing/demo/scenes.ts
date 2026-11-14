@@ -1,9 +1,9 @@
-import { BellRing, CalendarCheck2, FileSearch, Handshake, PhoneCall, Radio } from '@/lib/icons';
+import { BellRing, CalendarCheck2, FileSearch, Handshake, PhoneCall, RadioSet } from '@/lib/icons';
 
 /** One scene catalogue for the live demo and the chapter illustrations. */
 const SCENE_DEFINITIONS = [
   { id: 'decision', icon: CalendarCheck2, sources: ['space', 'mail', 'meeting'] },
-  { id: 'day', icon: Radio, sources: ['calendar', 'commitment', 'news'] },
+  { id: 'day', icon: RadioSet, sources: ['calendar', 'commitment', 'news'] },
   { id: 'watch', icon: BellRing, sources: ['routine', 'mail', 'project'] },
   { id: 'call', icon: PhoneCall, sources: ['calendar', 'preferences', 'approval'] },
   { id: 'research', icon: FileSearch, sources: ['web', 'space', 'comparison'] },

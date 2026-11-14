@@ -16,7 +16,11 @@ import type { RigOptions } from '@/components/eyes/rig/runtime';
 import { activeFrameSubscribers } from '../rig/scheduler';
 import * as visibility from '../rig/visibility';
 
-const seen = vi.hoisted(() => ({ options: [] as RigOptions[], played: [] as Tape[][] }));
+const seen = vi.hoisted(() => ({
+  options: [] as RigOptions[],
+  played: [] as Tape[][],
+  steps: [] as number[],
+}));
 
 vi.mock('@/components/eyes/rig/runtime', async importOriginal => {
   const actual = await importOriginal<typeof import('@/components/eyes/rig/runtime')>();
@@ -31,6 +35,10 @@ vi.mock('@/components/eyes/rig/runtime', async importOriginal => {
           seen.played.push([...tapes]);
           rig.play(...tapes);
         },
+        step(dtMs: number) {
+          seen.steps.push(dtMs);
+          return rig.step(dtMs);
+        },
       };
     },
   };
@@ -41,10 +49,12 @@ import { useEyesRig } from '../useEyesRig';
 import { DEFAULT_RIG_EYE_STYLE } from '../eye-styles';
 import { blinkTapes, maskBlinkTapes } from '@/components/eyes/rig/gestures';
 import type { Tape } from '@/components/eyes/rig/tape';
+import { voiceLevel } from '@/lib/audio/voice-envelope';
 
 beforeEach(() => {
   seen.options = [];
   seen.played = [];
+  seen.steps = [];
 });
 
 function NativeDefaultHost() {
@@ -107,6 +117,46 @@ describe('useEyesRig — the sketch clock', () => {
     expect(a.lifeRandom).toBeDefined();
     expect(c.sketchClock).toBeUndefined();
     expect(c.lifeRandom).toBeUndefined();
+  });
+
+  it('lets a LIVING face hear the voice LIA speaks with, and a preview none', () => {
+    render(<ExpressiveEyes expression="speaking" gaze={null} size="md" />).unmount();
+    render(<ExpressiveEyes expression="speaking" gaze={null} size="sm" life={false} />).unmount();
+    const [living, preview] = seen.options;
+    expect(living.voiceLevel).toBe(voiceLevel);
+    expect(preview.voiceLevel).toBeUndefined();
+  });
+});
+
+describe('useEyesRig — a long frame', () => {
+  it('is integrated in slices the rig can read, and none of its time is lost', () => {
+    // Frames fired by hand: the fake timers only ever produce 16 ms frames.
+    let queued: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      queued.push(callback);
+      return queued.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {
+      queued = [];
+    });
+    const fire = (nowMs: number) => {
+      const due = queued;
+      queued = [];
+      due.forEach(callback => callback(nowMs));
+    };
+    const face = render(<ExpressiveEyes expression="thinking" gaze={null} size="md" />);
+    try {
+      fire(1000);
+      fire(1016);
+      seen.steps = [];
+      // A 200 ms frame: the page was busy. The face must be where 200 ms take
+      // it — a blink that lasts its own length, not three times as long.
+      fire(1216);
+      expect(seen.steps).toEqual([50, 50, 50, 50]);
+    } finally {
+      face.unmount();
+      vi.unstubAllGlobals();
+    }
   });
 });
 

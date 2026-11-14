@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.constants import PRESENT_WEATHER_FRESH_SECONDS
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session, get_session_store
 from src.domains.briefing.companion import project_weather
@@ -16,6 +17,7 @@ from src.domains.briefing.constants import SECTION_WEATHER_TTL_SECONDS
 from src.domains.briefing.router import router
 from src.domains.briefing.schemas import AgendaData, CardSection, CardStatus, WeatherData
 from src.domains.briefing.service import BriefingService
+from src.domains.connectors.companion_weather import CompanionObservation
 from src.domains.users.models import User
 from src.infrastructure.cache.session_store import SessionStore
 
@@ -217,3 +219,98 @@ def test_cached_weather_widget_refuses_another_valid_card_payload() -> None:
     assert result.json() is None
     assert "no-store" in result.headers["Cache-Control"]
     fetch.assert_not_awaited()
+
+
+def _endpoint(user: User, card: CardSection | None, observation: object) -> dict[str, object]:
+    """The companion endpoint with a card cache and another read's observation."""
+    app = FastAPI()
+    app.include_router(router)
+    app.dependency_overrides[get_current_active_session] = lambda: user
+    cache = MagicMock()
+    cache.get = AsyncMock(return_value=card.model_dump_json().encode() if card else None)
+    with (
+        patch(
+            "src.domains.briefing.section_outcomes.get_redis_cache", AsyncMock(return_value=cache)
+        ),
+        patch(
+            "src.domains.briefing.companion.read_companion_observation",
+            AsyncMock(return_value=observation),
+        ) as observed,
+        patch("src.domains.briefing.service.fetch_weather", new_callable=AsyncMock) as fetch,
+        TestClient(app) as client,
+    ):
+        result = client.get("/briefing/companion-context")
+    fetch.assert_not_awaited()
+    assert result.status_code == 200
+    return {"json": result.json(), "observed": observed}
+
+
+def _observation(minutes_ago: float, **values: object) -> CompanionObservation:
+    fields: dict[str, object] = {
+        "temperature_c": -2.0,
+        "condition_code": "Snow",
+        "wind_speed_kmh": 12.0,
+        "observed_at": datetime.now(UTC) - timedelta(minutes=minutes_ago),
+    }
+    fields.update(values)
+    return CompanionObservation.model_validate(fields)
+
+
+def test_the_face_takes_the_newest_present_weather_any_read_left() -> None:
+    user = User(id=uuid4(), language="fr", timezone="Europe/Paris")
+    card = section()
+    card.generated_at = datetime.now(UTC) - timedelta(minutes=40)
+    observation = _observation(5)
+
+    weather = _endpoint(user, card, observation)["json"]["weather"]
+
+    # The heartbeat read five minutes ago; the card is forty minutes old.
+    assert weather["temperature_c"] == -2.0
+    assert weather["condition_code"] == "Snow"
+    observed_at = datetime.fromisoformat(weather["observed_at"])
+    assert observed_at == observation.observed_at
+    assert datetime.fromisoformat(weather["expires_at"]) == observed_at + timedelta(
+        seconds=PRESENT_WEATHER_FRESH_SECONDS
+    )
+
+
+def test_an_older_read_does_not_hide_a_newer_card() -> None:
+    user = User(id=uuid4(), language="fr", timezone="Europe/Paris")
+    card = section()
+    card.generated_at = datetime.now(UTC) - timedelta(minutes=2)
+
+    weather = _endpoint(user, card, _observation(30))["json"]["weather"]
+
+    assert weather["temperature_c"] == 8
+    assert weather["condition_code"] == "Rain"
+
+
+def test_another_read_keeps_the_face_in_its_weather_once_the_card_aged_out() -> None:
+    user = User(id=uuid4(), language="fr", timezone="Europe/Paris")
+    card = section()
+    card.generated_at = datetime.now(UTC) - timedelta(seconds=PRESENT_WEATHER_FRESH_SECONDS + 60)
+
+    weather = _endpoint(user, card, _observation(10))["json"]["weather"]
+
+    assert weather is not None and weather["condition_code"] == "Snow"
+
+
+def test_an_aged_observation_is_not_the_present_either() -> None:
+    user = User(id=uuid4(), language="fr", timezone="Europe/Paris")
+    aged = _observation(PRESENT_WEATHER_FRESH_SECONDS / 60 + 1)
+
+    assert _endpoint(user, None, aged)["json"]["weather"] is None
+
+
+def test_a_hidden_weather_card_hides_every_read_from_the_face() -> None:
+    user = User(
+        id=uuid4(),
+        language="fr",
+        timezone="Europe/Paris",
+        briefing_preferences={"hidden": ["weather"]},
+    )
+
+    outcome = _endpoint(user, None, _observation(1))
+
+    assert outcome["json"]["weather"] is None
+    outcome["observed"].assert_not_awaited()

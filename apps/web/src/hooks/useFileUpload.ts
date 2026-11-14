@@ -2,7 +2,9 @@
  * Hook for file upload with progress tracking.
  *
  * Handles:
- * - Client-side validation (size, type) for both images and documents
+ * - Client-side validation for both images and documents: the size, and the
+ *   format as the instance publishes it (`lib/attachment-formats`, the reading
+ *   the picker, the drop and the paste share)
  * - Image compression before upload
  * - Upload via XMLHttpRequest (progress tracking)
  * - State management for pending attachments
@@ -14,6 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { API_ENDPOINTS } from '@/lib/api-config';
+import { isAcceptedFile, type AttachmentFormats } from '@/lib/attachment-formats';
 import { compressImage, isImageFile } from '@/lib/utils/image-compress';
 import { generateUUID } from '@/lib/utils';
 
@@ -58,27 +61,29 @@ interface UseFileUploadOptions {
   maxImageSizeMB?: number;
   maxDocSizeMB?: number;
   maxAttachments?: number;
-  allowedImageTypes?: string[];
-  allowedDocTypes?: string[];
 }
 
 const DEFAULT_OPTIONS: Required<UseFileUploadOptions> = {
   maxImageSizeMB: 10,
   maxDocSizeMB: 20,
   maxAttachments: 5,
-  allowedImageTypes: [
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-    'image/heic',
-    'image/heif',
-  ],
-  allowedDocTypes: ['application/pdf'],
 };
 
 /** XHR timeout for uploads in milliseconds (2 minutes) */
 const UPLOAD_TIMEOUT_MS = 120_000;
+
+function attachmentRejection(
+  file: File,
+  isImage: boolean,
+  options: Required<UseFileUploadOptions>,
+  formats: AttachmentFormats | undefined
+) {
+  // Any image subtype passes (some browsers report HEIC as another one); a
+  // document is read by its name, a browser's type for it being no evidence.
+  if (!isAcceptedFile(file, formats)) return { error: 'type_not_allowed' as const };
+  const maxMB = isImage ? options.maxImageSizeMB : options.maxDocSizeMB;
+  return file.size > maxMB * 1024 * 1024 ? { error: 'file_too_large' as const, maxMB } : null;
+}
 
 export function useFileUpload(options?: UseFileUploadOptions) {
   // M1: Memoize opts to prevent uploadFile callback recreation every render
@@ -86,22 +91,20 @@ export function useFileUpload(options?: UseFileUploadOptions) {
   const maxImageSizeMB = options?.maxImageSizeMB;
   const maxDocSizeMB = options?.maxDocSizeMB;
   const maxAttachments = options?.maxAttachments;
-  const allowedImageTypes = options?.allowedImageTypes;
-  const allowedDocTypes = options?.allowedDocTypes;
   const opts = useMemo(
     () => ({
       ...DEFAULT_OPTIONS,
       ...(maxImageSizeMB !== undefined && { maxImageSizeMB }),
       ...(maxDocSizeMB !== undefined && { maxDocSizeMB }),
       ...(maxAttachments !== undefined && { maxAttachments }),
-      ...(allowedImageTypes !== undefined && { allowedImageTypes }),
-      ...(allowedDocTypes !== undefined && { allowedDocTypes }),
     }),
-    [maxImageSizeMB, maxDocSizeMB, maxAttachments, allowedImageTypes, allowedDocTypes]
+    [maxImageSizeMB, maxDocSizeMB, maxAttachments]
   );
 
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const xhrRefs = useRef<Map<string, XMLHttpRequest>>(new Map());
+  const preparing = useRef(new Set<string>());
+  const mounted = useRef(false);
   // H2: Use ref to track count for concurrent upload validation (avoids stale closure)
   const attachmentCountRef = useRef(0);
   // L4: Ref to track current attachments for cleanup on unmount (avoids stale closure)
@@ -117,7 +120,11 @@ export function useFileUpload(options?: UseFileUploadOptions) {
   useEffect(() => {
     const xhrMap = xhrRefs.current;
     const attRef = attachmentsRef;
+    const preparation = preparing.current;
+    mounted.current = true;
     return () => {
+      mounted.current = false;
+      preparation.clear();
       xhrMap.forEach(xhr => xhr.abort());
       xhrMap.clear();
       // Revoke all preview Object URLs to prevent memory leaks
@@ -129,34 +136,23 @@ export function useFileUpload(options?: UseFileUploadOptions) {
 
   const isUploading = attachments.some(a => a.status === 'uploading');
 
+  /**
+   * Uploads one file. `formats` is what the instance publishes as its upload
+   * formats (`/config`); left out, the door keeps to what an older API takes.
+   * The composer that drew the picker hands it over, because this hook belongs
+   * to the discussion and outlives any one composer.
+   */
   const uploadFile = useCallback(
-    async (file: File) => {
+    async (file: File, formats?: AttachmentFormats) => {
+      if (!mounted.current) return { error: 'upload_cancelled' as const };
       // H2: Use ref for concurrent-safe count check
       if (attachmentCountRef.current >= opts.maxAttachments) {
         return { error: 'max_attachments' as const, max: opts.maxAttachments };
       }
 
       const isImage = isImageFile(file);
-      const contentType = isImage ? 'image' : 'document';
-
-      // H1: Validate MIME type for BOTH images and documents
-      const allowedTypes = isImage ? opts.allowedImageTypes : opts.allowedDocTypes;
-      if (!allowedTypes.includes(file.type)) {
-        // Browser may not report HEIC correctly — allow if it starts with image/
-        if (isImage && file.type.startsWith('image/')) {
-          // Accept unknown image subtypes (HEIC quirk)
-        } else {
-          return { error: 'type_not_allowed' as const };
-        }
-      }
-
-      // Validate size — the rejection names the limit that actually applied
-      // (images and documents have different caps; the toast must not claim
-      // the image cap for an oversized PDF).
-      const maxMB = isImage ? opts.maxImageSizeMB : opts.maxDocSizeMB;
-      if (file.size > maxMB * 1024 * 1024) {
-        return { error: 'file_too_large' as const, maxMB };
-      }
+      const rejection = attachmentRejection(file, isImage, opts, formats);
+      if (rejection) return rejection;
 
       const tempId = generateUUID();
       const previewUrl = isImage ? URL.createObjectURL(file) : undefined;
@@ -167,7 +163,7 @@ export function useFileUpload(options?: UseFileUploadOptions) {
         filename: file.name,
         mimeType: file.type || 'application/octet-stream',
         size: file.size,
-        contentType,
+        contentType: isImage ? 'image' : 'document',
         status: 'uploading',
         progress: 0,
         previewUrl,
@@ -180,7 +176,14 @@ export function useFileUpload(options?: UseFileUploadOptions) {
         // Compress images client-side
         let uploadBlob: Blob = file;
         if (isImage) {
-          const compressed = await compressImage(file);
+          preparing.current.add(tempId);
+          const compressed = await compressImage(file).catch(error => {
+            if (preparing.current.has(tempId)) throw error;
+            return null;
+          });
+          // Claim the still-owned preparation before starting any network I/O.
+          if (!preparing.current.delete(tempId) || !compressed)
+            return { error: 'upload_cancelled' as const };
           uploadBlob = compressed.blob;
           // Update size to reflect actual compressed size (displayed in metadata)
           if (uploadBlob.size !== file.size) {
@@ -232,6 +235,11 @@ export function useFileUpload(options?: UseFileUploadOptions) {
             reject(new Error('Upload timeout'));
           };
 
+          xhr.onabort = () => {
+            xhrRefs.current.delete(tempId);
+            reject(new DOMException('Upload cancelled', 'AbortError'));
+          };
+
           xhr.open('POST', API_ENDPOINTS.ATTACHMENTS.UPLOAD);
           xhr.withCredentials = true;
           xhr.send(formData);
@@ -248,6 +256,9 @@ export function useFileUpload(options?: UseFileUploadOptions) {
 
         return { success: true as const };
       } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          return { error: 'upload_cancelled' as const };
+        }
         // Mark as error
         setAttachments(prev =>
           prev.map(a =>
@@ -257,12 +268,15 @@ export function useFileUpload(options?: UseFileUploadOptions) {
           )
         );
         return { error: 'upload_failed' as const };
+      } finally {
+        preparing.current.delete(tempId);
       }
     },
     [opts]
   );
 
   const removeFile = useCallback((tempId: string) => {
+    preparing.current.delete(tempId);
     // Cancel in-progress upload
     const xhr = xhrRefs.current.get(tempId);
     if (xhr) {
@@ -280,6 +294,7 @@ export function useFileUpload(options?: UseFileUploadOptions) {
   }, []);
 
   const clearAttachments = useCallback(() => {
+    preparing.current.clear();
     // Cancel all uploads
     xhrRefs.current.forEach(xhr => xhr.abort());
     xhrRefs.current.clear();

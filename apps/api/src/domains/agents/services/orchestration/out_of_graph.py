@@ -15,6 +15,7 @@ from typing import Any
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from src.core.constants import LIVE_TURN_MESSAGE_TYPE, PROACTIVE_DISCUSSION_MESSAGE_TYPE
+from src.infrastructure.llm.message_view import WRITTEN_AT_KEY
 
 
 def out_of_graph_message(row: Any) -> BaseMessage:
@@ -41,11 +42,11 @@ def out_of_graph_message(row: Any) -> BaseMessage:
             additional_kwargs={
                 "proactive_discussion": True,
                 "discussion_id": row.message_metadata.get("discussion_id"),
-                "original_created_at": original_created_at,
+                WRITTEN_AT_KEY: original_created_at,
             },
         )
     if metadata_type == LIVE_TURN_MESSAGE_TYPE:
-        kwargs = {"live_turn": True, "original_created_at": original_created_at}
+        kwargs = {"live_turn": True, WRITTEN_AT_KEY: original_created_at}
         if row.role == "user":
             return HumanMessage(content=row.content, additional_kwargs=kwargs)
         return AIMessage(content=row.content, additional_kwargs=kwargs)
@@ -54,7 +55,7 @@ def out_of_graph_message(row: Any) -> BaseMessage:
         additional_kwargs={
             "proactive_notification": True,
             "proactive_type": metadata_type,
-            "original_created_at": original_created_at,
+            WRITTEN_AT_KEY: original_created_at,
         },
     )
 

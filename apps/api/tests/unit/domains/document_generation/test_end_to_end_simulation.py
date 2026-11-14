@@ -9,7 +9,7 @@ it is where a wiring mistake between two green modules would show.
 
 import io
 import uuid
-from contextlib import asynccontextmanager
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import docx
@@ -26,35 +26,31 @@ from src.domains.document_generation.schemas import (
     TableSheet,
     TabularContent,
 )
+from tests.helpers.attachment_publication import CapturingAttachmentRepository as _FakeRepo
+from tests.helpers.attachment_publication import publication_session as _fake_db
+from tests.helpers.run_authority import unit_run_authority
 
 pytestmark = [pytest.mark.unit]
-_ATTACHMENT_ID = uuid.UUID("00000000-0000-0000-0000-0000000000ee")
 
 
-class _FakeAttachment:
-    def __init__(self, expires_at: object) -> None:
-        self.id = _ATTACHMENT_ID
-        self.expires_at = expires_at
+@pytest.fixture(autouse=True)
+def graph_authority() -> Iterator[None]:
+    from tests.unit.domains.agents.tools.test_document_generation_tools import (
+        _CONVERSATION_ID,
+        _RUNTIME_ID,
+        _USER_ID,
+    )
 
-
-class _FakeRepo:
-    created: dict = {}
-
-    def __init__(self, db: object) -> None:
-        self._db = db
-
-    async def create(self, payload: dict) -> _FakeAttachment:
-        type(self).created = dict(payload)
-        return _FakeAttachment(expires_at=payload["expires_at"])
-
-
-@asynccontextmanager
-async def _fake_db():
-    class _Db:
-        async def commit(self) -> None:
-            return None
-
-    yield _Db()
+    with (
+        unit_run_authority(uuid.UUID(_USER_ID), _CONVERSATION_ID, _RUNTIME_ID, revision=3),
+        # The real effect gate runs; only its SQL admission lookup is replaced.
+        patch("src.infrastructure.streaming.run_admission.get_db_context", _fake_db),
+        patch(
+            "src.infrastructure.streaming.run_admission.ConversationExecutionRepository.require_current",
+            AsyncMock(),
+        ),
+    ):
+        yield
 
 
 def _user(language: str = "fr", timezone: str = "Europe/Paris") -> MagicMock:
@@ -137,7 +133,7 @@ async def _run_tool(doc_type: str, content: object, tmp_path, monkeypatch) -> tu
     )
 
     monkeypatch.setattr(app_settings, "attachments_storage_path", str(tmp_path))
-    _FakeRepo.created = {}
+    _FakeRepo.snapshot = {}
     with (
         patch.object(tool_module, "settings", _fake_settings()),
         # The capability switch is read for real at the tool's entry: a unit
@@ -145,7 +141,7 @@ async def _run_tool(doc_type: str, content: object, tmp_path, monkeypatch) -> tu
         patch.object(tool_module, "is_capability_enabled", AsyncMock(return_value=True)),
         patch(SETTINGS_PATCH_PATH, return_value=_wrapper_settings()),
         patch.object(tool_module, "_load_user", AsyncMock(return_value=_user())),
-        patch.object(svc, "AttachmentRepository", _FakeRepo),
+        patch("src.domains.attachments.file_publication.AttachmentFileRepository", _FakeRepo),
         patch.object(svc, "get_db_context", _fake_db),
         patch.object(svc, "_call_document_llm", AsyncMock(return_value=content)),
     ):
@@ -154,7 +150,7 @@ async def _run_tool(doc_type: str, content: object, tmp_path, monkeypatch) -> tu
             doc_type=doc_type,
             runtime=_runtime(),
         )
-    stored = tmp_path / _FakeRepo.created["file_path"]
+    stored = tmp_path / _FakeRepo.snapshot["file_path"]
     return result, stored.read_bytes()
 
 
@@ -165,8 +161,9 @@ def _drain_pending_cards() -> None:
     from src.domains.document_generation.document_store import (
         get_and_clear_pending_documents,
     )
+    from tests.unit.domains.agents.tools.test_document_generation_tools import _RUNTIME_ID
 
-    get_and_clear_pending_documents("conv1")
+    get_and_clear_pending_documents(str(_RUNTIME_ID))
 
 
 class TestTheWholeChain:
@@ -216,9 +213,16 @@ class TestTheWholeChain:
 
         result, _data = await _run_tool("pdf", REPORT, tmp_path, monkeypatch)
         assert result.success is True
-        assert _FakeRepo.created["mime_type"] == "application/pdf"
-        assert _FakeRepo.created["content_type"] == "document"
-        pending = get_and_clear_pending_documents("conv1")
+        assert _FakeRepo.snapshot["mime_type"] == "application/pdf"
+        assert _FakeRepo.snapshot["content_type"] == "document"
+        from tests.unit.domains.agents.tools.test_document_generation_tools import (
+            _CONVERSATION_ID,
+            _RUNTIME_ID,
+        )
+
+        assert _FakeRepo.snapshot["conversation_id"] == _CONVERSATION_ID
+        assert get_and_clear_pending_documents(str(_CONVERSATION_ID)) == []
+        pending = get_and_clear_pending_documents(str(_RUNTIME_ID))
         assert len(pending) == 1
         assert pending[0].filename.endswith(".pdf")
 
@@ -235,7 +239,7 @@ class TestTheWholeChain:
         )
 
         monkeypatch.setattr(app_settings, "attachments_storage_path", str(tmp_path))
-        _FakeRepo.created = {}
+        _FakeRepo.snapshot = {}
         with (
             patch.object(tool_module, "settings", _fake_settings()),
             # The capability switch is read for real at the tool's entry: a unit
@@ -243,14 +247,14 @@ class TestTheWholeChain:
             patch.object(tool_module, "is_capability_enabled", AsyncMock(return_value=True)),
             patch(SETTINGS_PATCH_PATH, return_value=_wrapper_settings()),
             patch.object(tool_module, "_load_user", AsyncMock(return_value=_user(language="zh"))),
-            patch.object(svc, "AttachmentRepository", _FakeRepo),
+            patch("src.domains.attachments.file_publication.AttachmentFileRepository", _FakeRepo),
             patch.object(svc, "get_db_context", _fake_db),
             patch.object(svc, "_call_document_llm", AsyncMock(return_value=REPORT)),
         ):
             await tool_module.generate_document.coroutine(
                 instructions="x", doc_type="docx", runtime=_runtime()
             )
-        data = (tmp_path / _FakeRepo.created["file_path"]).read_bytes()
+        data = (tmp_path / _FakeRepo.snapshot["file_path"]).read_bytes()
         document = docx.Document(io.BytesIO(data))
         texts = [paragraph.text for paragraph in document.paragraphs]
         assert "目录" in texts  # the contents heading, in the reader's language
@@ -281,7 +285,7 @@ class TestTheWholeChain:
             slides=[Slide(title="\u8981\u70b9", bullets=[dense] * 9)],
         )
         monkeypatch.setattr(app_settings, "attachments_storage_path", str(tmp_path))
-        _FakeRepo.created = {}
+        _FakeRepo.snapshot = {}
         with (
             patch.object(tool_module, "settings", _fake_settings()),
             # The capability switch is read for real at the tool's entry: a unit
@@ -289,7 +293,7 @@ class TestTheWholeChain:
             patch.object(tool_module, "is_capability_enabled", AsyncMock(return_value=True)),
             patch(SETTINGS_PATCH_PATH, return_value=_wrapper_settings()),
             patch.object(tool_module, "_load_user", AsyncMock(return_value=_user(language="zh"))),
-            patch.object(svc, "AttachmentRepository", _FakeRepo),
+            patch("src.domains.attachments.file_publication.AttachmentFileRepository", _FakeRepo),
             patch.object(svc, "get_db_context", _fake_db),
             patch.object(svc, "_call_document_llm", AsyncMock(return_value=deck)),
         ):
@@ -297,7 +301,7 @@ class TestTheWholeChain:
                 instructions="x", doc_type="pptx", runtime=_runtime()
             )
         assert result.success is True
-        data = (tmp_path / _FakeRepo.created["file_path"]).read_bytes()
+        data = (tmp_path / _FakeRepo.snapshot["file_path"]).read_bytes()
         presentation = pptx.Presentation(io.BytesIO(data))
         # Nine dense Chinese bullets cannot share one slide: cover + parts.
         assert len(presentation.slides) >= 3

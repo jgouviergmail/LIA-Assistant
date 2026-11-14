@@ -19,7 +19,10 @@
  *   a late token count) is taken from the server under the SAME id: a
  *   re-render, never a remount. A live bubble keeps what its stream gave it.
  * - **What exists only here stays where it was** — an error bubble, a question
- *   still in flight: each follows the bubble it followed.
+ *   still in flight: each follows the bubble it followed. Except the answer being
+ *   streamed: it stays LAST, after every row archived while it is written (a note
+ *   the person added, a notification), the order the archive will have once it is
+ *   saved — instead of jumping below them at its end (ADR-385).
  * - **An empty page never empties the thread**: a failed read and an emptied
  *   conversation look alike, and a reset is announced by its own signal.
  * - **More than a page arrived while away** (nothing on screen is in the page,
@@ -158,12 +161,14 @@ function adopt(localMessage: Message, serverMessage: Message): Message {
 }
 
 /** The page in server order, each row as the bubble already on screen when there is one,
- *  and every bubble that exists only here after the bubble it followed. */
+ *  and every bubble that exists only here after the bubble it followed — the one
+ *  being streamed after them all. */
 function buildWindow(
   local: Message[],
   server: Message[],
   pairing: Pairing,
-  start: number
+  start: number,
+  streamingId: string | null
 ): Message[] {
   const after = new Map<number, Message[]>();
   const unanchored: Message[] = [];
@@ -173,9 +178,10 @@ function buildWindow(
     if (serverIndex !== undefined) {
       anchor = serverIndex;
     } else if (!pairing.duplicates.has(index)) {
-      const bucket = anchor < 0 ? unanchored : (after.get(anchor) ?? []);
+      const last = anchor < 0 || local[index].id === streamingId;
+      const bucket = last ? unanchored : (after.get(anchor) ?? []);
       bucket.push(local[index]);
-      if (anchor >= 0) after.set(anchor, bucket);
+      if (!last) after.set(anchor, bucket);
     }
   }
   const window: Message[] = [];
@@ -192,15 +198,27 @@ function sameThread(a: Message[], b: Message[]): boolean {
   return a.length === b.length && a.every((message, index) => message === b[index]);
 }
 
+/** What the merge is told about the thread beyond its messages. */
+export interface MergeOptions {
+  /** The bubble the page is streaming, which stays last. */
+  streamingId?: string | null;
+}
+
 /**
  * Merge the newest server page into the thread on screen.
  *
  * @param local - The thread on screen, oldest first.
  * @param server - The newest page the server serves, oldest first.
+ * @param options - The bubble being streamed, when the page streams one.
  * @returns The merged thread (the same array when nothing changed) and whether
  *   the page lay beyond everything on screen.
  */
-export function mergeServerPage(local: Message[], server: Message[]): ServerPageMerge {
+export function mergeServerPage(
+  local: Message[],
+  server: Message[],
+  options: MergeOptions = {}
+): ServerPageMerge {
+  const streamingId = options.streamingId ?? null;
   if (server.length === 0) return { messages: local, gap: false };
   const pairing = pairById(local, server);
   const newest = newestArchivedTime(local);
@@ -212,10 +230,13 @@ export function mergeServerPage(local: Message[], server: Message[]): ServerPage
     }
     const start = windowStart(local, pairing);
     pairByContent(local, server, pairing, start);
-    return { messages: buildWindow(local, server, pairing, start), gap: true };
+    return { messages: buildWindow(local, server, pairing, start, streamingId), gap: true };
   }
   const start = windowStart(local, pairing);
   pairByContent(local, server, pairing, start);
-  const merged = [...local.slice(0, start), ...buildWindow(local, server, pairing, start)];
+  const merged = [
+    ...local.slice(0, start),
+    ...buildWindow(local, server, pairing, start, streamingId),
+  ];
   return { messages: sameThread(merged, local) ? local : merged, gap: false };
 }

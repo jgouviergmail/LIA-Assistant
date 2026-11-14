@@ -73,7 +73,10 @@ async def _run(disabled: list[str] | None) -> set[str]:
             new=AsyncMock(return_value=True),
         ),
         patch.object(ContextAggregator, "_fetch_calendar", new=_spy("calendar")),
-        patch.object(ContextAggregator, "_fetch_tasks", new=_spy("tasks")),
+        patch(
+            "src.domains.heartbeat.context_aggregator.fetch_tasks_context",
+            new=_spy("tasks"),
+        ),
         patch.object(ContextAggregator, "_fetch_emails", new=_spy("emails")),
         patch.object(ContextAggregator, "_fetch_weather_with_changes", new=_spy("weather")),
         patch.object(ContextAggregator, "_fetch_interests", new=_spy("interests")),

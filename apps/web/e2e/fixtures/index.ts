@@ -91,6 +91,7 @@ export { idleNotificationStream, waitForMockGate } from './api-mock';
 export { waitForHydration, waitForClockedHydration } from './hydration';
 export { briefingCardsMock, briefingWindowsMock } from './dashboard-shell';
 export { chatRoutes, loadedChatRoutes } from './chat';
+export { openListFilters } from './list-filters';
 export {
   expectMultipartFile,
   expectSessionCookie,

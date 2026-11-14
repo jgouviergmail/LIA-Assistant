@@ -4,12 +4,10 @@ Beside the calendar tools, which share it: a planner forgets ``calendar_id`` as 
 gives it, and an event of another calendar is not found in the primary one.
 """
 
-from typing import Any
-
 import structlog
 
 from src.domains.agents.constants import CONTEXT_DOMAIN_EVENTS
-from src.domains.agents.context.manager import ToolContextManager
+from src.domains.agents.tools.last_lookup import last_lookup_items
 from src.domains.agents.tools.runtime_helpers import ValidatedRuntimeConfig
 
 logger = structlog.get_logger(__name__)
@@ -33,27 +31,9 @@ async def resolve_calendar_id_from_context(
     Returns:
         calendar_id if found, None otherwise.
     """
-    manager = ToolContextManager()
-
-    # Single source: LIST (last search/list results).
-    # current_item (single focused item) is also checked as secondary source
-    # for the case where a direct-fetch set current without populating LIST.
-    context_list = await manager.get_list(
-        user_id=config.user_id,
-        session_id=config.session_id,
-        domain=CONTEXT_DOMAIN_EVENTS,
-        store=config.store,
-    )
-    context_items: list[dict[str, Any]] = list(context_list.items) if context_list else []
-
-    current_item = await manager.get_current_item(
-        user_id=config.user_id,
-        session_id=config.session_id,
-        domain=CONTEXT_DOMAIN_EVENTS,
-        store=config.store,
-    )
-    if current_item:
-        context_items.append(current_item)
+    # LIST (last search/list results), then the current item: a direct fetch may
+    # set the current item without populating the list.
+    context_items = await last_lookup_items(config, CONTEXT_DOMAIN_EVENTS)
 
     for item in context_items:
         item_id = item.get("id") or item.get("event_id")

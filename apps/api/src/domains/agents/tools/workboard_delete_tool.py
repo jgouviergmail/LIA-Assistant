@@ -1,4 +1,10 @@
-"""Original deletion capability reuses the common native proposal boundary."""
+"""Original deletion capability reuses the common native proposal boundary.
+
+A refusal of the workboard itself — two tickets under that title, a ticket
+that is not the caller's to delete — reaches the model as its stable
+``workboard_*`` code (``workboard_refusal``), never as the shared
+preparation's mute sentence.
+"""
 
 from uuid import UUID
 
@@ -13,6 +19,7 @@ from src.domains.agents.application.workboard_delete import prepare_workboard_de
 from src.domains.agents.application.workboard_delete_schemas import WorkboardDeleteInput
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.agents.tools.workboard_refusal import workboard_refusals
 from src.domains.workboard.service import WorkboardService
 from src.infrastructure.database.session import get_db_context
 
@@ -25,9 +32,10 @@ class DeleteReference(BaseModel):
 async def _prepare_reference(
     db: AsyncSession, actor_id: UUID, request: DeleteReference
 ) -> ApplicationActionDraftContent:
-    await creation_access(db, actor_id)
-    row = await WorkboardService(db).resolve_reference(actor_id, request.ticket)
-    return await prepare_workboard_delete(db, actor_id, WorkboardDeleteInput(ticket_id=row.id))
+    with workboard_refusals():
+        await creation_access(db, actor_id)
+        row = await WorkboardService(db).resolve_reference(actor_id, request.ticket)
+        return await prepare_workboard_delete(db, actor_id, WorkboardDeleteInput(ticket_id=row.id))
 
 
 async def propose_workboard_delete(

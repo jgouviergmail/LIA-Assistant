@@ -42,13 +42,17 @@ NOT_SHOWN_ON_THE_BOARD: dict[str, str] = {
 
 
 def _api_source() -> str:
-    """Every module of the domain that can raise a refusal at a caller."""
+    """Every module of the domain that can raise a refusal at a caller.
+
+    The WHOLE package, never a list of file names: the list named three
+    modules, so a refusal raised from a fourth — the category rules, added
+    2026-11-11 — would have reached the screen as the generic sentence with
+    this guard green. A module that names no ``WorkboardError`` member simply
+    contributes nothing.
+    """
     root = Path(__file__).resolve()
     api = root.parents[4] / "src" / "domains" / "workboard"
-    return "\n".join(
-        (api / name).read_text(encoding="utf-8")
-        for name in ("service.py", "router.py", "repository.py")
-    )
+    return "\n".join(path.read_text(encoding="utf-8") for path in sorted(api.glob("*.py")))
 
 
 def _errors_ts() -> str:

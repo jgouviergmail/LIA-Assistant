@@ -27,6 +27,7 @@ from src.domains.agents.display.components.base import html_to_text
 from src.domains.connectors.clients.brave_search_client import BraveSearchClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.interests.helpers import (
+    WEB_SEARCH_QUERY_TEMPLATES,
     build_localized_search_query,
     get_connector_api_key,
 )
@@ -34,16 +35,6 @@ from src.domains.interests.services.content_sources.base import ContentResult
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
-
-# Search query templates per language
-_SEARCH_QUERY_TEMPLATES: dict[str, str] = {
-    "fr": "Actualités et informations récentes sur {topic}",
-    "en": "Recent news and information about {topic}",
-    "es": "Noticias recientes e información sobre {topic}",
-    "de": "Aktuelle Nachrichten und Informationen über {topic}",
-    "it": "Notizie recenti e informazioni su {topic}",
-    "zh-CN": "关于{topic}的最新新闻和资讯",
-}
 
 
 class BraveSearchContentSource:
@@ -153,7 +144,7 @@ class BraveSearchContentSource:
             )
 
             search_query = build_localized_search_query(
-                topic, user_language, _SEARCH_QUERY_TEMPLATES
+                topic, user_language, WEB_SEARCH_QUERY_TEMPLATES
             )
 
             data = await client.search(
@@ -249,20 +240,19 @@ class BraveSearchContentSource:
 
         return content
 
-    def is_available(self, user_id: str | None = None) -> bool:
+    async def applies(self, user_id: str | None) -> bool:
         """
-        Check if Brave Search source is potentially available.
-
-        Note: This only checks if user_id is provided. Actual API key
-        verification is done in generate() since it requires async DB access.
+        Whether Brave Search would be asked: only with the person's own key.
 
         Args:
-            user_id: User ID (required for Brave Search)
+            user_id: Whose interest.
 
         Returns:
-            True if user_id provided (actual availability checked in generate)
+            True when the person configured a Brave Search key.
         """
-        return user_id is not None
+        if not user_id:
+            return False
+        return bool(await get_connector_api_key(user_id, ConnectorType.BRAVE_SEARCH))
 
     async def close(self) -> None:
         """Cleanup all HTTP clients."""

@@ -15,6 +15,7 @@ import type { LLMModelPricing } from '@/components/settings/AdminLLMPricingSecti
 import type { Message, MessageAttachmentMeta } from '@/types/chat';
 import type { ScheduledAction } from '@/hooks/useScheduledActions';
 import type { PsycheState } from '@/types/psyche';
+import type { TicketRow } from '@/types/workboard';
 
 /** A neutral server snapshot for tests that hydrate the companion's store. */
 export function makePsycheState(over: Partial<PsycheState> = {}): PsycheState {
@@ -60,6 +61,8 @@ export function makeUser(over: Partial<User> = {}): User {
     memory_enabled: true,
     execution_mode: 'pipeline',
     exchange_rhythm: 'occasional',
+    document_illustrations: 'auto',
+    document_animations: 'presented',
     voice_enabled: false,
     voice_mode_enabled: false,
     voice_stt_mode: 'local',
@@ -308,4 +311,58 @@ export function makeMultiSlotAction(over: Partial<ScheduledAction> = {}): Schedu
     ],
     ...over,
   });
+}
+
+/**
+ * One workboard ticket, as `TicketRow` publishes it.
+ *
+ * Ten test files each carried their own 35-line copy of this row — one of
+ * them closed by a cast that hid the fields it never set. A column added to
+ * the API (the ticket's category, 2026-11-11) was then ten edits and one
+ * silent hole. One factory, so the next contract move is one edit, and a
+ * builder that omits a field is a compile error rather than a cast.
+ *
+ * The defaults are the row of a ticket its owner just created by hand:
+ * unfiled, unassigned, never run.
+ */
+export function makeTicket(over: Partial<TicketRow> = {}): TicketRow {
+  return {
+    id: 'ticket-1',
+    owner_user_id: 'owner',
+    parent_id: null,
+    title: 'Book the venue',
+    description: null,
+    status: 'todo',
+    priority: 'medium',
+    start_at: null,
+    due_at: null,
+    assignee_kind: 'human',
+    assignee_user_id: null,
+    effective_assignee_id: 'owner',
+    position: 0,
+    follow_owner: false,
+    follow_assignee: false,
+    created_by: 'user',
+    execution_mode: 'react',
+    status_changed_at: '2026-09-09T10:00:00Z',
+    run_count: 0,
+    run_claimed_at: null,
+    last_run_at: null,
+    last_run_outcome: null,
+    last_run_error: null,
+    last_run_tokens_in: null,
+    last_run_tokens_out: null,
+    last_run_tokens_cache: null,
+    last_run_google_requests: null,
+    last_run_cost_eur: null,
+    total_tokens_in: 0,
+    total_tokens_out: 0,
+    total_tokens_cache: 0,
+    total_google_requests: 0,
+    total_cost_eur: 0,
+    category_id: null,
+    created_at: '2026-09-09T10:00:00Z',
+    updated_at: '2026-09-09T10:00:00Z',
+    ...over,
+  };
 }

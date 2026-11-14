@@ -20,9 +20,11 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from src.core.config import settings
+from src.core.run_authority import track_graph_writer
 from src.domains.agents.constants import STATE_KEY_MESSAGES
 from src.domains.agents.context.runtime_context import (
     runtime_context_if_running,
+    runtime_extraction_revision,
     runtime_user_id_str,
 )
 from src.domains.agents.services.memory_extractor import extract_memories_background
@@ -36,6 +38,7 @@ from src.infrastructure.observability.metrics_extractions import (
 )
 
 if TYPE_CHECKING:
+    from langchain_core.messages import BaseMessage
     from langchain_core.runnables import RunnableConfig
 
     from src.domains.agents.models import MessagesState
@@ -126,6 +129,62 @@ def _analyzer_intent(state: dict[str, Any]) -> str | None:
     return str(value) if value else None
 
 
+def _schedule_open_loop_extraction(
+    config: RunnableConfig,
+    run_id: str,
+    model_messages: list[BaseMessage],
+    conversation_id: str | None,
+    *,
+    is_automated_source: bool,
+    user_msg_is_trivial: bool,
+    user_timezone: str | None,
+) -> None:
+    """Admit, schedule and count the independent commitment extraction (ADR-139)."""
+    try:
+        if is_automated_source:
+            _record_extraction(KIND_OPEN_LOOPS, OUTCOME_AUTOMATED_SOURCE)
+            logger.debug("open_loop_extraction_skipped_automated_source", run_id=run_id)
+        elif user_msg_is_trivial:
+            _record_extraction(KIND_OPEN_LOOPS, OUTCOME_TRIVIAL)
+            logger.debug("open_loop_extraction_skipped_trivial", run_id=run_id)
+        elif not settings.open_loops_enabled:
+            _record_extraction(KIND_OPEN_LOOPS, OUTCOME_FEATURE_DISABLED)
+            logger.debug("open_loop_extraction_skipped_disabled", run_id=run_id)
+        elif not (user_id := runtime_user_id_str(None)):
+            _record_extraction(KIND_OPEN_LOOPS, OUTCOME_NO_USER)
+            logger.debug("open_loop_extraction_skipped_no_user", run_id=run_id)
+        else:
+            thread_id = config.get("configurable", {}).get("thread_id", "unknown")
+            assert conversation_id is not None
+            safe_fire_and_forget(
+                extract_open_loops_background(
+                    user_id=user_id,
+                    messages=model_messages,
+                    session_id=conversation_id,
+                    run_id=run_id,
+                    user_timezone=user_timezone,
+                ),
+                name=f"open_loop_extraction_{user_id}_{thread_id[:8]}",
+                run_id=run_id,
+                independent_of_graph=True,
+            )
+            _record_extraction(KIND_OPEN_LOOPS, OUTCOME_SCHEDULED)
+            logger.info(
+                "open_loop_extraction_scheduled",
+                run_id=run_id,
+                user_id=user_id,
+                thread_id=thread_id,
+            )
+    except (ValueError, KeyError, RuntimeError, AttributeError, ImportError, OSError) as e:
+        _record_extraction(KIND_OPEN_LOOPS, OUTCOME_ERROR)
+        logger.error(
+            "open_loop_extraction_scheduling_failed",
+            run_id=run_id,
+            error_type=type(e).__name__,
+            exc_info=True,
+        )
+
+
 def _schedule_post_response_extractions(
     state: MessagesState,
     config: RunnableConfig,
@@ -194,6 +253,7 @@ def _schedule_post_response_extractions(
     # Proactive notifications (heartbeat, interests) never reach response_node.
     _run_context = runtime_context_if_running()
     _is_automated_source = _run_context is not None and _run_context.is_automated_source
+    conversation_id = _run_context.conversation_id if _run_context is not None else None
 
     try:
         # user_memory_enabled already defined above for injection
@@ -216,6 +276,7 @@ def _schedule_post_response_extractions(
                 acknowledge_extracted_reply(runtime_user_id_str(None), run_id),
                 name="discussion_trivial_reply_receipt",
                 run_id=run_id,
+                independent_of_graph=True,
             )
             logger.info(
                 "memory_extraction_skipped_trivial",
@@ -233,12 +294,14 @@ def _schedule_post_response_extractions(
                         messages=model_messages,
                         session_id=thread_id,
                         personality_instruction=personality_instruction,
-                        conversation_id=thread_id,
+                        conversation_id=conversation_id,
                         parent_run_id=run_id,
                         query_embedding=user_message_embedding,
+                        user_timezone=state.get("user_timezone"),
                     ),
                     name=f"memory_extraction_{user_id}_{thread_id[:8]}",
                     run_id=run_id,
+                    independent_of_graph=True,
                 )
                 _record_extraction(KIND_MEMORY, OUTCOME_SCHEDULED)
                 logger.info(
@@ -300,12 +363,14 @@ def _schedule_post_response_extractions(
                     user_id=user_id,
                     messages=model_messages,
                     session_id=thread_id,
-                    conversation_id=thread_id,
+                    conversation_id=conversation_id,
                     user_language=user_language,
                     parent_run_id=run_id,  # UPSERT into originating message's token summary
+                    user_timezone=state.get("user_timezone"),
                 ),
                 name=f"interest_extraction_{user_id}_{thread_id[:8]}",
                 run_id=run_id,  # Register for awaiting before SSE done
+                independent_of_graph=True,
             )
             _record_extraction(KIND_INTERESTS, OUTCOME_SCHEDULED)
             logger.info(
@@ -329,52 +394,15 @@ def _schedule_post_response_extractions(
     # ===================================================================
     # OPEN LOOP EXTRACTION (Background) — P5, ADR-139
     # ===================================================================
-    # Track commitments surfaced in the conversation (things the user owes /
-    # is waiting on). Same guards as the sibling extractions; additionally
-    # gated by the global OPEN_LOOPS_ENABLED flag (checked here so a disabled
-    # deployment never even schedules the task).
-    try:
-        if _is_automated_source:
-            _record_extraction(KIND_OPEN_LOOPS, OUTCOME_AUTOMATED_SOURCE)
-            logger.debug("open_loop_extraction_skipped_automated_source", run_id=run_id)
-        elif user_msg_is_trivial:
-            _record_extraction(KIND_OPEN_LOOPS, OUTCOME_TRIVIAL)
-            logger.debug("open_loop_extraction_skipped_trivial", run_id=run_id)
-        elif not settings.open_loops_enabled:
-            _record_extraction(KIND_OPEN_LOOPS, OUTCOME_FEATURE_DISABLED)
-            logger.debug("open_loop_extraction_skipped_disabled", run_id=run_id)
-        elif not (user_id := runtime_user_id_str(None)):
-            _record_extraction(KIND_OPEN_LOOPS, OUTCOME_NO_USER)
-            logger.debug("open_loop_extraction_skipped_no_user", run_id=run_id)
-        else:
-            thread_id = config.get("configurable", {}).get("thread_id", "unknown")
-            safe_fire_and_forget(
-                extract_open_loops_background(
-                    user_id=user_id,
-                    messages=model_messages,
-                    session_id=thread_id,
-                    run_id=run_id,
-                ),
-                name=f"open_loop_extraction_{user_id}_{thread_id[:8]}",
-                run_id=run_id,
-            )
-            _record_extraction(KIND_OPEN_LOOPS, OUTCOME_SCHEDULED)
-            logger.info(
-                "open_loop_extraction_scheduled",
-                run_id=run_id,
-                user_id=user_id,
-                thread_id=thread_id,
-            )
-    except (ValueError, KeyError, RuntimeError, AttributeError, ImportError, OSError) as e:
-        # Graceful degradation - open-loop extraction failure must not break response_node
-        _record_extraction(KIND_OPEN_LOOPS, OUTCOME_ERROR)
-        logger.error(
-            "open_loop_extraction_scheduling_failed",
-            run_id=run_id,
-            error=str(e),
-            error_type=type(e).__name__,
-            exc_info=True,
-        )
+    _schedule_open_loop_extraction(
+        config,
+        run_id,
+        model_messages,
+        conversation_id,
+        is_automated_source=_is_automated_source,
+        user_msg_is_trivial=user_msg_is_trivial,
+        user_timezone=state.get("user_timezone"),
+    )
 
     # ===================================================================
     # JOURNAL ENTRY EXTRACTION (Background)
@@ -424,16 +452,18 @@ def _schedule_post_response_extractions(
                     messages=model_messages,
                     session_id=thread_id,
                     personality_instruction=personality_instruction,
-                    conversation_id=thread_id,
+                    conversation_id=conversation_id,
                     user_language=user_language,
                     parent_run_id=run_id,
                     assistant_response=final_content,
                     query_embedding=user_message_embedding,
                     previous_turn_injected_ids=previous_journal_injected_ids,
                     previous_turn_injected_revisions=previous_journal_injected_revisions or {},
+                    user_timezone=state.get("user_timezone"),
                 ),
                 name=f"journal_extraction_{user_id}_{thread_id[:8]}",
                 run_id=run_id,
+                independent_of_graph=True,
             )
             _record_extraction(KIND_JOURNAL, OUTCOME_SCHEDULED)
             logger.info(
@@ -480,16 +510,18 @@ def _schedule_post_response_extractions(
             _record_extraction(KIND_PSYCHE, OUTCOME_NO_USER)
             logger.debug("psyche_update_skipped_no_user", run_id=run_id)
         else:
-            from src.domains.psyche.service import psyche_post_response_background
+            from src.domains.psyche.post_response import psyche_post_response_background
 
             safe_fire_and_forget(
                 psyche_post_response_background(
                     user_id=user_id,
                     appraisal=psyche_appraisal,
                     run_id=run_id,
+                    extraction_revision=runtime_extraction_revision(),
                 ),
                 name=f"psyche_update_{user_id}_{run_id[:8]}",
                 run_id=run_id,
+                independent_of_graph=True,
             )
             _record_extraction(KIND_PSYCHE, OUTCOME_SCHEDULED)
             logger.info(
@@ -570,17 +602,19 @@ def _schedule_post_response_extractions(
             # The person's own switch is read INSIDE the background task
             # (``record_occurrence_if_allowed``): the turn pays nothing, and a
             # refusal is counted on the write counter as ``user_disabled``.
-            safe_fire_and_forget(
-                record_occurrence_if_allowed(
-                    user_id,
-                    signature,
-                    local_date=now_local.date(),
-                    local_hour=now_local.hour + now_local.minute / 60.0,
-                    settings=settings,
-                    intent=usual_intent,
-                ),
-                name=f"recurrence_record_{user_id}",
-                run_id=run_id,
+            track_graph_writer(
+                safe_fire_and_forget(
+                    record_occurrence_if_allowed(
+                        user_id,
+                        signature,
+                        local_date=now_local.date(),
+                        local_hour=now_local.hour + now_local.minute / 60.0,
+                        settings=settings,
+                        intent=usual_intent,
+                    ),
+                    name=f"recurrence_record_{user_id}",
+                    run_id=run_id,
+                )
             )
             _record_extraction(KIND_RECURRENCE, OUTCOME_SCHEDULED)
     except Exception as e:

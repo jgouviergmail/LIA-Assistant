@@ -17,6 +17,7 @@ from src.domains.attachments.models import Attachment
 from src.domains.peers import image_share
 from src.domains.peers.models import PeerConnectionStatus, PeerImageShare
 from src.domains.users.preference_cas import PreferenceWriteReceipt
+from tests.helpers.committed_account_session import async_session as async_session
 from tests.integration.domains.peers.test_image_share_db import PNG, _connection, _image, _user
 
 pytestmark = pytest.mark.integration

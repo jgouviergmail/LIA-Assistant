@@ -94,6 +94,7 @@ _ROW_ICONS: dict[str, str] = {
     "location": Icons.LOCATION,
     "attendees": Icons.GROUP,
     "answer": Icons.REPLY,
+    "already_answered": Icons.REPLY,
     "organizer": Icons.PERSON,
     "reminder": Icons.ALARM,
     "availability": Icons.CALENDAR,

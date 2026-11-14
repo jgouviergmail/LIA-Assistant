@@ -14,6 +14,7 @@ from src.domains.agents.services.efficacy_evidence import (
 from src.domains.agents.services.outcome_evidence import GoalCoverage
 from src.domains.psyche.constants import EfficacyDomain
 from src.domains.psyche.efficacy_contracts import EfficacyEpoch
+from tests.fixtures.conversation_cases import conversation_target
 
 pytestmark = pytest.mark.unit
 
@@ -222,7 +223,7 @@ async def test_global_off_has_no_database_or_model_work(monkeypatch):
         efficacy_runtime,
         "runtime_context_if_running",
         lambda: LiaRuntimeContext.for_conversation(
-            user_id=turn.owner_id, conversation_id=turn.owner_id, psyche_enabled=True
+            target=conversation_target(turn.owner_id, turn.owner_id), psyche_enabled=True
         ),
     )
     assert (

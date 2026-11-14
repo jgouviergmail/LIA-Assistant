@@ -137,7 +137,7 @@ const sourceUrl = text.url().refine(value => {
 const research = z.object({
   kind: z.literal('research'),
   query: text.min(1),
-  provider: z.enum(['brave', 'perplexity', 'wikipedia']),
+  provider: z.enum(['brave', 'perplexity', 'searxng', 'wikipedia']),
   summary: text.nullable(),
   sources: z.array(z.object({ title: text.min(1), url: sourceUrl, excerpt: text })),
 });

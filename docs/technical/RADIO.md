@@ -247,10 +247,13 @@ entry (`formats.read_frequencies`).
 **What was done and what lies ahead** are parts of their own (`personal.JournalPart`,
 `PersonalDraft.part`; the day and the corner stay decided by the source): six « done »
 readers (`readers.DONE_READERS` — `agenda.py` the appointments over by now, `tasks.py`
-the tasks ticked today, `reminders.py` the reminders that rang, read from the message
+the tasks ticked today in EVERY list of the account (the week ahead likewise, the soonest
+first across the lists), `reminders.py` the reminders that rang, read from the message
 each one left in the chat under `REMINDER_NOTIFICATION_MESSAGE_TYPE`, `tickets.py` the
 tickets closed today, `sent_mail.py` the e-mails sent from the sent folder's headers
-(the `sent_mails` source, independently switchable from unread `mails`),
+(the `sent_mails` source, independently switchable from unread `mails`; an unread mail the
+listener already answered is no news and is left out of `mails` —
+[reply state](./MAIL_REPLY_STATE.md)),
 `actions.py` what LIA did from the effect register — the `actions` source, with its own
 switch) and three « ahead » readers (`AHEAD_READERS`: the appointments, the open tasks
 due and the pending reminders from tomorrow to seven days on, under the day's own keys,

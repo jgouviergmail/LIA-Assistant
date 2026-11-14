@@ -6,7 +6,7 @@ doubles. What none of them executes is the LEDGER's life in the table: the
 re-arm stored on the row, the run history the daily cap counts. A key lost in
 that round trip is a trigger that fires twice, or never again — silently.
 
-Each of the five condition types goes through the same five checks, the
+Each of the six condition types goes through the same five checks, the
 executor's own gate and repository against the real schema, only the SOURCE
 replaced (the provider is not what is under test):
 
@@ -52,6 +52,7 @@ from src.domains.scheduled_actions.runs import record_run
 from src.domains.scheduled_actions.schemas import ConditionConfig, ScheduledActionCreate
 from src.domains.scheduled_actions.service import ScheduledActionService
 from src.domains.users.models import User
+from src.infrastructure.scheduler.page_reading import PageReading
 from src.infrastructure.scheduler.scheduled_action_executor import _condition_gate, _next_trigger
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
@@ -74,6 +75,8 @@ class _Trigger:
     """What the note names for fact A."""
     new_label: str
     """What the note names for fact B."""
+    target: str | None = None
+    """Where the source is replaced, when it is not a briefing fetcher."""
 
 
 #: One instant for the whole module: a fact keyed on its start must see the
@@ -99,6 +102,10 @@ def _event(title: str, event_id: str, in_hours: int) -> AgendaEventItem:
         title=title, start_local="14:00", end_local=None, location=None, id=event_id,
         start_at=ANCHOR + timedelta(hours=in_hours),
     )  # fmt: skip
+
+
+def _page(*lines: str) -> PageReading:
+    return PageReading(url="https://shop.example.org/chair", lines=lines, total=len(lines))
 
 
 def _alert(kind: ForecastAlertKind, in_hours: int) -> ForecastAlert:
@@ -158,6 +165,16 @@ TRIGGERS: dict[str, _Trigger] = {
         old_label="rain expected",
         new_label="snow expected around 14:00",
     ),
+    # ADR-387: a public page, read by the system — each line a fact.
+    "page_change": _Trigger(
+        config=ConditionConfig(type="page_change", url="https://shop.example.org/chair"),
+        fetcher="read_page",
+        target=f"{_EVALUATORS}.read_page",
+        first=lambda: _page("Prix : 349,99 €"),
+        second=lambda: _page("Prix : 349,99 €", "Plus que 2 en stock"),
+        old_label="Prix : 349,99 €",
+        new_label="Plus que 2 en stock",
+    ),
 }
 
 
@@ -176,10 +193,10 @@ def _source(trigger: _Trigger, answer: Callable[[], Any] | Exception) -> Iterato
     fetch = (
         AsyncMock(side_effect=answer)
         if isinstance(answer, Exception)
-        else AsyncMock(side_effect=lambda **_: answer())
+        else AsyncMock(side_effect=lambda *_args, **_kwargs: answer())
     )
     with (
-        patch(f"{_FETCHERS}.{trigger.fetcher}", fetch),
+        patch(trigger.target or f"{_FETCHERS}.{trigger.fetcher}", fetch),
         patch(f"{_EVALUATORS}.out_of_turn_spend", MagicMock(side_effect=_nothing)),
         patch(f"{_EVALUATORS}.record_surface_consultations"),
     ):
@@ -331,3 +348,71 @@ async def test_a_network_failure_of_the_forecast_reads_as_unavailable(
 
     assert gate is None
     assert (await _ledger(async_session, action_id))["last_check_error"] == "unavailable"
+
+
+async def test_a_watched_page_tells_a_line_that_comes_back(async_session: AsyncSession) -> None:
+    """ADR-387: the ledger of a page is a snapshot — « back in stock » is news again."""
+    trigger = TRIGGERS["page_change"]
+    user_id, action_id = await _routine(async_session, trigger)
+
+    def shown() -> PageReading:
+        return _page("Chaise Oslo", "En stock")
+
+    def sold_out() -> PageReading:
+        return _page("Chaise Oslo")
+
+    # The first reading is told as such, every line in it.
+    action, gate = await _check(async_session, trigger, action_id, user_id, shown)
+    assert gate is not None and gate.note is not None
+    assert "Nothing from this routine's watched page has been reported yet" in gate.note
+    assert "Chaise Oslo" in gate.note and "En stock" in gate.note
+    await _serve(async_session, action, gate, succeeded=True)
+    first = await _ledger(async_session, action_id)
+    assert first["last_fired_at"] is not None
+
+    # The stock line leaves: nothing new, nothing runs — and the line is forgotten.
+    action, gate = await _check(async_session, trigger, action_id, user_id, sold_out)
+    assert gate is None
+    assert len((await _ledger(async_session, action_id))["seen"]) == 1
+
+    # It comes back: news again, on itself alone, and no longer a first reading.
+    action, gate = await _check(async_session, trigger, action_id, user_id, shown)
+    assert gate is not None and gate.note is not None
+    assert "1 line(s) appeared" in gate.note
+    assert "En stock" in gate.note and "Chaise Oslo" not in gate.note
+
+
+async def test_a_first_report_whose_run_failed_is_retried_as_a_first_report(
+    async_session: AsyncSession,
+) -> None:
+    """ADR-387: nothing was told, so the next run is told nothing was told — never « news »."""
+    trigger = TRIGGERS["page_change"]
+    user_id, action_id = await _routine(async_session, trigger)
+
+    action, gate = await _check(async_session, trigger, action_id, user_id, trigger.first)
+    assert gate is not None and gate.note is not None
+    assert "Nothing from this routine's watched page has been reported yet" in gate.note
+    await _serve(async_session, action, gate, succeeded=False)
+
+    action, gate = await _check(async_session, trigger, action_id, user_id, trigger.first)
+    assert gate is not None and gate.note is not None
+    assert "Nothing from this routine's watched page has been reported yet" in gate.note
+    assert "appeared" not in gate.note
+
+
+async def test_a_line_matching_a_filter_at_last_is_a_first_report(
+    async_session: AsyncSession,
+) -> None:
+    """Read, filtered to nothing, then a matching line: still nothing was ever told."""
+    trigger = TRIGGERS["page_change"]
+    user_id, action_id = await _routine(async_session, trigger)
+
+    def nothing() -> PageReading:
+        return _page()
+
+    _action, gate = await _check(async_session, trigger, action_id, user_id, nothing)
+    assert gate is None
+
+    _action, gate = await _check(async_session, trigger, action_id, user_id, trigger.first)
+    assert gate is not None and gate.note is not None
+    assert "Nothing from this routine's watched page has been reported yet" in gate.note

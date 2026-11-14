@@ -1,12 +1,15 @@
 """A native repeat sync counts ready data and cannot complete failed indexing."""
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import AsyncMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.domains.rag_spaces import drive_sync, source_worker_runtime
@@ -14,6 +17,8 @@ from src.domains.rag_spaces.drive_walk import DriveTree
 from src.domains.rag_spaces.models import RAGDocument, RAGDriveSource, RAGSpace
 from src.domains.rag_spaces.source_worker_lease import SourceWorkerLease
 from src.domains.rag_spaces.storage_paths import stored_file_path
+from src.domains.users.models import User
+from tests.helpers.committed_account_session import async_session as async_session
 from tests.unit.domains.rag_spaces.drive_fakes import FakeDetachedConnectors
 
 pytestmark = pytest.mark.integration
@@ -21,8 +26,12 @@ pytestmark = pytest.mark.integration
 
 @pytest.mark.parametrize("scenario", ["unchanged_ready", "retry_error", "embedding_failed"])
 async def test_native_drive_completion_agrees_with_persisted_document_results(
-    async_session, test_user, monkeypatch, tmp_path, scenario
-):
+    async_session: AsyncSession,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    scenario: str,
+) -> None:
     for flag in (
         "application_tools_enabled",
         "rag_spaces_enabled",
@@ -76,7 +85,7 @@ async def test_native_drive_completion_agrees_with_persisted_document_results(
     await async_session.commit()
 
     @asynccontextmanager
-    async def database():
+    async def database() -> AsyncIterator[AsyncSession]:
         yield async_session
 
     for module in (drive_sync, source_worker_runtime):
@@ -107,8 +116,9 @@ async def test_native_drive_completion_agrees_with_persisted_document_results(
         ),
     )
 
-    async def processing(**kwargs):
-        document = await async_session.get(RAGDocument, kwargs["document_id"])
+    async def processing(*, document_id: UUID, **_kwargs: object) -> bool:
+        document = await async_session.get(RAGDocument, document_id)
+        assert document is not None
         document.status = "error" if scenario == "embedding_failed" else "ready"
         await async_session.commit()
         return scenario != "embedding_failed"
@@ -122,6 +132,7 @@ async def test_native_drive_completion_agrees_with_persisted_document_results(
         .where(RAGDriveSource.id == source_id)
         .execution_options(populate_existing=True)
     )
+    assert current is not None
     assert current.sync_status == ("error" if scenario == "embedding_failed" else "completed")
     assert current.synced_file_count == int(scenario != "embedding_failed")
     if scenario == "retry_error":

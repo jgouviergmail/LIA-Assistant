@@ -4,7 +4,9 @@ import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
 import en from '../../../../locales/en/translation.json';
 import fr from '../../../../locales/fr/translation.json';
+import { appConfigFixture } from '@/__tests__/fixtures/app-config';
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { AppConfigSeedContext } from '@/hooks/useAppConfig';
 import type { ApplicationCommandStatus } from '@/types/application-commands';
 
 const { get, post, auth } = vi.hoisted(() => ({
@@ -250,7 +252,15 @@ describe('approved secure application continuation', () => {
         },
       },
     });
-    renderWithProviders(<ApplicationInteractionCards metadata={metadata} />);
+    // As the chat mounts it: under the layout's read of `/config`, which says
+    // whether the instance offers the personal servers.
+    renderWithProviders(
+      <AppConfigSeedContext.Provider
+        value={appConfigFixture({ capabilities: { mcp: { enabled: true, family: 'reach' } } })}
+      >
+        <ApplicationInteractionCards metadata={metadata} />
+      </AppConfigSeedContext.Provider>
+    );
     await userEvent.click(await screen.findByRole('button', { name: 'Open the private form' }));
     expect(await screen.findByRole('textbox', { name: 'Name' })).toBeInTheDocument();
     expect(post).not.toHaveBeenCalled();

@@ -7,10 +7,18 @@ What must hold:
 - a malformed Fernet key is rejected with a located issue whose text never
   echoes the secret value;
 - issues are deterministically sorted by (location, message);
-- the legacy operator validator delegates its Pydantic phase here.
+- the legacy operator validator delegates its Pydantic phase here;
+- a FRESH process holds the same contract: importing the settings package
+  builds the singleton, so an invalid environment fails at the import, before
+  any function of this script runs (the shape the deployment calls it in).
 """
 
 from __future__ import annotations
+
+import os
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 from cryptography.fernet import Fernet
@@ -142,3 +150,42 @@ def test_legacy_validator_delegates_to_canonical(
     validate_config.validate_pydantic_models(result)  # type: ignore[arg-type]
     assert calls == [True]
     assert any("boom" in message for _, _, message in result.entries)
+
+
+_API_ROOT = Path(__file__).resolve().parents[2]
+_OUT_OF_BOUND = "987654321"
+
+
+def _run_fresh(**overrides: str) -> subprocess.CompletedProcess[str]:
+    """Run the script as the deployment does: a new interpreter, ``-m``."""
+    return subprocess.run(
+        [sys.executable, "-m", "scripts.validate_settings"],
+        cwd=_API_ROOT,
+        env={**os.environ, **overrides},
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+
+
+def test_a_fresh_process_accepts_the_current_environment() -> None:
+    result = _run_fresh()
+    assert result.returncode == 0, result.stdout[-2000:] + result.stderr[-2000:]
+    assert "OK: settings are valid" in result.stdout
+
+
+def test_a_fresh_process_refuses_a_value_above_its_bound_without_printing_it() -> None:
+    """The 2026-11-09 outage: a value above its bound looped the API for 53 minutes.
+
+    In a fresh process the failure is raised by the IMPORT of the settings
+    package, which the report must cover too: a traceback would print the
+    offending value, and the next one may be a secret.
+    """
+    result = _run_fresh(RAG_SPACES_MAX_DOCS_PER_SPACE=_OUT_OF_BOUND)
+    output = result.stdout + result.stderr
+    assert result.returncode == 1
+    assert "INVALID: 1 setting error(s)" in result.stdout
+    assert "rag_spaces_max_docs_per_space" in result.stdout
+    assert _OUT_OF_BOUND not in output
+    assert "Traceback" not in output

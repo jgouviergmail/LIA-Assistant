@@ -14,7 +14,12 @@ from uuid import uuid4
 
 import pytest
 
-from src.core.field_names import FIELD_CACHED_AT, FIELD_SET_ASIDE_ON_PAGE
+from src.core.field_names import (
+    FIELD_CACHED_AT,
+    FIELD_MAIL_ANSWERED,
+    FIELD_MAIL_ANSWERED_AT,
+    FIELD_SET_ASIDE_ON_PAGE,
+)
 from src.domains.connectors.clients.microsoft_outlook_client import MicrosoftOutlookClient
 from src.domains.connectors.clients.normalizers.microsoft_email_normalizer import (
     build_graph_recipients,
@@ -248,6 +253,104 @@ class TestGetMessage:
 
         assert message["from_cache"] is False
         assert message[FIELD_CACHED_AT] is None
+
+
+class TestTheMailboxMarkReadWithAMessage:
+    """What its own mailbox says of a message — « answered » — read WITH the message (ADR-379).
+
+    No Outlook mailbox can be measured any more, so the request and the answer follow the
+    documentation. Microsoft Graph returns a MAPI property that it does not expose as a
+    field through ``$expand=singleValueExtendedProperties($filter=id eq '{type} {proptag}')``
+    on a message, each entry answered as ``{"id": …, "value": "<string>"}`` (Graph, « Get
+    singleValueLegacyExtendedProperty » and « Outlook extended properties overview »); only
+    ONE relationship is promised expandable per request (« Use query parameters »), so the
+    marked read leaves the files out instead of adding a second expansion.
+    ``PidTagLastVerbExecuted`` is tag 0x1081, an integer whose 102 and 103 are a reply to
+    the sender and to all, 104 a forward; ``PidTagLastVerbExecutionTime`` is tag 0x1082,
+    the UTC instant of that verb ([MS-OXOMSG] 2.2.1.14, [MS-OXPROPS]).
+    """
+
+    EXPAND = (
+        "singleValueExtendedProperties($filter=id eq 'Integer 0x1081' or id eq 'SystemTime 0x1082')"
+    )
+
+    @staticmethod
+    def _answer(*properties: tuple[str, str]) -> dict:
+        """A message as ``GET /me/messages/{id}`` answers it, expanded as asked."""
+        return {
+            "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('me')/messages/$entity",
+            "@odata.etag": 'W/"CQAAABYAAACY4MQpaFz9SbqUDe4+bs88AACbyS4H"',
+            **GRAPH_MESSAGE,
+            "body": {"contentType": "html", "content": "<p>Here is the report.</p>"},
+            "singleValueExtendedProperties": [
+                {"id": name, "value": value} for name, value in properties
+            ],
+        }
+
+    async def test_it_asks_for_the_mark_alone_and_leaves_the_files_out(
+        self, client: MicrosoftOutlookClient
+    ) -> None:
+        request = _request(client, self._answer())
+
+        await client.get_message("AAMk-1", mailbox_mark=True)
+
+        _method, endpoint, params = request.await_args.args
+        assert endpoint == "/me/messages/AAMk-1"
+        assert params["$expand"] == self.EXPAND
+        assert "attachments" not in params["$select"].split(",")
+        assert {"body", "bodyPreview", "conversationId"} <= set(params["$select"].split(","))
+
+    @pytest.mark.parametrize("verb", ["102", "103"])
+    async def test_a_reply_is_an_answer_dated_by_the_mailbox(
+        self, client: MicrosoftOutlookClient, verb: str
+    ) -> None:
+        _request(
+            client,
+            self._answer(("Integer 0x1081", verb), ("SystemTime 0x1082", "2026-11-10T13:40:00Z")),
+        )
+
+        message = await client.get_message("AAMk-1", mailbox_mark=True)
+
+        assert message[FIELD_MAIL_ANSWERED] is True
+        assert message[FIELD_MAIL_ANSWERED_AT] == "1794318000000"
+
+    @pytest.mark.parametrize(
+        "properties",
+        [
+            (),  # nothing was ever done with the message
+            (("Integer 0x1081", "104"), ("SystemTime 0x1082", "2026-11-10T13:40:00Z")),  # forwarded
+            (("SystemTime 0x1082", "2026-11-10T13:40:00Z"),),  # a time with no verb
+        ],
+    )
+    async def test_anything_else_is_no_answer(
+        self, client: MicrosoftOutlookClient, properties: tuple[tuple[str, str], ...]
+    ) -> None:
+        _request(client, self._answer(*properties))
+
+        message = await client.get_message("AAMk-1", mailbox_mark=True)
+
+        assert FIELD_MAIL_ANSWERED not in message and FIELD_MAIL_ANSWERED_AT not in message
+
+    async def test_the_whole_message_is_read_as_any_other_read_gives_it(
+        self, client: MicrosoftOutlookClient
+    ) -> None:
+        """The marked read is the message a proof is found in AND read again from: its
+        text must be the text the ordinary read gives."""
+        whole = {**GRAPH_MESSAGE, "body": {"contentType": "html", "content": "<p>The report.</p>"}}
+        _request(client, {**whole, "attachments": []})
+        ordinary = await client.get_message("AAMk-1")
+        _request(client, {**whole, "singleValueExtendedProperties": []})
+        marked = await client.get_message("AAMk-1", mailbox_mark=True)
+
+        for field in ("id", "threadId", "subject", "from", "to", "internalDate", "body", "snippet"):
+            assert marked[field] == ordinary[field], field
+
+    async def test_an_ordinary_read_asks_for_no_mark(self, client: MicrosoftOutlookClient) -> None:
+        request = _request(client, {**GRAPH_MESSAGE, "attachments": []})
+
+        await client.get_message("AAMk-1")
+
+        assert "singleValueExtendedProperties" not in request.await_args.args[2]["$expand"]
 
 
 # ============================================================================

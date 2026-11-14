@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.skills.import_service import SkillImportService
 from src.domains.skills.models import Skill
+from tests.helpers.committed_account_session import async_session as async_session
 from tests.integration.domains.skill_library.test_library_install import _user
 from tests.integration.domains.skill_library.test_library_install import skill_dirs as skill_dirs
 from tests.unit.domains.skill_library.fakes import manifest

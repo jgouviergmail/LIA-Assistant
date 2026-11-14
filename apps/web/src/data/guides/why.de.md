@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 7.0
-**Datum**: 2026-11-10
-**Anwendung**: LIA v4.6.0
+**Datum**: 2026-11-14
+**Anwendung**: LIA v5.0.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -35,15 +35,15 @@ Wie das funktioniert, erklärt [der technische Leitfaden](/de/how). Wie der Code
 
 Öffne **Tools**, wenn du selbst handeln möchtest: E-Mails, Kalender, Aufgaben, Kontakte, Dateien und Hue-Leuchten nutzen deine verbundenen Dienste. Du klickst, bearbeitest und sendest direkt, ohne KI-Aufruf, und wenn du willst, lässt du LIA über die gelben Sterne etwas zusammenfassen oder schreiben, die Kosten stets sichtbar; überall in LIA lassen sich markierte Wörter erklären, übersetzen oder in eine Aufgabe oder einen Termin verwandeln. Jeder Bildschirm bietet nur, was sein Anbieter unterstützt; Deine eigenen Handlungen erscheinen nicht in LIAs Aktivitätsregistern.
 
-Du sprichst ganz normal mit ihr, schriftlich oder mit der Stimme. Die Oberfläche gibt es in sechs Sprachen (Französisch, Englisch, Deutsch, Spanisch, Italienisch, Chinesisch), und dein Diktat wird in der Sprache deines Kontos transkribiert. Rund zwanzig spezialisierte Agenten teilen sich die Arbeit: deine persönlichen Daten, das Web, das kreative Schaffen, das vernetzte Zuhause, das Navigieren auf Websites und die Vorausschau.
+Du sprichst ganz normal mit ihr, schriftlich oder mit der Stimme, eine Unterhaltung pro Thema, auch während sie antwortet. Die Oberfläche gibt es in sechs Sprachen (Französisch, Englisch, Deutsch, Spanisch, Italienisch, Chinesisch), und dein Diktat wird in der Sprache deines Kontos transkribiert. Rund zwanzig spezialisierte Agenten teilen sich die Arbeit: deine persönlichen Daten, das Web, das kreative Schaffen, das vernetzte Zuhause, das Navigieren auf Websites und die Vorausschau.
 
 Ein Schalter im Chat wählt, wie sie denkt. Der Modus **Pipeline**, der Standard, bereitet alle Schritte vor, prüft sie und führt sie dann parallel aus: Er ist vorhersehbar und verbraucht 4- bis 8-mal weniger Tokens. Der Modus **ReAct** geht Schritt für Schritt vor, autonomer und teurer, für eine offene Recherche; wenn ein Schritt eine echte Berechnung braucht, schreibt er ein paar Zeilen Python und startet sie in einer abgeschotteten Sandbox, die nur über einen einzigen Proxy und ohne deine Schlüssel ins Web gelangt ([Privatsphäre](/de/faq#faq-privacy), [der Weg einer Nachricht](/de/how#pipeline)).
 
-Wenn du die Anzeige als **Karten** wählst (die beiden anderen Modi sind einfaches HTML und Markdown), kommen Antworten, die Daten enthalten, so an: Fotos eines Ortes, das Wetter Zeitfenster für Zeitfenster, eine Route, die Vorschau eines Dokuments. Eine Karte zeigt, was die Quelle geliefert hat, ohne etwas zu erfinden, und antwortest du von ihrer Karte aus auf eine E-Mail, wird die Anfrage vorbereitet, ohne dass etwas gesendet wird.
+Wenn du die Anzeige als **Karten** wählst, kommen Antworten, die Daten enthalten, so an: Fotos eines Ortes, das Wetter Zeitfenster für Zeitfenster, eine Route, die Vorschau eines Dokuments. Eine Karte zeigt, was die Quelle geliefert hat, ohne etwas zu erfinden, und antwortest du von ihrer Karte aus auf eine E-Mail, wird die Anfrage vorbereitet, ohne dass etwas gesendet wird.
 
 ### Deine Dienste
 
-Du bittest LIA, deinen Termin am Donnerstag zu verschieben: Sie bereitet die Änderung vor und zeigt sie dir, bevor sie sie absendet. Sie liest deine E-Mails (Gmail, Outlook, Apple Mail), durchsucht und verfasst sie, fasst sie zusammen, sendet und leitet sie weiter, liest ihre Anhänge, auch ein Foto oder einen Scan, und verwaltet die Entwürfe deines Postfachs, die sie erst nach deiner Bestätigung sendet. Sie führt deinen Kalender und deine Kontakte bei Google, Microsoft oder Apple, deine Aufgaben bei Google oder Microsoft, liest und ordnet deine Dateien auf Google Drive oder OneDrive, schreibt dort nur mit deiner Zustimmung, und schaltet deine Philips-Hue-Lampen ein.
+Du bittest LIA, deinen Termin am Donnerstag zu verschieben: Sie bereitet die Änderung vor und zeigt sie dir, bevor sie sie absendet. Sie liest deine E-Mails (Gmail, Outlook, Apple Mail), durchsucht sie, fasst sie zusammen, sendet und leitet sie weiter, weiß, welche du beantwortet hast, verfasst sie in deinem Stil, liest ihre Anhänge, auch ein Foto oder einen Scan, und verwaltet die Entwürfe deines Postfachs, die sie erst nach deiner Bestätigung sendet. Sie führt deinen Kalender und deine Kontakte bei Google, Microsoft oder Apple, deine Aufgaben bei Google oder Microsoft, liest und ordnet deine Dateien auf Google Drive oder OneDrive, schreibt dort nur mit deiner Zustimmung, und schaltet deine Philips-Hue-Lampen ein.
 
 Ohne etwas einzurichten, hast du Wikipedia, das Lesen von Webseiten, Orte in der Nähe mit Öffnungszeiten und Bewertungen, das Wetter für fünf Tage mit Luftqualität und Pollen sowie Routen zu Fuß, mit dem Rad, mit dem Auto oder mit öffentlichen Verkehrsmitteln ([Konnektoren](/de/faq#faq-connectors)). Mit deinen eigenen Schlüsseln verbindet die Websuche auch Brave Search und Perplexity und nennt ihre Quellen. LIA kann für dich auch eine Website durchgehen, klicken, ein Formular ausfüllen.
 
@@ -55,15 +55,15 @@ Der **Live-Modus** öffnet ein Sprachgespräch in Echtzeit mit deinem eigenen Sc
 
 ### Erstellen und behalten
 
-LIA erstellt und bearbeitet Bilder mit dem Modell, das der Administrator gewählt hat, ohne zu einer teureren Option zu wechseln, als deine Einstellungen vorsehen. Auf Wunsch reichert sie deine Beschreibung an, und ein Bild findest du wieder, indem du sie danach fragst ([Bilder](/de/faq#faq-image_generation)). Sie erzeugt echte Dateien (CSV, Excel, Word, PowerPoint, PDF), die eine lokale Engine baut und die mit ihrem Ablaufdatum ankommen, dazu Excalidraw-Diagramme, und sie liest die Fotos und PDFs, die du anhängst. MCP-Apps zeigen ihre Formulare direkt im Chat an, und ein Spiel, ein Quiz oder ein Rechner, um den du bittest, läuft dort ebenfalls, in einem versiegelten Rahmen.
+LIA erstellt und bearbeitet Bilder mit dem Modell, das der Administrator gewählt hat, ohne zu einer teureren Option zu wechseln, als deine Einstellungen vorsehen. Auf Wunsch reichert sie deine Beschreibung an, und ein Bild findest du wieder, indem du sie danach fragst ([Bilder](/de/faq#faq-image_generation)). Sie erzeugt echte Dateien (CSV, Excel, Word, PowerPoint, PDF) — mit lebendigen Formeln, bearbeitbaren Diagrammen und, wenn du es erlaubst, Illustrationen —, die eine lokale Engine baut und die mit ihrem Ablaufdatum ankommen, dazu Excalidraw-Diagramme, und sie liest die Fotos und Dokumente, die du anhängst. MCP-Apps zeigen ihre Formulare direkt im Chat an, und ein Spiel, ein Quiz oder ein Rechner, um den du bittest, läuft dort ebenfalls, in einem versiegelten Rahmen.
 
 Was sie erzeugt, behältst du, schickst es mit einem Klick per E-Mail, teilst ein Bild mit einer Person, die mit deiner Instanz verbunden ist, oder lässt es ablaufen. Eine behaltene Antwort verlässt das Gespräch mit deiner Anfrage und ihrem Datum und kommt in einen Wissensraum, wo LIA sie Wochen später wiederfindet.
 
 ### Die Initiative ergreifen
 
-Wenn du es erlaubst, wartet LIA nicht nur ab. Sie schreibt dir, wenn dein Kalender, das Wetter, deine Aufgaben, deine E-Mails oder deine Interessen es rechtfertigen, und kann von sich aus ein persönliches Gespräch beginnen. Am Ende einer Besprechung fragt sie dich, wie es gelaufen ist. Wenn sich in deinem Postfach oder deinem Kalender etwas bewegt, kann sie innerhalb weniger Minuten reagieren, und „Beobachten“ hält nach einer erwarteten Mail Ausschau, bis sie eintrifft. Ist für Samstag Regen angesagt, schaut sie sich deine Aktivitäten im Freien an. Sie merkt sich, was dir wirklich wichtig ist, ein Thema, das du ablehnst, kommt nicht wieder, und was du an vielen Tagen fragst, wird ein Vorschlag, den du mit einem Klick annimmst, etwa eine Routine, die bereitsteht, bevor du fragst.
+Wenn du es erlaubst, wartet LIA nicht nur ab. Sie schreibt dir, wenn dein Kalender, das Wetter, deine Aufgaben, deine E-Mails oder deine Interessen es rechtfertigen, und kann von sich aus ein persönliches Gespräch beginnen. Am Ende einer Besprechung fragt sie dich, wie es gelaufen ist. Wenn sich in deinem Postfach oder deinem Kalender etwas bewegt, kann sie innerhalb weniger Minuten reagieren, und „Beobachten“ hält nach einer erwarteten Mail Ausschau, bis sie eintrifft. Ist für Samstag Regen angesagt, schaut sie sich deine Aktivitäten im Freien an. Sie merkt sich, was dir wirklich wichtig ist, ein Thema, das du ablehnst, kommt nicht wieder, und was du an vielen Tagen fragst, wird ein Vorschlag, den du mit einem Klick annimmst.
 
-Du vertraust ihr ein Ticket an: Sie übernimmt es in ihrem Tempo und gibt dir ein Ergebnis zur Abnahme zurück. Bei einer komplexen Aufgabe delegiert sie an Sub-Agenten, die parallel arbeiten. Routinen und Erinnerungen folgen vielfältigen Rhythmen (jeden zweiten Dienstag, am zweiten Dienstag des Monats, bis zu einem Datum), und eine Wochenansicht zeigt, was wirklich passiert ist ([die Initiative](/de/how#proactivity)).
+Du vertraust ihr ein Ticket an: Sie übernimmt es in ihrem Tempo und gibt dir ein Ergebnis zur Abnahme zurück. Bei einer komplexen Aufgabe delegiert sie an Sub-Agenten, die parallel arbeiten. Routinen und Erinnerungen folgen vielfältigen Rhythmen (jeden zweiten Dienstag, bis zu einem Datum); eine Routine kann auch eine Webseite beobachten oder auf den Aufruf eines anderen Systems warten, und eine Wochenansicht zeigt, was wirklich passiert ist ([die Initiative](/de/how#proactivity)).
 
 ### Die anderen
 

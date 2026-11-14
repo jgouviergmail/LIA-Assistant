@@ -184,6 +184,12 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | **postgres-backup** | `prodrigestivill/postgres-backup-local` | Sauvegardes pg_dump planifiees, rotation daily/weekly/monthly (ADR-109) |
 | **Redis** | `redis` | Cache, sessions, rate limiting |
 
+### Recherche web de l'instance
+
+| Service | Image | Role |
+|---------|-------|------|
+| **SearXNG** | `searxng/searxng` | Métamoteur sans clé pour qui n'a pas de clé de recherche, sans filtrage (profil `searxng`, actif par défaut ; ADR-382, [WEB_SEARCH.md](./WEB_SEARCH.md)) |
+
 ### Observabilite Stack
 
 | Service | Image | Role |

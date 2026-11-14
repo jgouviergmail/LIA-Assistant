@@ -7,29 +7,30 @@ vocabulary (``schemas/tasks``): a due date is a DAY (``task_dates``),
 completion a boolean, a page says whether more exists. A create runs once per
 submission (``run_once``). A gesture the provider lacks — a subtask on To Do,
 an importance on Google — is refused before anything is sent: its client would
-drop it in silence. A view gathers what every list holds for one stretch of the
-account's days. Moving, renaming and thinning a list live in ``tasks_organize``.
+drop it in silence. A view gathers what every list holds: for one stretch of the
+account's days, or every open task, dated or not; the lists are walked through the
+one door (``connectors/clients/task_lists``). Moving, renaming and thinning a list
+live in ``tasks_organize``.
 """
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from src.core.constants import (
-    WORKBENCH_DUE_TASKS_CONCURRENCY,
-    WORKBENCH_DUE_TASKS_PAGES_MAX,
-    WORKBENCH_TASK_UPCOMING_DAYS,
-)
+from src.core.constants import WORKBENCH_DUE_TASKS_PAGES_MAX, WORKBENCH_TASK_UPCOMING_DAYS
 from src.core.exceptions import BaseAPIException
 from src.core.time_utils import now_utc
 from src.domains.connectors.clients.protocols import TasksClientProtocol
 from src.domains.connectors.clients.task_details import TaskDetails
+from src.domains.connectors.clients.task_lists import (
+    TaskListing,
+    TaskListRead,
+    read_task_lists,
+)
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.preferences.owner_defaults import TASK_LIST
 from src.domains.connectors.preferences.resolver import is_preferred
@@ -52,21 +53,14 @@ from src.domains.workbench.schemas.tasks import (
     TasksPage,
     TaskStep,
     TaskViewQuery,
+    ViewTask,
+    ViewTasks,
 )
 from src.domains.workbench.task_dates import due_for_provider, due_from_provider
 
 _TOOL = WorkbenchTool.TASKS
-#: The days a read gathers, both included.
-_Days = tuple[date, date]
-
-
-@dataclass(frozen=True, slots=True)
-class _ListDue:
-    """What one list gave: its tasks and whether it was cut, or why it gave nothing."""
-
-    tasks: list[DueTask] = field(default_factory=list)
-    cut: bool = False
-    refusal: BaseAPIException | None = None
+#: The days a read gathers, both included; None gathers every open task, dated or not.
+_Days = tuple[date, date] | None
 
 
 async def list_task_lists(user_id: UUID, *, page_token: str | None = None) -> TaskListsPage:
@@ -155,10 +149,19 @@ async def read_due_tasks(user_id: UUID, zone: ZoneInfo, query: DueTasksQuery) ->
     Raises:
         BaseAPIException: Every list failed: nothing can be drawn.
     """
-    return await _read_due(user_id, zone, (query.start, query.end))
+    read = await _read_across(user_id, zone, (query.start, query.end))
+    return DueTasks(
+        tasks=[
+            DueTask(id=task.id, list_id=task.list_id, title=task.title, due=task.due)
+            for task in read.tasks
+            if task.due is not None
+        ],
+        truncated=read.truncated,
+        failed=read.failed,
+    )
 
 
-async def read_task_view(user_id: UUID, zone: ZoneInfo, query: TaskViewQuery) -> DueTasks:
+async def read_task_view(user_id: UUID, zone: ZoneInfo, query: TaskViewQuery) -> ViewTasks:
     """The open tasks of a view, every list asked, in the account's day.
 
     Args:
@@ -167,103 +170,90 @@ async def read_task_view(user_id: UUID, zone: ZoneInfo, query: TaskViewQuery) ->
         query: The view.
 
     Returns:
-        What was read, earliest first; what could not be is said, never silent.
+        What was read, the earliest first and the undated last; what could not be is said,
+        never silent.
+
+    Raises:
+        BaseAPIException: Every list failed: nothing can be shown.
     """
-    return await _read_due(user_id, zone, _view_days(query, now_utc().astimezone(zone).date()))
+    return await _read_across(user_id, zone, _view_days(query, now_utc().astimezone(zone).date()))
 
 
 def _view_days(query: TaskViewQuery, today: date) -> _Days:
     """The days a view gathers: a late task may be as old as the person's oldest."""
+    if query.view == "all":
+        return None
     if query.view == "today":
         return today, today
+    yesterday = today - timedelta(days=1)
     if query.view == "overdue":
-        return date.min, today - timedelta(days=1)
-    return today + timedelta(days=1), today + timedelta(days=WORKBENCH_TASK_UPCOMING_DAYS)
+        return date.min, yesterday
+    horizon = today + timedelta(days=WORKBENCH_TASK_UPCOMING_DAYS)
+    if query.view == "timeline":
+        # The three views together: what is late, today's and the days ahead.
+        return date.min, horizon
+    return today + timedelta(days=1), horizon
 
 
-async def _read_due(user_id: UUID, zone: ZoneInfo, days: _Days) -> DueTasks:
-    """What every list holds, open and dated, over some days."""
+async def _read_across(user_id: UUID, zone: ZoneInfo, days: _Days) -> ViewTasks:
+    """What every list holds and is still to do, over some days or whatever its day."""
     async with open_tool_client(_TOOL, user_id) as opened:
         client: TasksClientProtocol = opened.client
         async with provider_call(_TOOL, "list_lists", act=False):
             lists = await client.list_task_lists(listing_page_size())
         ids = [str(item.get("id")) for item in lists.get("items") or []]
-        read = await _every_list_due(client, ids, opened.connector_type, zone, days)
-    return _due_answer(ids, read, bool(lists.get("next_page_token")))
-
-
-async def _every_list_due(
-    client: TasksClientProtocol,
-    ids: list[str],
-    provider: ConnectorType,
-    zone: ZoneInfo,
-    days: _Days,
-) -> list[_ListDue]:
-    """What each list gave, a few lists at a time: a provider answers a burst with 429."""
-    gate = asyncio.Semaphore(WORKBENCH_DUE_TASKS_CONCURRENCY)
-
-    async def bounded(list_id: str) -> _ListDue:
-        async with gate:
-            return await _list_due(client, list_id, provider, zone, days)
-
-    return list(await asyncio.gather(*(bounded(list_id) for list_id in ids)))
-
-
-def _due_answer(ids: list[str], read: list[_ListDue], more_lists: bool) -> DueTasks:
-    """The answer, the earliest first; a read where every list failed is the refusal."""
-    refusals = [item.refusal for item in read if item.refusal is not None]
-    if read and len(refusals) == len(read):
-        raise refusals[0]
-    return DueTasks(
-        tasks=sorted((task for item in read for task in item.tasks), key=lambda task: task.due),
-        truncated=more_lists or any(item.cut for item in read),
-        failed=[list_id for list_id, item in zip(ids, read, strict=True) if item.refusal],
+        read = await read_task_lists(
+            client,
+            ids,
+            TaskListing(max_results=listing_page_size(), pages_max=WORKBENCH_DUE_TASKS_PAGES_MAX),
+            failures=(BaseAPIException,),
+            guard=lambda: provider_call(_TOOL, "list", act=False),
+        )
+        provider = opened.connector_type
+    _refuse_when_every_list_failed(read)
+    return ViewTasks(
+        tasks=_in_time_order(ids, read, provider, zone, days),
+        truncated=bool(lists.get("next_page_token")) or any(item.cut for item in read),
+        failed=[list_id for list_id, item in zip(ids, read, strict=True) if item.failure],
     )
 
 
-async def _list_due(
-    client: TasksClientProtocol,
-    list_id: str,
+def _refuse_when_every_list_failed(read: list[TaskListRead]) -> None:
+    """A read where no list answered is the refusal of the first: nothing can be shown."""
+    refusals = [item.failure for item in read if item.failure is not None]
+    if read and len(refusals) == len(read):
+        raise refusals[0]
+
+
+def _in_time_order(
+    ids: list[str],
+    read: list[TaskListRead],
     provider: ConnectorType,
     zone: ZoneInfo,
     days: _Days,
-) -> _ListDue:
-    """One list's open tasks due over the days, or the refusal that kept it unread."""
-    tasks: list[DueTask] = []
-    token: str | None = None
-    try:
-        for _page in range(WORKBENCH_DUE_TASKS_PAGES_MAX):
-            async with provider_call(_TOOL, "list", act=False):
-                raw = await client.list_tasks(
-                    list_id,
-                    max_results=listing_page_size(),
-                    show_completed=False,
-                    show_hidden=False,
-                    page_token=token,
-                )
-            tasks += _due_within(raw.get("items") or [], list_id, provider, zone, days)
-            token = raw.get("next_page_token") or None
-            if token is None:
-                break
-    except BaseAPIException as refusal:
-        return _ListDue(refusal=refusal)
-    return _ListDue(tasks=tasks, cut=token is not None)
+) -> list[ViewTask]:
+    """The tasks kept, the earliest first; the undated last, in their lists' own order."""
+    kept = [
+        task
+        for list_id, item in zip(ids, read, strict=True)
+        for task in _within(item.items, list_id, provider, zone, days)
+    ]
+    return sorted(kept, key=lambda task: (task.due is None, task.due or date.min))
 
 
-def _due_within(
+def _within(
     items: Iterable[Mapping[str, Any]],
     list_id: str,
     provider: ConnectorType,
     zone: ZoneInfo,
     days: _Days,
-) -> list[DueTask]:
-    """The tasks of a page that fall within the days."""
-    found: list[DueTask] = []
-    first, last = days
+) -> list[ViewTask]:
+    """The tasks of a list that fall within the days; every one of them without days."""
+    found: list[ViewTask] = []
     for item in items:
         task = task_of(item, provider, zone)
-        if task.due is not None and first <= task.due <= last:
-            found.append(DueTask(id=task.id, list_id=list_id, title=task.title, due=task.due))
+        if days is None or (task.due is not None and days[0] <= task.due <= days[1]):
+            found.append(ViewTask(id=task.id, list_id=list_id, title=task.title, due=task.due))
     return found
 
 

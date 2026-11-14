@@ -50,6 +50,19 @@ def init_notification_devices() -> None:
     configure_notification_devices(SavedNotificationDevices())
 
 
+def init_conversation_cleanup() -> None:
+    """Install the native cleanup adapter before any reset or scheduler can run."""
+    from src.domains.conversations.cleanup_port import configure_runtime_cleanup
+    from src.domains.users.account_cleanup_port import configure_account_cleanup
+    from src.infrastructure.account_cleanup_runtime import NativeAccountCleanup
+    from src.infrastructure.conversation_cleanup_runtime import NativeRuntimeCleanup
+
+    configure_runtime_cleanup(None)
+    configure_runtime_cleanup(NativeRuntimeCleanup())
+    configure_account_cleanup(None)
+    configure_account_cleanup(NativeAccountCleanup())
+
+
 def init_live_connector_preferences() -> None:
     """Withdraw prior Live connector bindings before installing the current owner."""
     from src.infrastructure.live_connector_preferences import (
@@ -372,6 +385,33 @@ def _install_proactive_notifier() -> None:
         raise RuntimeError(
             "the notification dispatcher did not claim its seam: every "
             "domain-initiated notification would be dropped silently"
+        )
+
+
+def _install_release_listener() -> None:
+    """Wire the waiting-message departure into the release seam, and prove it (ADR-384).
+
+    ``run_admission`` writes every release of an account; the departure that
+    follows needs the agent service, which imports ``run_admission``. The adapter
+    installs itself at import — and an import nobody declares can stop happening
+    when somebody reorders a module: every message written while LIA worked would
+    then wait forever, with nothing anywhere saying so.
+
+    Raises:
+        RuntimeError: If the departure did not claim the seam.
+    """
+    from src.domains.agents.api.waiting_departure import depart_after_release
+    from src.infrastructure.streaming.release_listener import (
+        install_release_listener,
+        release_listener_installed,
+    )
+
+    install_release_listener(depart_after_release)
+
+    if not release_listener_installed():
+        raise RuntimeError(
+            "the waiting-message departure did not claim the release seam: a message "
+            "written while LIA worked would never leave"
         )
 
 
@@ -933,6 +973,7 @@ def run_failfast_validations() -> None:
     _install_action_recorder()
     _install_proactive_notifier()
     _install_ticket_releaser()
+    _install_release_listener()
     _install_portrait_sources()
     _install_habit_usage_ports()
 

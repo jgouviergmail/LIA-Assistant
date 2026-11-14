@@ -16,6 +16,7 @@ Created: 2026-05-18
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -201,7 +202,9 @@ async def test_compact_global_timeout_falls_back_to_truncation(
     )
 
     msgs = [HumanMessage(content=f"msg {i}: " + "x " * 200, id=f"h{i}") for i in range(30)]
-    result = await service.compact(messages=msgs, preserve_recent_n=5, language="en", config={})
+    result = await service.compact(
+        messages=msgs, preserve_recent_n=5, language="en", zone=UTC, config={}
+    )
     assert result.strategy == "truncation"
     assert "truncated" in result.summary.lower()
     assert result.consolidated_previous_summaries is False
@@ -228,7 +231,9 @@ async def test_compact_llm_unexpected_failure_falls_back_to_truncation(
     )
 
     msgs = [HumanMessage(content=f"msg {i}", id=f"h{i}") for i in range(20)]
-    result = await service.compact(messages=msgs, preserve_recent_n=5, language="en", config={})
+    result = await service.compact(
+        messages=msgs, preserve_recent_n=5, language="en", zone=UTC, config={}
+    )
     assert result.strategy == "truncation"
     assert "RuntimeError" in result.summary or "truncated" in result.summary.lower()
 
@@ -262,7 +267,9 @@ async def test_truncation_fallback_preserves_previous_summaries_flag(
         id="prior-1",
     )
     msgs = [prior] + [HumanMessage(content=f"msg {i}", id=f"h{i}") for i in range(30)]
-    result = await service.compact(messages=msgs, preserve_recent_n=5, language="en", config={})
+    result = await service.compact(
+        messages=msgs, preserve_recent_n=5, language="en", zone=UTC, config={}
+    )
     assert result.strategy == "truncation"
     assert result.consolidated_previous_summaries is False
 
@@ -312,7 +319,9 @@ async def test_previous_compaction_summaries_are_consolidated(
         id="prior-1",
     )
     msgs = [prior] + [HumanMessage(content=f"msg {i}", id=f"h{i}") for i in range(30)]
-    result = await service.compact(messages=msgs, preserve_recent_n=5, language="en", config={})
+    result = await service.compact(
+        messages=msgs, preserve_recent_n=5, language="en", zone=UTC, config={}
+    )
     # `single_chunk_with_merge` is emitted when a single chunk was produced
     # but a merge step still ran to consolidate prior summaries — it tags the
     # difference from a true multi-chunk LLM workload for Grafana.
@@ -350,6 +359,8 @@ async def test_no_previous_summaries_keeps_consolidated_flag_false(
     )
 
     msgs = [HumanMessage(content=f"msg {i}", id=f"h{i}") for i in range(20)]
-    result = await service.compact(messages=msgs, preserve_recent_n=5, language="en", config={})
+    result = await service.compact(
+        messages=msgs, preserve_recent_n=5, language="en", zone=UTC, config={}
+    )
     assert result.strategy in {"single_chunk", "multi_chunk"}
     assert result.consolidated_previous_summaries is False

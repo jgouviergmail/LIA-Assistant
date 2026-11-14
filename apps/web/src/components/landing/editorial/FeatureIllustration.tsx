@@ -12,7 +12,7 @@ import {
   MousePointer2,
   Phone,
   Play,
-  Radio,
+  RadioSet,
   Search,
   ShieldCheck,
   Sparkles,
@@ -349,7 +349,7 @@ function RadioArt() {
     <>
       <Sheet x={35} y={23} width={251} height={116}>
         <rect x="49" y="38" width="71" height="70" rx="8" fill="currentColor" opacity="0.1" />
-        <Radio x="67" y="55" width="35" height="35" />
+        <RadioSet x="67" y="55" width="35" height="35" />
         <Lines x={136} y={44} width={130} rows={2} />
         <Wave x={139} y={87} width={124} />
         <path

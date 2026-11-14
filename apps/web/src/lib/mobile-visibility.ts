@@ -45,10 +45,12 @@ export interface MobileSurface {
   kind: SurfaceKind;
   tier: SurfaceTier;
   /**
-   * Narrowest viewport (px) at which the surface renders in full, or `null`
+   * Narrowest query width (px) at which the surface renders in full, or `null`
    * when it renders at every width.
    */
   minWidth: number | null;
+  /** A named container's width governs an embedded surface. Omitted means viewport. */
+  query?: 'container';
   /** How the user reaches the same thing below `minWidth`; `null` when nothing does. */
   substitute: string | null;
   /** True when the surface is conditionally MOUNTED, not merely CSS-hidden. */
@@ -115,7 +117,7 @@ export const MOBILE_SURFACES: readonly MobileSurface[] = [
   // ------------------------------------------------------------- substituted
   {
     id: 'chat-search-field',
-    location: 'components/chat/ChatWorkspace',
+    location: 'components/chat/ChatWorkspaceToolbar',
     kind: 'action',
     tier: 'substituted',
     minWidth: 880,
@@ -124,14 +126,27 @@ export const MOBILE_SURFACES: readonly MobileSurface[] = [
   },
   {
     id: 'chat-reset-label',
-    location: 'components/chat/ChatWorkspace',
+    location: 'components/chat/DiscussionReset',
     kind: 'action',
     tier: 'substituted',
     minWidth: 640,
-    substitute: 'The trash icon keeps the action, with an aria-label naming it.',
+    query: 'container',
+    substitute: 'The reset icon keeps the action, with an aria-label naming it.',
     reason:
-      'The label cannot share the chat header row with its centre group below 640 px; ' +
-      'the destructive action itself is never hidden.',
+      'The label appears when its workspace container has room, including inside World; ' +
+      'the reset action stays accessible at every width.',
+  },
+  {
+    id: 'chat-offline-label',
+    location: 'components/chat/ChatWorkspaceToolbar',
+    kind: 'observation',
+    tier: 'substituted',
+    minWidth: 640,
+    query: 'container',
+    substitute: 'The offline sign stays in the alert tone, its words kept as the accessible text.',
+    reason:
+      'The header holds six controls on one row on a phone: the pill keeps its sign and ' +
+      'gives its words back when the workspace container has room.',
   },
   {
     id: 'settings-row-actions',
@@ -144,6 +159,17 @@ export const MOBILE_SURFACES: readonly MobileSurface[] = [
   },
 
   // ------------------------------------------------------------ desktop-only
+  {
+    id: 'chat-discussion-chevron',
+    location: 'components/chat/ConversationSwitcher',
+    kind: 'decoration',
+    tier: 'desktop-only',
+    minWidth: 640,
+    query: 'container',
+    substitute: null,
+    reason:
+      'The arrow only decorates the discussions pill; on a phone its width goes to the title.',
+  },
   {
     id: 'chat-message-avatar',
     location: 'components/chat/ChatMessage',
@@ -244,10 +270,10 @@ export const MOBILE_SURFACES: readonly MobileSurface[] = [
 export const KNOWN_UNSUBSTITUTED: readonly string[] = [];
 
 /**
- * What a viewport of `width` loses compared with the full layout.
+ * What a uniform available width loses compared with the full layout.
  *
  * Args:
- *   width: Viewport width in CSS pixels.
+ *   width: Query width in CSS pixels, used for both viewport and container simulations.
  *
  * Returns:
  *   The surfaces that do not render at that width, in declaration order.

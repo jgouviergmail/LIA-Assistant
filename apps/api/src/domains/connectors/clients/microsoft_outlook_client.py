@@ -39,7 +39,6 @@ from src.domains.connectors.clients.email_attachments import (
     select_attachment,
 )
 from src.domains.connectors.clients.email_compose import forwarded_body, quoted_reply
-from src.domains.connectors.clients.mail_conversation import conversation_answer
 from src.domains.connectors.clients.mail_folders import (
     EXCLUDES_ITS_FOLDER,
     MailFolder,
@@ -55,12 +54,14 @@ from src.domains.connectors.clients.normalizers.graph_mail_query import (
     graph_mail_query,
 )
 from src.domains.connectors.clients.normalizers.microsoft_email_normalizer import (
+    GRAPH_ANSWERED_MARK_EXPAND,
     GRAPH_SYSTEM_FOLDERS,
     build_graph_recipients,
     graph_file_attachment,
     normalize_graph_folder,
     normalize_graph_message,
 )
+from src.domains.connectors.clients.outlook_conversation_mixin import OutlookConversationMixin
 from src.domains.connectors.clients.outlook_drafts_mixin import OutlookDraftsMixin
 from src.domains.connectors.clients.outlook_mailbox_acts_mixin import OutlookMailboxActsMixin
 from src.domains.connectors.clients.outlook_mailbox_settings_mixin import (
@@ -86,21 +87,18 @@ _PREFER_HTML_BODY: Final = {"Prefer": 'outlook.body-content-type="html"'}
 #: What is read of an attachment to find a message's own images; ``contentId`` needs its cast.
 _INLINE_ATTACHMENT_FIELDS = "id,contentType,size,isInline,microsoft.graph.fileAttachment/contentId"
 
-_MESSAGE_SELECT_FIELDS = (
+#: A message whole, its files apart: they are a relationship, expanded or not.
+_MESSAGE_FIELDS = (
     "id,conversationId,subject,from,toRecipients,ccRecipients,bccRecipients,replyTo,"
     "body,bodyPreview,receivedDateTime,isRead,isDraft,hasAttachments,"
-    "flag,importance,webLink,parentFolderId,attachments"
+    "flag,importance,webLink,parentFolderId"
 )
+_MESSAGE_SELECT_FIELDS = f"{_MESSAGE_FIELDS},attachments"
 
 _MESSAGE_LIST_SELECT_FIELDS = (
     "id,conversationId,subject,from,toRecipients,ccRecipients,bodyPreview,"
     "receivedDateTime,isRead,hasAttachments,flag,importance"
 )
-
-#: Graph refuses a sort on a field its filter does not lead with (400, measured on a real
-#: mailbox on 2026-11-05), and the conversation's id alone gives no order: this date
-#: bound excludes nothing and makes the sort legal.
-_ANY_TIME: Final = "receivedDateTime ge 1900-01-01T00:00:00Z"
 
 # What a folder walk reads of each folder: its id, its name, whether it has children,
 # and what it leaves unread.
@@ -111,6 +109,7 @@ class MicrosoftOutlookClient(
     OutlookMailboxSettingsMixin,
     OutlookMailboxActsMixin,
     OutlookDraftsMixin,
+    OutlookConversationMixin,
     BaseMicrosoftClient,
 ):
     """
@@ -316,6 +315,8 @@ class MicrosoftOutlookClient(
         format: str = "full",
         fields: list[str] | None = None,
         use_cache: bool = True,
+        *,
+        mailbox_mark: bool = False,
     ) -> dict[str, Any]:
         """
         Get a specific email message by ID.
@@ -325,14 +326,23 @@ class MicrosoftOutlookClient(
             format: Message format (unused, kept for interface compatibility).
             fields: Field projection (unused, kept for interface compatibility).
             use_cache: Whether to use cache (unused, kept for interface compatibility).
+            mailbox_mark: Read with it what the mailbox says it did last with the
+                message — « answered », and when (ADR-379). Graph promises ONE
+                relationship expandable per request, so this read leaves the files
+                out: the message's text is the ordinary read's, its attachment list
+                is empty.
 
         Returns:
             Dict in Gmail API message format.
         """
-        params: dict[str, Any] = {
-            "$select": _MESSAGE_SELECT_FIELDS,
-            "$expand": "attachments($select=id,name,contentType,size)",
-        }
+        params: dict[str, Any] = (
+            {"$select": _MESSAGE_FIELDS, "$expand": GRAPH_ANSWERED_MARK_EXPAND}
+            if mailbox_mark
+            else {
+                "$select": _MESSAGE_SELECT_FIELDS,
+                "$expand": "attachments($select=id,name,contentType,size)",
+            }
+        )
 
         response = await self._make_request("GET", f"/me/messages/{_segment(message_id)}", params)
 
@@ -347,37 +357,6 @@ class MicrosoftOutlookClient(
             "from_cache": False,
             FIELD_CACHED_AT: None,
         }
-
-    async def get_conversation(self, message_id: str, max_messages: int) -> dict[str, Any]:
-        """The conversation of a message, headers alone (``mail_conversation``).
-
-        Args:
-            message_id: Any message of it.
-            max_messages: How many are kept, the newest.
-
-        Returns:
-            ``{"messages": [...], "truncated": bool}``, oldest first, drafts left out.
-        """
-        anchor = await self._make_request(
-            "GET",
-            f"/me/messages/{_segment(message_id)}",
-            params={"$select": "conversationId"},
-        )
-        quoted = str(anchor.get("conversationId") or "").replace("'", "''")
-        found = await self._make_request(
-            "GET",
-            "/me/messages",
-            params={
-                "$filter": f"{_ANY_TIME} and conversationId eq '{quoted}' and isDraft eq false",
-                "$orderby": "receivedDateTime desc",
-                "$select": _MESSAGE_LIST_SELECT_FIELDS,
-                # One more than kept says the cut; past the ceiling, the next page does.
-                "$top": str(apply_max_items_limit(max_messages + 1)),
-            },
-        )
-        newest_first = [normalize_graph_message(item) for item in found.get("value") or []]
-        more = bool(found.get("@odata.nextLink"))
-        return conversation_answer(newest_first[::-1], max_messages, more=more)
 
     async def get_message_html(self, message_id: str) -> str | None:
         """The message's HTML body, for display only (ADR-369, D3; ADR-287).

@@ -21,30 +21,36 @@ Run manually with:
 """
 
 import asyncio
-import sys
 import time
+from contextlib import AsyncExitStack
 from copy import deepcopy
-from typing import cast
-from uuid import uuid4
+from uuid import UUID
 
 import pytest
-from langgraph.checkpoint.base import Checkpoint, CheckpointMetadata, empty_checkpoint
+from langgraph.checkpoint.base import (
+    ChannelVersions,
+    Checkpoint,
+    CheckpointMetadata,
+    empty_checkpoint,
+)
 from psycopg import AsyncConnection
 from psycopg.rows import DictRow, dict_row
 from psycopg_pool import AsyncConnectionPool
+from sqlalchemy.ext.asyncio import AsyncEngine
 
+from src.core.conversation_execution import RunAdmission
+from src.core.conversation_target import ConversationRef
+from src.core.run_authority import RunAuthority, run_authority_scope
 from src.domains.conversations.instrumented_checkpointer import (
     InstrumentedAsyncPostgresSaver,
 )
+from src.domains.conversations.runtime_identity import checkpoint_config
+from tests.fixtures.persisted_runtimes import admitted_runtime, persist_runtime_targets
 
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.benchmark,
     pytest.mark.slow,
-    pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="psycopg v3 async not compatible with Windows ProactorEventLoop in unit tests",
-    ),
 ]
 
 CONCURRENT_TASKS = 20
@@ -64,7 +70,7 @@ def _psycopg_url(test_database_url: str) -> str:
 
 def _make_checkpoint(
     round_index: int, payload_bytes: int
-) -> tuple[Checkpoint, CheckpointMetadata, dict[str, str]]:
+) -> tuple[Checkpoint, CheckpointMetadata, ChannelVersions]:
     """Build a checkpoint with a ~payload_bytes payload and its new_versions."""
     version = str(round_index + 1)
     checkpoint = empty_checkpoint()
@@ -79,64 +85,75 @@ def _make_checkpoint(
 
 
 async def _run_workload(
-    saver: InstrumentedAsyncPostgresSaver, label: str, payload_bytes: int
+    saver: InstrumentedAsyncPostgresSaver,
+    targets: list[ConversationRef],
+    payload_bytes: int,
+    engine: AsyncEngine,
 ) -> float:
     """Run the concurrent aput/aget workload; return elapsed seconds."""
-    thread_ids = [f"bench-{label}-{uuid4()}" for _ in range(CONCURRENT_TASKS)]
 
-    async def conversation(tid: str) -> None:
-        for r in range(ROUNDS_PER_TASK):
-            checkpoint, metadata, new_versions = _make_checkpoint(r, payload_bytes)
-            config = {"configurable": {"thread_id": tid, "checkpoint_ns": ""}}
-            await saver.aput(config, deepcopy(checkpoint), metadata, new_versions)
-            tup = await saver.aget_tuple({"configurable": {"thread_id": tid}})
-            assert tup is not None
+    async def conversation(admission: RunAdmission) -> None:
+        with run_authority_scope(RunAuthority(admission)):
+            for r in range(ROUNDS_PER_TASK):
+                checkpoint, metadata, new_versions = _make_checkpoint(r, payload_bytes)
+                config = checkpoint_config(admission.target)
+                await saver.aput(config, deepcopy(checkpoint), metadata, new_versions)
+                tup = await saver.aget_tuple(config)
+                assert tup is not None
 
-    started = time.perf_counter()
-    try:
-        await asyncio.gather(*[conversation(tid) for tid in thread_ids])
-        elapsed = time.perf_counter() - started
-    finally:
-        for tid in thread_ids:
-            await saver.adelete_thread(tid)
+    async with AsyncExitStack() as owners:
+        admissions = [
+            await owners.enter_async_context(admitted_runtime(engine, target)) for target in targets
+        ]
+        started = time.perf_counter()
+        try:
+            await asyncio.gather(*[conversation(admission) for admission in admissions])
+            elapsed = time.perf_counter() - started
+        finally:
+            for target in targets:
+                await saver.adelete_thread(str(target.runtime_id))
     return elapsed
 
 
 @pytest.mark.parametrize("payload_bytes", PAYLOAD_SIZES)
 async def test_pooled_checkpointer_beats_single_connection(
-    test_database_url: str, payload_bytes: int
+    test_database_url: str,
+    payload_bytes: int,
+    async_engine: AsyncEngine,
+    committed_user_ids: list[UUID],
 ) -> None:
     """Before/after benchmark: pooled saver vs the former single connection."""
     url = _psycopg_url(test_database_url)
-    conn_kwargs = {"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row}
+    targets = await persist_runtime_targets(
+        async_engine, committed_user_ids, count=CONCURRENT_TASKS
+    )
 
     # --- SINGLE connection (pre-ADR-111 behavior: shared lock serializes) ---
-    single_conn = await AsyncConnection.connect(url, **conn_kwargs)
+    single_conn = await AsyncConnection.connect(
+        url, autocommit=True, prepare_threshold=0, row_factory=dict_row
+    )
     single_saver = InstrumentedAsyncPostgresSaver(conn=single_conn)
     await single_saver.setup()
 
     # --- POOLED (ADR-111) ---
-    pool = cast(
-        AsyncConnectionPool[AsyncConnection[DictRow]],
-        AsyncConnectionPool(
-            url,
-            min_size=1,
-            max_size=POOL_MAX_SIZE,
-            kwargs=conn_kwargs,
-            check=AsyncConnectionPool.check_connection,
-            open=False,
-        ),
+    pool = AsyncConnectionPool[AsyncConnection[DictRow]](
+        url,
+        min_size=1,
+        max_size=POOL_MAX_SIZE,
+        kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
+        check=AsyncConnectionPool.check_connection,
+        open=False,
     )
     await pool.open(wait=True, timeout=30)
     pooled_saver = InstrumentedAsyncPostgresSaver(conn=pool)
 
     try:
         # Warm up both paths (connection caches, table stats) before timing
-        await _run_workload(single_saver, "warmup-single", payload_bytes)
-        await _run_workload(pooled_saver, "warmup-pooled", payload_bytes)
+        await _run_workload(single_saver, targets, payload_bytes, async_engine)
+        await _run_workload(pooled_saver, targets, payload_bytes, async_engine)
 
-        single_elapsed = await _run_workload(single_saver, "single", payload_bytes)
-        pooled_elapsed = await _run_workload(pooled_saver, "pooled", payload_bytes)
+        single_elapsed = await _run_workload(single_saver, targets, payload_bytes, async_engine)
+        pooled_elapsed = await _run_workload(pooled_saver, targets, payload_bytes, async_engine)
     finally:
         await single_conn.close()
         await pool.close()

@@ -103,6 +103,7 @@ async def bill_captured_usage(
     run_id: str | None = None,
     failed: bool = False,
     llm_type: str | None = None,
+    conversation_id: UUID | None = None,
 ) -> str | None:
     """Persist only provider-reported attempts, with one owner per capture.
 
@@ -119,7 +120,7 @@ async def bill_captured_usage(
             user_id=user_id,
             task_type=task_type,
             target_id=target_id,
-            conversation_id=None,
+            conversation_id=conversation_id,
             tokens_in=sum(r.tokens_in for r in records),
             tokens_out=sum(r.tokens_out for r in records),
             tokens_cache=sum(r.tokens_cache for r in records),
@@ -145,6 +146,7 @@ async def capture_spend_on_failure(
     source: str,
     run_id: str | None = None,
     llm_type: str | None = None,
+    conversation_id: UUID | None = None,
 ) -> AsyncIterator[None]:
     """Close known paid attempts before propagating an unsuccessful operation."""
     try:
@@ -161,6 +163,7 @@ async def capture_spend_on_failure(
                 run_id=run_id,
                 failed=True,
                 llm_type=llm_type,
+                conversation_id=conversation_id,
             )
         except BaseException as exc:
             logger.error("captured_llm_bill_failed", error_type=type(exc).__name__)

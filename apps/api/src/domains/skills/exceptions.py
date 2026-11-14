@@ -63,6 +63,26 @@ def raise_skill_not_found(skill_name: str, *, scope: str | None = None) -> NoRet
     )
 
 
+def raise_skill_previous_version_unavailable(skill_name: str) -> NoReturn:
+    """Raise 404 when a skill has no previous version the person may restore (lot 14).
+
+    One answer for every reason — no skill of that name, a skill that is not the
+    person's own words, or nothing kept — so the existence of another account's
+    skill is never confirmed.
+
+    Args:
+        skill_name: Skill identifier from the URL path.
+
+    Raises:
+        ResourceNotFoundError: 404 Not Found.
+    """
+    raise ResourceNotFoundError(
+        resource_type="skill_previous_version",
+        resource_id=skill_name,
+        detail=f"Skill '{skill_name}' has no previous version to restore",
+    )
+
+
 def raise_skill_locked_by_plugin(skill_name: str) -> NoReturn:
     """Raise 400 when deleting a skill owned by an installed plugin (ADR-225).
 

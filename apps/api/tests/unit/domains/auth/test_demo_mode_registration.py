@@ -161,6 +161,8 @@ def _verifiable_user() -> MagicMock:
         language="fr",
         is_verified=False,
         is_active=False,
+        deletion_started_at=None,
+        is_deleted=False,
     )
 
 
@@ -171,6 +173,7 @@ async def _verify(demo: bool) -> MagicMock:
     service = AuthService(MagicMock())
     service.db = MagicMock()
     service.db.commit = AsyncMock()
+    service.db.refresh = AsyncMock()
     service.repository = MagicMock()
     service.repository.get_by_email = AsyncMock(return_value=user)
 

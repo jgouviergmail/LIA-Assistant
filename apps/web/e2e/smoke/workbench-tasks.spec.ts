@@ -6,6 +6,11 @@
  * 1280 and 390 px, in light, dark and OLED: no horizontal scroll, axe clean on
  * the screen; a refused completion is rolled back and said in the refusal's
  * own words; the keyboard opens a task and gets its row back when it closes.
+ * Every list together (2026-11-10): « All tasks » heads the lists and names each
+ * task's list in a badge, a task opens BESIDE it and closing comes back to it;
+ * « All » cuts what is late, today's and the days ahead into titled stretches.
+ * With nothing named in the address the screen opens on « All tasks » (owner, 2026-11-10):
+ * the default list is where a new task goes, not where the screen starts.
  */
 import AxeBuilder from '@axe-core/playwright';
 
@@ -34,6 +39,9 @@ function shifted(days: number): string {
   day.setUTCDate(day.getUTCDate() + days);
   return day.toISOString().slice(0, 10);
 }
+
+/** A list on screen: the address names it, since a bare one opens on « All tasks ». */
+const A_LIST = '/en/dashboard/tools/tasks?list=l1';
 
 const RAIL = {
   tools: ['mail', 'calendar', 'tasks', 'contacts', 'files', 'lights'].map(tool =>
@@ -122,6 +130,30 @@ const VIEW = {
   failed: [],
 };
 
+/** A list whose name no row of a phone holds whole. */
+const LONG_LIST = 'Household paperwork and everything the family keeps putting off until later';
+
+/** What is late, today's and the days ahead, as the server orders them. */
+const TIMELINE = [
+  { id: 't3', list_id: 'l1', title: 'Call the plumber', due: shifted(-2) },
+  { id: 't1', list_id: 'l2', title: 'Send back the insurance form', due: TODAY },
+  { id: 't2', list_id: 'l1', title: 'Prepare the committee deck', due: shifted(4) },
+];
+
+/** What each view across the lists answers; the days' own views keep `VIEW`. */
+const VIEWS: Record<string, { tasks: object[]; truncated: boolean; failed: string[] }> = {
+  timeline: { tasks: TIMELINE, truncated: false, failed: [] },
+  all: {
+    tasks: [
+      ...TIMELINE,
+      { id: 't4', list_id: 'l3', title: 'Renew the passport', due: shifted(40) },
+      { id: 't2a', list_id: 'l1', title: 'Gather the quarter figures', due: null },
+    ],
+    truncated: false,
+    failed: [],
+  },
+};
+
 async function playTheApi(mockApi: (routes: MockRoute[]) => Promise<void>, refuse = false) {
   await mockApi([
     {
@@ -139,11 +171,19 @@ async function playTheApi(mockApi: (routes: MockRoute[]) => Promise<void>, refus
         items: [
           { id: 'l1', title: 'My tasks' },
           { id: 'l2', title: 'Groceries' },
+          { id: 'l3', title: LONG_LIST },
         ],
         next_page_token: null,
       },
     },
-    { url: '**/api/v1/workbench/tasks/view*', method: 'GET', json: VIEW },
+    {
+      url: '**/api/v1/workbench/tasks/view*',
+      method: 'GET',
+      handler: async route => {
+        const view = new URL(route.request().url()).searchParams.get('view') ?? '';
+        await route.fulfill({ json: VIEWS[view] ?? VIEW });
+      },
+    },
     {
       url: '**/api/v1/workbench/tasks/selection/move',
       method: 'POST',
@@ -153,6 +193,12 @@ async function playTheApi(mockApi: (routes: MockRoute[]) => Promise<void>, refus
           json: { done: ids, failed: [], moved: ids.map(id => ({ id, new_id: `${id}-copy` })) },
         });
       },
+    },
+    {
+      // A task a view names that its list's page does not hold is read alone.
+      url: '**/api/v1/workbench/tasks/task*',
+      method: 'GET',
+      json: { ...TASKS[0], id: 't4', title: 'Renew the passport', due: shifted(40) },
     },
     {
       url: '**/api/v1/workbench/tasks*',
@@ -190,7 +236,7 @@ for (const sample of [
     await authenticate({ timezone: 'Europe/Paris' });
     await playTheApi(mockApi);
 
-    await page.goto('/en/dashboard/tools/tasks');
+    await page.goto(A_LIST);
     await waitForHydration(page, 'input[type="checkbox"]');
     await expect(page.getByText('Call the plumber')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Load more' })).toBeVisible();
@@ -200,6 +246,63 @@ for (const sample of [
     expect(scan.violations).toEqual([]);
   });
 }
+
+test('with nothing named, the screen opens on « all tasks »', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+
+  await page.goto('/en/dashboard/tools/tasks');
+  await waitForHydration(page, 'input[type="checkbox"]');
+
+  // Every list's tasks stand there, each naming its list; the address is left as it came.
+  await expect(page.getByRole('heading', { name: 'All tasks' })).toBeVisible();
+  const rows = page.getByRole('region', { name: 'Tasks', exact: true }).getByRole('listitem');
+  await expect(rows).toHaveCount(5);
+  await expect(page.getByRole('link', { name: /Renew the passport/ })).toBeVisible();
+  await expect(page).toHaveURL(/\/tools\/tasks$/);
+  const lists = page.getByRole('navigation', { name: 'Lists' });
+  await expect(lists.getByRole('link', { name: 'All tasks' })).toHaveAttribute(
+    'aria-current',
+    'page'
+  );
+  await expect(lists.getByRole('link', { name: 'My tasks' })).not.toHaveAttribute('aria-current');
+
+  // A list is one click away, and « back » to every list is too.
+  await lists.getByRole('link', { name: 'My tasks' }).click();
+  await expect(page).toHaveURL(/list=l1$/);
+  await expect(page.getByRole('button', { name: 'Load more' })).toBeVisible();
+  await expectNoOverflow(page, 'the opening at 1280px');
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+});
+
+test('on a phone too, the screen opens on « all tasks » and says so in its select', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await prepareTheme(page, 'oled');
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+
+  await page.goto('/en/dashboard/tools/tasks');
+  await waitForHydration(page, 'input[type="checkbox"]');
+
+  await expect(page.getByRole('heading', { name: 'All tasks' })).toBeVisible();
+  await expect(
+    page.getByRole('combobox', { name: 'List', exact: true }).locator('option:checked')
+  ).toHaveText('All tasks');
+  await expect(page.getByRole('link', { name: /Send back the insurance form/ })).toContainText(
+    'Groceries'
+  );
+  await expectNoOverflow(page, 'the opening at 390px');
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+});
 
 test("a view gathers the lists, names each task's list and stays within a phone", async ({
   page,
@@ -224,6 +327,135 @@ test("a view gathers the lists, names each task's list and stays within a phone"
   expect(scan.violations).toEqual([]);
 });
 
+for (const theme of ['light', 'dark', 'oled'] as const) {
+  test(`« all tasks » names each task's list in ${theme}, and a task opens beside it`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await prepareTheme(page, theme);
+    await authenticate({ timezone: 'Europe/Paris' });
+    await playTheApi(mockApi);
+
+    await page.goto('/en/dashboard/tools/tasks');
+    await waitForHydration(page, 'input[type="checkbox"]');
+    const lists = page.getByRole('navigation', { name: 'Lists' });
+    // It heads the lists, the three days together head the views.
+    await expect(lists.getByRole('link').first()).toHaveText('All');
+    await lists.getByRole('link', { name: 'All tasks' }).click();
+    await expect(page).toHaveURL(/view=all$/);
+    await expect(page.getByRole('heading', { name: 'All tasks' })).toBeVisible();
+
+    // Every list's tasks, the undated last, each naming its list.
+    const rows = page.getByRole('region', { name: 'Tasks', exact: true }).getByRole('listitem');
+    await expect(rows).toHaveCount(5);
+    await expect(rows.first()).toContainText('Call the plumber');
+    const undated = page.getByRole('link', { name: /Gather the quarter figures/ });
+    await expect(rows.last()).toContainText('Gather the quarter figures');
+    await expect(undated).toContainText('My tasks');
+    await expect(page.getByRole('link', { name: /Send back the insurance form/ })).toContainText(
+      'Groceries'
+    );
+    await expectNoOverflow(page, `all tasks in ${theme}`);
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+
+    // A task opens BESIDE the view, which stays on screen.
+    await page.getByRole('link', { name: /Prepare the committee deck/ }).click();
+    await expect(page).toHaveURL(/view=all&list=l1&task=t2$/);
+    const detail = page.getByRole('complementary', { name: 'Detail' });
+    await expect(detail.getByRole('textbox', { name: 'Title' })).toHaveValue(
+      'Prepare the committee deck'
+    );
+    await expect(page.getByRole('heading', { name: 'All tasks' })).toBeVisible();
+    await expect(undated).toBeVisible();
+    await expect(page.getByRole('link', { name: /Prepare the committee deck/ })).toHaveAttribute(
+      'aria-current',
+      'true'
+    );
+    await expectNoOverflow(page, `a task beside all tasks in ${theme}`);
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+
+    // A late task opens from the view the same way: its warning chip stays readable on the
+    // open row, whose own tint the list's badge does not add to.
+    await page.getByRole('link', { name: /Call the plumber/ }).click();
+    await expect(page).toHaveURL(/view=all&list=l1&task=t3$/);
+    await expect(detail.getByRole('textbox', { name: 'Title' })).toHaveValue('Call the plumber');
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+
+    // Closing comes back to the view, and to the row that opened the task.
+    await detail.getByRole('button', { name: 'Close the detail' }).click();
+    await expect(page).toHaveURL(/view=all$/);
+    await expect(page.getByRole('heading', { name: 'All tasks' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Call the plumber/ })).toBeFocused();
+  });
+}
+
+for (const theme of ['light', 'dark'] as const) {
+  test(`« all » cuts what is late, today and ahead into titled stretches, on a phone in ${theme}`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await prepareTheme(page, theme);
+    await authenticate({ timezone: 'Europe/Paris' });
+    await playTheApi(mockApi);
+
+    await page.goto('/en/dashboard/tools/tasks');
+    await waitForHydration(page, 'input[type="checkbox"]');
+    await page.getByRole('combobox', { name: 'List', exact: true }).selectOption({ label: 'All' });
+    await expect(page).toHaveURL(/view=timeline$/);
+
+    await expect(page.getByRole('heading', { level: 3 })).toHaveText([
+      /Overdue/,
+      /Today/,
+      /Coming up/,
+    ]);
+    const late = page.getByRole('region', { name: /Overdue/ });
+    await expect(late.getByRole('link', { name: /Call the plumber/ })).toContainText('My tasks');
+    await expect(late).toContainText('1 to do');
+    await expect(page.getByRole('region', { name: /Today/ }).getByRole('link')).toHaveCount(1);
+    await expect(page.getByRole('region', { name: /Coming up/ }).getByRole('link')).toHaveCount(1);
+    await expectNoOverflow(page, `the timeline at 390px in ${theme}`);
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+  });
+}
+
+test('on a phone, « all tasks » keeps a long list name inside its row, and a task replaces it', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await prepareTheme(page, 'oled');
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+
+  await page.goto('/en/dashboard/tools/tasks');
+  await waitForHydration(page, 'input[type="checkbox"]');
+  await page
+    .getByRole('combobox', { name: 'List', exact: true })
+    .selectOption({ label: 'All tasks' });
+  await expect(page).toHaveURL(/view=all$/);
+
+  const row = page.getByRole('listitem').filter({ hasText: 'Renew the passport' });
+  const badge = row.getByTitle(LONG_LIST);
+  await expect(badge).toBeVisible();
+  await expectInside(row, badge);
+  await expectNoOverflow(page, 'all tasks at 390px');
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+
+  // Below lg the detail replaces the view; « back » returns to the view, not to a list.
+  await row.getByRole('link', { name: /Renew the passport/ }).click();
+  const detail = page.getByRole('complementary', { name: 'Detail' });
+  await expect(detail.getByRole('textbox', { name: 'Title' })).toHaveValue('Renew the passport');
+  await expectNoOverflow(page, 'a task of all tasks at 390px');
+  await detail.getByRole('button', { name: 'Tasks' }).click();
+  await expect(page).toHaveURL(/view=all$/);
+  await expect(page.getByRole('heading', { name: 'All tasks' })).toBeVisible();
+});
+
 test('ticked tasks go to another list, and leave this one', async ({
   page,
   authenticate,
@@ -233,7 +465,7 @@ test('ticked tasks go to another list, and leave this one', async ({
   await authenticate({ timezone: 'Europe/Paris' });
   await playTheApi(mockApi);
 
-  await page.goto('/en/dashboard/tools/tasks');
+  await page.goto(A_LIST);
   await waitForHydration(page, 'input[type="checkbox"]');
   await page.getByRole('button', { name: 'Select' }).click();
   await page.getByRole('checkbox', { name: 'Select: Send back the insurance form' }).check();
@@ -243,7 +475,25 @@ test('ticked tasks go to another list, and leave this one', async ({
   const scan = await new AxeBuilder({ page }).include('main').analyze();
   expect(scan.violations).toEqual([]);
 
-  await bar.getByRole('combobox', { name: 'Move to a list' }).selectOption({ label: 'Groceries' });
+  // One line: the count and its way out, done as an icon, the rest behind « … », the deletion.
+  const more = bar.getByRole('button', { name: 'More actions' });
+  await expectOnOneLine(
+    bar.getByText('1 selected'),
+    bar.getByRole('button', { name: 'Clear the selection' }),
+    bar.getByRole('button', { name: 'Mark done' }),
+    more,
+    bar.getByRole('button', { name: 'Delete' })
+  );
+
+  // Another list is a place: the lists stand under their own line. A hand crosses to them in
+  // steps: from one jump a menu reads a pointer that left the other way, and closes its places.
+  await more.click();
+  await page.getByRole('menuitem', { name: 'Move to a list' }).click();
+  const groceries = page.getByRole('menuitem', { name: 'Groceries' });
+  const place = await groceries.boundingBox();
+  if (place === null) throw new Error('the lists are not drawn');
+  await page.mouse.move(place.x + place.width / 2, place.y + place.height / 2, { steps: 12 });
+  await groceries.click();
 
   await expect(page.getByRole('link', { name: /Send back the insurance form/ })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Prepare the committee deck/ })).toBeVisible();
@@ -271,7 +521,7 @@ test('a long list scrolls inside its pane, never the page', async ({
     },
   ]);
 
-  await page.goto('/en/dashboard/tools/tasks');
+  await page.goto(A_LIST);
   await waitForHydration(page, 'input[type="checkbox"]');
   await expect(page.getByText('Task number 59')).toBeAttached();
 
@@ -296,7 +546,7 @@ test('a refused completion is rolled back and said in the refusal’s words', as
   await authenticate({ timezone: 'Europe/Paris' });
   await playTheApi(mockApi, true);
 
-  await page.goto('/en/dashboard/tools/tasks');
+  await page.goto(A_LIST);
   await waitForHydration(page, 'input[type="checkbox"]');
   const box = page.getByRole('checkbox', { name: 'Mark as done: Call the plumber' });
   await box.click();
@@ -317,7 +567,7 @@ test.describe('on a touch screen', () => {
   }) => {
     await authenticate({ timezone: 'Europe/Paris' });
     await playTheApi(mockApi);
-    await page.goto('/en/dashboard/tools/tasks');
+    await page.goto(A_LIST);
     await waitForHydration(page, 'main');
     await expect(page.getByText('Send back the insurance form').first()).toBeVisible();
 

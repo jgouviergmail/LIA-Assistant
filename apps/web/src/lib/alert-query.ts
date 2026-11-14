@@ -26,7 +26,8 @@ export function alertParams(query: AlertDisplayQuery) {
 }
 
 function nextInstant(row: ScheduledActionRow): number | null {
-  if (!row.is_enabled || row.trigger_kind === 'condition' || !row.next_trigger_at) return null;
+  // Only a schedule announces a run (ADR-322, ADR-386).
+  if (!row.is_enabled || row.trigger_kind !== 'time' || !row.next_trigger_at) return null;
   const instant = Date.parse(row.next_trigger_at);
   return Number.isFinite(instant) ? instant : null;
 }

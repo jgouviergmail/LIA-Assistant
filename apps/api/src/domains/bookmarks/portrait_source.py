@@ -19,10 +19,9 @@ from uuid import UUID
 import structlog
 from sqlalchemy import select
 
-from src.core.markup_detection import looks_like_html
+from src.core.html_markdown import as_markdown
 from src.domains.bookmarks.models import MessageBookmark
 from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
-from src.domains.rag_spaces.processing import html_to_markdown
 from src.domains.shared.portrait_sources import (
     FreshnessProbe,
     PortraitSourceSection,
@@ -59,7 +58,7 @@ async def _rows(db: Any, user_id: UUID) -> list[MessageBookmark]:
 
 
 def _excerpt(content: str) -> str:
-    text = flat_item(html_to_markdown(content) if looks_like_html(content) else content)
+    text = flat_item(as_markdown(content))
     return text[:BOOKMARK_EXCERPT_MAX_CHARS].rstrip()
 
 

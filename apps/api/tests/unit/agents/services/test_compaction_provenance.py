@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import re
 import time
+from datetime import UTC
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -122,7 +123,7 @@ async def test_compact_flags_external_content(
         "src.domains.agents.services.compaction_service.get_llm",
         lambda *_a, **_k: _fake_llm(),
     )
-    result = await service.compact(_tainted_history(), preserve_recent_n=2, language="en")
+    result = await service.compact(_tainted_history(), preserve_recent_n=2, language="en", zone=UTC)
     assert result.strategy != "truncation"
     assert result.contains_external_content is True
 
@@ -135,7 +136,7 @@ async def test_compact_without_external_content_keeps_flag_false(
         "src.domains.agents.services.compaction_service.get_llm",
         lambda *_a, **_k: _fake_llm(),
     )
-    result = await service.compact(_clean_history(), preserve_recent_n=2, language="en")
+    result = await service.compact(_clean_history(), preserve_recent_n=2, language="en", zone=UTC)
     assert result.strategy != "truncation"
     assert result.contains_external_content is False
 
@@ -162,7 +163,9 @@ async def test_prior_banner_summary_propagates_flag_through_consolidation(
         ),
         id="prior1",
     )
-    result = await service.compact([prior, *_clean_history()], preserve_recent_n=2, language="en")
+    result = await service.compact(
+        [prior, *_clean_history()], preserve_recent_n=2, language="en", zone=UTC
+    )
     assert result.consolidated_previous_summaries is True
     assert result.contains_external_content is True
 
@@ -304,7 +307,7 @@ async def test_a_trusted_identifier_the_summary_dropped_comes_back(
 ) -> None:
     _summarising(monkeypatch, _PLAIN_SUMMARY)
 
-    result = await service.compact(_clean_history(), preserve_recent_n=2, language="en")
+    result = await service.compact(_clean_history(), preserve_recent_n=2, language="en", zone=UTC)
 
     assert result.summary.startswith(_PLAIN_SUMMARY)
     assert f"[Key identifiers preserved: {TRUSTED_MAIL}]" in result.summary
@@ -315,7 +318,7 @@ async def test_an_identifier_the_summary_kept_is_not_repeated(
 ) -> None:
     _summarising(monkeypatch, f"## Conversation Summary\n- wrote to {TRUSTED_MAIL}")
 
-    result = await service.compact(_clean_history(), preserve_recent_n=2, language="en")
+    result = await service.compact(_clean_history(), preserve_recent_n=2, language="en", zone=UTC)
 
     assert result.summary.count(TRUSTED_MAIL) == 1
     assert "Key identifiers preserved" not in result.summary
@@ -326,7 +329,7 @@ async def test_a_third_party_identifier_comes_back_flagged_untrusted(
 ) -> None:
     _summarising(monkeypatch, _PLAIN_SUMMARY)
 
-    result = await service.compact(_tainted_history(), preserve_recent_n=2, language="en")
+    result = await service.compact(_tainted_history(), preserve_recent_n=2, language="en", zone=UTC)
 
     kept = next(line for line in result.summary.splitlines() if "Key identifiers" in line)
     untrusted = next(line for line in result.summary.splitlines() if "untrusted" in line)
@@ -344,7 +347,7 @@ async def test_the_identifiers_brought_back_are_bounded_by_the_setting(
         for index in range(5)
     ] + [AIMessage(content="Done.", id="a9"), HumanMessage(content="Thanks.", id="h9")]
 
-    result = await service.compact(history, preserve_recent_n=2, language="en")
+    result = await service.compact(history, preserve_recent_n=2, language="en", zone=UTC)
 
     kept = next(line for line in result.summary.splitlines() if "Key identifiers" in line)
     assert kept.count("@test.com") == 2
@@ -375,7 +378,9 @@ async def test_a_consolidated_summary_s_identifiers_survive_the_merge(
         id="prior1",
     )
 
-    result = await service.compact([prior, *_clean_history()], preserve_recent_n=2, language="en")
+    result = await service.compact(
+        [prior, *_clean_history()], preserve_recent_n=2, language="en", zone=UTC
+    )
 
     assert result.consolidated_previous_summaries is True
     line = next(line for line in result.summary.splitlines() if line_marker in line)

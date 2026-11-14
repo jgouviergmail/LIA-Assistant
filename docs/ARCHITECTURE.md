@@ -154,21 +154,21 @@ LIA est une **plateforme d'assistant conversationnel entreprise** construite sur
 
 ### Métriques Projet
 
-Ordres de grandeur mesurés le 2026-09-24 (`git ls-files`) ; les valeurs exactes que le code possède — métriques, ADR, versions — sont tenues par `task release:check` dans le README et la landing, pas ici.
+Ordres de grandeur mesurés le 2026-11-14 (`git ls-files`) ; les valeurs exactes que le code possède — métriques, ADR, versions — sont tenues par `task release:check` dans le README et la landing, pas ici.
 
 | Métrique | Valeur |
 |----------|--------|
-| **Lignes de Code** | 781 000+ hors tests (Python, TypeScript, CSS — mesure du README) |
-| **Modules Python** | 1 700+ (`apps/api/src`) |
-| **Fichiers TypeScript** | 1 000+ hors tests (`apps/web/src`) |
-| **Tests** | 1 850+ fichiers pytest, 700+ fichiers vitest |
-| **Métriques Prometheus** | 580+ |
+| **Lignes de Code** | 1 200 000+ hors tests (Python, TypeScript, CSS — mesure du README) |
+| **Modules Python** | 4 200+ (`apps/api/src`) |
+| **Fichiers TypeScript** | 2 100+ hors tests (`apps/web/src`) |
+| **Tests** | 4 200+ fichiers pytest, 1 500+ fichiers vitest |
+| **Métriques Prometheus** | 670+ |
 | **Dashboards Grafana** | 33 |
-| **Routes d'API** | 500+ |
+| **Routes d'API** | 800+ |
 | **LLM Providers** | 7 (catalogue en base, ADR-244) |
 | **Domaines d'outils** | 20+ (deux agents compilés, ADR-371) |
-| **Tools** | 338 exposés au catalogue |
-| **Fichiers Prompts** | 150+ (`prompts/v1/`) |
+| **Tools** | 340 exposés au catalogue |
+| **Fichiers Prompts** | 220+ (`prompts/v1/`) |
 | **Langues i18n** | 6 |
 
 ---
@@ -1775,6 +1775,8 @@ Pour les détails complets, voir:
 ---
 
 ## 📦 Gestion de l'État
+
+L'identité métier d'une discussion reste stable. Sa révision et son UUID d'exécution isolent le checkpoint LangGraph, le Store, les confirmations et le flux SSE. La réinitialisation ouvre un nouveau contexte dans une transaction PostgreSQL qui laisse un reçu de nettoyage. Les écritures différées, la mémoire et les coûts vérifient la source exacte aux points prévus par [l'ADR-378](architecture/ADR-378-Permanent-Main-And-Isolated-Discussion-Runtimes.md).
 
 ### Layers de Persistance
 
@@ -3942,7 +3944,7 @@ Carnets de bord introspectifs donnant à l'assistant une personnalité vivante e
 | Le téléphone comme canal : numéro déclaré et vérifié par un code, appel du titulaire sans carte, un agent et trois mandats par override, transcript relayé en tour de la personne, dix verdicts de relais, outils en direct dérivés du catalogue (lecture seule, projection vocale, une dépense par appel, domaines à la main de la personne), ce que l'agent a dans la voix appartient au portail du fournisseur | [ADR-290](./architecture/ADR-290-Phone-As-A-Channel-Owner-Calls.md) | [TELEPHONY.md](./technical/TELEPHONY.md) |
 | Enregistrement de réunion → compte rendu structuré : segments par fichier, la ligne `meetings` comme job durable, chaîne de moteurs reparcourue au traitement, modèle utilisateur comme contrat, un sérialiseur pour l'espace RAG / le PDF / l'e-mail, chaque unité payante comptée | [ADR-258](./architecture/ADR-258-Meeting-Recording-And-Structured-Minutes.md) | [MEETINGS.md](./technical/MEETINGS.md) |
 | Bibliothèque de formats de compte rendu : une référence (`builtin:`/`user:`) plutôt qu'une ligne, une seule précédence pour le choix (réunion → préférence → modèle → intégré), section `transcript` réécrite par parties sous la fenêtre de sortie effective, reformatage en place ou en compte rendu dérivé ; documents d'espaces téléchargeables, archivables, déplaçables avec leurs morceaux et leur fichier | [ADR-259](./architecture/ADR-259-Meeting-Template-Library-And-Reformatting.md) | [MEETINGS.md](./technical/MEETINGS.md), [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) |
-| Workboard : une ligne par ticket partagée par son propriétaire et son détenteur, sept colonnes, `SET NULL` sur le porteur (aucun `CHECK` croisant deux colonnes qu'une cascade touche), un balayage qui revendique UN ticket et solde depuis un résultat explicite, HITL hors du chat (le ticket porte le brouillon, un commentaire répond, rejeu sous verrou d'empreinte), source heartbeat rétrécie en SQL | [ADR-276](./architecture/ADR-276-Workboard.md) | [WORKBOARD.md](./technical/WORKBOARD.md) |
+| Workboard : une ligne par ticket partagée par son propriétaire et son détenteur, sept colonnes, `SET NULL` sur le porteur (aucun `CHECK` croisant deux colonnes qu'une cascade touche), un balayage qui revendique UN ticket et solde depuis un résultat explicite, HITL hors du chat (le ticket porte le brouillon, un commentaire répond, rejeu sous verrou d'empreinte), source heartbeat rétrécie en SQL, des catégories du propriétaire et un couloir par catégorie (`SET NULL`, comptes exacts par case) | [ADR-276](./architecture/ADR-276-Workboard.md) | [WORKBOARD.md](./technical/WORKBOARD.md) |
 | Mes favoris : les sections de réglages épinglées appartiennent au COMPTE, la position du dock à l'APPAREIL ; le backend garde la forme d'un jeton et jamais la liste ; une seule mécanique flottante partagée avec le widget des yeux | [ADR-277](./architecture/ADR-277-Settings-Shortcuts-Dock.md) | — |
 | Yeux expressifs : un moteur pur sur les signaux existants (aucun appel LLM, aucun endpoint), le mouvement dans un rig qui publie `--rig-*` et une feuille de style qui ne fait que lire, le registre de chaque réponse déclaré par le modèle qui l'écrit, des sourcils et une bouche vivants (une respiration pour tout le visage, couplages écrits en valeurs absolues, mimiques et saynètes tirées d'un flux d'aléa séparé), un visage qui ne joue jamais deux fois la même chose (sourcils ancrés sur l'œil et pesés par leur mouvement, parole générée, performances déformées par canal, relâchés propres, saynètes comptées en temps de repos sur une horloge que l'hôte garde), le même widget sur la page d'accueil avec une position par surface | [ADR-240](./architecture/ADR-240-expressive-eyes-widget.md), [ADR-252](./architecture/ADR-252-Expressive-Eyes-Animation-Rig.md), [ADR-253](./architecture/ADR-253-Per-Turn-Expressivity-Annotation.md), [ADR-264](./architecture/ADR-264-Living-Brows-And-Mouth.md), [ADR-294](./architecture/ADR-294-A-Face-That-Never-Plays-The-Same-Twice.md) | [LANDING_PAGE.md](./technical/LANDING_PAGE.md), [apps/web/CLAUDE.md](../apps/web/CLAUDE.md) |
 | Boucles silencieuses : une famille de clés Redis déclare sa portée (une remise à zéro purge par famille, jamais par motif), un push traité met en file un réveil servi sous l'éligibilité COMPLÈTE, une source RAG qui suit un LIBELLÉ Gmail plutôt qu'une boîte | [ADR-260](./architecture/ADR-260-Redis-Key-Families-Scope-And-Reset-Purge.md), [ADR-261](./architecture/ADR-261-Push-Driven-Heartbeat-Wake-And-Incremental-Drive-Sync.md), [ADR-262](./architecture/ADR-262-Opt-In-Mail-Label-RAG-Source.md) | [AI_ACT_TRACEABILITY.md](./technical/AI_ACT_TRACEABILITY.md) |

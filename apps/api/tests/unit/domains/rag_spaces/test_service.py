@@ -10,6 +10,9 @@ from sqlalchemy.exc import IntegrityError
 from src.core.exceptions import BaseAPIException
 from src.domains.rag_spaces.models import RAGDocumentSourceType, RAGDocumentStatus
 from src.domains.rag_spaces.service import _EXT_TO_MIME, RAGSpaceService
+from tests.helpers.account_file_writes import account_writer_sql_stub as account_writer_sql_stub
+
+pytestmark = pytest.mark.usefixtures("account_writer_sql_stub")
 
 # ============================================================================
 # Fixtures

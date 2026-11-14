@@ -29,14 +29,33 @@ const page = {
   as_of: '2026-10-19T12:00:00Z',
   next_cursor: null,
 };
+/** The grouping by sender, chosen: its list read, the day's messages gone. */
+async function showSenders(): Promise<void> {
+  await screen.findByText('Dinner tomorrow');
+  fireEvent.click(screen.getByRole('button', { name: 'sms.by_sender' }));
+  await waitFor(() => expect(screen.queryByText('Dinner tomorrow')).not.toBeInTheDocument());
+  await screen.findByText('Alice');
+  post.mockClear();
+}
+
+it('opens on the day view: the latest messages are read at once, no sender list', async () => {
+  render(<SmsArchive lng="en" />);
+  await screen.findByText('Dinner tomorrow');
+  expect(screen.getByRole('button', { name: 'sms.by_day' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  expect(post.mock.calls.map(call => call[0])).toEqual(['/sms/search']);
+  expect(get).not.toHaveBeenCalled();
+});
+
 it('refreshes names only on explicit request and coalesces double clicks without losing focus', async () => {
   let finish: (() => void) | undefined;
   const pending = new Promise<void>(resolve => {
     finish = resolve;
   });
   render(<SmsArchive lng="en" />);
-  await screen.findByText('Alice');
-  expect(post).not.toHaveBeenCalled();
+  await showSenders();
   post.mockReturnValueOnce(pending);
   const button = screen.getByRole('button', { name: 'sms.refresh_names' });
   button.focus();
@@ -77,7 +96,6 @@ beforeEach(() => {
 });
 it('reads day view, searches automatically, and keeps grouping usable without issuing mutations', async () => {
   render(<SmsArchive lng="en" />);
-  fireEvent.click(screen.getByRole('button', { name: 'sms.by_day' }));
   await screen.findByText('Dinner tomorrow');
   fireEvent.change(screen.getByRole('searchbox', { name: 'sms.search' }), {
     target: { value: 'private words' },
@@ -91,12 +109,11 @@ it('reads day view, searches automatically, and keeps grouping usable without is
 });
 it('opens sender content lazily instead of loading every SMS thread at once', async () => {
   render(<SmsArchive lng="en" />);
-  await screen.findByText('Alice');
+  await showSenders();
   expect(screen.getByRole('button', { name: 'sms.by_sender' })).toHaveAttribute(
     'aria-pressed',
     'true'
   );
-  expect(post).not.toHaveBeenCalled();
   const calls = post.mock.calls.length;
   expect(screen.queryByText('Dinner tomorrow')).not.toBeInTheDocument();
   const summary = screen.getByText('Alice').closest('summary');
@@ -135,7 +152,8 @@ it('proposes a sender scope from its source identifier without deleting directly
       <SmsArchive lng="en" />
     </SmsErasureProvider>
   );
-  const details = (await screen.findByText('Alice')).closest('details');
+  await showSenders();
+  const details = screen.getByText('Alice').closest('details');
   if (!details) throw new Error('Missing sender disclosure');
   details.open = true;
   fireEvent(details, new Event('toggle'));
@@ -148,7 +166,6 @@ it('returns to the first page after a source change without resubmitting an inva
   const { publishApplicationResources } = await import('@/lib/application-resources');
   post.mockResolvedValue({ ...page, next_cursor: 'old-snapshot' });
   render(<SmsArchive lng="en" />);
-  fireEvent.click(screen.getByRole('button', { name: 'sms.by_day' }));
   await screen.findByText('Dinner tomorrow');
   fireEvent.click(screen.getByRole('button', { name: 'sms.load_more' }));
   await waitFor(() => expect(post.mock.lastCall?.[1].cursor).toBe('old-snapshot'));
@@ -168,6 +185,5 @@ it.each([
     new ApiError('Request failed', status, { detail: { error_code: code } })
   );
   render(<SmsArchive lng="en" />);
-  fireEvent.click(screen.getByRole('button', { name: 'sms.by_day' }));
   expect(await screen.findByRole('alert')).toHaveTextContent(label);
 });

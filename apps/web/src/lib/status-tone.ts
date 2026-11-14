@@ -22,6 +22,8 @@
  * be a claim about urgency nobody made.
  */
 
+import type { SettledReplyStatus } from '@/lib/mail-reply-state';
+
 /** The `Badge` variants this module is allowed to return. */
 export type BadgeTone =
   | 'default'
@@ -41,6 +43,14 @@ export function classificationTone(value: string): BadgeTone {
   // A live trait with no semantic family takes the theme colour, never the inactive grey.
   if (value === 'reply_expected') return 'default';
   return value === 'urgent' ? 'warning' : NEUTRAL;
+}
+
+/**
+ * Where a mail stands in its conversation (ADR-379) — only what stays true is shown.
+ * An answer given settles the mail; a reply received just happened.
+ */
+export function replyStateTone(status: SettledReplyStatus): BadgeTone {
+  return status === 'answered' ? 'success' : 'info';
 }
 
 /** Priority as the card's leading edge — a ramp, not a binary. */
@@ -353,7 +363,8 @@ export type SkillTrait =
   | 'dialogue'
   | 'has_plan_template'
   | 'channel'
-  | 'third_party';
+  | 'third_party'
+  | 'dormant';
 
 /**
  * Skill trait badges, toned by TYPE — the same label was drifting between the
@@ -372,6 +383,8 @@ const SKILL_TRAIT: Record<SkillTrait, BadgeTone> = {
   // Written outside LIA (ADR-327): a fact the reader must notice — it runs
   // isolated and draws no image, which explains a skill behaving differently.
   third_party: 'warning',
+  // On but unused for a whole period (lot 14): grey is what says « dormant ».
+  dormant: 'secondary',
 };
 
 /** An audit verdict of the skill library (ADR-327), least to most severe. */

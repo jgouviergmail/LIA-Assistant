@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, and_, or_
+from sqlalchemy import ColumnElement, tuple_
 from sqlalchemy.orm import InstrumentedAttribute
 
 
@@ -63,7 +63,9 @@ def older_than(
         The SQL condition.
     """
     if keyset.id is not None:
-        return or_(at < keyset.at, and_(at == keyset.at, row_id < keyset.id))
+        # A row comparison is an index range. The equivalent OR can scan and
+        # filter every preceding page (measured by the real history plan test).
+        return tuple_(at, row_id) < (keyset.at, keyset.id)
     return at <= keyset.at if keyset.inclusive else at < keyset.at
 
 

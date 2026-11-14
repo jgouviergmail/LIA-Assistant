@@ -52,6 +52,11 @@ _PURGED_FULL = TableRule(
 
 
 TABLE_RULES: dict[str, TableRule] = {
+    "account_file_writers": TableRule(
+        data_class=TableDataClass.OPERATIONAL_RETAINED,
+        export=ExportPolicy.EXCLUDED,
+        reason="Content-free unknown filesystem writers; joined completion or attested boot stop alone removes them.",
+    ),
     "world_message_attempts": TableRule(
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.EXCLUDED,
@@ -73,7 +78,34 @@ TABLE_RULES: dict[str, TableRule] = {
     # User content: purged + exported.
     # ------------------------------------------------------------------
     "conversations": _PURGED_FULL,
+    "conversation_operations": TableRule(
+        data_class=TableDataClass.OPERATIONAL_RETAINED,
+        export=ExportPolicy.EXCLUDED,
+        reason="Content-free retired runtime and file identities survive account removal until cleanup succeeds; only successful receipts expire.",
+    ),
+    "conversation_creation_receipts": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.EXCLUDED,
+        reason="Content-free creation idempotency receipts; retained through discussion deletion, purged with the account.",
+    ),
+    "conversation_executions": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.EXCLUDED,
+        reason="Content-free invocation authority and recovery state; purged after account writers are stopped.",
+    ),
+    "conversation_reservation_work": TableRule(
+        data_class=TableDataClass.USER_CASCADE,
+        export=ExportPolicy.EXCLUDED,
+        reason="Content-free Live worker ownership cascades from the explicitly purged execution after every writer has stopped.",
+    ),
     "conversation_messages": _PURGED_FULL,
+    # Words written while LIA worked, waiting for their turn (ADR-384): the
+    # person's own text, exported with them, gone with each discussion.
+    "waiting_messages": TableRule(
+        data_class=TableDataClass.USER_CASCADE,
+        export=ExportPolicy.FULL,
+        reason="The person's words before they enter a discussion; cascade with it.",
+    ),
     "application_commands": TableRule(
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.EXCLUDED,
@@ -251,6 +283,9 @@ TABLE_RULES: dict[str, TableRule] = {
     ),
     "psyche_states": _PURGED_FULL,
     "psyche_history": _PURGED_FULL,
+    # How the account writes (ADR-383): its voice, never its facts, read from its
+    # own sent mail and decrypted in the export, where it is the person's record.
+    "writing_styles": _PURGED_FULL,
     "user_interests": _PURGED_FULL,
     "interest_notifications": _PURGED_FULL,
     # Habits (ADR-214): derived rhythm profile + discrete learned habits.
@@ -343,6 +378,18 @@ TABLE_RULES: dict[str, TableRule] = {
             "when merely held, exported on both sides."
         ),
     ),
+    # A category is ONE-sided, unlike the ticket filed under it: it is the
+    # owner's own name for a lane of their board. A peer who holds such a
+    # ticket exports the ticket row with its `category_id` — an id they can
+    # already read as a lane on their screen — and never the category row.
+    "workboard_categories": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason=(
+            "The names the account files its tickets under (the lanes of its "
+            "board) — the owner's own, purged and exported with the account."
+        ),
+    ),
     # Product analytics (ADR-178): outcome truth + lifecycle events. No FK
     # CASCADE (plain user_id columns) — purged explicitly by the deletion
     # service, exported in full (bounded telemetry, no free text).
@@ -399,6 +446,14 @@ TABLE_RULES: dict[str, TableRule] = {
     ),
     "rag_spaces": _PURGED_FULL,
     "attachments": _PURGED_FULL,
+    "conversation_attachment_usages": TableRule(
+        data_class=TableDataClass.USER_CASCADE,
+        export=ExportPolicy.EXCLUDED,
+        reason=(
+            "Derived accepted file-use links; removed with their attachment or discussion. "
+            "The original attachment and archived message already belong to the export."
+        ),
+    ),
     # The answers a person kept (ADR-282): their own copy, purged with them
     # and handed back in full by the export.
     "message_bookmarks": _PURGED_FULL,
@@ -534,6 +589,16 @@ TABLE_RULES: dict[str, TableRule] = {
             "One row per tick of a routine (ADR-265): outcome, served slot, "
             "attempts, error — the user's own execution history, bounded by "
             "retention. Cascades from scheduled_actions AND users."
+        ),
+    ),
+    "routine_webhook_deliveries": TableRule(
+        data_class=TableDataClass.USER_CASCADE,
+        export=ExportPolicy.EXCLUDED,
+        reason=(
+            "The calls another system made to a routine's address (ADR-386): "
+            "transient inputs of its next run, the body erased once served and "
+            "the row purged a week later. The runs they started and their "
+            "answers are exported. Cascades from scheduled_actions."
         ),
     ),
     "workboard_comments": TableRule(

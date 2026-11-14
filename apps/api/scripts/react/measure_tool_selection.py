@@ -22,9 +22,10 @@ cannot drift from the loop.
 compared on the SAME rankings and a second run embeds nothing: the ranking is
 the router's input, the policy is what the measurement compares.
 
-Usage (inside the API container or with the API environment loaded)::
+Usage (inside the API container, as a module: a script run by its path has its own
+folder on the import path, not the package root)::
 
-    python scripts/react/measure_tool_selection.py --turns turns.json [--top-k 40] \
+    python -m scripts.react.measure_tool_selection --turns turns.json [--top-k 40] \
         [--rankings-cache rankings.json]
 """
 

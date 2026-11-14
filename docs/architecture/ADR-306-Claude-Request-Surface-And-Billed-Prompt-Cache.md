@@ -1,6 +1,6 @@
 # ADR-306 — The Claude request surface is declared once; the prompt cache is shaped, and billed, the way the vendor measures it
 
-**Status**: accepted — 2026-09-23 (the OpenAI half, section 7, the same day); amended 2026-09-30 (Sonnet 5.5, GPT-6.1 Sol) and 2026-10-08 (Haiku 5.5, Sonnet 5.5's cache read)
+**Status**: accepted — 2026-09-23 (the OpenAI half, section 7, the same day); amended 2026-09-30 (Sonnet 5.5, GPT-6.1 Sol), 2026-10-08 (Haiku 5.5, Sonnet 5.5's cache read) and 2026-11-11 (Fable 5.2)
 **Amended**: 2026-10-22 by [ADR-362](ADR-362-Claude-Cross-Turn-Cache-History-Read-Point-Hour-Lifetime-And-Prior-Thinking.md) — in a tool loop the history's end is a read point too; a frequent turn a person waits for writes its two cross-turn read points for the hour, billed 2x through every pricing door and recorded per call; an earlier turn's thinking goes back to the model that wrote it on a generation that keeps it without binding it
 **Amends**: ADR-087 (the thin `ChatOpenAICached`), ADR-244 (model capability catalogue), ADR-245 (one reasoning intent, one seam), ADR-263 lot 7 (Article-12 inference parameters), ADR-272 (every euro the platform pays is counted), ADR-284 (the `DYNAMIC CONTEXT` convention of the versioned prompts)
 
@@ -329,3 +329,46 @@ and release notes — **not measured** (no Anthropic spend).
 - **Sonnet 5.5's cache read fell to 0.10** (0.05x the input price, release note of
   2026-10-07; every other price unchanged). The migration retires the shipped 0.20 row
   only where it still holds that value — an administrator's price stands.
+
+## Amendment 2026-11-11 — Claude Fable 5.2
+
+Seed and migration `5cccb7a8d77f`, guard `test_claude_fable_5_2_migration_guard.py`; the
+migration's statements run on a real PostgreSQL in
+`tests/integration/test_claude_fable_5_2_migration.py`. The surface was read on the
+vendor's overview, « What's new in Claude Fable 5.2 » and effort reference, then
+**measured on the Claude API the same day** (the Models API and nine requests, budget
+approved, 0.016 USD at list price):
+
+| Sent | Answered |
+|---|---|
+| Models API | 1M in, 128K out; effort `low` to `max`; thinking `adaptive` only (`enabled`, `disabled` and `between_tools` unsupported) |
+| `tool_choice` `tool` or `any` | 400 « tool_choice: type "tool" and "any" are not supported for this model » (`auto` with the same tool: 200) |
+| `thinking: {type: "disabled"}` | 400 « "thinking.type.disabled" is not supported for this model » |
+| `temperature: 0.5` | 400 « `temperature` is deprecated for this model » |
+| a thinking block replayed after the `system` prompt changed | 400 « The block is bound to a different conversation » |
+| the same, under `drop_block` and its beta header | 200, `input_transformations`: `thinking_dropped`, `prefix_binding_mismatch` |
+| the same block, the prefix unchanged | 200, the block read (billed as input) |
+
+The implicit `high` effort and the prices are the vendor's pages'.
+
+- **Claude Fable 5.2 keeps Fable 5.1's surface**: thinking always on, `high` unasked,
+  sampling and a forced `tool_choice` refused, thinking bound to its conversation. It
+  joins that row of `core/claude_surface.py` instead of gaining one. Its name starts
+  with `claude-fable-5`, so until the row named it the model resolved to **Fable 5's**
+  surface, and the catalogue row alone made it selectable with two defects: the
+  structured-output door forced its tool (a 400 on this model), and an earlier turn's
+  thinking could be replayed to it (`anthropic_thinking` reads the same row) with no
+  binding control beside it — refused by the model's own prefix check. The guard holds
+  its surface, ladder and window to the vendor's pages, like Sonnet 5.5's and Haiku 5.5's.
+- **Its prefix check applies to every account**, whatever its age — on Fable 5.1, to
+  accounts created from 2026-08-31. The `drop_block` control and its beta header are
+  accepted as before, and they always ride its thinking, which is never anything but
+  `adaptive`: a stale block is dropped, not refused, and nothing changes in what LIA
+  sends.
+- **Only Fable 5.2 and Mythos 5.2 read its thinking blocks**; any other model drops
+  them, unbilled. LIA sends no earlier turn's thinking back to a binding generation,
+  so a slot moved to or from this model loses nothing it was sending.
+- **The tariff is the list price**: 8 / 0.20 / 40 USD per million tokens, the cache read
+  at 0.025x the input like Fable 5.1's, the whole 1M window at this one rate. The
+  5-minute and 1-hour cache writes (10 and 16) are the 1.25x and 2x multipliers already
+  applied to every Anthropic tariff; fast mode (16 / 80) is not used.

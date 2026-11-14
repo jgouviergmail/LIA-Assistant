@@ -4,7 +4,7 @@
 
 **Version**: 1.0
 **Date**: 2026-02-27
-**Mise à jour**: 2026-10-12 — récurrence partagée et réservations manuelles sous autorité actuelle ([ADR-322](../architecture/ADR-322-One-Clock-Per-Routine.md))
+**Mise à jour**: 2026-11-13 — troisième horloge, l'appel signé d'un autre système ([ADR-386](../architecture/ADR-386-A-Signed-Call-Starts-A-Routine.md)) ; 2026-10-12 — récurrence partagée et réservations manuelles sous autorité actuelle ([ADR-322](../architecture/ADR-322-One-Clock-Per-Routine.md))
 
 ---
 
@@ -20,6 +20,14 @@ Les Scheduled Actions permettent aux utilisateurs de configurer des taches recur
 Les resultats sont archives dans la conversation de l'utilisateur et notifies via FCM push et Redis SSE.
 
 > **Pas de canaux externes.** Contrairement aux rappels et aux notifications proactives, l'executeur d'actions planifiees n'appelle pas `send_notification_to_channels()` : un resultat d'action planifiee n'est jamais pousse vers Telegram, meme avec `CHANNELS_ENABLED=true`.
+
+**Une routine qui ne s'exécute pas le dit** (ADR-265, amendement 2026-11-12). Trois avis partent de `infrastructure/scheduler/scheduled_action_notices.py`, par `NotificationDispatcher` comme la proposition d'une routine « proposer d'abord » — archive dans la conversation, push, SSE, et canaux externes quand ils sont actifs :
+
+- au **premier échec d'une série** ; les échecs suivants de la même série se taisent, la personne le sait déjà ;
+- à la **mise en pause** après les échecs consécutifs ;
+- quand la **limite d'utilisation** écarte une routine : cet avis est celui du COMPTE, réclamé une fois par fenêtre (`SCHEDULED_ACTIONS_QUOTA_NOTICE_COOLDOWN_HOURS`), quelle que soit la routine qui a rencontré la limite la première.
+
+Une exécution lancée à la main est attendue : elle dit toujours comment elle s'est terminée. Chaque avis part APRÈS le commit du résultat du tick, et n'écrit aucune ligne de registre : c'est un compte rendu d'état, pas un acte de l'initiative de LIA.
 
 ### Exemples
 
@@ -79,9 +87,11 @@ scheduled_actions
 ├── title (String 200)
 ├── action_prompt (Text)
 ├── recurrence (JSONB, nullable) -- RecurrenceSpec d'une routine time ; NULL pour une routine condition
-├── trigger_kind (String 20: time|condition) -- l'horloge de la routine (ADR-322)
+├── trigger_kind (String 20: time|condition|webhook) -- l'horloge de la routine (ADR-322, ADR-386)
 ├── condition_config (JSONB, nullable) -- routine condition : {type, parametres, until}
 ├── condition_state (JSONB, nullable) -- registre des faits : {seen, last_checked_at, last_check_error, last_fired_at}
+├── webhook_key (String 64, unique, nullable) -- routine webhook : la clé de son adresse (ADR-386)
+├── webhook_secret (Text, nullable) -- routine webhook : son secret HMAC, chiffré, montré une seule fois
 ├── user_timezone (String 50, default "Europe/Paris")
 ├── next_trigger_at (DateTime TZ, UTC, nullable) -- Calcule ; NULL = plus rien
 ├── is_enabled (Boolean, default true)
@@ -96,7 +106,7 @@ scheduled_actions
 
 **Index partiel** : `ix_scheduled_actions_due` sur `next_trigger_at WHERE is_enabled=true AND status='active' AND next_trigger_at IS NOT NULL`
 
-**Une horloge par routine** (ADR-322) : le CHECK `ck_scheduled_actions_one_clock` exige une `recurrence` et aucune condition pour `time`, une condition et aucune `recurrence` pour `condition`. Les trois colonnes JSONB sont `none_as_null` : un `None` Python y devient un NULL SQL, jamais le `null` JSON que `IS NULL` ne voit pas.
+**Une horloge par routine** (ADR-322, ADR-386) : le CHECK `ck_scheduled_actions_one_clock` exige une `recurrence` et aucune condition pour `time`, une condition et aucune `recurrence` pour `condition`, ni l'une ni l'autre pour `webhook` ; `ck_scheduled_actions_webhook_address` donne une adresse et un secret à une routine `webhook`, et à elle seule. Les appels qu'elle a acceptés vivent dans `routine_webhook_deliveries` (corps chiffré, effacé une fois servi). Les trois colonnes JSONB sont `none_as_null` : un `None` Python y devient un NULL SQL, jamais le `null` JSON que `IS NULL` ne voit pas.
 
 **La planification tient dans une colonne.** `recurrence` porte un
 `RecurrenceSpec` (`src/core/recurrence/spec.py`) : les jours calendaires
@@ -121,6 +131,8 @@ construction, et non par un filtre qu'il faudrait penser a ecrire.
 | PATCH | `/scheduled-actions/{id}/toggle` | 200 | Toggle is_enabled |
 | POST | `/scheduled-actions/{id}/execute` | 202 | Tester maintenant (fire-and-forget) |
 | GET | `/scheduled-actions/week` | 200 | La semaine en cours de chaque routine : instants du moteur de récurrence + issue du run qui a servi chaque creneau (ADR-265). Declaree AVANT `/{id}`. |
+| POST | `/scheduled-actions/{id}/webhook-secret` | 200 | Routine webhook : tire un nouveau secret, rendu dans CETTE réponse seule ; l'ancien cesse aussitôt (ADR-386) |
+| POST | `/hooks/routines/{key}` | 202 | Adresse publique d'une routine webhook : sans session, authentifiée par sa signature HMAC-SHA256 (ADR-386, voir [ROUTINE_WEBHOOKS.md](ROUTINE_WEBHOOKS.md)) |
 
 ### Calcul du prochain declenchement
 
@@ -184,13 +196,24 @@ fournisseur externe. Voir [les commandes applicatives](APPLICATION_COMMANDS.md).
 Une routine a UNE horloge. Une routine `time` suit sa `recurrence` ; une routine `condition` n'en a pas : le système vérifie sa condition lui-même, jour et nuit, et ne l'exécute que sur un fait NOUVEAU. La règle est écrite une fois (`schemas.trigger_mode_refusal`, lue par le schéma de création et par la mise à jour du service, qui voit la moitié stockée de la paire) et tenue par la table.
 
 - **Météo** — toujours Google Weather, la source que l'instance garantit à chaque compte, jamais le fournisseur choisi par la personne (`weather_provider.open_platform_weather_client`) ; la prévision HORAIRE sur l'horizon publié, l'heure en cours comprise ; un changement d'un type surveillé dont la probabilité de précipitations dépasse strictement le seuil publié ; la note donnée à l'exécution nomme le type, l'heure, le jour, le fuseau, la probabilité et la source (ADR-322, amendement 2026-09-29).
-- **Cadence** — `domains/scheduled_actions/trigger.py::CONDITION_CHECKS` : `SCHEDULED_ACTIONS_CONDITION_CHECK_MINUTES` pour le courrier, les tâches, l'agenda et les documents, `SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES` pour la météo ; jamais plus rapide que le cache que sa source lit (la recherche Gmail, `EMAILS_CACHE_SEARCH_TTL_SECONDS`) ; une phase par routine tirée de son identifiant, sur une grille ancrée sur l'époque, donc sans dérive. `TriggerPlan` arme à la création, à l'édition, à la réactivation, au changement de fuseau et après chaque passage ; une vérification manquée n'est jamais rejouée.
+- **Page web** (ADR-387) — `page_change` lit une page publique (`url`, refusée dès la saisie si son écriture exclut une page publique ou si elle porte des identifiants), sans modèle, par le lecteur public de LIA (`radio.newsroom.fetch.fetch_public` : chaque saut validé et épinglé, le corps borné, la lecture bornée dans le temps, le lecteur nommé `PAGE_WATCH_USER_AGENT`) ; la page devient les lignes qu'une personne lit (`infrastructure/scheduler/page_reading.py`), éventuellement filtrées par `contains` ; chaque ligne est un fait. La note de l'exécution montre les lignes nouvelles, enveloppées comme contenu externe ; un seuil de prix appartient à l'instruction, jugé par l'exécution. Une adresse qui ne mène à aucune page publique est `not_configured`, une page qui n'a pas répondu `unavailable`.
+- **Cadence** — `domains/scheduled_actions/trigger.py::CONDITION_CHECKS` : `SCHEDULED_ACTIONS_CONDITION_CHECK_MINUTES` pour le courrier, les tâches, l'agenda et les documents, `SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES` pour la météo, `SCHEDULED_ACTIONS_PAGE_CHECK_MINUTES` pour une page web ; jamais plus rapide que le cache que sa source lit (la recherche Gmail, `EMAILS_CACHE_SEARCH_TTL_SECONDS`) ; une phase par routine tirée de son identifiant, sur une grille ancrée sur l'époque, donc sans dérive. `TriggerPlan` arme à la création, à l'édition, à la réactivation, au changement de fuseau et après chaque passage ; une vérification manquée n'est jamais rejouée.
 - **Fin** — `condition_config.until`, dernier jour local inclus : la routine s'arrête au minuit local suivant et `close_finished` la clôt, comme une série épuisée.
-- **Registre des faits** — `condition_state`, écrit par `condition_ledger.py` seul : un fait est neuf quand sa clé (identité hachée : message, tâche et son échéance, événement et son début, fichier, type et jour de la météo) n'a jamais été vue ; un fait non servi (plafond, question en attente, échec) reste neuf ; un fait encore présent n'est jamais évincé.
+- **Registre des faits** — `condition_state`, écrit par `condition_ledger.py` seul : un fait est neuf quand sa clé (identité hachée : message, tâche et son échéance, événement et son début, fichier, type et jour de la météo, ligne d'une page par ce qu'elle dit) n'a jamais été vue ; un fait non servi (plafond, question en attente, échec) reste neuf ; un fait encore présent n'est jamais évincé. Le registre d'une page est un INSTANTANÉ (`SNAPSHOT_CONDITION_TYPES`, ADR-387) : il garde les lignes présentes à la dernière lecture servie et oublie celles qui sont parties, si bien qu'une ligne qui revient (« en stock ») est à nouveau neuve ; une lecture en échec n'oublie rien. Tant qu'aucune lecture n'a été servie (`last_fired_at` vide), l'exécution apprend que rien de la page n'a encore été rapporté : ce qu'elle montre maintenant, sans comparaison.
 - **Plafond** — au plus `SCHEDULED_ACTIONS_CONDITION_MAX_FIRES_PER_DAY` exécutions par jour local, comptées dans `scheduled_action_runs` (`count_fires_since`, `FIRED_OUTCOMES`).
-- **Une vérification sans suite** ré-arme et n'écrit que le registre (`last_checked_at`, `last_check_error` : `not_configured` ou `unavailable`) — aucune ligne d'historique.
+- **Une vérification sans suite** ré-arme et n'écrit que le registre (`last_checked_at`, `last_check_error` : `not_configured` ou `unavailable` quand la source n'a pas pu être lue, `quota_blocked` quand la limite d'utilisation a écarté la vérification) — aucune ligne d'historique.
 - **Au dossier** — chaque vérification tourne sous le `TrackingContext` de la routine (`out_of_turn_spend`) et dépose une consultation `routine_condition` : `failed` sur un refus, rien quand il n'y avait rien à ouvrir. `evaluate_condition` ne lève jamais.
 - **« Vérifier maintenant »** remplace « Tester » sur la carte d'une routine sur condition : `POST /execute` lance une vraie vérification, qui n'exécute la routine que sur un fait neuf.
+
+### La troisième horloge : l'appel signé d'un autre système (ADR-386)
+
+Une routine `webhook` n'a ni planification ni condition : un autre système (box domotique, forge de code, service de formulaires) appelle son adresse propre, `POST /api/v1/hooks/routines/{key}`, avec le corps signé en HMAC-SHA256 sous son secret (`X-LIA-Signature-256`, `X-Hub-Signature-256` lu de même). Le mécanisme complet, le côté de l'expéditeur et les bornes : [ROUTINE_WEBHOOKS.md](ROUTINE_WEBHOOKS.md).
+
+- **Adresse et secret** tirés par le serveur quand la routine passe sur cette horloge (`webhook_address.py`) ; le secret, chiffré, ne sort qu'une fois, dans la réponse qui l'a tiré, jamais dans un journal ni dans l'export ; quitter l'horloge les efface, avec les appels en attente.
+- **Un appel** est lu, signé, borné puis gardé sous le verrou de la routine (`webhook_service.py`), avant la réponse 202 ; il arme la routine pour le prochain passage, dans la minute.
+- **Un passage** (`routine_webhook_gate.py`) lit les plus anciens appels en attente après l'instruction de la routine, comme contenu externe ; un run qui a répondu les marque servis dans son règlement ; un échec recule de `ROUTINE_WEBHOOK_FAILURE_RETRY_SECONDS` ; sans appel en attente, la routine dort (`next_trigger_at` NULL) — jamais « finie » : `close_finished` l'épargne, et seuls les lecteurs d'une PLANIFICATION annoncent une prochaine exécution.
+- **Ni « Tester », ni proposition** : une routine webhook n'a rien à exécuter sans appel, et une proposition confierait le run au chat, qui ne lirait jamais les appels.
+- **Un interrupteur** : `PlatformCapability.ROUTINE_WEBHOOKS` ferme l'adresse, le tirage d'un secret et l'acte ; les routines et les appels déjà acceptés restent (ADR-280).
 
 ### Corps des notifications
 
@@ -221,7 +244,37 @@ En cas d'erreur transitoire (`TimeoutError`, `ConnectionError`, `OSError`), l'ex
 
 ### Auto-disable apres echecs
 
-Apres **5 echecs consecutifs** (`SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES`), l'action est automatiquement desactivee (`is_enabled=False`, `status='error'`). Le re-enable via toggle reset les compteurs et recalcule le prochain declenchement.
+Apres **5 echecs consecutifs** (`SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES`), l'action est automatiquement desactivee (`is_enabled=False`, `status='error'`). Le re-enable via toggle reset les compteurs et recalcule le prochain declenchement. La personne est prévenue au premier échec de la série, puis à la mise en pause (`scheduled_action_notices.failure_notice`, qui lit la ligne que `mark_execution_failure` rend : le seuil garde un seul propriétaire).
+
+### Limite d'utilisation atteinte (ADR-272)
+
+Un compte au-delà de sa limite d'utilisation, ou une instance au-delà de son budget du jour, n'exécute pas ses routines, et **ce n'est pas un échec** : rien ne compte vers la mise en pause. Le tick est écarté AVANT toute lecture de source (une vérification météo est facturée), la routine est réarmée sur sa propre horloge, et le motif est écrit là où chaque sorte de routine tient son histoire :
+
+- routine `time` : une ligne `skipped_quota` sur le créneau, lue par la semaine ;
+- routine `condition` : aucune ligne (une par vérification écartée, la règle d'ADR-322), mais `last_check_error = quota_blocked` sur son registre, que sa carte affiche.
+
+Un refus de la limite rencontré PENDANT le tour (`RunOutcome.QUOTA_BLOCKED`) prend la même sortie. Jusqu'au 2026-11-12 il était compté comme un échec, et une série de refus mettait en pause une routine qui n'avait rien ; le pré-contrôle, lui, rendait la main sans réarmer, et la routine restait `executing` jusqu'à la récupération des réservations périmées.
+
+### Fenêtre de rattrapage (ADR-265, amendement 2026-11-12 b)
+
+Une occurrence d'une routine `time` n'est exécutée en retard que dans sa fenêtre de rattrapage : la MOITIÉ de l'écart avec l'occurrence qui la suit, plafonnée par `SCHEDULED_ACTIONS_CATCH_UP_MAX_MINUTES`. Le rythme de la routine dit donc quand son occurrence est périmée — quelques minutes pour une routine au quart d'heure, le plafond pour une routine quotidienne. Une occurrence que rien ne suit (la dernière d'une série, une occurrence unique) n'est jamais abandonnée.
+
+- **Occurrence atteinte trop tard** (panne, planificateur à l'arrêt) : elle n'est pas exécutée, son créneau porte `skipped_late`, rien ne compte comme un échec et personne n'est notifié (une panne qui a sauté cinq routines répondrait par cinq avis). La routine est réarmée sur l'occurrence la plus RÉCENTE si celle-ci peut encore démarrer — une panne qui se termine vingt minutes après le créneau du jour sert le jour même, au passage suivant du planificateur — sinon sur la prochaine (`TriggerPlan.after_missed`). Jamais sur une occurrence intermédiaire : une occurrence dont la suivante est déjà venue est toujours hors fenêtre, par construction.
+- **Compte occupé** (`RunOutcome.BUSY`) : l'occurrence reste armée sur le MÊME instant, sans ligne d'historique, et le passage suivant la retrouve due — jusqu'à la fin de sa fenêtre, après quoi le créneau porte `skipped_busy` et la routine passe à l'occurrence suivante. Jusqu'au 2026-11-12 la routine était réarmée tout de suite sur l'occurrence SUIVANTE : une routine quotidienne était perdue pour la journée parce que son propriétaire écrivait à 8 h, ou parce que deux routines du même compte tombaient à la même minute. Une question en attente dans le chat (`skipped_hitl`) n'est pas attendue : elle dure le temps que la personne met à répondre.
+- Une routine `condition` n'a pas d'occurrence : rien de tout cela ne la concerne, une vérification manquée est manquée.
+- **Une exécution lancée par la personne n'est jamais classée « manquée »** : « Exécuter maintenant » et une exécution demandée dans le chat le DÉCLARENT à l'appel (`execute_single_action(started_by_person=True)`). Qui a lancé une exécution ne se déduit pas du créneau en attente — un créneau peut être dépassé parce que le planificateur était à l'arrêt, précisément le moment où l'on clique. L'attente d'un compte occupé, elle, reste celle du créneau.
+
+### Ne prévenir que s'il y a du nouveau (ADR-265, amendement 2026-11-12 c)
+
+`scheduled_actions.notify_only_when_new` est l'option d'une routine : l'exécution a toujours lieu, sa réponse reste archivée dans la conversation, et c'est la NOTIFICATION (push et message à l'écran) qui est retenue quand l'exécution n'a rien trouvé de nouveau. Seul le modèle qui écrit la réponse sait si elle dit du nouveau : il le déclare par une balise machine après sa réponse, `<lia_nothing_new/>`, sur le mécanisme du registre de ton (ADR-253) — retirée du flux (`streaming/machine_tags.py`) et de la réponse enregistrée, remise au fragment `done` (`nothing_new: true`), lue par le moteur (`RunResult.nothing_new`) puis par l'exécuteur.
+
+- L'instruction n'est donnée qu'à un tel tour : l'exécuteur passe `StreamRequest.quiet_when_nothing_new`, le moteur le publie pour la durée du flux (`nothing_new.quiet_run_scope`), et le prompt de réponse reçoit `routine_nothing_new_instruction.txt` avant son rappel final. Un tour de chat ordinaire n'apprend jamais la balise, et une balise écrite hors d'un tel tour est retirée sans rien déclarer.
+- Le doute notifie : pas de balise, balise tronquée, tour sans fragment `done`, exécution en échec — la personne est prévenue, comme avant. Le silence est la seule issue qui exige une déclaration complète, et un échec est toujours dit (ses avis ne lisent pas l'option).
+- **Une exécution qui a quelque chose à avouer n'est jamais « rien de nouveau »**, quoi que déclare son modèle : une étape en échec, une recherche interrompue, une étape non exécutée. Le prompt le dit, le code s'en assure (ADR-303) : la couture qui assemble ce que la réponse doit avouer de sa propre exécution (`build_run_honesty_block`) annule la déclaration (`nothing_new.note_run_admission`) avant même que le modèle soit interrogé. Une dégradation de la plateforme, signalée par le conseiller de diagnostic, est dite au modèle à côté des échecs et n'annule rien : le nombre d'échecs du tour est UNE fonction (`failure_context.count_turn_failures`), lue par le total de la directive et par la garde (trouvé sur dev le 12/11 : un seul incident ouvert sur le disque de l'instance annulait le silence de toutes les routines).
+- L'option et « demander mon accord avant d'exécuter » s'excluent (`schemas.delivery_refusal`, appliquée à la création et, sur la ligne RÉSULTANTE, à la mise à jour) : une proposition EST une notification, l'option serait stockée et jamais lue.
+- Les opérations de l'assistant sur les routines (création, mise à jour, lecture) portent l'option par héritage des schémas du Studio ; `routine_operations._CONFIGURATION_FIELDS` la couvre, donc une option changée après l'affichage d'une carte périme la commande.
+- Dans le formulaire (`RoutineDeliveryFields`), chaque option est décrite par son indice (`aria-describedby`), et l'option écartée par « demander mon accord » reste atteignable au clavier (`aria-disabled`, jamais `disabled`) : son indice dit pourquoi, et c'est le gestionnaire qui refuse le changement.
+- **Mesure** : `task routines:quiet:measure` (`scripts/routines/measure_quiet_delivery.py`, payante, à la demande) demande à de vrais modèles, avec le prompt de réponse de production d'un tel tour et des données posées par cinq scénarios, dans les deux modes d'exécution (les données du pipeline, et la réponse de la boucle ReAct qu'une routine utilise par défaut), s'ils déclarent « rien de nouveau » quand il le faut — et jamais quand il y a quelque chose à dire. `--dry-run` n'appelle aucun modèle ; la mesure s'arrête au-delà de `--budget-eur` ; `--instruction FICHIER` mesure une autre instruction à la place du fichier versionné ; la plateforme est posée elle aussi (rien de dégradé). Mesuré le 13/11/2026 sur trois familles × deux modes × cinq scénarios × cinq répétitions (0,60 €) : l'instruction actuelle, qui juge la course sur ce que demande l'instruction de la routine, ne manque aucune notification et en envoie 20 inutiles sur 60 (deux familles se taisent exactement quand il le faut, la troisième n'écrit jamais la balise : elle notifie comme avant) ; la première formulation en envoyait 34 ; un rappel dans le dernier message faisait taire la troisième famille aussi sur une tâche en retard (5 notifications manquées) et a été écarté. Détail dans l'ADR-265, amendement (c).
 
 ### Cloture d'une routine finie (ADR-281)
 
@@ -305,9 +358,9 @@ seule reponse attendue deux fois.
 
 ### Historique des executions et semaine en cours (ADR-265)
 
-`scheduled_action_runs` : une ligne par tick, ecrite par l'executeur AU RESULTAT dans la transaction du marquage (`runs.py::record_run`, savepoint, jamais bloquante) — cinq issues (`success`, `failure`, `skipped_condition`, `proposed`, `skipped_hitl`) et le creneau SERVI (`served_slot` : un run du sert son instant du, un « Tester » apres le creneau du jour le sert, avant ne sert rien). `GET /scheduled-actions/week` (`week.py::build_week`) calcule les sept instants de la semaine de chaque routine avec `week_slots()` depuis le lundi local de SON fuseau, et une cellule prend le DERNIER run dont `slot_at` est EGAL a l'instant : un changement d'horaire remet la grille a blanc par construction. Retention `SCHEDULED_ACTIONS_RUNS_RETENTION_DAYS` (90 j), purge a l'etape 0 du tick, dans sa propre session, jamais fatale. Chaque ligne dont le pipeline a tourne garde `run_id`, l'identifiant du tour execute (ADR-375) : ce que la routine a consulte se lit alors exactement dans les registres (`agent_treatments.run_id`), sans deviner par les instants ; `NULL` pour une occurrence jamais lancee et pour les lignes anterieures a la colonne.
+`scheduled_action_runs` : une ligne par tick, ecrite par l'executeur AU RESULTAT dans la transaction du marquage (`runs.py::record_run`, savepoint, jamais bloquante) — huit issues (`success`, `failure`, `skipped_condition`, `proposed`, `skipped_hitl`, `skipped_busy`, `skipped_quota`, `skipped_late`) et le creneau SERVI (`served_slot` : un run du sert son instant du, un « Tester » apres le creneau du jour le sert, avant ne sert rien). `GET /scheduled-actions/week` (`week.py::build_week`) calcule les sept instants de la semaine de chaque routine avec `week_slots()` depuis le lundi local de SON fuseau, et une cellule prend le DERNIER run dont `slot_at` est EGAL a l'instant : un changement d'horaire remet la grille a blanc par construction. Retention `SCHEDULED_ACTIONS_RUNS_RETENTION_DAYS` (90 j), purge a l'etape 0 du tick, dans sa propre session, jamais fatale. Chaque ligne dont le pipeline a tourne garde `run_id`, l'identifiant du tour execute (ADR-375) : ce que la routine a consulte se lit alors exactement dans les registres (`agent_treatments.run_id`), sans deviner par les instants ; `NULL` pour une occurrence jamais lancee et pour les lignes anterieures a la colonne.
 
-Une routine sur condition n'a pas de creneau (ADR-322) : son run sert la VERIFICATION qui a declenche (`slot_at` = son debut), et ses cellules de la semaine sont ces verifications, chacune a son instant. `skipped_condition` n'a plus de producteur : une verification sans suite n'ecrit que le registre de la routine ; la valeur reste lisible jusqu'a ce que la retention purge les lignes ecrites avant. Une question en attente ecrit `skipped_hitl` pour une routine `time` — sans compter d'execution — et rien pour une routine `condition`, dont les faits restent neufs.
+Une routine sur condition n'a pas de creneau (ADR-322) : son run sert la VERIFICATION qui a declenche (`slot_at` = son debut), et ses cellules de la semaine sont ces verifications, chacune a son instant. `skipped_condition` n'a plus de producteur : une verification sans suite n'ecrit que le registre de la routine ; la valeur reste lisible jusqu'a ce que la retention purge les lignes ecrites avant. Une question en attente ecrit `skipped_hitl` pour une routine `time` — sans compter d'execution — et rien pour une routine `condition`, dont les faits restent neufs. Un compte occupé (`skipped_busy`) et une limite d'utilisation atteinte (`skipped_quota`) suivent la même règle.
 
 ### Recalcul timezone
 
@@ -324,6 +377,8 @@ Quand l'utilisateur modifie son fuseau horaire (dans `users/service.py`), toutes
 | `components/settings/ScheduledActionsSettings.tsx` | Section settings complète : tri chronologique, rangs, grille repliable, cartes |
 | `components/settings/ScheduledActionsTimeline.tsx` | La grille heures × jours (`<table>`, puces `<button>`, focus itinerant, legende, jour courant) — ADR-265 |
 | `components/settings/RoutineNumberChip.tsx` | La puce numerotee partagee par la carte et la grille (cinq tons en jetons du theme) |
+| `components/settings/RoutineTemplatePicker.tsx` | La liste « Modèle » de la création : une routine prête à l'emploi remplit le formulaire en un choix |
+| `lib/routine-templates.ts` | Les modèles (fonctions pures) : `applyRoutineTemplate`, `routineTemplateOf`, `clearRoutineTemplate`, `blankRoutineFields` (le vide du formulaire, une seule source) |
 | `lib/scheduled-actions.ts` | Helpers purs : `numberByTriggerTime`, `buildTimelineGrid`, `chipState`, `rovingTarget`, `routineZones`, `weekDates` |
 | `hooks/useScheduledActions.ts` | Hook CRUD avec optimistic updates, auto-refresh, `initialLoading` monotone et la lecture de `/week` refetchee apres chaque mutation |
 
@@ -334,6 +389,7 @@ Quand l'utilisateur modifie son fuseau horaire (dans `users/service.py`), toutes
 - Boutons : Tester (Play), Modifier (Pencil), Supprimer (Trash2)
 - Dialog creation/edition : d'abord le MODE (« Quand s'exécute-t-elle ? » — sur une planification, ou quand quelque chose se produit), puis les seuls champs de ce mode ; le brouillon de l'autre mode est gardé tant que la boîte est ouverte et jamais envoyé (ADR-322)
 - Routine sur condition : sa cadence et son plafond (publiés par `GET /scheduled-actions`, jamais recopiés), « Surveiller jusqu'au » facultatif, sa dernière vérification et la cause d'un échec, « Vérifier maintenant » à la place de « Tester »
+- **Routines prêtes à l'emploi** (lot 13) : la création — jamais la modification ni la duplication — ouvre sur une liste « Modèle » : briefing du matin (chaque jour à 7 h 30), tri de la boîte de réception (jours de semaine à 8 h, « ne me prévenir que s'il y a du nouveau »), revue de la semaine (dimanche à 18 h), tâche en retard (condition `task_overdue`). Un choix remplit le titre et l'instruction dans la langue de la personne (`scheduled_actions.templates.*`), l'horloge à partir d'aujourd'hui et la livraison ; rien n'est planifié avant l'enregistrement. Le modèle choisi se LIT dans le formulaire (son instruction) : une instruction retouchée n'est plus un modèle, et revenir à « Aucun modèle » ne vide que ce qu'un modèle a rempli. Les instructions du briefing, de la revue et du tri demandent ce que répondent les skills système `briefing-quotidien`, `revue-hebdomadaire` et `tri-boite-reception` (plan fixe, sans planificateur) — détection mesurée par `task skills:detection:measure` (voir [SKILLS_INTEGRATION.md](SKILLS_INTEGRATION.md))
 - Confirmation suppression via AlertDialog
 - Etat vide avec icone et texte explicatif
 - **Auto-refresh** : polling 30s (normal) / 10s (quand une action est en cours d'execution) — sans demonter les cartes : le spinner ne s'affiche qu'au PREMIER chargement, un sondage marque la region `aria-busy`
@@ -365,6 +421,7 @@ Cles `scheduled_actions.*` dans les 6 langues (fr, en, es, de, it, zh).
 | `SCHEDULED_ACTIONS_WEATHER_HORIZON_HOURS` | `…_DEFAULT` (`core/constants.py`) | Horizon d'une routine météo : un changement dû dans ce nombre d'heures, l'heure en cours comprise (ADR-322, amendement 2026-09-29) |
 | `SCHEDULED_ACTIONS_WEATHER_MIN_PRECIPITATION_PERCENT` | `…_DEFAULT` (`core/constants.py`) | Probabilité de précipitations qu'une heure prévue doit dépasser STRICTEMENT pour déclencher une routine météo |
 | `SCHEDULED_ACTIONS_CONDITION_MAX_FIRES_PER_DAY` | `…_DEFAULT` (`core/constants.py`) | Exécutions au plus par routine sur condition et par jour local |
+| `SCHEDULED_ACTIONS_QUOTA_NOTICE_COOLDOWN_HOURS` | `…_DEFAULT` (`core/constants.py`) | Fenêtre pendant laquelle un compte n'est pas reprévenu que sa limite d'utilisation écarte ses routines (ADR-265, amendement 2026-11-12) |
 
 ---
 

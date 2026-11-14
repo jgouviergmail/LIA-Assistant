@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import apiClient from '@/lib/api-client';
 import { useCompanionEnvironmentStore as store } from '@/stores/companionEnvironmentStore';
 import { useCompanionEnvironment } from '../useCompanionEnvironment';
@@ -131,4 +131,122 @@ it('stays neutral on malformed payload or network failure, then can recover', as
   await act(async () => vi.advanceTimersByTime(15 * 60_000));
   expect(store.getState().environment).toEqual(result);
   view.unmount();
+});
+
+describe('a newer weather LIA read reaches the face at once (ADR-294, 2026-11-13)', () => {
+  const NOW = Date.parse('2026-09-21T12:00:00Z');
+  const reading = (condition: string, minutesAgo: number) => ({
+    timezone: 'UTC',
+    weather: {
+      temperature_c: 12,
+      condition_code: condition,
+      wind_speed_kmh: 5,
+      observed_at: new Date(NOW - minutesAgo * 60_000).toISOString(),
+      expires_at: new Date(NOW + 40 * 60_000).toISOString(),
+    },
+  });
+
+  it('reads it when told, not at the next quarter hour', async () => {
+    vi.setSystemTime(NOW);
+    vi.mocked(apiClient.get)
+      .mockResolvedValueOnce(reading('Clear', 10))
+      .mockResolvedValueOnce(reading('Rain', 0));
+    const view = renderHook(() => useCompanionEnvironment(true));
+    await flush();
+    expect(store.getState().environment?.weather?.condition_code).toBe('Clear');
+
+    await act(async () => store.getState().requestRefresh());
+    await flush();
+
+    expect(apiClient.get).toHaveBeenCalledTimes(2);
+    expect(store.getState().environment?.weather?.condition_code).toBe('Rain');
+    view.unmount();
+  });
+
+  it('reads once more after a read that was already on its way', async () => {
+    // That read may have left before the newer observation was kept.
+    let answer!: (value: unknown) => void;
+    vi.mocked(apiClient.get)
+      .mockImplementationOnce(() => new Promise(resolve => void (answer = resolve)))
+      .mockResolvedValue(result);
+    const view = renderHook(() => useCompanionEnvironment(true));
+    await flush();
+
+    await act(async () => store.getState().requestRefresh());
+    expect(apiClient.get).toHaveBeenCalledTimes(1);
+    await act(async () => answer(result));
+    await flush();
+
+    expect(apiClient.get).toHaveBeenCalledTimes(2);
+    view.unmount();
+  });
+
+  it('keeps a request made out of sight for the moment the page is looked at', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue(result);
+    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+    const view = renderHook(() => useCompanionEnvironment(true));
+    await flush();
+    hidden.mockReturnValue(true);
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+
+    await act(async () => store.getState().requestRefresh());
+    expect(apiClient.get).toHaveBeenCalledTimes(1);
+    hidden.mockReturnValue(false);
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await flush();
+
+    // Inside the quarter hour: only the request makes it read again.
+    expect(apiClient.get).toHaveBeenCalledTimes(2);
+    view.unmount();
+  });
+
+  it('serves a request the hidden page cut short with one read on return, not two', async () => {
+    // The read on its way is abandoned when the page hides; the read the page
+    // makes on return is newer than the request, so nothing is left to read again.
+    vi.mocked(apiClient.get)
+      .mockImplementationOnce(() => new Promise(() => undefined))
+      .mockResolvedValue(result);
+    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+    const view = renderHook(() => useCompanionEnvironment(true));
+    await flush();
+
+    await act(async () => store.getState().requestRefresh());
+    hidden.mockReturnValue(true);
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    hidden.mockReturnValue(false);
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await flush();
+    await flush();
+
+    expect(apiClient.get).toHaveBeenCalledTimes(2);
+    view.unmount();
+  });
+
+  it('lets go of the store when it unmounts', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue(result);
+    const subscribe = store.subscribe;
+    const released = vi.fn();
+    vi.spyOn(store, 'subscribe').mockImplementation(listener => {
+      const unsubscribe = subscribe(listener);
+      return () => {
+        released();
+        unsubscribe();
+      };
+    });
+    const view = renderHook(() => useCompanionEnvironment(true));
+    await flush();
+
+    view.unmount();
+
+    expect(released).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks nothing of an account that shows no face', async () => {
+    const view = renderHook(() => useCompanionEnvironment(false));
+
+    await act(async () => store.getState().requestRefresh());
+
+    expect(apiClient.get).not.toHaveBeenCalled();
+    view.unmount();
+  });
 });

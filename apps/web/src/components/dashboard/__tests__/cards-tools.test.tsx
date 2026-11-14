@@ -301,6 +301,34 @@ describe('tasks', () => {
     expect(href).toBe('/en/dashboard/tools/tasks?list=L1&task=t1');
   });
 
+  it('gathers every list: each task opens, and is done, in its own', async () => {
+    seams.patch.mockResolvedValue({});
+    const other = { ...TASK, id: 't2', list_id: 'L2', list_name: 'Courses', title: 'Pain' };
+    const { user } = renderWithProviders(
+      <TasksCard
+        {...cardProps}
+        section={section({ overdue_count: 0, items: [{ ...TASK, list_name: 'Perso' }, other] })}
+      />
+    );
+
+    expect(
+      screen.getByRole('link', { name: /open_in\.task\|subject=Payer la facture/ })
+    ).toHaveAttribute('href', '/en/dashboard/tools/tasks?list=L1&task=t1');
+    const second = screen.getByRole('link', { name: /open_in\.task\|subject=Pain/ });
+    expect(second).toHaveAttribute('href', '/en/dashboard/tools/tasks?list=L2&task=t2');
+    expect(within(second).getByTitle('Courses')).toBeInTheDocument();
+
+    await openCardActions(user, 1);
+    await user.click(screen.getByRole('menuitem', { name: /home_acts\.done/ }));
+
+    await waitFor(() => expect(onInvalidate).toHaveBeenCalledTimes(1));
+    expect(seams.patch).toHaveBeenCalledWith('/workbench/tasks', {
+      list_id: 'L2',
+      task_id: 't2',
+      completed: true,
+    });
+  });
+
   it('holds done, tomorrow, a reminder, then LIA’s help', async () => {
     const { user } = renderWithProviders(<TasksCard {...cardProps} section={TASKS} />);
 

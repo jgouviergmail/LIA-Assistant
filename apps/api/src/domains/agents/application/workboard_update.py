@@ -186,6 +186,21 @@ def _answer_update_preview(
     return previews, note if isinstance(note, str) else None, answer
 
 
+async def _target_category_name(
+    db: AsyncSession, actor_id: UUID, request: WorkboardUpdateInput
+) -> str | None:
+    """The name of the category an update files the ticket under, for the card.
+
+    Read among the categories on the ACTOR's own board: the source refuses an
+    id that is not one of the owner's, and this never names one the actor
+    cannot see.
+    """
+    target = request.category_id or (request.move.category_id if request.move else None)
+    if target is None:
+        return None
+    return (await WorkboardService(db).categories.repo.names(actor_id, {target})).get(target)
+
+
 def _pending_update_flags(raw: dict[str, JsonValue]) -> tuple[bool, bool]:
     pending = raw.get("pending_action")
     return bool(pending), isinstance(pending, dict) and pending.get("approved") is True
@@ -224,6 +239,7 @@ async def prepare_workboard_update(
     if request.assignee_user_id is not None:
         peer = await db.get(User, request.assignee_user_id, populate_existing=True)
         holder_name = peer.full_name if peer else None
+    category_name = await _target_category_name(db, actor_id, request)
     predicted = await preview_ticket_mutation(
         db,
         actor_id,
@@ -248,6 +264,7 @@ async def prepare_workboard_update(
         pending_after=pending_after,
         pending_approved=pending_approved,
         holder_name=holder_name,
+        category_name=category_name,
         owner_id=owner_id,
         requires_peers=bool(state["requires_peers"]),
         statuses=statuses,

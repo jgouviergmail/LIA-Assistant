@@ -1,9 +1,10 @@
 """A home card's item carries what its tool needs to open it (2026-11-07).
 
 A click on an item opens it in the Tools: the agenda names the calendar and the
-event (and the video call it holds), the tasks card names the REAL list — an
-alias such as Google's ``@default`` is unknown to the Tools, and a task opened
-under the wrong list would be written to the wrong list.
+event (and the video call it holds), the tasks card names each task's REAL
+list — an alias such as Google's ``@default`` is unknown to the Tools, and a
+task opened under the wrong list would be written to the wrong list. The card
+reads every list (2026-11-10), so the ids are the provider's own listing.
 """
 
 from __future__ import annotations
@@ -15,7 +16,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-import httpx
 import pytest
 
 from src.domains.briefing.fetchers import fetch_agenda, fetch_tasks
@@ -98,20 +98,19 @@ class TestAgendaItemAddress:
         assert {"hangoutLink", "conferenceData"} <= set(fields)
 
 
-def _tasks_client(*, default_list: object) -> MagicMock:
+def _tasks_client(lists: list[dict[str, str]]) -> MagicMock:
+    """A provider with these lists, each holding one task named after it."""
+
+    async def read(list_id: str, **kwargs: object) -> dict[str, object]:
+        return {"items": [{"id": f"t-{list_id}", "title": "Pay", "status": "needsAction"}]}
+
     client = MagicMock()
-    client.list_tasks = AsyncMock(
-        return_value={"items": [{"id": "t-1", "title": "Pay", "status": "needsAction"}]}
-    )
-    client.get_task_list = (
-        AsyncMock(side_effect=default_list)
-        if isinstance(default_list, Exception)
-        else AsyncMock(return_value=default_list)
-    )
+    client.list_task_lists = AsyncMock(return_value={"items": lists, "next_page_token": None})
+    client.list_tasks = AsyncMock(side_effect=read)
     return client
 
 
-async def _tasks_card(client: MagicMock, *, resolved: str):
+async def _tasks_card(client: MagicMock):
     @asynccontextmanager
     async def door(category, user_id, *, container=None):
         yield ActiveClient(client=client, connector_type=MagicMock(), preferred_name=None)
@@ -123,37 +122,31 @@ async def _tasks_card(client: MagicMock, *, resolved: str):
     )
     with ExitStack() as stack:
         stack.enter_context(patch("src.domains.connectors.active_client.open_active_client", door))
-        stack.enter_context(
-            patch(
-                "src.domains.connectors.preferences.owner_defaults.resolve_owner_container_id",
-                AsyncMock(return_value=resolved),
-            )
-        )
         stack.enter_context(patch("src.domains.briefing.fetchers.settings", settings))
         return await fetch_tasks(user=_user(), user_tz=PARIS)
 
 
 class TestTaskItemAddress:
-    async def test_a_configured_list_is_named_as_it_is(self) -> None:
-        client = _tasks_client(default_list={"id": "unused"})
+    async def test_each_task_is_named_under_the_list_it_was_read_from(self) -> None:
+        """Two lists, two addresses: a task opened under another list than its own
+        would be written there."""
+        client = _tasks_client(
+            [{"id": "MTIzNDU2", "title": "My Tasks"}, {"id": "list-courses", "title": "Courses"}]
+        )
 
-        data = await _tasks_card(client, resolved="list-perso")
+        data = await _tasks_card(client)
 
-        assert [(item.list_id, item.id) for item in data.items] == [("list-perso", "t-1")]
-        client.get_task_list.assert_not_awaited()
+        assert sorted((item.list_id, item.id, item.list_name) for item in data.items) == [
+            ("MTIzNDU2", "t-MTIzNDU2", "My Tasks"),
+            ("list-courses", "t-list-courses", "Courses"),
+        ]
 
-    async def test_the_default_alias_is_named_by_its_real_id(self) -> None:
-        client = _tasks_client(default_list={"id": "MTIzNDU2", "title": "My Tasks"})
+    async def test_no_alias_is_ever_asked_nor_named(self) -> None:
+        """The ids are the provider's own listing: ``@default`` names no list the Tools know."""
+        client = _tasks_client([{"id": "MTIzNDU2", "title": "My Tasks"}])
 
-        data = await _tasks_card(client, resolved="@default")
+        data = await _tasks_card(client)
 
+        assert [call.args for call in client.list_tasks.await_args_list] == [("MTIzNDU2",)]
         assert [item.list_id for item in data.items] == ["MTIzNDU2"]
-        client.get_task_list.assert_awaited_once_with("@default")
-
-    async def test_an_unreadable_default_list_keeps_the_card(self) -> None:
-        """The address is a convenience: the card's tasks never depend on it."""
-        client = _tasks_client(default_list=httpx.ConnectError("down"))
-
-        data = await _tasks_card(client, resolved="@default")
-
-        assert [(item.title, item.list_id) for item in data.items] == [("Pay", None)]
+        client.get_task_list.assert_not_called()

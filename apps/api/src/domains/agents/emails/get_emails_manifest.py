@@ -26,6 +26,16 @@ WHOLE_CONVERSATION_DESCRIPTION = (
     f"(the newest {EMAILS_TOOL_ID_BATCH_MAX} when it holds more; `conversation_truncated` says so)"
 )
 
+#: One wording for the manifest and the tool's own description (the ReAct loop binds the
+#: schema, never the manifest): what a message says of its conversation (ADR-379).
+REPLY_STATE_DESCRIPTION = (
+    "each message carries `reply_state` when its mailbox could tell where it stands in its "
+    "conversation: `answered` (the person already replied; `summary` says when, to whom and "
+    "their first words), `answer_drafted` (an unsent reply sits in their drafts), "
+    "`unanswered`, and for a message the person sent `reply_received` or `awaiting_reply`; "
+    "`not_checked` or no `reply_state` means not known"
+)
+
 # ============================================================================
 # 1. GET EMAILS (Unified - replaces search + details)
 # ============================================================================
@@ -84,7 +94,7 @@ _get_emails_desc = (
     "`set_aside_on_page`, when present, counts messages of this page that a date or read-state "
     "condition set aside after the provider's search — the page holds fewer than asked and "
     "`next_page_token` may hold more matches; `conversation_truncated`, when present, says the "
-    "conversation holds older messages than those read."
+    f"conversation holds older messages than those read; {REPLY_STATE_DESCRIPTION}."
 )
 
 get_emails_catalogue_manifest = ToolManifest(

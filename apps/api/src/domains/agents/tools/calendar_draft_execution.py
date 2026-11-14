@@ -8,6 +8,7 @@ calendar, and perform the actual create/update/delete.
 
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import structlog
 
@@ -16,7 +17,14 @@ from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.calendar.answer_manifest import EVENT_ANSWERS
 from src.domains.agents.calendar.event_options import event_options
 from src.domains.agents.effects.scope import current_scope
-from src.domains.connectors.clients.event_recurrence import first_day_of, series_bounds
+from src.domains.connectors.clients.event_bounds import (
+    BoundsChange,
+    bounds_of,
+    change_of,
+    series_bounds,
+)
+from src.domains.connectors.clients.event_recurrence import first_day_of
+from src.domains.connectors.clients.protocols import CalendarClientProtocol
 from src.domains.connectors.models import ConnectorType
 
 logger = structlog.get_logger(__name__)
@@ -124,18 +132,22 @@ async def execute_event_draft(
     # The effect's key names this act, so a resend inside the client is the same act (S1).
     scope = current_scope()
 
-    result = await client.create_event(
+    # Typed as the calendars' contract: bounds, never text (ADR-380).
+    calendar: CalendarClientProtocol = client
+    result = await calendar.create_event(
         summary=draft_content["summary"],
-        start_datetime=draft_content["start_datetime"],
-        end_datetime=draft_content["end_datetime"],
-        timezone=draft_content.get("timezone", DEFAULT_USER_DISPLAY_TIMEZONE),
+        bounds=bounds_of(
+            draft_content["start_datetime"],
+            draft_content["end_datetime"],
+            _zone(draft_content),
+            all_day=bool(draft_content.get("all_day", False)),
+        ),
         description=draft_content.get("description"),
         location=draft_content.get("location"),
         attendees=draft_content.get("attendees"),
         calendar_id=calendar_id,
         add_conference=draft_content.get("add_conference", False),
         idempotency_key=scope.idempotency_key if scope is not None else None,
-        all_day=bool(draft_content.get("all_day", False)),
         options=event_options(draft_content),
     )
 
@@ -186,10 +198,15 @@ def extract_conference_link(event: dict[str, Any]) -> str | None:
     )
 
 
+def _zone(draft_content: dict[str, Any]) -> ZoneInfo:
+    """The zone a draft's times were written in: the person's."""
+    return ZoneInfo(draft_content.get("timezone") or DEFAULT_USER_DISPLAY_TIMEZONE)
+
+
 async def _reached(
     client: Any, draft_content: dict[str, Any], calendar_id: str
-) -> tuple[str, str | None, str | None]:
-    """What an act reaches: this event, or its whole series from the series' first day.
+) -> tuple[str, dict[str, Any] | None]:
+    """What an act reaches: this event, or the whole series it belongs to.
 
     Args:
         client: The calendar client.
@@ -197,22 +214,40 @@ async def _reached(
         calendar_id: The event's calendar.
 
     Returns:
-        The event to act on, and its bounds.
+        The event to act on, and the series' own event when the act reaches a series.
     """
     event_id: str = draft_content["event_id"]
-    start, end = draft_content.get("start_datetime"), draft_content.get("end_datetime")
     if draft_content.get("scope") != "series":
-        return event_id, start, end
+        return event_id, None
     occurrence = await client.get_event(event_id, calendar_id)
     series_id = occurrence.get("recurringEventId") or event_id
     master = occurrence if series_id == event_id else await client.get_event(series_id, calendar_id)
-    zone = draft_content.get("timezone") or DEFAULT_USER_DISPLAY_TIMEZONE
-    first_day = first_day_of(master, zone)
+    return series_id, master
+
+
+def _new_bounds(
+    draft_content: dict[str, Any], master: dict[str, Any] | None
+) -> BoundsChange | None:
+    """What a confirmed change says of the event's bounds (``event_bounds``, ADR-380).
+
+    Args:
+        draft_content: The draft.
+        master: The series' own event when the change reaches a whole series.
+
+    Returns:
+        An event's own bounds as the draft gives them; a series' from its first
+        day, and only when a move was asked; None when no bound changes.
+    """
+    zone = _zone(draft_content)
+    start, end = draft_content.get("start_datetime"), draft_content.get("end_datetime")
+    if master is None:
+        return change_of(start, end, zone, all_day=draft_content.get("all_day"))
+    first_day = first_day_of(master, zone.key)
     if not draft_content.get("moves_series") or not start or not end or first_day is None:
         # What was not asked is not sent: a provider resets a series' exceptions on a new start.
-        return series_id, None, None
+        return None
     all_day = bool(draft_content.get("all_day")) or "T" not in start
-    return (series_id, *series_bounds(first_day, start, end, all_day=all_day))
+    return series_bounds(first_day, bounds_of(start, end, zone, all_day=all_day))
 
 
 async def execute_event_update_draft(
@@ -241,18 +276,17 @@ async def execute_event_update_draft(
     client, resolved_type = await resolve_client_for_category("calendar", user_id, deps)
     calendar_id = await _resolve_calendar_id(draft_content, client, user_id, resolved_type, deps)
 
-    event_id, start, end = await _reached(client, draft_content, calendar_id)
-    result = await client.update_event(
+    event_id, master = await _reached(client, draft_content, calendar_id)
+    # Typed as the calendars' contract: bounds, never text (ADR-380).
+    calendar: CalendarClientProtocol = client
+    result = await calendar.update_event(
         event_id=event_id,
         summary=draft_content.get("summary"),
-        start_datetime=start,
-        end_datetime=end,
-        timezone=draft_content.get("timezone", DEFAULT_USER_DISPLAY_TIMEZONE),
+        bounds=_new_bounds(draft_content, master),
         description=draft_content.get("description"),
         location=draft_content.get("location"),
         attendees=draft_content.get("attendees"),
         calendar_id=calendar_id,
-        all_day=draft_content.get("all_day"),
         # The attendees are told, as a deletion tells them and as Graph always does (D2).
         send_updates=draft_content.get("send_updates", "all"),
         add_conference=bool(draft_content.get("add_conference")),
@@ -342,7 +376,7 @@ async def execute_event_delete_draft(
     client, resolved_type = await resolve_client_for_category("calendar", user_id, deps)
     calendar_id = await _resolve_calendar_id(draft_content, client, user_id, resolved_type, deps)
 
-    event_id, _, _ = await _reached(client, draft_content, calendar_id)
+    event_id, _ = await _reached(client, draft_content, calendar_id)
     await client.delete_event(
         event_id=event_id,
         send_updates=draft_content.get("send_updates", "all"),

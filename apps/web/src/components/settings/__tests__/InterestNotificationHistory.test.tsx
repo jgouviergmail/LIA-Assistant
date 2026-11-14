@@ -81,6 +81,17 @@ describe('InterestNotificationHistory', () => {
     expect(screen.getByText('interests.history.source_perplexity')).toBeInTheDocument();
   });
 
+  it("names the instance's web search by its own label (lot 18)", () => {
+    renderWithProviders(
+      <InterestNotificationHistory
+        {...makeProps({ notifications: [notification({ source: 'searxng' })] })}
+      />
+    );
+
+    expect(screen.getByText('interests.history.source_searxng')).toBeInTheDocument();
+    expect(screen.queryByText('searxng')).not.toBeInTheDocument();
+  });
+
   it('never shows a raw i18n key for a provider it does not know', () => {
     renderWithProviders(
       <InterestNotificationHistory

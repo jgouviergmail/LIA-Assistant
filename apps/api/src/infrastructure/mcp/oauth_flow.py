@@ -87,16 +87,31 @@ _OAUTH_ERROR_CODES: frozenset[str] = frozenset(
 _NATIVE_CALLBACK_HOSTS: frozenset[str] = frozenset({"localhost", "127.0.0.1", "::1"})
 
 
-def _derive_application_type(callback_base_url: str) -> str:
-    """Derive the OIDC ``application_type`` from the OAuth callback base URL.
+def oauth_redirect_uri() -> str | None:
+    """This instance's MCP OAuth callback: the one door every reader goes through.
+
+    The authorization request, the code exchange and a dynamic registration must send
+    the SAME address, and a person who brings their own OAuth application declares it
+    there (``GET /mcp/servers/known`` publishes it).
+
+    Returns:
+        ``MCP_USER_OAUTH_CALLBACK_BASE_URL`` followed by the callback path, or ``None``
+        when the base URL is not configured (no OAuth flow can run).
+    """
+    base = getattr(settings, "mcp_user_oauth_callback_base_url", None)
+    return f"{base}{MCP_USER_OAUTH_CALLBACK_PATH}" if base else None
+
+
+def _derive_application_type(callback_url: str) -> str:
+    """Derive the OIDC ``application_type`` from the OAuth callback address.
 
     Args:
-        callback_base_url: Configured ``MCP_USER_OAUTH_CALLBACK_BASE_URL``.
+        callback_url: The callback ``oauth_redirect_uri`` answers.
 
     Returns:
         ``"native"`` for loopback-hosted callbacks, ``"web"`` otherwise.
     """
-    host = urlparse(callback_base_url).hostname or ""
+    host = urlparse(callback_url).hostname or ""
     return "native" if host in _NATIVE_CALLBACK_HOSTS else "web"
 
 
@@ -153,6 +168,19 @@ class MCPAuthServerMetadata:
         return "S256" in self.code_challenge_methods_supported
 
 
+def _binding_from_state(state_data: dict) -> str | None:
+    """The binding a consent's state recorded at initiation.
+
+    Args:
+        state_data: The consumed state.
+
+    Returns:
+        The recorded binding, or ``None`` for a state written before bindings existed.
+    """
+    recorded = state_data.get("binding")
+    return recorded if isinstance(recorded, str) else None
+
+
 class MCPOAuthFlowHandler:
     """
     Handles the MCP OAuth 2.1 authentication flow.
@@ -169,6 +197,8 @@ class MCPOAuthFlowHandler:
     def __init__(self) -> None:
         self._http_client = httpx.AsyncClient(timeout=settings.mcp_oauth_http_timeout_seconds)
         self.application_command_id: UUID | None = None
+        # What the consent was asked for, read back from the state by the callback.
+        self.binding: str | None = None
 
     async def __aenter__(self) -> MCPOAuthFlowHandler:
         return self
@@ -290,6 +320,7 @@ class MCPOAuthFlowHandler:
         *,
         application_command_id: UUID | None = None,
         application_check: MCPApplicationOAuthCheck | None = None,
+        binding: str | None = None,
     ) -> tuple[str, dict]:
         """
         Build the OAuth authorization URL with PKCE.
@@ -306,6 +337,10 @@ class MCPOAuthFlowHandler:
                 from. When the discovered issuer differs, the credentials are
                 discarded and re-registration runs against the new server
                 (spec 2026-07-28: credentials are bound to their issuer).
+            application_command_id: The assistant command this consent serves, if any.
+            application_check: The assistant's guard, run before every effect.
+            binding: An opaque witness of the server row the consent is asked for,
+                kept in the state and handed back to the callback (``self.binding``).
 
         Returns:
             Tuple of (authorization_url, metadata_to_cache).
@@ -394,6 +429,7 @@ class MCPOAuthFlowHandler:
             "token_endpoint": metadata.token_endpoint,
             # RFC 9207: recorded issuer, validated against the callback `iss`
             "issuer": metadata.issuer or None,
+            "binding": binding,
         }
         # Remember which surface started this, so the callback can send the
         # user back where they came from (ADR-246). Unlike the connector flows,
@@ -407,10 +443,9 @@ class MCPOAuthFlowHandler:
         await self._store_state(state, state_data)
 
         # Build redirect URI
-        callback_base = getattr(settings, "mcp_user_oauth_callback_base_url", None)
-        if not callback_base:
+        redirect_uri = oauth_redirect_uri()
+        if redirect_uri is None:
             raise ValueError("MCP_USER_OAUTH_CALLBACK_BASE_URL must be configured for OAuth flows")
-        redirect_uri = f"{callback_base}{MCP_USER_OAUTH_CALLBACK_PATH}"
 
         # Build authorization URL
         # Use user-specified scopes if provided, otherwise fall back to auto-discovered
@@ -502,6 +537,7 @@ class MCPOAuthFlowHandler:
         if not state_data:
             raise ValueError("Invalid or expired OAuth state token")
         self.application_command_id = application_command_from_state(state_data)
+        self.binding = _binding_from_state(state_data)
 
         # RFC 9207 (spec 2026-07-28): validate a present `iss` against the
         # recorded issuer BEFORE the authorization code goes anywhere. Both
@@ -535,10 +571,9 @@ class MCPOAuthFlowHandler:
         mcp_url = state_data["mcp_url"]
 
         # Build redirect URI (must match initiate_flow)
-        callback_base = getattr(settings, "mcp_user_oauth_callback_base_url", None)
-        if not callback_base:
+        redirect_uri = oauth_redirect_uri()
+        if redirect_uri is None:
             raise ValueError("MCP_USER_OAUTH_CALLBACK_BASE_URL must be configured for OAuth flows")
-        redirect_uri = f"{callback_base}{MCP_USER_OAUTH_CALLBACK_PATH}"
 
         # Exchange code for tokens
         token_data = {
@@ -787,11 +822,9 @@ class MCPOAuthFlowHandler:
         mcp_url: str,
     ) -> dict[str, Any] | None:
         """Try Dynamic Client Registration (RFC 7591)."""
-        callback_base = getattr(settings, "mcp_user_oauth_callback_base_url", None)
-        if not callback_base:
+        redirect_uri = oauth_redirect_uri()
+        if redirect_uri is None:
             return None
-
-        redirect_uri = f"{callback_base}{MCP_USER_OAUTH_CALLBACK_PATH}"
 
         # SEC-008: `registration_endpoint` is another server-supplied URL, and
         # this POST publishes our callback URI to it. Returning None keeps the
@@ -811,7 +844,7 @@ class MCPOAuthFlowHandler:
                     "scope": "",
                     # Spec 2026-07-28: MUST be specified; OIDC servers use it
                     # to validate redirect URIs, non-OIDC servers ignore it.
-                    "application_type": _derive_application_type(callback_base),
+                    "application_type": _derive_application_type(redirect_uri),
                 },
                 timeout=settings.mcp_oauth_http_timeout_seconds,
             )

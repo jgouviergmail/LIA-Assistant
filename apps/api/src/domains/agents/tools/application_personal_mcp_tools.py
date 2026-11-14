@@ -246,7 +246,8 @@ async def configure_lia_personal_mcp_server_tool(
     """Prepare browser-only personal MCP setup without asking for secret values.
 
     Args:
-        request: Exact owned server, or empty object to create.
+        request: Exact owned server, the key of a known server to add, or empty
+            object to create.
         runtime: Injected originating authenticated browser.
 
     Returns:

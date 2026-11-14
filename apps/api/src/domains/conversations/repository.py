@@ -12,11 +12,12 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.core.conversation_target import ConversationKind, ConversationRef
 from src.core.field_names import (
     FIELD_CREATED_AT,
     FIELD_FEEDBACK_SUBMITTED,
@@ -29,11 +30,13 @@ from src.core.field_names import (
     FIELD_TOTAL_TOKENS_CACHE,
     FIELD_TOTAL_TOKENS_IN,
     FIELD_TOTAL_TOKENS_OUT,
+    FIELD_USER_MESSAGE_COUNT,
 )
 from src.core.repository import BaseRepository
+from src.domains.conversations.catalogue_repository import ConversationCatalogueRepository
 from src.domains.conversations.message_reads import (
-    matching_content,
-    older_than,
+    TokenSummaryPayload,
+    history_with_tokens,
     out_of_graph_rows,
     token_summary_payload,
     visible_only,
@@ -43,6 +46,7 @@ from src.domains.conversations.models import (
     ConversationAuditLog,
     ConversationMessage,
 )
+from src.infrastructure.database.errors import database_error_fields
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -66,100 +70,39 @@ class ConversationRepository(BaseRepository[Conversation]):
         super().__init__(db, Conversation)
 
     async def get_active_for_user(self, user_id: UUID) -> Conversation | None:
-        """
-        Get active (non-deleted) conversation for user.
+        """Compatibility alias for the account's active Main; never creates it."""
+        return await ConversationCatalogueRepository(self.db).get_primary(user_id)
 
-        Current implementation: 1:1 mapping between user and conversation.
-        Future: May support multiple conversations per user.
+    async def increment_stats(self, conversation_id: UUID, *, messages: int, tokens: int) -> bool:
+        """Add counters atomically on PostgreSQL; stale identity maps cannot lose writes.
 
         Args:
-            user_id: User UUID
+            conversation_id: Discussion whose generation the caller authorized.
+            messages: Number of newly archived messages.
+            tokens: Billed token increment.
 
         Returns:
-            Active conversation or None if not exists
-
-        Example:
-            >>> repo = ConversationRepository(db)
-            >>> conversation = await repo.get_active_for_user(user_id)
-            >>> if conversation:
-            ...     print(f"Found conversation {conversation.id}")
+            Whether the active discussion exists. The caller owns the commit.
         """
-        try:
-            stmt = (
-                select(Conversation)
-                .where(Conversation.user_id == user_id)
-                .where(Conversation.deleted_at.is_(None))
-                .order_by(Conversation.created_at.desc())
-                .limit(1)
-            )
-
-            result = await self.db.execute(stmt)
-            conversation = result.scalar_one_or_none()
-
-            if conversation:
-                logger.debug(
-                    "active_conversation_found",
-                    user_id=str(user_id),
-                    conversation_id=str(conversation.id),
+        return (
+            await self.db.scalar(
+                update(Conversation)
+                .where(Conversation.id == conversation_id, Conversation.deleted_at.is_(None))
+                .values(
+                    message_count=Conversation.message_count + messages,
+                    total_tokens=Conversation.total_tokens + tokens,
                 )
-            else:
-                logger.debug(
-                    "no_active_conversation",
-                    user_id=str(user_id),
-                )
-
-            return conversation
-
-        except (SQLAlchemyError, IntegrityError, OperationalError) as e:
-            logger.error(
-                "get_active_conversation_failed",
-                user_id=str(user_id),
-                error=str(e),
+                .returning(Conversation.id)
             )
-            raise
+            is not None
+        )
 
     async def get_soft_deleted_for_user(self, user_id: UUID) -> Conversation | None:
-        """
-        Get soft-deleted conversation for user (deleted_at IS NOT NULL).
-
-        Used by get_or_create to check if a conversation needs reactivation
-        instead of creating a new one (which would violate unique constraint).
-
-        Args:
-            user_id: User UUID
-
-        Returns:
-            Soft-deleted conversation or None if not exists
-        """
-        try:
-            stmt = (
-                select(Conversation)
-                .where(Conversation.user_id == user_id)
-                .where(Conversation.deleted_at.isnot(None))
-                .order_by(Conversation.deleted_at.desc())
-                .limit(1)
-            )
-
-            result = await self.db.execute(stmt)
-            conversation = result.scalar_one_or_none()
-
-            if conversation:
-                logger.debug(
-                    "soft_deleted_conversation_found",
-                    user_id=str(user_id),
-                    conversation_id=str(conversation.id),
-                    deleted_at=str(conversation.deleted_at),
-                )
-
-            return conversation
-
-        except (SQLAlchemyError, IntegrityError, OperationalError) as e:
-            logger.error(
-                "get_soft_deleted_conversation_failed",
-                user_id=str(user_id),
-                error=str(e),
-            )
-            raise
+        """Return the legacy retired Main, never a retired annex."""
+        row = await ConversationCatalogueRepository(self.db).get_primary(
+            user_id, include_deleted=True
+        )
+        return row if row is not None and row.deleted_at is not None else None
 
     async def reactivate_conversation(
         self,
@@ -182,6 +125,7 @@ class ConversationRepository(BaseRepository[Conversation]):
         from datetime import UTC, datetime
 
         try:
+            previous_deleted_at = conversation.deleted_at
             conversation.deleted_at = None
             if new_title:
                 conversation.title = new_title
@@ -195,7 +139,7 @@ class ConversationRepository(BaseRepository[Conversation]):
                 audit_metadata={
                     "reactivated_at": datetime.now(UTC).isoformat(),
                     "previous_deleted_at": (
-                        str(conversation.deleted_at) if conversation.deleted_at else None
+                        str(previous_deleted_at) if previous_deleted_at else None
                     ),
                 },
             )
@@ -216,7 +160,7 @@ class ConversationRepository(BaseRepository[Conversation]):
             logger.error(
                 "reactivate_conversation_failed",
                 conversation_id=str(conversation.id),
-                error=str(e),
+                **database_error_fields(e),
             )
             raise
 
@@ -293,7 +237,7 @@ class ConversationRepository(BaseRepository[Conversation]):
             logger.error(
                 "get_messages_failed",
                 conversation_id=str(conversation_id),
-                error=str(e),
+                **database_error_fields(e),
             )
             raise
 
@@ -301,10 +245,10 @@ class ConversationRepository(BaseRepository[Conversation]):
         self,
         conversation_id: UUID,
         limit: int = 50,
-        search: str | None = None,
         before_created_at: datetime | None = None,
         include_hidden: bool = False,
-    ) -> Sequence[tuple[ConversationMessage, dict[str, Any] | None]]:
+        before_message_id: UUID | None = None,
+    ) -> Sequence[tuple[ConversationMessage, TokenSummaryPayload | None]]:
         """
         Get messages with their token summaries in a single optimized query.
 
@@ -314,14 +258,11 @@ class ConversationRepository(BaseRepository[Conversation]):
         Args:
             conversation_id: Conversation UUID
             limit: Maximum number of messages
-            search: Optional substring to filter message content. Case- and
-                    accent-insensitive (ILIKE + unaccent on both sides); LIKE
-                    wildcards in the term are treated as literals.
             before_created_at: Keyset pagination cursor. When provided, only
                 returns messages older than this timestamp (strict ``<``).
-                Combined with the existing
-                ``ix_conversation_messages_conv_created`` index for
-                index-only scan, regardless of conversation length.
+                The history-position index covers the complete ordering.
+            include_hidden: Whole-record access for explicit archival readers.
+            before_message_id: Tie-breaking primary key for a composite cursor.
 
         Returns:
             List of (message, token_summary_dict) tuples.
@@ -333,10 +274,9 @@ class ConversationRepository(BaseRepository[Conversation]):
             useless to the scroll-up UI, which only needs ``has_more``.
             ``has_more`` is computed by the caller via the ``limit + 1`` trick.
 
-        Performance:
-            - Old: 1 query for messages + N queries for token summaries
-            - New: 1 query with LEFT JOIN
-            - Improvement: ~50% faster for typical conversation
+        One query joins owner-bound billing. For chat reads the newest visible
+        answer alone carries it, even across pages. Legacy summaries without a
+        discussion belong to the same owner's Main only.
 
         Example:
             >>> results = await repo.get_messages_with_token_summaries(conv_id)
@@ -345,23 +285,13 @@ class ConversationRepository(BaseRepository[Conversation]):
             ...         print(f"Message used {token_summary['total_tokens']} tokens")
         """
         try:
-            from src.domains.chat.models import MessageTokenSummary
-
-            # LEFT JOIN to get messages and their token summaries in one query
-            stmt = (
-                select(ConversationMessage, MessageTokenSummary)
-                .outerjoin(
-                    MessageTokenSummary,
-                    ConversationMessage.message_metadata[FIELD_RUN_ID].astext
-                    == MessageTokenSummary.run_id,
-                )
-                .where(ConversationMessage.conversation_id == conversation_id)
+            stmt = history_with_tokens(
+                conversation_id,
+                limit=limit,
+                include_hidden=include_hidden,
+                before_created_at=before_created_at,
+                before_message_id=before_message_id,
             )
-            stmt = visible_only(stmt, include_hidden=include_hidden)
-            stmt = matching_content(stmt, search)
-            stmt = older_than(stmt, before_created_at)
-            stmt = stmt.order_by(ConversationMessage.created_at.desc()).limit(limit)
-
             result = await self.db.execute(stmt)
             rows = result.all()
 
@@ -382,7 +312,7 @@ class ConversationRepository(BaseRepository[Conversation]):
             logger.error(
                 "get_messages_with_tokens_failed",
                 conversation_id=str(conversation_id),
-                error=str(e),
+                **database_error_fields(e),
             )
             raise
 
@@ -428,7 +358,7 @@ class ConversationRepository(BaseRepository[Conversation]):
             logger.error(
                 "delete_messages_failed",
                 conversation_id=str(conversation_id),
-                error=str(e),
+                **database_error_fields(e),
             )
             raise
 
@@ -490,7 +420,7 @@ class ConversationRepository(BaseRepository[Conversation]):
             logger.error(
                 "get_conversation_with_messages_failed",
                 conversation_id=str(conversation_id),
-                error=str(e),
+                **database_error_fields(e),
             )
             raise
 
@@ -529,6 +459,8 @@ class ConversationRepository(BaseRepository[Conversation]):
             # Create conversation
             conversation = Conversation(
                 id=user_id,
+                runtime_id=user_id,
+                kind=ConversationKind.MAIN,
                 user_id=user_id,
                 title=title,
                 message_count=initial_message_count,
@@ -561,7 +493,7 @@ class ConversationRepository(BaseRepository[Conversation]):
             logger.error(
                 "create_conversation_with_audit_failed",
                 user_id=str(user_id),
-                error=str(e),
+                **database_error_fields(e),
             )
             raise
 
@@ -621,7 +553,7 @@ class ConversationRepository(BaseRepository[Conversation]):
                 "create_audit_log_failed",
                 conversation_id=str(conversation_id),
                 action=action,
-                error=str(e),
+                **database_error_fields(e),
             )
             raise
 
@@ -723,7 +655,7 @@ class ConversationRepository(BaseRepository[Conversation]):
                 "create_message_failed",
                 conversation_id=str(conversation_id),
                 role=role,
-                error=str(e),
+                **database_error_fields(e),
             )
             raise
 
@@ -791,7 +723,7 @@ class ConversationRepository(BaseRepository[Conversation]):
                 "update_message_tts_failed",
                 message_id=str(message_id),
                 error_type=type(e).__name__,
-                error=str(e),
+                **database_error_fields(e),
             )
 
     async def mark_proactive_feedback_submitted(
@@ -900,7 +832,7 @@ class ConversationRepository(BaseRepository[Conversation]):
                 "mark_proactive_feedback_submitted_failed",
                 user_id=str(user_id),
                 target_id=str(target_id),
-                error=str(e),
+                **database_error_fields(e),
             )
             raise
 
@@ -947,7 +879,7 @@ class ConversationRepository(BaseRepository[Conversation]):
             logger.error(
                 "merge_message_metadata_failed",
                 message_id=str(message_id),
-                error=str(e),
+                **database_error_fields(e),
             )
             raise
 
@@ -1001,7 +933,7 @@ class ConversationRepository(BaseRepository[Conversation]):
             logger.error(
                 "get_last_user_message_failed",
                 conversation_id=str(conversation_id),
-                error=str(e),
+                **database_error_fields(e),
             )
             raise
 
@@ -1072,7 +1004,7 @@ class ConversationRepository(BaseRepository[Conversation]):
                 "get_proactive_messages_after_failed",
                 conversation_id=str(conversation_id),
                 after_timestamp=after_timestamp.isoformat(),
-                error=str(e),
+                **database_error_fields(e),
             )
             raise
 
@@ -1120,13 +1052,13 @@ class ConversationRepository(BaseRepository[Conversation]):
             logger.error(
                 "get_audit_logs_failed",
                 user_id=str(user_id),
-                error=str(e),
+                **database_error_fields(e),
             )
             raise
 
     async def get_token_totals(
         self,
-        conversation_id: UUID,
+        target: ConversationRef,
     ) -> dict[str, int | float]:
         """
         Get aggregated token totals and historical cost for a conversation.
@@ -1134,11 +1066,11 @@ class ConversationRepository(BaseRepository[Conversation]):
         Returns sum of all prompt tokens, completion tokens, cached tokens,
         and total cost in EUR (historical cost at time of execution).
 
-        Performance: Single SQL query with SUM aggregations - O(1) regardless
-        of conversation length.
+        One indexed aggregation over the selected discussion and its visible
+        user-message count, in the same SQL snapshot.
 
         Args:
-            conversation_id: Conversation UUID
+            target: Resolved owner and business conversation identity.
 
         Returns:
             Dictionary with standardized keys (from field_names.py):
@@ -1148,48 +1080,39 @@ class ConversationRepository(BaseRepository[Conversation]):
                 - total_cost_eur: Historical total cost in EUR
 
         Example:
-            >>> totals = await repo.get_token_totals(conv_id)
+            >>> totals = await repo.get_token_totals(target)
             >>> print(f"Used {totals[FIELD_TOTAL_TOKENS_IN]} tokens")
         """
-        from sqlalchemy import func
-
         from src.domains.chat.models import MessageTokenSummary
 
-        try:
-            # Include Google API costs in total cost for accurate billing
-            stmt = select(
-                func.sum(MessageTokenSummary.total_prompt_tokens).label(FIELD_TOTAL_TOKENS_IN),
-                func.sum(MessageTokenSummary.total_completion_tokens).label(FIELD_TOTAL_TOKENS_OUT),
-                func.sum(MessageTokenSummary.total_cached_tokens).label(FIELD_TOTAL_TOKENS_CACHE),
-                func.sum(MessageTokenSummary.billed_cost_sql()).label(FIELD_TOTAL_COST_EUR),
-                func.sum(MessageTokenSummary.google_api_requests).label(
-                    FIELD_TOTAL_GOOGLE_API_REQUESTS
-                ),
-            ).where(MessageTokenSummary.conversation_id == conversation_id)
-
-            result = await self.db.execute(stmt)
-            row = result.one()
-
-            totals = {
-                FIELD_TOTAL_TOKENS_IN: int(row.total_tokens_in or 0),
-                FIELD_TOTAL_TOKENS_OUT: int(row.total_tokens_out or 0),
-                FIELD_TOTAL_TOKENS_CACHE: int(row.total_tokens_cache or 0),
-                FIELD_TOTAL_COST_EUR: float(row.total_cost_eur or 0.0),
-                FIELD_TOTAL_GOOGLE_API_REQUESTS: int(row.total_google_api_requests or 0),
-            }
-
-            logger.debug(
-                "token_totals_retrieved",
-                conversation_id=str(conversation_id),
-                **totals,
-            )
-
-            return totals
-
-        except (SQLAlchemyError, IntegrityError, OperationalError) as e:
-            logger.error(
-                "get_token_totals_failed",
-                conversation_id=str(conversation_id),
-                error=str(e),
-            )
-            raise
+        visible_user_count = visible_only(
+            select(func.count())
+            .select_from(ConversationMessage)
+            .where(
+                ConversationMessage.conversation_id == target.id,
+                ConversationMessage.role == "user",
+            ),
+            include_hidden=False,
+        ).scalar_subquery()
+        stmt = select(
+            func.sum(MessageTokenSummary.total_prompt_tokens),
+            func.sum(MessageTokenSummary.total_completion_tokens),
+            func.sum(MessageTokenSummary.total_cached_tokens),
+            func.sum(MessageTokenSummary.billed_cost_sql()),
+            func.sum(MessageTokenSummary.google_api_requests),
+            visible_user_count,
+        ).where(
+            MessageTokenSummary.conversation_id == target.id,
+            MessageTokenSummary.user_id == target.owner_id,
+        )
+        tokens_in, tokens_out, tokens_cache, cost_eur, maps_requests, messages = (
+            await self.db.execute(stmt)
+        ).one()
+        return {
+            FIELD_TOTAL_TOKENS_IN: int(tokens_in or 0),
+            FIELD_TOTAL_TOKENS_OUT: int(tokens_out or 0),
+            FIELD_TOTAL_TOKENS_CACHE: int(tokens_cache or 0),
+            FIELD_TOTAL_COST_EUR: float(cost_eur or 0),
+            FIELD_TOTAL_GOOGLE_API_REQUESTS: int(maps_requests or 0),
+            FIELD_USER_MESSAGE_COUNT: int(messages),
+        }

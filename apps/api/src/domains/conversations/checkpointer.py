@@ -25,7 +25,6 @@ References:
 """
 
 import asyncio
-from contextlib import suppress
 from typing import cast
 
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
@@ -37,6 +36,7 @@ from src.core.config import settings
 from src.domains.conversations.instrumented_checkpointer import (
     InstrumentedAsyncPostgresSaver,
 )
+from src.infrastructure.async_utils import finish_owned_task
 from src.infrastructure.database.psycopg_pool_config import (
     psycopg_pool_kwargs,
     resolve_psycopg_url,
@@ -120,7 +120,7 @@ async def get_checkpointer() -> InstrumentedAsyncPostgresSaver:
     - Creates checkpoint tables on first setup (idempotent)
     - Stores state differentially (only changed values)
     - Versions each channel separately
-    - Uses thread_id for conversation isolation
+    - Uses the declared runtime for conversation-generation isolation
     - Tracks Prometheus metrics (save duration, payload size)
 
     Returns:
@@ -129,7 +129,7 @@ async def get_checkpointer() -> InstrumentedAsyncPostgresSaver:
     Example:
         >>> checkpointer = await get_checkpointer()
         >>> graph = build_graph(checkpointer=checkpointer)
-        >>> config = RunnableConfig(configurable={"thread_id": str(conversation_id)})
+        >>> config = checkpoint_config(resolved_target)
         >>> result = await graph.ainvoke(state, config)
 
     Notes:
@@ -173,7 +173,11 @@ async def get_checkpointer() -> InstrumentedAsyncPostgresSaver:
         )
         # Fail fast at startup: wait until min_size connections are established
         # (raises PoolTimeout and closes the pool if the database is unreachable).
-        await pool.open(wait=True, timeout=settings.database_pool_timeout)
+        try:
+            await pool.open(wait=True, timeout=settings.database_pool_timeout)
+        except BaseException:
+            await finish_owned_task(asyncio.create_task(pool.close()))
+            raise
         _pool = pool
 
         try:
@@ -188,11 +192,9 @@ async def get_checkpointer() -> InstrumentedAsyncPostgresSaver:
             # boot, 2026-08-15). Behind the lock, setup() is idempotent.
             async with postgres_setup_lock(pool, CHECKPOINTER_SETUP_LOCK_KEY):
                 await _checkpointer.setup()
-        except Exception:
+        except BaseException:
             # Don't leak an opened pool if setup fails: next call re-enters init.
-            await pool.close()
-            _pool = None
-            _checkpointer = None
+            await cleanup_checkpointer()
             raise
 
         logger.info(
@@ -232,33 +234,16 @@ async def cleanup_checkpointer() -> None:
     if _checkpointer is not None or _pool is not None:
         logger.info("checkpointer_cleanup_started")
 
-        if _pool is not None:
-            await _pool.close()
+        try:
+            if _pool is not None:
+                await finish_owned_task(asyncio.create_task(_pool.close()))
+        finally:
             _pool = None
-
-        _checkpointer = None
+            _checkpointer = None
         logger.info("checkpointer_cleanup_completed")
 
 
 def reset_checkpointer() -> None:
-    """
-    Reset global checkpointer (for testing only).
-
-    Clears the singleton so the next get_checkpointer() call rebuilds it.
-    The previous pool is closed best-effort: as a background task when an event
-    loop is running, abandoned otherwise (acceptable in test teardown; prefer
-    `await cleanup_checkpointer()` from async code).
-
-    WARNING: Only use in tests to force recreation of checkpointer.
-    """
-    global _checkpointer, _pool
-    if _pool is not None:
-        pool = _pool
-        # No running loop (sync context): abandon the pool; connections are
-        # reclaimed at process exit. Test-only path, mirrors previous behavior.
-        with suppress(RuntimeError):
-            asyncio.get_running_loop().create_task(
-                pool.close(), name="checkpointer_pool_close_on_reset"
-            )
-    _checkpointer = None
-    _pool = None
+    """Assert that test redirection cannot abandon a pool on a previous loop."""
+    if _checkpointer is not None or _pool is not None:
+        raise RuntimeError("Await cleanup_checkpointer() before resetting the checkpointer")

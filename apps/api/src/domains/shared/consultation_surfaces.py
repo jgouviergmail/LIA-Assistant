@@ -206,6 +206,8 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
             "mails": "email",
             "documents": "document",
             "agenda": "event",
+            # A public page a person watches, read as the web-fetch tool reads one (ADR-387).
+            "page": "web_fetch",
         },
     ),
     # The push-driven wake reads the METADATA of new mail and calendar changes
@@ -354,6 +356,8 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
             "contacts": "contact",
             "brave": "brave",
             "perplexity": "perplexity",
+            # The instance's web search, for a person with no search key (lot 18).
+            "searxng": "web_search",
             "wikipedia": "wikipedia",
         },
     ),
@@ -393,6 +397,8 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
         domains={
             "brave": "brave",
             "perplexity": "perplexity",
+            # The instance's web search, for a person with no Brave key (lot 18).
+            "searxng": "web_search",
             "wikipedia": "wikipedia",
             # The in-meeting guard reads the calendar before the sweep speaks
             # (A11, 2026-09-11) — a live read, filed like the heartbeat's.
@@ -464,8 +470,14 @@ IN_TURN_CAPABILITIES: Final[dict[str, str]] = {
     "planner:hue": "hue",
     # A Brave search a node decided to run, never asked for as a tool.
     "enrichment:brave": "brave",
+    # The same enrichment through the instance's SearXNG, for a person with no
+    # Brave key (lot 18, ``connectors/instance_search``).
+    "enrichment:searxng": "web_search",
     # The person's own mail, fetched to resolve a reference in their message.
     "enrichment:email": "email",
+    # Their SENT mail, read to learn how they write before LIA writes for them
+    # (ADR-383, ``agents/emails/writing_style``).
+    "writing_style:email": "email",
 }
 
 

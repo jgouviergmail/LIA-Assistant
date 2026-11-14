@@ -50,6 +50,15 @@ describe('purgeSensitiveClientStorage', () => {
     expect(localStorage.getItem('lia.locale')).toBe('fr');
   });
 
+  it('removes every discussion and generation of debug history', () => {
+    const keys = ['["owner","main",0]', '["owner","annex",3]'].map(
+      scope => `${DEBUG_METRICS_HISTORY_KEY}.${scope}`
+    );
+    for (const key of keys) sessionStorage.setItem(key, 'private');
+    purgeSensitiveClientStorage();
+    for (const key of keys) expect(sessionStorage.getItem(key)).toBeNull();
+  });
+
   it('is idempotent when nothing is stored', () => {
     expect(() => purgeSensitiveClientStorage()).not.toThrow();
     expect(sessionStorage.getItem(DEBUG_METRICS_HISTORY_KEY)).toBeNull();

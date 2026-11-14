@@ -112,6 +112,12 @@ PromptName = Literal[
     "skill_command_network_lines",
     # ADR-310: what a recovery pass tells the model after its draft declared gaps.
     "react_recovery_directive",
+    # ADR-385: the person's note, read by the loop while it works on the answer.
+    "react_turn_note_lines",
+    # ADR-386: what a routine started by signed calls is shown of those calls.
+    "routine_webhook_lines",
+    # ADR-387: what a routine watching a web page is shown of that page.
+    "page_watch_lines",
     "requested_outcome_directive",
     "requested_outcomes_directive",
     "psyche_efficacy_directive",
@@ -142,6 +148,9 @@ PromptName = Literal[
     "email_subject_generation_prompt",
     # The reply a mailbox draft holds, written from the received e-mail (ADR-344)
     "mailbox_reply_draft_prompt",
+    # How the person writes, learned from their sent mail, and the block the writers read (ADR-383)
+    "writing_style_profile_prompt",
+    "writing_style_lines",
     # Fallback and HITL
     "fallback_response_prompt",
     "hitl_draft_critique_fallback_prompt",
@@ -188,6 +197,7 @@ PromptName = Literal[
     "skill_catalogue_lines",
     "skill_description_translation_prompt",
     "skill_react_agent_prompt",
+    "skill_runner_lines",
     "skill_contract_prefix_prompt",
     # Context compaction (F4)
     "compaction_prompt",
@@ -222,6 +232,7 @@ PromptName = Literal[
     "memory_extraction_prompt",
     "memory_extraction_personality_addon",
     "open_loop_extraction_prompt",
+    "open_loop_extraction_input",
     "memory_reference_extraction_prompt",
     "memory_reference_resolution_prompt",
     # Memory injection scaffolding (psychological-profile behavioral directives).
@@ -248,6 +259,8 @@ PromptName = Literal[
     "semantic_pivot_prompt",
     # Per-turn expressivity annotation (ADR-253)
     "expressivity_tone_instruction",
+    # A routine told to notify only when something is new (ADR-265 amendment c)
+    "routine_nothing_new_instruction",
     # Psyche Engine (self-report, summary, narrative, usage directive)
     "psyche_self_report_instruction",
     "psyche_summary_prompt",
@@ -296,10 +309,18 @@ PromptName = Literal[
     # The expressive-cue block a speaking engine plays (ADR-345): its one-line
     # scaffolds, read by voice/cue_prompt.py through parse_prompt_sections.
     "voice_expressive_cues_lines",
-    # Document generation — dedicated whole-document writer (ADR-226)
+    # Document generation — dedicated whole-document writer (ADR-226): the common
+    # rules, one file per content family, and the one-line scaffolds, read by path
+    # in `document_generation/prompts.py`.
     "document_generation_prompt",
-    # Interactive pages (ADR-370), read by path in `interactive_pages/prompts.py`.
+    "document_generation_tabular_prompt",
+    "document_generation_sectioned_prompt",
+    "document_generation_slides_prompt",
+    "document_generation_lines",
+    # Interactive pages (ADR-370), read by path in `interactive_pages/prompts.py`:
+    # the writer's prompt, and the one-line scaffolds of its map sources.
     "interactive_page_prompt",
+    "interactive_page_lines",
     "email_digest_prompt",
     # What LIA writes from the Tools (ADR-372): the words stay data below the marker.
     "tool_assist_rewrite_prompt",

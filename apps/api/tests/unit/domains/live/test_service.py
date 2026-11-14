@@ -177,7 +177,6 @@ def _service(
     service.connectors.api_key_of = AsyncMock(return_value="k")  # type: ignore[method-assign]
     service._personality_of = AsyncMock(return_value="")  # type: ignore[method-assign]
     service._inner_state_of = AsyncMock(return_value="")  # type: ignore[method-assign]
-    service._conversation_id = AsyncMock(return_value=uuid.uuid4())  # type: ignore[method-assign]
     archive = AsyncMock(return_value=SimpleNamespace(id=uuid.uuid4()))
     service._archive = archive  # type: ignore[method-assign]
     _CLOSING_ARCHIVE["mock"] = archive
@@ -306,7 +305,7 @@ async def test_a_held_slot_of_the_same_account_is_superseded_then_claimed() -> N
     # its own outcome and takes the slot.
     previous = _record(USER.id)
     service, store, archive = _service(_connector(), claimed=False, record=previous)
-    store.claim_answers[:] = [False, True]
+    store.claim_answers[:] = [True]
     provider = _fake_provider()
     with (
         patch(f"{MODULE}.PROVIDERS", {"gemini_live": provider}),
@@ -322,8 +321,9 @@ async def test_a_held_slot_of_the_same_account_is_superseded_then_claimed() -> N
         )
     assert response.session_id != previous.session_id
     assert archive.call_args.kwargs["metadata"]["live_summary"]["outcome"] == "superseded"
-    store.release.assert_awaited_with(USER.id, previous.token)
-    assert store.claim.await_count == 2
+    # The request's owned-work finalizer releases the old reservation; the
+    # service closes it before making a single new claim.
+    assert store.claim.await_count == 1
 
 
 async def test_a_held_slot_whose_close_fails_refuses_409() -> None:
@@ -333,7 +333,7 @@ async def test_a_held_slot_whose_close_fails_refuses_409() -> None:
     with pytest.raises(LiveRefusedError) as raised:
         await service.start(USER, language="fr", timezone="Europe/Paris", display_name="Alex")
     assert raised.value.code == "session_in_progress"
-    assert store.claim.await_count == 1
+    store.claim.assert_not_awaited()
 
 
 async def test_a_full_instance_refuses_503_and_releases_the_claim() -> None:
@@ -593,6 +593,46 @@ async def test_renew_mints_a_fresh_credential_for_the_same_setup() -> None:
     # The session's expiry does not move with a reconnection — and it is the
     # RECORD's (an extension moved it; the cap alone would mint a dead token).
     assert provider.mint.call_args.kwargs["expires_at"] == record.expires_at
+
+
+async def test_a_reconnection_prepares_the_persons_agent_again_before_its_credential() -> None:
+    """Owner decision 2026-11-11: every conversation that opens on the person's agent
+    finds its tools exact. A reconnection opens a NEW conversation at the vendor (no
+    resumption), so an agent-bound provider prepares the agent again — for the
+    session's OWN setup, never a fresh render — and a refusal is a reconnection
+    refused, never one on tools somebody changed meanwhile."""
+    record = _record(USER.id)
+    service, _, _ = _service(_connector(), record=record)
+    provider = _fake_provider("auth_tokens/fresh")
+    seen: dict[str, object] = {}
+
+    async def _sync(api_key: str, metadata: dict, inputs: object) -> dict:
+        seen["inputs"] = inputs
+        seen["minted_before"] = provider.mint.await_count
+        return dict(metadata)
+
+    provider.sync_agent = _sync
+    with patch(f"{MODULE}.PROVIDERS", {"gemini_live": provider}):
+        renewed = await service.renew_credential(USER, "s" * 32, language="fr")
+    assert renewed.credential == "auth_tokens/fresh"
+    inputs = seen["inputs"]
+    assert isinstance(inputs, LiveSetupInputs) and inputs.system_instruction == "mandate"
+    assert seen["minted_before"] == 0  # prepared BEFORE the credential exists
+
+    refusing = _fake_provider()
+
+    async def _refuse(api_key: str, metadata: dict, inputs: object) -> dict:
+        raise RuntimeError("vendor down")
+
+    refusing.sync_agent = _refuse
+    service, _, _ = _service(_connector(), record=_record(USER.id))
+    with (
+        patch(f"{MODULE}.PROVIDERS", {"gemini_live": refusing}),
+        pytest.raises(LiveRefusedError) as raised,
+    ):
+        await service.renew_credential(USER, "s" * 32, language="fr")
+    assert raised.value.code == "provider_refused"
+    refusing.mint.assert_not_awaited()
 
 
 async def test_extend_adds_the_extension_from_the_current_expiry() -> None:
@@ -1071,7 +1111,8 @@ async def test_exchange_offer_reports_the_providers_refusal_and_burns_the_nonce(
         with pytest.raises(LiveRefusedError) as refused:
             await service.exchange_offer(USER, record.session_id, payload, language="fr")
     assert refused.value.code == "provider_refused"
-    assert "forbidden" in str(refused.value.detail)
+    assert "forbidden" not in str(refused.value.detail)
+    assert "OpenAiLiveRefused" in str(refused.value.detail)
     kept = await store.get(USER.id)
     assert kept is not None and kept.nonce is None
 
@@ -1264,7 +1305,8 @@ async def test_end_archives_a_summary_releases_records_and_learns() -> None:
     assert "0.5000" in content
     # The Markdown fallback names how the session ended, in the person's language.
     assert content.startswith("**Session live** — terminée par toi · ")
-    store.release.assert_awaited_once_with(USER.id, "tok")
+    # Redis is released by the durable work finalizer, not this request body.
+    store.release.assert_not_awaited()
     store.unregister_active.assert_awaited_once_with("s" * 32)
     recorded = decision.call_args.args[0]
     assert recorded.route == "live_session" and recorded.outcome.value == "answered"
@@ -1362,4 +1404,4 @@ async def test_no_vendor_is_asked_while_the_start_s_reads_hold_a_transaction() -
     provider.expression_dialect = _expression
     with patch(f"{MODULE}.PROVIDERS", {"gemini_live": provider}):
         await service.start(USER, language="fr", timezone="Europe/Paris", display_name="Alex")
-    assert order[:2] == ["commit", "vendor"]
+    assert "vendor" in order and "commit" in order[: order.index("vendor")]

@@ -83,8 +83,9 @@ async function assertReachableAtEveryWidth(page: Page, locale: string): Promise<
 /**
  * The widest header an instance can serve: the meetings destination and
  * recorder (ADR-258/259), the radio's control (ADR-324), the world, the
- * « Tools » destination (ADR-369) and the « SMS » one (ADR-357 amendment
- * 2026-10-31) all offered — ten destinations. The shell's own config offers
+ * « Tools » destination (ADR-369), the « SMS » one (ADR-357 amendment
+ * 2026-10-31) and the workboard's (owner, 2026-11-11, right after the
+ * meetings) all offered — eleven destinations. The shell's own config offers
  * none of them, so the test above measures a narrower row than production shows.
  */
 const EVERY_CONTROL: MockRoute = {
@@ -132,7 +133,7 @@ test.describe('dashboard header reachability', () => {
           await trigger.click();
           const menu = page.getByRole('menu');
           const destinations = menu.locator('a[role="menuitem"]');
-          await expect(destinations).toHaveCount(10);
+          await expect(destinations).toHaveCount(11);
           for (const destination of await destinations.all()) {
             await expect(destination).toHaveAccessibleName(/\S+/);
             await expect(destination.locator('svg[aria-hidden="true"]')).toBeVisible();
@@ -250,7 +251,7 @@ test.describe('dashboard header reachability', () => {
         };
       });
 
-      expect(row.destinations, `${width}px — destinations drawn`).toBe(10);
+      expect(row.destinations, `${width}px — destinations drawn`).toBe(11);
       expect(row.labels, `${width}px — destinations showing a label`).toEqual([]);
       expect(row.untitled, `${width}px — icons without a tooltip`).toEqual([]);
       expect(

@@ -17,7 +17,7 @@ import time
 import uuid
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from src.core.constants import (
@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-async def read_pending_question(conversation_id: str) -> dict[str, Any] | None:
+async def read_pending_question(owner_id: UUID, conversation_id: str) -> dict[str, object] | None:
     """The question the conversation's graph waits on, read where the ENGINE keeps it.
 
     The engine saves a pending HITL interrupt through the CACHE client
@@ -62,6 +62,7 @@ async def read_pending_question(conversation_id: str) -> dict[str, Any] | None:
     the test conftest forces both databases to one index, which hid it).
 
     Args:
+        owner_id: The authenticated account, never inferred from a conversation id.
         conversation_id: The conversation whose question is read.
 
     Returns:
@@ -71,7 +72,7 @@ async def read_pending_question(conversation_id: str) -> dict[str, Any] | None:
     """
     from src.infrastructure.channels.assistant_gateway import get_channel_gateway
 
-    return await get_channel_gateway().pending(conversation_id)
+    return await get_channel_gateway().pending(owner_id, conversation_id)
 
 
 async def take_turn_claim(redis: aioredis.Redis, user_id: UUID) -> str | None:
@@ -504,7 +505,7 @@ class ChannelMessageRouter:
                 pending_hitl = None
 
                 if conversation_id:
-                    pending_hitl = await read_pending_question(conversation_id)
+                    pending_hitl = await read_pending_question(user_id, conversation_id)
 
                 # === 5. Dispatch to handler ===
                 inbound_handler = InboundMessageHandler(

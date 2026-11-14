@@ -23,6 +23,8 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from src.core.constants import GMAIL_FORMAT_METADATA
+from src.core.mail_reply_state import REPLY_STATE_KEY, reply_state_fields
+from src.domains.connectors.mail_reply_states import attach_reply_states
 from src.domains.relations.overview_scope import OverviewSection, RelationOverviewScope
 from src.domains.relations.providers.client import ProviderNotConfigured, open_category_client
 from src.domains.relations.providers.schemas import ContextStatus, RelationContext
@@ -47,7 +49,7 @@ async def fetch_recent_emails(user_id: UUID, person_name: str) -> list[dict[str,
     Returns:
         The messages found, or None when no email connector is usable.
     """
-    emails: list[dict[str, str]] = []
+    messages: list[dict[str, Any]] = []
     try:
         async with open_category_client("email", user_id) as opened:
             client = opened.client
@@ -61,17 +63,22 @@ async def fetch_recent_emails(user_id: UUID, person_name: str) -> list[dict[str,
                     )
                     if full:
                         message = full
-                emails.append(
-                    {
-                        "subject": message.get("subject", ""),
-                        "from": message.get("from", ""),
-                        "date": str(message.get("internalDate", "")),
-                        "snippet": (message.get("snippet") or "")[:160],
-                    }
-                )
+                messages.append(message)
+            # A mail found by name says where it stands too (ADR-379): one already
+            # answered is never told as awaiting an answer. Instants in UTC.
+            await attach_reply_states(client, messages, user_timezone="UTC")
     except ProviderNotConfigured:
         return None
-    return emails
+    return [
+        {
+            "subject": message.get("subject", ""),
+            "from": message.get("from", ""),
+            "date": str(message.get("internalDate", "")),
+            "snippet": (message.get("snippet") or "")[:160],
+            **reply_state_fields(message.get(REPLY_STATE_KEY)),
+        }
+        for message in messages
+    ]
 
 
 async def fetch_upcoming_events(user_id: UUID, person_name: str) -> list[dict[str, Any]] | None:

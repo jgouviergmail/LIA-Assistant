@@ -44,6 +44,7 @@
  */
 
 import { logger } from '@/lib/logger';
+import { replaceChatQuery } from '@/lib/chat-location';
 
 /**
  * Whether this href is an internal path, and therefore ours to navigate to.
@@ -85,9 +86,7 @@ export function dropSearchParams(names: readonly string[]): void {
   const current = new URLSearchParams(window.location.search);
   if (!names.some(name => current.has(name))) return;
   names.forEach(name => current.delete(name));
-  const query = current.toString();
-  const { pathname } = window.location;
-  window.history.replaceState(null, '', query ? `${pathname}?${query}` : pathname);
+  replaceChatQuery(current);
 }
 
 /**

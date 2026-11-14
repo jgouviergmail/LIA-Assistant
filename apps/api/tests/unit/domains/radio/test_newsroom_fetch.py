@@ -65,6 +65,27 @@ class TestFetch:
         assert result.charset == "iso-8859-1"
         assert seen[0].headers["User-Agent"] == NEWSROOM_USER_AGENT
 
+    async def test_a_caller_says_who_it_is_and_reads_what_kind_of_body_came(self) -> None:
+        """Another reader of public pages names itself (ADR-387), and learns the
+        body's media type, so it never reads an image as text."""
+        seen: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(request)
+            return httpx.Response(200, content=b"%PNG", headers={"Content-Type": "Image/PNG ; q=1"})
+
+        async with client(handler) as c:
+            result = await fetch_public(
+                c, "https://shop.example.org/p.png", max_bytes=100, user_agent="LIA-Test/1.0"
+            )
+        assert seen[0].headers["User-Agent"] == "LIA-Test/1.0"
+        assert result.media_type == "image/png"
+
+    async def test_a_body_with_no_declared_type_has_none(self) -> None:
+        async with client(lambda request: httpx.Response(200, content=b"x")) as c:
+            result = await fetch_public(c, "https://f.example.org/x", max_bytes=10)
+        assert result.media_type is None
+
     async def test_a_validator_that_cannot_be_sent_back_is_not_kept(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, content=b"x", headers=[(b"ETag", "é".encode("latin-1"))])

@@ -23,6 +23,7 @@ from src.core.constants import (
 )
 from src.core.i18n import get_language_name
 from src.core.llm_config_helper import get_llm_config_for_agent
+from src.core.map_tile_providers import map_tile_providers
 from src.core.prompt_layout import single_call_messages
 from src.domains.document_generation.sanitize import sanitize_filename_stem
 from src.domains.document_generation.service import StoredDocument, store_document
@@ -32,7 +33,7 @@ from src.domains.interactive_pages.document import (
     page_file,
     refusal_of,
 )
-from src.domains.interactive_pages.prompts import load_page_prompt
+from src.domains.interactive_pages.prompts import load_page_lines, load_page_prompt
 from src.domains.interactive_pages.schemas import PageContent, PageMode, PageSource
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import (
@@ -79,7 +80,8 @@ class PageRequest:
     Attributes:
         mode: What is asked.
         user_id: The account the file and the spend belong to.
-        conversation_id: The conversation the card is delivered to.
+        conversation_id: Stable business provenance of the stored file.
+        delivery_runtime_id: Root runtime receiving the ephemeral card.
         instructions: What the page must do, or the change to make.
         source_data: Facts the page must use.
         base: The existing page the mode works from, ``None`` for a new page.
@@ -91,6 +93,7 @@ class PageRequest:
     mode: PageMode
     user_id: uuid.UUID
     conversation_id: str
+    delivery_runtime_id: str | None
     instructions: str
     source_data: str
     base: PageSource | None
@@ -146,7 +149,33 @@ def prompt_values(request: PageRequest) -> dict[str, str | int]:
         "source_data": request.source_data[: settings.document_generation_max_source_chars],
         "current_page": request.base.html if request.base else "",
         "max_page_kb": ceiling // 1024,
+        "map_tile_sources": map_tile_sources(),
     }
+
+
+def map_tile_sources() -> str:
+    """The map tile sources the writer may use, one per line.
+
+    The list the frame's policy is built from (``document.page_frame``), read
+    from the same setting: a source the writer is told about loads, and no other.
+
+    Returns:
+        One line per allowed source, or the line saying there is none.
+    """
+    lines = load_page_lines()
+    providers = map_tile_providers(settings.interactive_page_map_providers)
+    if not providers:
+        return lines["map_no_source"]
+    return "\n".join(
+        lines["map_source"].format(
+            label=provider.label,
+            url_template=provider.url_template,
+            min_zoom=provider.min_zoom,
+            max_zoom=provider.max_zoom,
+            credit=provider.credit,
+        )
+        for provider in providers
+    )
 
 
 async def _call_page_llm(request: PageRequest) -> PageContent:
@@ -250,6 +279,7 @@ async def produce_page(request: PageRequest) -> ProducedPage:
     stored = await store_document(
         user_id=request.user_id,
         conversation_id=request.conversation_id,
+        delivery_runtime_id=request.delivery_runtime_id,
         data=page_file(source),
         stem=stem,
         extension=PAGE_FILE_EXTENSION,

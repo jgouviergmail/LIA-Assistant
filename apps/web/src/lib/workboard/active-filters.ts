@@ -50,21 +50,55 @@ export function activeFilterCount(filters: BoardFilters): number {
   if (filters.assignee && filters.assignee !== 'all') count += 1;
   if (filters.priority?.length) count += 1;
   if (filters.status?.length) count += 1;
+  // ONE control, two halves: « Home, and what is not filed yet » is one
+  // narrowing, whatever each half holds.
+  if (filters.category?.length || filters.uncategorized) count += 1;
   if (filters.overdue) count += 1;
   return count;
 }
 
 /**
- * The narrowings, in the words their own controls carry.
+ * The lane filter, in words — never an id.
  *
- * Read in control order — search, holder, priority, column, overdue — so the
- * folded line and the open block name things in the same sequence.
+ * A category the caller cannot name (the list has not loaded, or the URL
+ * carries a lane that is gone) is left out; when NOTHING is nameable the
+ * field's own label stands in, because the summary must still say that
+ * something narrows the board — it sits beside a badge that counts one.
  *
  * @param filters - What the board is showing.
  * @param t - The caller's translator.
+ * @param nameOf - The name of a category, when the caller knows it.
+ * @returns The sentence part, or null when the lane filter is unset.
+ */
+function describeLanes(
+  filters: BoardFilters,
+  t: Translate,
+  nameOf: (categoryId: string) => string | undefined
+): string | null {
+  if (!filters.category?.length && !filters.uncategorized) return null;
+  const named = (filters.category ?? [])
+    .map(nameOf)
+    .filter((name): name is string => name !== undefined);
+  if (filters.uncategorized) named.push(t('workboard.lanes.unfiled'));
+  return named.length > 0 ? named.join(', ') : t('workboard.filters.category');
+}
+
+/**
+ * The narrowings, in the words their own controls carry.
+ *
+ * Read in control order — search, holder, priority, column, lane, overdue —
+ * so the folded line and the open block name things in the same sequence.
+ *
+ * @param filters - What the board is showing.
+ * @param t - The caller's translator.
+ * @param nameOf - The name of a category; absent, no category can be named.
  * @returns One line, or `''` when nothing narrows the board.
  */
-export function describeFilters(filters: BoardFilters, t: Translate): string {
+export function describeFilters(
+  filters: BoardFilters,
+  t: Translate,
+  nameOf: (categoryId: string) => string | undefined = () => undefined
+): string {
   const parts: string[] = [];
   const needle = filters.q?.trim();
   // The needle IS the information: « Search » would name the field and say
@@ -79,6 +113,8 @@ export function describeFilters(filters: BoardFilters, t: Translate): string {
   if (filters.status?.length) {
     parts.push(filters.status.map(value => t(`workboard.columns.${value}`)).join(', '));
   }
+  const lanes = describeLanes(filters, t, nameOf);
+  if (lanes !== null) parts.push(lanes);
   if (filters.overdue) parts.push(t('workboard.filters.overdue'));
   return parts.join(JOIN);
 }

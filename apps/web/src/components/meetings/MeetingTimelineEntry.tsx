@@ -194,15 +194,20 @@ export function MeetingTimelineEntry({
             <MeetingStatusBadge lng={lng} status={meeting.status} stage={meeting.stage} />
           </span>
         </div>
-        <div className="mt-2 flex items-end gap-2">
+        {/* On a phone the facts wait behind a quiet « Details » toggle beside
+            the row's delete. It is a line of the card, not a panel of its own:
+            no ground and no edge, or a strip stops short of the delete it
+            shares the line with (owner, 2026-11-11). Opened, the facts read
+            straight on the card, as they do on a desktop; the delete stays
+            level with the toggle. */}
+        <div className="mt-2 flex items-start gap-2 md:items-end">
           <div className="hidden min-w-0 flex-1 md:block">
             <RecordingFacts meeting={meeting} lng={lng} />
           </div>
           <Disclosure
-            surface="nested"
             icon={Info}
             title={t('common.details')}
-            className="min-w-0 flex-1 rounded-none border-x-0 border-b-0 px-0 md:hidden [&>summary]:ml-auto [&>summary]:min-h-11 [&>summary]:w-fit [&>summary]:text-sm [&>summary]:font-semibold [&>summary]:text-muted-foreground"
+            className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 md:hidden [&>summary]:ml-auto [&>summary]:min-h-11 [&>summary]:w-fit [&>summary]:text-sm [&>summary]:font-semibold [&>summary]:text-muted-foreground"
           >
             <RecordingFacts meeting={meeting} lng={lng} />
           </Disclosure>

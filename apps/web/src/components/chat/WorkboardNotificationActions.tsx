@@ -16,7 +16,7 @@
  * run would invite a turn with nothing to do.
  */
 import Link from 'next/link';
-import { ExternalLink, LayoutGrid, MessageSquarePlus } from '@/lib/icons';
+import { ExternalLink, MessageSquarePlus, SquareKanban } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 /** The fields a workboard notification carries (see `notification_metadata`). */
@@ -74,7 +74,7 @@ export function WorkboardNotificationActions({ metadata }: WorkboardNotification
     >
       {links.ticketUrl && (
         <Link href={links.ticketUrl} className={chip}>
-          <LayoutGrid className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+          <SquareKanban className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
           {t('workboard.actions.open_ticket')}
         </Link>
       )}

@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 5.0** | 2026-10-22 (panel counts re-measured 2026-11-07) | 33 dashboards, 887 panels (rows excluded)
+> **Version 5.0** | 2026-10-22 (panel counts re-measured 2026-11-07) | 33 dashboards, 898 panels (rows excluded)
 
 ---
 

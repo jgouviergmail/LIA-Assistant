@@ -327,3 +327,19 @@ it('publishes fresh owner samples from its existing single poll and rejects a la
   expect(useCompanionActivityStore.getState().sample).toBeNull();
   useCompanionActivityStore.getState().bindOwner(null);
 });
+
+describe('CompanionPresence — where a notification shows', () => {
+  it('declares itself as the place the companion looks when one arrives', async () => {
+    render();
+    const avatar = await screen.findByRole('button', { name: AVATAR });
+    expect(avatar.closest('[data-eyes-target="notification"]')).not.toBeNull();
+  });
+
+  it('keeps the declaration when it shrinks to its restore dot', async () => {
+    const { user } = render();
+    await screen.findByRole('button', { name: AVATAR });
+    await user.click(screen.getByRole('button', { name: MINIMIZE }));
+    const restore = await screen.findByRole('button', { name: RESTORE });
+    expect(restore).toHaveAttribute('data-eyes-target', 'notification');
+  });
+});

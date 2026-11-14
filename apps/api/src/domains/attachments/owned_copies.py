@@ -21,8 +21,9 @@ of ``attachments``.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final
 
@@ -30,20 +31,20 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.conversation_target import ConversationRef
 from src.core.i18n import normalize_language
 from src.core.time_utils import resolve_user_timezone
 from src.domains.attachments.copy_store import (
     copy_and_extract,
-    copy_target,
-    record_copy,
-    run_after_reads,
+    publish_copy,
     write_text_copy,
 )
+from src.domains.attachments.file_contracts import FileWriteResult, UploadMetadata
+from src.domains.attachments.file_paths import owned_relative_path
 from src.domains.attachments.knowledge_copy import text_is_capped
 from src.domains.attachments.models import (
     Attachment,
     AttachmentContentType,
-    AttachmentOrigin,
     AttachmentStatus,
 )
 from src.domains.attachments.origin import is_generated
@@ -64,12 +65,12 @@ logger = structlog.get_logger(__name__)
 BOOKMARK_MIME: Final = "text/markdown"
 
 
-def _deadline() -> datetime:
-    return datetime.now(UTC) + timedelta(hours=settings.attachments_ttl_hours)
-
-
 async def copy_bookmark(
-    db: AsyncSession, *, user_id: uuid.UUID, bookmark_id: uuid.UUID
+    db: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    bookmark_id: uuid.UUID,
+    target: ConversationRef | None = None,
 ) -> Attachment:
     """Attach one of the caller's kept answers, as the document its space reads.
 
@@ -91,28 +92,18 @@ async def copy_bookmark(
     language = normalize_language(getattr(user, "language", None))
     zone = resolve_user_timezone(user).key
     text = render_bookmark(bookmark, language=language, timezone=zone)
-    stored_filename, relative_path, target = copy_target(
-        settings.attachments_storage_path, user_id, ".md"
-    )
-    file_size = await run_after_reads(db, write_text_copy, target, text)
     capped = text[: settings.attachments_max_pdf_text_chars]
-    attachment = await record_copy(
-        AttachmentRepository(db),
+    attachment = await publish_copy(
         db,
-        target,
-        {
-            "user_id": user_id,
-            "original_filename": document_name(bookmark, language=language, timezone=zone),
-            "stored_filename": stored_filename,
-            "mime_type": BOOKMARK_MIME,
-            "file_size": file_size,
-            "file_path": relative_path,
-            "content_type": AttachmentContentType.DOCUMENT,
-            "origin": AttachmentOrigin.UPLOAD.value,
-            "extracted_text": capped,
-            "status": AttachmentStatus.READY,
-            "expires_at": _deadline(),
-        },
+        user_id=user_id,
+        target=target,
+        metadata=UploadMetadata(
+            document_name(bookmark, language=language, timezone=zone),
+            BOOKMARK_MIME,
+            AttachmentContentType.DOCUMENT,
+            ".md",
+        ),
+        write=lambda path: FileWriteResult(write_text_copy(path, text), capped),
     )
     logger.info(
         "attachment_copied_from_bookmark",
@@ -149,14 +140,23 @@ async def _live_generated(
         or (source.expires_at is not None and source.expires_at <= datetime.now(UTC))
     ):
         raise_attachment_not_found(attachment_id)
-    path = Path(settings.attachments_storage_path) / source.file_path
-    if not path.is_file():
+    relative_path = source.file_path
+    await db.commit()
+    try:
+        path = await asyncio.to_thread(owned_relative_path, user_id, relative_path)
+    except ValueError:
+        raise_attachment_not_found(attachment_id)
+    if not await asyncio.to_thread(path.is_file):
         raise_attachment_not_found(attachment_id)
     return source, path
 
 
 async def copy_generated(
-    db: AsyncSession, *, user_id: uuid.UUID, attachment_id: uuid.UUID
+    db: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    attachment_id: uuid.UUID,
+    target: ConversationRef | None = None,
 ) -> Attachment:
     """Attach a copy of one of the caller's generated files.
 
@@ -176,34 +176,25 @@ async def copy_generated(
     image = source.content_type == AttachmentContentType.IMAGE
     if image:
         _check_image_bounds(source)
-    stored_filename, relative_path, target = copy_target(
-        settings.attachments_storage_path, user_id, Path(source.stored_filename).suffix
-    )
-    text, file_size = await run_after_reads(
+    extraction_type = None if image else source.mime_type
+
+    def write(destination: Path) -> FileWriteResult:
+        text, size = copy_and_extract(
+            path, destination, extraction_type, settings.attachments_max_pdf_text_chars
+        )
+        return FileWriteResult(size, text)
+
+    attachment = await publish_copy(
         db,
-        copy_and_extract,
-        path,
-        target,
-        None if image else source.mime_type,
-        settings.attachments_max_pdf_text_chars,
-    )
-    attachment = await record_copy(
-        AttachmentRepository(db),
-        db,
-        target,
-        {
-            "user_id": user_id,
-            "original_filename": source.original_filename,
-            "stored_filename": stored_filename,
-            "mime_type": source.mime_type,
-            "file_size": file_size,
-            "file_path": relative_path,
-            "content_type": source.content_type,
-            "origin": AttachmentOrigin.UPLOAD.value,
-            "extracted_text": text,
-            "status": AttachmentStatus.READY,
-            "expires_at": _deadline(),
-        },
+        user_id=user_id,
+        target=target,
+        metadata=UploadMetadata(
+            source.original_filename,
+            source.mime_type,
+            source.content_type,
+            Path(source.stored_filename).suffix,
+        ),
+        write=write,
     )
     logger.info(
         "attachment_copied_from_generated_file",
@@ -211,7 +202,7 @@ async def copy_generated(
         user_id=str(user_id),
         source_id=str(attachment_id),
         content_type=source.content_type,
-        text_chars=len(text or ""),
+        text_chars=len(attachment.extracted_text or ""),
     )
     return attachment
 

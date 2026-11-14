@@ -1940,8 +1940,8 @@
     },
     "370": {
       "title": "Eine vom Modell geschriebene Seite läuft im Chat, im strengsten Rahmen",
-      "summary": "Wer ein Spiel oder ein kleines Werkzeug verlangt, bekommt eine Seite, die in der Unterhaltung läuft, samt ihrer Datei; wer den Code verlangt, bekommt den Code, und was eine Person tippt, bleibt Text. Die Seite läuft isoliert, ohne Zugriff auf das Konto oder auf eine selbst gewählte Website, unter einer Richtlinie, die keinen Host nennt. Aus dem Verlauf geladen wartet sie auf einen Klick, denn eine Endlosschleife würde den Tab einfrieren, und das Modell liest von ihr nur den Titel.",
-      "src": "ab92ef5e6f98"
+      "summary": "Wer ein Spiel oder ein kleines Werkzeug verlangt, bekommt eine Seite, die in der Unterhaltung läuft, samt ihrer Datei; wer den Code verlangt, bekommt den Code, und was eine Person tippt, bleibt Text. Die Seite läuft isoliert, ohne Zugriff auf das Konto oder auf eine selbst gewählte Website, unter einer Richtlinie, die keinen Host nennt, außer den Kartenquellen, die der Betreiber erlaubt. Aus dem Verlauf geladen wartet sie auf einen Klick, denn eine Endlosschleife würde den Tab einfrieren, und das Modell liest von ihr nur den Titel.",
+      "src": "3bcfc0530f76"
     },
     "371": {
       "title": "Die Plätze der Domänen-Agenten gehen mit ihren Knoten",
@@ -1977,6 +1977,61 @@
       "title": "Das Konto wählt, wie die Oberfläche gezeichnet wird",
       "summary": "Jedes Symbol geht durch eine einzige Tür, die den vom Konto gewählten Stil zeichnet, Lucide, Fluent Color oder Streamline Flex, ohne die Bedeutung eines Symbols zu ändern, und der Hochkontrast des Systems behält seine Farben. Das Design kann außerdem zu den gewählten Uhrzeiten nach der Uhr des Kontos von selbst von hell zu absolutem Schwarz wechseln, ohne dass je ein Zeitgeber das Profil schreibt.",
       "src": "961a36d2c764"
+    },
+    "378": {
+      "title": "Die Hauptunterhaltung bleibt bestehen und jede Unterhaltung hat ihren eigenen Laufzeitkontext",
+      "summary": "Eine Schaltfläche öffnet die Hauptunterhaltung und benannte Unterhaltungen mit eigenem Verlauf und eigener Anzeige. Automatische Nachrichten landen in der Hauptunterhaltung. Einstellungen und Gelerntes gelten für das ganze Konto. Beim Zurücksetzen oder Löschen wird die gewählte Laufzeitgeneration stillgelegt und ihre Bereinigung nachverfolgt.",
+      "src": "3d0c881877ab"
+    },
+    "379": {
+      "title": "Eine aufgelistete E-Mail sagt, ob sie beantwortet wurde",
+      "summary": "Für sich allein gelesen kann eine Nachricht nicht sagen, ob sie beantwortet wurde: Die Antwort ist eine andere Nachricht derselben Unterhaltung. LIA liest diese Unterhaltung nun immer dann, wenn sie E-Mails auflistet, und nennt überall dieselbe Tatsache: bereits beantwortet, Antwort im Entwurf, Antwort erhalten. Sie schlägt also nicht mehr vor, eine E-Mail zu beantworten, auf die die Person schon geantwortet hat – im Chat ebenso wie in den Benachrichtigungen, auf der Startseite, bei den Beziehungen und in den Tools.",
+      "src": "8d6baa43fbc1"
+    },
+    "380": {
+      "title": "Eine Uhrzeit, die du nennst, reist mit ihrer Zeitzone",
+      "summary": "„Halb zehn“ bezeichnet nur zusammen mit der Zeitzone, in der du es sagst, einen genauen Zeitpunkt, und jede Stunde, die LIA verloren hat, ging verloren, wenn das eine ohne das andere unterwegs war: Ein auf 9:30 Uhr verschobener Termin stand dann auf 10:30 Uhr. Uhrzeit und Zeitzone bilden jetzt ein einziges Objekt, das LIA unverändert an Google, Microsoft und iCloud übergibt, ohne unterwegs etwas umzurechnen, mit einer einzigen Regel für die beiden Nächte der Zeitumstellung. Und jeder Weg einer Uhrzeit, vom Bildschirm in den Kalender und zurück, wird auf Kalendern nachgespielt, die nach ihrer Dokumentation simuliert sind, in Zeitzonen fern der Weltzeit.",
+      "src": "501ba1659f0b"
+    },
+    "381": {
+      "title": "Ein Modell weiß, wann jede Nachricht geschrieben wurde",
+      "summary": "Ein Modell kannte die aktuelle Uhrzeit, nie aber die der früheren Nachrichten: Tage später wieder aufgenommen, las sich ein Gespräch, als wäre alles gerade erst gesagt worden, und „der Zahnarzt morgen“, an einem Dienstag geschrieben, lag am Freitag noch vor dir. Jede deiner Nachrichten trägt jetzt den Moment, in dem du sie geschrieben hast, in deiner Zeitzone, und jedes Modell, das das Gespräch erneut liest, liest ihn mit: die Antwort, die ReAct-Schleife, die Analyse deiner Anfrage, die Zusammenfassung der Verdichtung, der Anruf, und was LIA über dich behält (Erinnerungen, Interessen, Zusagen, Journal), deren Fristen jetzt in deiner Zeitzone gelesen werden. Vor dem Schreiben des Codes an drei Modellfamilien gemessen, erhielten die Fragen, die davon abhängen, zwischen 3 und 7 richtige Antworten von 21; jetzt sind es 14, 16 und 20.",
+      "src": "b3cd55107c2c"
+    },
+    "382": {
+      "title": "Die Instanz sucht im Web für alle ohne Schlüssel",
+      "summary": "Ohne eigenen Suchschlüssel wurde nur in Wikipedia gesucht. LIA betreibt jetzt neben sich SearXNG, eine Metasuchmaschine ohne Schlüssel, standardmäßig aktiviert (der Betreiber kann sie ablehnen): Die Suche im Chat, die Anreicherung der Antworten, die Beobachtung deiner Interessen und die Werkzeuge finden dort ihre Weblinks, ungefiltert wie bei Brave, wobei dein eigener Brave-Schlüssel Vorrang behält. Vor dem Schreiben des Codes gemessen: 58 nützliche Suchen von 60 in den sechs Sprachen, die Hälfte in weniger als 0,7 Sekunden. Und eine Quelle der Beobachtung, die nichts abfragen würde, zählt nicht mehr als konsultiert.",
+      "src": "8de9f8a9e3b4"
+    },
+    "383": {
+      "title": "Ein Entwurf spricht mit der Stimme der Person",
+      "summary": "Zwei Personen, die auf dieselbe E-Mail antworteten, bekamen von LIA dieselbe Antwort. Wenn LIA zum ersten Mal eine E-Mail für dich schreibt, lernt sie jetzt aus deinen zuletzt gesendeten E-Mails, wie du schreibst — Anrede, Grußformel, Signatur, Ton, nie worüber du geschrieben hast — und folgt dem in jeder Antwort und jeder neuen Nachricht, auch in der Antwort, die du bestätigst und die LIA jetzt selbst schreibt, wenn du ihren Wortlaut nicht diktiert hast. In den Einstellungen kannst du sie lesen, ausschalten oder vergessen lassen. Vor dem Code an fiktiven Personen gemessen: Die Antworten stiegen von etwa 42 auf 63 von 66 Merkmalen des Stils ihres Autors, ohne eine einzige Tatsache aus alten E-Mails zu übernehmen.",
+      "src": "34665c9462e6"
+    },
+    "384": {
+      "title": "Eine Nachricht, die du schreibst, während LIA arbeitet, wartet, bis sie an der Reihe ist",
+      "summary": "Eine Nachricht, die gesendet wurde, während LIA antwortete – oder während eine Routine auf deinem Konto lief –, wurde abgelehnt und ging verloren. Der Server bewahrt sie jetzt bei ihrem Gespräch auf, unter der Unterhaltung, wo du sie bearbeiten oder zurückziehen kannst; was du danach schreibst, wird angehängt. Sie geht von selbst hinaus, als deine Nachricht, sobald LIA normal fertig ist; wurde die Antwort gestoppt oder ist sie fehlgeschlagen, wartet sie auf deine Entscheidung. Sie gilt nie als Antwort auf eine Frage von LIA, und „Jetzt senden“ stoppt die laufende Antwort und sendet sie dann. Jeder Lauf sagt jetzt, wie er geendet hat, und dieses Ende, festgehalten, wenn das Konto frei wird, entscheidet.",
+      "src": "9d72507d739c"
+    },
+    "385": {
+      "title": "Eine Notiz kommt zur laufenden Antwort hinzu",
+      "summary": "Was du schreibst, während LIA arbeitet, ist oft eine Präzisierung deiner Anfrage („nur die, die sonntags geöffnet haben“), und sie nach der Antwort zu senden, ließ die Arbeit neu machen. Im ReAct-Modus kann deine wartende Nachricht jetzt zur laufenden Antwort hinzukommen: LIA liest sie bei ihrem nächsten Schritt als deine eigenen Worte und berücksichtigt sie für den Rest, ohne etwas davor umzuschreiben. Solange sie sie nicht gelesen hat, kannst du sie bearbeiten oder zurückziehen; ist sie vorher fertig, wird die Nachricht wie gewohnt direkt danach gesendet. Deine Notiz bleibt an ihrer Stelle in der Diskussion, und die Anfrage, die die Antwort, das Gedächtnis und die nächsten Runden behalten, enthält sie.",
+      "src": "05e3ac16b232"
+    },
+    "386": {
+      "title": "Ein anderes System startet eine Routine",
+      "summary": "Eine Routine kann jetzt laufen, wenn ein anderes System sie aufruft: eine Smart-Home-Zentrale, eine Code-Plattform, ein Formulardienst. LIA gibt der Routine eine eigene Adresse und ein Geheimnis, das nur einmal angezeigt wird; das andere System signiert damit jeden Aufruf, und LIA bedient den Aufruf innerhalb einer Minute und liest, was er gesendet hat, als Daten, nie als Anweisung. Ein Aufruf ohne gültige Signatur wird abgelehnt, eine Flut wird begrenzt, eine wiederholte Zustellung zählt einmal, und ein verlorenes Geheimnis wird durch ein neues ersetzt, das das alte sofort ablöst. Ein Administrator kann die Fähigkeit abschalten; der Demonstrator lässt sie abgeschaltet.",
+      "src": "19b21b3a019c"
+    },
+    "387": {
+      "title": "Eine Routine überwacht eine Webseite",
+      "summary": "Eine Routine kann jetzt darauf warten, dass sich eine Webseite ändert: ein Preis, ein „auf Lager“, das zurückkehrt, eine neue Ankündigung. LIA liest die öffentliche Seite selbst, ohne Modell, und startet die Routine nur für die Zeilen, die darauf erscheinen, gelesen als Daten, nie als Anweisungen. Eine Zeile, die verschwindet und wiederkommt, wird erneut gemeldet.",
+      "src": "7cd2979deda5"
+    },
+    "388": {
+      "title": "Dokumente nutzen, was ihre Formate können",
+      "summary": "Ein Dokument, das LIA erzeugt, nutzt jetzt die Mechanismen seines Formats: Eine Tabelle rechnet mit echten Formeln, ein Diagramm lässt sich in Excel oder PowerPoint bearbeiten, eine Präsentation, die du vorführst, bewegt sich dezent, ein Bericht beginnt mit einem Titelblatt, mit seinen Kennzahlen, seinen Abbildungen und seinen anklickbaren Quellen. Das Modell sagt, was die Dinge sind, und der Renderer zeichnet sie, in einer kontrastgeprüften Palette, die dem Ton des Dokuments folgt. Illustrationen sind generierte Bilder: Sie kommen nur, wenn du sie unter Einstellungen › Dokumente erlaubst, innerhalb eines Budgets, und jede wird in deinen Kosten gezählt.",
+      "src": "825ef1252ca8"
     }
   }
 }

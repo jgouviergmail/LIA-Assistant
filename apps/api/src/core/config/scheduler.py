@@ -17,6 +17,12 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     REMINDER_PROCESSING_STALE_TIMEOUT_MINUTES_DEFAULT,
+    ROUTINE_WEBHOOK_MAX_BODY_BYTES_DEFAULT,
+    ROUTINE_WEBHOOK_MAX_PENDING_DEFAULT,
+    ROUTINE_WEBHOOK_MAX_PER_RUN_DEFAULT,
+    ROUTINE_WEBHOOK_RATE_PER_MINUTE_DEFAULT,
+    SCHEDULED_ACTIONS_CATCH_UP_MAX_MINUTES_DEFAULT,
+    SCHEDULED_ACTIONS_CATCH_UP_MAX_MINUTES_FLOOR,
     SCHEDULED_ACTIONS_CONDITION_CHECK_MINUTES_DEFAULT,
     SCHEDULED_ACTIONS_CONDITION_MAX_FIRES_PER_DAY_DEFAULT,
     SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS,
@@ -25,6 +31,8 @@ from src.core.constants import (
     SCHEDULED_ACTIONS_MAX_TIMES_PER_DAY_DEFAULT,
     SCHEDULED_ACTIONS_MIN_STEP_MINUTES_DEFAULT,
     SCHEDULED_ACTIONS_MIN_STEP_MINUTES_FLOOR,
+    SCHEDULED_ACTIONS_PAGE_CHECK_MINUTES_DEFAULT,
+    SCHEDULED_ACTIONS_QUOTA_NOTICE_COOLDOWN_HOURS_DEFAULT,
     SCHEDULED_ACTIONS_RUNS_RETENTION_DAYS,
     SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES,
     SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES_DEFAULT,
@@ -141,6 +149,19 @@ class SchedulerSettings(BaseSettings):
         ),
     )
 
+    scheduled_actions_page_check_minutes: int = Field(
+        default=SCHEDULED_ACTIONS_PAGE_CHECK_MINUTES_DEFAULT,
+        ge=15,
+        le=1440,
+        description=(
+            "How often a page-change routine reads its public page (ADR-387): one "
+            "request per check, no model, phase-shifted per routine. Symptom if too "
+            "low: the watched sites see more requests, and a page that changes "
+            "constantly reaches the daily cap of runs sooner. Symptom if too high: "
+            "a change (a price, a stock) is announced later."
+        ),
+    )
+
     scheduled_actions_weather_check_minutes: int = Field(
         default=SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES_DEFAULT,
         ge=10,
@@ -193,6 +214,35 @@ class SchedulerSettings(BaseSettings):
         ),
     )
 
+    scheduled_actions_quota_notice_cooldown_hours: int = Field(
+        default=SCHEDULED_ACTIONS_QUOTA_NOTICE_COOLDOWN_HOURS_DEFAULT,
+        ge=1,
+        le=720,
+        description=(
+            "How long an account is not told again that its usage ceiling stood "
+            "its routines aside. The notice is the ACCOUNT's, claimed once per "
+            "window whichever routine met the ceiling first; every skipped slot "
+            "still shows its reason on the week. Symptom if too low: an account "
+            "blocked for days is reminded at every window. Symptom if too high: "
+            "a second, later block within the window goes unannounced."
+        ),
+    )
+
+    scheduled_actions_catch_up_max_minutes: int = Field(
+        default=SCHEDULED_ACTIONS_CATCH_UP_MAX_MINUTES_DEFAULT,
+        ge=SCHEDULED_ACTIONS_CATCH_UP_MAX_MINUTES_FLOOR,
+        le=1440,
+        description=(
+            "Longest an occurrence of a time routine may start late. A due "
+            "occurrence is caught up inside half the gap to the one that follows "
+            "it, capped by this maximum; past it the occurrence is recorded as "
+            "missed and the routine re-arms. An account found busy is waited for "
+            "inside the same window. Symptom if too low: a routine due during a "
+            "short outage or a long chat turn is skipped. Symptom if too high: "
+            "a morning routine answers in the afternoon after an outage."
+        ),
+    )
+
     reminder_processing_stale_timeout_minutes: int = Field(
         default=REMINDER_PROCESSING_STALE_TIMEOUT_MINUTES_DEFAULT,
         ge=1,
@@ -218,6 +268,71 @@ class SchedulerSettings(BaseSettings):
             "executor never applies less than the worst case of a run (every "
             "attempt at its bound plus the pauses), whatever this value: a "
             "lower one would hand a live run's routine to the next tick."
+        ),
+    )
+
+    # ========================================================================
+    # A signed call starts a routine (ADR-386)
+    # ========================================================================
+
+    routine_webhooks_enabled: bool = Field(
+        default=True,
+        description=(
+            "Deployment ceiling of the routines another system starts with a "
+            "signed call (ADR-386). Off: the public address refuses every call, "
+            "the routine form offers no third clock, the assistant creates none "
+            "and a run serves nothing — the routines, their addresses and the "
+            "calls already accepted stay recorded. The operator switch acts "
+            "inside it. Nothing is exposed until a person creates such a routine."
+        ),
+    )
+
+    routine_webhook_max_body_bytes: int = Field(
+        default=ROUTINE_WEBHOOK_MAX_BODY_BYTES_DEFAULT,
+        ge=1_024,
+        le=1_048_576,
+        description=(
+            "Largest body a routine's address accepts, in bytes; a larger call is "
+            "answered 413 before anything is stored. Symptom if too low: a sender "
+            "with a rich payload (a code forge's push) is refused. Symptom if too "
+            "high: each waiting call keeps more in the database and in the run's "
+            "context (a run is shown a bounded excerpt of each)."
+        ),
+    )
+
+    routine_webhook_max_pending: int = Field(
+        default=ROUTINE_WEBHOOK_MAX_PENDING_DEFAULT,
+        ge=1,
+        le=500,
+        description=(
+            "Calls one routine keeps waiting for its runs; a further call is "
+            "answered 429 until a run serves some. Symptom if too low: a burst "
+            "from a chatty sender is refused. Symptom if too high: a routine "
+            "whose runs fail keeps a long backlog to replay."
+        ),
+    )
+
+    routine_webhook_rate_per_minute: int = Field(
+        default=ROUTINE_WEBHOOK_RATE_PER_MINUTE_DEFAULT,
+        ge=1,
+        le=600,
+        description=(
+            "Calls one routine address accepts a minute (sliding window); past it "
+            "the sender is answered 429 with Retry-After. Symptom if too low: a "
+            "legitimate burst is refused. Symptom if too high: a sender in a loop "
+            "fills the waiting calls faster than runs serve them."
+        ),
+    )
+
+    routine_webhook_max_per_run: int = Field(
+        default=ROUTINE_WEBHOOK_MAX_PER_RUN_DEFAULT,
+        ge=1,
+        le=50,
+        description=(
+            "Waiting calls one run of a routine serves, oldest first; the rest "
+            "wait for the next run, armed at once. Symptom if too low: a burst "
+            "takes many runs (and many answers) to drain. Symptom if too high: "
+            "one run reads a long context of calls."
         ),
     )
 

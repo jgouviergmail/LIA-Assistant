@@ -71,6 +71,17 @@ describe('URL builders', () => {
     expect(localizedUrl('https://x.example', '', 'fr')).toBe('https://x.example');
   });
 
+  it('localizedUrl names a prefixed home without a trailing slash', () => {
+    // `/{lng}/` answers a permanent redirect to `/{lng}`: a canonical URL or a
+    // language alternate must name the address that answers, not the one that
+    // forwards to it.
+    expect(localizedUrl('https://x.example', '/', 'en')).toBe('https://x.example/en');
+    expect(localizedUrl('https://x.example', '', 'en')).toBe('https://x.example/en');
+    expect(localizedUrl('https://x.example', '/', 'fr')).toBe('https://x.example/');
+    expect(localizedUrl(null, '/', 'zh')).toBe('/zh');
+    expect(localizedUrl(null, '/', 'fr')).toBe('/');
+  });
+
   it('localizedUrl degrades to relative paths without an origin', () => {
     expect(localizedUrl(null, '/demo', 'fr')).toBe('/demo');
     expect(localizedUrl(null, '/demo', 'zh')).toBe('/zh/demo');

@@ -2,8 +2,8 @@
  * The board's filters, in and out of the URL (ADR-276).
  *
  * A narrowed board is a link somebody can send: the open ticket already
- * travels as `?ticket=`, and the filters take the same road so the settings
- * page can point at « what is late » or « what LIA holds ». Unknown values are
+ * travels as `?ticket=`, and the filters take the same road so the home card
+ * can point at « what is late » or « what LIA holds ». Unknown values are
  * DROPPED rather than trusted — a hand-typed `?assignee=bob` reads as `all` —
  * and the defaults write nothing, so a plain board keeps a plain URL.
  *
@@ -33,7 +33,24 @@ export const SEARCH_MAX_CHARS = 200;
 const SIDES: readonly BoardSide[] = ['all', 'me', 'lia', 'peer'];
 const SORTS: readonly BoardSort[] = ['position', 'priority', 'due', 'updated', 'created'];
 /** The query keys the filters own; everything else in the URL is left alone. */
-const FILTER_KEYS = ['status', 'priority', 'assignee', 'sort', 'overdue', 'q'] as const;
+const FILTER_KEYS = [
+  'status',
+  'priority',
+  'assignee',
+  'sort',
+  'overdue',
+  'q',
+  'category',
+  'uncategorized',
+] as const;
+
+/**
+ * The shape of a category id, and nothing more: the API validates it as a
+ * UUID, so a hand-typed `?category=home` would answer 422 and the board would
+ * show a failure for what is only a URL. Whether the id NAMES anything is the
+ * server's to say — an unknown one simply matches no ticket.
+ */
+const CATEGORY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** A board with nothing narrowed. */
 export const DEFAULT_FILTERS: BoardFilters = { assignee: 'all', sort: 'position' };
@@ -66,6 +83,7 @@ function isPriority(value: string): boolean {
 export function filtersFromParams(params: URLSearchParams): BoardFilters {
   const statuses = params.getAll('status').filter(isStatus);
   const priorities = params.getAll('priority').filter(isPriority);
+  const categories = params.getAll('category').filter(value => CATEGORY_ID.test(value));
   const assignee = params.get('assignee');
   const sort = params.get('sort');
   const q = params.get('q');
@@ -76,7 +94,18 @@ export function filtersFromParams(params: URLSearchParams): BoardFilters {
     ...(priorities.length > 0 ? { priority: priorities } : {}),
     ...(params.get('overdue') === '1' ? { overdue: true } : {}),
     ...(q?.trim() ? { q: q.slice(0, SEARCH_MAX_CHARS) } : {}),
+    ...(categories.length > 0 ? { category: categories } : {}),
+    ...(params.get('uncategorized') === '1' ? { uncategorized: true } : {}),
   };
+}
+
+/** A filter holding several values writes one parameter per value; none writes nothing. */
+function appendEach(
+  next: URLSearchParams,
+  key: (typeof FILTER_KEYS)[number],
+  values: readonly string[] | undefined
+): void {
+  for (const value of values ?? []) next.append(key, value);
 }
 
 /**
@@ -92,12 +121,14 @@ export function filtersFromParams(params: URLSearchParams): BoardFilters {
 export function writeFilters(params: URLSearchParams, filters: BoardFilters): URLSearchParams {
   const next = new URLSearchParams(params);
   for (const key of FILTER_KEYS) next.delete(key);
-  for (const status of filters.status ?? []) next.append('status', status);
-  for (const priority of filters.priority ?? []) next.append('priority', priority);
+  appendEach(next, 'status', filters.status);
+  appendEach(next, 'priority', filters.priority);
+  appendEach(next, 'category', filters.category);
   if (filters.assignee && filters.assignee !== 'all') next.set('assignee', filters.assignee);
   if (filters.sort && filters.sort !== 'position') next.set('sort', filters.sort);
   if (filters.overdue) next.set('overdue', '1');
   if (filters.q?.trim()) next.set('q', filters.q);
+  if (filters.uncategorized) next.set('uncategorized', '1');
   return next;
 }
 

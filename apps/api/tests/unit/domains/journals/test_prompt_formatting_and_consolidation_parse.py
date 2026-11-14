@@ -75,7 +75,7 @@ def make_entry(**overrides: Any) -> JournalEntry:
 class TestFormatMessagesForExtraction:
     def test_keeps_the_user_and_assistant_turns_in_order(self) -> None:
         text = _format_messages_for_extraction(
-            [HumanMessage(content="Bonjour"), AIMessage(content="Bonsoir plutôt")]
+            [HumanMessage(content="Bonjour"), AIMessage(content="Bonsoir plutôt")], zone=UTC
         )
 
         assert text == "USER: Bonjour\nASSISTANT: Bonsoir plutôt"
@@ -93,7 +93,7 @@ class TestFormatMessagesForExtraction:
             AIMessage(content="Bonjour !"),
         ]
 
-        text = _format_messages_for_extraction(messages)
+        text = _format_messages_for_extraction(messages, zone=UTC)
 
         assert "article sur le vélo" not in text
         assert text == "USER: Salut\nASSISTANT: Bonjour !"
@@ -105,7 +105,7 @@ class TestFormatMessagesForExtraction:
             )
         ]
 
-        assert "Réponse normale" in _format_messages_for_extraction(messages)
+        assert "Réponse normale" in _format_messages_for_extraction(messages, zone=UTC)
 
     @pytest.mark.parametrize(
         "message",
@@ -117,7 +117,7 @@ class TestFormatMessagesForExtraction:
     def test_system_and_tool_turns_never_reach_the_prompt(self, message: Any) -> None:
         # System scaffolding and raw tool payloads are not conversation, and a
         # tool result can carry PII the journal must not copy.
-        assert _format_messages_for_extraction([message]) == ""
+        assert _format_messages_for_extraction([message], zone=UTC) == ""
 
     def test_a_long_historical_message_is_truncated_with_an_ellipsis(self) -> None:
         from src.domains.journals.constants import JOURNAL_EXTRACTION_MESSAGE_MAX_CHARS
@@ -125,7 +125,7 @@ class TestFormatMessagesForExtraction:
         long_text = "a" * (JOURNAL_EXTRACTION_MESSAGE_MAX_CHARS + 500)
 
         text = _format_messages_for_extraction(
-            [HumanMessage(content=long_text), HumanMessage(content="Latest request")]
+            [HumanMessage(content=long_text), HumanMessage(content="Latest request")], zone=UTC
         ).splitlines()[0]
 
         assert text.endswith("...")
@@ -136,12 +136,12 @@ class TestFormatMessagesForExtraction:
 
         exact = "b" * JOURNAL_EXTRACTION_MESSAGE_MAX_CHARS
 
-        text = _format_messages_for_extraction([HumanMessage(content=exact)])
+        text = _format_messages_for_extraction([HumanMessage(content=exact)], zone=UTC)
 
         assert not text.endswith("...")
 
     def test_an_empty_conversation_yields_an_empty_block(self) -> None:
-        assert _format_messages_for_extraction([]) == ""
+        assert _format_messages_for_extraction([], zone=UTC) == ""
 
 
 # =============================================================================

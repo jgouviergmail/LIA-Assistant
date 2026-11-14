@@ -15,26 +15,27 @@ This test suite covers:
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.field_names import (
-    FIELD_TOTAL_COST_EUR,
-    FIELD_TOTAL_TOKENS_CACHE,
-    FIELD_TOTAL_TOKENS_IN,
-    FIELD_TOTAL_TOKENS_OUT,
-)
+from src.core.conversation_selection import ConversationSelection
+from src.core.conversation_target import ConversationKind
+from src.core.exceptions import ResourceNotFoundError
 from src.domains.chat.models import MessageTokenSummary
+from src.domains.conversations.lifecycle import ConversationLifecycle
 from src.domains.conversations.models import (
     Conversation,
     ConversationAuditLog,
     ConversationMessage,
 )
 from src.domains.conversations.service import ConversationService
+from src.domains.conversations.usage import read_conversation_usage
 from src.domains.users.models import User
+from tests.fixtures.conversation_executions import legacy_reset_runtime as legacy_reset_runtime
 
 # Requires a real database (external via TEST_DATABASE_URL or Testcontainers).
 # Run manually with: pytest tests/integration/test_conversations_service.py -v
@@ -744,55 +745,60 @@ class TestGetMessagesWithTokensAuto:
 
 
 class TestGetConversationTotals:
-    """Test get_conversation_totals method."""
+    """Legacy selection reads real accounting for Main."""
 
-    async def test_returns_zero_for_no_conversation(self, service, sample_user, async_session):
-        """Test returns zeros when no conversation exists."""
-        totals = await service.get_conversation_totals(
-            user_id=sample_user.id,
-            db=async_session,
-        )
-
-        assert totals["conversation_id"] is None
-        assert totals["total_tokens_in"] == 0
-        assert totals["total_tokens_out"] == 0
-        assert totals["total_cost_eur"] == 0.0
-
-    @patch("src.domains.conversations.service.ConversationRepository")
-    async def test_calculates_totals(
+    async def test_refuses_missing_main(
         self,
-        mock_repo_class,
-        service,
-        sample_user,
-        sample_conversation,
-        async_session,
-    ):
-        """Test calculates conversation totals with mocking."""
-        # Mock repository
-        mock_repo = AsyncMock()
-        mock_repo_class.return_value = mock_repo
+        sample_user: User,
+        async_session: AsyncSession,
+    ) -> None:
+        with pytest.raises(ResourceNotFoundError):
+            await read_conversation_usage(async_session, sample_user.id, ConversationSelection())
 
-        # Mock token totals response
-        # Repository returns standardized keys matching field_names constants
-        mock_repo.get_token_totals.return_value = {
-            FIELD_TOTAL_TOKENS_IN: 300,
-            FIELD_TOTAL_TOKENS_OUT: 150,
-            FIELD_TOTAL_TOKENS_CACHE: 30,
-            FIELD_TOTAL_COST_EUR: 0.0025,  # Historical cost from message_token_summary
-        }
-
-        # Execute - service uses aggregated totals directly (O(1) optimization)
-        totals = await service.get_conversation_totals(
-            user_id=sample_user.id,
-            db=async_session,
+    async def test_empty_main_starts_at_zero(
+        self, sample_conversation: Conversation, async_session: AsyncSession
+    ) -> None:
+        totals = await read_conversation_usage(
+            async_session, sample_conversation.user_id, ConversationSelection()
         )
+        assert totals.conversation_id == sample_conversation.id
+        assert (totals.total_tokens_in, totals.total_tokens_out, totals.total_tokens_cache) == (
+            0,
+            0,
+            0,
+        )
+        assert totals.total_cost_eur == 0.0
 
-        # Verify totals are calculated from repository response
-        assert totals[FIELD_TOTAL_TOKENS_IN] == 300
-        assert totals[FIELD_TOTAL_TOKENS_OUT] == 150
-        assert totals[FIELD_TOTAL_TOKENS_CACHE] == 30
-        # Cost comes directly from aggregated historical cost
-        assert totals[FIELD_TOTAL_COST_EUR] == 0.0025
+    async def test_calculates_totals(
+        self, sample_conversation: Conversation, async_session: AsyncSession
+    ) -> None:
+        owner = sample_conversation.user_id
+        annex = Conversation(user_id=owner, kind=ConversationKind.SECONDARY, title="Annex")
+        async_session.add(annex)
+        await async_session.flush()
+        for conversation, factor in ((sample_conversation, 1), (annex, 10)):
+            async_session.add(
+                MessageTokenSummary(
+                    user_id=owner,
+                    session_id="test-legacy-badge",
+                    run_id=str(uuid4()),
+                    conversation_id=conversation.id,
+                    total_prompt_tokens=300 * factor,
+                    total_completion_tokens=150 * factor,
+                    total_cached_tokens=30 * factor,
+                    total_cost_eur=Decimal("0.0025") * factor,
+                )
+            )
+        await async_session.commit()
+
+        totals = await read_conversation_usage(async_session, owner, ConversationSelection())
+        assert totals.conversation_id == sample_conversation.id
+        assert (totals.total_tokens_in, totals.total_tokens_out, totals.total_tokens_cache) == (
+            300,
+            150,
+            30,
+        )
+        assert totals.total_cost_eur == 0.0025
 
 
 # ============================================================================
@@ -801,142 +807,62 @@ class TestGetConversationTotals:
 
 
 class TestResetConversation:
-    """Test reset_conversation with proper mocking."""
+    """Logical reset is real SQL; native and legacy completion have separate real-door tests."""
 
-    @patch("src.domains.conversations.checkpointer.get_checkpointer")
-    @patch("src.domains.agents.context.manager.ToolContextManager")
-    @patch("src.domains.agents.context.store.get_tool_context_store")
-    @patch("src.infrastructure.cache.redis.get_redis_cache")
     async def test_resets_conversation_stats(
         self,
-        mock_redis,
-        mock_context_store,
-        mock_context_manager_class,
-        mock_checkpointer,
-        service,
-        sample_user,
-        sample_conversation,
-        async_session,
-    ):
-        """Test reset clears stats and messages."""
-        # Setup mocks
-        mock_checkpointer_instance = AsyncMock()
-        mock_checkpointer_instance.adelete_thread = AsyncMock()
-        mock_checkpointer.return_value = mock_checkpointer_instance
-
-        mock_context_manager = AsyncMock()
-        mock_context_manager.cleanup_session_contexts = AsyncMock(
-            return_value={"domains_cleaned": [], "total_items_deleted": 0}
-        )
-        mock_context_manager_class.return_value = mock_context_manager
-
-        mock_store_instance = AsyncMock()
-        mock_context_store.return_value = mock_store_instance
-
-        mock_redis_instance = AsyncMock()
-        mock_redis_instance.delete = AsyncMock(return_value=0)
-        mock_redis_instance.scan = AsyncMock(return_value=(0, []))
-        mock_redis.return_value = mock_redis_instance
-
-        # Set initial stats
+        sample_user: User,
+        sample_conversation: Conversation,
+        async_session: AsyncSession,
+    ) -> None:
         sample_conversation.message_count = 10
         sample_conversation.total_tokens = 5000
+        original_runtime = sample_conversation.runtime_id
         await async_session.commit()
-
-        # Create a message
-        await service.archive_message(
-            conversation_id=sample_conversation.id,
-            role="user",
-            content="Test message",
-            metadata=None,
-            db=async_session,
+        result = await ConversationLifecycle(async_session).request_reset(
+            sample_user.id,
+            sample_conversation.id,
+            operation_id=uuid4(),
+            expected_revision=sample_conversation.revision,
         )
-        await async_session.commit()
-
-        # Reset conversation
-        await service.reset_conversation(
-            user_id=sample_user.id,
-            db=async_session,
-        )
-
-        # Verify reset
         await async_session.refresh(sample_conversation)
-        assert sample_conversation.message_count == 0
-        assert sample_conversation.total_tokens == 0
+        assert (sample_conversation.message_count, sample_conversation.total_tokens) == (0, 0)
+        assert sample_conversation.runtime_id != original_runtime
+        assert result.logical_applied and not result.cleanup_complete
 
-        # Verify checkpointer called
-        mock_checkpointer_instance.adelete_thread.assert_called_once()
-
-    @patch("src.domains.conversations.checkpointer.get_checkpointer")
-    @patch("src.domains.agents.context.manager.ToolContextManager")
-    @patch("src.domains.agents.context.store.get_tool_context_store")
-    @patch("src.infrastructure.cache.redis.get_redis_cache")
     async def test_creates_audit_log_on_reset(
         self,
-        mock_redis,
-        mock_context_store,
-        mock_context_manager_class,
-        mock_checkpointer,
-        service,
-        sample_user,
-        sample_conversation,
-        async_session,
-    ):
-        """Test audit log created on reset."""
-        # Setup mocks
-        mock_checkpointer_instance = AsyncMock()
-        mock_checkpointer_instance.adelete_thread = AsyncMock()
-        mock_checkpointer.return_value = mock_checkpointer_instance
-
-        mock_context_manager = AsyncMock()
-        mock_context_manager.cleanup_session_contexts = AsyncMock(
-            return_value={"domains_cleaned": [], "total_items_deleted": 0}
-        )
-        mock_context_manager_class.return_value = mock_context_manager
-
-        mock_store_instance = AsyncMock()
-        mock_context_store.return_value = mock_store_instance
-
-        mock_redis_instance = AsyncMock()
-        mock_redis_instance.delete = AsyncMock(return_value=0)
-        mock_redis_instance.scan = AsyncMock(return_value=(0, []))
-        mock_redis.return_value = mock_redis_instance
-
+        sample_user: User,
+        sample_conversation: Conversation,
+        async_session: AsyncSession,
+    ) -> None:
         sample_conversation.message_count = 5
         sample_conversation.total_tokens = 1000
         await async_session.commit()
-
-        await service.reset_conversation(
-            user_id=sample_user.id,
-            db=async_session,
+        await ConversationLifecycle(async_session).request_reset(
+            sample_user.id,
+            sample_conversation.id,
+            operation_id=uuid4(),
+            expected_revision=sample_conversation.revision,
         )
-
-        # Verify audit log
-        from sqlalchemy import select
-
-        stmt = select(ConversationAuditLog).where(
-            ConversationAuditLog.conversation_id == sample_conversation.id,
-            ConversationAuditLog.action == "reset",
+        result = await async_session.execute(
+            select(ConversationAuditLog).where(
+                ConversationAuditLog.conversation_id == sample_conversation.id,
+                ConversationAuditLog.action == "reset",
+            )
         )
-        result = await async_session.execute(stmt)
-        audit_log = result.scalar_one_or_none()
+        audit = result.scalar_one()
+        assert audit.message_count_at_action == 5
+        assert audit.audit_metadata is not None and audit.audit_metadata["total_tokens"] == 1000
 
-        assert audit_log is not None
-        assert audit_log.action == "reset"
-        assert audit_log.message_count_at_action == 5
-
-    async def test_reset_handles_no_conversation(self, service, sample_user, async_session):
-        """Test reset handles missing conversation gracefully."""
-        # Should not raise exception
-        await service.reset_conversation(
-            user_id=sample_user.id,
-            db=async_session,
-        )
-
-
-# ============================================================================
-# _generate_title Tests
-# ============================================================================
+    @pytest.mark.usefixtures("legacy_reset_runtime")
+    async def test_reset_handles_no_conversation(
+        self,
+        service: ConversationService,
+        sample_user: User,
+        async_session: AsyncSession,
+    ) -> None:
+        assert await service.reset_conversation(sample_user.id, async_session) is None
 
 
 class TestGenerateTitle:
@@ -952,11 +878,13 @@ class TestGenerateTitle:
 
         assert re.search(r"\d{2}/\d{2}/\d{4}", title)
 
-    def test_generates_unique_titles_on_different_days(self, service):
-        """Test titles reflect current date."""
-        with patch("src.domains.conversations.service.datetime") as mock_datetime:
+    def test_generates_unique_titles_on_different_days(self, service: ConversationService) -> None:
+        """Titles change with the clock at the actual title-generation boundary."""
+        with patch("src.domains.conversations.titles.datetime") as mock_datetime:
             mock_datetime.now.return_value = datetime(2024, 1, 15, tzinfo=UTC)
-            mock_datetime.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
-
-            title = service._generate_title("fr")
-            assert "15/01/2024" in title
+            first = service._generate_title("fr")
+            mock_datetime.now.return_value = datetime(2024, 1, 16, tzinfo=UTC)
+            second = service._generate_title("fr")
+        assert "15/01/2024" in first
+        assert "16/01/2024" in second
+        assert first != second

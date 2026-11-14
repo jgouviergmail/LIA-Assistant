@@ -38,6 +38,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { VoicesProvenance } from '@/components/live/VoicesProvenance';
 import { Switch } from '@/components/ui/switch';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { capabilityAvailable } from '@/lib/capability-availability';
 import { useAuth } from '@/hooks/useAuth';
 import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { activeLiveConnector, useLiveConnectorSettings } from '@/hooks/useLiveConnectorSettings';
@@ -70,7 +71,7 @@ export function LiveModeSettings({ lng }: BaseSettingsProps) {
 function AccountLiveModeSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { config } = useAppConfig();
-  const flagOn = !!config?.features?.live_enabled;
+  const flagOn = capabilityAvailable(config, 'live');
   // The provider under edit in the form (its voices are listed); the active one until a choice.
   const [editedProvider, setEditedProvider] = useState<string | null>(null);
   const connector = useLiveConnectorSettings(flagOn, editedProvider);
@@ -520,7 +521,7 @@ function PreferencesPanel({
             aria-describedby="live-interruptions-help"
             checked={preferences.interruptions}
             onCheckedChange={interruptions => void change({ interruptions })}
-            disabled={saving}
+            busy={saving}
           />
         </div>
       )}
@@ -536,7 +537,7 @@ function PreferencesPanel({
             { value: 'normal', label: t('settings.live_mode.end_of_speech_normal') },
             { value: 'lively', label: t('settings.live_mode.end_of_speech_lively') },
           ]}
-          disabled={saving}
+          busy={saving}
           onChange={value =>
             void change({ end_of_speech: value as LivePreferences['end_of_speech'] })
           }
@@ -551,7 +552,7 @@ function PreferencesPanel({
           { value: 'interrupt', label: t('settings.live_mode.result_delivery_interrupt') },
           { value: 'when_idle', label: t('settings.live_mode.result_delivery_when_idle') },
         ]}
-        disabled={saving}
+        busy={saving}
         onChange={value =>
           void change({ result_delivery: value as LivePreferences['result_delivery'] })
         }
@@ -566,7 +567,7 @@ function PreferenceSelect({
   help,
   value,
   options,
-  disabled,
+  busy,
   onChange,
 }: {
   id: string;
@@ -574,13 +575,14 @@ function PreferenceSelect({
   help: string;
   value: string;
   options: ReadonlyArray<{ value: string; label: string }>;
-  disabled: boolean;
+  /** Its own choice is being saved: it stays focusable (`Select`'s `busy`). */
+  busy: boolean;
   onChange: (value: string) => void;
 }) {
   return (
     <div className="space-y-3">
       <Label htmlFor={id}>{label}</Label>
-      <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <Select value={value} onValueChange={onChange} busy={busy}>
         <SelectTrigger id={id} aria-describedby={`${id}-help`} className="w-full">
           <SelectValue />
         </SelectTrigger>

@@ -15,10 +15,16 @@
  * per device, WHAT is pinned comes from the account (`useAuth().user`) — no
  * request of its own, so a page costs nothing more for carrying it.
  *
- * It renders nothing without a pinned section, and it drops what this
- * account cannot open: an administration token pinned by a superuser who no
- * longer is one would be a link to an absent pane. The other gates are the
- * pane's own to say.
+ * It renders nothing without a pinned section, and it draws only what this
+ * account can open NOW, by the settings shell's own gates: not an
+ * administration section for an account that no longer administers, not a
+ * section whose capability the operator switched off, not one this device
+ * cannot offer. Each was a link to « this section is not showing here » that
+ * the picker — which lists what the shell shows — gave no box to take away.
+ * The verdicts are the layout's read of `/config`
+ * (`usePassiveSettingsAvailability`): still no request of its own, and what
+ * that read cannot tell stays the pane's to say. The pin itself is kept: it
+ * is drawn again with what closed it.
  *
  * z-30: below dialogs/toasts/selection (z-50) and the search bar (z-40) —
  * and the whole capsule is user-movable anyway.
@@ -35,17 +41,14 @@ import {
   type FloatingPosition,
   type PixelPosition,
 } from '@/hooks/useFloatingDrag';
-import { knownShortcutTokens } from '@/hooks/useSettingsShortcuts';
+import { usePassiveSettingsAvailability } from '@/hooks/useSettingsAvailability';
+import { knownShortcutTokens, openableShortcutTokens } from '@/hooks/useSettingsShortcuts';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { toneForSection } from '@/lib/settings-group-tones';
 import { SETTINGS_SEARCH_META } from '@/lib/settings-search';
 import { SETTINGS_SECTION_ICONS } from '@/lib/settings-section-icons';
-import {
-  SETTINGS_SECTIONS,
-  settingsSectionHref,
-  type SettingsSectionToken,
-} from '@/lib/settings-sections';
+import { settingsSectionHref } from '@/lib/settings-sections';
 import { cn } from '@/lib/utils';
 import { useShortcutsDockStore } from '@/stores/shortcutsDockStore';
 
@@ -131,9 +134,10 @@ export function ShortcutsDock({ lng }: ShortcutsDockProps) {
     () => false
   );
 
-  const tokens = knownShortcutTokens(user?.settings_shortcuts).filter(
-    (token: SettingsSectionToken) =>
-      SETTINGS_SECTIONS[token].tab !== 'administration' || Boolean(user?.is_superuser)
+  const availability = usePassiveSettingsAvailability();
+  const tokens = openableShortcutTokens(
+    knownShortcutTokens(user?.settings_shortcuts),
+    availability
   );
 
   if (!mounted || !user || tokens.length === 0) return null;

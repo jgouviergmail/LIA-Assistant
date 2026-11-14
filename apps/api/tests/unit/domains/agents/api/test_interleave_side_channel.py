@@ -60,7 +60,7 @@ async def test_a_stream_that_never_ends_does_not_hold_the_turn() -> None:
         finally:
             await stuck.wait()
 
-    with patch("src.domains.agents.api.service.STREAM_TEARDOWN_WAIT_SECONDS", 0.02):
+    with patch("src.domains.agents.api.stream_pump.STREAM_TEARDOWN_WAIT_SECONDS", 0.02):
         turn = asyncio.create_task(_read(stream(), ended))
         await asyncio.sleep(0.03)
         turn.cancel()

@@ -8,8 +8,9 @@ requests for the rest):
 * **sampling** — a ``temperature`` or ``top_p`` other than its default is
   refused from Opus 4.7 on (« `temperature` is deprecated for this model »);
 * **forced tool choice** — ``tool_choice`` ``any``/``tool`` is refused by
-  Fable 5.1, Opus 5.5 and Sonnet 5.5; Haiku 5.5 binds its thinking like them and
-  still accepts it (the response then opens on the tool call, no thinking);
+  Fable 5.1, Fable 5.2, Opus 5.5 and Sonnet 5.5; Haiku 5.5 binds its thinking
+  like them and still accepts it (the response then opens on the tool call, no
+  thinking);
 * **thinking** — seven shapes: none (the retired 3.5 models), a token budget
   (the 4.5 generation, where ``adaptive`` and ``effort`` are refused), adaptive
   and off unless asked (4.6, then 4.7/4.8 with a visibility control), adaptive
@@ -19,12 +20,15 @@ requests for the rest):
   up-front thinking off), always on (Fable, Opus 5.5 — ``disabled`` and
   ``between_tools`` are refused). The Sonnet 5.5 facts (2026-09-30) and the
   Haiku 5.5 ones (2026-10-08) were read on the vendor's migration guides and
-  thinking reference, not measured: no spend on the Anthropic account.
+  thinking reference, not measured: no spend on the Anthropic account. The
+  Fable 5.2 ones were measured like the first rows (2026-11-11, the Models
+  API then validation requests), its implicit effort read on the vendor's page.
 
 A fourth fact is not a 400 today but becomes one on every account created from
-2026-08-31: a generation that binds a thinking block to the conversation that
-produced it refuses that block once the history before it changed (the ``system``
-prompt LIA rebuilds every turn is enough — measured on Opus 5.5). A fifth says
+2026-08-31 — and on every account, whatever its age, from Fable 5.2 on: a
+generation that binds a thinking block to the conversation that produced it
+refuses that block once the history before it changed (the ``system`` prompt
+LIA rebuilds every turn is enough — measured on Opus 5.5). A fifth says
 whether a generation keeps a previous turn's thinking in context at all: from
 Opus 4.5 and Sonnet 4.6 on it does (prompt-caching page), and LIA replays it to
 the model that wrote it when that model does not bind it (``anthropic_thinking``,
@@ -96,8 +100,18 @@ CLAUDE_SURFACES: tuple[ClaudeSurface, ...] = (
         binds_thinking_to_conversation=False,
         preserves_prior_turn_thinking=False,
     ),
+    # Fable 5.2 keeps Fable 5.1's surface (measured 2026-11-11). Named here,
+    # before the Fable 5 row whose ``claude-fable-5`` prefix starts its name:
+    # matched there, the structured-output door would force a tool it refuses
+    # (a 400) and the binding control would not ride its thinking, on a
+    # generation whose prefix check refuses a stale block on every account.
     ClaudeSurface(
-        prefixes=("claude-fable-5-1", "claude-mythos-5-1"),
+        prefixes=(
+            "claude-fable-5-1",
+            "claude-mythos-5-1",
+            "claude-fable-5-2",
+            "claude-mythos-5-2",
+        ),
         thinking="always_on",
         implicit_effort="high",
         accepts_sampling=False,

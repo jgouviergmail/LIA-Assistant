@@ -21,6 +21,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { useWorkboard } from '@/hooks/useWorkboard';
 import { ApiError } from '@/lib/api-client';
 import type { BoardPage, TicketRow } from '@/types/workboard';
+import { makeTicket } from '@/__tests__/factories';
 
 const api = vi.hoisted(() => ({
   board: vi.fn(),
@@ -38,43 +39,7 @@ vi.mock('@/hooks/useAuth', () => ({ useAuth }));
 vi.mock('@/lib/workboard/api', () => ({ workboardApi: api, boardParams: vi.fn(() => ({})) }));
 
 function ticket(overrides: Partial<TicketRow> & { id: string }): TicketRow {
-  return {
-    owner_user_id: 'owner',
-    parent_id: null,
-    title: overrides.id,
-    description: null,
-    status: 'todo',
-    priority: 'medium',
-    start_at: null,
-    due_at: null,
-    assignee_kind: 'human',
-    assignee_user_id: null,
-    effective_assignee_id: 'owner',
-    position: 0,
-    follow_owner: false,
-    follow_assignee: false,
-    created_by: 'user',
-    status_changed_at: '2026-09-09T10:00:00Z',
-    run_count: 0,
-    run_claimed_at: null,
-    last_run_at: null,
-    last_run_outcome: null,
-    last_run_error: null,
-    last_run_tokens_in: null,
-    last_run_tokens_out: null,
-    last_run_tokens_cache: null,
-    last_run_google_requests: null,
-    last_run_cost_eur: null,
-    created_at: '2026-09-09T10:00:00Z',
-    execution_mode: 'react',
-    total_tokens_in: 0,
-    total_tokens_out: 0,
-    total_tokens_cache: 0,
-    total_google_requests: 0,
-    total_cost_eur: 0,
-    updated_at: '2026-09-09T10:00:00Z',
-    ...overrides,
-  };
+  return makeTicket({ title: overrides.id, ...overrides });
 }
 
 function page(): BoardPage {
@@ -85,6 +50,7 @@ function page(): BoardPage {
     ],
     total: 2,
     counts_by_status: { todo: 2, done: 0 },
+    lanes: [],
   };
 }
 
@@ -286,6 +252,106 @@ describe('moving a card', () => {
       before
     );
     expect(result.current.countsByStatus).toEqual({ todo: 2, done: 0 });
+  });
+});
+
+describe('moving a card to another lane', () => {
+  // The category travels in the SAME write as the column and the place: a
+  // card dropped in another lane of another column is one move, not two.
+  function lanedPage(): BoardPage {
+    return {
+      ...page(),
+      lanes: [
+        { category_id: null, name: null, owner_user_id: null, counts_by_status: { todo: 2 } },
+        {
+          category_id: 'home',
+          name: 'Maison',
+          owner_user_id: 'account-one',
+          counts_by_status: { todo: 0 },
+        },
+      ],
+    };
+  }
+  const todoOf = (lanes: BoardPage['lanes'], category: string | null) =>
+    lanes.find(lane => lane.category_id === category)?.counts_by_status.todo;
+
+  beforeEach(() => {
+    api.board.mockResolvedValue(lanedPage());
+  });
+
+  it('files the card in the same write and shows it in its lane at once', async () => {
+    let answer: ((row: TicketRow) => void) | undefined;
+    api.move.mockReturnValue(new Promise<TicketRow>(resolve => (answer = resolve)));
+    const { result } = renderHook(() => useWorkboard());
+    await waitFor(() => expect(result.current.firstLoad).toBe(false));
+    expect(result.current.lanes.map(lane => lane.category_id)).toEqual([null, 'home']);
+
+    let pending: Promise<unknown> | undefined;
+    act(() => {
+      pending = result.current.move('a', 'todo', 0, 'home');
+    });
+
+    // Before the server has answered: the card and both lanes' figures moved.
+    expect(api.move).toHaveBeenCalledWith('a', {
+      status: 'todo',
+      position: 0,
+      category_id: 'home',
+    });
+    expect(result.current.tickets.find(row => row.id === 'a')?.category_id).toBe('home');
+    expect(todoOf(result.current.lanes, 'home')).toBe(1);
+    expect(todoOf(result.current.lanes, null)).toBe(1);
+
+    await act(async () => {
+      answer?.(ticket({ id: 'a', status: 'todo', position: 0, category_id: 'home' }));
+      await pending;
+    });
+    expect(todoOf(result.current.lanes, 'home')).toBe(1);
+  });
+
+  it('says « no category » explicitly: null and « unchanged » are one wire value', async () => {
+    api.move.mockResolvedValue(ticket({ id: 'a', status: 'todo', position: 0 }));
+    const { result } = renderHook(() => useWorkboard());
+    await waitFor(() => expect(result.current.firstLoad).toBe(false));
+
+    await act(async () => {
+      await result.current.move('a', 'todo', 0, null);
+    });
+
+    expect(api.move).toHaveBeenCalledWith('a', {
+      status: 'todo',
+      position: 0,
+      clear_category: true,
+    });
+  });
+
+  it('names no lane when the drop names none, so the card stays filed where it was', async () => {
+    api.move.mockResolvedValue(ticket({ id: 'a', status: 'done', position: 0 }));
+    const { result } = renderHook(() => useWorkboard());
+    await waitFor(() => expect(result.current.firstLoad).toBe(false));
+
+    await act(async () => {
+      await result.current.move('a', 'done', 0);
+    });
+
+    expect(api.move).toHaveBeenCalledWith('a', { status: 'done', position: 0 });
+  });
+
+  it('puts the card AND the lanes back when the server refuses', async () => {
+    api.move.mockRejectedValue(
+      new ApiError('refused', 400, { detail: 'workboard_category_unknown' })
+    );
+    const { result } = renderHook(() => useWorkboard());
+    await waitFor(() => expect(result.current.firstLoad).toBe(false));
+
+    let outcome: { ok: boolean; errorCode: string | null } | undefined;
+    await act(async () => {
+      outcome = await result.current.move('a', 'todo', 0, 'home');
+    });
+
+    expect(outcome).toEqual({ ok: false, errorCode: 'workboard_category_unknown' });
+    expect(result.current.tickets.find(row => row.id === 'a')?.category_id).toBeNull();
+    expect(todoOf(result.current.lanes, 'home')).toBe(0);
+    expect(todoOf(result.current.lanes, null)).toBe(2);
   });
 });
 

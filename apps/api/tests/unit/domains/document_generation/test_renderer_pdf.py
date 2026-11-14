@@ -1,5 +1,6 @@
 """PDF renderer: HTML -> Story -> paged PDF; text extraction is the oracle (ADR-226)."""
 
+import io
 import unicodedata
 
 import pymupdf
@@ -126,13 +127,14 @@ class TestPdfCraft:
     """What a reader gets: a running head, exact page numbers, bookmarks."""
 
     def test_header_and_footer_on_every_page_and_metadata(self) -> None:
+        """Every page but the cover, which carries neither (a long document opens on one)."""
         document = pymupdf.open(stream=_craft_document(), filetype="pdf")
         total = document.page_count
         assert total >= 4
         for number, page in enumerate(document, start=1):
             text = page.get_text()
             assert "Rapport" in text
-            assert f"Page {number} / {total}" in text
+            assert (f"Page {number} / {total}" in text) is (number > 1)
         assert document.metadata["title"] == "Rapport"
         assert document.metadata["subject"] == "Comité"
         document.close()
@@ -140,7 +142,7 @@ class TestPdfCraft:
     def test_the_contents_page_numbers_are_the_real_ones(self) -> None:
         """We paginate this document ourselves, so its numbers are exact."""
         document = pymupdf.open(stream=_craft_document(), filetype="pdf")
-        assert "Sommaire" in document[0].get_text()
+        assert "Sommaire" in document[1].get_text()  # after the cover
         outline = document.get_toc()
         assert [entry[1] for entry in outline][:2] == ["1 Partie 1", "1.1 Détail 1"]
         for _level, title, page in outline:
@@ -149,7 +151,7 @@ class TestPdfCraft:
 
     def test_the_contents_entries_link_to_their_pages(self) -> None:
         document = pymupdf.open(stream=_craft_document(), filetype="pdf")
-        links = [link for link in document[0].get_links() if link["kind"] == pymupdf.LINK_GOTO]
+        links = [link for link in document[1].get_links() if link["kind"] == pymupdf.LINK_GOTO]
         assert links
         document.close()
 
@@ -320,3 +322,87 @@ class TestTheStampsAreReadableInEveryLanguage:
         header, footer = self._stamped("fr", "Rapport trimestriel")
         assert "Rapport trimestriel" in header
         assert "Page 1 / 1" in footer
+
+
+@pytest.mark.unit
+class TestTheStampsStandUpright:
+    """The running head and the footer were drawn UPSIDE DOWN on every page of every
+    PDF (found 2026-11-13 by looking at a rendered page): the Story's page content
+    flips the y axis with a ``cm`` it never closes, and the stamps were appended
+    under it — their position compensated, their glyphs mirrored. Text extraction
+    reads them in order and in place, so no test saw it. The oracle here is the
+    glyph's own box: an upright glyph stands mostly ABOVE its baseline."""
+
+    @staticmethod
+    def _stamp_glyphs(language: str, title: str) -> list[tuple[float, float, float]]:
+        from src.domains.document_generation.context import RenderContext
+
+        content = SectionedContent(
+            filename_stem="x", title=title, blocks=[SectionBlock(kind="paragraph", text="corps")]
+        )
+        data = render_document(DocumentType.PDF, content, RenderContext(language=language))
+        glyphs: list[tuple[float, float, float]] = []
+        with pymupdf.open(stream=data, filetype="pdf") as document:
+            page = document[0]
+            for trace in page.get_texttrace():
+                if trace["size"] != typography.PDF_STAMP_PT:
+                    continue
+                for _unicode, _glyph, origin, bbox in trace["chars"]:
+                    if bbox[3] - bbox[1] > 0:
+                        glyphs.append((origin[1], bbox[1], bbox[3]))
+        return glyphs
+
+    @pytest.mark.parametrize(("language", "title"), [("fr", "Rapport"), ("zh-CN", "季度报告")])
+    def test_every_stamped_glyph_stands_above_its_baseline(self, language: str, title: str) -> None:
+        glyphs = self._stamp_glyphs(language, title)
+        assert glyphs, "the stamps were not found"
+        for baseline, top, bottom in glyphs:
+            assert baseline - top > bottom - baseline, (baseline, top, bottom)
+
+
+@pytest.mark.unit
+class TestALayoutThatNeverEndsIsRefused:
+    """PyMuPDF's Story can loop forever: a floated picture straddling a page end is
+    never placed, and ``place()`` answers ``more`` on every page in a three-page
+    cycle (measured 2026-11-13: 778, 155, 68 pt filled, again and again). No signal
+    tells such a cycle from a long table, so the loop is bounded by a page count no
+    document reaches — a worker thread must never spin on a render."""
+
+    @staticmethod
+    def _looping_html() -> tuple[str, object]:
+        from PIL import Image
+
+        image = Image.new("RGB", (1536, 1024), (30, 80, 140))
+        buffer = io.BytesIO()
+        image.save(buffer, "JPEG")
+        archive = pymupdf.Archive()
+        archive.add(buffer.getvalue(), "cover.jpg")
+        chart = (
+            '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360">'
+            '<rect width="640" height="360" fill="#1F5AA6"/></svg>'
+        )
+        archive.add(chart.encode(), "chart.svg")
+        html = (
+            "<h1>Quarterly review</h1>"
+            '<table style="width:100%"><tr><td>2.5</td><td>+18</td><td>94</td></tr></table>'
+            "<p>" + "Lorem ipsum dolor sit amet. " * 12 + "</p>"
+            '<img src="chart.svg" style="width: 100%"/><p>caption</p>'
+            '<img src="cover.jpg" style="width: 40%; float: right"/>'
+            "<p>" + "Text " * 60 + "</p>"
+            '<h2 style="page-break-before: always">Next</h2><p>after</p>'
+        )
+        return html, archive
+
+    def test_a_cycling_story_raises_instead_of_spinning(self, monkeypatch) -> None:
+        from src.domains.document_generation.renderers import pdf_layout
+
+        html, archive = self._looping_html()
+        monkeypatch.setattr(typography, "PDF_MAX_PAGES", 12)
+        with pytest.raises(pdf_layout.DocumentLayoutError):
+            pdf_layout.lay_out(html, "", "a4", archive=archive)
+
+    def test_the_bound_sits_far_above_the_longest_document_a_slot_can_write(self) -> None:
+        """100 000 output tokens of prose is ~55 000 words, ~120 A4 pages; a table
+        of that budget, ~115. The bound leaves twice that and still stops a cycle
+        before it holds hundreds of megabytes on the production board."""
+        assert 250 <= typography.PDF_MAX_PAGES <= 400

@@ -30,12 +30,15 @@ from src.domains.agents.tools.mailbox_drafts_tools import (
     CreateMailboxForwardDraftTool,
     CreateMailboxReplyDraftTool,
 )
+from src.domains.connectors.clients.mail_conversation import Conversation
 from src.domains.connectors.clients.mailbox_drafts import MailboxDraftNotFoundError
 from src.infrastructure.email.outgoing import OutgoingAttachment
 
 pytestmark = [pytest.mark.unit]
 
 TOOLS = "src.domains.agents.tools.mailbox_drafts_tools"
+#: Both reply tools write through one writer (ADR-383): the drafter is called there.
+WRITER = "src.domains.agents.tools.reply_writing"
 
 
 def _saved(**fields: Any) -> dict[str, Any]:
@@ -121,7 +124,7 @@ class TestReply:
     async def test_a_dictated_reply_is_saved_without_writing_anything(
         self, client: AsyncMock
     ) -> None:
-        with patch(f"{TOOLS}.draft_reply_body", AsyncMock()) as written:
+        with patch(f"{WRITER}.draft_reply_body", AsyncMock()) as written:
             result = await CreateMailboxReplyDraftTool().execute_api_call(
                 client, uuid4(), message_id="m1", body="Friday works.", reply_all=True
             )
@@ -136,7 +139,7 @@ class TestReply:
     async def test_a_reply_without_text_is_written_from_the_received_email(
         self, client: AsyncMock
     ) -> None:
-        with patch(f"{TOOLS}.draft_reply_body", AsyncMock(return_value="Yes, Friday.")) as written:
+        with patch(f"{WRITER}.draft_reply_body", AsyncMock(return_value="Yes, Friday.")) as written:
             await CreateMailboxReplyDraftTool().execute_api_call(
                 client, uuid4(), message_id="m1", content_instruction="say yes"
             )
@@ -149,7 +152,7 @@ class TestReply:
         )
 
     async def test_a_blank_text_is_no_text(self, client: AsyncMock) -> None:
-        with patch(f"{TOOLS}.draft_reply_body", AsyncMock(return_value="Yes.")) as written:
+        with patch(f"{WRITER}.draft_reply_body", AsyncMock(return_value="Yes.")) as written:
             await CreateMailboxReplyDraftTool().execute_api_call(
                 client, uuid4(), message_id="m1", body=" \n "
             )
@@ -170,7 +173,7 @@ class TestReply:
         self, client: AsyncMock, failure: Exception | None, code: str
     ) -> None:
         writer = AsyncMock(side_effect=failure) if failure else AsyncMock(return_value="  ")
-        with patch(f"{TOOLS}.draft_reply_body", writer):
+        with patch(f"{WRITER}.draft_reply_body", writer):
             result = await CreateMailboxReplyDraftTool().execute_api_call(
                 client, uuid4(), message_id="m1"
             )
@@ -307,3 +310,51 @@ class TestRefusals:
 
         with pytest.raises(ConnectorAPIError):
             refusal_for(forbidden)
+
+
+class TestAWrittenReplyReadsWhatWasAlreadyAnswered:
+    """ADR-379: the reply LIA writes continues from the person's earlier answer."""
+
+    async def test_the_earlier_answer_is_handed_to_the_writer(self, client: AsyncMock) -> None:
+        asked = {
+            "id": "m1",
+            "threadId": "t1",
+            "labelIds": ["INBOX"],
+            "internalDate": "1794297600000",
+            "from": "Paul <paul@example.com>",
+            "to": "me@example.com",
+            "body": "Friday?",
+        }
+        answer = {
+            "id": "m2",
+            "threadId": "t1",
+            "labelIds": ["SENT"],
+            "internalDate": "1794301200000",
+            "from": "me@example.com",
+            "to": "Paul <paul@example.com>",
+            "snippet": "Friday works.",
+        }
+        client.get_message = AsyncMock(
+            side_effect=lambda message_id, **_: (
+                dict(asked) if message_id == "m1" else {**answer, "body": "Friday works for me."}
+            )
+        )
+        client.conversations_of = AsyncMock(
+            return_value={"t1": Conversation(messages=(dict(asked), dict(answer)))}
+        )
+
+        with patch(f"{WRITER}.draft_reply_body", AsyncMock(return_value="And Monday?")) as written:
+            await CreateMailboxReplyDraftTool().execute_api_call(
+                client, uuid4(), message_id="m1", content_instruction="ask about Monday"
+            )
+
+        previous = written.await_args.kwargs["previous_reply"]
+        assert previous is not None and previous.words == "Friday works for me."
+
+    async def test_a_first_reply_is_written_with_none(self, client: AsyncMock) -> None:
+        with patch(f"{WRITER}.draft_reply_body", AsyncMock(return_value="Yes.")) as written:
+            await CreateMailboxReplyDraftTool().execute_api_call(
+                client, uuid4(), message_id="m1", content_instruction="say yes"
+            )
+
+        assert written.await_args.kwargs["previous_reply"] is None

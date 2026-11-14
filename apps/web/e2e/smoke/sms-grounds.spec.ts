@@ -65,6 +65,9 @@ for (const scheme of ['light', 'dark'] as const) {
       });
       const focused = main.locator('div[tabindex="-1"][aria-label="Mes SMS"]');
       await expect(focused).toContainText(sms.body);
+      // The archive opens by day: a sender's fold is behind the other chip,
+      // which belongs to the search above the archive, not to its fold.
+      await main.getByRole('button', { name: 'Par expéditeur', exact: true }).click();
       const sender = archive.locator('details').filter({
         has: page.locator('summary', { hasText: sms.display_name }),
       });

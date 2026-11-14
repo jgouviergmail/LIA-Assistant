@@ -19,11 +19,14 @@ from collections.abc import Callable, Iterator
 from typing import Any
 
 import pytest
+from fastapi import Depends
 from fastapi.dependencies.models import Dependant
+from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRoute, RouteContext
 
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session_for_stream
+from src.core.sse_response import EventStreamResponse
 from src.infrastructure.database.session import get_db_session
 from src.main import app
 from tests._routes import served_routes
@@ -49,14 +52,41 @@ def _sse_routes() -> list[RouteContext]:
         route
         for route in served_routes(app)
         if isinstance(route.original_route, APIRoute)
-        and SSE_MEDIA_TYPE in inspect.getsource(route.endpoint)
+        and (
+            _declares_stream(route.original_route)
+            or SSE_MEDIA_TYPE in inspect.getsource(route.endpoint)
+        )
     ]
     assert routes, "no SSE route found: the guard's criterion no longer matches the code"
     return routes
 
 
+def _declares_stream(route: APIRoute) -> bool:
+    """Response metadata still identifies a stream constructed by a shared helper."""
+    response_class = route.response_class
+    return (
+        isinstance(response_class, type)
+        and issubclass(response_class, StreamingResponse)
+        and response_class.media_type == SSE_MEDIA_TYPE
+    )
+
+
+def test_a_helper_built_stream_with_a_session_is_still_detected() -> None:
+    """A deliberately bad endpoint proves the detector follows metadata and dependencies."""
+
+    async def bad_endpoint(db: object = Depends(get_db)) -> StreamingResponse:
+        raise AssertionError("This fixture must only be inspected")
+
+    route = APIRoute("/bad-stream", bad_endpoint, response_class=EventStreamResponse)
+    assert SSE_MEDIA_TYPE not in inspect.getsource(bad_endpoint)
+    assert _declares_stream(route)
+    assert get_db in set(_calls(route.dependant))
+    download = APIRoute("/download", bad_endpoint, response_class=StreamingResponse)
+    assert not _declares_stream(download)
+
+
 def test_the_three_streams_are_found() -> None:
-    """The criterion (the media type in the endpoint's source) finds the streams we know."""
+    """Declared transports and inline media types find every known browser stream."""
     paths = {route.path for route in _sse_routes()}
     for suffix in ("/notifications/stream", "/chat/stream", "/runs/{stream_id}/stream"):
         assert any(path.endswith(suffix) for path in paths), (suffix, sorted(paths))

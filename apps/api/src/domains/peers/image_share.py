@@ -73,7 +73,9 @@ from src.domains.peers.models import PeerConnectionStatus, PeerImageShare
 from src.domains.peers.repository import PeersRepository, utc_day_bounds
 from src.domains.shared.action_sink import PEER_IMAGE_SHARE_CAPABILITY, recorded_action
 from src.domains.shared.markdown_literal import literal_quote
+from src.domains.users.file_writers import account_file_write
 from src.domains.users.models import User
+from src.infrastructure.async_utils import finish_owned_task
 from src.infrastructure.database.owner_lock import hold_owner_lock
 from src.infrastructure.observability.metrics_registry import peers_image_shares_total
 
@@ -261,13 +263,16 @@ async def _copy_without_abandoning_file(source: Path, target: Path) -> None:
     """Cancellation waits for the disk worker before withdrawing its completed copy."""
     task = asyncio.create_task(asyncio.to_thread(_copy_file, source, target))
     try:
-        await asyncio.shield(task)
+        await finish_owned_task(task)
     except asyncio.CancelledError:
-        try:
-            await task
-        finally:
-            await asyncio.to_thread(target.unlink, True)
+        await finish_owned_task(asyncio.create_task(asyncio.to_thread(target.unlink, True)))
         raise
+
+
+async def _rollback_copy(db: AsyncSession, target: Path) -> None:
+    """Finish withdrawing an unpublished copy before either account writer closes."""
+    await db.rollback()
+    await finish_owned_task(asyncio.create_task(asyncio.to_thread(target.unlink, True)))
 
 
 async def _record(
@@ -348,82 +353,82 @@ async def share_image(
     words = _clean_comment(comment)
     repo = PeersRepository(db)
     recipient = await _recipient_of(db, repo, sender_id, connection_id)
-    source = await _shareable_source(db, sender_id, attachment_id, now)
-    sender = await db.get(User, sender_id)
-    sender_name = (sender.full_name if sender else None) or PEER_UNKNOWN_DISPLAY_NAME
-    await _hold_the_quota(db, sender_id, recipient.id, now)
+    async with account_file_write(db, sender_id), account_file_write(db, recipient.id):
+        source = await _shareable_source(db, sender_id, attachment_id, now)
+        sender = await db.get(User, sender_id)
+        sender_name = (sender.full_name if sender else None) or PEER_UNKNOWN_DISPLAY_NAME
+        await _hold_the_quota(db, sender_id, recipient.id, now)
 
-    stored_filename = f"{uuid.uuid4()}{Path(source.stored_filename).suffix}"
-    relative_path = f"{recipient.id}/{stored_filename}"
-    target = Path(settings.attachments_storage_path) / relative_path
-    # The sender's act, in the action register (ADR-263): claimed once every
-    # check has passed and before the copy, settled from the commit.
-    action = recorded_action(
-        user_id=sender_id, capability=PEER_IMAGE_SHARE_CAPABILITY, arguments={}
-    )
-    async with action if record_user_action else nullcontext():
-        try:
-            await _copy_without_abandoning_file(_source_file(source), target)
-            copy, share = await _record(
-                db,
-                source=source,
-                stored_filename=stored_filename,
-                relative_path=relative_path,
-                sender_name=sender_name,
-                recipient_id=recipient.id,
-                sender_id=sender_id,
-                connection_id=connection_id,
-                now=now,
-            )
-            if commit is None:
-                try:
-                    await db.commit()
-                except (Exception, asyncio.CancelledError) as exc:
-                    raise ImageShareCommitUnknown(
-                        "Image share commit was not acknowledged"
-                    ) from exc
-            else:
-                await commit(db, copy, share, target)
-        except ImageShareCommitUnknown:
-            # The commit may have succeeded. Removing its file would corrupt a
-            # committed recipient gallery. Retain it for authoritative recovery.
-            await db.rollback()
-            _count("completion_unknown")
-            raise
-        except BaseException as exc:
-            # A copy nobody's row points at would outlive every sweep: withdraw it.
-            await db.rollback()
-            await asyncio.to_thread(target.unlink, True)
-            _count("failed")
-            logger.warning(
-                "peer_image_share_failed",
-                sender_id=str(sender_id),
-                connection_id=str(connection_id),
-                error_type=type(exc).__name__,
-            )
-            raise
-        action.succeeded = True
+        stored_filename = f"{uuid.uuid4()}{Path(source.stored_filename).suffix}"
+        relative_path = f"{recipient.id}/{stored_filename}"
+        target = Path(settings.attachments_storage_path) / relative_path
+        # The sender's act, in the action register (ADR-263): claimed once every
+        # check has passed and before the copy, settled from the commit.
+        action = recorded_action(
+            user_id=sender_id, capability=PEER_IMAGE_SHARE_CAPABILITY, arguments={}
+        )
+        async with action if record_user_action else nullcontext():
+            try:
+                await _copy_without_abandoning_file(_source_file(source), target)
+                copy, share = await _record(
+                    db,
+                    source=source,
+                    stored_filename=stored_filename,
+                    relative_path=relative_path,
+                    sender_name=sender_name,
+                    recipient_id=recipient.id,
+                    sender_id=sender_id,
+                    connection_id=connection_id,
+                    now=now,
+                )
+                if commit is None:
+                    try:
+                        await db.commit()
+                    except (Exception, asyncio.CancelledError) as exc:
+                        raise ImageShareCommitUnknown(
+                            "Image share commit was not acknowledged"
+                        ) from exc
+                else:
+                    await commit(db, copy, share, target)
+            except ImageShareCommitUnknown:
+                # The commit may have succeeded. Removing its file would corrupt a
+                # committed recipient gallery. Retain it for authoritative recovery.
+                await db.rollback()
+                _count("completion_unknown")
+                raise
+            except BaseException as exc:
+                # A copy nobody's row points at would outlive every sweep: withdraw it.
+                await finish_owned_task(asyncio.create_task(_rollback_copy(db, target)))
+                _count("failed")
+                logger.warning(
+                    "peer_image_share_failed",
+                    sender_id=str(sender_id),
+                    connection_id=str(connection_id),
+                    error_type=type(exc).__name__,
+                )
+                raise
+            action.succeeded = True
 
-    _count("shared")
-    logger.info(
-        "peer_image_shared",
-        share_id=str(share.id),
-        sender_id=str(sender_id),
-        recipient_id=str(recipient.id),
-        has_comment=words is not None,
-    )
-    return SharedImage(
-        share_id=share.id,
-        sender_id=sender_id,
-        sender_display_name=sender_name,
-        recipient_id=recipient.id,
-        recipient_display_name=recipient.full_name or PEER_UNKNOWN_DISPLAY_NAME,
-        attachment_id=copy.id,
-        url=attachment_url(copy.id),
-        title=copy.title or "",
-        expires_at=_copy_deadline(now),
-        comment=words,
-    )
+        _count("shared")
+        logger.info(
+            "peer_image_shared",
+            share_id=str(share.id),
+            sender_id=str(sender_id),
+            recipient_id=str(recipient.id),
+            has_comment=words is not None,
+        )
+        return SharedImage(
+            share_id=share.id,
+            sender_id=sender_id,
+            sender_display_name=sender_name,
+            recipient_id=recipient.id,
+            recipient_display_name=recipient.full_name or PEER_UNKNOWN_DISPLAY_NAME,
+            attachment_id=copy.id,
+            url=attachment_url(copy.id),
+            title=copy.title or "",
+            expires_at=_copy_deadline(now),
+            comment=words,
+        )
 
 
 def shared_image_body(shared: SharedImage, language: str) -> str:

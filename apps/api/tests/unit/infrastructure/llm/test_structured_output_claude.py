@@ -5,7 +5,9 @@ Two Claude conditions refuse that with a 400, measured on the Claude API on
 2026-09-23: thinking switched on (the 4.x generations), and the generations
 that refuse a forced tool outright — Fable 5.1 and Opus 5.5, whatever their
 thinking says (« tool_choice: type "tool" and "any" are not supported for this
-model »). Both take the auto-tool door, which works on every generation.
+model »). Both take the auto-tool door, which works on every generation. Fable
+5.2 answers the same 400 (measured 2026-11-11), though its name starts with
+Fable 5's, which accepts a forced tool.
 """
 
 from __future__ import annotations
@@ -84,7 +86,9 @@ async def _ask(llm: _FakeClaude) -> _Answer:
     )
 
 
-@pytest.mark.parametrize("model", ("claude-fable-5-1", "claude-opus-5-5", "claude-opus-6"))
+@pytest.mark.parametrize(
+    "model", ("claude-fable-5-1", "claude-fable-5-2", "claude-opus-5-5", "claude-opus-6")
+)
 async def test_a_model_that_refuses_a_forced_tool_takes_the_auto_door(model: str) -> None:
     """Even with no thinking configured — the refusal is the model's, not the mode's.
     An undeclared generation is sent what every generation accepts."""

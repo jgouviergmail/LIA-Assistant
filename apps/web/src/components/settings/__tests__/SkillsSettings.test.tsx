@@ -50,6 +50,11 @@ function hook(over: Partial<SkillsHook> = {}) {
     toggleSkill: vi.fn(),
     toggling: false,
     downloadSkill: vi.fn(),
+    dormantAfterDays: 60,
+    settleDormant: vi.fn(),
+    settlingDormant: false,
+    restorePreviousSkill: vi.fn(),
+    restoringPrevious: false,
     ...over,
   };
 }
@@ -235,5 +240,144 @@ describe('SkillsSettings — the two scopes are standard folds', () => {
     await user.click(screen.getByRole('button', { name: 'settings.skills.import_button' }));
 
     expect(pick).toHaveBeenCalled();
+  });
+});
+
+describe("SkillsSettings — a skill's life (lot 14)", () => {
+  const COUNTED = '2026-11-13T09:00:00Z';
+
+  function dormant(name: string): Skill {
+    return userSkill({
+      name,
+      skill_id: `id-${name}`,
+      use_count: 0,
+      counted_since: COUNTED,
+      dormant: true,
+    });
+  }
+
+  it('says, on each card, how often its skill was used and greys a dormant one', async () => {
+    useSkills.mockReturnValue(
+      hook({
+        skills: [
+          userSkill({
+            use_count: 2,
+            counted_since: COUNTED,
+            last_used_at: '2026-12-01T09:00:00Z',
+          }),
+          dormant('idle'),
+        ],
+      })
+    );
+    const { user } = renderSkills();
+
+    await user.click(screen.getByText('settings.skills.user_section_title'));
+
+    expect(screen.getByText('settings.skills.usage.used')).toBeInTheDocument();
+    expect(screen.getByText('settings.skills.usage.none')).toBeInTheDocument();
+    expect(screen.getAllByText('settings.skills.usage.dormant_badge')).toHaveLength(1);
+  });
+
+  it('proposes switching off the dormant skills before any fold is opened', async () => {
+    const settleDormant = vi.fn().mockResolvedValue({
+      decision: 'switch_off',
+      settled: ['idle', 'old'],
+    });
+    useSkills.mockReturnValue(hook({ skills: [dormant('idle'), dormant('old')], settleDormant }));
+    const { user } = renderSkills();
+
+    const notice = screen.getByRole('region', { name: 'settings.skills.dormant.title' });
+    await user.click(screen.getByRole('button', { name: 'settings.skills.dormant.switch_off' }));
+
+    expect(notice).toBeInTheDocument();
+    expect(settleDormant).toHaveBeenCalledWith(['id-idle', 'id-old'], 'switch_off');
+    expect(toast.success).toHaveBeenCalledWith('settings.skills.dormant.switched_off_toast');
+  });
+
+  it('keeping them says the proposal waits a whole period again', async () => {
+    const settleDormant = vi.fn().mockResolvedValue({ decision: 'keep', settled: ['idle'] });
+    useSkills.mockReturnValue(hook({ skills: [dormant('idle')], settleDormant }));
+    const { user } = renderSkills();
+
+    await user.click(screen.getByRole('button', { name: 'settings.skills.dormant.keep' }));
+
+    expect(settleDormant).toHaveBeenCalledWith(['id-idle'], 'keep');
+    expect(toast.success).toHaveBeenCalledWith('settings.skills.dormant.kept_toast');
+  });
+
+  it('says so when the skills were used meanwhile and nothing was settled', async () => {
+    const settleDormant = vi.fn().mockResolvedValue({ decision: 'switch_off', settled: [] });
+    useSkills.mockReturnValue(hook({ skills: [dormant('idle')], settleDormant }));
+    const { user } = renderSkills();
+
+    await user.click(screen.getByRole('button', { name: 'settings.skills.dormant.switch_off' }));
+
+    expect(toast.info).toHaveBeenCalledWith('settings.skills.dormant.nothing_settled');
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('says a failed answer instead of pretending', async () => {
+    const settleDormant = vi.fn().mockRejectedValue(new Error('offline'));
+    useSkills.mockReturnValue(hook({ skills: [dormant('idle')], settleDormant }));
+    const { user } = renderSkills();
+
+    await user.click(screen.getByRole('button', { name: 'settings.skills.dormant.keep' }));
+
+    expect(toast.error).toHaveBeenCalledWith('settings.skills.dormant.error');
+  });
+
+  async function openAlpha(user: Awaited<ReturnType<typeof renderSkills>>['user']) {
+    await user.click(screen.getByText('settings.skills.user_section_title'));
+    await user.click(screen.getByRole('button', { name: /settings.skills.gallery.open_details/ }));
+  }
+
+  it('restores the previous version once the person confirms', async () => {
+    const restorePreviousSkill = vi.fn().mockResolvedValue(userSkill());
+    useSkills.mockReturnValue(
+      hook({
+        skills: [userSkill({ previous_version_at: '2026-11-12T08:00:00Z' })],
+        restorePreviousSkill,
+      })
+    );
+    const { user } = renderSkills();
+    await openAlpha(user);
+
+    await user.click(screen.getByRole('button', { name: 'settings.skills.previous.restore' }));
+    expect(restorePreviousSkill).not.toHaveBeenCalled();
+    await user.click(
+      screen.getByRole('button', { name: 'settings.skills.previous.confirm_action' })
+    );
+
+    expect(restorePreviousSkill).toHaveBeenCalledWith('alpha');
+    expect(toast.success).toHaveBeenCalledWith('settings.skills.previous.success');
+  });
+
+  it('says a failed restoration', async () => {
+    const restorePreviousSkill = vi.fn().mockRejectedValue(new Error('gone'));
+    useSkills.mockReturnValue(
+      hook({
+        skills: [userSkill({ previous_version_at: '2026-11-12T08:00:00Z' })],
+        restorePreviousSkill,
+      })
+    );
+    const { user } = renderSkills();
+    await openAlpha(user);
+
+    await user.click(screen.getByRole('button', { name: 'settings.skills.previous.restore' }));
+    await user.click(
+      screen.getByRole('button', { name: 'settings.skills.previous.confirm_action' })
+    );
+
+    expect(toast.error).toHaveBeenCalledWith('settings.skills.previous.error');
+  });
+
+  it('offers no way back when no previous version was kept', async () => {
+    useSkills.mockReturnValue(hook({ skills: [userSkill({ previous_version_at: null })] }));
+    const { user } = renderSkills();
+    await openAlpha(user);
+
+    expect(
+      screen.queryByRole('button', { name: 'settings.skills.previous.restore' })
+    ).not.toBeInTheDocument();
   });
 });

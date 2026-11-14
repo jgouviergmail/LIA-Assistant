@@ -40,8 +40,10 @@ from src.core.constants import (
     EXECUTION_MODE_PIPELINE,
     RESPONSE_DISPLAY_MODE_DEFAULT,
 )
+from src.core.conversation_target import ConversationRef
 from src.core.exchange_rhythm import ExchangeRhythm, effective_exchange_rhythm
 from src.core.i18n import resolve_language
+from src.core.tool_context_scope import ToolContextScope, tool_context_scope
 
 # ``BaseStore`` and ``asyncio`` are imported at RUNTIME, not under TYPE_CHECKING:
 # every tool's parameter is annotated ``ToolRuntime[LiaRuntimeContext, Any]``, and
@@ -55,6 +57,8 @@ __all__ = [
     "assert_runtime_context",
     "derive_sub_agent_context",
     "runtime_context_if_running",
+    "runtime_source_conversation_id",
+    "runtime_tool_context_scope",
     "runtime_user_id_str",
     "runtime_voice_enabled",
     "tool_runtime_context",
@@ -75,7 +79,7 @@ class LiaRuntimeContext:
     Attributes:
         user_id: The acting user. Canonical and unique — there is no string
             twin, and no ``langgraph_user_id``.
-        thread_id: LangGraph thread. Equals ``conversation_id`` for a normal run,
+        thread_id: LangGraph runtime thread. Equals ``runtime_id`` for a root run,
             and is replaced by a synthetic value for a sub-agent run.
         conversation_id: The conversation this run belongs to. Unlike
             ``thread_id`` it is stable across sub-agent derivation, so a
@@ -113,6 +117,8 @@ class LiaRuntimeContext:
     user_id: uuid.UUID
     thread_id: str
     conversation_id: str
+    runtime_id: uuid.UUID | None = None
+    conversation_revision: int | None = None
 
     store: BaseStore | None = None
 
@@ -136,32 +142,51 @@ class LiaRuntimeContext:
     side_channel_queue: asyncio.Queue | None = None
     application_origin: ApplicationOrigin | None = field(default=None, repr=False)
 
+    @property
+    def delivery_runtime_id(self) -> str | None:
+        """Temporary cards belong to the root runtime, including in a child run."""
+        return str(self.runtime_id) if self.runtime_id is not None else None
+
+    @property
+    def source_conversation_id(self) -> str | None:
+        """Business provenance exists only for an explicitly bound conversation."""
+        return self.conversation_id if self.runtime_id is not None else None
+
     @classmethod
-    def for_conversation(
-        cls, *, user_id: uuid.UUID, conversation_id: uuid.UUID, **overrides: Any
-    ) -> LiaRuntimeContext:
+    def for_conversation(cls, *, target: ConversationRef, **overrides: Any) -> LiaRuntimeContext:
         """Build the context of a normal conversation run.
 
-        The single construction rule the chokepoint applies: LangGraph's
-        ``thread_id`` **is** the conversation id. Keeping it here rather than at
-        the call site means a sub-agent deriving a synthetic thread
-        (``dataclasses.replace(ctx, thread_id=...)``) cannot accidentally lose the
-        conversation it belongs to — ``conversation_id`` survives independently.
+        The target was resolved once at admission. The graph thread is its
+        resettable runtime, while files and ledgers retain its business id.
+        Deriving a synthetic sub-agent preserves both and the source revision.
 
         Args:
-            user_id: The acting user.
-            conversation_id: The conversation this run belongs to.
+            target: The immutable owned conversation and runtime generation.
             **overrides: Any other field of the context.
 
         Returns:
             A ready-to-inject runtime context.
         """
         return cls(
-            user_id=user_id,
-            conversation_id=str(conversation_id),
-            thread_id=str(conversation_id),
+            user_id=target.owner_id,
+            conversation_id=str(target.id),
+            thread_id=str(target.runtime_id),
+            runtime_id=target.runtime_id,
+            conversation_revision=target.revision,
             **overrides,
         )
+
+
+def runtime_tool_context_scope(
+    thread_id: object, context: LiaRuntimeContext | None
+) -> ToolContextScope | None:
+    """Project the graph's declared root ancestry into its isolated tool namespace."""
+    return tool_context_scope(thread_id, context.runtime_id if context is not None else None)
+
+
+def runtime_source_conversation_id(context: LiaRuntimeContext | None) -> str | None:
+    """Return business provenance only for a context bound to a conversation."""
+    return context.source_conversation_id if context is not None else None
 
 
 def tool_runtime_context(runtime: object) -> LiaRuntimeContext | None:
@@ -389,3 +414,9 @@ def assert_runtime_context(value: object) -> LiaRuntimeContext:
         "graph.astream — including a resume after a HITL interrupt, where a "
         "missing context otherwise degrades silently (ADR-231)."
     )
+
+
+def runtime_extraction_revision() -> int | None:
+    """The consent revision captured when the source turn started."""
+    context = runtime_context_if_running()
+    return context.extraction_revision if context is not None else None

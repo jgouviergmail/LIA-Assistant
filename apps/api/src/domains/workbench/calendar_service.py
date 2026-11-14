@@ -31,11 +31,8 @@ from src.core.recurrence import RecurrenceSpec
 from src.core.validators import validate_timezone
 from src.domains.connectors.clients.calendar_answers import own_answer
 from src.domains.connectors.clients.calendar_options import EventOptions
-from src.domains.connectors.clients.event_recurrence import (
-    first_day_of,
-    is_series,
-    series_bounds,
-)
+from src.domains.connectors.clients.event_bounds import BoundsChange, bounds_of, series_bounds
+from src.domains.connectors.clients.event_recurrence import first_day_of, is_series
 from src.domains.connectors.clients.normalizers.calendar_links import conference_url, web_address
 from src.domains.connectors.clients.normalizers.html_text import html_to_text
 from src.domains.connectors.clients.protocols import (
@@ -46,7 +43,7 @@ from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.preferences.owner_defaults import CALENDAR
 from src.domains.connectors.preferences.resolver import is_preferred
 from src.domains.workbench.calendar_series import spec_from
-from src.domains.workbench.calendar_times import provider_time, wall_time, window_bounds
+from src.domains.workbench.calendar_times import provider_time, window_bounds
 from src.domains.workbench.calls import provider_call
 from src.domains.workbench.clients import open_tool_client
 from src.domains.workbench.errors import (
@@ -168,20 +165,17 @@ async def create_event(user_id: UUID, request: NewEvent) -> EventDetail:
         if request.conference:
             _require(opened.connector_type, WorkbenchFeature.CONFERENCE)
         client: CalendarClientProtocol = opened.client
-        start, end = _client_bounds(request.start, request.end, all_day=request.all_day)
+        bounds = bounds_of(request.start, request.end, _zone(request), all_day=request.all_day)
         async with provider_call(_TOOL, "create", act=True):
             raw = await client.create_event(
                 summary=request.summary,
-                start_datetime=start,
-                end_datetime=end,
-                timezone=request.timezone,
+                bounds=bounds,
                 description=request.description,
                 location=request.location,
                 attendees=[str(address) for address in request.attendees] or None,
                 calendar_id=request.calendar_id,
                 add_conference=request.conference,
                 idempotency_key=str(request.idempotency_key),
-                all_day=request.all_day,
                 options=_options(request, _new_series(request)),
             )
     return event_detail(raw, request.calendar_id)
@@ -209,9 +203,7 @@ async def update_event(user_id: UUID, request: EventChange) -> EventDetail:
             raw = await client.update_event(
                 reach.event_id,
                 summary=request.summary,
-                start_datetime=reach.start,
-                end_datetime=reach.end,
-                timezone=request.timezone,
+                bounds=reach.bounds,
                 description=request.description,
                 location=request.location,
                 attendees=(
@@ -220,7 +212,6 @@ async def update_event(user_id: UUID, request: EventChange) -> EventDetail:
                     else [str(address) for address in request.attendees]
                 ),
                 calendar_id=request.calendar_id,
-                all_day=request.all_day,
                 send_updates=send_updates,
                 add_conference=request.conference,
                 options=_options(request, reach.spec, all_day=reach.all_day),
@@ -233,8 +224,7 @@ class _Reach:
     """What a change reaches: the event, its bounds, and a series' rule from its first day."""
 
     event_id: str
-    start: str | None = None
-    end: str | None = None
+    bounds: BoundsChange | None = None
     spec: RecurrenceSpec | None = None
     all_day: bool = False
 
@@ -250,8 +240,8 @@ async def _reach(
     all_day = bool(request.all_day)
     if request.start is None or request.end is None:
         return _Reach(request.event_id, all_day=all_day)
-    start, end = _client_bounds(request.start, request.end, all_day=all_day)
-    return _Reach(request.event_id, start, end, all_day=all_day)
+    bounds = bounds_of(request.start, request.end, _zone(request), all_day=all_day)
+    return _Reach(request.event_id, bounds, all_day=all_day)
 
 
 def _series_reach(master: Mapping[str, Any], request: EventChange) -> _Reach:
@@ -266,13 +256,14 @@ def _series_reach(master: Mapping[str, Any], request: EventChange) -> _Reach:
     first_day = first_day_of(master, zone)
     if first_day is None:
         refuse(INVALID_REQUEST)
-    start, end = None, None
+    bounds = None
     if moves:
-        start, end = series_bounds(
-            first_day, str(request.start), str(request.end), all_day=bool(request.all_day)
+        asked = bounds_of(
+            str(request.start), str(request.end), _zone(request), all_day=bool(request.all_day)
         )
+        bounds = series_bounds(first_day, asked)
     spec = spec_from(request.recurrence, first_day, zone) if request.recurrence else None
-    return _Reach(target, start, end, spec, all_day=all_day)
+    return _Reach(target, bounds, spec, all_day=all_day)
 
 
 async def _master_of(
@@ -409,14 +400,9 @@ def _require(provider: ConnectorType, feature: WorkbenchFeature) -> None:
         refuse(NOT_SUPPORTED_BY_PROVIDER)
 
 
-def _client_bounds(start: str, end: str, *, all_day: bool) -> tuple[str, str]:
-    """The bounds as the calendar clients take them: days, or wall times to the second."""
-    if all_day:
-        return start, end
-    return (
-        wall_time(start).isoformat(timespec="seconds"),
-        wall_time(end).isoformat(timespec="seconds"),
-    )
+def _zone(request: NewEvent | EventChange) -> ZoneInfo:
+    """The zone a request's bounds are read in: the page's; days named with none are UTC's."""
+    return ZoneInfo(request.timezone or "UTC")
 
 
 def calendar_info(raw: Mapping[str, Any], preferred: str | None) -> CalendarInfo:

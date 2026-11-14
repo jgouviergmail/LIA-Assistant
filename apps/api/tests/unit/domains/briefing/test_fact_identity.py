@@ -25,13 +25,14 @@ import httpx
 import pytest
 
 from src.domains.briefing.exceptions import ConnectorAccessError, ConnectorNotConfiguredError
-from src.domains.briefing.fetchers import _task_to_item, fetch_agenda, fetch_forecast_alert
+from src.domains.briefing.fetchers import fetch_agenda, fetch_forecast_alert
 from src.domains.briefing.formatters import (
     ForecastAlertRule,
     detect_forecast_alert,
     event_instant,
     format_agenda_event,
     format_email_item,
+    format_task_item,
     is_event_past,
 )
 from src.domains.users.user_location_service import NoLocationAvailableError
@@ -51,7 +52,7 @@ class TestTheItemsSayWhatTheyAre:
         assert item.id == "18c2f"
 
     def test_a_task_carries_its_id(self) -> None:
-        item = _task_to_item(
+        item = format_task_item(
             {"id": "t-9", "title": "Facture", "status": "needsAction"},
             datetime.now(PARIS).date(),
             zone=PARIS,
@@ -200,6 +201,26 @@ class TestTheWeatherRoutinesOwnRead:
         city.assert_not_awaited()
         extras.assert_not_awaited()
         client.close.assert_awaited_once()
+
+    async def test_its_read_of_the_present_feeds_the_companion(self) -> None:
+        # ADR-294 (follow-up of 2026-11-13): the person's place, read now, dresses
+        # their companion too, whichever reader paid for it.
+        client = _weather_client()
+        user = SimpleNamespace(id=uuid4())
+        env = _weather_env(client=client, location=SimpleNamespace(lat=48.85, lon=2.35))
+        with (
+            env[0],
+            env[1],
+            env[2],
+            env[3],
+            env[4],
+            patch(f"{_FETCHERS}.publish_companion_weather", AsyncMock(return_value=True)) as offer,
+        ):
+            await fetch_forecast_alert(
+                user=user, user_tz=PARIS, language="fr", now=ROUTINE_NOW, rule=FOUR_HOURS_LIKELY
+            )
+
+        offer.assert_awaited_once_with(user.id, {"weather": [{"main": "Clear"}]})
 
     async def test_it_reads_every_hour_of_the_horizon_and_the_hour_under_way(self) -> None:
         # One page (24 hours max) — never the card's five days of 3-hour samples.

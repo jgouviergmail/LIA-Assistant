@@ -17,45 +17,10 @@ import {
   type WorkboardState,
 } from '@/reducers/workboard-reducer';
 import type { BoardPage, TicketRow } from '@/types/workboard';
+import { makeTicket } from '@/__tests__/factories';
 
 function ticket(overrides: Partial<TicketRow> & { id: string }): TicketRow {
-  return {
-    owner_user_id: 'owner',
-    parent_id: null,
-    title: overrides.id,
-    description: null,
-    status: 'todo',
-    priority: 'medium',
-    start_at: null,
-    due_at: null,
-    assignee_kind: 'human',
-    assignee_user_id: null,
-    effective_assignee_id: 'owner',
-    position: 0,
-    follow_owner: false,
-    follow_assignee: false,
-    created_by: 'user',
-    status_changed_at: '2026-09-09T10:00:00Z',
-    run_count: 0,
-    run_claimed_at: null,
-    last_run_at: null,
-    last_run_outcome: null,
-    last_run_error: null,
-    last_run_tokens_in: null,
-    last_run_tokens_out: null,
-    last_run_tokens_cache: null,
-    last_run_google_requests: null,
-    last_run_cost_eur: null,
-    created_at: '2026-09-09T10:00:00Z',
-    execution_mode: 'react',
-    total_tokens_in: 0,
-    total_tokens_out: 0,
-    total_tokens_cache: 0,
-    total_google_requests: 0,
-    total_cost_eur: 0,
-    updated_at: '2026-09-09T10:00:00Z',
-    ...overrides,
-  };
+  return makeTicket({ title: overrides.id, ...overrides });
 }
 
 /** A board with three cards in `todo` and one in `done`. */
@@ -77,6 +42,7 @@ function loadedBoard(): WorkboardState {
       done: 1,
       cancelled: 0,
     },
+    lanes: [],
   };
   return workboardReducer(initialWorkboardState, { type: 'loaded', page });
 }
@@ -96,7 +62,7 @@ describe('loaded', () => {
     // board bigger than one page reports more than it shows.
     const capped = workboardReducer(initialWorkboardState, {
       type: 'loaded',
-      page: { tickets: [ticket({ id: 'a' })], total: 87, counts_by_status: { todo: 87 } },
+      page: { tickets: [ticket({ id: 'a' })], total: 87, counts_by_status: { todo: 87 }, lanes: [] },
     });
     expect(capped.total).toBe(87);
     expect(capped.countsByStatus.todo).toBe(87);
@@ -273,6 +239,7 @@ describe('ticketsOf', () => {
         ],
         total: 3,
         counts_by_status: { todo: 3 },
+        lanes: [],
       },
     });
 
@@ -281,5 +248,191 @@ describe('ticketsOf', () => {
 
   it('gives an unknown column an empty list rather than undefined', () => {
     expect(ticketsOf(loadedBoard(), 'idea')).toEqual([]);
+  });
+});
+
+/**
+ * A board with lanes: `a` and `z` filed under « home », `b` filed under
+ * nothing, « work » empty. The lane counters are the server's, like the
+ * column counters above.
+ */
+function lanedBoard(): WorkboardState {
+  const page: BoardPage = {
+    tickets: [
+      ticket({ id: 'a', status: 'todo', position: 0, category_id: 'home' }),
+      ticket({ id: 'b', status: 'todo', position: 1 }),
+      ticket({ id: 'z', status: 'done', position: 0, category_id: 'home' }),
+    ],
+    total: 3,
+    counts_by_status: { todo: 2, done: 1 },
+    lanes: [
+      { category_id: null, name: null, owner_user_id: null, counts_by_status: { todo: 1, done: 0 } },
+      {
+        category_id: 'home',
+        name: 'Home',
+        owner_user_id: 'owner',
+        counts_by_status: { todo: 1, done: 1 },
+      },
+      {
+        category_id: 'work',
+        name: 'Work',
+        owner_user_id: 'owner',
+        counts_by_status: { todo: 0, done: 0 },
+      },
+    ],
+  };
+  return workboardReducer(initialWorkboardState, { type: 'loaded', page });
+}
+
+/** One lane's counters, by its category. */
+function lane(state: WorkboardState, category: string | null): Record<string, number> {
+  const found = state.lanes.find(row => row.category_id === category);
+  if (!found) throw new Error(`no lane ${category}`);
+  return found.counts_by_status;
+}
+
+describe('lanes — loaded', () => {
+  it('takes the lanes and their EXACT counters from the server', () => {
+    const state = lanedBoard();
+
+    expect(state.lanes.map(row => row.category_id)).toEqual([null, 'home', 'work']);
+    expect(lane(state, 'home')).toEqual({ todo: 1, done: 1 });
+  });
+
+  it('is a flat board when the answer carries no lane at all', () => {
+    // An API that predates the lanes — a deploy in progress, a cached page —
+    // answers without the field: the board must draw what it always drew
+    // rather than crash on a list it was promised.
+    const older: BoardPage = JSON.parse(
+      JSON.stringify({ tickets: [], total: 0, counts_by_status: {} })
+    );
+
+    const state = workboardReducer(lanedBoard(), { type: 'loaded', page: older });
+
+    expect(state.lanes).toEqual([]);
+  });
+});
+
+describe('lanes — moved', () => {
+  it('a drop in another lane files the row and moves one card between two counters', () => {
+    const next = workboardReducer(lanedBoard(), {
+      type: 'moved',
+      id: 'b',
+      status: 'todo',
+      position: 0,
+      lane: 'work',
+    });
+
+    expect(next.tickets.find(row => row.id === 'b')?.category_id).toBe('work');
+    expect(lane(next, null).todo).toBe(0);
+    expect(lane(next, 'work').todo).toBe(1);
+    expect(next.countsByStatus.todo).toBe(2);
+  });
+
+  it('a drop across a lane AND a column moves the right cell on both sides', () => {
+    const next = workboardReducer(lanedBoard(), {
+      type: 'moved',
+      id: 'a',
+      status: 'done',
+      position: 0,
+      lane: null,
+    });
+
+    expect(next.tickets.find(row => row.id === 'a')?.category_id).toBeNull();
+    expect(lane(next, 'home')).toEqual({ todo: 0, done: 1 });
+    expect(lane(next, null)).toEqual({ todo: 1, done: 1 });
+    expect(next.countsByStatus).toMatchObject({ todo: 1, done: 2 });
+  });
+
+  it('a column change inside one lane moves that lane’s own counters', () => {
+    const next = workboardReducer(lanedBoard(), {
+      type: 'moved',
+      id: 'a',
+      status: 'done',
+      position: 0,
+    });
+
+    expect(next.tickets.find(row => row.id === 'a')?.category_id).toBe('home');
+    expect(lane(next, 'home')).toEqual({ todo: 0, done: 2 });
+    expect(lane(next, null)).toEqual({ todo: 1, done: 0 });
+  });
+
+  it('a reorder that names no lane touches no lane counter', () => {
+    const before = lanedBoard();
+
+    const next = workboardReducer(before, { type: 'moved', id: 'b', status: 'todo', position: 0 });
+
+    expect(next.lanes).toEqual(before.lanes);
+  });
+
+  it('never drives a lane counter below zero, whatever the payload says', () => {
+    const state = lanedBoard();
+    const drifted: WorkboardState = {
+      ...state,
+      lanes: state.lanes.map(row =>
+        row.category_id === 'home' ? { ...row, counts_by_status: { todo: 0, done: 0 } } : row
+      ),
+    };
+
+    const next = workboardReducer(drifted, {
+      type: 'moved',
+      id: 'a',
+      status: 'todo',
+      position: 0,
+      lane: 'work',
+    });
+
+    expect(lane(next, 'home').todo).toBe(0);
+  });
+
+  it('never mutates the lanes it was given', () => {
+    const before = lanedBoard();
+    const frozen = JSON.stringify(before.lanes);
+
+    workboardReducer(before, { type: 'moved', id: 'a', status: 'done', position: 0, lane: 'work' });
+
+    expect(JSON.stringify(before.lanes)).toBe(frozen);
+  });
+});
+
+describe('lanes — restored and patched', () => {
+  it('a rollback puts the lanes back EXACTLY as they were', () => {
+    const before = lanedBoard();
+    const moved = workboardReducer(before, {
+      type: 'moved',
+      id: 'a',
+      status: 'done',
+      position: 0,
+      lane: 'work',
+    });
+
+    const restored = workboardReducer(moved, { type: 'restored', snapshot: before });
+
+    expect(restored.lanes).toEqual(before.lanes);
+    expect(restored.tickets).toEqual(before.tickets);
+  });
+
+  it('a patch that refiles the row moves the lane counters as a drop does', () => {
+    const state = lanedBoard();
+    const row = state.tickets.find(candidate => candidate.id === 'b');
+    if (!row) throw new Error('fixture lost its row');
+
+    const next = workboardReducer(state, {
+      type: 'patched',
+      ticket: { ...row, category_id: 'home' },
+    });
+
+    expect(lane(next, null).todo).toBe(0);
+    expect(lane(next, 'home').todo).toBe(2);
+  });
+
+  it('a patch that changes nothing about the lane leaves the counters alone', () => {
+    const state = lanedBoard();
+    const row = state.tickets.find(candidate => candidate.id === 'a');
+    if (!row) throw new Error('fixture lost its row');
+
+    const next = workboardReducer(state, { type: 'patched', ticket: { ...row, title: 'Renamed' } });
+
+    expect(next.lanes).toEqual(state.lanes);
   });
 });

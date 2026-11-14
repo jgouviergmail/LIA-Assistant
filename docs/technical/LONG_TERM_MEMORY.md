@@ -6,6 +6,8 @@
 > **Date**: 2026-03-30
 > **Updated**: 2026-10-12 — PostgreSQL ownership, centralized embeddings and consent-revision fencing
 
+Les échanges de Principale et des annexes alimentent la même mémoire du compte. Une extraction différée vérifie le consentement et la génération de sa discussion avant d'écrire. Une réinitialisation laisse les mémoires déjà enregistrées disponibles. Voir le [contrat des discussions](SECONDARY_CONVERSATIONS.md#target-and-storage).
+
 ## Table des Matières
 
 - [Vue d'Ensemble](#vue-densemble)
@@ -293,6 +295,34 @@ planificateur et la boucle ReAct disposent du domaine routable `memory` et de
   avec sa nuance d'usage comme obligation ; un échec n'est jamais lu comme « rien en
   mémoire ».
 
+### 2 ter. Ce qui a été dit, mot pour mot (ADR-378, amendement du 2026-11-13)
+
+**Fichiers** : `apps/api/src/domains/conversations/discussion_search.py` (la porte,
+partagée avec le champ de recherche de l'historique),
+`apps/api/src/domains/agents/tools/conversation_search_tools.py` (l'outil).
+
+La mémoire tient ce que LIA a DISTILLÉ ; `search_conversations_tool` (même
+`memory_agent`, lecture seule, sans OAuth ni HITL, sans appel de modèle) rend ce qui a
+été DIT, mot pour mot, dans toutes les discussions actives du compte :
+
+- la lecture est celle du champ de recherche : casse et accents ignorés, jokers
+  littéraux, seulement ce que le chat montre (lignes masquées et réponses vides
+  exclues), du plus récent au plus ancien ; une annexe supprimée n'est pas lue ;
+- chaque passage dit sa discussion (`main`, ou le titre de l'annexe), qui a parlé
+  (`person` / `assistant`), quand (dans le fuseau de la personne) et un extrait de
+  `CONVERSATION_SEARCH_EXCERPT_CHARS` caractères autour des mots ;
+- le plafond publié au planificateur est celui que l'outil applique
+  (`CONVERSATION_SEARCH_TOOL_MAX_RESULTS`) ; des mots hors des bornes
+  `CONVERSATION_SEARCH_MIN_LENGTH` / `CONVERSATION_SEARCH_MAX_LENGTH` reçoivent un refus
+  `INVALID_INPUT`, rien n'est cherché ; « d'autres, plus anciens, existent » est dit
+  quand la page est pleine ;
+- la question du tour n'est pas sa propre réponse : archivée avant le tour
+  (ADR-117), elle est écartée par son `run_id` ;
+- la préférence `memory_enabled` ne coupe pas cette lecture : ce sont les mots de la
+  personne, lus à sa demande, et rien n'en est distillé ni stocké. L'isolation des
+  discussions (ADR-378) reste celle des runtimes : rien d'une autre discussion
+  n'entre dans un tour sans cette demande.
+
 ### 3. Background Extractor
 
 **Fichier** : `apps/api/src/domains/agents/services/memory_extractor.py`
@@ -400,7 +430,8 @@ Endpoints :
 - `PATCH /api/v1/memories/{id}` : Modifier une mémoire
 - `DELETE /api/v1/memories/{id}` : Supprimer une mémoire
 - `DELETE /api/v1/memories` : Supprimer toutes (RGPD)
-- `GET /api/v1/memories/export` : Export JSON (RGPD)
+- `GET /api/v1/memories/export` : Export CSV (défaut) ou JSON (RGPD)
+- `POST /api/v1/memories/import` : Import d'un export, CSV ou JSON
 
 ### 6. Commandes applicatives
 
@@ -423,7 +454,7 @@ Fonctionnalités :
 - **Tri par date décroissante** dans chaque catégorie
 - **Horodatage internationalisé** avec `Intl.DateTimeFormat`
 - Indicateurs émotionnels visuels (🔴🟠⚪🟢💚)
-- Actions : modifier, supprimer, exporter
+- Actions : modifier, supprimer, exporter, importer un export
 - Confirmation pour suppression totale
 
 #### Dialog d'Édition
@@ -505,7 +536,8 @@ Clés i18n pour les mémoires :
 
 `core/config/agents.py` déclare les paramètres de recherche et d'extraction,
 dont `memory_extraction_enabled`, `memory_max_results`,
-`memory_content_max_chars`, `memory_min_search_score`,
+`memory_content_max_chars`, `memory_import_max_memories`,
+`memory_import_max_file_kb`, `memory_min_search_score`,
 `memory_dedup_search_limit` et `memory_dedup_min_score`. Les valeurs par défaut appartiennent à la
 configuration et à ses constantes ; elles ne sont pas répétées ici.
 
@@ -598,7 +630,19 @@ Supprime toutes les mémoires (RGPD - droit à l'oubli).
 
 ### GET /api/v1/memories/export
 
-Exporte toutes les mémoires en JSON (RGPD - portabilité).
+Exporte toutes les mémoires (RGPD - portabilité) : en CSV par défaut — c'est ce que télécharge l'écran — ou en JSON avec `?format=json`.
+
+### POST /api/v1/memories/import
+
+Ramène dans un compte les mémoires d'un export : le même compte après un effacement, ou un autre. Le fichier est celui qu'écrit l'export, CSV ou JSON ; son format est décidé par son CONTENU, jamais par son nom ni par un type déclaré.
+
+- **Lecture** (`memories/import_file.py`, pure) : chaque entrée est tenue au schéma d'écriture de toute création (`MemoryCreate`). Seuls les champs d'une création sont lus ; l'identifiant, les dates et les compteurs d'usage décrivent la mémoire exportée, celle qu'on importe est neuve. L'épingle est le choix de la personne : elle voyage avec la mémoire, dans les deux sens. Une cellule de texte que l'export CSV avait protégée d'un tableur est relue sans sa marque (`spreadsheet_cell_text`, l'inverse de `spreadsheet_safe_cell`, à côté d'elle) ; un seul texte n'est pas restitué par le CSV, celui qui commençait déjà par une apostrophe suivie d'un signe de formule — le JSON, lui, est sans perte.
+- **Ce qui n'est pas importé est compté, jamais tu** (ADR-185) : `already_present` (le compte contient déjà ce contenu, comparé à l'identique), `duplicates` (le fichier le contenait déjà ; le premier lu est gardé), `invalid` (le schéma d'écriture le refuse : un export lit toute ligne quelle que soit sa longueur, une écriture garde sa borne). `total = imported + already_present + duplicates + invalid`.
+- **Un fichier refusé l'est en entier** : ce qui n'est pas un export (400), ce qui contient plus de mémoires que `MEMORY_IMPORT_MAX_MEMORIES` (400, le nombre trouvé et la limite nommés) ou dépasse `MEMORY_IMPORT_MAX_FILE_KB` (413, lu par morceaux, refusé avant d'être tenu en mémoire). Les deux bornes sont publiées à l'écran par `MemoryListResponse.limits` (ADR-184).
+- **Tout ce qui est neuf, ou rien** (`memories/import_commands.py`) : lecture de ce que le compte contient, vecteurs de ce qui est neuf, puis verrou du compte, relecture (un autre écrivain a pu passer entre-temps) et une seule validation. Aucune transaction n'est ouverte pendant l'appel au fournisseur (ADR-304).
+- **Coût** : chaque mémoire neuve est plongée sur la clé de la plateforme, par lots (`prepare_memory_import_embeddings`, `MEMORY_IMPORT_EMBEDDING_BATCH_SIZE` textes par appel, chaque texte distinct une seule fois). La barrière du compte et les deux plafonds d'usage sont interrogés avant CHAQUE appel payant, la dépense est imputée au compte sous une seule identité d'import, et une mémoire que le compte contient déjà ne coûte rien. À la différence d'une création isolée, un appel qui échoue fait échouer l'import : plusieurs centaines de mémoires sans vecteur seraient un import qui a l'air fait et qu'aucune recherche ne retrouve.
+
+Preuves : `tests/unit/domains/memories/test_import_file.py` (aller-retour sur le VRAI exporteur, dans les deux formats), `test_import_embeddings.py`, et `tests/integration/test_memory_management_import.py` sur PostgreSQL.
 
 ---
 
@@ -688,7 +732,7 @@ pour la porte mémoire.
 | Droit | Implémentation |
 |-------|----------------|
 | **Accès** | GET /api/v1/memories |
-| **Portabilité** | GET /api/v1/memories/export |
+| **Portabilité** | GET /api/v1/memories/export, POST /api/v1/memories/import |
 | **Effacement** | DELETE /api/v1/memories |
 | **Rectification** | PATCH /api/v1/memories/{id} |
 

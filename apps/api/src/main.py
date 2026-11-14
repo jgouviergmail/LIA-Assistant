@@ -98,6 +98,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
     # Startup
     registries.import_domain_models()
+    registries.init_conversation_cleanup()
     registries.init_notification_devices()
     registries.init_meeting_deletions()
     registries.init_meeting_reformat()

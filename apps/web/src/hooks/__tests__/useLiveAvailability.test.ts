@@ -16,8 +16,14 @@ const h = vi.hoisted(() => ({
   reads: [] as boolean[],
   deps: [] as unknown[][],
 }));
+/** What the operator switched off: absent, the deployment flag alone decides. */
+const operator = vi.hoisted(() => ({
+  capabilities: undefined as Record<string, { enabled: boolean; family: string }> | undefined,
+}));
 vi.mock('@/hooks/useAppConfig', () => ({
-  useAppConfig: () => ({ config: { features: { live_enabled: h.liveEnabled } } }),
+  useAppConfig: () => ({
+    config: { features: { live_enabled: h.liveEnabled }, capabilities: operator.capabilities },
+  }),
 }));
 vi.mock('@/hooks/useApiQuery', () => ({
   useApiQuery: (_url: string, options: { enabled: boolean; deps?: unknown[] }) => {
@@ -36,6 +42,15 @@ describe('useLiveAvailability', () => {
     h.reads = [];
     h.deps = [];
     useRevisionStore.setState({ revisions: { ...INITIAL_REVISIONS } });
+  });
+
+  it('is false and reads nothing once the operator switched the live mode off', () => {
+    operator.capabilities = { live: { enabled: false, family: 'media' } };
+    const { result } = renderHook(() => useLiveAvailability());
+    operator.capabilities = undefined;
+
+    expect(result.current).toEqual({ available: false, provider: null, directTools: false });
+    expect(h.reads).toEqual([false]);
   });
 
   it('is false and reads nothing when the instance flag is off', () => {

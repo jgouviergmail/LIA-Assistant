@@ -233,3 +233,18 @@ def test_task_truncation_is_announced():
 def test_a_short_list_never_claims_truncation():
     assert "more" not in _availability([MEETING])
     assert "more" not in format_peer_tasks(["une seule"], peer_name=PEER)
+
+
+def test_tasks_that_could_not_all_be_read_say_so():
+    """More exist than were read (a bound, a list that failed): never told as the whole."""
+    summary = format_peer_tasks(["Acheter du pain"], peer_name=PEER, partial=True)
+
+    assert "Acheter du pain" in summary
+    assert "INCOMPLETE" in summary
+
+
+def test_nothing_found_in_a_partial_read_is_never_no_pending_task():
+    summary = format_peer_tasks([], peer_name=PEER, partial=True)
+
+    assert "INCOMPLETE" in summary
+    assert "NO pending task" not in summary

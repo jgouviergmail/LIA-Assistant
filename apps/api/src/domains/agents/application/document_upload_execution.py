@@ -25,6 +25,7 @@ from src.domains.agents.application.secure_continuation import ContinuationCompl
 from src.domains.rag_spaces.document_deletion_cleanup import cleanup_deleted_document_file
 from src.domains.rag_spaces.service import RAGSpaceService
 from src.domains.rag_spaces.storage_paths import stored_file_path
+from src.domains.users.file_writers import account_file_write
 from src.domains.users.preference_cas import PreferenceWriteReceipt
 from src.infrastructure.file_transfer import LocalFileRead
 
@@ -95,41 +96,44 @@ async def _store_selected_file(
     check: Check,
     file: UploadFile,
 ) -> dict[str, JsonValue]:
-    filename: str | None = None
-    digest: str | None = None
-    committing = False
-    try:
-        await check()
-        service = RAGSpaceService(db)
-        await service.get_space(selected.space.id, actor_id, for_update=True)
-        await _check_destination(db, actor_id, selected)
-        document = await service.upload_document(
-            selected.space.id, actor_id, file, commit=False, document_id=draft.command_id
-        )
-        filename = document.filename
-        reader = LocalFileRead.open(stored_file_path(actor_id, selected.space.id, filename))
+    async with account_file_write(db, actor_id):
+        filename: str | None = None
+        digest: str | None = None
+        committing = False
         try:
-            digest = reader.identity_digest
-        finally:
-            await reader.close()
-        await check()
-        _require_unexpired(draft)
-        committing = True
-        try:
-            await db.commit()
-        except (Exception, asyncio.CancelledError) as error:
-            raise ContinuationCompletionUnknown() from error
-        receipt.committed = True
-    except BaseException:
-        if not committing:
-            await db.rollback()
-            if filename is not None:
-                await cleanup_deleted_document_file(actor_id, selected.space.id, filename, digest)
-        raise
-    return {
-        "document_id": str(draft.command_id),
-        "space_id": str(selected.space.id),
-        "upload_accepted": True,
-        "status": "pending",
-        "indexing_completed": False,
-    }
+            await check()
+            service = RAGSpaceService(db)
+            await service.get_space(selected.space.id, actor_id, for_update=True)
+            await _check_destination(db, actor_id, selected)
+            document = await service.upload_document(
+                selected.space.id, actor_id, file, commit=False, document_id=draft.command_id
+            )
+            filename = document.filename
+            reader = LocalFileRead.open(stored_file_path(actor_id, selected.space.id, filename))
+            try:
+                digest = reader.identity_digest
+            finally:
+                await reader.close()
+            await check()
+            _require_unexpired(draft)
+            committing = True
+            try:
+                await db.commit()
+            except (Exception, asyncio.CancelledError) as error:
+                raise ContinuationCompletionUnknown() from error
+            receipt.committed = True
+        except BaseException:
+            if not committing:
+                await db.rollback()
+                if filename is not None:
+                    await cleanup_deleted_document_file(
+                        actor_id, selected.space.id, filename, digest
+                    )
+            raise
+        return {
+            "document_id": str(draft.command_id),
+            "space_id": str(selected.space.id),
+            "upload_accepted": True,
+            "status": "pending",
+            "indexing_completed": False,
+        }

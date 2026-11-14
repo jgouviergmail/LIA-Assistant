@@ -14,10 +14,15 @@ import type { MeetingPreferences, MeetingSummary, MeetingTemplateSummary } from 
 
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'meeting-settings-owner' } }) }));
 
-const flags = vi.hoisted(() => ({ enabled: true, loading: false }));
+const flags = vi.hoisted(() => ({ enabled: true, loading: false, switchedOff: false }));
 vi.mock('@/hooks/useAppConfig', () => ({
   useAppConfig: () => ({
-    config: { features: { meetings_enabled: flags.enabled } },
+    config: {
+      features: { meetings_enabled: flags.enabled },
+      ...(flags.switchedOff
+        ? { capabilities: { meetings: { enabled: false, family: 'media' } } }
+        : {}),
+    },
     loading: flags.loading,
     error: null,
   }),
@@ -124,6 +129,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   flags.enabled = true;
   flags.loading = false;
+  flags.switchedOff = false;
   prefs.value = preferences();
   prefs.save.mockResolvedValue(preferences());
   library.templates = [
@@ -139,6 +145,14 @@ beforeEach(() => {
 describe('MeetingsSettings', () => {
   it('renders nothing when the instance flag is off', () => {
     flags.enabled = false;
+    const { container } = renderWithProviders(<MeetingsSettings lng="en" />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('renders nothing once the operator switched the meetings off', () => {
+    // The deployment still mounts the routes; the switch closes them, and a
+    // section that reads refused routes is a section of errors.
+    flags.switchedOff = true;
     const { container } = renderWithProviders(<MeetingsSettings lng="en" />);
     expect(container).toBeEmptyDOMElement();
   });

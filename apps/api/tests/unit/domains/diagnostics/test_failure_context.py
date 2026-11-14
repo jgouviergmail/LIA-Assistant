@@ -356,3 +356,47 @@ class TestAnEntryCarriesOnlyWhatTheModelUses:
         assert extract_failures_from_tool_messages([named])[0]["tool"] == "get_emails_tool"
         assert "tool" not in extract_failures_from_tool_messages([unnamed])[0]
         assert "source" not in extract_failures_from_tool_messages([named])[0]
+
+
+@pytest.mark.unit
+class TestTheTurnsOwnFailures:
+    """ONE count of what THIS turn failed: the directive's total and a routine's silence read it.
+
+    A platform degradation is told beside the failures, never counted among them.
+    """
+
+    def test_a_clean_turn_failed_nothing(self) -> None:
+        from src.domains.diagnostics.failure_context import count_turn_failures
+
+        assert count_turn_failures({}, [_worked("page")]) == 0
+
+    def test_failed_steps_and_failed_calls_are_counted_together(self) -> None:
+        from src.domains.diagnostics.failure_context import count_turn_failures
+
+        steps = {"s1": dict(_FAILED_ITEM), "s2": dict(_FAILED_ITEM)}
+
+        assert count_turn_failures(steps, [_failed("search")]) == 3
+
+    def test_a_call_a_retry_answered_is_no_failure_of_the_turn(self) -> None:
+        from src.domains.diagnostics.failure_context import count_turn_failures
+
+        assert count_turn_failures(None, [_failed("page"), _worked("page")]) == 0
+
+    async def test_the_directive_states_the_same_total(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from src.domains.diagnostics import failure_context as fc
+
+        async def no_degradations() -> list[Any]:
+            return []
+
+        monkeypatch.setattr(fc, "get_active_degradations", no_degradations)
+        steps = {"s1": dict(_FAILED_ITEM)}
+        messages = [_failed("search"), _failed("page"), _worked("page")]
+
+        block = await fc.build_runtime_failures_directive(
+            completed_steps=steps, messages=messages, template=_TEMPLATE
+        )
+
+        stated = json.loads(block.split("\n")[1])["total"]
+        assert stated == fc.count_turn_failures(steps, messages) == 2

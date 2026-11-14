@@ -17,11 +17,13 @@ import pytest
 from prometheus_client import REGISTRY
 
 from src.domains.agents.services.streaming.latency_sli import (
+    TokenGapClock,
     a_person_is_waiting,
     awaited_by_a_person,
     observe_first_token,
     observe_pre_graph_phase,
     observe_stream_duration,
+    observe_token_gap,
 )
 from tests._repo_paths import find_apps_api_root
 
@@ -34,6 +36,7 @@ _GUARDED = {
     "chat_pre_graph_phase_seconds",
     "chat_journey_first_token_seconds",
     "chat_journey_unanswered_seconds",
+    "sse_token_gap_seconds",
 }
 _ALLOWED = {
     "infrastructure/observability/metrics_agents.py",  # the definitions
@@ -108,6 +111,38 @@ def test_pre_graph_phases_are_observed_only_while_a_person_waits() -> None:
     with awaited_by_a_person(True):
         observe_pre_graph_phase("mcp", 0.4)
     assert _phase_count("mcp") == before + 1
+
+
+def _gap_count() -> float:
+    return REGISTRY.get_sample_value("sse_token_gap_seconds_count", {}) or 0.0
+
+
+def test_a_token_gap_is_observed_only_while_a_person_waits() -> None:
+    """A stall is a person's wait too (lot 26): a routine's stream never feeds it."""
+    before = _gap_count()
+
+    with awaited_by_a_person(False):
+        observe_token_gap(12.0)
+    assert _gap_count() == before
+
+    with awaited_by_a_person(True):
+        observe_token_gap(0.05)
+    assert _gap_count() == before + 1
+
+
+def test_the_clock_measures_the_gap_between_two_answer_tokens_only() -> None:
+    """The first token has no gap; a step or a tool event between two tokens is no token."""
+    instants = iter([10.0, 10.2, 13.5])
+    observed: list[float] = []
+    clock = TokenGapClock(observe=observed.append, now=lambda: next(instants))
+
+    clock.tick("token")
+    clock.tick("execution_step")
+    clock.tick("token")
+    clock.tick("router_decision")
+    clock.tick("token")
+
+    assert observed == pytest.approx([0.2, 3.3])
 
 
 def test_the_two_histograms_are_fed_through_one_door() -> None:

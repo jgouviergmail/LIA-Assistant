@@ -52,6 +52,12 @@ export interface WorkbenchPageState<T> {
   truncated: boolean;
   /** Why the last read failed (`workbenchRefusal` tells it), else null. */
   error: unknown;
+  /**
+   * Which read of page one the listing shows: it moves when page one is read, first or
+   * again, never on a next page nor on a change made on screen; zero while nothing is
+   * shown. What is read apart for the rows shown follows it.
+   */
+  read: number;
   loadMore: () => Promise<void>;
   refresh: (options?: RereadOptions) => Promise<void>;
   replaceItem: (id: string, next: T | null) => void;
@@ -64,6 +70,8 @@ export interface WorkbenchPageState<T> {
 
 interface Listing<T> {
   key: string;
+  /** The read of page one it came from; zero for a failed first read. */
+  read: number;
   items: T[];
   /** The pages read, a failed first read none. */
   pages: number;
@@ -74,9 +82,10 @@ interface Listing<T> {
 }
 
 /** A listing whose first page just landed. */
-function firstPage<T>(key: string, answer: WorkbenchPage<T>): Listing<T> {
+function firstPage<T>(key: string, read: number, answer: WorkbenchPage<T>): Listing<T> {
   return {
     key,
+    read,
     items: answer.items,
     pages: 1,
     nextToken: answer.next_page_token,
@@ -88,7 +97,16 @@ function firstPage<T>(key: string, answer: WorkbenchPage<T>): Listing<T> {
 
 /** A listing whose first read failed: nothing shown, the reason kept. */
 function failed<T>(key: string, error: unknown): Listing<T> {
-  return { key, items: [], pages: 0, nextToken: null, skipped: 0, truncated: false, error };
+  return {
+    key,
+    read: 0,
+    items: [],
+    pages: 0,
+    nextToken: null,
+    skipped: 0,
+    truncated: false,
+    error,
+  };
 }
 
 /**
@@ -130,7 +148,7 @@ export function useWorkbenchPage<T extends { id: string }>(
       .get<WorkbenchPage<T>>(path, { params: paramsOf(queryKey), signal: transport.signal })
       .then(answer => {
         if (listingId !== generation.current) return;
-        setListing(firstPage(key, answer));
+        setListing(firstPage(key, listingId, answer));
       })
       .catch((error: unknown) => {
         if (listingId !== generation.current || transport.signal.aborted) return;
@@ -151,7 +169,7 @@ export function useWorkbenchPage<T extends { id: string }>(
       refreshing.current = true;
       try {
         const answer = await apiClient.get<WorkbenchPage<T>>(path, { params: paramsOf(queryKey) });
-        if (listingId === generation.current) setListing(firstPage(key, answer));
+        if (listingId === generation.current) setListing(firstPage(key, listingId, answer));
       } catch (error: unknown) {
         if (listingId === generation.current && !unasked) setListing(failed(key, error));
       } finally {
@@ -176,6 +194,7 @@ export function useWorkbenchPage<T extends { id: string }>(
         previous && previous.key === key
           ? {
               key,
+              read: previous.read,
               items: [...withoutAny(previous.items, answer.items), ...answer.items],
               pages: previous.pages + 1,
               nextToken: answer.next_page_token,
@@ -230,6 +249,7 @@ export function useWorkbenchPage<T extends { id: string }>(
     skipped: current ? listing.skipped : 0,
     truncated: current ? listing.truncated : false,
     error: current ? listing.error : null,
+    read: current ? listing.read : 0,
     loadMore,
     refresh,
     replaceItem,

@@ -5,15 +5,18 @@ import io
 
 import pytest
 
+from src.domains.document_generation.context import RenderContext
 from src.domains.document_generation.renderers import (
     DOCUMENT_EXTENSIONS,
     DOCUMENT_MIME_TYPES,
     render_document,
 )
 from src.domains.document_generation.schemas import (
+    ColumnSpec,
     DocumentType,
     SectionBlock,
     SectionedContent,
+    SheetInput,
     TableSheet,
     TabularContent,
 )
@@ -66,6 +69,34 @@ class TestCsvRenderer:
         with pytest.raises(ValueError, match="TabularContent"):
             render_document(DocumentType.CSV, _sectioned())
 
+    def test_a_computed_column_carries_its_values_and_no_totals_row(self) -> None:
+        """CSV is data for another program: computed values, never a formula, and
+        no « Total » line a reader would sum a second time."""
+        content = TabularContent(
+            filename_stem="sales",
+            title="Sales",
+            sheets=[
+                TableSheet(
+                    name="Sales",
+                    headers=["Region", "Revenue", "Cost"],
+                    rows=[["North", "1000", "400"], ["South", "800", "0"]],
+                    columns=[
+                        ColumnSpec(header="Revenue", total="sum"),
+                        ColumnSpec(header="Net", formula="({Revenue} - {Cost}) * (1 - {Tax})"),
+                        ColumnSpec(header="Ratio", formula="{Revenue} / {Cost}"),
+                    ],
+                )
+            ],
+            inputs=[SheetInput(name="Tax", value="25%")],
+        )
+        rows = list(
+            csv.reader(io.StringIO(render_document(DocumentType.CSV, content).decode("utf-8-sig")))
+        )
+        assert rows[0] == ["Region", "Revenue", "Cost", "Net", "Ratio"]
+        assert rows[1][3:] == [f"{(1000 - 400) * 0.75:g}", "2.5"]
+        assert rows[2][3:] == [f"{(800 - 0) * 0.75:g}", ""]
+        assert len(rows) == 3
+
 
 @pytest.mark.unit
 class TestMarkdownRenderer:
@@ -87,6 +118,20 @@ class TestMarkdownRenderer:
         )
         text = render_document(DocumentType.MD, content).decode("utf-8")
         assert "## H" in text  # the title owns '#'
+
+    def test_every_level_moves_one_down_so_a_part_and_its_section_differ(self) -> None:
+        """Levels 1 and 2 both read « ## » until 2026-11-13: a section looked like its part."""
+        content = SectionedContent(
+            filename_stem="x",
+            title="T",
+            blocks=[
+                SectionBlock(kind="heading", level=level, text=f"H{level}")
+                for level in (1, 2, 3, 4)
+            ],
+        )
+        lines = render_document(DocumentType.MD, content).decode("utf-8").splitlines()
+        for level in (1, 2, 3, 4):
+            assert f"{'#' * (level + 1)} H{level}" in lines, level
 
 
 @pytest.mark.unit
@@ -114,6 +159,31 @@ class TestFormatMaps:
 class TestMarkdownStructureSurvivesTheData:
     """A pipe is markdown's column separator: a cell carrying one splits the
     row, and every later cell lands under the wrong header."""
+
+    def test_numbers_align_right_and_the_totals_row_is_bold(self) -> None:
+        content = SectionedContent(
+            filename_stem="t",
+            title="T",
+            blocks=[
+                SectionBlock(
+                    kind="table",
+                    table=TableSheet(
+                        name="S",
+                        headers=["Region", "Revenue"],
+                        rows=[["North", "1200.5"], ["South", "800"]],
+                        columns=[
+                            ColumnSpec(header="Revenue", kind="amount", unit="USD", total="sum")
+                        ],
+                    ),
+                )
+            ],
+        )
+        text = render_document(DocumentType.MD, content, RenderContext(language="en")).decode(
+            "utf-8"
+        )
+        assert "| --- | ---: |" in text
+        assert "| $1,200.50 |" in text
+        assert "| **Total** | **$2,000.50** |" in text
 
     def test_a_pipe_in_a_cell_does_not_add_a_column(self) -> None:
         content = SectionedContent(

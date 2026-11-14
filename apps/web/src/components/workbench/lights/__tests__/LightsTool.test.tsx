@@ -235,7 +235,7 @@ describe('LightsTool — the question to LIA', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'workbench.ask.label' }));
 
     expect(openChat).toHaveBeenCalledWith('/en/dashboard/chat');
-    expect(window.localStorage.getItem('lia.chatDraft.owner')).toBe('workbench.ask.lights');
+    expect(window.localStorage.getItem('lia.chatDraft.owner.main')).toBe('workbench.ask.lights');
     expect(api.post).not.toHaveBeenCalled();
   });
 
@@ -245,7 +245,7 @@ describe('LightsTool — the question to LIA', () => {
     await user.click(await screen.findByRole('button', { name: 'workbench.ask.label' }));
     await user.click(await screen.findByRole('menuitem', { name: 'workbench.ask.ready.lights' }));
 
-    expect(window.localStorage.getItem('lia.chatDraft.owner')).toContain(
+    expect(window.localStorage.getItem('lia.chatDraft.owner.main')).toContain(
       'workbench.ask.ready.lights_words'
     );
     expect(api.post).not.toHaveBeenCalled();

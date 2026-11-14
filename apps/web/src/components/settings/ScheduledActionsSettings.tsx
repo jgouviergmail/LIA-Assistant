@@ -23,7 +23,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { ExecutionModeField } from '@/components/workboard/ExecutionModeField';
+import { RoutineDeliveryFields } from '@/components/settings/RoutineDeliveryFields';
 import { RoutineMcpPreapprovalField } from '@/components/settings/RoutineMcpPreapprovalField';
+import { RoutineTemplatePicker } from '@/components/settings/RoutineTemplatePicker';
+import { RoutineWebhookFields } from '@/components/settings/RoutineWebhookFields';
+import { RoutineWebhookSecretDialog } from '@/components/settings/RoutineWebhookSecretDialog';
+import { useConfirm } from '@/components/ui/use-confirm';
+import { useAppConfig } from '@/hooks/useAppConfig';
+import { useRoutineWebhookSecret } from '@/hooks/useRoutineWebhookSecret';
+import { capabilityAvailable } from '@/lib/capability-availability';
+import { drawnSecretOf } from '@/lib/routine-webhook';
+import { blankRoutineFields } from '@/lib/routine-templates';
 import { useRoutinePreapprovableServers } from '@/hooks/useRoutinePreapprovableServers';
 import { getApiErrorCode } from '@/lib/api-error';
 import type { ExecutionMode } from '@/types/workboard';
@@ -71,6 +81,7 @@ import {
   type ScheduledActionUpdate,
   type RecurrenceSpec,
   type RoutineRecurrenceLimits,
+  type RoutineWebhookSecret,
   type TriggerKind,
   type WeatherConditionRule,
 } from '@/hooks/useScheduledActions';
@@ -83,8 +94,12 @@ import { renderOccurrences } from '@/lib/occurrences';
 import { emptyRecurrence, recurrenceIsComplete } from '@/lib/recurrence';
 import {
   duplicateTitle,
+  hasNoFutureLeft,
   isConditionRoutine,
+  isWebhookRoutine,
   numberByTriggerTime,
+  PAGE_URL_MAX_CHARS,
+  pageUrlProblem,
   routineCardId,
   sameCondition,
   weatherRuleSentence,
@@ -164,24 +179,23 @@ interface FormState {
   // N-07 (flattened for the form; assembled into ConditionConfig on save).
   trigger_kind: TriggerKind;
   condition_type: ConditionType;
+  /** The text filter: a mail's or an event's `query`, a watched page's `contains`. */
   condition_query: string;
+  /** A watched page's address (ADR-387); '' for every other condition. */
+  condition_url: string;
   /** The last watched day, `YYYY-MM-DD`, or '' for no end. */
   condition_until: string;
   requires_approval: boolean;
+  /** Notify only when a run found something new; never with `requires_approval`. */
+  notify_only_when_new: boolean;
   execution_mode: ExecutionMode;
   /** The MCP servers its runs confirm for themselves (spec D9). */
   mcp_preapproved_servers: string[];
 }
 
 const EMPTY_FORM: FormState = {
-  title: '',
-  action_prompt: '',
-  recurrence: emptyRecurrence(todayIso()),
-  trigger_kind: 'time',
-  condition_type: 'task_overdue',
-  condition_query: '',
-  condition_until: '',
-  requires_approval: false,
+  // The same blank a template is cleared to (lib/routine-templates).
+  ...blankRoutineFields(todayIso()),
   execution_mode: 'react',
   mcp_preapproved_servers: [],
 };
@@ -193,10 +207,15 @@ const CONDITION_TYPES: readonly ConditionType[] = [
   'mail_match',
   'document_added',
   'calendar_event',
+  'page_change',
 ];
 
 /** Condition types whose studio form shows the text-filter field. */
-const QUERY_CONDITION_TYPES: readonly ConditionType[] = ['mail_match', 'calendar_event'];
+const QUERY_CONDITION_TYPES: readonly ConditionType[] = [
+  'mail_match',
+  'calendar_event',
+  'page_change',
+];
 
 /**
  * Assemble the API ConditionConfig from the flattened form (null for time).
@@ -215,11 +234,32 @@ function buildConditionConfig(
   if (kept?.kinds) config.kinds = kept.kinds;
   if (kept?.within_hours) config.within_hours = kept.within_hours;
   const query = form.condition_query.trim();
-  if (query && QUERY_CONDITION_TYPES.includes(form.condition_type)) {
+  if (form.condition_type === 'page_change') {
+    // A page is watched at its address; its filter is `contains`, where one
+    // character is a filter (« € ») (ADR-387).
+    config.url = form.condition_url.trim();
+    if (query) config.contains = query;
+  } else if (query && QUERY_CONDITION_TYPES.includes(form.condition_type)) {
     config.query = query;
   }
   if (form.condition_until) config.until = form.condition_until;
   return config;
+}
+
+/**
+ * The condition half of the form, read from a stored condition — the form's
+ * blank when there is none. One text field serves every filter: a mail's or an
+ * event's `query`, a watched page's `contains` (ADR-387).
+ */
+function conditionFormFields(
+  config: ConditionConfig | null | undefined
+): Pick<FormState, 'condition_type' | 'condition_query' | 'condition_url' | 'condition_until'> {
+  return {
+    condition_type: config?.type ?? 'task_overdue',
+    condition_query: config?.query ?? config?.contains ?? '',
+    condition_url: config?.url ?? '',
+    condition_until: config?.until ?? '',
+  };
 }
 
 /**
@@ -237,10 +277,9 @@ function formStateFromAction(action: ScheduledAction): FormState {
     // one if the person switches to it.
     recurrence: action.recurrence ?? emptyRecurrence(todayIso()),
     trigger_kind: action.trigger_kind ?? 'time',
-    condition_type: action.condition_config?.type ?? 'task_overdue',
-    condition_query: action.condition_config?.query ?? '',
-    condition_until: action.condition_config?.until ?? '',
+    ...conditionFormFields(action.condition_config),
     requires_approval: action.requires_approval ?? false,
+    notify_only_when_new: action.notify_only_when_new ?? false,
     execution_mode: (action.execution_mode ?? 'react') as ExecutionMode,
     mcp_preapproved_servers: action.mcp_preapproved_servers ?? [],
   };
@@ -281,6 +320,8 @@ function clockUpdate(
     const changed = kindChanged || !sameCondition(conditionConfig, editing.condition_config);
     return changed ? { ...mode, condition_config: conditionConfig } : {};
   }
+  // A routine started by calls has no clock field: its mode alone (ADR-386).
+  if (form.trigger_kind === 'webhook') return mode;
   const changed =
     kindChanged || JSON.stringify(form.recurrence) !== JSON.stringify(editing.recurrence);
   return changed ? { ...mode, recurrence: form.recurrence } : {};
@@ -303,12 +344,14 @@ function buildUpdatePayload(
   if (form.action_prompt !== editing.action_prompt) update.action_prompt = form.action_prompt;
   if (form.requires_approval !== (editing.requires_approval ?? false))
     update.requires_approval = form.requires_approval;
+  if (form.notify_only_when_new !== (editing.notify_only_when_new ?? false))
+    update.notify_only_when_new = form.notify_only_when_new;
   if (form.execution_mode !== (editing.execution_mode ?? 'react'))
     update.execution_mode = form.execution_mode;
   return update;
 }
 
-/** The create payload: the chosen mode's clock only, never both (ADR-322). */
+/** The create payload: the chosen mode's clock only, never two (ADR-322, ADR-386). */
 function buildCreatePayload(
   form: FormState,
   conditionConfig: ConditionConfig | null
@@ -318,22 +361,31 @@ function buildCreatePayload(
     action_prompt: form.action_prompt.trim(),
     trigger_kind: form.trigger_kind,
     requires_approval: form.requires_approval,
+    // Sent only when asked for: an unchanged routine keeps its historical payload.
+    ...(form.notify_only_when_new ? { notify_only_when_new: true } : {}),
     execution_mode: form.execution_mode,
     ...(form.mcp_preapproved_servers.length
       ? { mcp_preapproved_servers: form.mcp_preapproved_servers }
       : {}),
   };
+  // A routine started by calls carries no clock: the server draws its address.
+  if (form.trigger_kind === 'webhook') return base;
   return form.trigger_kind === 'condition'
     ? { ...base, condition_config: conditionConfig }
     : { ...base, recurrence: form.recurrence };
 }
 
 /** Why the condition fields cannot be saved yet, or null when they can. */
-function conditionProblem(form: FormState): 'query_required' | 'until_past' | null {
+function conditionProblem(
+  form: FormState
+): 'query_required' | 'url_required' | 'url_invalid' | 'until_past' | null {
   if (form.trigger_kind !== 'condition') return null;
   if (form.condition_type === 'mail_match' && !form.condition_query.trim()) {
     return 'query_required';
   }
+  const pageProblem =
+    form.condition_type === 'page_change' ? pageUrlProblem(form.condition_url) : null;
+  if (pageProblem) return pageProblem;
   if (form.condition_until && form.condition_until < todayIso()) return 'until_past';
   return null;
 }
@@ -342,6 +394,7 @@ function conditionProblem(form: FormState): 'query_required' | 'until_past' | nu
 function formIsComplete(form: FormState): boolean {
   if (!form.title.trim() || !form.action_prompt.trim()) return false;
   if (form.trigger_kind === 'condition') return conditionProblem(form) === null;
+  if (form.trigger_kind === 'webhook') return true;
   return recurrenceIsComplete(form.recurrence);
 }
 
@@ -480,22 +533,33 @@ function getStatusBadgeVariant(action: ScheduledAction): BadgeTone {
   if (!action.is_enabled) return 'secondary';
   // Grey is reserved for INACTIVE elements — and a series with nothing left is
   // exactly that, however "active" its status column still reads.
-  if (action.next_trigger_at === null && action.status === 'active') return 'secondary';
+  if (hasNoFutureLeft(action) && action.status === 'active') return 'secondary';
   return lifecycleTone(action.status);
 }
 
+/** What each clock means, said under the question that chose it. */
+const MODE_HINT: Record<TriggerKind, string> = {
+  time: 'scheduled_actions.studio.time_hint_time',
+  condition: 'scheduled_actions.studio.mode_hint_condition',
+  webhook: 'scheduled_actions.studio.mode_hint_webhook',
+};
+
 /**
  * The first question the form asks (ADR-322): which clock the routine runs on.
- * Everything below it follows the answer — a schedule, or a condition the
- * system checks — so the two are never asked together.
+ * Everything below it follows the answer — a schedule, a condition the system
+ * checks, or another system's signed call (ADR-386) — so two are never asked
+ * together. The third clock is offered where the instance offers it, and kept
+ * on a routine that already runs on it.
  */
 function TriggerModeFields({
   form,
   setForm,
+  webhookOffered,
   t,
 }: {
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
+  webhookOffered: boolean;
   t: Translate;
 }) {
   return (
@@ -504,7 +568,14 @@ function TriggerModeFields({
         <Label htmlFor="sa-trigger-kind">{t('scheduled_actions.studio.trigger_kind')}</Label>
         <Select
           value={form.trigger_kind}
-          onValueChange={v => setForm(f => ({ ...f, trigger_kind: v as TriggerKind }))}
+          onValueChange={v =>
+            setForm(f => ({
+              ...f,
+              trigger_kind: v as TriggerKind,
+              // A routine started by calls never proposes first (ADR-386).
+              requires_approval: v === 'webhook' ? false : f.requires_approval,
+            }))
+          }
         >
           <SelectTrigger id="sa-trigger-kind">
             <SelectValue />
@@ -514,14 +585,13 @@ function TriggerModeFields({
             <SelectItem value="condition">
               {t('scheduled_actions.studio.kind_condition')}
             </SelectItem>
+            {(webhookOffered || form.trigger_kind === 'webhook') && (
+              <SelectItem value="webhook">{t('scheduled_actions.studio.kind_webhook')}</SelectItem>
+            )}
           </SelectContent>
         </Select>
       </div>
-      <p className="text-xs text-muted-foreground">
-        {form.trigger_kind === 'condition'
-          ? t('scheduled_actions.studio.mode_hint_condition')
-          : t('scheduled_actions.studio.time_hint_time')}
-      </p>
+      <p className="text-xs text-muted-foreground">{t(MODE_HINT[form.trigger_kind])}</p>
     </FormSection>
   );
 }
@@ -551,6 +621,40 @@ function WeatherRuleHint({
     <p className="text-xs text-muted-foreground" data-testid="weather-rule-hint">
       {sentence}
     </p>
+  );
+}
+
+/**
+ * A watched page's address (ADR-387): typed by the person, read by the system
+ * with no model — the hint says what the read can and cannot see.
+ */
+function PageUrlField({
+  form,
+  setForm,
+  t,
+}: {
+  form: FormState;
+  setForm: React.Dispatch<React.SetStateAction<FormState>>;
+  t: Translate;
+}) {
+  return (
+    <div className="space-y-3">
+      <Label htmlFor="sa-condition-url">{t('scheduled_actions.studio.page_url')}</Label>
+      <Input
+        id="sa-condition-url"
+        type="url"
+        inputMode="url"
+        autoComplete="url"
+        value={form.condition_url}
+        maxLength={PAGE_URL_MAX_CHARS}
+        onChange={e => setForm(f => ({ ...f, condition_url: e.target.value }))}
+        placeholder={t('scheduled_actions.studio.page_url_ph')}
+        aria-describedby="sa-condition-url-hint"
+      />
+      <p id="sa-condition-url-hint" className="text-xs text-muted-foreground">
+        {t('scheduled_actions.studio.page_url_hint')}
+      </p>
+    </div>
   );
 }
 
@@ -606,6 +710,9 @@ function ConditionFields({
           t={t}
         />
       </div>
+      {form.condition_type === 'page_change' && (
+        <PageUrlField form={form} setForm={setForm} t={t} />
+      )}
       {QUERY_CONDITION_TYPES.includes(form.condition_type) && (
         <div className="space-y-3">
           <Label htmlFor="sa-condition-query">
@@ -648,6 +755,93 @@ function ConditionFields({
         </p>
       )}
     </FormSection>
+  );
+}
+
+/**
+ * What the schedule editor shows of the STORED schedule: its sentence, its
+ * runs and whether it is over — none when the routine being edited runs on
+ * another clock; its zone, or the browser's for a new routine.
+ */
+function storedScheduleView(editing: ScheduledAction | null) {
+  const stored = editing?.recurrence ? editing : null;
+  return {
+    timezone: editing?.user_timezone ?? browserTimezone(),
+    sentence: stored?.schedule_display,
+    occurrences: stored?.next_occurrences,
+    finished: stored !== null && stored.next_trigger_at === null,
+  };
+}
+
+/**
+ * The chosen clock's own fields, under the question that chose it: a schedule,
+ * a condition the system checks, or the address a call reaches (ADR-322,
+ * ADR-386).
+ */
+function RoutineClockFields({
+  form,
+  setForm,
+  editing,
+  checkMinutes,
+  maxFiresPerDay,
+  weatherRule,
+  limits,
+  intlLocale,
+  onDrawSecret,
+  drawingSecret,
+  t,
+}: {
+  form: FormState;
+  setForm: React.Dispatch<React.SetStateAction<FormState>>;
+  editing: ScheduledAction | null;
+  checkMinutes: Partial<Record<ConditionType, number>> | undefined;
+  maxFiresPerDay: number | undefined;
+  weatherRule: WeatherConditionRule | undefined;
+  limits: RoutineRecurrenceLimits | undefined;
+  intlLocale: string;
+  onDrawSecret: () => void;
+  drawingSecret: boolean;
+  t: Translate;
+}) {
+  if (form.trigger_kind === 'condition') {
+    return (
+      <ConditionFields
+        form={form}
+        setForm={setForm}
+        checkMinutes={checkMinutes?.[form.condition_type]}
+        maxFiresPerDay={maxFiresPerDay}
+        weatherRule={weatherRule}
+        editing={editing?.condition_config ?? null}
+        intlLocale={intlLocale}
+        t={t}
+      />
+    );
+  }
+  if (form.trigger_kind === 'webhook') {
+    return (
+      <RoutineWebhookFields
+        webhookUrl={editing?.webhook_url ?? null}
+        onDrawSecret={onDrawSecret}
+        drawing={drawingSecret}
+      />
+    );
+  }
+  // When it runs — the generic editor, mounted with the ROUTINE's caps as the
+  // server publishes them. A reminder mounts the same component with its own,
+  // which is what makes it generic rather than a routines widget.
+  const stored = storedScheduleView(editing);
+  return (
+    <RoutineScheduleEditor
+      limits={limits}
+      t={t}
+      value={form.recurrence}
+      onChange={recurrence => setForm(f => ({ ...f, recurrence }))}
+      timezone={stored.timezone}
+      idPrefix="sa"
+      sentence={stored.sentence}
+      occurrences={stored.occurrences}
+      finished={stored.finished}
+    />
   );
 }
 
@@ -702,19 +896,24 @@ function RoutineCard({
         <RowActions
           menuLabel={t('common.actions_for', { name: action.title })}
           actions={[
-            {
-              key: 'execute',
-              // A condition routine's « test » is a CHECK: it runs only if
-              // something new is there (ADR-322).
-              label: t(
-                isConditionRoutine(action)
-                  ? 'scheduled_actions.check_now'
-                  : 'scheduled_actions.test_now'
-              ),
-              icon: Play,
-              disabled: executing,
-              onSelect: onExecute,
-            },
+            // A routine started by calls has nothing to run without a call (ADR-386).
+            ...(isWebhookRoutine(action)
+              ? []
+              : [
+                  {
+                    key: 'execute',
+                    // A condition routine's « test » is a CHECK: it runs only if
+                    // something new is there (ADR-322).
+                    label: t(
+                      isConditionRoutine(action)
+                        ? 'scheduled_actions.check_now'
+                        : 'scheduled_actions.test_now'
+                    ),
+                    icon: Play,
+                    disabled: executing,
+                    onSelect: onExecute,
+                  },
+                ]),
             { key: 'edit', label: t('common.edit'), icon: Pencil, onSelect: onEdit },
             {
               key: 'duplicate',
@@ -777,8 +976,9 @@ function statusLabel(action: ScheduledAction, t: Translate): string {
   if (action.status === 'executing') return t('scheduled_actions.status.executing');
   // A null trigger means the series is over: saying "active" would be a
   // claim the routine cannot honour. Still needed between the last run and
-  // the executor tick that closes the row.
-  if (action.next_trigger_at === null) return t('scheduled_actions.status.finished');
+  // the executor tick that closes the row. A routine started by calls sleeps
+  // with a null trigger: it is waiting, not finished (ADR-386).
+  if (hasNoFutureLeft(action)) return t('scheduled_actions.status.finished');
   return t('scheduled_actions.status.active');
 }
 
@@ -806,6 +1006,12 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
     updating,
     executing,
   } = useScheduledActions();
+  const { drawWebhookSecret, drawingSecret } = useRoutineWebhookSecret();
+  const { config: appConfig } = useAppConfig();
+  const webhookOffered = capabilityAvailable(appConfig, 'routine_webhooks');
+  const { confirm, confirmDialog } = useConfirm();
+  // A secret the server just drew, shown this once (ADR-386).
+  const [drawnSecret, setDrawnSecret] = useState<RoutineWebhookSecret | null>(null);
 
   // Dialog states
   const regionRef = useRef<HTMLDivElement>(null);
@@ -813,6 +1019,8 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
   const [editingAction, setEditingAction] = useState<ScheduledAction | null>(null);
   const [deletingActionId, setDeletingActionId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  // A template starts a NEW routine: offered by « create », never by « duplicate ».
+  const [offerTemplates, setOfferTemplates] = useState(false);
 
   // Chronological order and rank (ADR-265): computed at the display, from
   // whatever order the API returned — the hub, the briefing and the
@@ -846,6 +1054,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
   // Open create dialog
   const handleOpenCreate = () => {
     setForm(EMPTY_FORM);
+    setOfferTemplates(true);
     setShowCreateDialog(true);
   };
 
@@ -871,10 +1080,20 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
       ...source,
       title: duplicateTitle(source.title, t('scheduled_actions.duplicate_suffix')),
     });
+    setOfferTemplates(false);
     setShowCreateDialog(true);
   };
 
   const canSave = formIsComplete(form) && !creating && !updating;
+
+  /**
+   * One word for a saved routine: the secret's dialog when the save drew one
+   * (it IS the confirmation — a toast would sit over its title), else a toast.
+   */
+  const confirmSaved = (drawn: RoutineWebhookSecret | null, savedKey: string) => {
+    if (drawn) setDrawnSecret(drawn);
+    else toast.success(t(savedKey));
+  };
 
   // Save (create or update)
   const handleSave = async () => {
@@ -885,17 +1104,37 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
       if (editingAction) {
         const update = buildUpdatePayload(form, editingAction, conditionConfig);
         if (Object.keys(update).length > 0) {
-          await updateAction(editingAction.id, update);
-          toast.success(t('scheduled_actions.edit_success'));
+          const updated = await updateAction(editingAction.id, update);
+          // A routine moved onto calls is answered with its secret, once.
+          confirmSaved(drawnSecretOf(updated), 'scheduled_actions.edit_success');
         }
         setEditingAction(null);
       } else {
-        await createAction(buildCreatePayload(form, conditionConfig));
-        toast.success(t('scheduled_actions.create_success'));
+        const created = await createAction(buildCreatePayload(form, conditionConfig));
         setShowCreateDialog(false);
+        confirmSaved(drawnSecretOf(created), 'scheduled_actions.create_success');
       }
     } catch (error) {
       toast.error(saveErrorMessage(error, Boolean(editingAction), t));
+    }
+  };
+
+  /**
+   * Draw a new secret for the routine being edited, once confirmed: the old
+   * one stops working at once, so the sender must be given the new one.
+   */
+  const handleDrawSecret = async () => {
+    if (!editingAction) return;
+    const confirmed = await confirm({
+      title: t('scheduled_actions.webhook.draw_confirm_title'),
+      description: t('scheduled_actions.webhook.draw_confirm_description'),
+      confirmLabel: t('scheduled_actions.webhook.draw_confirm'),
+    });
+    if (!confirmed) return;
+    try {
+      setDrawnSecret((await drawWebhookSecret(editingAction.id)) ?? null);
+    } catch {
+      toast.error(t('scheduled_actions.webhook.draw_failed'));
     }
   };
 
@@ -947,8 +1186,14 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
     }
   };
 
-  // Form dialog content (shared between create and edit)
-  const formDialog = (isOpen: boolean, onClose: () => void, titleKey: string) => (
+  // Form dialog content (shared between create and edit); the ready-made
+  // routines are offered by the creation of a new one alone (lot 13).
+  const formDialog = (
+    isOpen: boolean,
+    onClose: () => void,
+    titleKey: string,
+    templatesOffered: boolean
+  ) => (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
       {/* The recurrence editor made this form tall: two questions, a weekday
           row, an end rule and a summary. `DialogContent` does not scroll on its
@@ -965,6 +1210,13 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
             follows the answer), that clock's fields, and how it runs. */}
         <div className="space-y-6 py-4">
           <FormSection icon={PencilLine} title={t('scheduled_actions.section_what')}>
+            <RoutineTemplatePicker
+              offered={templatesOffered}
+              form={form}
+              setForm={setForm}
+              today={todayIso()}
+              t={t}
+            />
             <div className="space-y-3">
               <Label htmlFor="sa-title">{t('scheduled_actions.field_title')}</Label>
               <Input
@@ -989,56 +1241,32 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
             </div>
           </FormSection>
 
-          <TriggerModeFields form={form} setForm={setForm} t={t} />
+          <TriggerModeFields form={form} setForm={setForm} webhookOffered={webhookOffered} t={t} />
 
-          {form.trigger_kind === 'condition' ? (
-            <ConditionFields
-              form={form}
-              setForm={setForm}
-              checkMinutes={conditionCheckMinutes?.[form.condition_type]}
-              maxFiresPerDay={conditionMaxFiresPerDay}
-              weatherRule={weatherConditionRule}
-              editing={editingAction?.condition_config ?? null}
-              intlLocale={intlLocale}
-              t={t}
-            />
-          ) : (
-            // When it runs — the generic editor, mounted with the ROUTINE's
-            // caps as the server publishes them. A reminder mounts the same
-            // component with its own, which is what makes it generic rather
-            // than a routines widget.
-            <RoutineScheduleEditor
-              limits={recurrenceLimits}
-              t={t}
-              value={form.recurrence}
-              onChange={recurrence => setForm(f => ({ ...f, recurrence }))}
-              timezone={editingAction?.user_timezone ?? browserTimezone()}
-              idPrefix="sa"
-              // The server's sentence and runs describe the STORED schedule —
-              // none when the routine being edited is a condition routine.
-              sentence={editingAction?.recurrence ? editingAction.schedule_display : undefined}
-              occurrences={editingAction?.recurrence ? editingAction.next_occurrences : undefined}
-              finished={editingAction?.recurrence != null && editingAction.next_trigger_at === null}
-            />
-          )}
+          <RoutineClockFields
+            form={form}
+            setForm={setForm}
+            editing={editingAction}
+            checkMinutes={conditionCheckMinutes}
+            maxFiresPerDay={conditionMaxFiresPerDay}
+            weatherRule={weatherConditionRule}
+            limits={recurrenceLimits}
+            intlLocale={intlLocale}
+            onDrawSecret={() => void handleDrawSecret()}
+            drawingSecret={drawingSecret}
+            t={t}
+          />
 
           <FormSection icon={Play} title={t('scheduled_actions.section_execution')}>
-            {/* N-07 studio: propose-first mode */}
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <Label htmlFor="sa-approval">
-                  {t('scheduled_actions.studio.requires_approval')}
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  {t('scheduled_actions.studio.requires_approval_hint')}
-                </p>
-              </div>
-              <Switch
-                id="sa-approval"
-                checked={form.requires_approval}
-                onCheckedChange={v => setForm(f => ({ ...f, requires_approval: v }))}
-              />
-            </div>
+            {/* How the routine reaches its owner: it asks first (N-07), or it
+                runs and only notifies of something new — never both. */}
+            <RoutineDeliveryFields
+              idPrefix="sa"
+              approvalUnavailable={form.trigger_kind === 'webhook'}
+              requiresApproval={form.requires_approval}
+              notifyOnlyWhenNew={form.notify_only_when_new}
+              onChange={delivery => setForm(f => ({ ...f, ...delivery }))}
+            />
             {/* Same choice as a ticket's, same words: nobody is there to steer
                 a plan when a routine fires, so the loop is the default. */}
             <ExecutionModeField
@@ -1161,13 +1389,19 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
       </div>
 
       {/* Create dialog */}
-      {formDialog(showCreateDialog, () => setShowCreateDialog(false), 'scheduled_actions.create')}
+      {formDialog(
+        showCreateDialog,
+        () => setShowCreateDialog(false),
+        'scheduled_actions.create',
+        offerTemplates
+      )}
 
       {/* Edit dialog */}
       {formDialog(
         editingAction !== null,
         () => setEditingAction(null),
-        'scheduled_actions.edit_title'
+        'scheduled_actions.edit_title',
+        false
       )}
 
       {/* Delete confirmation */}
@@ -1190,6 +1424,8 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {confirmDialog}
+      <RoutineWebhookSecretDialog drawn={drawnSecret} onClose={() => setDrawnSecret(null)} />
     </SettingsSection>
   );
 }

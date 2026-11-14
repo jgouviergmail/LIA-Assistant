@@ -124,6 +124,20 @@ describe('selection response stream', () => {
       }).success
     ).toBe(false);
   });
+  it("accepts the instance's web search as a research provider (lot 18)", () => {
+    expect(
+      selectionAnswerSchema.safeParse({
+        proposal: {
+          kind: 'research',
+          query: 'Query',
+          provider: 'searxng',
+          summary: null,
+          sources: [{ title: 'Source', url: 'https://example.test/a', excerpt: '' }],
+        },
+        usage: null,
+      }).success
+    ).toBe(true);
+  });
   it.each([
     new Response(null, { headers: { 'Content-Type': 'text/event-stream' } }),
     new Response('{}', { headers: { 'Content-Type': 'application/json' } }),

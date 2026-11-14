@@ -135,6 +135,42 @@ services:
           cpus: '0.1'
           memory: 64M
 
+  # The instance's keyless web search (lot 18, ADR-382): SearXNG, a metasearch
+  # engine LIA asks for the web links of a person with no search key of their
+  # own (SEARXNG_URL). Internal only — never published, so its bot limiter and
+  # image proxy stay off (infrastructure/searxng/settings.yml). Pinned to the
+  # newest image at least two weeks old when it was measured (SearXNG publishes
+  # several builds a day, no releases): 58 useful searches out of 60.
+  searxng:
+    image: searxng/searxng:2026.10.29-c15647b5a@sha256:c4e8448495ef3b0175eb6c97a19c1ac7cc0a5c907d581ab3877f3cb430e81b86
+    container_name: lia-searxng-prod
+    profiles: ["searxng"]  # Opt-in: add `searxng` to COMPOSE_PROFILES
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      # Required by SearXNG, which refuses to start on its default secret.
+      - SEARXNG_SECRET=${SEARXNG_SECRET:-}
+      - SEARXNG_BASE_URL=http://searxng:8080/
+    volumes:
+      - ./infrastructure/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M  # measured ~150M after 60 searches
+        reservations:
+          cpus: '0.05'
+          memory: 96M
+
   # Backend API
   api:
     # Parameterized image (B04/ADR-215): local build stays the default name

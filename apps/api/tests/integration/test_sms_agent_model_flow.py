@@ -79,8 +79,10 @@ async def test_actual_sms_tool_node_supplies_literal_body_to_domain_model(
             "src.infrastructure.llm.providers.adapter.configured_api_key",
             return_value="test-only-inert-key",
         ) as configured_key,
+        # The history summarizer names no model: it asks the factory for the
+        # ``compaction`` slot (infrastructure/llm/slot_summarization.py).
         patch(
-            "src.infrastructure.llm.middleware_config.init_chat_model",
+            "src.infrastructure.llm.slot_summarization.get_llm",
             return_value=_CapturingChatModel(),
         ) as summarizer,
         patch(
@@ -89,8 +91,9 @@ async def test_actual_sms_tool_node_supplies_literal_body_to_domain_model(
         ),
     ):
         agent = build_sms_reader()
-    configured_key.assert_called_once_with("openai")
-    summarizer.assert_called_once()
+    # Building the reader asks for no provider key outside the factory any more.
+    configured_key.assert_not_called()
+    summarizer.assert_called_once_with("compaction")
     await agent.ainvoke(
         {"messages": [HumanMessage(content="Read the last SMS")]},
         config={"configurable": {"thread_id": context.thread_id}},

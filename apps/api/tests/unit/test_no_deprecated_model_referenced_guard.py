@@ -26,12 +26,14 @@ test read it).
 before any import, so that the test environment is identical whatever the
 launcher (an incident is recorded there: a developer's
 ``SEMANTIC_EXPANSION_EVIDENCE_DRIVEN_ENABLED`` and ``DEFAULT_CURRENCY`` once
-flipped twelve tests). ``settings.summarization_model`` therefore always
-resolves to the code default here. A deployment whose ``SUMMARIZATION_MODEL``
-still names a retiring model is real drift — measured on the dev instance on
-2026-08-24, where the constant had moved and the environment had not — but it
-belongs to a boot-time assertion on the running configuration, not to a unit
-suite that is designed to be blind to it.
+flipped twelve tests). A model named by a setting therefore always resolves
+to its code default here. A deployment whose environment still names a
+retiring model is real drift — measured on the dev instance on 2026-08-24 for
+the summarizer's model, where the constant had moved and the environment had
+not — but it belongs to a boot-time assertion on the running configuration,
+not to a unit suite that is designed to be blind to it. (That setting is gone
+since 2026-11-11: the summarizer writes with the ``compaction`` slot, which
+``test_no_llm_default_is_retiring`` covers like every other.)
 """
 
 from __future__ import annotations
@@ -50,7 +52,6 @@ from src.core.constants import (
     OPENAI_STT_DIARIZE_MODEL_DEFAULT,
     PERPLEXITY_SEARCH_MODEL_DEFAULT,
     RAG_SPACES_EMBEDDING_MODEL_DEFAULT,
-    SUMMARIZATION_MODEL_DEFAULT,
 )
 from src.domains.llm.models import LLMProviderEnum
 from src.domains.llm_config.constants import LLM_DEFAULTS
@@ -122,13 +123,6 @@ def test_no_llm_default_is_retiring() -> None:
         if config.model and _retiring(config.provider, config.model)
     )
     assert offenders == [], f"LLM_DEFAULTS point at retiring models: {offenders}"
-
-
-def test_summarization_default_is_not_retiring() -> None:
-    """OpenAI by construction: the middleware calls ``_require_api_key("openai")``."""
-    assert not _retiring(
-        "openai", SUMMARIZATION_MODEL_DEFAULT
-    ), f"SUMMARIZATION_MODEL_DEFAULT={SUMMARIZATION_MODEL_DEFAULT} is retiring"
 
 
 def test_fallback_models_are_known_and_not_retiring() -> None:

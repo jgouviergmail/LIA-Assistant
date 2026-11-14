@@ -251,7 +251,8 @@ export default function SettingsPage({ params }: SettingsPageProps) {
     if (mcpOAuthOutcome && !oauthToastShownRef.current) {
       oauthToastShownRef.current = true;
       const { kind, key } = MCP_OAUTH_TOAST[mcpOAuthOutcome];
-      toast[kind](t(key));
+      // A message naming the remedy names the button that offers it.
+      toast[kind](t(key, { action: t('settings.mcp.connect_oauth') }));
       // Clean URL params
       const url = new URL(window.location.href);
       url.searchParams.delete('mcp_oauth');
@@ -307,7 +308,10 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               {/* QW-10: "What LIA understands about you" — jumps to the
                   portrait inside Journals (renders only with a portrait). */}
               <FeatureErrorBoundary feature="journals">
-                <PortraitShortcut onOpen={() => openSection('journals')} />
+                <PortraitShortcut
+                  journalsOffered={availability.journalsEnabled}
+                  onOpen={() => openSection('journals')}
+                />
               </FeatureErrorBoundary>
             </SettingsOverview>
           )}

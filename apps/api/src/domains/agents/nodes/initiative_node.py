@@ -46,6 +46,7 @@ from src.core.constants import (
 )
 from src.core.i18n import get_language_name, resolve_language
 from src.core.llm_config_helper import get_llm_config_for_agent, llm_call_timeout_seconds
+from src.core.mail_reply_state import REPLY_STATE_KEY, reply_state_text
 from src.core.prompt_layout import single_call_messages
 from src.core.run_config import run_id_of
 from src.core.time_utils import get_prompt_datetime_formatted
@@ -400,6 +401,10 @@ def _format_execution_summary(
 
             # Generic extraction: iterate all payload fields, exclude technical ones
             summary_parts: list[str] = []
+            # An annotation is a dict, and dicts are skipped below: where an e-mail stands
+            # in its conversation is said FIRST, so the field bound never cuts it (ADR-379).
+            if reply_line := reply_state_text(payload.get(REPLY_STATE_KEY)):
+                summary_parts.append(reply_line)
             for key, val in payload.items():
                 if is_technical_field(key, _EXCLUDE_FIELDS) or val is None:
                     continue

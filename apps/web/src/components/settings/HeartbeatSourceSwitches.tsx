@@ -3,11 +3,10 @@
 import {
   BookOpen,
   Brain,
-  Calendar,
   CakeSlice,
+  Calendar,
   CloudSun,
   Heart,
-  LayoutGrid,
   ListChecks,
   ListTodo,
   Mail,
@@ -15,6 +14,7 @@ import {
   Navigation,
   Repeat,
   Sparkles,
+  SquareKanban,
 } from '@/lib/icons';
 import type { LucideIcon } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
@@ -73,11 +73,12 @@ const SOURCE_ICONS: Record<string, LucideIcon> = {
   birthdays: CakeSlice,
   open_loops: ListTodo,
   departure: Navigation,
-  // The same marks their own settings sections wear (`HabitsSettings`,
-  // `WorkboardSettings`): unlisted, both fell back to the neutral glyph,
-  // which is also the one « Interests » wears — three rows, one mark.
+  // The marks these two wear everywhere else (`HabitsSettings`, the
+  // workboard's page and header destination): unlisted, both fell back to the
+  // neutral glyph, which is also the one « Interests » wears — three rows,
+  // one mark.
   habits: Repeat,
-  workboard: LayoutGrid,
+  workboard: SquareKanban,
 };
 
 export function HeartbeatSourceSwitches({

@@ -46,7 +46,17 @@ these licenses independently for these specific libraries.
 
 | Package | License | Usage |
 |---------|---------|-------|
-| [lucide-react](https://github.com/lucide-icons/lucide) | ISC | Icon library (frontend) |
+| [lucide-react](https://github.com/lucide-icons/lucide) | ISC | Icon library (frontend); a vendored subset of its geometry, notice included, draws the pictograms of generated presentations (`apps/api/src/domains/document_generation/lucide_icons.json`) |
+
+## Third-Party Trademarks
+
+The icons of the known MCP servers (`apps/web/public/mcp-icons/`) are the logos and
+favicons their vendors publish on their own websites (Airtable, Asana, Calendly, Canva,
+ClickUp, Dropbox, GitHub, Hugging Face, IGN, Linear, Microsoft, Notion, Todoist,
+trivago, Wolfram and the other services listed in
+`apps/api/src/infrastructure/mcp/known_servers.py`). They remain the trademarks of their
+respective owners, are not covered by this project's license, and are shown only to
+identify each service in the list a person adds a server from; no endorsement is implied.
 
 ## Permissive Dependencies
 

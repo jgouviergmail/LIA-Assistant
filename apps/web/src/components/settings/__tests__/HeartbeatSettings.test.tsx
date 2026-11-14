@@ -101,6 +101,18 @@ describe('HeartbeatSettings', () => {
     await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
   });
 
+  it('while the hours are saved, their lists are busy, never disabled', () => {
+    const settings = { ...hook().settings, heartbeat_enabled: true };
+    useHeartbeatSettings.mockReturnValue(hook({ settings, updating: true }));
+    renderWithProviders(<HeartbeatSettings lng="fr" />);
+
+    for (const name of ['common.start_hour_label', 'common.end_hour_label']) {
+      const list = screen.getByRole('combobox', { name });
+      expect(list).toHaveAttribute('aria-busy', 'true');
+      expect(list).not.toBeDisabled();
+    }
+  });
+
   it('toasts an error when the update returns a falsy result', async () => {
     const updateSettings = vi.fn().mockResolvedValue(null);
     useHeartbeatSettings.mockReturnValue(hook({ updateSettings }));

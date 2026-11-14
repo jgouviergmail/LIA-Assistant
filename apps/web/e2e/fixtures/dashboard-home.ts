@@ -66,14 +66,14 @@ export function homeItemName(section: keyof typeof HOME_CAPS, index: number): st
 
 /** Aggregate sets are exact counts; their two received titles are only previews. */
 export const HOME_WORKBOARD_GROUPS = [
-  { key: 'held_by_me', labelKey: 'settings.workboard.tile_mine', count: 9 },
-  { key: 'held_by_lia', labelKey: 'settings.workboard.tile_lia', count: 4 },
+  { key: 'held_by_me', labelKey: 'workboard.summary.tile_mine', count: 9 },
+  { key: 'held_by_lia', labelKey: 'workboard.summary.tile_lia', count: 4 },
   {
     key: 'held_by_peers',
     labelKey: 'dashboard.briefing.cards.workboard.held_by_peers',
     count: 7,
   },
-  { key: 'overdue', labelKey: 'settings.workboard.tile_overdue', count: 3 },
+  { key: 'overdue', labelKey: 'workboard.summary.tile_overdue', count: 3 },
   { key: 'open_total', labelKey: 'dashboard.briefing.cards.workboard.tile_open', count: 13 },
 ] as const;
 

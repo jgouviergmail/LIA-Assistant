@@ -192,7 +192,9 @@ Three connector-specific preference schemas in `preferences/schemas.py`:
 
 ### MicrosoftTasksPreferences
 
-- `default_task_list_name: str | None` — Name of the default task list. Falls back to the first available task list if not set.
+- `default_task_list_name: str | None` — Name of the default task list: where a NEW task goes when the chat names no list, and nothing else (every reader of the tasks reads all the lists — ADR-369 §4, amendment 2026-11-10). Falls back to the first available task list if not set.
+
+A To Do listing is filtered on instants sent in UTC, whatever offset the caller gave (`microsoft_tasks_client._filter_instant`): measured on Graph, a `$filter` refuses a numeric offset (`…+01:00`, HTTP 400) on `dueDateTime` and `completedDateTime` alike.
 
 Registered in `preferences/registry.py` mapping `ConnectorType.MICROSOFT_OUTLOOK`, `ConnectorType.MICROSOFT_CALENDAR` and `ConnectorType.MICROSOFT_TASKS` to their respective schemas.
 

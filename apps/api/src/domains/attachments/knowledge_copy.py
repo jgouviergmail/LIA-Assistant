@@ -18,8 +18,8 @@ rag_spaces`` lives here.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import NoReturn
 
@@ -28,23 +28,20 @@ from fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.conversation_target import ConversationRef
 from src.core.exceptions import BaseAPIException
 from src.domains.attachments.copy_store import (
     copy_and_extract,
-    copy_target,
-    record_copy,
-    run_after_reads,
+    publish_copy,
 )
+from src.domains.attachments.file_contracts import FileWriteResult, UploadMetadata
 from src.domains.attachments.models import (
     Attachment,
     AttachmentContentType,
-    AttachmentOrigin,
-    AttachmentStatus,
 )
-from src.domains.attachments.repository import AttachmentRepository
 from src.domains.rag_spaces.document_access import (
-    document_file_path,
     owned_document,
+    owned_document_path,
     raise_document_not_found,
 )
 from src.domains.rag_spaces.models import RAGDocumentStatus
@@ -73,7 +70,12 @@ def text_is_capped(text: str | None, max_chars: int) -> bool:
 
 
 async def copy_knowledge_document(
-    db: AsyncSession, *, user_id: uuid.UUID, space_id: uuid.UUID, document_id: uuid.UUID
+    db: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    space_id: uuid.UUID,
+    document_id: uuid.UUID,
+    target: ConversationRef | None = None,
 ) -> Attachment:
     """Copy one of the person's knowledge documents into their attachments.
 
@@ -94,39 +96,33 @@ async def copy_knowledge_document(
     document = await owned_document(RAGSpaceService(db), space_id, document_id, user_id)
     if document.status != RAGDocumentStatus.READY:
         raise_document_not_ready(document_id, str(document.status))
-    source = document_file_path(document)
-    if not source.is_file():
+    filename = document.filename
+    await db.commit()
+    source = await asyncio.to_thread(owned_document_path, user_id, space_id, filename)
+    if source is None or not await asyncio.to_thread(source.is_file):
         raise_document_not_found(document_id)
 
-    stored_filename, relative_path, target = copy_target(
-        settings.attachments_storage_path, user_id, Path(document.filename).suffix
-    )
-    extracted_text, file_size = await run_after_reads(
+    mime_type = document.content_type
+
+    def write(path: Path) -> FileWriteResult:
+        text, size = copy_and_extract(
+            source, path, mime_type, settings.attachments_max_pdf_text_chars
+        )
+        return FileWriteResult(size, text)
+
+    attachment = await publish_copy(
         db,
-        copy_and_extract,
-        source,
-        target,
-        document.content_type,
-        settings.attachments_max_pdf_text_chars,
+        user_id=user_id,
+        target=target,
+        metadata=UploadMetadata(
+            document.original_filename,
+            mime_type,
+            AttachmentContentType.DOCUMENT,
+            Path(document.filename).suffix,
+        ),
+        write=write,
     )
-    attachment = await record_copy(
-        AttachmentRepository(db),
-        db,
-        target,
-        {
-            "user_id": user_id,
-            "original_filename": document.original_filename,
-            "stored_filename": stored_filename,
-            "mime_type": document.content_type,
-            "file_size": file_size,
-            "file_path": relative_path,
-            "content_type": AttachmentContentType.DOCUMENT,
-            "origin": AttachmentOrigin.UPLOAD.value,
-            "extracted_text": extracted_text,
-            "status": AttachmentStatus.READY,
-            "expires_at": datetime.now(UTC) + timedelta(hours=settings.attachments_ttl_hours),
-        },
-    )
+    extracted_text = attachment.extracted_text
     logger.info(
         "attachment_copied_from_knowledge_document",
         attachment_id=str(attachment.id),

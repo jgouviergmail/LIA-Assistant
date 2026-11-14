@@ -8,7 +8,8 @@ What must hold:
   its own explicit tag (it pointed at the prod tag for six weeks after the
   dev image was renamed, and every sandbox run failed as "unavailable");
 - exactly the 5 core services carry no profile; exactly the 12
-  observability/management services carry only ["observability"];
+  observability/management services carry only ["observability"]; the
+  instance's web search (lot 18, ADR-382) carries only ["searxng"];
 - the BASE api service holds no Docker socket, no group_add, and no
   maintainer Claude mount; script skills default OFF in base;
 - the skill-sandbox overlay adds socket + group_add + scripts ON;
@@ -54,6 +55,9 @@ OBSERVABILITY_SERVICES = {
     "redis-exporter",
     "portainer",
 }
+#: Opt-in services, each under a profile of its own name (lot 18: the instance's
+#: keyless web search).
+OPT_IN_SERVICES = {"searxng"}
 
 
 def _load(name: str) -> dict[str, Any]:
@@ -84,10 +88,12 @@ def test_dev_sandbox_runs_on_the_sandbox_image_the_dev_tasks_build() -> None:
 
 def test_profile_split_is_exact() -> None:
     services = _load("docker-compose.prod.yml")["services"]
-    assert set(services) == CORE_SERVICES | OBSERVABILITY_SERVICES
+    assert set(services) == CORE_SERVICES | OBSERVABILITY_SERVICES | OPT_IN_SERVICES
     for name, svc in services.items():
         if name in CORE_SERVICES:
             assert "profiles" not in svc, f"core service {name} must not carry a profile"
+        elif name in OPT_IN_SERVICES:
+            assert svc.get("profiles") == [name], f"opt-in service {name} carries [{name!r}]"
         else:
             assert svc.get("profiles") == [
                 "observability"

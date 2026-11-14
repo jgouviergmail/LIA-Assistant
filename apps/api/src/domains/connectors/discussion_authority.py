@@ -1,5 +1,6 @@
 """Credential identity, scope and default-container fencing without a token refresh or cached catalogue."""
 
+from collections.abc import Iterable
 from hashlib import sha256
 from uuid import UUID
 
@@ -111,6 +112,34 @@ async def is_selected_discussion_connector(
         return await resolve_active_connector_fresh(owner, category, ConnectorService(db)) == kind
 
 
+async def require_reader_authorities(
+    owner: UUID, kind: ConnectorType, client: object, containers: Iterable[str]
+) -> dict[str, str]:
+    """Check the client reads the connector's own account; return one scope per container.
+
+    The connector's scope is read ONCE: a read spanning several containers (every task
+    list of an account) fences each of them without a database read apiece.
+
+    Args:
+        owner: The account.
+        kind: The connector type.
+        client: The opened provider client.
+        containers: The containers read (calendars or task lists); ``""`` for none.
+
+    Returns:
+        Each container's scope: the connector scope, suffixed by that container's hash.
+
+    Raises:
+        AuthorizationError: The client's account is not the connector's
+            (``SOURCE_ACCOUNT_CHANGED``), or the connector is no longer usable.
+    """
+    scope = await read_connector_scope(owner, kind)
+    binding = content_source_binding(client)
+    if not binding or scope.split(":")[1] != binding:
+        raise AuthorizationError(detail={"error_code": "SOURCE_ACCOUNT_CHANGED"})
+    return {name: f"{scope}:{semantic_version((name,))[:16]}" for name in containers}
+
+
 async def require_reader_authority(
     owner: UUID, kind: ConnectorType, client: object, *, container: str = ""
 ) -> str:
@@ -129,8 +158,4 @@ async def require_reader_authority(
         AuthorizationError: The client's account is not the connector's
             (``SOURCE_ACCOUNT_CHANGED``), or the connector is no longer usable.
     """
-    scope = await read_connector_scope(owner, kind)
-    binding = content_source_binding(client)
-    if not binding or scope.split(":")[1] != binding:
-        raise AuthorizationError(detail={"error_code": "SOURCE_ACCOUNT_CHANGED"})
-    return f"{scope}:{semantic_version((container,))[:16]}"
+    return (await require_reader_authorities(owner, kind, client, (container,)))[container]

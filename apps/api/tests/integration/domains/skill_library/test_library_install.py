@@ -30,6 +30,7 @@ from src.domains.skills.models import Skill
 from src.domains.skills.preference_service import SkillPreferenceService
 from src.infrastructure.utils import url_validation as url_validator
 from tests.fixtures.factories import UserFactory
+from tests.helpers.committed_account_session import async_session as async_session
 from tests.unit.domains.skill_library.fakes import FakeHub, manifest
 
 pytestmark = pytest.mark.integration
@@ -41,6 +42,7 @@ async def _user(db: AsyncSession) -> uuid.UUID:
     user = UserFactory.create()
     db.add(user)
     await db.flush()
+    await db.commit()
     return user.id
 
 
@@ -55,7 +57,7 @@ def _record(**overrides: str) -> SourceRecord:
         "commit_sha": "a" * 40,
         "tree_sha": "b" * 40,
     }
-    return SourceRecord(**{**base, **overrides})  # type: ignore[arg-type]
+    return SourceRecord(**{**base, **overrides})
 
 
 @pytest.fixture()
@@ -76,7 +78,7 @@ def skill_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path
 
 @pytest.fixture()
 def one_session(async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> AsyncSession:
-    """Every short session the service opens is the test's (rolled back at the end)."""
+    """Expose the test's committed session at the library service's composition seam."""
 
     @asynccontextmanager
     async def context() -> AsyncIterator[AsyncSession]:

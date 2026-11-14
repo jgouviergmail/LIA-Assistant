@@ -175,6 +175,21 @@ def _drawn_as(char: str) -> str:
     return "mark" if category in _STACKING_CATEGORIES else "text"
 
 
+def has_visible_text(text: str) -> bool:
+    """Whether a value contains text beyond whitespace, controls and bare marks.
+
+    The original value is preserved: joiners, marks and direction controls can
+    belong to meaningful writing when accompanied by visible text.
+
+    Args:
+        text: The complete value to inspect.
+
+    Returns:
+        True when at least one character is classified as visible text.
+    """
+    return any(_drawn_as(char) == "text" for char in text)
+
+
 def _marker(run: str) -> str:
     """One marker for a run of characters: their code points, then their count.
 

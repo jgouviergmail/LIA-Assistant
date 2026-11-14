@@ -4,6 +4,7 @@ import { useSyncExternalStore } from 'react';
 import { useFontFamily, type FontFamilyName } from '@/lib/font-context';
 import { FONT_DEFINITIONS } from '@/constants/fonts';
 import { Check, Type } from '@/lib/icons';
+import { MonochromeIcons } from '@/lib/icon-style-context';
 import { InfoBox } from '@/components/ui/info-box';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from '@/i18n/client';
@@ -84,7 +85,11 @@ export function FontSettings({ lng }: FontSettingsProps) {
                       }
                     `}
                   >
-                    {isSelected && <Check className="h-3 w-3" strokeWidth={3} />}
+                    {isSelected && (
+                      <MonochromeIcons>
+                        <Check className="h-3 w-3" strokeWidth={3} />
+                      </MonochromeIcons>
+                    )}
                   </div>
 
                   {/* Font preview "Aa" */}

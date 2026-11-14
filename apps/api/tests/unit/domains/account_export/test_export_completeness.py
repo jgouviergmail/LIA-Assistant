@@ -85,6 +85,27 @@ class TestExportCoverage:
         ):
             assert secret_table not in exportable, f"{secret_table} must never be exported"
 
+    def test_a_routine_leaves_without_its_address_or_its_secret(self) -> None:
+        """ADR-386: the key opens a public door and the secret signs for it."""
+        owner = uuid4()
+        row = _row_to_dict(
+            "scheduled_actions",
+            SimpleNamespace(
+                _mapping={
+                    "user_id": owner,
+                    "title": "Door",
+                    "trigger_kind": "webhook",
+                    "webhook_key": "AbCdEfGhIjKlMnOpQrStUvWxYz012345",  # gitleaks:allow
+                    "webhook_secret": "gAAAAAB-ciphertext",
+                }
+            ),
+            owner,
+        )
+
+        assert row["title"] == "Door" and row["trigger_kind"] == "webhook"
+        assert "webhook_key" not in row and "webhook_secret" not in row
+        assert "routine_webhook_deliveries" not in exportable_tables()
+
     def test_redaction_and_decryption_specs_reference_real_columns(self) -> None:
         """A renamed column must break these specs loudly, not silently."""
         for spec in (_REDACTED_COLUMNS, _DECRYPTED_COLUMNS):

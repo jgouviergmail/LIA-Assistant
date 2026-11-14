@@ -189,7 +189,7 @@ def _implicit_level(effective: LLMAgentConfig, value: ReasoningIntent | None) ->
     """The depth the vendor applies because the intent names none, if it declares one.
 
     An unset level (``None`` or ``provider_default``) is not "no reasoning" on a
-    model that reasons unasked: Fable 5, Fable 5.1 and Opus 5.5 cannot switch
+    model that reasons unasked: Fable 5, 5.1, 5.2 and Opus 5.5 cannot switch
     thinking off, Opus 5 and Sonnet 5 think unless told not to (ADR-306). Only a
     profile that declares ``implicit_level`` says so; every other family keeps
     reading an unset level as light, exactly as before.

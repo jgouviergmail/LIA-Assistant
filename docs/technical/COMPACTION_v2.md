@@ -33,7 +33,8 @@ graph entry → compaction_node
   │
   ├─ writer({compaction_start, estimated_duration_seconds, is_resume})  ← custom mode
   │
-  ├─ CompactionService.compact(messages, preserve_recent_n, language, config)
+  ├─ CompactionService.compact(messages, preserve_recent_n, language, config,
+  │     │                        zone=resolve_zone(state["user_timezone"]))
   │     │
   │     ├─ asyncio.wait_for(compact_impl_llm, timeout=run_bound_seconds(COMPACTION_GLOBAL_TIMEOUT_SECONDS, "compaction"))
   │     │     │
@@ -60,6 +61,14 @@ graph entry → compaction_node
   │
   └─ continues to router → planner → ... → response
 ```
+
+Each message that carries the moment it was written reaches the summarizer with it,
+in the person's zone (`[Tue 10 Nov 2026, 09:12] …`, `message_view.written_prefix`,
+[ADR-381](../architecture/ADR-381-A-Model-Reads-When-Each-Message-Was-Written.md)).
+The prompt's Heuristic 3 turns a relative date into an absolute one whenever the
+conversation states the reference date: the stamp is that date, so a summary keeps
+the dates of the messages it replaces. The zone is a required argument of `compact`:
+a caller cannot summarise an undated history by forgetting it.
 
 ## 3. SSE events on the wire
 

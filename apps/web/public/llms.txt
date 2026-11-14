@@ -8,24 +8,27 @@
 
 ## Key Features
 
-- **21+ specialized AI agents**: emails, calendar, contacts, files, tasks, weather, web search, Wikipedia, places, routes, reminders, health metrics, browser automation, smart home (Philips Hue), and more — 338 integrated tools
+- **21+ specialized AI agents**: emails, calendar, contacts, files, tasks, weather, web search, Wikipedia, places, routes, reminders, health metrics, browser automation, smart home (Philips Hue), and more — 340 integrated tools
+- **Several discussions**: a permanent Main discussion plus the side discussions you create for a subject, each with its own history, draft and cost, searched together and exported as Markdown; a message written while LIA answers waits its turn, or joins the answer in progress
 - **7 LLM providers**: OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen, Perplexity, Ollama (local models) — per-node model selection, cost comparison, no vendor lock-in
 - **Two execution modes**: a deterministic Pipeline (plan → validate → approve → parallel execution, 4–8× fewer tokens) and an autonomous ReAct loop — user-switchable per conversation
 - **Human-in-the-Loop (HITL)**: approval flows ensuring no sensitive action happens without user consent; pending approvals survive restarts
 - **Today briefing**: personalized home dashboard — synthesis, weather, agenda, birthdays, reminders, health, unread emails
 - **Psyche Engine**: dynamic emotional state — 14 moods, 22 emotions, Big Five personality traits, a relationship that deepens over time ("show, don't tell")
 - **Personal journals**: stratified introspection (observations → directives → patterns → portrait) with deferred self-evaluation and a compiled user-model portrait
-- **Connected services**: Google, Apple iCloud, and Microsoft 365 (email, calendar, contacts, tasks, files on Google Drive or OneDrive) — one active provider per category, interchangeable
+- **Connected services**: Google, Apple iCloud, and Microsoft 365 (email, calendar, contacts, tasks, files on Google Drive or OneDrive) — one active provider per category, interchangeable; a listed e-mail says whether you already answered it, and drafts follow your own writing style, learned from your sent e-mails and never from their content
 - **Tools workspace**: mail, calendar, tasks, contacts, files and Hue lights used directly on every provider: by hand with no model call and no assistant-register entry, or one click asking LIA for a proposal to review, its cost shown
 - **Voice mode**: the wake word is detected 100% locally in the browser (a trained ONNX model per interface language) and speech is transcribed on your own server (sherpa-onnx offline Whisper, 99+ languages); TTS via Edge (free), OpenAI, ElevenLabs, Gemini or Fish Audio; live voice sessions on your own provider key
 - **Knowledge Spaces (RAG)**: upload documents in 15+ formats or sync Google Drive or OneDrive folders — hybrid semantic + keyword search with per-query cost transparency
+- **Document generation**: Word, Excel, PowerPoint, PDF, CSV and Markdown files produced by local renderers — spreadsheets with live formulas and native charts, presentations with key figures, reports with cited sources, optional illustrations counted in your costs
 - **AI image generation & editing**: text-to-image and photo editing with cost tracking
+- **Web search**: Brave or Perplexity on your own key, Wikipedia, and — where the operator runs the bundled SearXNG service — web links for accounts with no search key
 - **Interactive outputs**: MCP Apps widgets, Excalidraw diagram generation, rich skills rendering maps/dashboards/mini-apps in chat, games, quizzes and calculators LIA writes and runs in a sandboxed frame, LaTeX math rendering
 - **Browser automation**: autonomous web navigation via Playwright with progressive screenshot streaming
-- **Extensible via MCP**: per-user MCP servers (OAuth 2.1, SSRF protection) with an iterative ReAct mode for complex APIs
+- **Extensible via MCP**: per-user MCP servers (OAuth 2.1, SSRF protection), a gallery of known vendor-hosted servers ready to add, and an iterative ReAct mode for complex APIs
 - **Skills system (agentskills.io)**: create custom expert skills in natural language, import from the marketplace, rich HTML/image outputs
 - **Sub-agents**: delegate complex research to specialized ephemeral experts working in parallel
-- **Proactive intelligence**: heartbeat notifications (weather changes, meetings, tasks), personal discussions LIA may open when you allow it (your hours, sources and topics), interest tracking, scheduled recurring actions, reminders
+- **Proactive intelligence**: heartbeat notifications (weather changes, meetings, tasks), personal discussions LIA may open when you allow it (your hours, sources and topics), interest tracking, reminders, and routines started by a schedule, by a condition (a mail, a weather change, a public web page that changes) or by another system's signed call
 - **Daily companions**: a workboard of tickets LIA can hold, meeting recording with structured minutes, a personal radio in your language, phone calls placed by LIA on your own telephony account
 - **Multi-channel**: web app (installable PWA), Telegram (chat, voice, HITL inline buttons), push notifications
 - **Health metrics and SMS**: heart rate and steps from any source, and the SMS your iPhone relays into a private encrypted archive (iPhone Shortcuts documented), period charts, opt-in assistant access for each
@@ -36,13 +39,13 @@
 
 ## Architecture
 
-- **Backend**: Python 3.14 / FastAPI with Domain-Driven Design (62 bounded contexts)
+- **Backend**: Python 3.14 / FastAPI with Domain-Driven Design (63 bounded contexts)
 - **Frontend**: Next.js 16 / React 19 / TypeScript strict / TailwindCSS
 - **Orchestration**: LangGraph 1.x state machine — conditional routing, parallel execution waves, PostgreSQL checkpointing
 - **Database**: PostgreSQL 16 + pgvector (state, vectors) + Redis (cache, rate limiting, sessions)
-- **Observability**: 666 Prometheus metrics, 33 Grafana dashboards, Loki logs, Tempo traces, Langfuse LLM tracing
+- **Observability**: 677 Prometheus metrics, 33 Grafana dashboards, Loki logs, Tempo traces, Langfuse LLM tracing
 - **Security**: OAuth 2.1 with PKCE, BFF pattern (HTTP-only cookies), Fernet encryption, PII filtering, GDPR compliant
-- **Engineering**: 81,000+ automated tests, 375 Architecture Decision Records, 296 releases, 360° technical audit (7.9/10 across 24 areas, security assessed separately)
+- **Engineering**: 87,000+ automated tests, 386 Architecture Decision Records, 297 releases, 360° technical audit (7.9/10 across 24 areas, security assessed separately)
 - **Self-hosting**: multi-arch Docker images (amd64/arm64) — runs in production on a Raspberry Pi 5
 
 ## How It Works
@@ -67,6 +70,7 @@
 - [Blog](https://lia.jeyswork.com/blog) — 29 technical articles about architecture, integrations, features, security, and engineering
 - [FAQ](https://lia.jeyswork.com/faq)
 - [Changelog — the full release history, version by version](https://lia.jeyswork.com/changelog)
+- [Maps — what LIA does, how it is built and the history of its design decisions](https://lia.jeyswork.com/maps)
 - [More — the small UX attentions that make daily use pleasant](https://lia.jeyswork.com/more)
 - [Live demo animation](https://lia.jeyswork.com/demo)
 - [Technical deep dive](https://lia.jeyswork.com/how)

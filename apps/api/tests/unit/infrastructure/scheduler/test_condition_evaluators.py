@@ -26,6 +26,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from structlog.testing import capture_logs
 
 from src.core.config import settings
 from src.domains.briefing.exceptions import ConnectorAccessError, ConnectorNotConfiguredError
@@ -519,3 +520,104 @@ class TestTheRecord:
             )
 
         spend.assert_called_once_with("routine_condition_r1", user.id, "scheduled_action_r")
+
+
+class TestAWatchedPage:
+    """ADR-387: each line of a public page is a fact — and another site's words."""
+
+    URL = "https://shop.example.org/chair"
+
+    async def _page(
+        self, config: dict[str, Any], answer: Any
+    ) -> tuple[ConditionVerdict, MagicMock, AsyncMock]:
+        from src.infrastructure.scheduler.page_reading import PageReading
+
+        read = (
+            AsyncMock(side_effect=answer)
+            if isinstance(answer, Exception)
+            else AsyncMock(return_value=PageReading(url=self.URL, lines=answer, total=len(answer)))
+        )
+        with patch(f"{_MODULE}.read_page", read):
+            verdict, recorder = await _evaluate(config)
+        return verdict, recorder, read
+
+    async def test_each_line_is_a_fact_keyed_by_what_it_says(self) -> None:
+        config = {"type": "page_change", "url": self.URL, "contains": "€"}
+        lines = ("Prix : 349,99 €", "Livraison 9,90 €")
+
+        verdict, recorder, read = await self._page(config, lines)
+        again, _, _ = await self._page(config, lines)
+
+        read.assert_awaited_once_with(self.URL, contains="€")
+        assert [fact.label for fact in verdict.facts] == list(lines)
+        assert len(set(verdict.keys)) == 2
+        assert again.keys == verdict.keys
+        assert list(recorder.call_args.kwargs["opened"]) == ["page"]
+
+    async def test_the_run_is_shown_the_new_lines_alone_as_another_sites_words(self) -> None:
+        verdict, _, _ = await self._page(
+            {"type": "page_change", "url": self.URL}, ("Prix : 349,99 €", "En stock")
+        )
+
+        note = verdict.note_for([verdict.keys[1]], first=False)
+
+        assert note is not None
+        assert "1 line(s) appeared on this routine's watched page" in note
+        assert "En stock" in note and "Prix" not in note
+        assert f'source="{self.URL}" type="watched_page"' in note
+
+    async def test_a_first_reading_is_told_as_such(self) -> None:
+        verdict, _, _ = await self._page({"type": "page_change", "url": self.URL}, ("En stock",))
+
+        note = verdict.note_for(verdict.keys, first=True)
+
+        assert (
+            note is not None
+            and "Nothing from this routine's watched page has been reported yet" in note
+        )
+
+    async def test_a_page_longer_than_what_is_watched_is_said_to_the_run(self) -> None:
+        """The reading's total reaches the note: a cut is stated, never silent."""
+        from src.infrastructure.scheduler.page_reading import PageReading
+
+        reading = PageReading(url=self.URL, lines=("En stock", "Prix : 349,99 €"), total=39)
+        with patch(f"{_MODULE}.read_page", AsyncMock(return_value=reading)):
+            verdict, _recorder = await _evaluate({"type": "page_change", "url": self.URL})
+
+        note = verdict.note_for(verdict.keys, first=True)
+
+        assert note is not None
+        assert "Only the first 2 line(s) of this page are watched; it holds 37 more" in note
+
+    async def test_an_address_leading_to_no_public_page_is_not_configured(self) -> None:
+        from src.infrastructure.scheduler.page_reading import PageNotPublicError
+
+        verdict, recorder, _ = await self._page(
+            {"type": "page_change", "url": self.URL}, PageNotPublicError()
+        )
+
+        assert verdict.error == "not_configured"
+        recorder.assert_not_called()
+
+    async def test_a_page_that_did_not_answer_is_unavailable_and_filed_as_failed(self) -> None:
+        from src.infrastructure.scheduler.page_reading import PageUnreadableError
+
+        with capture_logs() as logs:
+            verdict, recorder, _ = await self._page(
+                {"type": "page_change", "url": self.URL}, PageUnreadableError("http_error")
+            )
+
+        assert verdict.error == "unavailable"
+        assert list(recorder.call_args.kwargs["failed"]) == ["page"]
+        # How the page refused is said, in its bounded vocabulary: the log is its one reader.
+        (failure,) = [log for log in logs if log["event"] == "routine_condition_evaluation_failed"]
+        assert failure["error_code"] == "http_error"
+
+    def test_another_condition_keeps_its_one_line_note(self) -> None:
+        from src.infrastructure.scheduler.condition_evaluators import ConditionFact
+
+        verdict = ConditionVerdict(
+            facts=(ConditionFact(key="k", label="Facture"),), note_prefix="Matching mails: "
+        )
+
+        assert verdict.note_for(["k"], first=True) == "Matching mails: Facture"

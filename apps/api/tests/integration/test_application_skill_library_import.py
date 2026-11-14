@@ -11,6 +11,7 @@ from src.core.config import settings
 from src.domains.agents.application.command_service import CommandRejected
 from src.domains.skills.cache import SkillsCache
 from src.domains.users.preference_cas import PreferenceWriteReceipt
+from tests.helpers.committed_account_session import async_session as async_session
 from tests.integration.domains.skill_library.test_library_install import (
     REPO,
     _user,

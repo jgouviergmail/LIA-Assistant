@@ -23,10 +23,6 @@ export const LOGIC_FREE_PRIMITIVES = [
     reason: 'Radix Label with cn() class merging: no decision, no hook.',
   },
   {
-    file: 'src/components/ui/switch.tsx',
-    reason: 'Radix Switch with cn() class merging: no decision, no hook.',
-  },
-  {
     file: 'src/components/ui/tabs.tsx',
     reason: 'Radix Tabs parts with cn() class merging: no decision, no hook.',
   },

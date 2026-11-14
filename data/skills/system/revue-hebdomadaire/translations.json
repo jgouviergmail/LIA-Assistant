@@ -1,0 +1,8 @@
+{
+  "fr": "Dresse la revue de la semaine : tâches terminées, ce qui reste ouvert (tâches, engagements suivis, rappels), l'agenda des sept prochains jours et les quelques décisions à prendre. À utiliser lorsque l'utilisateur demande sa revue hebdomadaire ou un bilan de sa semaine.",
+  "en": "Produces the weekly review: tasks completed, what is still open (tasks, tracked commitments, reminders), the calendar of the next seven days and the few decisions to make. Use when the user asks for their weekly review or a recap of their week.",
+  "es": "Elabora la revisión semanal: tareas completadas, lo que sigue abierto (tareas, compromisos registrados, recordatorios), la agenda de los próximos siete días y las pocas decisiones pendientes. Úselo cuando el usuario pida su revisión semanal o un balance de su semana.",
+  "de": "Erstellt den Wochenrückblick: erledigte Aufgaben, was noch offen ist (Aufgaben, erfasste Zusagen, Erinnerungen), den Kalender der nächsten sieben Tage und die wenigen anstehenden Entscheidungen. Wird verwendet, wenn der Nutzer nach seinem Wochenrückblick oder einer Bilanz seiner Woche fragt.",
+  "it": "Prepara la revisione settimanale: attività completate, ciò che resta aperto (attività, impegni registrati, promemoria), l'agenda dei prossimi sette giorni e le poche decisioni da prendere. Da usare quando l'utente chiede la sua revisione settimanale o un bilancio della settimana.",
+  "zh": "生成每周回顾：已完成的任务、仍未完成的事项（任务、已记录的承诺、提醒）、未来七天的日程，以及需要做出的少数决定。当用户请求每周回顾或本周总结时使用。"
+}

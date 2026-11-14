@@ -456,6 +456,15 @@ class MemoryPreferenceResponse(BaseModel):
     )
 
 
+class WritingStylePreferenceRequest(BaseModel):
+    """Schema for switching drafts in the person's own voice on or off (ADR-383)."""
+
+    writing_style_enabled: bool = Field(
+        ...,
+        description="Enable or disable drafts that follow the style learned from the sent mail",
+    )
+
+
 class HealthMetricsAgentsPreferenceRequest(BaseModel):
     """Schema for updating the Health Metrics assistant toggle (v1.17.2).
 

@@ -1,50 +1,12 @@
 /**
- * Metadata of the `/maps` pages: canonical URL, one alternate per language
- * (plus `x-default`), Open Graph and Twitter — the shape every public reading
- * page of the site declares, written once for the section's four pages.
+ * Metadata of the `/maps` pages: the shape every public page of the site
+ * declares (`lib/public-page-metadata.ts`), under the section's own name so
+ * its four pages read as one.
  */
 
-import type { Metadata } from 'next';
+import { publicPageMetadata, siteUrl } from '@/lib/public-page-metadata';
 
-import { fallbackLng, languages, LOCALE_MAP, type Language } from '@/i18n/settings';
-import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
+export { siteUrl };
 
-/** An absolute URL of a page of the site in one language. */
-export function siteUrl(path: string, lng: Language): string {
-  return localizedUrl(getSiteOrigin(), path, lng);
-}
-
-export function mapsMetadata(
-  lng: Language,
-  path: string,
-  title: string,
-  description: string
-): Metadata {
-  const canonical = siteUrl(path, lng);
-  const socialImage = getSiteOrigin()?.concat('/Title.png');
-  const alternates: Record<string, string> = {};
-  for (const l of languages) alternates[l] = siteUrl(path, l);
-  alternates['x-default'] = siteUrl(path, fallbackLng);
-  return {
-    title,
-    description,
-    alternates: { canonical, languages: alternates },
-    openGraph: {
-      title,
-      description,
-      url: canonical,
-      locale: LOCALE_MAP[lng],
-      alternateLocale: languages.filter(l => l !== lng).map(l => LOCALE_MAP[l]),
-      type: 'website',
-      images: socialImage
-        ? [{ url: socialImage, width: 2125, height: 1193, alt: title }]
-        : undefined,
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
-      images: socialImage ? [socialImage] : undefined,
-    },
-  };
-}
+/** Canonical URL, language alternates, Open Graph and Twitter of one map page. */
+export const mapsMetadata = publicPageMetadata;

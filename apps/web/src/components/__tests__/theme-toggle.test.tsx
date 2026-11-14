@@ -1,5 +1,5 @@
 /**
- * ThemeToggle — the circular light → dark → OLED → light control.
+ * ThemeToggle — the circular light → dark → OLED → automatic → light control.
  *
  * `next-themes` is overridden locally (instead of the global passthrough) so
  * the test can drive `resolvedTheme` and capture `setTheme`. The local mock now
@@ -12,6 +12,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { IconStyleContext } from '@/lib/icon-style-context';
+import { ICON_STYLES } from '@/lib/icon-style';
 import { OLED_STORAGE_KEY } from '@/lib/theme-mode';
 
 const { setTheme, themeState } = vi.hoisted(() => ({
@@ -83,7 +85,8 @@ describe('ThemeToggle — the cycle', () => {
     expect(document.documentElement.hasAttribute('data-oled')).toBe(true);
   });
 
-  it('OLED → light clears the attribute', async () => {
+  it("OLED → light clears the attribute on a visitor's three stops", async () => {
+    useAuth.mockReturnValue({ user: null, refreshUser: vi.fn() });
     setEnvironment('dark', true);
     const { user } = renderWithProviders(
       <ThemeModeProvider>
@@ -113,7 +116,7 @@ describe('ThemeToggle — the cycle', () => {
   it.each([
     ['light', false, 'lucide-moon'],
     ['dark', false, 'lucide-eclipse'],
-    ['dark', true, 'lucide-sun'],
+    ['dark', true, 'lucide-clock'],
   ] as const)('from %s (oled=%s) it offers %s', (resolved, oledOn, icon) => {
     setEnvironment(resolved, oledOn);
     const { container } = renderWithProviders(
@@ -131,6 +134,96 @@ describe('ThemeToggle — the cycle', () => {
       </ThemeModeProvider>
     );
     expect(screen.getByRole('button')).toHaveAccessibleName('theme.to_dark');
+  });
+});
+
+describe('ThemeToggle — the automatic stop', () => {
+  /** An account whose display follows its hours, shown at night or by day. */
+  function automaticAccount(night: boolean) {
+    useAuth.mockReturnValue({
+      user: { id: 'u1', theme: 'auto', timezone: 'UTC' },
+      refreshUser: vi.fn(),
+    });
+    setEnvironment(night ? 'dark' : 'light', night);
+  }
+
+  it('offers automatic after OLED, named and drawn as the destination', () => {
+    setEnvironment('dark', true);
+    renderWithProviders(
+      <ThemeModeProvider>
+        <ThemeToggle />
+      </ThemeModeProvider>
+    );
+    const button = screen.getByRole('button');
+    expect(button).toHaveAccessibleName('theme.to_auto');
+    expect(button.querySelector('svg')).toHaveAttribute('data-icon-name', 'Clock');
+  });
+
+  it.each(ICON_STYLES)('draws the automatic stop in the %s icon style', style => {
+    setEnvironment('dark', true);
+    renderWithProviders(
+      <IconStyleContext.Provider value={style}>
+        <ThemeModeProvider>
+          <ThemeToggle />
+        </ThemeModeProvider>
+      </IconStyleContext.Provider>
+    );
+    const icon = screen.getByRole('button').querySelector('svg');
+    expect(icon).toHaveAttribute('data-icon-name', 'Clock');
+    expect(icon).toHaveAttribute('data-icon-style', style);
+  });
+
+  it('persists automatic, not the black it may show tonight', async () => {
+    setEnvironment('dark', true);
+    const { user } = renderWithProviders(
+      <ThemeModeProvider>
+        <ThemeToggle />
+      </ThemeModeProvider>
+    );
+    await user.click(screen.getByRole('button'));
+    await waitFor(() =>
+      expect(mutate).toHaveBeenCalledWith(
+        '/users/u1',
+        { theme: 'auto' },
+        { signal: expect.any(AbortSignal) }
+      )
+    );
+  });
+
+  it.each([
+    ['by day', false],
+    ['at night', true],
+  ])('leaves automatic for light %s', async (_when, night) => {
+    automaticAccount(night);
+    const { user } = renderWithProviders(
+      <ThemeModeProvider>
+        <ThemeToggle />
+      </ThemeModeProvider>
+    );
+    const button = screen.getByRole('button');
+    expect(button).toHaveAccessibleName('theme.to_light');
+    expect(button.querySelector('svg')).toHaveAttribute('data-icon-name', 'Sun');
+    await user.click(button);
+    await waitFor(() =>
+      expect(mutate).toHaveBeenCalledWith(
+        '/users/u1',
+        { theme: 'light' },
+        { signal: expect.any(AbortSignal) }
+      )
+    );
+  });
+
+  it('keeps a visitor on three stops: OLED returns to light', () => {
+    useAuth.mockReturnValue({ user: null, refreshUser: vi.fn() });
+    setEnvironment('dark', true);
+    renderWithProviders(
+      <ThemeModeProvider>
+        <ThemeToggle />
+      </ThemeModeProvider>
+    );
+    const button = screen.getByRole('button');
+    expect(button).toHaveAccessibleName('theme.to_light');
+    expect(button.querySelector('svg')).toHaveAttribute('data-icon-name', 'Sun');
   });
 });
 

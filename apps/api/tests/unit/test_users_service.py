@@ -831,7 +831,9 @@ class TestUpdateUserActivation:
             assert isinstance(result, UserActivationResponse)
             assert result.user.id == sample_user.id
             assert result.email_notification_sent is True
-            mock_repository.get_by_id.assert_called_once_with(sample_user.id, include_inactive=True)
+            mock_repository.get_by_id.assert_called_once_with(
+                sample_user.id, include_inactive=True, lock=True
+            )
             mock_repository.update.assert_called_once()
             mock_repository.create_audit_log.assert_called_once()
             mock_email_service.send_user_activated_notification.assert_called_once()
@@ -1046,7 +1048,7 @@ class TestDeleteUserGDPR:
             mock_repository.create_audit_log.assert_called_once()
             mock_invalidate.assert_called_once_with(sample_user.id)
             mock_repository.hard_delete.assert_called_once_with(sample_user)
-            mock_db.commit.assert_called_once()
+            assert mock_db.commit.await_count == 2
 
     async def test_delete_user_gdpr_not_found(self, service, mock_repository, admin_user):
         """Test GDPR deletion of non-existent user raises HTTPException."""

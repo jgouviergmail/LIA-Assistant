@@ -219,6 +219,16 @@ class TestRouterResetsTheReactTurn:
             "react_output_truncated": True,
             # ADR-327: a skill the previous turn activated would skip this turn's runner.
             "react_activated_skills": ["skill-generator"],
+            # ADR-385: a note of the previous turn would be shown again in this one.
+            "react_turn_notes": [
+                {
+                    "id": "n9",
+                    "text": "old",
+                    "written_at": "2026-11-13T17:42:00+00:00",
+                    "anchor_id": "t9",
+                    "passes_before": 0,
+                }
+            ],
         }
         state = _state(HumanMessage(content="cherche jean"))
         state.update(stale)

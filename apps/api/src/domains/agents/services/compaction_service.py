@@ -23,6 +23,7 @@ import json
 import re
 import time
 from dataclasses import dataclass
+from datetime import tzinfo
 from typing import TYPE_CHECKING, Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -58,7 +59,11 @@ from src.domains.agents.services.token_counter_service import (
 from src.infrastructure.llm.client_retries import caller_may_relaunch
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
-from src.infrastructure.llm.message_view import content_for_model, model_view_content
+from src.infrastructure.llm.message_view import (
+    content_for_model,
+    model_view_content,
+    written_prefix,
+)
 from src.infrastructure.llm.usage_metadata import tokens_from_response
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_compaction import (
@@ -403,7 +408,7 @@ class CompactionService:
 
         return chunks
 
-    def _format_messages_for_summary(self, messages: list[BaseMessage]) -> str:
+    def _format_messages_for_summary(self, messages: list[BaseMessage], *, zone: tzinfo) -> str:
         """Format messages as text for the compaction LLM prompt.
 
         `msg.content` can be a plain string (the common case) or a list of
@@ -412,6 +417,10 @@ class CompactionService:
         list with Python's `repr`, leaking JSON-like wrappers into the prompt
         and degrading the summary quality. We serialise non-string content via
         `json.dumps` instead so the LLM sees structured data verbatim.
+
+        Each message that carries the moment it was written starts with it, in the
+        person's zone (lot 17): the summary replaces these messages, and its prompt
+        turns a relative date into an absolute one from exactly that moment.
         """
         lines: list[str] = []
         for msg in messages:
@@ -429,7 +438,7 @@ class CompactionService:
                     content[:COMPACTION_TOOL_OUTPUT_TRUNCATE_CHARS_DEFAULT]
                     + "\n[... truncated tool output ...]"
                 )
-            lines.append(f"[{role}] {content}")
+            lines.append(f"[{role}] {written_prefix(msg, zone)}{content}")
         return "\n\n".join(lines)
 
     async def _summarize_chunk(
@@ -530,6 +539,8 @@ class CompactionService:
         preserve_recent_n: int,
         language: str,
         config: RunnableConfig | None = None,
+        *,
+        zone: tzinfo,
     ) -> CompactionResult:
         """
         Compact old messages into a summary, with v2 hardening.
@@ -545,6 +556,8 @@ class CompactionService:
             preserve_recent_n: Number of recent messages to keep intact.
             language: Language for the summary (from state.user_language).
             config: RunnableConfig for LLM invocation (token tracking propagation).
+            zone: The person's display zone, in which each message's moment is
+                written for the summarizer (lot 17).
 
         Returns:
             CompactionResult with summary, strategy, and metrics. `strategy` is
@@ -552,7 +565,7 @@ class CompactionService:
         """
         try:
             return await asyncio.wait_for(
-                self._compact_impl_llm(messages, preserve_recent_n, language, config),
+                self._compact_impl_llm(messages, preserve_recent_n, language, config, zone=zone),
                 timeout=_global_bound_seconds(),
             )
         except TimeoutError:
@@ -579,6 +592,8 @@ class CompactionService:
         preserve_recent_n: int,
         language: str,
         config: RunnableConfig | None = None,
+        *,
+        zone: tzinfo,
     ) -> CompactionResult:
         """
         Inner LLM-based compaction. Wrapped by `compact()` with a global timeout.
@@ -631,7 +646,7 @@ class CompactionService:
 
         try:
             for chunk in chunks:
-                chunk_text = self._format_messages_for_summary(chunk)
+                chunk_text = self._format_messages_for_summary(chunk, zone=zone)
                 summary, pt, ct = await self._summarize_chunk(
                     llm, chunk_text, language, config or {}
                 )

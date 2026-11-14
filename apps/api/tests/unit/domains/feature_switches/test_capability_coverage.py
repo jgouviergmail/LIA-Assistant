@@ -109,6 +109,10 @@ EXPECTED_CAPABILITIES: frozenset[str] = frozenset(
         # address book and bridge, so an operator must be able to close it.
         "workbench",
         "tool_assists",
+        # ADR-386 — a signed call from another system starts a routine: a new
+        # public door into the person's assistant, so an operator must be able
+        # to close it while the routines and their records stay.
+        "routine_webhooks",
     }
 )
 

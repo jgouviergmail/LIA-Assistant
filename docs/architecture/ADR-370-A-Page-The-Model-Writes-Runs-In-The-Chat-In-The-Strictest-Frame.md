@@ -239,10 +239,96 @@ for is the slot's MODEL first. Sixteen real pages from these models ran in the f
   origin.
 - **Running a restored page at once.** See §4.
 
+## Amendment 2026-11-12 — a map's tiles are the one request out, from declared sources
+
+On 2026-11-12 a routine asked for an interactive page « with a Google Maps plan ». The page was
+written with an `<iframe>` towards a map embed, filed as a success, and shown with a blank where
+the map was meant: `frame-src 'none'` did its work, and nobody was told. Read on the archived
+page, and replayed on Chromium with the prefix the backend composes.
+
+Three things were missing, each a rule this decision already applied to something else:
+
+- **The frame's limit was published to nobody** (ADR-184). The tool said nothing of a page having
+  no network, so the loop asked for an embedded map; the writer's prompt forbade outside scripts,
+  styles, fonts and images, and never named a frame.
+- **A page that would show a hole was not refused.** `refusal_of` knew the outside script, and no
+  other way for a page to load and do nothing.
+- **What the policy blocks, it blocks in silence**: no error event, no failure notice.
+
+Decision:
+
+1. **A page embeds no other document.** `PageRefusal.EMBEDDED_DOCUMENT` refuses a page that holds
+   an `iframe`, `frame`, `frameset`, `object` or `embed`, whatever it points to. The tool's failure
+   says it in words the loop can act on, and the writer's prompt names them.
+2. **A hole is said.** The runtime listens to `securitypolicyviolation` and posts
+   `ui/notifications/blocked` with the DIRECTIVE alone, once per directive. The bridge reads it as
+   one of three kinds (`frame`, `image`, `resource`) and the widget says it in the person's
+   language. The address never travels: it is a word the page chose. A page archived before the
+   check, or one whose script builds what the check reads in markup, is told this way.
+3. **Map tiles are the one request allowed out**, as images, from sources DECLARED in
+   `core/map_tile_providers.py` and chosen by `INTERACTIVE_PAGE_MAP_PROVIDERS`. `img-src` gains
+   their origins and no other directive gains anything; with an empty list the policy names no
+   host, as before. The setting names KEYS, never hosts: nothing an operator types reaches a
+   content policy unread, and an unknown key refuses the settings, which a deployment reads
+   before it switches.
+4. **One list, two readers** (ADR-184): `page_frame` builds the policy and `map_tile_sources`
+   builds the writer's list from the same setting, so a source the writer is told about loads,
+   and no other. The policy is composed at the door (§6): a source withdrawn reaches every page
+   already kept.
+5. **The page draws its own map.** No library can load, so the prompt carries the Web Mercator
+   recipe. A place is drawn only from coordinates handed to the writer, and the tool tells the
+   loop to hand them over. The tool also says that a page embeds no site, loads no library, calls
+   no API and opens no link.
+
+What a source must be, and what it learns, is written in `core/map_tile_providers.py`: tiles
+served with `Access-Control-Allow-Origin: *`, no key, one origin that serves nothing else, to a
+browser that sends no referrer.
+
+Measured on Chromium, Firefox and WebKit, in the page's frame, under the application's headers
+(2026-11-12); the three engines agree on every line:
+
+| | `credentialless` | `require-corp` |
+|---|---|---|
+| A tile of a named origin, asked with `crossorigin="anonymous"` | loads | loads |
+| The same tile without the attribute | loads | refused by the embedder policy |
+| An image of an origin the policy does not name | refused | refused |
+| A page drawn from the prompt's recipe (6 tiles, 2 markers) | 6 of 6 | 6 of 6 |
+
+A tile source receives no cookie on any engine. Chromium sends it no referrer from the frame,
+whatever policy the page asks for; Firefox sends the instance's origin; WebKit sends that origin,
+or the whole address of the host page when the page asks for it.
+
+**A source is admitted on what a person's browser is SHOWN, never on a status.** The first version
+listed OpenStreetMap's own tile server and CARTO's basemaps, proved on a bundled test engine and on
+a command line that read the status. On a real page, the same evening, every tile came back
+« 403 access blocked »: that server refuses a browser that sends no referrer
+(`x-blocked: No referer sent`), which is what Chromium does from the frame, and it had served the
+test engine, which does not name itself as a person's browser does. CARTO answered `200` with an
+image too, and the image said « API key required ». Both left the table. The sources that replace
+them (OpenStreetMap's humanitarian, French, German and cycling styles, and OpenTopoMap) were each
+read on a real Chrome, in the frame, with no referrer, and their zoom range is the one they
+answered with a map.
+
+Rejected:
+
+- **An embedded Google map in the page.** Nested in the frame it runs on Chromium and WebKit, and
+  Firefox answers with its own error page, for want of a `credentialless` attribute. It would also
+  make `frame-src` name a host and put a frame back in a page.
+- **A vendor billed per tile.** Its key would sit in the page, in its file and in the conversation.
+- **Hosts typed in the environment.** Where a page's content may go is a decision taken in a table
+  a reviewer reads, never in a `.env`.
+- **OpenStreetMap's own tile server.** It asks every browser for a referrer, and Chromium has none
+  to give from this frame.
+- **CARTO's basemaps.** They ask for a key.
+
+Not measured: a page written by a model from the new prompt (the recipe was proved on a page
+written by hand), and the Android and iOS WebViews.
+
 ## Key files
 
 - `apps/api/src/domains/interactive_pages/` — `document.py` (policy, runtime, refusals),
   `service.py`, `schemas.py`
+- `apps/api/src/core/map_tile_providers.py` — the map tile sources a page may load
 - `apps/api/src/domains/agents/interactive_page/` — manifests, `page_sources.py`
 - `apps/api/src/domains/agents/tools/interactive_page_tools.py`
 - `apps/api/src/domains/shared/frame_policy.py`

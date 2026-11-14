@@ -8,12 +8,13 @@ list outside a bound request records nothing, and the reset forgets it.
 from __future__ import annotations
 
 import uuid
-from types import SimpleNamespace
-from typing import Any
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from unittest.mock import patch
 
 import pytest
 from langchain_core.messages import HumanMessage
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.context import (
     SkillTurnFile,
@@ -21,12 +22,19 @@ from src.core.context import (
     reset_skill_context,
     skill_turn_files,
 )
+from src.core.conversation_target import ConversationRef
+from src.domains.agents.api import attachments_injection
 from src.domains.agents.api.attachments_injection import inject_attachments_into_state
+from src.domains.agents.models import create_initial_state
+from src.domains.attachments.models import Attachment
+from tests.fixtures.conversation_cases import conversation_target
 
 pytestmark = pytest.mark.unit
 
-_ATTACHMENT = SimpleNamespace(
+_OWNER = uuid.uuid4()
+_ATTACHMENT = Attachment(
     id=uuid.UUID("33333333-3333-4333-8333-333333333333"),
+    user_id=_OWNER,
     content_type="document",
     original_filename="form.pdf",
     mime_type="application/pdf",
@@ -37,23 +45,39 @@ _ATTACHMENT = SimpleNamespace(
 
 
 class _Service:
-    def __init__(self, db: Any) -> None:
-        pass
+    """Only the file projection is doubled; the ownership/SQL boundary has real tests."""
 
-    async def get_batch(self, ids: Any, user_id: Any) -> list[Any]:
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
+
+    async def accept_for_conversation(
+        self, ids: list[uuid.UUID], user_id: uuid.UUID, target: ConversationRef
+    ) -> list[Attachment]:
+        assert user_id == target.owner_id == _OWNER
+        assert ids == [_ATTACHMENT.id]
         return [_ATTACHMENT]
 
 
 async def _inject() -> None:
-    state: dict[str, Any] = {"messages": [HumanMessage(content="fill it")], "metadata": {}}
-    with patch("src.domains.attachments.service.AttachmentService", _Service):
+    state = create_initial_state(_OWNER, "session", "r", user_language="en")
+    state["messages"] = [HumanMessage(content="fill it")]
+
+    @asynccontextmanager
+    async def database() -> AsyncIterator[AsyncSession]:
+        async with AsyncSession() as db:
+            yield db
+
+    with (
+        patch.object(attachments_injection, "AttachmentService", _Service),
+        patch.object(attachments_injection, "get_db_context", database),
+    ):
         await inject_attachments_into_state(
             state=state,
             attachment_ids=[_ATTACHMENT.id],
-            user_id=uuid.uuid4(),
+            user_id=_OWNER,
             user_language="en",
             run_id="r",
-            db=None,
+            target=conversation_target(_OWNER, uuid.uuid4()),
         )
 
 

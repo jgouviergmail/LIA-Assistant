@@ -15,7 +15,7 @@ from src.infrastructure.llm.typesafe_client import ChoiceAnswer, ChoiceQuestion,
 pytestmark = pytest.mark.unit
 
 
-def test_diagnostics_participate_in_account_and_conversation_purge() -> None:
+def test_account_diagnostics_survive_a_targeted_discussion_reset() -> None:
     from src.infrastructure.cache.key_families import (
         is_reset_purgeable,
         is_user_scoped,
@@ -26,7 +26,7 @@ def test_diagnostics_participate_in_account_and_conversation_purge() -> None:
     owner = uuid4()
     for key in trace_keys(owner):
         assert is_user_scoped(key)
-        assert is_reset_purgeable(key)
+        assert not is_reset_purgeable(key)
         assert any(fnmatch(key, pattern) for pattern in scan_patterns_for(str(owner)))
 
 

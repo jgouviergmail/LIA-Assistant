@@ -43,13 +43,16 @@ class BookmarkRepository(BaseRepository[MessageBookmark]):
     # Reads over the message table (declared VISIBLE_ONLY)
     # ------------------------------------------------------------------
 
-    async def latest_visible_assistant_message(self, user_id: UUID) -> ConversationMessage | None:
-        """The real last visible archived answer in the account's active conversation."""
+    async def latest_visible_assistant_message(
+        self, user_id: UUID, conversation_id: UUID
+    ) -> ConversationMessage | None:
+        """The last visible archived answer in the explicitly owned discussion."""
         statement = visible_only(
             select(ConversationMessage)
             .join(Conversation, ConversationMessage.conversation_id == Conversation.id)
             .where(
                 Conversation.user_id == user_id,
+                Conversation.id == conversation_id,
                 Conversation.deleted_at.is_(None),
                 ConversationMessage.role == "assistant",
             )

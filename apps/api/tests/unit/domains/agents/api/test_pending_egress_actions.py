@@ -8,10 +8,12 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi import Response
 
+from src.core.conversation_selection import ConversationSelection
 from src.core.exceptions import CacheError
 from src.domains.agents.api.hitl_pending import check_pending_hitl_uncached
 from src.domains.agents.api.router import get_pending_hitl_interrupt
 from src.domains.users.models import User
+from tests.fixtures.conversation_cases import streaming_target
 
 pytestmark = pytest.mark.unit
 
@@ -38,10 +40,11 @@ async def test_legacy_pending_egress_has_the_scoped_actions(
         ],
     }
     response = Response()
+    target = streaming_target(uuid.uuid4())
     with (
         patch(
-            "src.infrastructure.cache.get_conversation_id_cached",
-            new=AsyncMock(return_value="conversation"),
+            "src.domains.agents.api.router.read_target",
+            new=AsyncMock(return_value=target),
         ),
         patch(
             "src.domains.agents.api.router.check_pending_hitl_uncached",
@@ -49,7 +52,7 @@ async def test_legacy_pending_egress_has_the_scoped_actions(
         ),
     ):
         result = await get_pending_hitl_interrupt(
-            response, User(id=uuid.uuid4(), email="test@example.org")
+            response, User(id=target.owner_id, email="test@example.org"), ConversationSelection()
         )
     assert result is not None
     assert [a["action"] for a in result.action_requests[0].get("available_actions", [])] == expected
@@ -58,10 +61,11 @@ async def test_legacy_pending_egress_has_the_scoped_actions(
 
 
 async def test_pending_endpoint_does_not_claim_absence_during_a_redis_outage() -> None:
+    target = streaming_target(uuid.uuid4())
     with (
         patch(
-            "src.infrastructure.cache.get_conversation_id_cached",
-            new=AsyncMock(return_value="conversation"),
+            "src.domains.agents.api.router.read_target",
+            new=AsyncMock(return_value=target),
         ),
         patch(
             "src.infrastructure.cache.redis.get_redis_cache",
@@ -70,7 +74,9 @@ async def test_pending_endpoint_does_not_claim_absence_during_a_redis_outage() -
     ):
         with pytest.raises(CacheError) as failed:
             await get_pending_hitl_interrupt(
-                Response(), User(id=uuid.uuid4(), email="test@example.org")
+                Response(),
+                User(id=target.owner_id, email="test@example.org"),
+                ConversationSelection(),
             )
         assert failed.value.status_code == 503
         # The existing chat routing guard retains its fail-open contract.

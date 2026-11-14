@@ -98,6 +98,38 @@ describe('useChatServerSync — notifications keep their toast and ask for a syn
 });
 
 describe('useChatServerSync — the thread sync signals', () => {
+  it('ignores another discussion signal while still refreshing the catalogue', () => {
+    const onCatalogueChange = vi.fn();
+    renderHook(() =>
+      useChatServerSync(
+        options({
+          selection: { conversation_id: 'annex', conversation_revision: 2 },
+          isMain: false,
+          onCatalogueChange,
+        })
+      )
+    );
+    handlers().onConversationEvent?.({ type: 'conversation_reset', conversation_id: 'main' });
+    handlers().onReminder?.('reminder', 'r');
+    expect(requestReset).not.toHaveBeenCalled();
+    expect(requestSync).not.toHaveBeenCalled();
+    expect(onCatalogueChange).toHaveBeenCalled();
+    handlers().onConversationEvent?.({ type: 'conversation_updated', conversation_id: 'annex' });
+    expect(requestSync).toHaveBeenCalledWith('signal');
+  });
+  it('revalidates a targeted reset without clearing a possibly newer generation', () => {
+    const onSelectedReset = vi.fn();
+    renderHook(() => useChatServerSync(options({
+      selection: { conversation_id: 'annex', conversation_revision: 4 },
+      isMain: false,
+      onSelectedReset,
+    })));
+    // Pub/Sub delivery may lag behind a reset and a later message on generation 4.
+    handlers().onConversationEvent?.({ type: 'conversation_reset', conversation_id: 'annex' });
+    expect(onSelectedReset).toHaveBeenCalledOnce();
+    expect(requestReset).not.toHaveBeenCalled();
+  });
+
   it('a slow pending-approval read does not delay newly archived messages', async () => {
     let release!: () => void;
     const pending = new Promise<void>(resolve => {
@@ -131,11 +163,26 @@ describe('useChatServerSync — the thread sync signals', () => {
   it('a change asks for a sync, a reset asks for a reset', () => {
     renderHook(() => useChatServerSync(options()));
 
-    handlers().onConversationEvent?.('conversation_updated');
-    handlers().onConversationEvent?.('conversation_reset');
+    handlers().onConversationEvent?.({ type: 'conversation_updated', conversation_id: 'main' });
+    handlers().onConversationEvent?.({ type: 'conversation_reset', conversation_id: 'main' });
 
     expect(requestSync).toHaveBeenCalledWith('signal');
     expect(requestReset).toHaveBeenCalledTimes(1);
+  });
+
+  it('Main shown without coordinates keeps its thread when ANOTHER discussion is reset', () => {
+    const onCatalogueChange = vi.fn();
+    renderHook(() => useChatServerSync(options({ conversationId: 'main', onCatalogueChange })));
+
+    // An annex emptied or deleted on another device publishes on the same channel.
+    handlers().onConversationEvent?.({ type: 'conversation_reset', conversation_id: 'annex' });
+    handlers().onConversationEvent?.({ type: 'conversation_updated', conversation_id: 'annex' });
+    expect(requestReset).not.toHaveBeenCalled();
+    expect(requestSync).not.toHaveBeenCalled();
+    expect(onCatalogueChange).toHaveBeenCalledTimes(2);
+
+    handlers().onConversationEvent?.({ type: 'conversation_reset', conversation_id: 'main' });
+    expect(requestReset).toHaveBeenCalledOnce();
   });
 
   it('a reopened stream catches up what Pub/Sub dropped', () => {

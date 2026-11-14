@@ -74,12 +74,21 @@ async def _creation_selection(
         if peer is None or not peer.is_active or peer.deleted_at is not None:
             raise_not_found_or_unauthorized("peer", holder)
         name = peer.full_name
+    # `normalized` holds the lane the ticket is BORN in — the one named, or
+    # its parent's — and the card says its name. Read again at execution:
+    # renamed or deleted since, the selection differs and the proposal is stale.
+    lanes = (
+        await service.categories.repo.names(actor.id, {normalized.category_id})
+        if normalized.category_id is not None
+        else {}
+    )
     return WorkboardCreateSelection(
         request=WorkboardCreateInput.model_validate(normalized.model_dump()),
         assignee_kind=kind,
         holder_id=holder,
         holder_name=name,
         parent_title=parent_title,
+        category_name=lanes.get(normalized.category_id) if normalized.category_id else None,
         owned_count=await service.repo.count_owned(actor.id),
         max_tickets=settings.workboard_max_tickets_per_user,
         state_digest=payload_digest(

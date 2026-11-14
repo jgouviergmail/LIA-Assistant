@@ -1,4 +1,9 @@
-"""Existing update words or the full UI schema resolve to one native confirmation."""
+"""Existing update words or the full UI schema resolve to one native confirmation.
+
+A refusal of the workboard itself — an unknown category, a field that is not
+the holder's to change — reaches the model as its stable ``workboard_*`` code
+(``workboard_refusal``), never as the shared preparation's mute sentence.
+"""
 
 from uuid import UUID
 
@@ -15,6 +20,7 @@ from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import get_user_preferences, validate_runtime_config
 from src.domains.agents.tools.workboard_legacy_input import normalize_workboard_legacy
+from src.domains.agents.tools.workboard_refusal import workboard_refusals
 from src.domains.workboard.service import WorkboardService
 from src.infrastructure.database.session import get_db_context
 
@@ -49,18 +55,21 @@ async def propose_workboard_update(
     async def prepare(
         db: AsyncSession, actor_id: UUID, proposal: UpdateToolProposal
     ) -> ApplicationActionDraftContent:
-        await creation_access(db, actor_id)
-        if proposal.request is not None:
-            selected = proposal.request
-        else:
-            assert proposal.ticket is not None
-            service = WorkboardService(db)
-            row = await service.resolve_reference(actor_id, proposal.ticket)
-            fields = await normalize_workboard_legacy(
-                service, row.owner_user_id, zone, proposal.values
-            )
-            selected = WorkboardUpdateInput.model_validate({"ticket_id": row.id, **fields})
-        return await prepare_workboard_update(db, actor_id, selected)
+        # The shared preparation would answer one sentence naming no cause; a
+        # workboard code tells the model which of its refusals this is.
+        with workboard_refusals():
+            await creation_access(db, actor_id)
+            if proposal.request is not None:
+                selected = proposal.request
+            else:
+                assert proposal.ticket is not None
+                service = WorkboardService(db)
+                row = await service.resolve_reference(actor_id, proposal.ticket)
+                fields = await normalize_workboard_legacy(
+                    service, row.owner_user_id, zone, proposal.values, actor_id=actor_id
+                )
+                selected = WorkboardUpdateInput.model_validate({"ticket_id": row.id, **fields})
+            return await prepare_workboard_update(db, actor_id, selected)
 
     return await prepare_native_tool(
         {

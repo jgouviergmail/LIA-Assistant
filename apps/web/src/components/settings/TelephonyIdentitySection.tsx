@@ -30,7 +30,9 @@ import { useState, type FormEvent } from 'react';
 import { CheckCircle2, PhoneCall, Smartphone } from '@/lib/icons';
 
 import { useTranslation } from '@/i18n/client';
+import { useAppConfig } from '@/hooks/useAppConfig';
 import { useAuth } from '@/hooks/useAuth';
+import { capabilityAvailable } from '@/lib/capability-availability';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -116,6 +118,38 @@ function NumberPanel({ lng, identity, busy, onSave, onClear }: NumberPanelProps)
         )}
       </div>
     </form>
+  );
+}
+
+/** Under the operator's switch: the number the person stored, and the way to take it back. */
+function StoredNumber({
+  lng,
+  identity,
+  busy,
+  onClear,
+}: Pick<NumberPanelProps, 'lng' | 'identity' | 'busy' | 'onClear'>) {
+  const { t } = useTranslation(lng);
+  const [error, setError] = useState<Refusal>(null);
+  return (
+    <div className="space-y-2">
+      <Input
+        id="telephony-identity-number"
+        label={t('settings.telephony.identity.number_label')}
+        type="tel"
+        value={identity.phone_number ?? ''}
+        error={error ?? undefined}
+        readOnly
+      />
+      <Button
+        type="button"
+        size="sm"
+        variant="destructive"
+        disabled={busy}
+        onClick={() => void onClear().then(setError)}
+      >
+        {t('settings.telephony.identity.remove')}
+      </Button>
+    </div>
   );
 }
 
@@ -306,7 +340,7 @@ function RichContextSwitch({
       <Switch
         checked={identity.rich_context_enabled}
         onCheckedChange={value => void onChange(value)}
-        disabled={busy}
+        busy={busy}
         aria-label={t('settings.telephony.identity.rich_context_label')}
       />
     </div>
@@ -365,7 +399,7 @@ function DomainsPanel({
             <Switch
               checked={!disabled.has(domain)}
               onCheckedChange={value => toggle(domain, value)}
-              disabled={busy}
+              busy={busy}
               aria-label={label}
             />
           </li>
@@ -379,9 +413,20 @@ function DomainsPanel({
 // The section
 // ---------------------------------------------------------------------------
 
-function IdentityPanels({ lng, hook }: { lng: Language; hook: UseTelephonyIdentityReturn }) {
+function IdentityPanels({
+  lng,
+  hook,
+  offered,
+}: {
+  lng: Language;
+  hook: UseTelephonyIdentityReturn;
+  offered: boolean;
+}) {
   const { identity, isLoading, isBusy } = hook;
   if (isLoading || !identity) return <LoadingSpinner size="sm" />;
+  if (!offered) {
+    return <StoredNumber lng={lng} identity={identity} busy={isBusy} onClear={hook.clearNumber} />;
+  }
   return (
     <div className="space-y-4">
       <NumberPanel
@@ -431,9 +476,15 @@ export default function TelephonyIdentitySection({ lng }: BaseSettingsProps) {
 
 function OwnedTelephonyIdentitySection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
+  const { config } = useAppConfig();
+  // Declaring a number, verifying it by a call and tuning owner calls are the
+  // capability; a number already stored is the person's record (ADR-280).
+  const offered = capabilityAvailable(config, 'telephony');
   const hook = useTelephonyIdentity();
 
   if (hook.isUnavailable) return null;
+  // Under the switch the section has one thing to show: a number to take back.
+  if (!offered && hook.identity && !hook.identity.phone_number) return null;
 
   return (
     <SettingsSection
@@ -442,7 +493,7 @@ function OwnedTelephonyIdentitySection({ lng }: BaseSettingsProps) {
       description={t('settings.telephony.identity.description')}
       icon={Smartphone}
     >
-      <IdentityPanels lng={lng} hook={hook} />
+      <IdentityPanels lng={lng} hook={hook} offered={offered} />
     </SettingsSection>
   );
 }

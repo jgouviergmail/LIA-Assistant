@@ -16,6 +16,7 @@ account purge, and reads no address at all.
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
 
 import pytest
 from sqlalchemy.exc import OperationalError
@@ -36,9 +37,8 @@ def session(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
 
 
 async def test_a_sweep_with_nothing_to_delete_ends_its_session(session: AsyncMock) -> None:
-    counted = MagicMock()
-    counted.scalar.return_value = 0
-    session.execute.return_value = counted
+    session.scalar.return_value = 0
+    session.scalars.return_value = []
 
     stats = await cleanup.cleanup_unverified_accounts()
 
@@ -48,7 +48,7 @@ async def test_a_sweep_with_nothing_to_delete_ends_its_session(session: AsyncMoc
 
 
 async def test_a_failed_sweep_rolls_back_and_closes_before_it_raises(session: AsyncMock) -> None:
-    session.execute.side_effect = OperationalError("SELECT", {}, Exception("connection lost"))
+    session.scalar.side_effect = OperationalError("SELECT", {}, Exception("connection lost"))
 
     with pytest.raises(OperationalError):
         await cleanup.cleanup_unverified_accounts()
@@ -60,11 +60,9 @@ async def test_a_failed_sweep_rolls_back_and_closes_before_it_raises(session: As
 async def test_a_sweep_logs_how_many_accounts_it_removed_never_whose(
     session: AsyncMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    answered = MagicMock()
-    answered.scalar.return_value = 2
-    answered.fetchall.return_value = [("first.signup@mail.test",), ("second.signup@mail.test",)]
-    answered.rowcount = 2
-    session.execute.return_value = answered
+    session.scalar.return_value = 2
+    session.scalars.return_value = [uuid4(), uuid4()]
+    monkeypatch.setattr(cleanup, "purge_unverified_account", AsyncMock(return_value=True))
     logger = MagicMock()
     monkeypatch.setattr(cleanup, "logger", logger)
 

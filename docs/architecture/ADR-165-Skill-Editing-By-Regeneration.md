@@ -157,3 +157,24 @@ registre des actions. `replacement_token` et `_describe_replacement` sont
 supprimés ; une version remplacée qui a changé depuis la proposition est
 refusée (`skill_proposal_stale`). Détails : ADR-327, « a skill written in the
 chat is proposed ».
+
+## Amendement 2026-11-13 — une version précédente, une seule (lot 14)
+
+Revient sur l'alternative écartée « conserver la version précédente ». La carte
+reste le garde-fou AVANT le clic ; après lui, la personne n'avait aucun retour
+possible, alors que la version remplacée était déjà mise de côté pendant
+l'échange disque (pour le rollback) puis jetée avec la zone de transit.
+Décision : chaque remplacement COMMITÉ d'une skill de la personne garde la
+version qu'il remplace dans `<users>/<owner>/.lia-previous/<name>/`, une seule,
+remplacée au remplacement suivant — un pas en arrière, jamais un historique.
+Seulement quand l'ancienne ET la nouvelle sont les mots de la personne
+(`authored` : un import de fichier ou une édition dans le chat) : restaurer les
+octets d'un tiers (adresse, bibliothèque, plugin, pair) comme les siens
+blanchirait la décision de confiance d'ADR-327, et une skill gérée ne change que
+par son canal. Tout autre remplacement vide l'emplacement ; la suppression de la
+skill l'emporte ; le disque est l'enregistrement (la liste lit les
+emplacements). `POST /skills/{name}/restore-previous` restaure par le pipeline
+d'import, tous contrôles compris, et la version écartée devient à son tour la
+précédente : une restauration s'annule. Un échec disque après le commit ne perd
+que le retour, jamais la nouvelle version (`skill_previous_version_unsettled`).
+Détails : `docs/technical/SKILLS_INTEGRATION.md`, « A skill's life ».

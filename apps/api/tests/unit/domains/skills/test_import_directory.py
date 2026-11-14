@@ -23,6 +23,13 @@ import pytest
 from src.core.exceptions import BaseAPIException, ValidationError
 from src.domains.skills.import_service import SkillImportService
 from src.domains.skills.models import SkillProvenance
+from tests.helpers.account_file_writes import account_writer_sql_stub as account_writer_sql_stub
+
+
+@pytest.fixture(autouse=True)
+def _writer_sql(account_writer_sql_stub: None) -> None:
+    """Only SQL is substituted; disk and task ownership stay real."""
+
 
 pytestmark = pytest.mark.unit
 

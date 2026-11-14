@@ -13,13 +13,14 @@
  * - **A counter is the SERVER's aggregate** (ADR-185), never the length of the
  *   page: `counts_by_status` covers columns whose cards this page does not
  *   carry. So a move ADJUSTS the two counters it provably changed, and nothing
- *   else recomputes them from the rows.
+ *   else recomputes them from the rows. The lanes obey the same rule, one cell
+ *   at a time: a card leaves one (lane, column) counter and joins another.
  * - **Creation and deletion do not live here.** They change rows this page
  *   cannot see (a child in another column, a row past the page), so they are
  *   followed by a refetch — a count nobody can compute exactly is a count that
  *   must be re-read.
  */
-import type { BoardPage, TicketRow } from '@/types/workboard';
+import type { BoardPage, LaneRow, TicketRow } from '@/types/workboard';
 
 export interface WorkboardState {
   tickets: TicketRow[];
@@ -27,11 +28,27 @@ export interface WorkboardState {
   countsByStatus: Record<string, number>;
   /** Exact number of tickets the filter matches, page or no page. */
   total: number;
+  /**
+   * The board's lanes, each with its exact count per column — empty when the
+   * reader has no category in sight, and the board is then the flat one.
+   */
+  lanes: LaneRow[];
 }
 
 export type WorkboardAction =
   | { type: 'loaded'; page: BoardPage }
-  | { type: 'moved'; id: string; status: string; position: number }
+  | {
+      type: 'moved';
+      id: string;
+      status: string;
+      position: number;
+      /**
+       * The lane the card lands in: a category, `null` for the unfiled lane.
+       * ABSENT means the drop named no lane, and the card stays filed where
+       * it was — never the same thing as `null`.
+       */
+      lane?: string | null;
+    }
   | { type: 'restored'; snapshot: WorkboardState }
   | { type: 'patched'; ticket: TicketRow };
 
@@ -39,6 +56,7 @@ export const initialWorkboardState: WorkboardState = {
   tickets: [],
   countsByStatus: {},
   total: 0,
+  lanes: [],
 };
 
 /**
@@ -63,6 +81,37 @@ function bump(counts: Record<string, number>, status: string, delta: number): vo
   counts[status] = Math.max(0, (counts[status] ?? 0) + delta);
 }
 
+/** One cell of the board: a lane (a category, or null for the unfiled one) and a column. */
+interface Cell {
+  lane: string | null;
+  status: string;
+}
+
+/**
+ * Move one card between two cells of the lanes' counters.
+ *
+ * The lanes carry the SERVER's counts, keyed by the category a ticket is
+ * really filed under; a category the board does not draw matches no lane, and
+ * nothing is counted for it — the next read brings the truth.
+ *
+ * @param lanes - The lanes before.
+ * @param from - The cell the card leaves.
+ * @param to - The cell it joins.
+ * @returns The lanes after; the SAME list when the card did not change cell.
+ */
+function shiftLanes(lanes: LaneRow[], from: Cell, to: Cell): LaneRow[] {
+  if (from.lane === to.lane && from.status === to.status) return lanes;
+  return lanes.map(row => {
+    const leaving = row.category_id === from.lane;
+    const joining = row.category_id === to.lane;
+    if (!leaving && !joining) return row;
+    const counts = { ...row.counts_by_status };
+    if (leaving) bump(counts, from.status, -1);
+    if (joining) bump(counts, to.status, 1);
+    return { ...row, counts_by_status: counts };
+  });
+}
+
 /**
  * Place a card at an index inside its (new) column and re-number that column.
  *
@@ -70,13 +119,15 @@ function bump(counts: Record<string, number>, status: string, delta: number): vo
  * @param id - The card being moved.
  * @param status - The column it lands in.
  * @param position - Where in that column, clamped to its length.
+ * @param lane - The lane it lands in; undefined leaves it filed where it was.
  * @returns The board after the move.
  */
 function applyMove(
   state: WorkboardState,
   id: string,
   status: string,
-  position: number
+  position: number,
+  lane: string | null | undefined
 ): WorkboardState {
   const moving = state.tickets.find(row => row.id === id);
   // A card a peer deleted a second ago, or a stale drag: a move that invents a
@@ -103,13 +154,21 @@ function applyMove(
     bump(counts, status, 1);
   }
 
+  const category = lane === undefined ? moving.category_id : lane;
+
   return {
     ...state,
     tickets: state.tickets.map(row => {
       const placed = placement.get(row.id);
-      return placed ? { ...row, ...placed } : row;
+      if (!placed) return row;
+      return row.id === id ? { ...row, ...placed, category_id: category } : { ...row, ...placed };
     }),
     countsByStatus: counts,
+    lanes: shiftLanes(
+      state.lanes,
+      { lane: moving.category_id, status: from },
+      { lane: category, status }
+    ),
   };
 }
 
@@ -128,10 +187,14 @@ export function workboardReducer(state: WorkboardState, action: WorkboardAction)
         tickets: action.page.tickets,
         countsByStatus: { ...action.page.counts_by_status },
         total: action.page.total,
+        // Tolerant on purpose: an API that predates the lanes — a deploy in
+        // progress, a page cached before it — answers without the field, and
+        // the board must then be the flat one it always was, not a crash.
+        lanes: action.page.lanes ?? [],
       };
 
     case 'moved':
-      return applyMove(state, action.id, action.status, action.position);
+      return applyMove(state, action.id, action.status, action.position, action.lane);
 
     case 'restored':
       return action.snapshot;
@@ -150,6 +213,13 @@ export function workboardReducer(state: WorkboardState, action: WorkboardAction)
         ...state,
         tickets: state.tickets.map(row => (row.id === action.ticket.id ? action.ticket : row)),
         countsByStatus: counts,
+        // A list on a card refiles through PATCH too, so the lanes follow a
+        // patch exactly as they follow a drop.
+        lanes: shiftLanes(
+          state.lanes,
+          { lane: previous.category_id, status: previous.status },
+          { lane: action.ticket.category_id, status: action.ticket.status }
+        ),
       };
     }
   }

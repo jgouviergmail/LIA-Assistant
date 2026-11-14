@@ -222,8 +222,8 @@ describe('Monitor companion decoration', () => {
     expect(skin).toContain("[data-rig-brow-shape='sculpted']");
     expect(skin).toContain('fill: var(--brow-color)');
     expect(skin).toContain('stroke: none');
-    expect(skin).toContain('height: 0.6em');
-    expect(skin).toContain('width: max(1.05em, calc(var(--eye-w, 1.3em) * 0.9))');
+    expect(skin).toContain('--brow-h: 0.6em');
+    expect(skin).toContain('--brow-w: max(1.05em, calc(var(--eye-w, 1.3em) * 0.9))');
     expect(skin).toContain('mix-blend-mode: multiply');
     expect(skin).toContain('#dff3fc');
     expect(skin).toContain('box-shadow:');

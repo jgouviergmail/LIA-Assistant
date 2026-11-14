@@ -1993,11 +1993,11 @@
           "mode": "multi"
         }
       },
-      "description": "Redis keys a conversation reset deleted, per declared family (conversation and user-cache scopes). A learning family (recurrence, gmail_history_anchor, adaptive, briefing:v2:lastgood) must NEVER appear here."
+      "description": "Exact retired-runtime keys explicitly deleted. Shared account caches and learning are never scanned or invalidated by a targeted reset."
     },
     {
       "id": 108,
-      "title": "Reset: keys kept by scope / undeclared families (24h)",
+      "title": "Cleanup: refused runtime inventories (24h)",
       "type": "timeseries",
       "datasource": "$datasource",
       "gridPos": {
@@ -2008,14 +2008,9 @@
       },
       "targets": [
         {
-          "expr": "sum by (scope) (increase(conversation_reset_keys_kept_total[24h])) or vector(0)",
-          "legendFormat": "kept {{scope}}",
+          "expr": "sum(increase(conversation_cleanup_inventory_refusals_total[24h])) or vector(0)",
+          "legendFormat": "refused attempts",
           "refId": "A"
-        },
-        {
-          "expr": "sum by (family) (increase(reset_undeclared_family_total[24h])) or vector(0)",
-          "legendFormat": "undeclared {{family}}",
-          "refId": "B"
         }
       ],
       "fieldConfig": {
@@ -2039,7 +2034,7 @@
           "mode": "multi"
         }
       },
-      "description": "What a reset matched but kept: learning and runtime scopes are expected; an 'undeclared' family is a key the registry can neither purge nor protect knowingly — declare it in infrastructure/cache/key_families.py."
+      "description": "Malformed or foreign inventory members refuse cleanup and retain its durable operation. This counts attempts, not keys; resolve the state before explicitly retrying."
     },
     {
       "id": 109,
@@ -2302,6 +2297,43 @@
         }
       },
       "description": "What each Turnstile bot check concluded at the password doors (ADR-364): `passed`, `missing` (no token while Cloudflare answers the server — a script that never ran the widget, or a browser that blocks it), `rejected` (Cloudflare refused the token, or it was made for another door or site), `unavailable` (Cloudflare did not answer: the sign-in proceeds, a sign-up or a reset request is refused). Flat at zero when the check is off. Alerted by TurnstileUnavailable."
+    },
+    {
+      "id": 118,
+      "title": "Discussion cleanup and recovery",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 126 },
+      "targets": [
+        { "expr": "max by (state) (conversation_cleanup_operations)", "legendFormat": "{{state}}", "refId": "A" },
+        { "expr": "max(conversation_executions_recovering)", "legendFormat": "Recovering execution slots", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "noValue": "Unavailable", "unit": "short" }, "overrides": [] },
+      "description": "Durable outstanding cleanup states and occupied graph or Live slots awaiting recovery. Zero is published by a successful snapshot."
+    },
+    {
+      "id": 119,
+      "title": "Oldest outstanding cleanup by state",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 126 },
+      "targets": [
+        { "expr": "max by (state) ((time() - conversation_cleanup_oldest_timestamp_seconds) * (conversation_cleanup_operations > bool 0))", "legendFormat": "{{state}}", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "noValue": "Unavailable", "unit": "s" }, "overrides": [] },
+      "description": "Age of the oldest unfinished receipt in each state. Finished receipts are excluded."
+    },
+    {
+      "id": 120,
+      "title": "Discussion cleanup snapshot age",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 126 },
+      "targets": [
+        { "expr": "time() - max(conversation_cleanup_snapshot_timestamp_seconds > 0)", "legendFormat": "Snapshot age", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "noValue": "Unavailable", "unit": "s" }, "overrides": [] },
+      "description": "Time since the scheduler last read both cleanup and recovery successfully. A gap can signal missing measurements."
     }
   ]
 }

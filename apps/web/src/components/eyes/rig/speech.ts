@@ -32,6 +32,13 @@ export const SPEECH_CHUNK_MAX_MS = 10_000;
 /** A syllable: how far the mouth parts, and for how long, then the close. */
 export const SPEECH_OPEN_MIN = 0.22;
 export const SPEECH_OPEN_MAX = 0.66;
+/** How quickly a mouth follows the voice it hears (ADR-294, 2026-11-13): it opens
+ * on a syllable's attack and lets go a little slower, so it shuts between two
+ * syllables and not in the middle of one. Time constants, in ms, measured on two
+ * real voices: at 25/50 the mouth hung open across syllables; at 15/20 it marks
+ * them and still follows the sound (correlation 0.95). */
+export const VOICE_ATTACK_MS = 15;
+export const VOICE_RELEASE_MS = 20;
 const SYLLABLE_OPEN_MIN_MS = 60;
 const SYLLABLE_OPEN_MAX_MS = 130;
 const SYLLABLE_CLOSE_MIN_MS = 45;

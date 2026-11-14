@@ -40,10 +40,15 @@ const { toast } = vi.hoisted(() => ({
 }));
 vi.mock('sonner', () => ({ toast }));
 
-// The portrait shortcut is unit-tested on its own; here it would only fetch
-// `/journals/portrait` into the void and pollute stderr.
+// The portrait shortcut is unit-tested on its own; a real read would fetch
+// `/journals/portrait` into the void. What only the page decides is WHETHER
+// the shortcut may ask: recorded here.
+const portrait = vi.hoisted(() => ({ asked: [] as boolean[] }));
 vi.mock('@/hooks/useJournalPortrait', () => ({
-  useJournalPortrait: () => ({ hasPortrait: false }),
+  useJournalPortrait: (enabled = true) => {
+    portrait.asked.push(enabled);
+    return { hasPortrait: false };
+  },
 }));
 
 const authState = vi.hoisted(() => ({
@@ -75,12 +80,11 @@ vi.mock('@/hooks/useDebugPanelEnabled', () => ({
   useDebugPanelEnabled: () => ({ userAccessAvailable: false }),
 }));
 
+/** What this deployment mounts: no journals, unless a case says so. */
+const MOUNTED = { open_loops_enabled: true, habits_enabled: true, peers_enabled: true };
+const configState = vi.hoisted(() => ({ features: {} as Record<string, boolean> }));
 vi.mock('@/hooks/useAppConfig', () => ({
-  useAppConfig: () => ({
-    config: {
-      features: { open_loops_enabled: true, habits_enabled: true, peers_enabled: true },
-    },
-  }),
+  useAppConfig: () => ({ config: { features: configState.features } }),
 }));
 
 function renderPage() {
@@ -108,6 +112,8 @@ describe('Settings page — master-detail shell', () => {
     window.history.replaceState({}, '', '/en/dashboard/settings');
     navState.params = new URLSearchParams();
     authState.user = { id: 'u1', email: 'u@example.test', is_superuser: false };
+    configState.features = { ...MOUNTED };
+    portrait.asked = [];
   });
   afterEach(() => {
     vi.restoreAllMocks();
@@ -122,6 +128,25 @@ describe('Settings page — master-detail shell', () => {
     expect(screen.getByText('settings.theme.description')).toBeInTheDocument();
     // No section pane is mounted.
     expect(document.querySelector('[id^="settings-section-"]')).toBeNull();
+  });
+
+  it('lets the portrait shortcut ask only where the journals are offered', async () => {
+    // The page holds the verdict that lists the journals section, and hands
+    // it over: the shortcut reads no configuration of its own.
+    renderPage();
+    await screen.findByRole('navigation', { name: 'settings.shell.nav_label' });
+
+    expect(portrait.asked.length).toBeGreaterThan(0);
+    expect([...new Set(portrait.asked)]).toEqual([false]);
+  });
+
+  it('lets the portrait shortcut ask where the deployment mounts the journals', async () => {
+    configState.features = { ...MOUNTED, journals_enabled: true };
+
+    renderPage();
+    await screen.findByRole('navigation', { name: 'settings.shell.nav_label' });
+
+    expect([...new Set(portrait.asked)]).toEqual([true]);
   });
 
   it('returns mobile focus and scroll to the rail entry after viewing a section', async () => {
@@ -232,6 +257,14 @@ describe('Settings page — master-detail shell', () => {
       expect(toast.success).toHaveBeenCalledWith('settings.connectors.bulk_connect.partial')
     );
     expect(window.location.search).toBe('?section=connectors');
+  });
+
+  it('says when a personal MCP server changed during its authorization, and cleans the URL', async () => {
+    navState.params = new URLSearchParams('mcp_oauth=changed');
+    window.history.replaceState({}, '', `/en/dashboard/settings?${navState.params}`);
+    renderPage();
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('settings.mcp.oauth_changed'));
+    expect(window.location.search).not.toContain('mcp_oauth');
   });
 
   it('explains a known-account mismatch and keeps the connector pane selected', async () => {

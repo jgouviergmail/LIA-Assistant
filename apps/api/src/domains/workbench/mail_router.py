@@ -50,12 +50,14 @@ from src.domains.workbench.schemas.mail import (
     MailListing,
     MailMessage,
     MailPage,
+    MailReplyMarks,
     MailUnsubscribe,
     MessageSelection,
     MoveOutcome,
     MoveRequest,
     NewLabel,
     ReadStateChange,
+    ReplyMarksRequest,
     StarChange,
     TrashEmptied,
     UnsubscribeRequest,
@@ -125,6 +127,17 @@ async def get_conversation(
 ) -> MailConversation:
     """Read a message's conversation."""
     return await mail_reading.read_conversation(user.id, message_id)
+
+
+@router.post(
+    "/reply-marks",
+    response_model=MailReplyMarks,
+    summary="Where the rows of a page stand in their conversations: answered, drafted, replied to",
+    dependencies=[Depends(rate_limit_read)],
+)
+async def post_reply_marks(request: ReplyMarksRequest, user: _Account) -> MailReplyMarks:
+    """Read the reply marks of a page: a read, posted because a page of ids fits no address."""
+    return await mail_reading.read_reply_marks(user.id, resolve_user_timezone(user), request)
 
 
 @router.get(

@@ -1906,6 +1906,40 @@ Describe "deploy-prod.ps1 keeps the live directory intact during the build (A2)"
         $iUp | Should -BeGreaterThan $iSwap
     }
 
+    It "validates the settings in the NEW image, after the build and before the swap" {
+        # 2026-11-09: a value above its bound in .env looped the API for 53
+        # minutes. The image and the environment are both known once the build
+        # is done; refusing HERE leaves the running version untouched.
+        $iBuild = $deploySh.IndexOf("docker build -t lia-skill-sandbox:local")
+        $iCheck = $deploySh.IndexOf("python -m scripts.validate_settings")
+        $iSwap = $deploySh.IndexOf("SWAP_MARKER")
+        $iBuild | Should -BeGreaterThan 0
+        $iCheck | Should -BeGreaterThan $iBuild
+        $iSwap | Should -BeGreaterThan $iCheck
+    }
+
+    It "runs that check as the service would start, touching nothing that serves" {
+        $line = ($deploySh -split "`n" | Where-Object { $_ -match 'scripts\.validate_settings' -and $_ -match 'docker compose' })
+        @($line).Count | Should -Be 1
+        # The same three compose files as the start, so the environment and the
+        # mounts are the service's own; the LIVE project, so no network or
+        # volume is created under the staging directory's name.
+        $line | Should -Match ([regex]::Escape('-p "$LIVE_PROJECT"'))
+        $line | Should -Match ([regex]::Escape('-f docker-compose.prod.yml -f docker-compose.skill-sandbox.yml -f docker-compose.devops.yml'))
+        $line | Should -Match ([regex]::Escape('run --rm --no-deps -T --entrypoint ""'))
+        # A child that reads stdin would eat the rest of a script fed by a pipe.
+        $line | Should -Match ([regex]::Escape('</dev/null'))
+        $deploySh | Should -Match ([regex]::Escape('LIVE_PROJECT=$(basename "${PWD%.staging}"'))
+    }
+
+    It "refuses the deployment when the check fails, and says nothing was changed" {
+        $deploySh | Should -Match ([regex]::Escape('ERREUR: les reglages sont refuses par la nouvelle image'))
+        $deploySh | Should -Match ([regex]::Escape('rien n a ete bascule'))
+        $block = $deploySh.Substring($deploySh.IndexOf("python -m scripts.validate_settings"), 900)
+        $block.IndexOf("exit 1") | Should -BeGreaterThan 0
+        $block.IndexOf("exit 1") | Should -BeLessThan $block.IndexOf("SWAP_MARKER")
+    }
+
     It "warns when the dumps sit inside the tree the deploy replaces" {
         # The operator's .env overrides the compose default, so shipping a safe
         # default is not enough — the deployment itself has to say it.

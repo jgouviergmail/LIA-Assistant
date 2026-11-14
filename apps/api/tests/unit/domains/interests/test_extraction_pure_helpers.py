@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import fields
+from datetime import UTC
 from typing import Any
 
 import pytest
@@ -203,7 +204,8 @@ class TestCacheRoundTrip:
 class TestFormatMessagesForExtraction:
     def test_labels_the_user_and_assistant_turns(self) -> None:
         text = _format_messages_for_extraction(
-            [HumanMessage(content="je fais du vélo"), AIMessage(content="Depuis longtemps ?")]
+            [HumanMessage(content="je fais du vélo"), AIMessage(content="Depuis longtemps ?")],
+            zone=UTC,
         )
 
         assert text == "USER: je fais du vélo\nASSISTANT: Depuis longtemps ?"
@@ -219,7 +221,7 @@ class TestFormatMessagesForExtraction:
             HumanMessage(content="merci"),
         ]
 
-        text = _format_messages_for_extraction(messages)
+        text = _format_messages_for_extraction(messages, zone=UTC)
 
         assert "trail" not in text
         assert text == "USER: merci"
@@ -227,7 +229,7 @@ class TestFormatMessagesForExtraction:
     def test_a_long_message_is_truncated(self) -> None:
         long_text = "a" * (INTEREST_EXTRACTION_QUERY_TRUNCATION_LENGTH + 100)
 
-        text = _format_messages_for_extraction([HumanMessage(content=long_text)])
+        text = _format_messages_for_extraction([HumanMessage(content=long_text)], zone=UTC)
 
         assert text.endswith("...")
         assert len(text) == len("USER: ") + INTEREST_EXTRACTION_QUERY_TRUNCATION_LENGTH + 3
@@ -239,13 +241,13 @@ class TestFormatMessagesForExtraction:
         # whose only question is what the USER cares about. Now aligned with the
         # journals extractor, which has always skipped tool and system turns.
         text = _format_messages_for_extraction(
-            [ToolMessage(content='{"emails": ["a@b.c"]}', tool_call_id="c1")]
+            [ToolMessage(content='{"emails": ["a@b.c"]}', tool_call_id="c1")], zone=UTC
         )
 
         assert text == ""
 
     def test_a_system_turn_never_reaches_the_prompt(self) -> None:
-        assert _format_messages_for_extraction([SystemMessage(content="ctx")]) == ""
+        assert _format_messages_for_extraction([SystemMessage(content="ctx")], zone=UTC) == ""
 
     def test_a_tool_turn_does_not_break_the_surrounding_conversation(self) -> None:
         # The real shape after a tool call: user → assistant(tool_calls) → tool
@@ -256,7 +258,8 @@ class TestFormatMessagesForExtraction:
                 AIMessage(content="", additional_kwargs={}),
                 ToolMessage(content='{"emails": ["marie@ex.com"]}', tool_call_id="c1"),
                 HumanMessage(content="et le vélo, tu en penses quoi ?"),
-            ]
+            ],
+            zone=UTC,
         )
 
         assert text == (
@@ -277,10 +280,12 @@ class TestFormatMessagesForExtraction:
             AIMessage(content="bonjour"),
         ]
 
-        assert _format_messages_for_extraction(window) == journals_format(window)
+        assert _format_messages_for_extraction(window, zone=UTC) == journals_format(
+            window, zone=UTC
+        )
 
     def test_an_empty_window_yields_an_empty_block(self) -> None:
-        assert _format_messages_for_extraction([]) == ""
+        assert _format_messages_for_extraction([], zone=UTC) == ""
 
 
 # =============================================================================

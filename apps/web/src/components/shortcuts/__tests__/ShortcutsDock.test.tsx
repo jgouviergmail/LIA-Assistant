@@ -12,7 +12,9 @@ vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: account.user, refreshUser: vi.fn() }),
 }));
 
+import { appConfigFixture } from '@/__tests__/fixtures/app-config';
 import { ShortcutsDock } from '@/components/shortcuts/ShortcutsDock';
+import { AppConfigSeedContext, type AppConfig } from '@/hooks/useAppConfig';
 import { SHORTCUTS_DOCK_PREFS_KEY } from '@/lib/constants';
 import { useShortcutsDockStore } from '@/stores/shortcutsDockStore';
 
@@ -178,5 +180,91 @@ describe('ShortcutsDock — it unfolds towards the room it has (2026-09-10)', ()
     // Committed as a TOP — the capsule's real one — and drawn from it.
     expect(dock().style.top).not.toBe('');
     expect(dock().style.bottom).toBe('');
+  });
+});
+
+describe('ShortcutsDock — a pinned section the account cannot open now', () => {
+  const hrefs = () => screen.getAllByRole('link').map(link => link.getAttribute('href'));
+  const section = (token: string) => `/fr/dashboard/settings?section=${token}`;
+
+  /** A configuration that has answered, with the operator's verdict on the journals. */
+  const journals = (enabled: boolean): AppConfig =>
+    appConfigFixture({
+      features: { journals_enabled: true },
+      capabilities: { journals: { enabled, family: 'knowledge' } },
+    });
+
+  /** The dock as the layout mounts it: under the layout's own read of `/config`. */
+  const underLayout = (config: AppConfig | null) => (
+    <AppConfigSeedContext.Provider value={config}>
+      <ShortcutsDock lng="fr" />
+    </AppConfigSeedContext.Provider>
+  );
+
+  beforeEach(() => {
+    account.user = {
+      id: 'me',
+      is_superuser: false,
+      settings_shortcuts: ['theme', 'journals', 'font'],
+    };
+  });
+
+  it('draws no link to a section whose capability the operator switched off', () => {
+    // It led to « this section is not showing here », and the picker — which
+    // lists what the shell shows — offered no box to take it away.
+    render(underLayout(journals(false)));
+
+    expect(hrefs()).toEqual([section('theme'), section('font')]);
+  });
+
+  it('draws it again, at its place, once the capability is offered again', () => {
+    // What is pinned belongs to the account: the switch hid it, it removed nothing.
+    const view = render(underLayout(journals(false)));
+    expect(hrefs()).toHaveLength(2);
+
+    view.rerender(underLayout(journals(true)));
+
+    expect(hrefs()).toEqual([section('theme'), section('journals'), section('font')]);
+  });
+
+  it('keeps every pinned section until the configuration has answered', () => {
+    // Doubt hides nothing: a filter ahead of the pane is the more permissive of the two.
+    render(underLayout(null));
+
+    expect(hrefs()).toEqual([section('theme'), section('journals'), section('font')]);
+  });
+
+  it('renders nothing when every pinned section is closed', () => {
+    account.user = { id: 'me', is_superuser: false, settings_shortcuts: ['journals'] };
+    const { container } = render(underLayout(journals(false)));
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('draws the haptic feedback only on a device that can vibrate', () => {
+    account.user = { id: 'me', is_superuser: false, settings_shortcuts: ['theme', 'haptics'] };
+    const view = render(underLayout(null));
+    expect(hrefs()).toEqual([section('theme')]);
+    view.unmount();
+
+    Object.defineProperty(navigator, 'vibrate', { value: vi.fn(), configurable: true });
+    try {
+      render(underLayout(null));
+      expect(hrefs()).toEqual([section('theme'), section('haptics')]);
+    } finally {
+      Reflect.deleteProperty(navigator, 'vibrate');
+    }
+  });
+
+  it('keeps the debug panel of a regular account, whose grant it cannot know, and drops a superuser one', () => {
+    account.user = { id: 'me', is_superuser: false, settings_shortcuts: ['debug-panel'] };
+    const view = render(underLayout(journals(true)));
+    expect(hrefs()).toEqual([section('debug-panel')]);
+    view.unmount();
+
+    // The page renders that section in the non-superuser layout only.
+    account.user = { id: 'me', is_superuser: true, settings_shortcuts: ['debug-panel', 'theme'] };
+    render(underLayout(journals(true)));
+    expect(hrefs()).toEqual([section('theme')]);
   });
 });

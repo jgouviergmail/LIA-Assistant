@@ -213,3 +213,58 @@ async def test_native_workboard_tool_reads_real_source_shape(async_session, test
     assert result.structured_data["total"] == 1
     assert result.structured_data["tickets"][0]["title"] == "Read from native tool"
     assert not result.metadata.get("requires_confirmation")
+
+
+async def test_the_board_read_narrows_to_a_lane_and_names_every_lane(
+    async_session, test_user, monkeypatch
+):
+    """The assistant's read of the board is the board: same lane filter, same
+    exact counts, and the names a ticket row alone does not carry."""
+    from src.domains.workboard.category_service import WorkboardCategoryService
+    from src.domains.workboard.schemas import CategoryCreate
+
+    monkeypatch.setattr(settings, "workboard_enabled", True)
+    home = await WorkboardCategoryService(async_session).create(
+        test_user, CategoryCreate(name="Home")
+    )
+    service = WorkboardService(async_session)
+    filed = await service.create(test_user, TicketCreate(title="Filed", category_id=home.id))
+    loose = await service.create(test_user, TicketCreate(title="Loose"))
+    filed_id, loose_id = filed.id, loose.id
+    await async_session.commit()
+
+    everything = await read_workboard_ui(
+        async_session, test_user.id, WorkboardUIQuery(section="board")
+    )
+    assert {lane.category_id: lane.name for lane in everything.lanes} == {
+        None: None,
+        home.id: "Home",
+    }
+    assert {lane.category_id: sum(lane.counts_by_status.values()) for lane in everything.lanes} == {
+        None: 1,
+        home.id: 1,
+    }
+    assert {row.id: row.category_id for row in everything.tickets} == {
+        filed_id: home.id,
+        loose_id: None,
+    }
+
+    narrowed = await read_workboard_ui(
+        async_session, test_user.id, WorkboardUIQuery(section="board", categories=(home.id,))
+    )
+    assert [row.id for row in narrowed.tickets] == [filed_id] and narrowed.total == 1
+    # The lanes are counted over the SAME filter as the page.
+    assert {lane.category_id: sum(lane.counts_by_status.values()) for lane in narrowed.lanes} == {
+        None: 0,
+        home.id: 1,
+    }
+
+    unfiled = await read_workboard_ui(
+        async_session, test_user.id, WorkboardUIQuery(section="board", uncategorized=True)
+    )
+    assert [row.id for row in unfiled.tickets] == [loose_id]
+
+    summary = await read_workboard_ui(
+        async_session, test_user.id, WorkboardUIQuery(section="summary")
+    )
+    assert {lane.name for lane in summary.summary.lanes} == {None, "Home"}

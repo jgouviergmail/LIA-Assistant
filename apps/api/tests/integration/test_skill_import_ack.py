@@ -9,6 +9,7 @@ from src.core.config import settings
 from src.domains.skills.cache import SkillsCache
 from src.domains.skills.import_service import SkillImportService
 from src.domains.skills.models import Skill
+from tests.helpers.committed_account_session import async_session as async_session
 
 pytestmark = pytest.mark.integration
 

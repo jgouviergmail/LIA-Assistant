@@ -1,10 +1,12 @@
 """An injected gateway preserves channel streaming context and rejects an unbound runner."""
 
 from importlib import import_module
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+
+from tests.fixtures.instruction_runtime import instruction_runtime
 
 pytestmark = pytest.mark.unit
 
@@ -50,7 +52,16 @@ async def test_real_adapter_forwards_consents_and_resets_plain_surface_on_cancel
         finally:
             closed.append(plain_surface_ctx.get())
 
-    with patch("src.domains.agents.api.service.AgentService") as service:
+    with (
+        instruction_runtime(actor_id),
+        patch(
+            "src.domains.agents.api.hitl_pending.check_pending_hitl_uncached",
+            AsyncMock(
+                return_value={"run_id": "original", "action_requests": [{"type": "clarification"}]}
+            ),
+        ),
+        patch("src.domains.agents.api.service.AgentService") as service,
+    ):
         service.return_value.stream_chat_response = response
         stream = adapter.build_channel_gateway().stream(request)
         assert (await anext(stream)).content == "Bonjour"

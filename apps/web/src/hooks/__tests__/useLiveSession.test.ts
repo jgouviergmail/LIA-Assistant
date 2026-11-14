@@ -22,6 +22,7 @@ vi.mock('@/lib/live/session-controller', () => ({
     const instance = {
       start: vi.fn(async () => {}),
       end: vi.fn(async () => {}),
+      stopAll: vi.fn(async () => {}),
       toggleMute: vi.fn(),
       extend: vi.fn(async () => true),
       declineExtension: vi.fn(),
@@ -69,7 +70,7 @@ describe('useLiveSession', () => {
   });
 
   it('builds one controller per mount and forwards the four actions', async () => {
-    const { result, rerender } = renderHook(props => useLiveSession(props), {
+    const { result, rerender } = renderHook(props => useLiveSession(() => props), {
       initialProps: bindings('a'),
     });
     rerender(bindings('b'));
@@ -87,7 +88,7 @@ describe('useLiveSession', () => {
   });
 
   it('forwards standby and wake, and hands the controller the wake word of the interface language (ADR-329)', async () => {
-    const { result } = renderHook(props => useLiveSession(props), {
+    const { result } = renderHook(props => useLiveSession(() => props), {
       initialProps: bindings('a'),
     });
     await result.current.standby();
@@ -107,18 +108,34 @@ describe('useLiveSession', () => {
     }
   });
 
-  it('points the controller at the LATEST bindings, not the ones of the first render', () => {
+  it('opens the controller with the latest committed bindings when asked', async () => {
     const first = bindings('first');
     const second = bindings('second');
-    const { rerender } = renderHook(props => useLiveSession(props), { initialProps: first });
-    expect(h.deps[0].chat).toBe(first);
+    const { result, rerender } = renderHook(props => useLiveSession(() => props), {
+      initialProps: first,
+    });
+    expect(h.instances[0].setChat).not.toHaveBeenCalled();
     rerender(second);
+    await result.current.start();
     expect(h.instances[0].setChat).toHaveBeenLastCalledWith(second);
+  });
+
+  it('holds an arriving start until the owned discussion is resolved', () => {
+    useLiveStore.getState().requestStart();
+    const initialProps: { chat: LiveChatBindings | null } = { chat: null };
+    const { rerender } = renderHook(({ chat }) => useLiveSession(() => chat), {
+      initialProps,
+    });
+    expect(h.instances[0].start).not.toHaveBeenCalled();
+    const ready = bindings('resolved');
+    rerender({ chat: ready });
+    expect(h.instances[0].setChat).toHaveBeenCalledWith(ready);
+    expect(h.instances[0].start).toHaveBeenCalledOnce();
   });
 
   it('consumes a start asked from the header, at mount and later, in the mode asked', () => {
     useLiveStore.getState().requestStart();
-    renderHook(() => useLiveSession(bindings('a')));
+    renderHook(() => useLiveSession(() => bindings('a')));
     expect(h.instances[0].start).toHaveBeenCalledTimes(1);
     expect(h.instances[0].start).toHaveBeenLastCalledWith('delegated');
     expect(useLiveStore.getState().pendingStart).toBeNull();
@@ -129,7 +146,7 @@ describe('useLiveSession', () => {
   });
 
   it('reports the page visibility and ends an open session on unmount', () => {
-    const { unmount } = renderHook(() => useLiveSession(bindings('a')));
+    const { unmount } = renderHook(() => useLiveSession(() => bindings('a')));
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
     document.dispatchEvent(new Event('visibilitychange'));
     expect(h.instances[0].pageHidden).toHaveBeenCalledWith(true);
@@ -147,7 +164,7 @@ describe('useLiveSession', () => {
   });
 
   it('does not end anything on unmount when no session is open', () => {
-    const { unmount } = renderHook(() => useLiveSession(bindings('a')));
+    const { unmount } = renderHook(() => useLiveSession(() => bindings('a')));
     unmount();
     expect(h.instances[0].end).not.toHaveBeenCalled();
   });

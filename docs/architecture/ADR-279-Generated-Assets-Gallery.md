@@ -93,6 +93,11 @@ l'instant on reste sur 24h »).
 peut désormais CONSERVER un fichier depuis la galerie — il n'a plus d'échéance
 (`expires_at IS NULL`), dans deux plafonds par compte publiés avec chaque page.*
 
+*Amendé le 2026-11-12 par [ADR-378](ADR-378-Permanent-Main-And-Isolated-Discussion-Runtimes.md) : la réinitialisation retire
+les usages de fichiers d'UNE discussion (`release_conversation_usages`) et ne
+rend supprimable que le dernier usage d'un téléversement. `delete_all_for_user`,
+resté sans appelant, est retiré.*
+
 C'est la doctrine d'ADR-260 appliquée aux fichiers : une purge retire ce que sa
 famille déclare, jamais ce qui lui ressemble.
 

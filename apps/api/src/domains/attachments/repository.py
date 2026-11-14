@@ -3,20 +3,20 @@ Attachment repository for database operations.
 
 Extends BaseRepository with attachment-specific queries:
 - Batch fetch with ownership check
-- Conditional delete of expired attachments for the cleanup
-- Bulk delete for user (conversation reset)
+- Ready file and gallery projections
+
+Durable retirement and disk claims live in AttachmentFileRepository.
 
 Phase: evolution F4 — File Attachments & Vision Analysis
 Created: 2026-03-09
 """
 
 import uuid
-from collections.abc import Collection
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import structlog
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
@@ -42,8 +42,8 @@ class AttachmentRepository(BaseRepository[Attachment]):
         """
         Fetch multiple attachments by IDs with ownership verification.
 
-        Only returns attachments that belong to the specified user and have
-        status 'ready'. Used by ChatRequest to validate attachment_ids.
+        Only returns the owner's ready files before their deadline, or explicitly
+        kept files with no deadline. Used by ChatRequest to validate attachment_ids.
 
         Args:
             ids: List of attachment UUIDs to fetch.
@@ -60,6 +60,7 @@ class AttachmentRepository(BaseRepository[Attachment]):
             Attachment.id.in_(ids),
             Attachment.user_id == user_id,
             Attachment.status == AttachmentStatus.READY,
+            or_(Attachment.expires_at.is_(None), Attachment.expires_at > datetime.now(UTC)),
         )
         result = await self.db.execute(stmt)
         attachments = list(result.scalars().all())
@@ -73,30 +74,6 @@ class AttachmentRepository(BaseRepository[Attachment]):
 
         return attachments
 
-    async def delete_expired(self, now: datetime) -> list[str]:
-        """Delete every attachment whose deadline passed, in ONE statement.
-
-        The condition is evaluated by the statement that deletes, never by an
-        earlier read: a file kept in between (``expires_at IS NULL``, ADR-319)
-        does not match, so a sweep cannot remove what a person just kept.
-
-        Args:
-            now: Current UTC datetime.
-
-        Returns:
-            The relative paths of the removed rows' files, for the disk.
-        """
-        stmt = (
-            delete(Attachment)
-            .where(
-                Attachment.expires_at <= now,
-                Attachment.status != AttachmentStatus.EXPIRED,
-            )
-            .returning(Attachment.file_path)
-        )
-        result = await self.db.execute(stmt)
-        return list(result.scalars())
-
     async def kept_totals(self) -> tuple[int, int]:
         """How many files people kept, and the bytes they hold (instance-wide).
 
@@ -107,45 +84,12 @@ class AttachmentRepository(BaseRepository[Attachment]):
             await self.db.execute(
                 select(
                     func.count(Attachment.id), func.coalesce(func.sum(Attachment.file_size), 0)
-                ).where(Attachment.expires_at.is_(None))
+                ).where(
+                    Attachment.expires_at.is_(None), Attachment.status == AttachmentStatus.READY
+                )
             )
         ).one()
         return int(row[0] or 0), int(row[1] or 0)
-
-    async def delete_for_user(
-        self, user_id: uuid.UUID, *, origins: Collection[str] | None = None
-    ) -> int:
-        """
-        Delete a user's attachments, optionally narrowed to some origins.
-
-        Caller must fetch file paths beforehand via get_file_paths_for_user()
-        for disk cleanup — with the SAME narrowing, or the disk loses files the
-        database keeps.
-
-        Args:
-            user_id: User UUID.
-            origins: Producers to remove; None removes everything (account
-                deletion). A conversation reset passes ``{upload}`` alone: a
-                file LIA produced survives the conversation it was produced in
-                (ADR-279, owner arbitration 2026-09-10).
-
-        Returns:
-            Number of deleted records.
-        """
-        stmt = delete(Attachment).where(Attachment.user_id == user_id)
-        if origins is not None:
-            stmt = stmt.where(Attachment.origin.in_(list(origins)))
-        result = await self.db.execute(stmt)
-        count: int = result.rowcount  # type: ignore[attr-defined]
-
-        logger.info(
-            "attachments_deleted_for_user",
-            user_id=str(user_id),
-            count=count,
-            origins=sorted(origins) if origins is not None else None,
-        )
-
-        return count
 
     async def newest_by_filename(
         self, user_id: uuid.UUID, filename: str, now: datetime
@@ -172,26 +116,6 @@ class AttachmentRepository(BaseRepository[Attachment]):
             .limit(1)
         )
         return (await self.db.execute(stmt)).scalar_one_or_none()
-
-    async def get_file_paths_for_user(
-        self, user_id: uuid.UUID, *, origins: Collection[str] | None = None
-    ) -> list[str]:
-        """
-        Get file paths for a user (for disk cleanup before DB delete).
-
-        Args:
-            user_id: User UUID.
-            origins: Same narrowing as :meth:`delete_for_user` — the two must
-                agree or the disk loses files the database keeps.
-
-        Returns:
-            List of relative file paths.
-        """
-        stmt = select(Attachment.file_path).where(Attachment.user_id == user_id)
-        if origins is not None:
-            stmt = stmt.where(Attachment.origin.in_(list(origins)))
-        result = await self.db.execute(stmt)
-        return list(result.scalars().all())
 
     async def list_generated(
         self, user_id: uuid.UUID, filters: GalleryFilters
@@ -224,27 +148,3 @@ class AttachmentRepository(BaseRepository[Attachment]):
         )
         total_bytes = int((await self.db.execute(bytes_statement)).scalar() or 0)
         return rows, total, total_bytes
-
-    async def get_owned_batch(self, ids: list[uuid.UUID], user_id: uuid.UUID) -> list[Attachment]:
-        """The rows of ``ids`` this user owns, whatever their status.
-
-        Unlike :meth:`get_batch_for_user`, no status filter: a person deletes a
-        file of theirs even once it is marked expired.
-
-        Args:
-            ids: Candidate ids.
-            user_id: Owner.
-
-        Returns:
-            The owned rows; a missing or foreign id is simply absent.
-        """
-        from sqlalchemy import select as _select
-
-        if not ids:
-            return []
-        statement = (
-            _select(Attachment)
-            .where(Attachment.id.in_(ids), Attachment.user_id == user_id)
-            .execution_options(populate_existing=True)
-        )
-        return list((await self.db.execute(statement)).scalars())

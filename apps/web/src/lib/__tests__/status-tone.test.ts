@@ -343,4 +343,8 @@ describe('skillTraitTone', () => {
       expect(skillTraitTone(trait)).toBe('secondary');
     }
   });
+
+  it('greys a dormant skill: grey says inactive, nothing else', () => {
+    expect(skillTraitTone('dormant')).toBe('secondary');
+  });
 });

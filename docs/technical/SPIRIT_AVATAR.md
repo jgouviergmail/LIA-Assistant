@@ -176,7 +176,11 @@ The legacy compact Spirit clips are not the selected-message rendering path.
 
 Hybrid mouths and eyebrows use the native sculpted contours; Bip retains its
 digital mouth on the emissive visor. A body-alpha boundary contains moving eyes
-and mouth, while eyebrows remain in a sibling layer. Curved teeth and tongue
+and mouth, while eyebrows remain in a sibling layer. That layer never crosses an
+eye: a brow keeps its authored place wherever it clears the painted eye, and
+otherwise stops a line of skin above the eye's visible top — the texture's
+transparent margin and the lowered lid included (ADR-294, follow-up of
+2026-11-12). Curved teeth and tongue
 are clipped by the current cavity rather than a fixed rectangle. The facial
 writer refreshes newly added anatomy when the mouth projection changes, so a
 live Bip-to-Oscar switch keeps the same rig and still animates its teeth.
@@ -213,9 +217,19 @@ surface and are unchanged.
 
 The existing [`useEyesBehavior`](../../apps/web/src/components/eyes/useEyesBehavior.ts)
 selects the companion's expression and reactions. Its `speaking` state comes
-from existing audio playback; the procedural mouth is expressive speech motion,
-not phoneme synchronization or additional TTS. Comments, Live and Live direct
-use the same speaking pose. Live output keeps priority over delayed input captions
+from existing audio playback, and the mouth opens on the level of the voice
+actually heard: one door,
+[`voice-envelope.ts`](../../apps/web/src/lib/audio/voice-envelope.ts), tapped by
+the comment queue, the Live player and a WebRTC session's own sink, a parallel
+analyser that leaves the sound path untouched, read as the person hears the sound
+when the face shows it (the output latency back, less the face's own delay). The
+procedural speech keeps the shape of the words and takes the opening over whenever
+nothing is heard, a tap that never hears a sound included; this is not phoneme
+synchronization, and it adds no TTS. Comments, Live and Live direct
+use the same speaking pose. A face that speaks looks at the person: its gaze holds,
+no line is read while a voice plays, and an answer's presentation or its « à toi » is
+dropped when the voice starts (ADR-294, follow-up of 2026-11-14). Live
+output keeps priority over delayed input captions
 and tool progress until playback stops; an interruption, standby or session end
 releases it. A WebRTC speaking hint received before the remote track is kept for
 local playback, while a captured or Simli-routed output follows actual playout.
@@ -293,7 +307,9 @@ its stationary iris masks still contain independent pupil travel.
 [`physical-prop-writer`](../../apps/web/src/components/eyes/volume/physical-prop-writer.ts)
 projects the worn freezing laurel and temple/eye drops on the same surface.
 Floating environmental motifs retain their
-own stage anchors. Layout landmarks calibrate each character and variant.
+own stage anchors. Layout landmarks calibrate each character and variant, and
+each head has its own laurel seat: worn on top of the head, its bands on the
+painted edge, the whole crown above the face (ADR-294, 2026-11-13).
 
 [`volume-binding`](../../apps/web/src/components/eyes/volume/volume-binding.ts)
 receives viewport, document and reduced-motion state from the native rig owner.
@@ -338,6 +354,26 @@ bytes and SHA-256 for each prop plus the pack total. The
 checks exact inventory, dimensions, WebP alpha declarations, hashes and delivery
 budgets against the actual files, including the wider scarf canvas.
 
+The weather also happens around the face (ADR-294, follow-up of 2026-11-13):
+a cloud rains on the umbrella, snow falls from its own cloud, a gust crosses,
+a breath leaves the mouth, and an ordinary day has its sky
+([`SkyAccessories`](../../apps/web/src/components/eyes/AmbientAccessories.tsx),
+by day only). Those drawings are vector files under `/avatars/sky/v1/`, installed
+by the sheet only once the rig announces their weather; their
+[guard](../../apps/web/src/components/eyes/__tests__/sky-assets.test.ts) holds the
+inventory, refuses any script, link or animation of their own, and bounds their
+weight. Every particle moves on the rig's own phases (`ambientMotion`), never on
+a keyframe.
+
+And the weather is lived (same ADR, follow-up of the same day): the first drop of
+a rain lands on the head before the umbrella opens, the first flake of a snow is
+pursued by the eyes to the root of the nose, the cold brings a shiver and a clear,
+mild day the sun on the face
+([weather scenes](../../apps/web/src/components/eyes/rig/weather-scenes.ts)). The
+drop and the flake are seated per head on the paint (`HEAD_TOPS`, `FLAKE_YS` in
+[layout profiles](../../apps/web/src/components/eyes/layout-profiles.ts)), and drawn
+from the same files as the rain and the snow.
+
 The current cold scarf has its own versioned delivery under
 `/avatars/scarf/v1/`. Its transparent `front.webp` supplies the native garments
 and their fitted fallback. `knit.webp` remains an offline
@@ -354,13 +390,21 @@ checks both actual textures, manifest hashes, alpha declarations and pack budget
 
 There are no eager `img` sources or inline background URLs. The stylesheet
 installs a bitmap only when its name appears in `data-weather-props`, which the
-native writer derives from the context channels. Snow shares one still across
+native writer derives from the context channels. The same announcement puts the
+slot in the style tree: without it the slot is `display: none`, because a slot
+held at zero opacity is still restyled on every frame the rig writes
+([ADR-294](../architecture/ADR-294-A-Face-That-Never-Plays-The-Same-Twice.md),
+follow-up of 2026-11-11). Snow shares one still across
 edge slots `a`, `b` and `c` under a single native fall wrapper; the face centre
 remains free. Fan, sweat and snow motion use the existing ambient channels,
 not timers or a second frame loop. These slots are decorative, ignore pointer
 input and are omitted when `life=false`, including historical portraits.
 The cold fallback uses the calibrated garment declaration until all required
 live layers are ready; the live material is not a second canvas or clock.
+Once the native cloth draws the scarf (`data-volume-scarf-ready`), the fallback
+leaves the style tree (`display: none`, not `visibility: hidden`): kept in it,
+its facets were restyled on every frame. It returns, in step, the instant the
+cloth is lost.
 
 The props consume the existing
 [`companion environment`](../../apps/web/src/components/eyes/useCompanionEnvironment.ts)

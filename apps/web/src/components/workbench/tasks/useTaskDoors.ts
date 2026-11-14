@@ -12,7 +12,7 @@ import type { WorkbenchTaskActs } from '@/hooks/useWorkbenchTaskActs';
 import type { WorkbenchTasksState } from '@/hooks/useWorkbenchTasks';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
-import type { DueTask, DueTasks, WorkbenchTask, WorkbenchTaskList } from '@/lib/workbench/types';
+import type { ViewTask, ViewTasks, WorkbenchTask, WorkbenchTaskList } from '@/lib/workbench/types';
 
 import type { TaskSelection } from './useTaskSelection';
 
@@ -21,7 +21,7 @@ export interface TaskDoorsOptions {
   acts: WorkbenchTaskActs;
   state: WorkbenchTasksState;
   selection: TaskSelection;
-  viewRead: WorkbenchItemState<DueTasks>;
+  viewRead: WorkbenchItemState<ViewTasks>;
   openList: WorkbenchTaskList | null;
   confirm: UseConfirmReturn['confirm'];
   /** Says a refusal. */
@@ -37,7 +37,7 @@ export interface TaskDoors {
   clearDone: () => Promise<void>;
   removeSelected: () => Promise<void>;
   moveOpen: (task: WorkbenchTask, destination: string) => Promise<void>;
-  completeDue: (task: DueTask) => void;
+  completeDue: (task: ViewTask) => void;
 }
 
 export function useTaskDoors({

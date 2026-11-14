@@ -24,6 +24,7 @@ import pytest
 from sqlalchemy.dialects import postgresql
 
 from src.domains.workboard.board_queries import BoardFilters, needs_me_stmt
+from src.domains.workboard.category_repository import WorkboardCategoryRepository
 from src.domains.workboard.constants import STATUS_ORDER
 from src.domains.workboard.repository import WorkboardRepository
 
@@ -292,3 +293,68 @@ class TestNeedsMe:
         sql = _sql(needs_me_stmt(USER, datetime(2026, 9, 9, tzinfo=UTC)))
         waiting_clause = sql[sql.index("'waiting'") :]
         assert "assignee_user_id" in waiting_clause or "owner_user_id" in waiting_clause
+
+
+class TestCategoryFilter:
+    def test_named_categories_narrow_the_board(self) -> None:
+        wanted = uuid.uuid4()
+        sql = _sql(_repo().filtered_stmt(USER, BoardFilters(categories=(wanted,))))
+        assert "workboard_tickets.category_id IN (" in sql
+        assert str(wanted) in sql
+
+    def test_unfiled_reads_the_null(self) -> None:
+        sql = _sql(_repo().filtered_stmt(USER, BoardFilters(uncategorized=True)))
+        assert "workboard_tickets.category_id IS NULL" in sql
+
+    def test_both_together_widen_never_contradict(self) -> None:
+        """« Home, and what is not filed yet » is a union: an AND of the two
+        would match nothing at all, silently."""
+        sql = _sql(
+            _repo().filtered_stmt(
+                USER, BoardFilters(categories=(uuid.uuid4(),), uncategorized=True)
+            )
+        )
+        narrowed = sql.split("category_id IN", 1)[1]
+        assert " OR " in narrowed
+        assert "category_id IS NULL" in narrowed
+
+    def test_no_category_asked_adds_no_predicate(self) -> None:
+        where = _sql(_repo().filtered_stmt(USER, BoardFilters())).split("WHERE", 1)[1]
+        assert "category_id" not in where
+
+
+class TestLaneCounts:
+    """One aggregate per board read: every lane, every column, the page's filter."""
+
+    def test_it_groups_by_lane_and_column_over_the_page_filter(self) -> None:
+        filtered = _repo().filtered_stmt(USER, BoardFilters(overdue=True))
+        sql = _sql(WorkboardCategoryRepository(AsyncMock()).lane_counts_stmt(filtered))
+        assert "GROUP BY workboard_tickets.category_id, workboard_tickets.status" in sql
+        assert "due_at <" in sql, "the lane counts must carry the page's own filter"
+        assert "owner_user_id = " in sql
+        assert "assignee_user_id = " in sql
+        assert "ORDER BY" not in sql
+
+    def test_the_visible_categories_are_mine_and_those_of_tickets_i_hold(self) -> None:
+        sql = _sql(WorkboardCategoryRepository(AsyncMock()).visible_stmt(USER))
+        assert "workboard_categories.owner_user_id = " in sql
+        assert "workboard_tickets.assignee_user_id = " in sql
+        assert "category_id IS NOT NULL" in sql
+
+    def test_the_readers_own_lanes_come_first_in_a_total_order(self) -> None:
+        sql = _sql(WorkboardCategoryRepository(AsyncMock()).visible_stmt(USER))
+        order = sql.split("ORDER BY", 1)[1]
+        assert order.index("owner_user_id") < order.index("position") < order.rindex(".id")
+
+
+class TestCategoryNames:
+    """A ticket's category name, for the surfaces that show it off the board."""
+
+    def test_only_a_category_on_the_readers_board_can_be_named(self) -> None:
+        """An id from anywhere else answers nothing: the name is its owner's text."""
+        wanted = {uuid.uuid4(), uuid.uuid4()}
+        sql = _sql(WorkboardCategoryRepository(AsyncMock()).names_stmt(USER, wanted))
+        assert "workboard_categories.id IN" in sql
+        assert "workboard_categories.owner_user_id = " in sql
+        assert "workboard_tickets.assignee_user_id = " in sql
+        assert "ORDER BY" not in sql

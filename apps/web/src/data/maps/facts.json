@@ -1,7 +1,7 @@
 {
-  "version": "4.6.0",
-  "releaseDate": "2026-11-10",
-  "releases": 296,
+  "version": "5.0.0",
+  "releaseDate": "2026-11-14",
+  "releases": 297,
   "milestones": [
     {
       "version": "1.0.0",
@@ -282,10 +282,14 @@
     {
       "version": "4.6.0",
       "date": "2026-11-10"
+    },
+    {
+      "version": "5.0.0",
+      "date": "2026-11-14"
     }
   ],
-  "domains": 62,
-  "infra": 55,
+  "domains": 63,
+  "infra": 57,
   "adrFiles": {
     "1": "ADR-001-LangGraph-Orchestration.md",
     "2": "ADR-002-BFF-Pattern-Authentication.md",
@@ -661,6 +665,17 @@
     "374": "ADR-374-JEV-Retirements-Declared-Thresholds-And-Durable-Statistics.md",
     "375": "ADR-375-Learned-Usage-Becomes-Proposals.md",
     "376": "ADR-376-A-Card-Opens-Its-Record-In-The-Tools-On-A-Signed-Proof-Of-Its-Source.md",
-    "377": "ADR-377-The-Account-Chooses-How-The-Interface-Is-Drawn.md"
+    "377": "ADR-377-The-Account-Chooses-How-The-Interface-Is-Drawn.md",
+    "378": "ADR-378-Permanent-Main-And-Isolated-Discussion-Runtimes.md",
+    "379": "ADR-379-A-Listed-Mail-Says-Whether-It-Was-Answered.md",
+    "380": "ADR-380-A-Persons-Time-Travels-With-Its-Zone.md",
+    "381": "ADR-381-A-Model-Reads-When-Each-Message-Was-Written.md",
+    "382": "ADR-382-The-Instance-Searches-The-Web-For-Who-Has-No-Key.md",
+    "383": "ADR-383-A-Draft-Speaks-In-The-Persons-Voice.md",
+    "384": "ADR-384-A-Message-Written-While-LIA-Works-Waits-Its-Turn.md",
+    "385": "ADR-385-A-Note-Joins-The-Answer-Being-Written.md",
+    "386": "ADR-386-A-Signed-Call-Starts-A-Routine.md",
+    "387": "ADR-387-A-Watched-Page-Is-Read-Without-A-Model.md",
+    "388": "ADR-388-Documents-Use-What-Their-Formats-Can-Do.md"
   }
 }

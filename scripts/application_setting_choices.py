@@ -18,6 +18,8 @@ PATHS = {
     "theme": "settings.theme.{value}",
     "font_family": "settings.font.fonts.{value}.label",
     "exchange_rhythm": "settings.usage_preferences.exchange_rhythm.options.{value}.label",
+    "document_illustrations": "settings.documents.illustrations.options.{value}.label",
+    "document_animations": "settings.documents.animations.options.{value}.label",
     "execution_mode": "workboard.execution_mode.{value}",
     "voice_stt_mode": "settings.voice_mode.stt_mode_{value}",
     "response_display_mode": "settings.preferences.display_mode.modes.{value}.label",

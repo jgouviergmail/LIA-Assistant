@@ -217,7 +217,9 @@ describe('LiveBanner', () => {
     const store = useLiveStore.getState();
     store.begin('a'.repeat(32));
     store.apply('minted');
-    const { rerender } = renderWithProviders(<LiveBanner session={session} onStopAll={vi.fn()} />);
+    const { rerender, unmount } = renderWithProviders(
+      <LiveBanner session={session} onStopAll={vi.fn()} />
+    );
     expect(toast.success).not.toHaveBeenCalled();
     act(() => store.apply('setup_complete'));
     expect(toast.success).toHaveBeenCalledWith('live.toast.started');
@@ -227,6 +229,10 @@ describe('LiveBanner', () => {
       store.apply('setup_complete');
     });
     rerender(<LiveBanner session={session} onStopAll={vi.fn()} />);
+    expect(toast.success).toHaveBeenCalledTimes(1);
+    // Selecting a different discussion remounts the banner with the same session.
+    unmount();
+    renderWithProviders(<LiveBanner session={session} onStopAll={vi.fn()} />);
     expect(toast.success).toHaveBeenCalledTimes(1);
     // A new session greets again.
     act(() => {

@@ -5,7 +5,7 @@ this store on every action via _emit_progressive_screenshot. The streaming layer
 saves the last screenshot as an Attachment and includes the URL in done metadata
 so the frontend renders it as a card below the assistant message.
 
-Pattern: Identical to image_store.py (module-level dict + threading.Lock).
+The shared pending-card store keeps one payload and registers its run's cleanup.
 
 Phase: evolution — Browser Progressive Screenshots
 Created: 2026-03-26
@@ -13,15 +13,13 @@ Created: 2026-03-26
 
 from __future__ import annotations
 
-import threading
-
+from src.domains.shared.pending_cards import PendingCards
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
 # Module-level store: conversation_id → last JPEG bytes
-_last_screenshot: dict[str, bytes] = {}
-_lock = threading.Lock()
+_last_screenshot: PendingCards[bytes] = PendingCards("browser_screenshot")
 
 
 def store_last_browser_screenshot(conversation_id: str, jpeg_bytes: bytes) -> None:
@@ -34,8 +32,7 @@ def store_last_browser_screenshot(conversation_id: str, jpeg_bytes: bytes) -> No
         conversation_id: Conversation thread_id (from configurable).
         jpeg_bytes: Full-resolution JPEG bytes (1280x720, quality 80).
     """
-    with _lock:
-        _last_screenshot[conversation_id] = jpeg_bytes
+    _last_screenshot.replace(conversation_id, jpeg_bytes)
 
 
 def get_and_clear_last_screenshot(conversation_id: str) -> bytes | None:
@@ -49,8 +46,8 @@ def get_and_clear_last_screenshot(conversation_id: str) -> bytes | None:
     Returns:
         JPEG bytes of the last screenshot, or None if no screenshot was taken.
     """
-    with _lock:
-        data = _last_screenshot.pop(conversation_id, None)
+    queued = _last_screenshot.take(conversation_id)
+    data = queued[-1] if queued else None
 
     if data:
         logger.debug(

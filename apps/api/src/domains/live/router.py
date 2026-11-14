@@ -237,6 +237,7 @@ async def start_session(
         display_name=resolve_user_display_name(user.full_name, user.email),
         mode=(payload or LiveSessionStartRequest()).mode,
         audio_transport=(payload or LiveSessionStartRequest()).audio_transport,
+        selection=payload or LiveSessionStartRequest(),
     )
 
 

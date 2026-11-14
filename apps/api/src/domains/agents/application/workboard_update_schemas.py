@@ -23,6 +23,7 @@ from src.domains.workboard.schemas import MoveRequest, TicketUpdate
 class WorkboardMoveInput(MoveRequest):
     model_config = ConfigDict(extra="forbid", frozen=True)
     position: StrictInt = Field(ge=0)
+    clear_category: StrictBool = False
 
 
 class WorkboardUpdateInput(TicketUpdate):
@@ -30,6 +31,7 @@ class WorkboardUpdateInput(TicketUpdate):
     ticket_id: UUID
     clear_start_at: StrictBool = False
     clear_due_at: StrictBool = False
+    clear_category: StrictBool = False
     follow: StrictBool | None = None
     move: WorkboardMoveInput | None = None
     run_now: StrictBool = False
@@ -67,6 +69,9 @@ class WorkboardUpdateSelection(BaseModel):
     pending_after: bool
     pending_approved: bool
     holder_name: str | None
+    #: The NAME of the category the update files the ticket under; None when
+    #: it names none. The rows before and after only hold an id.
+    category_name: str | None = None
     owner_id: UUID
     requires_peers: bool
     statuses: tuple[str, ...]
@@ -88,6 +93,7 @@ class WorkboardUpdateSelection(BaseModel):
             "pending_action_discarded": after and self.pending_before and not self.pending_after,
             "lia_may_run_later": after and self.after.get("assignee_kind") == "lia",
             "holder_name": self.holder_name,
+            "category_name": self.category_name,
             "run_requested": after and self.request.run_now,
             "update_requested": after,
         }

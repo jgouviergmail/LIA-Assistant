@@ -3,7 +3,8 @@
 Everything the renderer writes goes through a NAMED style, redefined once from
 ``typography``: a reader can then restyle the whole document from Word's own
 gallery, which is what makes a .docx a document rather than a picture of one.
-Direct formatting appears nowhere.
+Direct formatting is kept to what no style can say: the size measured for one
+band of key figures, a source's hanging entry, the date's grey, a cover's drop.
 """
 
 from __future__ import annotations
@@ -18,6 +19,8 @@ from src.domains.document_generation.renderers import docx_ooxml as ooxml
 
 #: The style the renderer creates for a callout, since Word has no such style.
 CALLOUT_STYLE = "Callout"
+#: Heading levels large enough to wear the accent (18 and 14 pt bold).
+_ACCENT_HEADING_LEVELS = 2
 #: Styles whose face and East-Asian fallback are set on every document.
 _FACED_STYLES: tuple[str, ...] = (
     "Normal",
@@ -46,23 +49,25 @@ def _define_body(styles: Any) -> None:
     normal.paragraph_format.widow_control = True
 
 
-def _define_title(styles: Any) -> None:
+def _define_title(styles: Any, palette: typography.Palette) -> None:
     title = styles["Title"]
     title.font.size = Pt(typography.DOCX_TITLE_PT)
-    title.font.color.rgb = RGBColor.from_string(typography.INK)
-    ooxml.recolor_title_rule(title, typography.RULE)
+    title.font.color.rgb = RGBColor.from_string(palette.title_ink)
+    ooxml.recolor_title_rule(title, palette.rule)
     subtitle = styles["Subtitle"]
     subtitle.font.size = Pt(typography.DOCX_SUBTITLE_PT)
     subtitle.font.color.rgb = RGBColor.from_string(typography.MUTED)
     subtitle.font.italic = False
 
 
-def _define_headings(styles: Any) -> None:
+def _define_headings(styles: Any, palette: typography.Palette) -> None:
     for level, size in typography.DOCX_HEADING_PT.items():
         heading = styles[f"Heading {level}"]
         heading.font.size = Pt(size)
         heading.font.bold = True
-        heading.font.color.rgb = RGBColor.from_string(typography.HEADING_INK)
+        # The accent is for LARGE type: the two largest levels only.
+        ink = palette.heading_ink if level <= _ACCENT_HEADING_LEVELS else typography.HEADING_INK
+        heading.font.color.rgb = RGBColor.from_string(ink)
     toc_heading = styles["TOC Heading"]
     toc_heading.font.color.rgb = RGBColor.from_string(typography.HEADING_INK)
 
@@ -78,7 +83,7 @@ def _define_notes(styles: Any) -> None:
     quote.paragraph_format.left_indent = Cm(typography.DOCX_QUOTE_INDENT_CM)
 
 
-def _define_callout(document: Any) -> None:
+def _define_callout(document: Any, palette: typography.Palette) -> None:
     """Word has no callout style: one is created, shaded and ruled."""
     styles = document.styles
     if CALLOUT_STYLE in {style.name for style in styles}:
@@ -88,8 +93,8 @@ def _define_callout(document: Any) -> None:
     callout.paragraph_format.left_indent = Cm(typography.DOCX_CALLOUT_INDENT_CM)
     callout.paragraph_format.space_before = Pt(typography.DOCX_SPACE_AFTER_PT)
     callout.paragraph_format.space_after = Pt(typography.DOCX_SPACE_AFTER_PT + 4)
-    ooxml.shade_paragraph_style(callout, typography.BAND)
-    ooxml.left_border_style(callout, typography.MUTED)
+    ooxml.shade_paragraph_style(callout, palette.wash)
+    ooxml.left_border_style(callout, palette.marker)
 
 
 def _define_toc_entries(document: Any) -> None:
@@ -106,13 +111,16 @@ def _define_toc_entries(document: Any) -> None:
         entry.paragraph_format.space_after = Pt(2)
 
 
-def define_styles(document: Any, *, numbered: bool) -> None:
-    """Redefine every style the renderer uses, neutrally.
+def define_styles(
+    document: Any, *, numbered: bool, palette: typography.Palette = typography.PALETTES[""]
+) -> None:
+    """Redefine every style the renderer uses, in the document's tone.
 
     Args:
         document: A fresh python-docx document.
         numbered: Whether the long-document apparatus is on, which adds the
             heading numbering definition.
+        palette: The tone's palette; the neutral one keeps every style grey.
     """
     styles = document.styles
     for name in _FACED_STYLES:
@@ -120,10 +128,10 @@ def define_styles(document: Any, *, numbered: bool) -> None:
         style.font.name = typography.FONT_BODY
         ooxml.set_east_asian_font(style, typography.FONT_EAST_ASIA)
     _define_body(styles)
-    _define_title(styles)
-    _define_headings(styles)
+    _define_title(styles, palette)
+    _define_headings(styles, palette)
     _define_notes(styles)
-    _define_callout(document)
+    _define_callout(document, palette)
     _define_toc_entries(document)
     ooxml.detach_toc_heading(document)
     if numbered:

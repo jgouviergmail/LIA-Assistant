@@ -7,9 +7,10 @@
  *     resolves in the six locales, every key is the one the component really
  *     calls, every group is the group the page puts the section in. A table
  *     that drifts is a search that lies about where things are;
- *  2. the GATES mirror each component's own guard. Over-filtering is the
- *     failure mode nobody notices: the section is right there and the search
- *     says it does not exist;
+ *  2. the GATES are each section's door: the pane mounts nothing a decidable
+ *     gate rules out. Over-filtering is the failure mode nobody notices — a
+ *     section still readable would be listed nowhere — so a gate names a
+ *     capability only where the switch closes every route of the section;
  *  3. the MATCHING, checked twice — once against a stub translator, so the
  *     ranking rules are pinned independently of any wording, and once against
  *     the REAL six dictionaries, so the recall claims ("mot de passe finds
@@ -53,6 +54,15 @@ const ALL_AVAILABLE: SettingsSearchAvailability = {
   liveEnabled: true,
   avatarEnabled: true,
   radioEnabled: true,
+  channelsEnabled: true,
+  psycheEnabled: true,
+  journalsEnabled: true,
+  skillsEnabled: true,
+  mcpEnabled: true,
+  ragSpacesEnabled: true,
+  imageGenerationEnabled: true,
+  telephonyEnabled: true,
+  hapticsSupported: true,
   debugUserAccess: true,
 };
 
@@ -97,7 +107,7 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // 54 since the meetings section (ADR-258) joined Features / Extensions &
     // Data (2026-09-02).
     // 57 since the workboard section joined Features / Extensions & Data
-    // (ADR-276): it is the board's only door, D15 giving it no header slot.
+    // (ADR-276): it was the board's only door then, D16 giving it no header slot.
     // 56 since the reminders section joined Features / Automation & Tracking
     // (2026-09-06): reminders can repeat, and a schedule someone configured
     // once must be visible and changeable without asking for it in prose.
@@ -130,7 +140,14 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // design, rename, delete.
     // 69: Mes SMS follows Meetings, gated by the SMS platform capability.
     // 70: personal proactive discussions retain their controls with production off.
-    expect(TOKENS).toHaveLength(70);
+    // 69 again (owner, 2026-11-11): the workboard's section left the settings —
+    // the board is a destination of the header and its figures stand above
+    // its own filters.
+    // 70 (ADR-383): the writing style LIA learned from the sent mail, beside the memories.
+    // 71 (2026-11-13): « Documents » joined Preferences / Voice & Media, next to
+    // image generation — whether LIA illustrates the documents it creates and
+    // animates the decks.
+    expect(TOKENS).toHaveLength(71);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(
@@ -237,7 +254,6 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
         'sms',
         'telephony-calls',
         'telephony-identity',
-        'workboard',
       ].sort()
     );
   });
@@ -277,10 +293,157 @@ describe('isSectionAvailable', () => {
     expect(isSectionAvailable({ kind: 'runtime', reason: 'x' }, ALL_AVAILABLE)).toBe(true);
   });
 
+  it('rules a runtime-gated section out where its capability is closed', () => {
+    // What IS knowable here: a router that refuses every route under the
+    // switch. « Empty today » stays undecidable, « closed » does not.
+    const gate = { kind: 'runtime', reason: 'x', flag: 'telephonyEnabled' } as const;
+
+    expect(isSectionAvailable(gate, ALL_AVAILABLE)).toBe(true);
+    expect(isSectionAvailable(gate, { ...ALL_AVAILABLE, telephonyEnabled: false })).toBe(false);
+  });
+
+  it('follows the device for a section only some devices can offer', () => {
+    const gate = { kind: 'deviceHaptics' } as const;
+
+    expect(isSectionAvailable(gate, ALL_AVAILABLE)).toBe(true);
+    expect(isSectionAvailable(gate, { ...ALL_AVAILABLE, hapticsSupported: false })).toBe(false);
+  });
+
   it('reserves administration sections for superusers', () => {
     const gate = { kind: 'superuser' } as const;
     expect(isSectionAvailable(gate, ALL_AVAILABLE)).toBe(false);
     expect(isSectionAvailable(gate, { ...ALL_AVAILABLE, isSuperuser: true })).toBe(true);
+  });
+
+  it('holds an administration section of a capability to that capability too', () => {
+    // The administrator who switched the skills off is the one who would open
+    // « System skills » on a refusal: both conditions, never one.
+    const gate = { kind: 'superuser', flag: 'skillsEnabled' } as const;
+    const admin = { ...ALL_AVAILABLE, isSuperuser: true };
+
+    expect(isSectionAvailable(gate, ALL_AVAILABLE)).toBe(false);
+    expect(isSectionAvailable(gate, admin)).toBe(true);
+    expect(isSectionAvailable(gate, { ...admin, skillsEnabled: false })).toBe(false);
+  });
+});
+
+/**
+ * Every route of these routers refuses once the operator switched the
+ * capability off, reads included (`capability_dependencies` on the ROUTER):
+ * the section can show nothing but that refusal. The index gate is the
+ * section's door — the pane mounts nothing the gate rules out — so the
+ * section is absent from the rail, the overview, the search, the shortcuts
+ * picker and the world's catalogue at once.
+ */
+describe('a section whose routes the operator can close is behind its capability', () => {
+  const SECTION_FLAGS = [
+    ['channels', 'channelsEnabled'],
+    ['psyche', 'psycheEnabled'],
+    ['journals', 'journalsEnabled'],
+    ['skills', 'skillsEnabled'],
+    ['mcp-servers', 'mcpEnabled'],
+    ['rag-spaces', 'ragSpacesEnabled'],
+    ['image-generation', 'imageGenerationEnabled'],
+    ['telephony-identity', 'telephonyEnabled'],
+    ['telephony-calls', 'telephonyEnabled'],
+  ] as const;
+  const ADMIN_SECTION_FLAGS = [
+    ['admin-skills', 'skillsEnabled'],
+    ['rag-spaces-admin', 'ragSpacesEnabled'],
+  ] as const;
+
+  it.each(SECTION_FLAGS)('%s is listed only where %s says so', (token, flag) => {
+    const listed = (availability: SettingsSearchAvailability) =>
+      buildSettingsSearchIndex(echo, availability).map(entry => entry.token);
+
+    expect(listed(ALL_AVAILABLE)).toContain(token);
+    expect(listed({ ...ALL_AVAILABLE, [flag]: false })).not.toContain(token);
+  });
+
+  it.each(ADMIN_SECTION_FLAGS)('%s needs a superuser AND %s', (token, flag) => {
+    const admin = { ...ALL_AVAILABLE, isSuperuser: true };
+    const listed = (availability: SettingsSearchAvailability) =>
+      buildSettingsSearchIndex(echo, availability).map(entry => entry.token);
+
+    expect(listed(admin)).toContain(token);
+    expect(listed({ ...admin, [flag]: false })).not.toContain(token);
+    expect(listed(ALL_AVAILABLE)).not.toContain(token);
+  });
+
+  it('closes one capability at a time: its sections go, the others stay', () => {
+    const admin = { ...ALL_AVAILABLE, isSuperuser: true };
+    const every = buildSettingsSearchIndex(echo, admin).map(entry => entry.token);
+
+    const without = buildSettingsSearchIndex(echo, { ...admin, skillsEnabled: false }).map(
+      entry => entry.token
+    );
+
+    expect(every.filter(token => !without.includes(token)).sort()).toEqual([
+      'admin-skills',
+      'skills',
+    ]);
+  });
+
+  it('closes telephony whole: the number and the history go, the connectors stay', () => {
+    const listed = (availability: SettingsSearchAvailability) =>
+      buildSettingsSearchIndex(echo, availability).map(entry => entry.token);
+    const every = listed(ALL_AVAILABLE);
+
+    const without = listed({ ...ALL_AVAILABLE, telephonyEnabled: false });
+
+    expect(every.filter(token => !without.includes(token)).sort()).toEqual([
+      'telephony-calls',
+      'telephony-identity',
+    ]);
+    expect(without).toContain('connectors');
+  });
+
+  it('keeps the call history undecidable where telephony is offered', () => {
+    // No call placed yet: the section renders nothing, and nothing here can
+    // know it. The capability is the part of its absence the index can read.
+    expect(SETTINGS_SEARCH_META['telephony-calls'].gate).toMatchObject({
+      kind: 'runtime',
+      flag: 'telephonyEnabled',
+    });
+  });
+
+  it('keeps the phone number undecidable too: under the switch it shows a stored number alone', () => {
+    // The number is a record (ADR-280): the section stays where telephony is
+    // mounted, and renders nothing when the switch is off and no number is kept.
+    expect(SETTINGS_SEARCH_META['telephony-identity'].gate).toMatchObject({
+      kind: 'runtime',
+      flag: 'telephonyEnabled',
+    });
+  });
+
+  it('leaves the voices of the assistant listed: their route is open under the switch', () => {
+    // `/voice/lia-voices` stays readable whatever the speech switches say and
+    // tells the page whether LIA speaks: the section is no door of a capability.
+    expect(SETTINGS_SEARCH_META['voice-mode'].gate.kind).toBe('always');
+  });
+
+  it('leaves the instance MCP servers listed: their routes are not closed by the switch', () => {
+    // `/mcp/admin-servers` carries no capability dependency: the per-account
+    // toggles stay readable, and the section vanishes by itself where the
+    // instance declares no server.
+    expect(SETTINGS_SEARCH_META['admin-mcp-servers'].gate.kind).toBe('runtime');
+  });
+});
+
+describe('a section only some devices can offer', () => {
+  it('lists the haptic feedback only where the device can vibrate', () => {
+    // iOS WebKit does not implement the Vibration API: the section rendered nothing
+    // there while the rail, the overview, the search and the picker listed it.
+    const listed = (availability: SettingsSearchAvailability) =>
+      buildSettingsSearchIndex(echo, availability).map(entry => entry.token);
+
+    expect(SETTINGS_SEARCH_META.haptics.gate).toEqual({ kind: 'deviceHaptics' });
+    const everywhere = listed(ALL_AVAILABLE);
+    const withoutVibration = listed({ ...ALL_AVAILABLE, hapticsSupported: false });
+
+    expect(everywhere).toContain('haptics');
+    // The device rules out its own section, and nothing else.
+    expect(everywhere.filter(token => !withoutVibration.includes(token))).toEqual(['haptics']);
   });
 });
 

@@ -35,7 +35,7 @@ class ChannelAgentRequest:
 @dataclass(frozen=True)
 class ChannelAssistantGateway:
     stream: Callable[[ChannelAgentRequest], AsyncGenerator[ChannelStreamChunk]]
-    pending: Callable[[str], Awaitable[dict[str, object] | None]]
+    pending: Callable[[UUID, str], Awaitable[dict[str, object] | None]]
     confirmation_text: Callable[[str], str]
 
 

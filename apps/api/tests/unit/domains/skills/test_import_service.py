@@ -29,8 +29,9 @@ from src.domains.skills.import_service import (
     SkillImportService,
     validate_skill_name,
 )
+from tests.helpers.account_file_writes import account_writer_sql_stub as account_writer_sql_stub
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("account_writer_sql_stub")]
 
 _OWNER = uuid4()
 
@@ -343,6 +344,7 @@ class TestImportFilesEndToEnd:
         db = MagicMock()
         db.commit = AsyncMock()
         db.execute = AsyncMock()
+        db.scalar = AsyncMock(return_value=_OWNER)
         svc = SkillImportService(db=db)
         no_desc = "---\nname: nodesc\n---\n\n# NoDesc\nbody\n"
         settings = MagicMock(
@@ -374,6 +376,7 @@ class TestImportFilesEndToEnd:
         db = MagicMock()
         db.commit = AsyncMock()
         db.execute = AsyncMock()
+        db.scalar = AsyncMock(return_value=_OWNER)
         svc = SkillImportService(db=db)
         self._mock_repo(svc)
         settings = MagicMock(
@@ -422,6 +425,7 @@ class TestImportFilesEndToEnd:
         db = MagicMock()
         db.commit = AsyncMock()
         db.execute = AsyncMock()
+        db.scalar = AsyncMock(return_value=_OWNER)
         svc = SkillImportService(db=db)
         self._mock_repo(svc)
         settings = MagicMock(

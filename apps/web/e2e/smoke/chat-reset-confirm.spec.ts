@@ -59,7 +59,7 @@ test.describe('reset conversation confirmation', () => {
     await page.goto('/fr/dashboard/chat');
     await page.locator('textarea').first().waitFor({ state: 'visible' });
 
-    await page.getByRole('button', { name: 'Supprimer' }).click();
+    await page.getByRole('button', { name: 'Réinitialiser' }).click();
 
     // The dialog is in-app (an OS confirm would never appear in the DOM) and
     // announces itself as an alert dialog — an irreversible choice must
@@ -100,7 +100,7 @@ test.describe('reset conversation confirmation', () => {
     await page.goto('/fr/dashboard/chat');
     await page.locator('textarea').first().waitFor({ state: 'visible' });
 
-    await page.getByRole('button', { name: 'Supprimer' }).click();
+    await page.getByRole('button', { name: 'Réinitialiser' }).click();
     const dialog = page.getByRole('alertdialog');
     await dialog.getByRole('button', { name: 'Annuler' }).click();
 
@@ -120,7 +120,7 @@ test.describe('reset conversation confirmation', () => {
 
     await page.goto('/fr/dashboard/chat');
     await page.locator('textarea').first().waitFor({ state: 'visible' });
-    await page.getByRole('button', { name: 'Supprimer' }).click();
+    await page.getByRole('button', { name: 'Réinitialiser' }).click();
 
     const dialog = page.getByRole('alertdialog');
     await expect(dialog).toBeVisible();

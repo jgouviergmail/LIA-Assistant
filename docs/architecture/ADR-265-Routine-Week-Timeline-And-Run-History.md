@@ -162,3 +162,211 @@ the run.
 The slot may then carry two rows. The week keeps the LAST started one — the tick that holds
 the routine — since the fold reads the rows oldest first. Guard:
 `test_a_settle_whose_reservation_was_taken_meanwhile_leaves_the_routine_alone`.
+
+## Amendment 2026-11-12 — a routine that does not run says so
+
+Three silences, read in the executor on 2026-11-12:
+
+- a routine failed, and its owner was told nothing: the result push is sent only when there is an
+  answer, so a failure reached the person as nothing at all;
+- after its failures in a row the repository paused the routine (`mark_execution_failure`) with a
+  log line and no word to anybody;
+- the usage pre-check returned before any settle — no row, no re-arm, the routine left `executing`
+  until the stale recovery freed it, then refused again — and a ceiling met INSIDE the turn
+  (`RunOutcome.QUOTA_BLOCKED`) was filed as a `failure`, so a series of ceiling refusals paused a
+  routine that had nothing wrong with it.
+
+One reader of a failing routine already existed, and stays: the nightly usage proposal
+`fix_routine` (ADR-375) offers to open the routines of an account whose routine keeps failing.
+It speaks the following night, on the proposals page; what follows speaks when the tick ends.
+
+**Decision.**
+
+1. **A failure is announced once per series, and once more when it pauses the routine**
+   (`scheduled_action_notices.failure_notice`): the first failure, then silence — the person
+   knows — then the pause. A run the person started is waited for, and always says how it ended.
+   The verdict is read from the row `mark_execution_failure` returns: the threshold keeps one
+   owner.
+2. **A ceiling refusal is not a failure** (ADR-272), on both doors — the pre-check and the turn's
+   own refusal: the routine is re-armed on its clock, nothing counts toward the pause, and the
+   reason is written where each kind of routine keeps its history. A TIME routine's slot gets a
+   row, `skipped_quota` (the seventh outcome, migration `1e2baddce0fe`). A CONDITION routine
+   writes no row — a refused check would write one per check, the rule of ADR-322 — and says it
+   on its ledger: `last_check_error = quota_blocked`, which its card already reads. The check
+   itself is not made: it costs what its source bills (a weather watch), and the ceiling bounds
+   that too. The ceiling is asked of an AUTHORIZED tick only: one that lost its reservation, or
+   a chat launch whose approved instruction changed meanwhile (ADR-335), neither runs nor
+   settles, so it leaves no reason on the week either — the order is pinned on PostgreSQL by
+   `test_application_routine_execution.py`.
+3. **The ceiling's notice is the ACCOUNT's.** The ceiling blocks every routine of an account at
+   once; one notice per routine would be a burst. It is claimed atomically (`SET NX EX`) once per
+   window (`SCHEDULED_ACTIONS_QUOTA_NOTICE_COOLDOWN_HOURS`), after the commit — nothing is held
+   while the cache answers (ADR-304) — and it fails CLOSED: without the cache nobody is told,
+   where failing open would tell at every tick of every routine.
+4. **A notice is a status report, not an act of LIA's own initiative**: it leaves through
+   `NotificationDispatcher` like the proposal of a propose-first routine (archive, push, SSE,
+   external channels), reads the dispatch's verdict for its log line, and files no register row
+   (owner decision 2026-10-30). Every notice is sent AFTER the tick's outcome is committed.
+
+**Rejected.** A ceiling notice per routine (a burst). A window counted from the run rows (a
+condition routine writes none, so the window would differ by kind of routine). Evaluating a
+condition past the ceiling to tell the person only when a fact was waiting (the check is billed).
+Releasing the claim when a dispatch reaches no durable channel (the archive IS the durable
+channel; its failure is a database failure the next window covers).
+
+**Along the way.** The executor stood just under its size cap: what a routine TELLS its owner
+(result, proposal, notices) moved to `scheduled_action_notices.py`, the tick's housekeeping to
+`scheduled_action_housekeeping.py`, and a tick's six facts travel in one `_Tick`.
+
+Guards: `tests/unit/infrastructure/scheduler/test_scheduled_action_notices.py`,
+`TestAFailedRoutineSaysSo` and `TestTheUsageCeilingStandsARoutineAside`
+(`test_scheduled_action_executor.py`), and on PostgreSQL
+`tests/integration/domains/scheduled_actions/test_quota_stand_aside_pg.py` and
+`test_run_outcome_migrations_pg.py`.
+
+## Amendment 2026-11-12 (b) — an occurrence is caught up inside its window
+
+Two ways a time routine answered at the wrong moment, or not at all, read in the executor
+on 2026-11-12:
+
+- the scheduler claims every row whose `next_trigger_at` is past, with no lower bound: an
+  occurrence was run however late it was reached — a morning routine answered at 14:00
+  after an outage;
+- an account found busy re-armed the routine on its NEXT occurrence (`rearm_after`), like
+  every other exit: a daily routine was lost for a day because its owner was typing at
+  08:00, or because two routines of one account were due the same minute (the second P1 of
+  the cold review of 2026-11-12).
+
+**Decision.**
+
+1. **An occurrence runs late only inside its catch-up window**: half the gap to the
+   occurrence that follows it, capped by `SCHEDULED_ACTIONS_CATCH_UP_MAX_MINUTES`
+   (`TriggerPlan.catch_up_deadline`). The routine's own rhythm says when its occurrence is
+   stale. An occurrence nothing follows — the last of a series, a single one — is never
+   given up: running it late is all that is left of what the person asked for.
+2. **Given up, it says so, and the freshest occurrence is armed.** Its slot carries
+   `skipped_late` (the eighth outcome, migration `7a3c9e51d4b8`), nothing counts toward the
+   pause, and nobody is notified — an outage that skipped five routines would answer with
+   five notices. The routine re-arms on the MOST RECENT occurrence when it may still start
+   (an outage ending twenty minutes after today's slot serves today, at the scheduler's next
+   pass), else on the next one (`TriggerPlan.after_missed`). An occurrence whose successor
+   has already come is past its window by construction — the window is at most half the
+   gap — so the most recent one is the only candidate, found by walking back from now
+   (`core.recurrence.latest_occurrence`), never forward through every instant of the outage.
+3. **A busy account is waited for, inside the same window.** The occurrence stays armed on
+   the SAME instant and no row is written: the scheduler's next pass finds it due again.
+   When the next pass would start past the window, the attempt is the last: the slot
+   carries `skipped_busy` and the routine re-arms on the next occurrence. The last
+   occurrence of a series is waited for the maximum as well — an account busy for hours is
+   not a turn under way.
+4. **What is left as it was.** A question waiting in the chat (`skipped_hitl`) is not waited
+   for: it lasts as long as the person takes. A ceiling refusal (`skipped_quota`) is not
+   retried: a ceiling does not lift in minutes. A condition routine has no occurrence: a
+   missed check is missed.
+5. **A run the person started is never given up as missed.** « Run now » and a run asked
+   in the chat DECLARE it at the call site (`execute_single_action(started_by_person=True)`):
+   who started a run cannot be read off the pending slot — a slot can be overdue because
+   the scheduler was down, which is exactly when a person clicks. The click is the
+   person's act, so the slot's age is never a reason to do nothing; the slot it serves,
+   when one was due, keeps its wait for a busy account.
+
+**Bound.** A waited occurrence is claimed again at every pass, oldest first: the due
+routines of one stuck account take at most `SCHEDULED_ACTIONS_MAX_PER_USER` of the
+`SCHEDULED_ACTIONS_BATCH_SIZE` slots of a pass, for at most their window.
+
+**Rejected.** One `skipped_late` row per occurrence an outage skipped (a routine every
+five minutes would write hundreds at restart; only the occurrence that was pending is
+written). A per-routine window (no screen asks for it yet; the operator's maximum is the
+one knob). A column holding the last reason an occurrence waited (the reason is known at
+the attempt that closes the wait, which is the one that writes).
+
+Guards: `tests/unit/domains/scheduled_actions/test_catch_up.py`,
+`tests/unit/core/recurrence/test_latest_occurrence.py`,
+`TestAnOccurrenceIsCaughtUpInsideItsWindow` (`test_scheduled_action_executor.py`), and on
+PostgreSQL `tests/integration/domains/scheduled_actions/test_catch_up_pg.py` and
+`test_run_outcome_migrations_pg.py`.
+
+## Amendment 2026-11-12 (c) — a routine may notify only when a run found something new
+
+A routine notified its owner at every run, whether or not the run had anything to say: a
+monitoring routine answered « nothing to report » on a phone every morning. The condition
+routines (ADR-322) already fire on a new FACT the system can see; what was missing is the
+routine whose own instruction decides whether there is something to say.
+
+**Decision.**
+
+1. **The option holds back the notification, never the run or its record.**
+   `scheduled_actions.notify_only_when_new` (migration `b6e2f48a1c93`): the routine runs, its
+   answer is archived in the conversation and counted on the week as any run, and the push
+   and the on-screen message are not sent when the run declared it found nothing new.
+2. **The answering model declares it, by a machine tag.** Whether an answer says anything
+   new is known to the model that wrote it and to nothing else. It appends
+   `<lia_nothing_new/>` after its answer — the shape the tone register travels in (ADR-253):
+   declared with the other machine tags, kept out of the token stream and of the stored
+   answer, handed to the `done` chunk, read by the engine (`RunResult.nothing_new`) and then
+   by the executor. No second call judges the answer, and no marker is ever shown.
+3. **The instruction is given only inside such a run** (`nothing_new.quiet_run_scope`,
+   published by the engine from `StreamRequest.quiet_when_nothing_new`): an ordinary chat
+   turn is never taught the tag and its prompt does not grow; a tag written outside such a
+   run is removed and declares nothing.
+4. **Doubt notifies.** No tag, a tag cut short, a turn without its `done` chunk, a failed
+   run: the owner is told, as before. Silence is the one outcome that needs a complete
+   declaration, and a failure notice never reads the option.
+   **And a run with something to admit is never « nothing new »**, whatever its model
+   declares: a step that failed, a search cut short, a step left unrun. The prompt says
+   it; the code makes sure of it (ADR-303) — the seam that assembles what an answer must
+   admit about its own run (`build_run_honesty_block`) voids the declaration
+   (`nothing_new.note_run_admission`) before the model is even asked.
+   **A platform degradation is no failure of the run.** What the diagnostics advisor
+   reports is told to the model beside the failures, and voids nothing: the number of
+   THIS turn's failures is one function (`failure_context.count_turn_failures`), read by
+   the directive as its total and by this guard. Found on dev on 2026-11-12 by the
+   measurement bench's dry run, before any model was asked: one open incident on the
+   instance's disk made the failures block non-empty, and that alone voided every quiet
+   routine's silence.
+5. **Never with « ask me before running ».** A proposal IS a notification, so the option
+   would be stored and never read (ADR-184 pointing the other way): one rule
+   (`schemas.delivery_refusal`) refuses the pair at creation and, on the RESULTING row, at
+   update; the form switches the option off and leaves it unavailable. An update that
+   sends the option as `null` is refused (422): the column holds a boolean.
+
+**Along the way.** The response node and the stream that assembles `done` are frozen at
+their size: both now call one function each in `services/answer_annotations.py`, which
+composes the tone register and this declaration — a third declaration grows neither.
+
+**Measured (2026-11-13).** How reliably the answering model writes the tag when it
+should, and only then, is a property of the configured models. The bench,
+`task routines:quiet:measure` (`apps/api/scripts/routines/measure_quiet_delivery.py`),
+asks five routine runs whose data is stated — a search that found nothing, one that found
+something, a watched condition unmet, met, and what the previous run already reported —
+in both execution modes (the pipeline's data, and the answer of the ReAct loop a routine
+runs by default), through the response node's own functions inside `quiet_run_scope`:
+the prompt is production's, instruction included, and the declaration is read by the
+production seam. The platform is stated too (nothing degraded): a live degradation reaches
+the answers — dev's open disk alert did — and would be one more variable. The column to
+read first is the missed notification, a silence where the owner had to be told.
+
+Three families × two modes × five scenarios × five runs, 0.60 € in all:
+
+| Instruction | Missed notifications | Needless notifications |
+|---|---|---|
+| First wording (« nothing new or noteworthy ») | 0 | 34 of 60 |
+| Judged against the routine's own instruction, with examples outside the bench | 0 | 20 of 60 |
+| The same, plus a reminder in the last message | **5** | 0 |
+
+The second wording ships: two families stay silent exactly when they should (20 of 20
+each), the third never writes the tag — the safe failure, its owner notified as before.
+The reminder in the last message made that third family write the tag on an overdue task
+too: rejected, since one missed notification costs more than every needless one.
+
+**Rejected.** A marker in the visible text (the person would read it, and every surface
+would have to hide it). A second model call classifying the answer (a cost per run, and a
+second opinion on what the first model already knows). Comparing an answer with the
+previous one in code (two wordings of the same facts differ). Hiding the run from the chat
+(a switch removes a capability, never the record — ADR-280).
+
+Guards: `tests/unit/domains/agents/services/test_nothing_new.py` and
+`test_answer_annotations.py`, `TestARoutineToldToNotifyOnlyOfSomethingNew` in
+`test_out_of_turn_run.py` and in `test_scheduled_action_executor.py`,
+`TestARoutineIsToldOnlyOfSomethingNewOrProposesFirst` (`test_service.py`), and the form in
+`ScheduledActionsSettings.test.tsx`.

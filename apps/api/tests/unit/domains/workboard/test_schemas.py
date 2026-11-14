@@ -20,6 +20,8 @@ import pytest
 from pydantic import ValidationError
 
 from src.domains.workboard.schemas import (
+    CategoryCreate,
+    CategoryUpdate,
     CommentCreate,
     MoveRequest,
     TicketCreate,
@@ -83,12 +85,18 @@ class TestReparentingIsNotOffered:
 class TestUnknownFieldsAreRefused:
     @pytest.mark.parametrize(
         "model",
-        [TicketCreate, TicketUpdate, CommentCreate, MoveRequest],
+        [TicketCreate, TicketUpdate, CommentCreate, MoveRequest, CategoryCreate, CategoryUpdate],
     )
     def test_a_typo_is_a_refusal_not_a_silent_no_op(self, model: type) -> None:
         """Without ``extra='forbid'``, ``{"prioriy": "high"}`` would be accepted
         and change nothing — the caller believing they were obeyed."""
-        payload: dict[str, object] = {"title": "t", "body": "b", "status": "todo", "position": 0}
+        payload: dict[str, object] = {
+            "title": "t",
+            "body": "b",
+            "status": "todo",
+            "position": 0,
+            "name": "n",
+        }
         payload["definitely_not_a_field"] = 1
         with pytest.raises(ValidationError):
             model(**payload)
@@ -101,3 +109,44 @@ class TestMoveRequest:
 
     def test_position_zero_is_the_top_of_a_column(self) -> None:
         assert MoveRequest(status="todo", position=0).position == 0
+
+
+class TestCategoryIsSetOrCleared:
+    """A ticket's category has three states too: set, left alone, removed."""
+
+    @pytest.mark.parametrize("model", [TicketUpdate, MoveRequest])
+    def test_setting_and_clearing_in_one_request_is_refused(self, model: type) -> None:
+        payload: dict[str, object] = {"category_id": uuid.uuid4(), "clear_category": True}
+        if model is MoveRequest:
+            payload.update(status="todo", position=0)
+        with pytest.raises(ValidationError):
+            model(**payload)
+
+    def test_clearing_alone_is_accepted(self) -> None:
+        assert TicketUpdate(clear_category=True).category_id is None
+        assert MoveRequest(status="todo", position=0, clear_category=True).clear_category is True
+
+    def test_a_move_says_nothing_about_the_category_by_default(self) -> None:
+        """A drag inside one lane must not un-file the ticket it moves."""
+        move = MoveRequest(status="todo", position=0)
+        assert move.category_id is None and move.clear_category is False
+
+    def test_a_ticket_may_be_created_straight_into_a_category(self) -> None:
+        category = uuid.uuid4()
+        assert TicketCreate(title="t", category_id=category).category_id == category
+
+
+class TestCategoryWrites:
+    def test_an_empty_patch_is_refused(self) -> None:
+        """A request that changes nothing is a caller that believes it did."""
+        with pytest.raises(ValidationError):
+            CategoryUpdate()
+
+    def test_a_name_or_a_position_alone_is_a_patch(self) -> None:
+        assert CategoryUpdate(name="Home").position is None
+        assert CategoryUpdate(position=0).name is None
+
+    @pytest.mark.parametrize("model", [CategoryCreate, CategoryUpdate])
+    def test_a_negative_position_is_refused(self, model: type) -> None:
+        with pytest.raises(ValidationError):
+            model(name="Home", position=-1)

@@ -26,7 +26,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.attachments.gallery_queries import GalleryFilters, build_gallery_statement
-from src.domains.attachments.models import Attachment, AttachmentContentType, AttachmentOrigin
+from src.domains.attachments.models import (
+    Attachment,
+    AttachmentContentType,
+    AttachmentOrigin,
+    AttachmentStatus,
+)
 from tests.fixtures.factories import UserFactory
 
 pytestmark = pytest.mark.integration
@@ -65,6 +70,7 @@ async def _asset(
         file_size=size,
         file_path=f"/data/{uuid.uuid4()}",
         content_type=AttachmentContentType.IMAGE,
+        status=AttachmentStatus.READY,
         origin=origin.value,
         title=title,
         created_at=created_at,

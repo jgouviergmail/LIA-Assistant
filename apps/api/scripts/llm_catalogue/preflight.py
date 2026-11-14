@@ -151,11 +151,11 @@ async def _run() -> int:
         return 1
 
     # Every model this instance can reach for. The per-slot models already
-    # came from settings; summarisation and the failover chain are settings
-    # too, and reading their code defaults here answered for the CODE on the
-    # one question the whole report exists to ask of an INSTANCE.
+    # came from settings; the failover chain is a setting too, and reading
+    # its code default here answered for the CODE on the one question the
+    # whole report exists to ask of an INSTANCE. The summarizer names no
+    # model of its own: it writes with the ``compaction`` slot, read below.
     referenced = {o.model for o in overrides if o.model}
-    referenced.add(settings.summarization_model)
     referenced.update(p.strip() for p in settings.fallback_models.split(",") if p.strip())
     for slot in LLM_TYPES_REGISTRY:
         config = get_llm_config_for_agent(settings, slot)
@@ -166,8 +166,7 @@ async def _run() -> int:
     print(f"instance check at {today} -- {len(rows)} active models, {len(overrides)} DB overrides")
     # The database is the target's; everything else is this process's
     # environment. Printing what it assumed is what lets a reader tell the two
-    # apart -- these three lines must match the instance being checked.
-    print(f"    env: summarisation={settings.summarization_model}")
+    # apart -- these two lines must match the instance being checked.
     print(f"    env: failover={settings.fallback_models}")
     print(f"    env: {len(LLM_TYPES_REGISTRY)} slots, {len(referenced)} models referenced in all")
     problems = 0

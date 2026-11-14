@@ -1,7 +1,6 @@
 """DocumentGenerationService: LLM -> render -> attachment -> pending store (ADR-226)."""
 
 import uuid
-from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -12,8 +11,9 @@ from src.domains.document_generation.schemas import (
     TableSheet,
     TabularContent,
 )
-
-_ATTACHMENT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+from tests.helpers.attachment_publication import CapturingAttachmentRepository as _FakeRepo
+from tests.helpers.attachment_publication import publication_session as _fake_db_context
+from tests.helpers.run_authority import unit_run_authority
 
 
 @pytest.fixture
@@ -25,37 +25,6 @@ def tabular_result() -> TabularContent:
     )
 
 
-class _FakeAttachment:
-    """Row double carrying only what the service reads back."""
-
-    def __init__(self, expires_at: datetime) -> None:
-        self.id = _ATTACHMENT_ID
-        self.expires_at = expires_at
-
-
-class _FakeRepo:
-    """Captures the create() payload; boundary shape preserved."""
-
-    created: dict = {}
-
-    def __init__(self, db: object) -> None:
-        self._db = db
-
-    async def create(self, payload: dict) -> _FakeAttachment:
-        type(self).created = dict(payload)
-        return _FakeAttachment(expires_at=payload["expires_at"])
-
-
-class _FakeDb:
-    async def commit(self) -> None:
-        return None
-
-
-@asynccontextmanager
-async def _fake_db_context():
-    yield _FakeDb()
-
-
 @pytest.mark.unit
 async def test_generate_csv_end_to_end(tmp_path, monkeypatch, tabular_result) -> None:
     from src.core.config import settings as app_settings
@@ -64,16 +33,19 @@ async def test_generate_csv_end_to_end(tmp_path, monkeypatch, tabular_result) ->
 
     from src.domains.document_generation import service as svc
 
-    _FakeRepo.created = {}
+    _FakeRepo.snapshot = {}
+    user_id, conversation_id = uuid.uuid4(), uuid.uuid4()
+    runtime_id = str(uuid.uuid4())
     with (
-        patch.object(svc, "AttachmentRepository", _FakeRepo),
+        unit_run_authority(user_id, conversation_id, uuid.UUID(runtime_id)),
+        patch("src.domains.attachments.file_publication.AttachmentFileRepository", _FakeRepo),
         patch.object(svc, "get_db_context", _fake_db_context),
         patch.object(svc, "_call_document_llm", AsyncMock(return_value=tabular_result)),
     ):
-        user_id = uuid.uuid4()
         result = await svc.generate_document_for_user(
             user_id=user_id,
-            conversation_id="conv-svc-1",
+            conversation_id=str(conversation_id),
+            delivery_runtime_id=runtime_id,
             doc_type=DocumentType.CSV,
             instructions="liste des modèles",
             source_data="",
@@ -85,15 +57,16 @@ async def test_generate_csv_end_to_end(tmp_path, monkeypatch, tabular_result) ->
 
     assert result.filename == "modeles-llm.csv"
     assert result.doc_type == "csv"
-    assert result.url == f"/api/v1/attachments/{_ATTACHMENT_ID}"
+    assert result.url == f"/api/v1/attachments/{_FakeRepo.snapshot['id']}"
     assert result.truncated_source is False
 
-    created = _FakeRepo.created
+    created = _FakeRepo.snapshot
     assert created["mime_type"] == "text/csv"
     assert created["content_type"] == "document"
     assert created["status"] == "ready"
     assert created["original_filename"] == "modeles-llm.csv"
     assert created["user_id"] == user_id
+    assert created["conversation_id"] == conversation_id
     # TTL comes from settings, timezone-aware.
     assert created["expires_at"].tzinfo is not None
     assert created["expires_at"] > datetime.now(UTC)
@@ -109,7 +82,8 @@ async def test_generate_csv_end_to_end(tmp_path, monkeypatch, tabular_result) ->
         get_and_clear_pending_documents,
     )
 
-    pending = get_and_clear_pending_documents("conv-svc-1")
+    assert get_and_clear_pending_documents(str(conversation_id)) == []
+    pending = get_and_clear_pending_documents(runtime_id)
     assert len(pending) == 1
     assert pending[0].doc_type == "csv"
     assert pending[0].filename == "modeles-llm.csv"
@@ -127,7 +101,7 @@ async def test_requested_filename_wins_and_is_sanitized(
     from src.domains.document_generation import service as svc
 
     with (
-        patch.object(svc, "AttachmentRepository", _FakeRepo),
+        patch("src.domains.attachments.file_publication.AttachmentFileRepository", _FakeRepo),
         patch.object(svc, "get_db_context", _fake_db_context),
         patch.object(svc, "_call_document_llm", AsyncMock(return_value=tabular_result)),
     ):
@@ -172,7 +146,7 @@ async def test_source_data_truncation_flagged(tmp_path, monkeypatch, tabular_res
         return tabular_result
 
     with (
-        patch.object(svc, "AttachmentRepository", _FakeRepo),
+        patch("src.domains.attachments.file_publication.AttachmentFileRepository", _FakeRepo),
         patch.object(svc, "get_db_context", _fake_db_context),
         patch.object(svc, "_call_document_llm", AsyncMock(side_effect=_fake_llm)),
     ):
@@ -210,7 +184,7 @@ async def test_renderer_failure_propagates_no_pending_card(
     from src.domains.document_generation import service as svc
 
     with (
-        patch.object(svc, "AttachmentRepository", _FakeRepo),
+        patch("src.domains.attachments.file_publication.AttachmentFileRepository", _FakeRepo),
         patch.object(svc, "get_db_context", _fake_db_context),
         patch.object(svc, "_call_document_llm", AsyncMock(return_value=tabular_result)),
         patch.object(svc, "render_document", side_effect=RuntimeError("render boom")),
@@ -258,7 +232,7 @@ async def test_the_structured_door_receives_the_owner() -> None:
         patch.object(svc, "get_llm", lambda _type: object()),
         patch.object(svc, "get_llm_config_for_agent", lambda *_: MagicMock(provider="openai")),
         patch.object(
-            svc, "load_document_prompt", lambda *_: "{language}|{instructions}|{source_data}"
+            svc, "document_prompt_template", lambda *_: "{language}|{instructions}|{source_data}"
         ),
     ):
         await svc._call_document_llm(
@@ -328,7 +302,7 @@ async def test_the_renderer_receives_the_readers_own_context(
         return b"x"
 
     with (
-        patch.object(svc, "AttachmentRepository", _FakeRepo),
+        patch("src.domains.attachments.file_publication.AttachmentFileRepository", _FakeRepo),
         patch.object(svc, "get_db_context", _fake_db_context),
         patch.object(svc, "_call_document_llm", AsyncMock(return_value=tabular_result)),
         patch.object(svc, "render_document", _fake_render),
@@ -356,3 +330,107 @@ async def test_the_renderer_receives_the_readers_own_context(
     )
 
     get_and_clear_pending_documents("conv-ctx")
+
+
+@pytest.mark.unit
+async def test_the_pictures_drawn_for_the_normalized_deck_reach_the_renderer(
+    tmp_path, monkeypatch
+) -> None:
+    """Drawn after the writer, for what the renderer will draw, and reported."""
+    from src.core.config import settings as app_settings
+    from src.core.document_preferences import DocumentPreferences
+    from src.domains.document_generation import service as svc
+    from src.domains.document_generation.illustrations import IllustrationReport
+    from src.domains.document_generation.pictures import Picture
+    from src.domains.document_generation.schemas import Illustration, Slide, SlideContent
+
+    monkeypatch.setattr(app_settings, "attachments_storage_path", str(tmp_path))
+    deck = SlideContent(
+        filename_stem="deck",
+        title="  Deck  ",
+        illustration=Illustration(subject="  a city "),
+        slides=[Slide(title="t", bullets=["a"])],
+    )
+    preferences = DocumentPreferences(images_allowed=True)
+    picture = Picture(b"jpeg", 10, 10)
+    report = IllustrationReport(requested=1, drawn=1)
+    seen: dict = {}
+
+    async def _fake_draw(content, wanted, *, user_id):
+        seen["drawn_for"] = content
+        seen["wanted"] = wanted
+        return {"cover:a city": picture}, report
+
+    def _fake_render(doc_type, content, context):
+        seen["context"] = context
+        return b"x"
+
+    llm = AsyncMock(return_value=deck)
+    with (
+        patch("src.domains.attachments.file_publication.AttachmentFileRepository", _FakeRepo),
+        patch.object(svc, "get_db_context", _fake_db_context),
+        patch.object(svc, "_call_document_llm", llm),
+        patch.object(svc, "draw_illustrations", _fake_draw),
+        patch.object(svc, "render_document", _fake_render),
+    ):
+        result = await svc.generate_document_for_user(
+            user_id=uuid.uuid4(),
+            conversation_id="conv-pictures",
+            doc_type=DocumentType.PPTX,
+            instructions="i",
+            source_data="",
+            requested_filename="",
+            language="en",
+            timezone="UTC",
+            config=None,
+            preferences=preferences,
+        )
+
+    assert llm.call_args.kwargs["preferences"] == preferences
+    # The pictures are asked for the NORMALIZED deck: what the renderer will draw.
+    assert seen["drawn_for"].title == "Deck"
+    assert seen["drawn_for"].illustration == Illustration(subject="a city")
+    assert seen["wanted"] == preferences
+    assert dict(seen["context"].pictures) == {"cover:a city": picture}
+    assert result.illustrations == report
+
+    from src.domains.document_generation.document_store import (
+        get_and_clear_pending_documents,
+    )
+
+    get_and_clear_pending_documents("conv-pictures")
+
+
+@pytest.mark.unit
+async def test_a_document_asking_for_no_picture_reports_none(
+    tmp_path, monkeypatch, tabular_result
+) -> None:
+    from src.core.config import settings as app_settings
+    from src.domains.document_generation import service as svc
+    from src.domains.document_generation.illustrations import IllustrationReport
+
+    monkeypatch.setattr(app_settings, "attachments_storage_path", str(tmp_path))
+    with (
+        patch("src.domains.attachments.file_publication.AttachmentFileRepository", _FakeRepo),
+        patch.object(svc, "get_db_context", _fake_db_context),
+        patch.object(svc, "_call_document_llm", AsyncMock(return_value=tabular_result)),
+    ):
+        result = await svc.generate_document_for_user(
+            user_id=uuid.uuid4(),
+            conversation_id="conv-none",
+            doc_type=DocumentType.CSV,
+            instructions="i",
+            source_data="",
+            requested_filename="",
+            language="en",
+            timezone="UTC",
+            config=None,
+        )
+
+    assert result.illustrations == IllustrationReport()
+
+    from src.domains.document_generation.document_store import (
+        get_and_clear_pending_documents,
+    )
+
+    get_and_clear_pending_documents("conv-none")

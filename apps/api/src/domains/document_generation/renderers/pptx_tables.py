@@ -23,7 +23,7 @@ from src.domains.document_generation.fit import (
 )
 from src.domains.document_generation.renderers import pptx_geometry as geometry
 from src.domains.document_generation.schemas import TableSheet
-from src.domains.document_generation.tables import ColumnType, chunk_rows, infer_column_types
+from src.domains.document_generation.tables import chunk_rows
 
 #: Shortest column width used when sizing by content, in characters.
 _MIN_WEIGHT = 4
@@ -70,14 +70,17 @@ def _column_weights(sheet: TableSheet) -> list[float]:
     ]
 
 
-def add_table(slide: Any, sheet: TableSheet, types: list[ColumnType]) -> Any:
+def add_table(
+    slide: Any, sheet: TableSheet, numeric: list[bool], *, bold_row: int | None = None
+) -> Any:
     """Place one chunk as a native table, header row included.
 
     Args:
         slide: The "Title Only" slide receiving the table.
         sheet: Headers plus the rows of THIS chunk.
-        types: Column types of the WHOLE table, so alignment stays consistent
-            across the chunks.
+        numeric: Which columns of the WHOLE table are numbers, so alignment
+            stays consistent across the chunks.
+        bold_row: The index, in this chunk, of the totals row when it holds it.
 
     Returns:
         The graphic frame holding the table.
@@ -104,19 +107,14 @@ def add_table(slide: Any, sheet: TableSheet, types: list[ColumnType]) -> Any:
     for index, weight in enumerate(weights):
         table.columns[index].width = int(Inches(geometry.TABLE_WIDTH_IN) * weight / total)
     for column, header in enumerate(sheet.headers):
-        _cell(table.cell(0, column), header, font_pt, bold=True, right=types[column].numeric)
-    for row_index, row in enumerate(sheet.rows, start=1):
+        _cell(table.cell(0, column), header, font_pt, bold=True, right=numeric[column])
+    for row_index, row in enumerate(sheet.rows):
         for column, value in enumerate(row):
             _cell(
-                table.cell(row_index, column),
+                table.cell(row_index + 1, column),
                 value,
                 font_pt,
-                bold=False,
-                right=types[column].numeric,
+                bold=row_index == bold_row,
+                right=numeric[column],
             )
     return shape
-
-
-def column_types(sheet: TableSheet) -> list[ColumnType]:
-    """The whole table's column types, computed once for every chunk."""
-    return infer_column_types(sheet.headers, sheet.rows)

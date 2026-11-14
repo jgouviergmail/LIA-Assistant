@@ -3,6 +3,7 @@
  * `domains/live/schemas.py`. A change on one side is a change on both.
  */
 import { RELAY_OUTCOMES } from '@/types/telephony';
+import type { ConversationSelection } from '@/types/conversation';
 
 /**
  * Every way a session ends — a RUNTIME list so the labels guard can walk it
@@ -273,7 +274,7 @@ export interface LiveOfferResponse {
 export type LiveVoiceExpression = 'prose' | 'cues';
 
 /** `POST /live/sessions` — everything the browser needs to open the session. */
-export interface LiveSessionStart extends LiveCredential {
+export interface LiveSessionStart extends LiveCredential, ConversationSelection {
   session_id: string;
   provider: string;
   model: string;

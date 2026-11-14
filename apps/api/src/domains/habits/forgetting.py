@@ -18,6 +18,7 @@ from src.domains.habits.models import (
     UserHabitProfile,
 )
 from src.domains.habits.schemas import HabitsDeleteAllResponse
+from src.domains.users.extraction_consent import invalidate_extractions
 from src.domains.users.preference_cas import PreferenceWriteReceipt
 from src.domains.users.repository import UserRepository
 
@@ -62,6 +63,7 @@ async def forget_habit_data(
     if expected is not None and actual != expected:
         raise ResourceConflictError("habits", detail={"error_code": "STALE_STATE"})
     # Proposals go with what they were learned from, refusals included (ADR-375).
+    invalidate_extractions(actor)
     for model in (UserHabit, UserHabitProfile, UserActivityDay, HabitProposal):
         await db.execute(delete(model).where(model.user_id == actor_id))
     await db.flush()

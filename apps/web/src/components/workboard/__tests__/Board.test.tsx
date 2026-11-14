@@ -11,48 +11,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, renderWithProviders, screen, within } from '@/__tests__/test-utils';
 import { Board, type BoardProps } from '@/components/workboard/Board';
 import type { TicketRow } from '@/types/workboard';
+import { makeTicket } from '@/__tests__/factories';
 
 const wide = vi.hoisted(() => ({ value: true }));
 vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => wide.value }));
 
 function ticket(id: string, status: string, position = 0): TicketRow {
-  return {
+  return makeTicket({
     id,
     owner_user_id: 'me',
-    parent_id: null,
     title: `Ticket ${id}`,
-    description: null,
     status,
-    priority: 'medium',
-    start_at: null,
-    due_at: null,
-    assignee_kind: 'human',
-    assignee_user_id: null,
     effective_assignee_id: 'me',
     position,
-    follow_owner: false,
-    follow_assignee: false,
-    created_by: 'user',
-    status_changed_at: '2026-09-09T10:00:00Z',
-    run_count: 0,
-    run_claimed_at: null,
-    last_run_at: null,
-    last_run_outcome: null,
-    last_run_error: null,
-    last_run_tokens_in: null,
-    last_run_tokens_out: null,
-    last_run_tokens_cache: null,
-    last_run_google_requests: null,
-    last_run_cost_eur: null,
-    created_at: '2026-09-09T10:00:00Z',
-    execution_mode: 'react',
-    total_tokens_in: 0,
-    total_tokens_out: 0,
-    total_tokens_cache: 0,
-    total_google_requests: 0,
-    total_cost_eur: 0,
-    updated_at: '2026-09-09T10:00:00Z',
-  };
+  });
 }
 
 const ROWS: Record<string, TicketRow[]> = {
@@ -112,6 +84,21 @@ describe('from lg up', () => {
     render({ onStatusChange: vi.fn(), onAssigneeChange: vi.fn() });
 
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  });
+
+  it('never makes the card a button: its own buttons must stay reachable', () => {
+    // The WHOLE card is what is picked up, and it holds the control that opens
+    // the ticket and the one that opens its menu. A `button` hides what is
+    // inside it from assistive technology, so the card is a named GROUP that
+    // can be picked up — measured with axe in a browser (nested-interactive).
+    render();
+
+    for (const card of screen.getAllByTestId('ticket-card')) {
+      expect(card).toHaveAttribute('role', 'group');
+      expect(card).toHaveAttribute('aria-roledescription');
+      expect(card).toHaveAttribute('tabindex', '0');
+      expect(within(card).getAllByRole('button').length).toBeGreaterThan(0);
+    }
   });
 
   it('shows the six columns inside ONE horizontal scroller', () => {

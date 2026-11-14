@@ -98,6 +98,10 @@ class TestContentFieldsConstants:
         assert "task_list_id" in PRESERVED_FIELDS["task"]
         assert "task_list_id" in PRESERVED_FIELDS["task_update"]
 
+    def test_a_new_task_keeps_the_name_of_the_list_it_goes_in(self):
+        """The card names the list: a rewrite of the draft must not lose it (2026-11-10)."""
+        assert "task_list_name" in PRESERVED_FIELDS["task"]
+
     def test_event_preserved_fields_include_timezone(self):
         """Test that event types preserve timezone."""
         assert "timezone" in PRESERVED_FIELDS["event"]

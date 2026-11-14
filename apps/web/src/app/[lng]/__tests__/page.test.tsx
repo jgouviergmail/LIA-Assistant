@@ -15,7 +15,6 @@ import { describe, expect, it, vi } from 'vitest';
 // Server sections → synchronous markers (the page awaits them as RSC).
 vi.mock('@/components/seo/JsonLd', () => ({
   SoftwareApplicationJsonLd: () => <div data-testid="jsonld-software" />,
-  HowToJsonLd: () => <div data-testid="jsonld-howto" />,
 }));
 vi.mock('@/components/landing/AuthRedirect', () => ({
   AuthRedirect: () => <div data-testid="auth-redirect" />,
@@ -141,7 +140,6 @@ describe('HomePage (cosmos landing)', () => {
     expect(screen.getByTestId('track-view')).toHaveAttribute('data-event', 'landing_view');
     // SEO structured data present.
     expect(screen.getByTestId('jsonld-software')).toBeInTheDocument();
-    expect(screen.getByTestId('jsonld-howto')).toBeInTheDocument();
     // No preview tooling chrome survives the swap.
     expect(container.querySelector('nav[aria-label="Prévisualisations Cosmos"]')).toBeNull();
   });
@@ -162,7 +160,7 @@ describe('HomePage (cosmos landing)', () => {
     expect(metadata.alternates?.canonical).toBe(`${base}/`);
     expect(metadata.alternates?.languages).toMatchObject({
       fr: `${base}/`,
-      en: `${base}/en/`,
+      en: `${base}/en`,
       'x-default': `${base}/`,
     });
     expect(metadata.title).toBeTruthy();
@@ -181,7 +179,7 @@ describe('HomePage (cosmos landing)', () => {
     expect(metadata.alternates?.canonical).toBe('/');
     expect(metadata.alternates?.languages).toMatchObject({
       fr: '/',
-      en: '/en/',
+      en: '/en',
       'x-default': '/',
     });
     vi.unstubAllEnvs();

@@ -115,6 +115,7 @@ def runtime(monkeypatch):
             parent_run_id="run-1",
             previous_turn_injected_ids=[str(note_id)] if previous else [],
             **options,
+            user_timezone=None,
         )
 
     return SimpleNamespace(
@@ -462,7 +463,8 @@ async def test_latest_human_turn_remains_whole_but_older_messages_are_bounded():
             HumanMessage(content="y" * 1100),
             AIMessage(content="A prior answer."),
             HumanMessage(content=latest),
-        ]
+        ],
+        zone=UTC,
     )
     assert latest in text
     assert "y" * 1100 not in text

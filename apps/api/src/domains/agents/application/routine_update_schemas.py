@@ -16,12 +16,14 @@ class RoutineUpdateChanges(ScheduledActionUpdate):
     model_config = ConfigDict(extra="forbid", frozen=True)
     condition_config: RoutineCondition | None = None
     requires_approval: StrictBool | None = None
+    notify_only_when_new: StrictBool | None = None
 
     @field_validator(
         "title",
         "action_prompt",
         "trigger_kind",
         "requires_approval",
+        "notify_only_when_new",
         "execution_mode",
         mode="before",
     )

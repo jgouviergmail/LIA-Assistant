@@ -12,7 +12,6 @@ Responsibilities:
 
 import asyncio
 import time
-import uuid
 from collections.abc import AsyncGenerator
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
@@ -22,6 +21,7 @@ from structlog import get_logger
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.conversation_target import ConversationRef
 from src.core.field_names import (
     FIELD_CONVERSATION_ID,
     FIELD_METADATA,
@@ -40,6 +40,7 @@ from src.domains.agents.services.efficacy_evidence import EfficacyCapture
 from src.domains.agents.services.hitl.action_requests import with_available_actions
 from src.domains.agents.services.hitl.interactions.text_tokens import text_tokens
 from src.domains.agents.services.streaming.latency_sli import (
+    TokenGapClock,
     observe_first_token,
     observe_stream_duration,
 )
@@ -286,6 +287,9 @@ class StreamingService:
         # Execution-trace steps captured this turn for persistence on the
         # assistant message (ADR-133 V2 — see trace_capture.py).
         self.trace_capture = TraceCapture(max_steps=settings.execution_trace_persist_max_steps)
+        # The gap between two answer tokens of this stream (lot 26 follow-up): a
+        # stall is a long gap no timeout ends, read by `sse_token_gap_seconds`.
+        self.token_gaps = TokenGapClock()
         # Latest snapshot of state.messages from the "values" stream mode. Updated
         # on every values chunk so api/service.py can compute the context-usage
         # indicator (tokens / threshold) for the SSE `done` chunk metadata.
@@ -340,7 +344,7 @@ class StreamingService:
     async def stream_sse_chunks(
         self,
         graph_stream: AsyncGenerator[tuple[str, Any]],
-        conversation_id: uuid.UUID,
+        target: ConversationRef,
         run_id: str,
     ) -> AsyncGenerator[tuple[ChatStreamChunk, str]]:
         """
@@ -348,7 +352,7 @@ class StreamingService:
 
         Args:
             graph_stream: Raw (mode, chunk) tuples from execute_graph_stream()
-            conversation_id: For logging/tracking context
+            target: Frozen business identity and runtime for the admitted invocation.
             run_id: Unique run identifier for metrics
 
         Yields:
@@ -361,6 +365,7 @@ class StreamingService:
             ...     yield sse_chunk  # Send to client
             ...     response_content += content  # Track for archiving
         """
+        conversation_id = target.id
         self.card_action_metadata = {}
         start_time = time.time()
         first_token_time = None
@@ -420,9 +425,7 @@ class StreamingService:
                         # HITL interrupt detected - set flag for service.py archiving
                         self.hitl_interrupt_detected = True
                         # Handle HITL and exit
-                        async for hitl_chunk in self._handle_hitl_interrupt(
-                            chunk, conversation_id, run_id
-                        ):
+                        async for hitl_chunk in self._handle_hitl_interrupt(chunk, target, run_id):
                             yield (hitl_chunk, "")  # HITL chunks have no content
                         # Latency lot (2026-07): flush the stages completed before
                         # the interrupt (the interrupted node itself never emits an
@@ -1775,6 +1778,7 @@ class StreamingService:
             event_type=_get_chunk_event_type(sse_chunk.type)
         ).inc()
         self.trace_capture.observe(sse_chunk.type, sse_chunk.metadata)
+        self.token_gaps.tick(sse_chunk.type)
 
     def _should_stream_token(self, node_name: str) -> bool:
         """
@@ -1872,7 +1876,7 @@ class StreamingService:
     async def _handle_hitl_interrupt(
         self,
         chunk: dict,
-        conversation_id: uuid.UUID,
+        target: ConversationRef,
         run_id: str,
     ) -> AsyncGenerator[ChatStreamChunk]:
         """
@@ -1890,7 +1894,7 @@ class StreamingService:
 
         Args:
             chunk: State dict containing __interrupt__ and registry
-            conversation_id: Conversation UUID
+            target: Business identity for display; runtime identity for pending state.
             run_id: Unique run identifier
 
         Yields:
@@ -1907,6 +1911,7 @@ class StreamingService:
             registry_hitl_registry_items_per_interrupt,
         )
 
+        conversation_id = target.id
         interrupt_tuple = chunk.get("__interrupt__", [])
         if not interrupt_tuple or len(interrupt_tuple) == 0:
             return
@@ -2213,7 +2218,7 @@ class StreamingService:
 
         if self.hitl_store:
             await self.hitl_store.save_interrupt(
-                thread_id=str(conversation_id),
+                thread_id=str(target.runtime_id),
                 interrupt_data={
                     "action_requests": with_available_actions(
                         action_requests, metadata.get("action_requests", [])

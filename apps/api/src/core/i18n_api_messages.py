@@ -39,18 +39,235 @@ from src.core.i18n_types import SupportedLanguage
 
 
 class APIMessages:
-    """
-    Factory for generating consistent API messages with full i18n support.
+    """Factory for consistent API messages in all six application languages."""
 
-    Supports: French, English, Spanish, German, Italian, Chinese (Simplified)
+    @staticmethod
+    def account_cleanup_pending(language: SupportedLanguage | None = None) -> str:
+        """Account erasure cannot conclude or reactivate while cleanup is unresolved."""
+        return {
+            "en": "Account cleanup is incomplete. Finish or recover its running activities, then retry deletion.",
+            "fr": "Le nettoyage du compte est incomplet. Termine ou récupère ses activités en cours, puis réessaie la suppression.",
+            "de": "Die Kontobereinigung ist unvollständig. Beende oder stelle laufende Aktivitäten wieder her und versuche die Löschung erneut.",
+            "es": "La limpieza de la cuenta está incompleta. Finaliza o recupera sus actividades en curso y vuelve a intentar la eliminación.",
+            "it": "La pulizia dell'account è incompleta. Termina o recupera le attività in corso, poi riprova l'eliminazione.",
+            "zh-CN": "账户清理尚未完成。请结束或恢复正在进行的活动，然后重试删除。",
+        }[resolve_language(language)]
 
-    Organized by category:
-    - Authentication & Authorization
-    - Resource operations (CRUD)
-    - Validation errors
-    - External services
-    - Domain-specific (memories, conversations, connectors)
-    """
+    @staticmethod
+    def conversation_history_cursor_invalid(language: SupportedLanguage | None = None) -> str:
+        """A damaged or obsolete page position must be restarted, never guessed."""
+        return {
+            "fr": "La position dans l'historique n'est plus valide. Recharge la discussion.",
+            "en": "This history position is no longer valid. Reload the discussion.",
+            "es": "Esta posición del historial ya no es válida. Vuelve a cargar la conversación.",
+            "de": "Diese Position im Verlauf ist nicht mehr gültig. Lade die Unterhaltung neu.",
+            "it": "Questa posizione nella cronologia non è più valida. Ricarica la conversazione.",
+            "zh-CN": "此历史记录位置已失效，请重新加载对话。",
+        }[resolve_language(language)]
+
+    @staticmethod
+    def conversation_selection_incomplete(language: SupportedLanguage | None = None) -> str:
+        """An explicit discussion selection always includes its displayed revision."""
+        return {
+            "en": "The discussion and its revision must be provided together.",
+            "fr": "La discussion et sa révision doivent être indiquées ensemble.",
+            "de": "Die Diskussion und ihre Revision müssen gemeinsam angegeben werden.",
+            "es": "La conversación y su revisión deben indicarse juntas.",
+            "it": "La conversazione e la sua revisione devono essere indicate insieme.",
+            "zh-CN": "必须同时提供对话及其版本。",
+        }[resolve_language(language)]
+
+    @staticmethod
+    def conversation_changed(language: SupportedLanguage | None = None) -> str:
+        """A stale request cannot enter a newly reset discussion."""
+        return {
+            "en": "This discussion has changed. Refresh it before continuing.",
+            "fr": "Cette discussion a changé. Actualise-la avant de continuer.",
+            "de": "Diese Diskussion wurde geändert. Aktualisiere sie, bevor du fortfährst.",
+            "es": "Esta conversación ha cambiado. Actualízala antes de continuar.",
+            "it": "Questa conversazione è cambiata. Aggiornala prima di continuare.",
+            "zh-CN": "此对话已更改。请刷新后再继续。",
+        }[resolve_language(language)]
+
+    @staticmethod
+    def primary_conversation_required(language: SupportedLanguage | None = None) -> str:
+        """The permanent discussion may be reset but never deleted."""
+        return {
+            "en": "The main discussion cannot be deleted. You can reset it.",
+            "fr": "La discussion principale ne peut pas être supprimée. Tu peux la réinitialiser.",
+            "de": "Die Hauptdiskussion kann nicht gelöscht werden. Du kannst sie zurücksetzen.",
+            "es": "La conversación principal no se puede eliminar. Puedes restablecerla.",
+            "it": "La conversazione principale non può essere eliminata. Puoi reimpostarla.",
+            "zh-CN": "主对话不能删除，但可以重置。",
+        }[resolve_language(language)]
+
+    @staticmethod
+    def conversation_cleanup_pending(language: SupportedLanguage | None = None) -> str:
+        """Logical retirement is committed while physical cleanup is still recoverable."""
+        return {
+            "en": "The discussion has been reset. Its cleanup is still in progress.",
+            "fr": "La discussion a été réinitialisée. Son nettoyage est encore en cours.",
+            "de": "Die Diskussion wurde zurückgesetzt. Die Bereinigung läuft noch.",
+            "es": "La conversación se ha restablecido. Su limpieza sigue en curso.",
+            "it": "La conversazione è stata reimpostata. La pulizia è ancora in corso.",
+            "zh-CN": "对话已重置，清理仍在进行中。",
+        }[resolve_language(language)]
+
+    @staticmethod
+    def conversation_lifecycle_busy(language: SupportedLanguage | None = None) -> str:
+        """A real producer must finish before its source can be retired."""
+        return {
+            "en": "This discussion is still in use. End its current activity before trying again.",
+            "fr": "Cette discussion est encore utilisée. Termine son activité en cours avant de réessayer.",
+            "de": "Diese Diskussion wird noch verwendet. Beende ihre laufende Aktivität und versuche es erneut.",
+            "es": "Esta conversación sigue en uso. Finaliza su actividad actual antes de volver a intentarlo.",
+            "it": "Questa conversazione è ancora in uso. Termina l'attività in corso prima di riprovare.",
+            "zh-CN": "此对话仍在使用中。请结束当前活动后重试。",
+        }[resolve_language(language)]
+
+    @staticmethod
+    def waiting_message_too_long(max_length: int, language: SupportedLanguage | None = None) -> str:
+        """Words added to a waiting message cannot make it longer than one message (ADR-384)."""
+        return {
+            "en": f"Once added to the message that waits, yours is too long: {max_length} characters at most.",
+            "fr": f"Ajouté au message qui attend, le tien est trop long : {max_length} caractères au plus.",
+            "de": f"Zusammen mit der wartenden Nachricht ist deine zu lang: höchstens {max_length} Zeichen.",
+            "es": f"Junto con el mensaje que espera, el tuyo es demasiado largo: {max_length} caracteres como máximo.",
+            "it": f"Insieme al messaggio in attesa, il tuo è troppo lungo: al massimo {max_length} caratteri.",
+            "zh-CN": f"加上正在等待的消息后，你的消息太长了：最多 {max_length} 个字符。",
+        }[resolve_language(language)]
+
+    @staticmethod
+    def waiting_message_departing(language: SupportedLanguage | None = None) -> str:
+        """A message being sent takes no more words and can no longer be changed."""
+        return {
+            "en": "Your waiting message is being sent. Try again in a moment.",
+            "fr": "Ton message en attente est en train de partir. Réessaie dans un instant.",
+            "de": "Deine wartende Nachricht wird gerade gesendet. Versuche es gleich noch einmal.",
+            "es": "Tu mensaje en espera se está enviando. Inténtalo de nuevo en un momento.",
+            "it": "Il tuo messaggio in attesa sta partendo. Riprova tra un attimo.",
+            "zh-CN": "你等待中的消息正在发送。请稍后再试。",
+        }[resolve_language(language)]
+
+    @staticmethod
+    def waiting_message_changed(language: SupportedLanguage | None = None) -> str:
+        """An edit names the version it read; another one won."""
+        return {
+            "en": "Your waiting message has changed or has already left. Refresh it before continuing.",
+            "fr": "Ton message en attente a changé ou est déjà parti. Actualise-le avant de continuer.",
+            "de": "Deine wartende Nachricht hat sich geändert oder ist schon gesendet. Aktualisiere sie, bevor du fortfährst.",
+            "es": "Tu mensaje en espera ha cambiado o ya se ha enviado. Actualízalo antes de continuar.",
+            "it": "Il tuo messaggio in attesa è cambiato o è già partito. Aggiornalo prima di continuare.",
+            "zh-CN": "你等待中的消息已更改或已发送。请刷新后再继续。",
+        }[resolve_language(language)]
+
+    @staticmethod
+    def waiting_question_pending(language: SupportedLanguage | None = None) -> str:
+        """A waiting message is never sent as the answer to a question (ADR-384)."""
+        return {
+            "en": "LIA is waiting for your answer to its question in this discussion. Answer it first, or withdraw this message.",
+            "fr": "LIA attend ta réponse à sa question dans cette discussion. Réponds-y d'abord, ou retire ce message.",
+            "de": "LIA wartet in dieser Diskussion auf deine Antwort auf ihre Frage. Beantworte sie zuerst oder zieh diese Nachricht zurück.",
+            "es": "LIA espera tu respuesta a su pregunta en esta conversación. Respóndela primero o retira este mensaje.",
+            "it": "LIA aspetta la tua risposta alla sua domanda in questa conversazione. Rispondi prima, oppure ritira questo messaggio.",
+            "zh-CN": "LIA 正在等待你回答它在此对话中提出的问题。请先回答，或撤回这条消息。",
+        }[resolve_language(language)]
+
+    @staticmethod
+    def waiting_note_closed(language: SupportedLanguage | None = None) -> str:
+        """The answer being written takes no more notes; the words keep waiting (ADR-385)."""
+        return {
+            "en": "LIA is finishing its answer: your message will be sent right after it.",
+            "fr": "LIA termine sa réponse : ton message partira juste après.",
+            "de": "LIA beendet gerade ihre Antwort: Deine Nachricht wird direkt danach gesendet.",
+            "es": "LIA está terminando su respuesta: tu mensaje se enviará justo después.",
+            "it": "LIA sta finendo la sua risposta: il tuo messaggio partirà subito dopo.",
+            "zh-CN": "LIA 正在完成回答：你的消息将在之后立即发送。",
+        }[resolve_language(language)]
+
+    @staticmethod
+    def conversation_title_required(language: SupportedLanguage | None = None) -> str:
+        """A secondary discussion needs a visible title."""
+        return {
+            "en": "Enter a discussion title.",
+            "fr": "Saisis un titre de discussion.",
+            "de": "Gib einen Diskussionstitel ein.",
+            "es": "Introduce un título para la conversación.",
+            "it": "Inserisci un titolo per la conversazione.",
+            "zh-CN": "请输入对话标题。",
+        }[resolve_language(language)]
+
+    @staticmethod
+    def conversation_untitled(language: SupportedLanguage | None = None) -> str:
+        """What an annex created without a title is called until its first message."""
+        return {
+            "en": "New discussion",
+            "fr": "Nouvelle discussion",
+            "de": "Neue Unterhaltung",
+            "es": "Nueva conversación",
+            "it": "Nuova conversazione",
+            "zh-CN": "新对话",
+        }[resolve_language(language)]
+
+    @staticmethod
+    def primary_title_is_fixed(language: SupportedLanguage | None = None) -> str:
+        """Only a secondary discussion has an editable title."""
+        return {
+            "en": "The main discussion has a fixed title.",
+            "fr": "Le titre de la discussion Principale est fixe.",
+            "de": "Der Titel der Hauptunterhaltung ist fest.",
+            "es": "La conversación principal tiene un título fijo.",
+            "it": "Il titolo della conversazione principale è fisso.",
+            "zh-CN": "主对话的标题固定。",
+        }[resolve_language(language)]
+
+    @staticmethod
+    def conversation_title_changed(language: SupportedLanguage | None = None) -> str:
+        """An edit must be based on the current title."""
+        return {
+            "en": "The title has changed. Reopen the discussion to edit it.",
+            "fr": "Le titre a changé. Rouvre la discussion pour le modifier.",
+            "de": "Der Titel wurde geändert. Öffne die Unterhaltung erneut.",
+            "es": "El título ha cambiado. Vuelve a abrir la conversación para editarlo.",
+            "it": "Il titolo è cambiato. Riapri la conversazione per modificarlo.",
+            "zh-CN": "标题已更改。请重新打开对话进行编辑。",
+        }[resolve_language(language)]
+
+    @staticmethod
+    def conversation_request_conflict(language: SupportedLanguage | None = None) -> str:
+        """An attempt identifier cannot name two different requests."""
+        return {
+            "en": "This attempt already belongs to a different discussion request.",
+            "fr": "Cette tentative correspond déjà à une autre demande de discussion.",
+            "de": "Dieser Versuch gehört bereits zu einer anderen Diskussionsanfrage.",
+            "es": "Este intento ya corresponde a otra solicitud de conversación.",
+            "it": "Questo tentativo corrisponde già a un'altra richiesta di conversazione.",
+            "zh-CN": "此尝试已用于另一项对话请求。",
+        }[resolve_language(language)]
+
+    @staticmethod
+    def conversation_retired(language: SupportedLanguage | None = None) -> str:
+        """A creation replay must never revive a removed discussion."""
+        return {
+            "en": "This discussion has been deleted.",
+            "fr": "Cette discussion a été supprimée.",
+            "de": "Diese Diskussion wurde gelöscht.",
+            "es": "Esta conversación se ha eliminado.",
+            "it": "Questa conversazione è stata eliminata.",
+            "zh-CN": "此对话已被删除。",
+        }[resolve_language(language)]
+
+    @staticmethod
+    def secondary_conversations_disabled(language: SupportedLanguage | None = None) -> str:
+        """Withdrawing creation keeps existing discussions available."""
+        return {
+            "en": "Creating secondary discussions is currently unavailable.",
+            "fr": "La création de discussions annexes est actuellement indisponible.",
+            "de": "Zusätzliche Diskussionen können derzeit nicht erstellt werden.",
+            "es": "La creación de conversaciones adicionales no está disponible actualmente.",
+            "it": "La creazione di conversazioni aggiuntive non è al momento disponibile.",
+            "zh-CN": "目前无法创建附加对话。",
+        }[resolve_language(language)]
 
     @staticmethod
     def theme_schedule_boundaries_must_differ(language: SupportedLanguage | None = None) -> str:
@@ -867,6 +1084,71 @@ class APIMessages:
             "de": "Erinnerungen konnten nicht exportiert werden",
             "it": "Impossibile esportare le memorie",
             "zh-CN": "导出记忆失败",
+        }
+        return messages.get(resolve_language(language), messages["en"])
+
+    @staticmethod
+    def failed_to_import_memories(language: SupportedLanguage | None = None) -> str:
+        """Error - an import failed; it is all-or-nothing, so nothing was imported."""
+        messages = {
+            "fr": "Échec de l'import des mémoires : rien n'a été importé",
+            "en": "Failed to import memories: nothing was imported",
+            "es": "Error al importar las memorias: no se ha importado nada",
+            "de": "Erinnerungen konnten nicht importiert werden: Es wurde nichts importiert",
+            "it": "Impossibile importare le memorie: nulla è stato importato",
+            "zh-CN": "导入记忆失败：未导入任何内容",
+        }
+        return messages.get(resolve_language(language), messages["en"])
+
+    @staticmethod
+    def memory_import_file_unreadable(language: SupportedLanguage | None = None) -> str:
+        """Error - the uploaded file is not a memories export."""
+        messages = {
+            "fr": "Ce fichier n'est pas un export de mémoires LIA (CSV ou JSON)",
+            "en": "This file is not a LIA memories export (CSV or JSON)",
+            "es": "Este archivo no es una exportación de memorias de LIA (CSV o JSON)",
+            "de": "Diese Datei ist kein LIA-Erinnerungsexport (CSV oder JSON)",
+            "it": "Questo file non è un'esportazione di memorie di LIA (CSV o JSON)",
+            "zh-CN": "此文件不是 LIA 的记忆导出文件（CSV 或 JSON）",
+        }
+        return messages.get(resolve_language(language), messages["en"])
+
+    @staticmethod
+    def memory_import_too_many(
+        found: int, limit: int, language: SupportedLanguage | None = None
+    ) -> str:
+        """Error - the file holds more memories than one import takes."""
+        messages = {
+            "fr": f"Ce fichier contient {found} mémoires ; un import en accepte au plus {limit}",
+            "en": f"This file holds {found} memories; one import takes at most {limit}",
+            "es": (
+                f"Este archivo contiene {found} memorias; una importación admite como "
+                f"máximo {limit}"
+            ),
+            "de": (
+                f"Diese Datei enthält {found} Erinnerungen; ein Import nimmt höchstens "
+                f"{limit} an"
+            ),
+            "it": (
+                f"Questo file contiene {found} memorie; un'importazione ne accetta al "
+                f"massimo {limit}"
+            ),
+            "zh-CN": f"此文件包含 {found} 条记忆；一次导入最多接受 {limit} 条",
+        }
+        return messages.get(resolve_language(language), messages["en"])
+
+    @staticmethod
+    def memory_import_file_too_large(
+        limit_kb: int, language: SupportedLanguage | None = None
+    ) -> str:
+        """Error - the uploaded file is larger than one import reads."""
+        messages = {
+            "fr": f"Ce fichier dépasse les {limit_kb} Ko qu'un import peut lire",
+            "en": f"This file exceeds the {limit_kb} KB one import reads",
+            "es": f"Este archivo supera los {limit_kb} KB que puede leer una importación",
+            "de": f"Diese Datei überschreitet die {limit_kb} KB, die ein Import liest",
+            "it": f"Questo file supera i {limit_kb} KB che un'importazione può leggere",
+            "zh-CN": f"此文件超过了一次导入可读取的 {limit_kb} KB",
         }
         return messages.get(resolve_language(language), messages["en"])
 

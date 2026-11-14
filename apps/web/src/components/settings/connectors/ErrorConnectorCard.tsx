@@ -7,6 +7,7 @@
 
 import { Button } from '@/components/ui/button';
 import { RefreshCw, AlertTriangle } from '@/lib/icons';
+import { MonochromeIcons } from '@/lib/icon-style-context';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ConnectorIcon } from './ConnectorIcon';
 import { CONNECTOR_LABELS, isValidConnectorType } from '@/constants/connectors';
@@ -42,7 +43,9 @@ export function ErrorConnectorCard({
         <div className="relative">
           <ConnectorIcon connectorType={connector.connector_type} />
           <div className="absolute -bottom-1 -right-1 bg-destructive rounded-full p-0.5">
-            <AlertTriangle className="h-3 w-3 text-destructive-foreground" />
+            <MonochromeIcons>
+              <AlertTriangle className="h-3 w-3 text-destructive-foreground" />
+            </MonochromeIcons>
           </div>
         </div>
 

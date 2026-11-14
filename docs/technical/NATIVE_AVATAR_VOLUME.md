@@ -207,7 +207,8 @@ must be checked within the supported turn envelope.
 
 [`physical-prop-writer`](../../apps/web/src/components/eyes/volume/physical-prop-writer.ts)
 projects worn freezing laurel and temple/eye drops with the same native anchors.
-Floating environmental motifs retain stage anchors. Static landmarks and collar calibration are owned by
+Floating environmental motifs retain stage anchors. Static landmarks, the laurel's per-head fit and
+collar calibration are owned by
 [`layout-profiles`](../../apps/web/src/components/eyes/layout-profiles.ts).
 
 The scarf uses the calibrated collar and immutable woven artwork, built by
@@ -305,7 +306,12 @@ Browsers without that extension keep their normal context lifetime.
 The CSS readiness selectors hide the original body bake only after the body and
 every currently required garment are ready. They remove fallback head yaw/pitch from the live head while retaining
 its other native motion. Facial and scarf fallback projection follows readiness,
-so a replacement canvas cannot inherit the previous body's live state.
+so a replacement canvas cannot inherit the previous body's live state. While the
+native cloth draws the scarf, its fitted fallback is `display: none` rather than
+hidden: every element with a box under the rig's root is restyled on each frame
+the rig writes
+([ADR-294](../architecture/ADR-294-A-Face-That-Never-Plays-The-Same-Twice.md),
+follow-up of 2026-11-11).
 
 The low-power context preference, bounded drawing buffer and bounded geometry
 are source contracts. They are not measured promises of frame rate, decoded

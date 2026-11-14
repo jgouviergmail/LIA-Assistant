@@ -79,11 +79,16 @@ async def test_summarizer_never_creates_persistent_copies_of_sms():
     from src.domains.agents.sms.model_middleware import SmsSafeSummarization
 
     _captured_prompts.clear()
-    middleware = SmsSafeSummarization(
-        model=_CapturingChatModel(), trigger=("tokens", 1), keep=("messages", 1)
-    )
-    message = ToolMessage(content="PRIVATE_SMS_IN_SUMMARY", name="list_sms_tool", tool_call_id="s")
-    await middleware._acreate_summary([HumanMessage(content="public context"), message])
+    # The summarizer names no model: it writes with the ``compaction`` slot.
+    with patch(
+        "src.infrastructure.llm.slot_summarization.get_llm",
+        return_value=_CapturingChatModel(),
+    ):
+        middleware = SmsSafeSummarization(trigger=("tokens", 1), keep=("messages", 1))
+        message = ToolMessage(
+            content="PRIVATE_SMS_IN_SUMMARY", name="list_sms_tool", tool_call_id="s"
+        )
+        await middleware._acreate_summary([HumanMessage(content="public context"), message])
     assert "PRIVATE_SMS_IN_SUMMARY" not in " ".join(
         str(item.content) for item in _captured_prompts[-1]
     )

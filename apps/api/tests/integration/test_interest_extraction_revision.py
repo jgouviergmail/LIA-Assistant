@@ -110,7 +110,10 @@ async def test_background_interest_writes_honor_the_durable_management_revision(
         ),
     ):
         count = await extraction_service.extract_interests_background(
-            str(owner), [HumanMessage(content="A topic to learn")], "revision-proof"
+            str(owner),
+            [HumanMessage(content="A topic to learn")],
+            "revision-proof",
+            user_timezone=None,
         )
     rows = list(
         (

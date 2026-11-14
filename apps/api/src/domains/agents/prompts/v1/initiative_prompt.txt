@@ -79,6 +79,8 @@ in every word. The chips are written in the person's own voice.
 "suggestion" is the assistant's voice: when a WRITE action would obviously help (blocking
 travel time, drafting a reply), ask it as one short question in the person's language (e.g.
 "Shall I block 30 minutes of travel before it?"). Null otherwise.
+Never offer to answer an e-mail whose "Reply state" says it was answered or that an answer
+is drafted; with no "Reply state", whether the person answered is not known.
 </Suggestion>
 
 <FollowUpChips>
@@ -91,7 +93,7 @@ requests the person might naturally send next, grounded in the results and their
 - Concrete: built on a date, a person or a place that actually appeared, never generic
   ("tell me more").
 - Distinct from each other and from "suggestion"; never an offer to show again what was
-  just executed.
+  just executed, never a reply to an e-mail whose "Reply state" says it was answered.
 - Return [] when nothing genuinely useful comes to mind: quality over quantity.
 - FINAL CHECK: read each chip as if the person had just sent it; if it sounds like the
   assistant offering help, rewrite it in the person's voice or drop it.

@@ -21,14 +21,13 @@ Key design decisions:
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from functools import lru_cache
 from time import time
 from typing import Any, Final
 from uuid import UUID, uuid4
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n import get_language_name, normalize_language
 from src.core.llm_config_helper import (
     get_effective_context_window_for_slot,
@@ -59,6 +58,15 @@ from src.domains.journals.consolidation_output import (
 )
 from src.domains.journals.consolidation_settlement import settle_maintenance
 from src.domains.journals.constants import JOURNAL_ENTRY_CONTENT_MAX_LENGTH
+from src.domains.journals.conversation_sources import (
+    build_usage_patterns_section as _build_usage_patterns_section,
+)
+from src.domains.journals.conversation_sources import (
+    load_conversation_history as _load_conversation_history,
+)
+from src.domains.journals.conversation_sources import (
+    render_usage_patterns_section as render_usage_patterns_section,
+)
 from src.domains.journals.extraction_service import (
     _persist_journal_tokens,
     _update_user_last_cost,
@@ -95,26 +103,6 @@ def _scaffold_lines() -> dict[str, str]:
     return dict(parse_prompt_sections(read_prompt_file("journal_portrait_source_lines"), 2))
 
 
-def render_usage_patterns_section(*, total: int, details: str) -> str:
-    """The observed-usage block, from the lines file (pure).
-
-    Args:
-        total: User messages over the window.
-        details: The per-bucket distribution, already joined.
-
-    Returns:
-        The section text.
-    """
-    lines = _scaffold_lines()
-    return "\n".join(
-        [
-            lines["usage_header"],
-            lines["usage_line"].format(total=total, details=details),
-            lines["usage_directive"],
-        ]
-    )
-
-
 def render_health_signals_section(block: str) -> str:
     """The health block around what the health service produced (pure).
 
@@ -143,95 +131,6 @@ def size_directives(usage_pct: float) -> tuple[str, str]:
     if usage_pct > 80:
         return lines["size_approaching"], lines["size_reduce"]
     return "", lines["size_within"]
-
-
-async def _build_usage_patterns_section(user_id: UUID) -> str:
-    """Build a compact 'observed usage patterns' block for the consolidation prompt.
-
-    Aggregates lightweight signals over the past 7 days (no LLM, plain SQL):
-    - Total user messages count
-    - Dominant time-of-day buckets (morning / afternoon / evening / night)
-
-    These are factual, never PII, and meant to help the LLM situate the user's
-    current rhythm without ever reproducing message content. Returns an empty
-    string when there is no recent activity (degrades gracefully).
-
-    Args:
-        user_id: Owner user UUID.
-
-    Returns:
-        A "## OBSERVED USAGE PATTERNS" section or an empty string.
-    """
-    try:
-        from sqlalchemy import and_, case, func, select
-
-        from src.infrastructure.database.session import get_db_context
-
-        async with get_db_context() as db:
-            from src.domains.conversations.models import Conversation, ConversationMessage
-
-            conv_result = await db.execute(
-                select(Conversation.id).where(Conversation.user_id == user_id)
-            )
-            conversation_id = conv_result.scalar_one_or_none()
-            if not conversation_id:
-                return ""
-
-            since = datetime.now(UTC) - timedelta(days=7)
-            # The hour the PERSON lived, not the server's: `created_at` is UTC,
-            # and a bucket read from it filed a Paris evening under « afternoon ».
-            from src.domains.users.models import User
-
-            zone = (
-                await db.execute(select(User.timezone).where(User.id == user_id))
-            ).scalar_one_or_none() or DEFAULT_USER_DISPLAY_TIMEZONE
-            hour_local = func.extract("hour", func.timezone(zone, ConversationMessage.created_at))
-            bucket = case(
-                (hour_local.between(5, 11), "morning"),
-                (hour_local.between(12, 17), "afternoon"),
-                (hour_local.between(18, 22), "evening"),
-                else_="night",
-            )
-
-            stmt = (
-                select(bucket.label("bucket"), func.count(ConversationMessage.id).label("n"))
-                .where(
-                    and_(
-                        ConversationMessage.conversation_id == conversation_id,
-                        # The vocabulary the repository WRITES (`user`, never
-                        # `human`): this read had matched nothing since v1.7.0.
-                        ConversationMessage.role == "user",
-                        # A run's synthetic question is not the person speaking.
-                        ConversationMessage.hidden.is_(False),
-                        ConversationMessage.created_at > since,
-                    )
-                )
-                .group_by(bucket)
-            )
-            rows = (await db.execute(stmt)).all()
-
-        if not rows:
-            return ""
-
-        counts: dict[str, int] = {row[0]: int(row[1]) for row in rows}
-        total = sum(counts.values())
-        if total == 0:
-            return ""
-
-        # Format compactly — let the LLM interpret without fixed thresholds.
-        ordered = ("morning", "afternoon", "evening", "night")
-        details = ", ".join(
-            f"{label} {counts[label]}" for label in ordered if counts.get(label, 0) > 0
-        )
-
-        return render_usage_patterns_section(total=total, details=details)
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.warning(
-            "journal_usage_patterns_load_failed",
-            user_id=str(user_id),
-            error=str(exc),
-        )
-        return ""
 
 
 async def _persist_compiled_portrait(
@@ -362,89 +261,6 @@ async def _maybe_build_health_signals_section(user_id: UUID) -> str:
         return ""
 
 
-async def _load_conversation_history(
-    user_id: UUID,
-    since: datetime | None,
-    max_messages: int,
-    max_days: int,
-) -> str:
-    """Load recent conversation messages for consolidation enrichment.
-
-    Only loaded when user has enabled journal_consolidation_with_history.
-    Uses ConversationMessage model (1:1 user↔conversation).
-
-    Args:
-        user_id: User UUID
-        since: Load messages since this timestamp (or fallback to max_days)
-        max_messages: Maximum messages to load
-        max_days: Maximum lookback days (bounds null/old since)
-
-    Returns:
-        Formatted conversation history string
-    """
-    from src.infrastructure.database import get_db_context
-
-    try:
-        async with get_db_context() as db:
-            from sqlalchemy import and_, select
-
-            from src.domains.conversations.models import Conversation, ConversationMessage
-
-            # Find user's conversation
-            conv_result = await db.execute(
-                select(Conversation).where(Conversation.user_id == user_id)
-            )
-            conversation = conv_result.scalar_one_or_none()
-
-            if not conversation:
-                return ""
-
-            # Determine lookback window
-            lookback = since or (datetime.now(UTC) - timedelta(days=max_days))
-            # Also enforce max_days as hard bound
-            max_lookback = datetime.now(UTC) - timedelta(days=max_days)
-            effective_since = max(lookback, max_lookback)
-
-            # Query recent messages
-            msg_result = await db.execute(
-                select(ConversationMessage)
-                .where(
-                    and_(
-                        ConversationMessage.conversation_id == conversation.id,
-                        ConversationMessage.created_at > effective_since,
-                        ConversationMessage.role.in_(["user", "assistant"]),
-                        # The rows of a run LIA ran alone are LIA's words, not
-                        # the person's exchange (ADR-276).
-                        ConversationMessage.hidden.is_(False),
-                    )
-                )
-                .order_by(ConversationMessage.created_at.desc())
-                .limit(max_messages)
-            )
-            messages = list(msg_result.scalars().all())
-
-            if not messages:
-                return ""
-
-            # Format (oldest first)
-            messages.reverse()
-            lines = []
-            for msg in messages:
-                prefix = "USER" if msg.role == "user" else "ASSISTANT"
-                content = msg.content[:500] if len(msg.content) > 500 else msg.content
-                lines.append(f"{prefix}: {content}")
-
-            return "\n".join(lines)
-
-    except Exception as e:
-        logger.warning(
-            "journal_consolidation_history_load_failed",
-            user_id=str(user_id),
-            error=str(e),
-        )
-        return ""
-
-
 def _size_directives_for(total_chars: int, max_total_chars: int) -> tuple[str, str]:
     usage_pct = (total_chars / max_total_chars * 100) if max_total_chars > 0 else 0
     return size_directives(usage_pct)
@@ -461,10 +277,7 @@ async def _conversation_section(user_id: UUID, since: datetime | None, *, enable
     )
     if not history:
         return ""
-    return (
-        "## RECENT CONVERSATION HISTORY\n"
-        "Review these recent exchanges for insights you may have missed:\n\n" + history
-    )
+    return history
 
 
 def _sources_unavailable(provenance: dict[str, Any]) -> bool:

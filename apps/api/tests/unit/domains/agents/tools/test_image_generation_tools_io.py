@@ -1,43 +1,40 @@
-"""CA-4: generated-image disk write must run off the event-loop thread.
-
-``generate_image`` / ``edit_image`` persist a freshly generated PNG (up to a
-few MB) to disk. The write is offloaded via ``_write_image_file`` so it never
-blocks the event loop during a generation.
-"""
+"""Generated image publication writes bytes off-loop under its recorded account path."""
 
 import threading
-import uuid
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock
+from uuid import uuid4
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.agents.tools import image_generation_tools
+from src.domains.attachments.file_contracts import UploadMetadata
+from src.domains.attachments.generated_publication import publish_generated_files
+from src.domains.attachments.models import AttachmentOrigin
+from tests.helpers.attachment_publication import stub_publication
+
+pytestmark = pytest.mark.unit
 
 
-@pytest.mark.unit
-@pytest.mark.asyncio
-async def test_write_image_file_off_event_loop(tmp_path) -> None:
+async def test_write_image_file_off_event_loop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     png = b"\x89PNG\r\n\x1a\n" + b"y" * 48
-    relative_path = f"{uuid.uuid4()}/img.png"
+    main_thread = threading.get_ident()
+    writes: list[int] = []
+    original = Path.write_bytes
 
-    main_tid = threading.get_ident()
-    write_tid: dict[str, int] = {}
-    real_write = Path.write_bytes
+    def observed(path: Path, data: bytes) -> int:
+        writes.append(threading.get_ident())
+        return original(path, data)
 
-    def spy_write(self_path, data):
-        write_tid["tid"] = threading.get_ident()
-        return real_write(self_path, data)
-
-    fake_settings = MagicMock(attachments_storage_path=str(tmp_path))
-    with (
-        patch.object(image_generation_tools, "settings", fake_settings),
-        patch("pathlib.Path.write_bytes", spy_write),
-    ):
-        path = await image_generation_tools._write_image_file(png, relative_path)
-
-    # Ran in a worker thread, not the event-loop thread.
-    assert write_tid["tid"] != main_tid
-    # Behavior preserved: bytes physically written to the resolved path.
-    assert path == Path(tmp_path) / relative_path
-    assert path.read_bytes() == png
+    monkeypatch.setattr(Path, "write_bytes", observed)
+    metadata = UploadMetadata(
+        "image.png", "image/png", "image", ".png", AttachmentOrigin.GENERATED_IMAGE
+    )
+    with stub_publication(tmp_path):
+        rows = await publish_generated_files(
+            AsyncMock(spec=AsyncSession), owner_id=uuid4(), files=[(metadata, png)]
+        )
+    assert len(writes) == 1 and writes[0] != main_thread
+    assert (tmp_path / rows[0].file_path).read_bytes() == png

@@ -14,15 +14,19 @@ pagination and the table craft, and keep their shape (owner decision
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from datetime import datetime
+from types import MappingProxyType
 from typing import Literal
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.document_preferences import DocumentPreferences
 from src.core.i18n import normalize_language, resolve_language
 from src.core.i18n_documents import document_label
 from src.core.time_utils import format_date_only
+from src.domains.document_generation.pictures import Picture
 
 PageSize = Literal["a4", "letter"]
 Structure = Literal["auto", "plain"]
@@ -37,6 +41,14 @@ class RenderContext:
     page_size: PageSize = "a4"
     generated_at: datetime | None = None
     structure: Structure = "auto"
+    #: What the person asked of their documents; a caller that states nothing
+    #: (meeting minutes) gets the owner's defaults, images not allowed — so a
+    #: document it renders carries no picture.
+    preferences: DocumentPreferences = DocumentPreferences()
+    #: The pictures drawn for this document, by ``picture_key``; a picture the
+    #: writer asked for and nobody drew is absent, and its place is laid out
+    #: without it.
+    pictures: Mapping[str, Picture] = field(default_factory=lambda: MappingProxyType({}))
 
     def label(self, key: str, **values: object) -> str:
         """A renderer-generated label in the reader's language.
@@ -64,6 +76,8 @@ def build_render_context(
     timezone: str,
     generated_at: datetime,
     structure: Structure = "auto",
+    preferences: DocumentPreferences | None = None,
+    pictures: Mapping[str, Picture] | None = None,
 ) -> RenderContext:
     """The context of a document generated for a person.
 
@@ -73,6 +87,8 @@ def build_render_context(
             default, never to a hardcoded city.
         generated_at: Aware generation instant.
         structure: ``auto`` (long-document apparatus by threshold) or ``plain``.
+        preferences: The person's document preferences; the defaults when absent.
+        pictures: The pictures drawn for the document, by ``picture_key``.
 
     Returns:
         The context, page size taken from settings.
@@ -83,6 +99,8 @@ def build_render_context(
         page_size=settings.document_generation_page_size,
         generated_at=generated_at,
         structure=structure,
+        preferences=preferences or DocumentPreferences(),
+        pictures=MappingProxyType(dict(pictures or {})),
     )
 
 

@@ -15,8 +15,12 @@ import {
 } from '../activity-entry';
 import { ACTIVITY_CATALOGUE } from '../activity-catalogue';
 
-function config(features: Partial<AppConfig['features']> = {}): AppConfig {
+function config(
+  features: Partial<AppConfig['features']> = {},
+  capabilities?: AppConfig['capabilities']
+): AppConfig {
   return {
+    ...(capabilities ? { capabilities } : {}),
     api_version: 'test',
     sse: { heartbeat_interval_seconds: 30 },
     rate_limits: { enabled: true, per_minute: 60, burst: 5 },
@@ -31,6 +35,13 @@ function config(features: Partial<AppConfig['features']> = {}): AppConfig {
     },
   };
 }
+const POLICY = {
+  native: new Set<never>(),
+  commands: new Set<string>(),
+  radio: false,
+  config: null,
+};
+
 it.each([
   ['en', en, 'Generate the image ', 'Call '],
   ['fr', fr, "Génère l'image ", 'Appelle '],
@@ -89,8 +100,24 @@ it('does not mount gated workspaces until the instance confirms the same native 
     expect(workspaceAvailable(id, enabled)).toBe(true);
 });
 
+it('closes a workspace the operator switched off, whatever the deployment ceiling says', () => {
+  // The ceiling mounts the routes; the operator's switch closes them (ADR-280).
+  // A workspace still offered would open on a refusal.
+  const ceiling = { meetings_enabled: true, workboard_enabled: true, sms_enabled: true };
+  for (const id of ['meetings', 'workboard', 'sms'] as const) {
+    const off = config(ceiling, { [id]: { enabled: false, family: 'work' } });
+    const on = config(ceiling, { [id]: { enabled: true, family: 'work' } });
+    expect(workspaceAvailable(id, off)).toBe(false);
+    expect(activityAvailable({ kind: 'workspace', id }, { ...POLICY, config: off })).toBe(false);
+    expect(workspaceAvailable(id, on)).toBe(true);
+    // A map that does not carry the capability (an older API): the ceiling decides.
+    expect(workspaceAvailable(id, config(ceiling, {}))).toBe(true);
+    expect(workspaceAvailable(id, config({}, {}))).toBe(false);
+  }
+});
+
 it('opens full activity workspaces from discovery while preserving native configuration in settings', () => {
-  for (const token of ['meetings', 'workboard', 'sms'] as const) {
+  for (const token of ['meetings', 'sms'] as const) {
     expect(catalogueSelection(token, false)).toBe('world-' + token);
     expect(catalogueSelection(token, true)).toBe(token);
   }

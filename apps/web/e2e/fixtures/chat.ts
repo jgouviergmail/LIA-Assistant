@@ -18,6 +18,20 @@ export interface ChatBody {
 }
 
 /**
+ * Nothing waits behind the answer (ADR-384): the chat page asks at load and
+ * after every turn. The JSON `null`, typed as the API types it — `json: null`
+ * would leave the type out and the client would read the TEXT « null ». A
+ * journey about waiting words registers its own door after these routes.
+ */
+const NOTHING_WAITING: MockRoute = {
+  url: '**/api/v1/agents/chat/waiting*',
+  method: 'GET',
+  handler: async route => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
+  },
+};
+
+/**
  * Chat-page routes; every captured POST body is pushed onto `bodies`.
  *
  * @param bodies - The spec's capture array — assertions poll its length.
@@ -38,6 +52,7 @@ export function chatRoutes(bodies: ChatBody[]): MockRoute[] {
     { url: '**/api/v1/agents/health', json: { status: 'healthy', graph_compiled: true } },
     { url: '**/api/v1/agents/runs/active', json: { active: false } },
     { url: '**/api/v1/agents/hitl/pending', json: null },
+    NOTHING_WAITING,
     { url: '**/api/v1/usage/**', json: {} },
     {
       url: '**/api/v1/agents/chat/stream',
@@ -116,6 +131,7 @@ export function loadedChatRoutes(): MockRoute[] {
     { url: '**/api/v1/agents/health', json: { status: 'healthy', graph_compiled: true } },
     { url: '**/api/v1/agents/runs/active', json: { active: false } },
     { url: '**/api/v1/agents/hitl/pending', json: null },
+    NOTHING_WAITING,
     { url: '**/api/v1/usage/**', json: {} },
   ];
 }

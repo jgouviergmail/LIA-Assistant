@@ -16,6 +16,7 @@ from prometheus_client import REGISTRY
 
 from src.core.config import settings
 from src.infrastructure.browser.pool import BrowserPool
+from tests.fixtures.browser_scope import browser_scope
 
 _ERRORS = "browser_errors_total"
 _LAUNCH_FAILED = {"error_type": "launch_failed"}
@@ -119,7 +120,7 @@ class TestBrowserPoolLaunch:
         # The driver process was started for nothing; it must not live on.
         assert driver.stopped
         with pytest.raises(ValueError, match="not healthy"):
-            await pool.acquire_session("user123")
+            await pool.acquire_session(browser_scope("user123"))
 
 
 class TestBrowserPoolSessionLimit:
@@ -130,7 +131,7 @@ class TestBrowserPoolSessionLimit:
         """Acquiring session on unhealthy pool raises ValueError."""
         pool = BrowserPool()
         with pytest.raises(ValueError, match="not healthy"):
-            await pool.acquire_session("user123")
+            await pool.acquire_session(browser_scope("user123"))
 
 
 @pytest.mark.parametrize("cancelled", [False, True])
@@ -162,9 +163,9 @@ async def test_an_uninitialized_context_is_closed_without_losing_the_primary_fai
     before = REGISTRY.get_sample_value("browser_sessions_active")
 
     with pytest.raises(type(failure)) as caught:
-        await pool.acquire_session("new-user")
+        await pool.acquire_session(browser_scope("new-user"))
 
     assert caught.value is failure
     context.close.assert_awaited_once()
-    assert "new-user" not in pool._sessions
+    assert browser_scope("new-user") not in pool._sessions
     assert REGISTRY.get_sample_value("browser_sessions_active") == before

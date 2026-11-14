@@ -39,6 +39,8 @@ from src.domains.live.session_store import LiveSessionRecord, LiveSessionStore
 from src.domains.voice.cue_prompt import live_cues_block
 from src.domains.voice.expressive_cues import ELEVENLABS_AGENT_TAGS, NO_CUES
 from src.domains.voice_sessions.expression import PERSON_CUES
+from src.domains.voice_sessions.session import VoiceSession
+from src.domains.voice_sessions.transcript import VoiceTranscript
 from tests.unit.domains.live.conftest import CLOSING_ARCHIVE
 from tests.unit.domains.live.fakes import FakeRedis
 
@@ -162,9 +164,6 @@ class Harness:
         self.service._inner_state_of = AsyncMock(  # type: ignore[method-assign]
             return_value="psyche at the wake"
         )
-        self.service._conversation_id = AsyncMock(  # type: ignore[method-assign]
-            return_value=uuid.uuid4()
-        )
         connector = SimpleNamespace(
             connector_type="gemini_live",
             status="active",
@@ -178,7 +177,7 @@ class Harness:
         )
         archive = AsyncMock(return_value=SimpleNamespace(id=uuid.uuid4()))
         CLOSING_ARCHIVE["mock"] = archive
-        self.relayed: list[Any] = []
+        self.relayed: list[tuple[VoiceSession, VoiceTranscript]] = []
         self.record = record
 
     async def claim(self) -> None:
@@ -206,8 +205,8 @@ class Harness:
                 display_name="Alex",
             )
 
-    def _capture(self, session: Any, transcript: Any, *, keep_fate: Any) -> None:
-        self.relayed.append((session, transcript, keep_fate))
+    def _capture(self, session: VoiceSession, transcript: VoiceTranscript) -> None:
+        self.relayed.append((session, transcript))
 
 
 # -- standby --------------------------------------------------------------------
@@ -247,20 +246,23 @@ async def test_a_second_standby_answers_the_same_figures_and_counts_nothing() ->
 async def test_a_direct_standby_relays_its_kept_words_once() -> None:
     harness = Harness(_record(mode="direct"))
     await harness.claim()
+    assert harness.record is not None
     await harness.store.append_turns(
-        USER.id, [("user", "quelle heure"), ("assistant", "midi")], ttl_seconds=600, max_rows=9
+        harness.record,
+        [("user", "quelle heure"), ("assistant", "midi")],
+        ttl_seconds=600,
+        max_rows=9,
     )
     response = await harness.standby()
     assert response.relay == "scheduled"
     assert len(harness.relayed) == 1
-    session, transcript, keep_fate = harness.relayed[0]
+    session, transcript = harness.relayed[0]
     assert session.run_id == "live_session_" + "s" * 32
+    assert session.reservation is not None
+    assert session.reservation.admission.target.id == session.conversation_id
     assert [turn.text for turn in transcript.turns] == ["quelle heure", "midi"]
     # The rows left the store with the drain: the end will not relay them again.
-    assert await harness.store.turns(USER.id) == []
-    # The relay's fate is kept for the closing card, in order.
-    await keep_fate("answered", None)
-    assert await harness.store.relays(USER.id) == [("answered", None)]
+    assert await harness.store.turns(harness.record) == []
 
 
 async def test_a_direct_standby_with_nothing_said_relays_nothing() -> None:

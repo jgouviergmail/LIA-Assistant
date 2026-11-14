@@ -1,5 +1,5 @@
 /** Deterministic LIA Soft/Flat painting of explicitly registered Lucide geometry. */
-import { renderSpecialArtwork } from './lia-special-artwork.mjs';
+import { renderConceptArtwork, renderSpecialArtwork } from './lia-special-artwork.mjs';
 import { renderControlArtwork } from './lia-control-artwork.mjs';
 
 export const LIA_PALETTES = {
@@ -31,11 +31,10 @@ export function svgNode([tag, attributes], extra = {}) {
   return `<${tag} ${attrs}/>`;
 }
 
-export function liaArtwork(name, geometry, recipe, style) {
-  const data = geometry[name];
-  if (!data || !recipe) throw new Error(`Missing explicit LIA recipe: ${name}`);
-  const paint = LIA_PALETTES[recipe.family];
-  if (!paint) throw new Error(`Unknown paint family: ${name}/${recipe.family}`);
+/** One artwork's paint servers: soft gradients for Fluent, flat inks for Flex. */
+function paintServers(name, family, style) {
+  const paint = LIA_PALETTES[family];
+  if (!paint) throw new Error(`Unknown paint family: ${name}/${family}`);
   const definitions = new Map();
   const gradient = (key, first, last, force = false) => {
     if (style === 'flex' && !force) return last;
@@ -51,6 +50,30 @@ export function liaArtwork(name, geometry, recipe, style) {
     definitions.set(id, `<clipPath id="${id}">${body}</clipPath>`);
     return `url(#${id})`;
   };
+  return { paint, definitions, gradient, clip };
+}
+
+// No fill on this ancestor: stateful paths inherit the SVG root's fill,
+// including CSS rules applied through their containing button.
+function framedArtwork(body, definitions, style, size) {
+  return {
+    body: `<defs>${[...definitions.values()].join('')}</defs><g stroke-linecap="round" stroke-linejoin="round" stroke-width="${style === 'fluent' ? 1.65 : 1.8}">${body}</g>`,
+    viewBox: `0 0 ${size} ${size}`,
+  };
+}
+
+/** An object LIA draws outright, on the grid the Lucide glyphs share. */
+export function conceptArtwork(name, family, style) {
+  const { paint, definitions, gradient, clip } = paintServers(name, family, style);
+  const body = renderConceptArtwork(name, { paint, node: svgNode, clip, gradient });
+  if (body === null) throw new Error(`A LIA concept owns its drawing: ${name}`);
+  return framedArtwork(body, definitions, style, 24);
+}
+
+export function liaArtwork(name, geometry, recipe, style) {
+  const data = geometry[name];
+  if (!data || !recipe) throw new Error(`Missing explicit LIA recipe: ${name}`);
+  const { paint, definitions, gradient, clip } = paintServers(name, recipe.family, style);
   const context = {
     data,
     geometry,
@@ -95,10 +118,5 @@ export function liaArtwork(name, geometry, recipe, style) {
         .join('') +
       parts.map(part => svgNode(part.entry, { fill: 'none', stroke: part.stroke })).join('');
   }
-  // No fill on this ancestor: stateful paths inherit the SVG root's fill,
-  // including CSS rules applied through their containing button.
-  return {
-    body: `<defs>${[...definitions.values()].join('')}</defs><g stroke-linecap="round" stroke-linejoin="round" stroke-width="${style === 'fluent' ? 1.65 : 1.8}">${body}</g>`,
-    viewBox: `0 0 ${data.size} ${data.size}`,
-  };
+  return framedArtwork(body, definitions, style, data.size);
 }

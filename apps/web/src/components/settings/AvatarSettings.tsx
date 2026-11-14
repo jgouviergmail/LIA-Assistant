@@ -21,6 +21,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { capabilityAvailable } from '@/lib/capability-availability';
 import { useAuth } from '@/hooks/useAuth';
 import { useAvatarPreferenceSave } from '@/components/avatars/AvatarPreferenceSaveProvider';
 import type { AvatarConfig, AvatarFace } from '@/lib/avatars/types';
@@ -50,7 +51,7 @@ function avatarFormState(
 export function AvatarSettings({ lng }: { lng: Language }) {
   const { user } = useAuth();
   const { config } = useAppConfig();
-  if (!user || !config?.features.avatar_enabled) return null;
+  if (!user || !capabilityAvailable(config, 'avatar')) return null;
   return <AvatarAccountSettings key={user.id} lng={lng} />;
 }
 

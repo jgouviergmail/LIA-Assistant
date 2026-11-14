@@ -11,9 +11,8 @@ export function ChatContextUsage({
 }: {
   usage: ContextUsage | null;
   enabled: boolean;
-  totals: ConversationTotalsDisplay;
+  totals: ConversationTotalsDisplay | null;
 }) {
   if (!usage) return null;
-  const showTotals = enabled && (totals.tokensIn > 0 || totals.tokensOut > 0);
-  return <ContextUsagePill usage={usage} totals={showTotals ? totals : null} />;
+  return <ContextUsagePill usage={usage} totals={enabled ? totals : null} />;
 }

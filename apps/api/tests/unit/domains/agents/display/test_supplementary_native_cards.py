@@ -104,6 +104,35 @@ def test_ticket_complete_text_zero_cost_and_usage_without_raw_execution_secrets(
     assert "SECRET_DO_NOT_DISPLAY" not in markup and "<img src=x" not in markup
 
 
+def test_a_ticket_card_names_its_category_and_its_steps_theirs() -> None:
+    """Off the board the lane is a chip, by its NAME — the owner's own text,
+    escaped like the title — and absent for a ticket filed under nothing."""
+    markup = TicketCard().render(
+        {
+            "title": "Paint the hall",
+            "status": "todo",
+            "priority": "medium",
+            "category": "<b>Home</b>",
+            "children": [
+                {"title": "Buy paint", "status": "todo", "category": "Errands"},
+                {"title": "Move the sofa", "status": "todo", "category": None},
+            ],
+        },
+        RenderContext(language="en"),
+    )
+    assert "&lt;b&gt;Home&lt;/b&gt;" in markup and "<b>Home</b>" not in markup
+    assert "Errands" in markup
+    assert markup.count(">label<") == 2, "one category mark per filed ticket, none for the unfiled"
+
+
+def test_a_ticket_filed_under_nothing_shows_no_category_mark() -> None:
+    markup = TicketCard().render(
+        {"title": "Sort the mail", "status": "todo", "priority": "medium", "category": None},
+        RenderContext(language="en"),
+    )
+    assert ">label<" not in markup
+
+
 @pytest.mark.parametrize(
     "mirek",
     [1e-320, 10**5000, float("nan"), True, -1],

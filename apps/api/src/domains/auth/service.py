@@ -62,6 +62,7 @@ from src.domains.auth.schemas import (
     UserRegisterRequest,
     UserResponse,
 )
+from src.domains.users.activation_policy import assert_activation_allowed
 from src.domains.users.models import User
 from src.infrastructure.cache.redis import SessionService, get_redis_session
 from src.infrastructure.cache.session_store import SessionStore
@@ -262,12 +263,18 @@ class AuthService:
         # Type narrowing: user is User (not None) after check
         assert user is not None
 
+        # The verification token may outlive the beginning of account cleanup.
+        await self.db.refresh(user, with_for_update=True)
+        assert_activation_allowed(user)
+
         if user.is_verified:
             logger.info("verification_already_verified", user_id=str(user.id))
+            response = UserResponse.model_validate(user)
+            await self.db.commit()
             # Still blacklist token even if already verified (prevent info leakage)
             if jti:
                 await mark_token_used(jti, "email_verification")
-            return UserResponse.model_validate(user)
+            return response
 
         # Mark email as verified (but account still inactive until admin activates)
         user.is_verified = True
@@ -288,7 +295,6 @@ class AuthService:
         logger.info(
             "email_verified",
             user_id=str(user.id),
-            email=user.email,
             auto_activated=settings.demo_mode_enabled,
         )
 

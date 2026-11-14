@@ -111,6 +111,9 @@ DISTINCTIVE_VALUES: dict[str, Any] = {
     "image_generation_default_size": "1536x1024",
     "image_generation_output_format": "webp",
     "image_generation_prompt_enhancement": True,
+    # Members of their vocabularies that are NOT the owner's defaults.
+    "document_illustrations": "never",
+    "document_animations": "always",
     "use_last_known_location": True,
     "health_metrics_agents_enabled": True,
     "settings_shortcuts": ["theme", "font"],

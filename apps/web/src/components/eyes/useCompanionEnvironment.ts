@@ -18,7 +18,16 @@ function nextWakeAt(context: CompanionEnvironment | null, requestAt: number, now
   );
 }
 
-/** One owner; cached weather only, suspended off-page and cleared on unmount. */
+/**
+ * One owner; cached weather only, suspended off-page and cleared on unmount.
+ *
+ * Read on mount, every quarter hour and at the reading's own deadlines — and at
+ * once when the person's channel says LIA read newer weather at their place
+ * (`requestRefresh`, ADR-294 follow-up of 2026-11-13): before, a page stayed on
+ * the weather it opened with until it was reloaded. A request made while a read
+ * is on its way reads once more after it (that read may predate the newer
+ * observation); one made out of sight is served when the page is looked at.
+ */
 export function useCompanionEnvironment(enabled: boolean): void {
   useEffect(() => {
     const store = useCompanionEnvironmentStore.getState();
@@ -30,6 +39,8 @@ export function useCompanionEnvironment(enabled: boolean): void {
     let controller: AbortController | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let announcedFlags = weatherFlagsAt(null, Date.now());
+    let seenRequests = useCompanionEnvironmentStore.getState().refreshRequests;
+    let readAgain = false;
     const syncObservation = () => {
       const context = useCompanionEnvironmentStore.getState().environment;
       const now = Date.now();
@@ -69,6 +80,7 @@ export function useCompanionEnvironment(enabled: boolean): void {
       const request = ++generation;
       controller = new AbortController();
       nextRequestAt = Date.now() + REFRESH_MS;
+      readAgain = false;
       schedule();
       try {
         const payload = await apiClient.get<unknown>('/briefing/companion-context', {
@@ -89,7 +101,11 @@ export function useCompanionEnvironment(enabled: boolean): void {
       } finally {
         if (request === generation) {
           controller = null;
-          schedule();
+          if (readAgain) {
+            readAgain = false;
+            nextRequestAt = 0;
+            void refresh();
+          } else schedule();
         }
       }
     };
@@ -104,10 +120,19 @@ export function useCompanionEnvironment(enabled: boolean): void {
       if (document.hidden) pause();
       else void refresh();
     };
+    const unsubscribe = useCompanionEnvironmentStore.subscribe(state => {
+      if (state.refreshRequests === seenRequests) return;
+      seenRequests = state.refreshRequests;
+      // Newer weather was read: the quarter hour no longer holds this read back.
+      nextRequestAt = 0;
+      if (controller) readAgain = true;
+      else void refresh();
+    });
     document.addEventListener('visibilitychange', visibility);
     void refresh();
     return () => {
       disposed = true;
+      unsubscribe();
       pause();
       document.removeEventListener('visibilitychange', visibility);
       store.reset();

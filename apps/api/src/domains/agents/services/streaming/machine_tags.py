@@ -1,9 +1,10 @@
 """The machine tags the response model writes in band, kept out of the token stream.
 
-The response model writes three tags no reader is meant to see or hear: the
-registry selection ``<relevant_ids>…</relevant_ids>`` at character 0, the psyche
-self-report ``<psyche_eval …/>`` and the ADR-253 tone register ``<lia_tone …/>``
-after the answer. The response node removes them from the persisted answer, and
+The response model writes four tags no reader is meant to see or hear: the
+registry selection ``<relevant_ids>…</relevant_ids>`` at character 0, then, after
+the answer, the psyche self-report ``<psyche_eval …/>``, the ADR-253 tone register
+``<lia_tone …/>`` and, in a routine run told to notify only of something new,
+``<lia_nothing_new/>``. The response node removes them from the persisted answer, and
 the ``content_replacement`` chunk corrects the screen — afterwards. The chat voice
 reads the token stream itself, so nothing corrects what it already said.
 
@@ -32,6 +33,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from src.domains.agents.expressivity.annotation import TONE_TAG_MARKER
+from src.domains.agents.services.nothing_new import NOTHING_NEW_TAG_MARKER
 from src.domains.agents.utils.registry_filtering import (
     RELEVANT_IDS_CLOSING,
     RELEVANT_IDS_OPENING,
@@ -77,6 +79,7 @@ MACHINE_TAGS: Final[tuple[_MachineTag, ...]] = (
     _machine_tag(RELEVANT_IDS_OPENING, RELEVANT_IDS_CLOSING),
     _machine_tag(PSYCHE_EVAL_TAG_MARKER, _SELF_CLOSING_END),
     _machine_tag(TONE_TAG_MARKER, _SELF_CLOSING_END),
+    _machine_tag(NOTHING_NEW_TAG_MARKER, _SELF_CLOSING_END),
 )
 _LONGEST_OPENING: Final = max(len(tag.prefix) for tag in MACHINE_TAGS)
 

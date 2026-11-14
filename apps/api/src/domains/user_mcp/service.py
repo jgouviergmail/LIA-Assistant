@@ -18,12 +18,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.constants import MCP_USER_DEFAULT_API_KEY_HEADER
 from src.core.exceptions import ResourceNotFoundError, ValidationError
 from src.core.security.utils import decrypt_data, encrypt_data
+from src.domains.user_mcp.credential_transition import (
+    awaits_oauth_authorization,
+    credential_columns,
+    metadata_with_scopes,
+    touches_credentials,
+)
 from src.domains.user_mcp.description_generation import generate_domain_description
 from src.domains.user_mcp.installation import OfflineMCPInstallation, check_creation_constraints
 from src.domains.user_mcp.models import (
     UserMCPAuthType,
     UserMCPServer,
     UserMCPServerStatus,
+    UserMCPTestErrorCode,
 )
 from src.domains.user_mcp.repository import UserMCPServerRepository
 from src.domains.user_mcp.response_metadata import build_response_metadata
@@ -32,6 +39,33 @@ from src.infrastructure.mcp.security import validate_http_endpoint
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def _authorization_awaited(user_id: UUID, server_id: UUID) -> tuple[dict, dict]:
+    """The row update and the test result of an OAuth server awaiting an authorization.
+
+    Args:
+        user_id: The owner, for the log line.
+        server_id: The server tested.
+
+    Returns:
+        The fields to store (``auth_required``, no stale verdict) and the test result.
+    """
+    logger.info(
+        "user_mcp_server_test_awaits_authorization",
+        user_id=str(user_id),
+        server_id=str(server_id),
+    )
+    return (
+        {"status": UserMCPServerStatus.AUTH_REQUIRED.value, "last_error": None},
+        {
+            "success": False,
+            "tools": [],
+            "tool_count": 0,
+            "error": "OAuth authorization required",
+            "error_code": UserMCPTestErrorCode.OAUTH_AUTHORIZATION_REQUIRED.value,
+        },
+    )
 
 
 class UserMCPServerService:
@@ -177,9 +211,14 @@ class UserMCPServerService:
         Update a user MCP server.
 
         If URL or credentials change, disconnects from pool to force reconnection.
+        What the update does to the credentials and the status is decided by
+        ``credential_transition``: a new authentication type starts from nothing, and
+        an OAuth server whose tokens no longer apply awaits a new authorization.
 
         Raises:
             ResourceNotFoundError: If server not found or wrong owner.
+            ValidationError: If the name is taken, the URL is refused, or the type
+                becomes a static secret type without its secret.
         """
         server = await self.get_with_ownership_check(server_id, user_id)
 
@@ -203,41 +242,26 @@ class UserMCPServerService:
                 raise ValidationError(f"Invalid MCP server URL: {error_msg}")
             needs_reconnect = True
 
-        # Handle credential updates
-        credential_fields = {
-            "api_key",
-            "header_name",
-            "bearer_token",
-            "auth_type",
-            "oauth_client_id",
-            "oauth_client_secret",
-        }
-        if credential_fields & set(update_data.keys()):
+        # Credentials and status: one decision for every writer, taken while the update
+        # still carries its OAuth scopes (they leave ``update_data`` just below).
+        if touches_credentials(server, update_data):
             needs_reconnect = True
-
-            # Re-encrypt credentials if auth-related fields changed
-            auth_type = update_data.get("auth_type", server.auth_type)
-            if isinstance(auth_type, UserMCPAuthType):
-                auth_type = auth_type.value
-
-            credentials_encrypted = self._encrypt_credentials_from_update(
-                update_data, auth_type, server
+            update_data.update(
+                credential_columns(
+                    server,
+                    self._decrypt_existing_credentials(server),
+                    update_data,
+                    encrypt=encrypt_data,
+                )
             )
-            update_data["credentials_encrypted"] = credentials_encrypted
 
-            if "auth_type" in update_data:
-                update_data["auth_type"] = auth_type
-
-        # Handle OAuth scopes update (stored in oauth_metadata JSONB)
+        # OAuth scopes live in the oauth_metadata JSONB, over what the decision above
+        # already kept of it.
         if "oauth_scopes" in update_data:
-            oauth_scopes = update_data.pop("oauth_scopes")
-            current_meta = dict(server.oauth_metadata or {})
-            if oauth_scopes is not None:
-                current_meta["requested_scopes"] = oauth_scopes
-            else:
-                # Explicitly clear scopes when set to None
-                current_meta.pop("requested_scopes", None)
-            update_data["oauth_metadata"] = current_meta
+            update_data["oauth_metadata"] = metadata_with_scopes(
+                update_data.get("oauth_metadata", server.oauth_metadata),
+                update_data.pop("oauth_scopes"),
+            )
             needs_reconnect = True
 
         # Remove credential fields from update_data (not in model)
@@ -424,8 +448,13 @@ class UserMCPServerService:
         Handles pool access, tool discovery, embedding computation,
         and status updates.
 
+        An OAuth server that awaits an authorization is not contacted: the result
+        says so (``error_code``) and the server stays ``auth_required``, the one
+        status that offers the person the authorization.
+
         Returns:
-            Dict with keys: success, tools (list[dict]), tool_count, error (str|None).
+            Dict with keys: success, tools (list[dict]), tool_count, error (str|None),
+            and error_code (str) when the failure has a remedy the client states.
 
         Raises:
             ResourceNotFoundError: If server not found or wrong owner.
@@ -434,6 +463,7 @@ class UserMCPServerService:
 
         from src.infrastructure.mcp.auth import build_auth_for_server
         from src.infrastructure.mcp.user_pool import get_user_mcp_pool
+        from src.infrastructure.mcp.utils import MCPAuthRequiredError
 
         pool = get_user_mcp_pool()
         if pool is None:
@@ -449,61 +479,69 @@ class UserMCPServerService:
 
         from src.domains.user_mcp.catalogue_publication import probe_update_data
 
-        try:
-            auth = build_auth_for_server(server)
-            entry = await pool.get_or_connect(
-                user_id=user_id,
-                server_id=server.id,
-                url=server.url,
-                auth=auth,
-                timeout_seconds=server.timeout_seconds,
-                extra_headers=server.extra_headers,
-                force_refresh=True,
-            )
+        if awaits_oauth_authorization(server, self._decrypt_existing_credentials(server)):
+            # Nothing to test before the person authorizes it: say so, never call the server.
+            update_data, result = _authorization_awaited(user_id, server_id)
+        else:
+            try:
+                auth = build_auth_for_server(server)
+                entry = await pool.get_or_connect(
+                    user_id=user_id,
+                    server_id=server.id,
+                    url=server.url,
+                    auth=auth,
+                    timeout_seconds=server.timeout_seconds,
+                    extra_headers=server.extra_headers,
+                    force_refresh=True,
+                )
 
-            # One update: status, the version-2 snapshot, description and vectors.
-            # The pool reserved the generation BEFORE the discovery: a slower,
-            # older one never overwrites it.
-            update_data = await probe_update_data(
-                self, server, entry, user_id=user_id, generation=entry.generation
-            )
+                # One update: status, the version-2 snapshot, description and vectors.
+                # The pool reserved the generation BEFORE the discovery: a slower,
+                # older one never overwrites it.
+                update_data = await probe_update_data(
+                    self, server, entry, user_id=user_id, generation=entry.generation
+                )
 
-            logger.info(
-                "user_mcp_server_test_success",
-                user_id=str(user_id),
-                server_id=str(server_id),
-                tool_count=len(entry.tools),
-            )
+                logger.info(
+                    "user_mcp_server_test_success",
+                    user_id=str(user_id),
+                    server_id=str(server_id),
+                    tool_count=len(entry.tools),
+                )
 
-            result = {
-                "success": True,
-                "tools": entry.tools,
-                "tool_count": len(entry.tools),
-                "error": None,
-                "domain_description": update_data.get(
-                    "domain_description", server.domain_description
-                ),
-            }
+                result = {
+                    "success": True,
+                    "tools": entry.tools,
+                    "tool_count": len(entry.tools),
+                    "error": None,
+                    "domain_description": update_data.get(
+                        "domain_description", server.domain_description
+                    ),
+                }
 
-        except Exception as e:
-            update_data = {
-                "status": UserMCPServerStatus.ERROR.value,
-                "last_error": str(e),
-            }
-            logger.warning(
-                "user_mcp_server_test_failed",
-                user_id=str(user_id),
-                server_id=str(server_id),
-                error_type=type(e).__name__,
-            )
+            except MCPAuthRequiredError:
+                # The token refresh gave up while testing (and marked the row): the remedy
+                # is an authorization, and ``error`` would hide the control that offers it.
+                update_data, result = _authorization_awaited(user_id, server_id)
+            except Exception as e:
+                update_data = {
+                    "status": UserMCPServerStatus.ERROR.value,
+                    "last_error": str(e),
+                }
+                logger.warning(
+                    "user_mcp_server_test_failed",
+                    user_id=str(user_id),
+                    server_id=str(server_id),
+                    error_type=type(e).__name__,
+                )
 
-            # Sanitize: only expose exception type, not internal details
-            result = {
-                "success": False,
-                "tools": [],
-                "tool_count": 0,
-                "error": f"Connection failed: {type(e).__name__}",
-            }
+                # Sanitize: only expose exception type, not internal details
+                result = {
+                    "success": False,
+                    "tools": [],
+                    "tool_count": 0,
+                    "error": f"Connection failed: {type(e).__name__}",
+                }
 
         # Fresh authority/CAS failures must propagate, including failed probes.
         if before_write is not None:
@@ -756,58 +794,6 @@ class UserMCPServerService:
             return result
         except ValueError, json.JSONDecodeError:
             return {}
-
-    @classmethod
-    def _encrypt_credentials_from_update(
-        cls,
-        update_data: dict,
-        auth_type: str,
-        server: UserMCPServer,
-    ) -> str | None:
-        """Re-encrypt credentials from partial update data, merging with existing."""
-        if auth_type == UserMCPAuthType.API_KEY.value:
-            # Merge: decrypt existing → overlay new values → re-encrypt
-            existing = cls._decrypt_existing_credentials(server)
-            api_key = update_data.get("api_key") or existing.get("api_key")
-            header_name = update_data.get(
-                "header_name",
-                existing.get(
-                    "header_name",
-                    server.required_header_name or MCP_USER_DEFAULT_API_KEY_HEADER,
-                ),
-            )
-            if api_key:
-                return encrypt_data(
-                    json.dumps(
-                        {
-                            "header_name": header_name,
-                            "api_key": api_key,
-                        }
-                    )
-                )
-            # No api_key available (switching from none/oauth without providing key)
-            return server.credentials_encrypted
-        elif auth_type == UserMCPAuthType.BEARER.value:
-            existing = cls._decrypt_existing_credentials(server)
-            bearer_token = update_data.get("bearer_token") or existing.get("token")
-            if bearer_token:
-                return encrypt_data(json.dumps({"token": bearer_token}))
-            return server.credentials_encrypted
-        elif auth_type == UserMCPAuthType.OAUTH2.value:
-            # Merge: update client_id/client_secret while preserving OAuth tokens
-            existing = cls._decrypt_existing_credentials(server)
-            client_id = update_data.get("oauth_client_id") or existing.get("client_id")
-            client_secret = update_data.get("oauth_client_secret") or existing.get("client_secret")
-            if client_id:
-                # Preserve existing OAuth tokens (access_token, refresh_token, etc.)
-                creds = dict(existing)
-                creds["client_id"] = client_id
-                creds["client_secret"] = client_secret or ""
-                return encrypt_data(json.dumps(creds))
-            return server.credentials_encrypted
-        elif auth_type == UserMCPAuthType.NONE.value:
-            return None
-        return server.credentials_encrypted
 
     @staticmethod
     async def _disconnect_from_pool(

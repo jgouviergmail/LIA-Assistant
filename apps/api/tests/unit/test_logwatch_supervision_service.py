@@ -56,6 +56,8 @@ def _load() -> ModuleType:
 SUP = _load()
 
 T0 = 1_792_000_000.0  # an arbitrary instant; the arithmetic is relative to it
+#: The family the memory alert subtracts from the working set.
+ACTIVE_CACHE = "container_memory_total_active_file_bytes"
 #: Minutes in the default 24-hour test window: a source that recorded all of them.
 FULL_DAY_MINUTES = 24 * 60
 
@@ -347,6 +349,83 @@ class TestTheAlertingChainReportsOnItself:
         assert "Notifications envoyees    : email=4" in text
         assert "NOTIFICATIONS EN ECHEC    : webhook=1" in text
 
+    def test_webhook_failures_on_a_day_the_api_was_down_are_explained_not_flagged(self) -> None:
+        """2026-11-09: 22 webhook notifications failed, all `no such host` or
+        `connection refused`, during the 53 minutes the API was unreachable —
+        the webhook's target is the API. The e-mail left normally. The report
+        flagged it as a broken alerting chain."""
+        sources = FakeSources()
+        sources.instant = {
+            "alertmanager_notifications_total": [
+                _instant({"integration": "email"}, 5),
+                _instant({"integration": "webhook"}, 27),
+            ],
+            "alertmanager_notifications_failed_total": [
+                _instant({"integration": "webhook", "reason": "other"}, 22)
+            ],
+            'up{job="lia-api"} == 0': [_instant({}, 53)],
+        }
+        prometheus = SUP.Prometheus("http://127.0.0.1:9090", sources.fetch)
+
+        text = "\n".join(SUP.render_chain(prometheus, _window()))
+
+        assert "  Notifications en echec    : 0" in text
+        assert (
+            "  Webhook de diagnostic     : 22 echec(s) ; sa cible est l API,"
+            " injoignable 53 min sur la periode" in text
+        )
+        assert "ATTENTION" not in text
+
+    def test_a_human_channel_failing_stays_flagged_beside_an_explained_webhook(self) -> None:
+        sources = FakeSources()
+        sources.instant = {
+            "alertmanager_notifications_failed_total": [
+                _instant({"integration": "email", "reason": "serverError"}, 1),
+                _instant({"integration": "email", "reason": "other"}, 1),
+                _instant({"integration": "webhook", "reason": "other"}, 22),
+            ],
+            'up{job="lia-api"} == 0': [_instant({}, 53)],
+        }
+        prometheus = SUP.Prometheus("http://127.0.0.1:9090", sources.fetch)
+
+        text = "\n".join(SUP.render_chain(prometheus, _window()))
+
+        assert "  NOTIFICATIONS EN ECHEC    : email=2  *** ATTENTION ***" in text
+        assert "  Webhook de diagnostic     : 22 echec(s)" in text
+
+    def test_a_webhook_the_api_refused_stays_flagged_even_on_an_outage_day(self) -> None:
+        """Alertmanager classifies each failure itself. `other` is a target it
+        could not reach — the outage. A 401 or a 5xx (`clientError`,
+        `serverError`) is an API that answered and refused: a rotated secret
+        is not explained by a deployment's minute of downtime."""
+        sources = FakeSources()
+        sources.instant = {
+            "alertmanager_notifications_failed_total": [
+                _instant({"integration": "webhook", "reason": "other"}, 22),
+                _instant({"integration": "webhook", "reason": "clientError"}, 3),
+            ],
+            'up{job="lia-api"} == 0': [_instant({}, 63)],
+        }
+        prometheus = SUP.Prometheus("http://127.0.0.1:9090", sources.fetch)
+
+        text = "\n".join(SUP.render_chain(prometheus, _window()))
+
+        assert "  NOTIFICATIONS EN ECHEC    : webhook=3  *** ATTENTION ***" in text
+        assert "  Webhook de diagnostic     : 22 echec(s)" in text
+
+    def test_a_webhook_failing_while_the_api_answered_all_day_stays_flagged(self) -> None:
+        """No outage explains it: the self-diagnosis is blind and nobody knows."""
+        sources = FakeSources()
+        sources.instant = {
+            "alertmanager_notifications_failed_total": [_instant({"integration": "webhook"}, 3)],
+        }
+        prometheus = SUP.Prometheus("http://127.0.0.1:9090", sources.fetch)
+
+        text = "\n".join(SUP.render_chain(prometheus, _window()))
+
+        assert "  NOTIFICATIONS EN ECHEC    : webhook=3  *** ATTENTION ***" in text
+        assert "Webhook de diagnostic" not in text
+
     def test_a_healthy_chain_reads_as_healthy(self) -> None:
         """A rule or target not evaluated yet (Prometheus just restarted) is no failure."""
         sources = FakeSources()
@@ -437,6 +516,64 @@ class TestMemoryPeaksAreTheWindowsNotASample:
             ("lia-promtail-prod", 95.9, T0),
             ("lia-web-prod", 79.0, T0 + 60),
         ]
+
+    def test_the_peaks_are_measured_as_the_memory_alert_measures_them(self) -> None:
+        """Alloy read 98.1 % in the report of 2026-11-09 with 122 MB of anonymous
+        memory under a 256 MB limit: the rest was its own binary on the active
+        page-cache list. The alert subtracts that cache; so does the report."""
+        sources = FakeSources()
+        sources.coverage[ACTIVE_CACHE] = FULL_DAY_MINUTES
+        sources.ranges = {
+            "container_memory_working_set_bytes": [
+                {"metric": {"name": "lia-promtail-prod"}, "values": [[T0, "48.0"]]}
+            ]
+        }
+        prometheus = SUP.Prometheus("http://127.0.0.1:9090", sources.fetch)
+
+        lines = SUP.render_memory(prometheus, _window())
+
+        assert "  === PICS DE MEMOIRE (memoire non liberable / limite du conteneur) ===" in lines
+        assert "   48.0 %  lia-promtail-prod" in "\n".join(lines)
+        peak_query = next(e for e in sources.expressions if "container_spec_memory_limit" in e)
+        assert "- (container_memory_total_active_file_bytes" in peak_query
+        assert "or container_memory_working_set_bytes" in peak_query
+
+    def test_a_day_the_active_cache_was_not_recorded_is_named_working_set(self) -> None:
+        """The figure declares what it is. Until Prometheus keeps the active
+        cache (the day of the deployment, or a cAdvisor that stops publishing
+        it), the expression falls back to the working set — and the title must
+        not call that « memoire non liberable »."""
+        sources = FakeSources()
+        sources.ranges = {
+            "container_memory_working_set_bytes": [
+                {"metric": {"name": "lia-promtail-prod"}, "values": [[T0, "98.1"]]}
+            ]
+        }
+        prometheus = SUP.Prometheus("http://127.0.0.1:9090", sources.fetch)
+
+        lines = SUP.render_memory(prometheus, _window())
+
+        assert "  === PICS DE MEMOIRE (working set / limite du conteneur) ===" in lines
+        assert "  Cache actif non mesure sur la periode : le working set le compte encore." in lines
+        assert "   98.1 %  lia-promtail-prod" in "\n".join(lines)
+
+    def test_a_day_the_active_cache_was_recorded_in_part_says_how_much(self) -> None:
+        sources = FakeSources()
+        sources.coverage[ACTIVE_CACHE] = FULL_DAY_MINUTES / 4
+        sources.ranges = {
+            "container_memory_working_set_bytes": [
+                {"metric": {"name": "lia-promtail-prod"}, "values": [[T0, "98.1"]]}
+            ]
+        }
+        prometheus = SUP.Prometheus("http://127.0.0.1:9090", sources.fetch)
+
+        lines = SUP.render_memory(prometheus, _window())
+
+        assert "  === PICS DE MEMOIRE (working set / limite du conteneur) ===" in lines
+        assert (
+            "  Cache actif mesure sur 25 % de la periode : avant, le working set le compte."
+            in lines
+        )
 
 
 class TestIncidentsComeFromTheMemoryTheAdminReads:

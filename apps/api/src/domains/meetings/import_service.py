@@ -38,6 +38,7 @@ from src.domains.meetings.service import (
     raise_meeting_storage_unavailable,
     raise_meeting_too_large,
 )
+from src.domains.users.file_writers import account_file_write
 from src.infrastructure.observability.metrics_meetings import meeting_imports_total
 
 logger = structlog.get_logger(__name__)
@@ -142,48 +143,53 @@ class MeetingImportService:
         self, user_id: uuid.UUID, meeting_id: uuid.UUID, *, sequence: int, body: bytes
     ) -> MeetingSegmentAck:
         """Store one chunk; every bound is checked before a byte touches the disk."""
-        meeting = await self.meetings._owned(meeting_id, user_id, lock=True)
-        self._require_uploading(meeting)
-        if not body:
-            raise_meeting_conflict("segment_empty", sequence=sequence)
-        if sequence >= max_import_chunks():
-            raise_meeting_too_large(
-                "import_too_large", max_bytes=settings.meetings_import_max_bytes
+        async with account_file_write(self.meetings.db, user_id):
+            meeting = await self.meetings._owned(meeting_id, user_id, lock=True)
+            self._require_uploading(meeting)
+            if not body:
+                raise_meeting_conflict("segment_empty", sequence=sequence)
+            if sequence >= max_import_chunks():
+                raise_meeting_too_large(
+                    "import_too_large", max_bytes=settings.meetings_import_max_bytes
+                )
+            if len(body) > settings.meetings_import_chunk_max_bytes:
+                raise_meeting_too_large(
+                    "chunk_too_large", max_bytes=settings.meetings_import_chunk_max_bytes
+                )
+            if sequence == 0 and not import_signature_matches(meeting.audio_format, body[:16]):
+                meeting_imports_total.labels(
+                    format=meeting.audio_format.value, outcome="refused"
+                ).inc()
+                _refuse(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "import_format_mismatch")
+            store = self.meetings.store
+            replaced = await store.segment_size(user_id, meeting_id, sequence)
+            if meeting.audio_bytes - replaced + len(body) > settings.meetings_import_max_bytes:
+                raise_meeting_too_large(
+                    "import_too_large", max_bytes=settings.meetings_import_max_bytes
+                )
+            try:
+                added, _ = await store.write_segment(user_id, meeting_id, sequence, body)
+            except AudioStorageError as exc:
+                logger.error(
+                    "meeting_import_write_failed", meeting_id=str(meeting_id), error=str(exc)
+                )
+                raise_meeting_storage_unavailable()
+            recorded = await self.meetings.repo.record_segment(
+                meeting_id,
+                sequence=sequence,
+                added_bytes=added,
+                accepting=(MeetingStatus.UPLOADING,),
+                status_after=MeetingStatus.UPLOADING,
             )
-        if len(body) > settings.meetings_import_chunk_max_bytes:
-            raise_meeting_too_large(
-                "chunk_too_large", max_bytes=settings.meetings_import_chunk_max_bytes
+            if recorded is None:
+                raise_meeting_conflict("meeting_not_uploading", status=MeetingStatus.STOPPED.value)
+            new_status, segment_count, audio_bytes = recorded
+            return MeetingSegmentAck(
+                sequence=sequence,
+                segment_count=segment_count,
+                audio_bytes=audio_bytes,
+                status=new_status,
             )
-        if sequence == 0 and not import_signature_matches(meeting.audio_format, body[:16]):
-            meeting_imports_total.labels(format=meeting.audio_format.value, outcome="refused").inc()
-            _refuse(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "import_format_mismatch")
-        store = self.meetings.store
-        replaced = await store.segment_size(user_id, meeting_id, sequence)
-        if meeting.audio_bytes - replaced + len(body) > settings.meetings_import_max_bytes:
-            raise_meeting_too_large(
-                "import_too_large", max_bytes=settings.meetings_import_max_bytes
-            )
-        try:
-            added, _ = await store.write_segment(user_id, meeting_id, sequence, body)
-        except AudioStorageError as exc:
-            logger.error("meeting_import_write_failed", meeting_id=str(meeting_id), error=str(exc))
-            raise_meeting_storage_unavailable()
-        recorded = await self.meetings.repo.record_segment(
-            meeting_id,
-            sequence=sequence,
-            added_bytes=added,
-            accepting=(MeetingStatus.UPLOADING,),
-            status_after=MeetingStatus.UPLOADING,
-        )
-        if recorded is None:
-            raise_meeting_conflict("meeting_not_uploading", status=MeetingStatus.STOPPED.value)
-        new_status, segment_count, audio_bytes = recorded
-        return MeetingSegmentAck(
-            sequence=sequence,
-            segment_count=segment_count,
-            audio_bytes=audio_bytes,
-            status=new_status,
-        )
 
     async def complete(
         self, user_id: uuid.UUID, meeting_id: uuid.UUID, request: MeetingImportComplete

@@ -18,7 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.infrastructure.scheduler import scheduled_action_executor as executor
+from src.infrastructure.scheduler import scheduled_action_housekeeping as housekeeping
 
 pytestmark = pytest.mark.unit
 
@@ -44,7 +44,7 @@ class TestClosingFinishedRoutines:
         repo.close_finished = AsyncMock(return_value=3)
 
         with patch(_SESSION, new=ctx), patch(_REPO, MagicMock(return_value=repo)):
-            assert await executor._close_finished_routines() == 3
+            assert await housekeeping.close_finished_routines() == 3
 
         session.commit.assert_awaited_once()
 
@@ -54,7 +54,7 @@ class TestClosingFinishedRoutines:
         repo.close_finished = AsyncMock(return_value=0)
 
         with patch(_SESSION, new=ctx), patch(_REPO, MagicMock(return_value=repo)):
-            assert await executor._close_finished_routines() == 0
+            assert await housekeeping.close_finished_routines() == 0
 
     async def test_a_failure_never_costs_the_tick(self) -> None:
         """The batch that follows must still run."""
@@ -63,7 +63,7 @@ class TestClosingFinishedRoutines:
         repo.close_finished = AsyncMock(side_effect=RuntimeError("database gone"))
 
         with patch(_SESSION, new=ctx), patch(_REPO, MagicMock(return_value=repo)):
-            assert await executor._close_finished_routines() == 0
+            assert await housekeeping.close_finished_routines() == 0
 
     async def test_a_session_that_cannot_open_is_swallowed_too(self) -> None:
         @asynccontextmanager
@@ -72,7 +72,7 @@ class TestClosingFinishedRoutines:
             yield  # pragma: no cover
 
         with patch(_SESSION, new=_broken):
-            assert await executor._close_finished_routines() == 0
+            assert await housekeeping.close_finished_routines() == 0
 
     async def test_it_never_asks_the_repository_for_an_instant(self) -> None:
         """The end is read from the trigger the recurrence engine arms.
@@ -85,6 +85,6 @@ class TestClosingFinishedRoutines:
         repo.close_finished = AsyncMock(return_value=1)
 
         with patch(_SESSION, new=ctx), patch(_REPO, MagicMock(return_value=repo)):
-            await executor._close_finished_routines()
+            await housekeeping.close_finished_routines()
 
         repo.close_finished.assert_awaited_once_with()

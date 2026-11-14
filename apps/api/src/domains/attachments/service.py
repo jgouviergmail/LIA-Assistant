@@ -2,17 +2,18 @@
 Attachment service for file upload, validation, and lifecycle management.
 
 Responsibilities:
-- Upload with in-memory processing (MIME detection, HEIC conversion, PDF extraction)
-- MIME validation by magic bytes (not extension)
+- Upload with in-memory processing (type detection, HEIC conversion, text extraction)
+- Type decided by what the file IS: an image by its magic bytes, a document
+  on its whole content (``document_formats``) — never by the declared type
 - HEIC→JPEG conversion (iPhone photos)
-- PDF text extraction (PyMuPDF)
+- Text extraction: PDF (PyMuPDF), every other document format through the
+  knowledge spaces' readers
 - Ownership verification on all access
 - Cleanup (conversation reset + TTL expiration)
 
-Note: Files are read fully into memory for processing (magic byte detection,
-HEIC conversion, PDF extraction all require full content). This is acceptable
-because client-side compression reduces images to ~300KB and max PDF is 20MB.
-Single-user assistant on Raspberry Pi — no concurrent upload pressure.
+Reads are bounded by the server's per-type limit before allocating the full
+processing buffer. File ownership is committed before disk effects; publication
+rechecks the immutable source and failed writes retain a cleanup record.
 
 Phase: evolution F4 — File Attachments & Vision Analysis
 Created: 2026-03-09
@@ -23,8 +24,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-from collections.abc import Collection
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
 
@@ -33,13 +33,25 @@ from fastapi import UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
+from src.core.constants import ATTACHMENTS_READ_CHUNK_BYTES
+from src.core.conversation_execution import ExecutionRevoked
+from src.core.conversation_target import ConversationRef
 from src.core.exceptions import BaseAPIException
-from src.infrastructure.observability.metrics_attachments import (
-    DELETION_REASON_CONVERSATION_RESET,
-    DELETION_REASON_EXPIRED,
-    DELETION_REASON_USER,
-    attachments_cleanup_deleted_total,
+from src.domains.attachments.conversation_usage import ConversationAttachmentUsageRepository
+from src.domains.attachments.document_formats import (
+    detect_document_type,
+    extension_of,
+    extract_capped_text,
 )
+from src.domains.attachments.file_cleanup import cleanup_files
+from src.domains.attachments.file_contracts import FileWriteResult, UploadMetadata
+from src.domains.attachments.file_publication import publish_file
+from src.domains.attachments.file_repository import AttachmentFileRepository
+from src.domains.attachments.origin import GENERATED_ORIGINS
+from src.domains.attachments.publication_errors import raise_retired_file_source
+from src.domains.attachments.selection import validate_upload_filename
+from src.infrastructure.async_utils import finish_owned_task
+from src.infrastructure.observability.metrics_attachments import DELETION_REASON_USER
 
 from .models import Attachment, AttachmentContentType, AttachmentStatus
 from .repository import AttachmentRepository
@@ -68,7 +80,7 @@ def raise_attachment_not_found(attachment_id: uuid.UUID) -> NoReturn:
 def raise_attachment_too_large(file_size: int, max_size: int) -> NoReturn:
     """Raise 413 when file exceeds size limit."""
     raise BaseAPIException(
-        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        status_code=status.HTTP_413_CONTENT_TOO_LARGE,
         detail=f"File too large ({file_size} bytes, max {max_size} bytes)",
         log_event="attachment_too_large",
         file_size=file_size,
@@ -133,29 +145,23 @@ class AttachmentService:
         self,
         user_id: uuid.UUID,
         file: UploadFile,
+        *,
+        target: ConversationRef | None = None,
     ) -> Attachment:
         """
         Upload and process a file attachment.
 
-        Flow (in the order the code actually performs it):
-        1. Read the whole body into memory (``UploadFile.read()``)
-        2. Detect MIME type from the magic bytes (filetype library)
-        3. Validate the decoded size against the per-type limit
-        4. HEIC→JPEG conversion if needed (Pillow), offloaded via ``asyncio.to_thread``
-        5. Write the buffer to disk, offloaded via ``asyncio.to_thread``
-        6. Extract text from PDF (PyMuPDF), offloaded via ``asyncio.to_thread``
-        7. Create DB record with status='ready'
-
-        Memory note (SEC-031): the body is materialised in full at step 1, so
-        the size limit at step 3 rejects *after* the allocation rather than
-        before it, and step 5 writes one contiguous buffer instead of streaming
-        chunks. ``asyncio.to_thread`` keeps the event loop free (CA-4) but does
-        not bound the memory. The bounded pattern to follow when this is fixed
-        is ``rag_spaces/service.py`` (64 KB chunks with a running byte counter).
+        Read only bounded chunks, decide the type by what the file IS (an image
+        by its first bytes; a document on its whole content, since an archive
+        names itself at its end — ``document_formats``), convert HEIC off-loop,
+        then use the shared durable publication protocol. The conversion, the
+        detection and the disk worker are joined through cancellation, not
+        merely abandoned.
 
         Args:
             user_id: Owner user UUID.
             file: FastAPI UploadFile from multipart form.
+            target: Source frozen at request admission; None is a legacy unbound file.
 
         Returns:
             Created Attachment instance.
@@ -169,74 +175,60 @@ class AttachmentService:
             attachments_uploaded_total,
         )
 
+        filename = validate_upload_filename(file.filename or "unnamed")
         start_time = time.perf_counter()
         content_type_category: str = "unknown"
 
         try:
-            # Step 1: Read file content and detect MIME
-            file_bytes = await file.read()
-            detected_mime = self._detect_mime_type(file_bytes)
-            content_type_category = self._classify_content(detected_mime)
-
-            # Step 2: Validate size
+            # End auth/source reads before waiting on the spooled upload or CPU.
+            await self.db.commit()
+            prefix = await file.read(ATTACHMENTS_READ_CHUNK_BYTES)
+            image_mime = self._detect_mime_type(prefix)
+            content_type_category = self._classify_content(image_mime)
             max_size_bytes = self._get_max_size_bytes(content_type_category)
-            if len(file_bytes) > max_size_bytes:
-                attachments_uploaded_total.labels(
-                    content_type=content_type_category, status="error"
-                ).inc()
-                raise_attachment_too_large(len(file_bytes), max_size_bytes)
+            file_bytes = await self._read_bounded(file, prefix, max_size_bytes)
+            detected_mime: str = (
+                image_mime
+                if image_mime is not None
+                # Off the loop: an archive's directory is parsed, and the whole
+                # content is scanned for the byte no text file holds.
+                else await finish_owned_task(
+                    asyncio.create_task(
+                        asyncio.to_thread(self._detect_document_type, filename, file_bytes)
+                    )
+                )
+            )
 
             # Step 3: HEIC→JPEG conversion — Pillow decodes and re-encodes the whole
             # picture: on the loop, a 12-megapixel photo stalled it about a second
             # (measured). Off the event loop, like the write below.
             if detected_mime in ("image/heic", "image/heif"):
-                file_bytes, detected_mime = await asyncio.to_thread(
-                    self._convert_heic_to_jpeg, file_bytes
+                file_bytes, detected_mime = await finish_owned_task(
+                    asyncio.create_task(asyncio.to_thread(self._convert_heic_to_jpeg, file_bytes))
                 )
+                if len(file_bytes) > max_size_bytes:
+                    raise_attachment_too_large(len(file_bytes), max_size_bytes)
 
-            # Step 4: Write to disk
-            stored_filename = f"{uuid.uuid4()}.{self._mime_to_extension(detected_mime)}"
-            relative_path = f"{user_id}/{stored_filename}"
-            absolute_path = Path(self._settings.attachments_storage_path) / relative_path
-
-            absolute_path.parent.mkdir(parents=True, exist_ok=True)
-            # Offload the (potentially multi-MB) disk write so the event loop
-            # stays free for concurrent requests (CA-4).
-            await asyncio.to_thread(absolute_path.write_bytes, file_bytes)
-
-            # Step 5: Extract PDF text — PyMuPDF parses the document page by page,
-            # CPU-bound: off the event loop, like every other PDF reader.
-            extracted_text: str | None = None
-            if (
-                content_type_category == AttachmentContentType.DOCUMENT
-                and detected_mime == "application/pdf"
-            ):
-                extracted_text = await asyncio.to_thread(
-                    self._extract_pdf_text,
-                    file_bytes,
-                    max_chars=self._settings.attachments_max_pdf_text_chars,
+            def write(path: Path) -> FileWriteResult:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(file_bytes)
+                extracted = self._extract_text(
+                    path, file_bytes, detected_mime, content_type_category
                 )
+                return FileWriteResult(len(file_bytes), extracted)
 
-            # Step 6: Create DB record
-            expires_at = datetime.now(UTC) + timedelta(
-                hours=self._settings.attachments_ttl_hours,
+            attachment = await publish_file(
+                self.db,
+                owner_id=user_id,
+                metadata=UploadMetadata(
+                    filename,
+                    detected_mime,
+                    content_type_category,
+                    f".{self._mime_to_extension(detected_mime)}",
+                ),
+                target=target,
+                write=write,
             )
-
-            attachment = await self.repo.create(
-                {
-                    "user_id": user_id,
-                    "original_filename": file.filename or "unnamed",
-                    "stored_filename": stored_filename,
-                    "mime_type": detected_mime,
-                    "file_size": len(file_bytes),
-                    "file_path": relative_path,
-                    "content_type": content_type_category,
-                    "extracted_text": extracted_text,
-                    "status": AttachmentStatus.READY,
-                    "expires_at": expires_at,
-                }
-            )
-            await self.db.commit()
 
             # Metrics
             attachments_uploaded_total.labels(
@@ -258,7 +250,15 @@ class AttachmentService:
             return attachment
 
         except BaseAPIException:
+            attachments_uploaded_total.labels(
+                content_type=content_type_category, status="error"
+            ).inc()
             raise
+        except ExecutionRevoked as exc:
+            attachments_uploaded_total.labels(
+                content_type=content_type_category, status="error"
+            ).inc()
+            raise_retired_file_source(exc)
         except Exception as exc:
             attachments_uploaded_total.labels(
                 content_type=content_type_category, status="error"
@@ -266,15 +266,26 @@ class AttachmentService:
             logger.error(
                 "attachment_upload_error",
                 user_id=str(user_id),
-                error=str(exc),
+                error_type=type(exc).__name__,
                 exc_info=True,
             )
-            raise_attachment_upload_failed(str(exc))
+            raise_attachment_upload_failed(type(exc).__name__)
         finally:
             duration = time.perf_counter() - start_time
             attachments_upload_duration_seconds.labels(content_type=content_type_category).observe(
                 duration
             )
+
+    async def _read_bounded(self, file: UploadFile, prefix: bytes, limit: int) -> bytes:
+        """Stop at the first excess byte, retaining no unbounded body allocation."""
+        content = bytearray(prefix)
+        while True:
+            if len(content) > limit:
+                raise_attachment_too_large(len(content), limit)
+            chunk = await file.read(min(ATTACHMENTS_READ_CHUNK_BYTES, limit + 1 - len(content)))
+            if not chunk:
+                return bytes(content)
+            content.extend(chunk)
 
     # ------------------------------------------------------------------ #
     # Access
@@ -345,6 +356,20 @@ class AttachmentService:
 
         return attachments
 
+    async def accept_for_conversation(
+        self, attachment_ids: list[uuid.UUID], user_id: uuid.UUID, target: ConversationRef
+    ) -> list[Attachment]:
+        """Accept all files under the current source and persist their shared usages.
+
+        The caller owns the short transaction and commits it before best-effort
+        message archiving. Missing, expired and foreign files all refuse the batch.
+        """
+        if len(attachment_ids) > self._settings.attachments_max_per_message:
+            raise_attachment_limit_exceeded(self._settings.attachments_max_per_message)
+        return await ConversationAttachmentUsageRepository(self.db).accept_batch(
+            user_id, attachment_ids, target
+        )
+
     # ------------------------------------------------------------------ #
     # Deletion
     # ------------------------------------------------------------------ #
@@ -355,22 +380,18 @@ class AttachmentService:
         user_id: uuid.UUID,
     ) -> None:
         """
-        Delete a single attachment (DB + disk).
+        Retire a single attachment, retaining retryable evidence until its file is gone.
 
         Args:
             attachment_id: Attachment UUID.
             user_id: Current user UUID (ownership check).
         """
-        attachment = await self.get_for_user(attachment_id, user_id)
-        file_path = attachment.file_path
-
-        # The row first, the file once the row is gone: the reverse order left
-        # a row pointing at a missing file whenever the commit failed.
-        await self.repo.delete(attachment)
+        await self.get_for_user(attachment_id, user_id)
+        await AttachmentFileRepository(self.db).retire_owned(
+            user_id, ids=[attachment_id], reason=DELETION_REASON_USER
+        )
         await self.db.commit()
-        await self._remove_files_off_loop([file_path])
-
-        attachments_cleanup_deleted_total.labels(reason=DELETION_REASON_USER).inc()
+        await cleanup_files(self.db, ids=[attachment_id])
 
         logger.info(
             "attachment_deleted",
@@ -378,65 +399,17 @@ class AttachmentService:
             user_id=str(user_id),
         )
 
-    async def delete_all_for_user(
-        self, user_id: uuid.UUID, *, origins: Collection[str] | None = None
-    ) -> int:
-        """
-        Delete a user's attachments, optionally narrowed to some origins.
-
-        Args:
-            user_id: User UUID.
-            origins: Producers to remove; None removes everything. A
-                conversation reset passes ``{upload}``: what LIA produced
-                belongs to the person's gallery and outlives the conversation
-                that produced it (ADR-279). The account purge does not come
-                through here — it deletes the rows in one statement and the
-                directory with them.
-
-        Returns:
-            Number of deleted attachments.
-        """
-        # Get file paths before DB delete
-        file_paths = await self.repo.get_file_paths_for_user(user_id, origins=origins)
-
-        # Delete DB records
-        count = await self.repo.delete_for_user(user_id, origins=origins)
-        await self.db.commit()
-
-        # Remove files from disk, off the event loop like every other path.
-        await self._remove_files_off_loop(file_paths)
-
-        # Remove user directory if empty
-        user_dir = Path(self._settings.attachments_storage_path) / str(user_id)
-        if user_dir.exists() and not any(user_dir.iterdir()):
-            user_dir.rmdir()
-
-        if count > 0:
-            attachments_cleanup_deleted_total.labels(reason=DELETION_REASON_CONVERSATION_RESET).inc(
-                count
-            )
-
-        logger.info(
-            "attachments_deleted_all_for_user",
-            user_id=str(user_id),
-            count=count,
-        )
-
-        return count
-
     async def cleanup_expired(self) -> dict[str, int]:
         """
         Clean up expired attachments (scheduler job).
 
-        ONE conditional statement deletes every row whose deadline passed and
-        returns its file: a file the person KEPT has no deadline (ADR-319), so
-        it never matches — even kept between two sweeps, even kept after its
-        deadline passed, because the condition is evaluated by the statement
-        that deletes. The files go once the rows are gone, off the event loop.
+        Retire expired READY files atomically, then retry bounded durable disk
+        effects. A keep that commits first wins; a retired file cannot be kept.
+        An unknown uploader is never declared stopped merely because it aged.
 
         Returns:
-            Dict with cleanup stats: {"deleted": N, "errors": N} — errors are
-            files the disk refused to remove (their rows are already gone).
+            Exact physical results {"deleted": N, "errors": N}. Failed paths
+            remain recorded for a later sweep, with their original reason.
         """
         from src.infrastructure.observability.metrics_attachments import (
             attachments_active_count,
@@ -444,12 +417,9 @@ class AttachmentService:
             attachments_kept_count,
         )
 
-        paths = await self.repo.delete_expired(datetime.now(UTC))
+        await AttachmentFileRepository(self.db).retire_expired(datetime.now(UTC))
         await self.db.commit()
-        errors = await self._remove_files_off_loop(paths)
-        deleted = len(paths)
-        if deleted > 0:
-            attachments_cleanup_deleted_total.labels(reason=DELETION_REASON_EXPIRED).inc(deleted)
+        stats = await cleanup_files(self.db)
 
         # Gauges: what the table holds, and what people chose to keep — the
         # disk a kept file holds is never reclaimed by this sweep.
@@ -460,31 +430,81 @@ class AttachmentService:
 
         logger.info(
             "attachment_cleanup_completed",
-            deleted=deleted,
-            errors=errors,
+            deleted=stats["deleted"],
+            errors=stats["errors"],
             kept_files=kept_files,
         )
 
-        return {"deleted": deleted, "errors": errors}
+        return stats
 
     # ------------------------------------------------------------------ #
     # Private helpers
     # ------------------------------------------------------------------ #
 
-    def _detect_mime_type(self, file_bytes: bytes) -> str:
-        """Detect MIME type by magic bytes (not file extension)."""
+    def _detect_mime_type(self, file_bytes: bytes) -> str | None:
+        """The type the first bytes alone prove — an image — or None for a document.
+
+        Args:
+            file_bytes: The first chunk of the upload.
+
+        Returns:
+            The image's MIME type, by its magic bytes; None when the content is
+            not an image and must be decided whole (``_detect_document_type``).
+
+        Raises:
+            BaseAPIException: 415 for an image format the instance does not allow.
+        """
         import filetype  # type: ignore[import-untyped]
 
         kind = filetype.guess(file_bytes)
-        if kind is None:
-            raise_attachment_type_not_allowed("unknown (undetectable)")
-
+        if kind is None or not kind.mime.startswith("image/"):
+            return None
         detected: str = kind.mime
-        allowed = self._get_all_allowed_types()
-        if detected not in allowed:
+        if detected not in self._get_all_allowed_types():
             raise_attachment_type_not_allowed(detected)
-
         return detected
+
+    def _detect_document_type(self, filename: str, file_bytes: bytes) -> str:
+        """The document format of a whole upload, by what it is.
+
+        Args:
+            filename: The name it was sent under (read for a text format only).
+            file_bytes: Its whole, bounded content.
+
+        Returns:
+            The MIME type of an allowed document format.
+
+        Raises:
+            BaseAPIException: 415 when the content is no known document, or a
+                format the instance does not allow.
+        """
+        detected = detect_document_type(filename, file_bytes)
+        if detected is None:
+            raise_attachment_type_not_allowed("unknown (undetectable)")
+        if detected not in self._get_all_allowed_types():
+            raise_attachment_type_not_allowed(detected)
+        return detected
+
+    def _extract_text(
+        self, path: Path, file_bytes: bytes, mime_type: str, content_type: str
+    ) -> str | None:
+        """What the model will read of a stored upload: a document's text, capped.
+
+        Args:
+            path: Where the file was just written.
+            file_bytes: Its content.
+            mime_type: What it is.
+            content_type: Its category; an image carries no text.
+
+        Returns:
+            The capped text, or None for an image or an unreadable document.
+        """
+        cap = self._settings.attachments_max_pdf_text_chars
+        if mime_type == "application/pdf":
+            return self._extract_pdf_text(file_bytes, cap)
+        if content_type == AttachmentContentType.DOCUMENT:
+            return extract_capped_text(path, mime_type, cap)
+        return None
 
     def _get_all_allowed_types(self) -> set[str]:
         """Get combined set of allowed MIME types from settings."""
@@ -498,9 +518,9 @@ class AttachmentService:
         }
         return image_types | doc_types
 
-    def _classify_content(self, mime_type: str) -> str:
-        """Classify MIME type as AttachmentContentType.IMAGE or DOCUMENT."""
-        if mime_type.startswith("image/"):
+    def _classify_content(self, mime_type: str | None) -> str:
+        """Classify as IMAGE or DOCUMENT; what is not a proven image is a document."""
+        if mime_type is not None and mime_type.startswith("image/"):
             return AttachmentContentType.IMAGE
         return AttachmentContentType.DOCUMENT
 
@@ -570,7 +590,7 @@ class AttachmentService:
         except Exception as exc:
             logger.warning(
                 "pdf_text_extraction_failed",
-                error=str(exc),
+                error_type=type(exc).__name__,
             )
             return None
 
@@ -586,45 +606,11 @@ class AttachmentService:
             "image/heif": "heif",
             "application/pdf": "pdf",
         }
-        return mime_map.get(mime_type, "bin")
-
-    def _remove_file_from_disk(self, relative_path: str) -> bool:
-        """Remove a file from disk, logging but not raising on error.
-
-        Returns:
-            False when the disk refused (the file stays behind), True otherwise
-            — a file already absent is not a failure.
-        """
-        absolute_path = Path(self._settings.attachments_storage_path) / relative_path
-        try:
-            if absolute_path.exists():
-                absolute_path.unlink()
-        except OSError as exc:
-            logger.warning(
-                "attachment_file_remove_error",
-                file_path=str(absolute_path),
-                error=str(exc),
-            )
-            return False
-        return True
-
-    async def _remove_files_off_loop(self, relative_paths: list[str]) -> int:
-        """Remove files in a worker thread, once their rows are committed.
-
-        Disk I/O never runs on the event loop (CLAUDE.md, async rules).
-
-        Args:
-            relative_paths: Paths under the storage root.
-
-        Returns:
-            How many the disk refused.
-        """
-        if not relative_paths:
-            return 0
-        outcomes = await asyncio.to_thread(
-            lambda: [self._remove_file_from_disk(path) for path in relative_paths]
-        )
-        return outcomes.count(False)
+        known = mime_map.get(mime_type)
+        if known is not None:
+            return known
+        extension = extension_of(mime_type)
+        return extension.removeprefix(".") if extension else "bin"
 
     async def list_generated(
         self, user_id: uuid.UUID, filters: GalleryFilters
@@ -643,7 +629,7 @@ class AttachmentService:
     async def delete_generated_batch(
         self, user_id: uuid.UUID, ids: list[uuid.UUID], *, commit: bool = True
     ) -> tuple[list[uuid.UUID], list[uuid.UUID]]:
-        """Remove a selection of the person's generated files.
+        """Retire a selection of the person's generated files, once per requested id.
 
         Says EXACTLY what went: an id the caller does not own, or one the
         cleanup removed between the listing and the click, is skipped rather
@@ -653,43 +639,31 @@ class AttachmentService:
         Args:
             user_id: Owner.
             ids: Candidate ids.
-            commit: False defers commit, physical cleanup and deletion metrics to the caller.
+            commit: False defers commit and physical cleanup to the caller.
 
         Returns:
-            ``(deleted, skipped)``.
+            ``(retired, skipped)`` in request order. Retired files leave all
+            readable surfaces immediately; failed physical cleanup is retried.
         """
-        from src.domains.attachments.origin import is_generated
-
         # The same id twice is ONE file. Walking `ids` as given deleted the row
         # twice, unlinked it twice, counted two removals and returned it twice
         # — « 2 supprimés » for one file is the claim ADR-185 forbids. The
         # first occurrence keeps its place: re-sorting would make a client
         # match rows by luck (cold review, 2026-09-10).
         wanted = list(dict.fromkeys(ids))
-        owned = await self.repo.get_owned_batch(wanted, user_id)
-        # An UPLOAD is not part of this gallery: deleting one from here would
-        # remove a file the person attached to a conversation, which this
-        # surface never showed them.
-        removable = {row.id: row for row in owned if is_generated(row.origin)}
-
-        deleted: list[uuid.UUID] = []
-        paths: list[str] = []
-        for candidate in wanted:
-            row = removable.get(candidate)
-            if row is None:
-                continue
-            paths.append(row.file_path)
-            await self.repo.delete(row)
-            deleted.append(candidate)
+        retired = set(
+            await AttachmentFileRepository(self.db).retire_owned(
+                user_id,
+                ids=wanted,
+                origins=[origin.value for origin in GENERATED_ORIGINS],
+                reason=DELETION_REASON_USER,
+            )
+        )
+        deleted = [candidate for candidate in wanted if candidate in retired]
         if deleted:
-            # Rows first, files once they are committed (see
-            # `delete_for_user_single`).
             if commit:
                 await self.db.commit()
-                await self._remove_files_off_loop(paths)
-                attachments_cleanup_deleted_total.labels(reason=DELETION_REASON_USER).inc(
-                    len(deleted)
-                )
+                await cleanup_files(self.db, ids=deleted)
             else:
                 await self.db.flush()
 

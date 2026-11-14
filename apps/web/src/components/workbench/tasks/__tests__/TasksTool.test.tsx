@@ -19,7 +19,7 @@ import {
 import type { AppConfig } from '@/hooks/useAppConfig';
 import { ApiError } from '@/lib/api-client';
 import type {
-  DueTasks,
+  ViewTasks,
   WorkbenchAvailability,
   WorkbenchFeature,
   WorkbenchTask,
@@ -64,7 +64,9 @@ vi.mock('@/hooks/useAppConfig', async importOriginal => ({
   }),
 }));
 
+import { addDays } from '@/lib/workbench/calendar/zoned';
 import { handOff, setHandoffOwner } from '@/lib/workbench/handoff';
+import { dayIn } from '@/lib/workbench/tasks';
 
 import { WorkbenchShell } from '../../WorkbenchShell';
 import { TasksTool } from '../TasksTool';
@@ -118,13 +120,15 @@ function task(id: string, overrides: Partial<WorkbenchTask> = {}): WorkbenchTask
 let tasksPage: { items: WorkbenchTask[]; next_page_token: string | null };
 let defaultList: string | null;
 let features: WorkbenchFeature[];
-let viewAnswer: DueTasks | Error;
+let viewAnswer: ViewTasks | Error;
 
 beforeEach(() => {
   vi.clearAllMocks();
   nav.replace.mockReset();
   instance.assists = false;
-  nav.search = '';
+  // A list is on screen unless a test says otherwise: an address naming nothing opens on
+  // « All tasks » (owner, 2026-11-10), which the tests of the opening name themselves.
+  nav.search = 'list=l1';
   media.desktop = true;
   tasksPage = { items: [task('t1'), task('t2')], next_page_token: null };
   defaultList = null;
@@ -422,6 +426,26 @@ describe('TasksTool — what another tool hands it', () => {
     expect(toast.success).not.toHaveBeenCalled();
   });
 
+  it('arriving on « all tasks », says where it went and reads the view again', async () => {
+    // Another tool sends the person to the screen's bare address, which opens on every list:
+    // no list is on screen, so the task's list is always said, and its row must appear.
+    nav.search = '';
+    handOff('owner', { ...HANDED, list_name: null });
+    api.post.mockResolvedValue(task('t9'));
+    const viewReads = () =>
+      api.get.mock.calls.filter(([path]) => path === '/workbench/tasks/view').length;
+    const { user } = screenOf();
+
+    const form = await screen.findByRole('dialog', { name: 'workbench.tasks.new_task' });
+    const before = viewReads();
+    await user.click(within(form).getByRole('button', { name: 'workbench.tasks.add' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    expect(api.post.mock.calls[0][1]).toMatchObject({ title: 'Answer Ana', list_id: 'l1' });
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('workbench.tasks.added_to'));
+    await waitFor(() => expect(viewReads()).toBeGreaterThan(before));
+  });
+
   it('makes nothing when the person cancels', async () => {
     handOff('owner', HANDED);
     const { user } = screenOf();
@@ -435,7 +459,31 @@ describe('TasksTool — what another tool hands it', () => {
 });
 
 describe('TasksTool', () => {
-  it('opens the first list and shows its tasks', async () => {
+  it('opens on « all tasks » when the address names nothing', async () => {
+    nav.search = '';
+    viewAnswer = {
+      tasks: [{ id: 'd1', list_id: 'l2', title: 'Due d1', due: null }],
+      truncated: false,
+      failed: [],
+    };
+
+    screenOf();
+
+    expect(await screen.findByText('Due d1')).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('/workbench/tasks/view', {
+      params: { view: 'all' },
+      signal: expect.any(AbortSignal),
+    });
+    const lists = screen.getByRole('navigation', { name: 'workbench.tasks.lists_title' });
+    expect(within(lists).getByRole('link', { name: 'workbench.tasks.views.all' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+    // The default list is where a new task goes, not where the screen starts: it is not read.
+    expect(api.get.mock.calls.filter(([path]) => path === '/workbench/tasks')).toEqual([]);
+  });
+
+  it('opens the list the address names and shows its tasks', async () => {
     screenOf();
 
     expect(await screen.findByText('Task t1')).toBeInTheDocument();
@@ -465,8 +513,10 @@ describe('TasksTool', () => {
     );
   });
 
-  it('opens the list the settings chose, when the address names none', async () => {
+  it('looks for a task named alone in the list the settings chose', async () => {
+    // Nothing says where else it lives: the one case the default list is still read for.
     defaultList = 'l2';
+    nav.search = 'task=t1';
     screenOf();
 
     await screen.findByText('Task t1');
@@ -474,6 +524,13 @@ describe('TasksTool', () => {
       params: { list_id: 'l2', show_completed: false },
       signal: expect.any(AbortSignal),
     });
+    // That list is the place on screen, not « all tasks » with the task beside it.
+    const lists = screen.getByRole('navigation', { name: 'workbench.tasks.lists_title' });
+    expect(within(lists).getByRole('link', { name: 'Trip' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+    expect(api.get.mock.calls.filter(([path]) => path === '/workbench/tasks/view')).toEqual([]);
   });
 
   it('opens the list the address names', async () => {
@@ -686,12 +743,433 @@ describe('TasksTool — the views across the lists', () => {
     );
   });
 
-  it('ignores a view nobody named', async () => {
+  it('opens on « all tasks » for a view nobody named', async () => {
     nav.search = 'view=someday';
 
     screenOf();
 
-    expect(await screen.findByText('Task t1')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/workbench/tasks/view', {
+        params: { view: 'all' },
+        signal: expect.any(AbortSignal),
+      })
+    );
+    expect(screen.queryByText('Task t1')).toBeNull();
+  });
+});
+
+describe('TasksTool — every list together (2026-11-10)', () => {
+  const pane = () => screen.findByRole('navigation', { name: 'workbench.tasks.lists_title' });
+  const viewReads = () =>
+    api.get.mock.calls.filter(([path]) => path === '/workbench/tasks/view').length;
+  /** A day of the account's calendar, counted from its today. */
+  const day = (offset: number) => addDays(dayIn('Europe/Paris', new Date()), offset);
+  const row = (id: string, list: string, dueDay: string | null) => ({
+    id,
+    list_id: list,
+    title: `Due ${id}`,
+    due: dueDay,
+  });
+  const whole = (...tasks: ReturnType<typeof row>[]): ViewTasks => ({
+    tasks,
+    truncated: false,
+    failed: [],
+  });
+  const addressOf = (href: string | null | undefined) =>
+    Object.fromEntries(new URL(href ?? '', 'http://lia.test').searchParams);
+  const stretch = (part: string) =>
+    screen.getByRole('region', { name: new RegExp(`workbench\\.tasks\\.views\\.${part}`) });
+
+  it('heads the views with the three together, and the lists with « all tasks »', async () => {
+    screenOf();
+
+    const lists = await pane();
+    await within(lists).findByRole('link', { name: 'Trip' });
+    expect(
+      within(lists)
+        .getAllByRole('link')
+        .map(link => link.textContent)
+    ).toEqual([
+      'workbench.tasks.views.timeline',
+      'workbench.tasks.views.today',
+      'workbench.tasks.views.overdue',
+      'workbench.tasks.views.upcoming',
+      'workbench.tasks.views.all',
+      'Home',
+      'Trip',
+    ]);
+    expect(
+      addressOf(
+        within(lists)
+          .getByRole('link', { name: 'workbench.tasks.views.timeline' })
+          .getAttribute('href')
+      )
+    ).toEqual({ view: 'timeline' });
+    expect(
+      addressOf(
+        within(lists).getByRole('link', { name: 'workbench.tasks.views.all' }).getAttribute('href')
+      )
+    ).toEqual({ view: 'all' });
+  });
+
+  it('marks « all tasks » as the open place among the lists, and reads it', async () => {
+    nav.search = 'view=all';
+
+    screenOf();
+
+    const lists = await pane();
+    expect(within(lists).getByRole('link', { name: 'workbench.tasks.views.all' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+    expect(await within(lists).findByRole('link', { name: 'Home' })).not.toHaveAttribute(
+      'aria-current'
+    );
+    expect(api.get).toHaveBeenCalledWith(
+      '/workbench/tasks/view',
+      expect.objectContaining({ params: { view: 'all' } })
+    );
+    expect(api.get).not.toHaveBeenCalledWith('/workbench/tasks', expect.anything());
+  });
+
+  it('shows every open task with its list in a badge, the undated without a day', async () => {
+    nav.search = 'view=all';
+    viewAnswer = whole(row('d1', 'l2', day(-1)), row('d2', 'l1', null));
+
+    screenOf();
+
+    const dated = await screen.findByRole('link', { name: /Due d1/ });
+    const undated = screen.getByRole('link', { name: /Due d2/ });
+    // The badge names what it is to a screen reader, before the list's own name.
+    expect(within(dated).getByTitle('Trip')).toHaveTextContent('workbench.tasks.list_label Trip');
+    expect(within(undated).getByTitle('Home')).toHaveTextContent('workbench.tasks.list_label Home');
+    // A late day SAYS it is late; a task without a day carries no chip at all.
+    expect(within(dated).getByText('workbench.tasks.overdue')).toBeInTheDocument();
+    expect(undated).not.toHaveTextContent(/workbench\.tasks\.(today|overdue)/);
+    expect(undated.textContent).toBe('Due d2workbench.tasks.list_label Home');
+    expect(screen.getByText('workbench.tasks.to_do')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 3 })).toBeNull();
+  });
+
+  it('draws a task whose list was not read without a badge, never with a wrong one', async () => {
+    nav.search = 'view=all';
+    viewAnswer = whole(row('d1', 'elsewhere', null));
+
+    screenOf();
+
+    const link = await screen.findByRole('link', { name: /Due d1/ });
+    expect(link).not.toHaveTextContent('workbench.tasks.list_label');
+  });
+
+  it('reads today’s as today in every view, in the warning that a list’s row gives it', async () => {
+    nav.search = 'view=today';
+    viewAnswer = whole(row('d1', 'l2', day(0)));
+
+    screenOf();
+
+    const link = await screen.findByRole('link', { name: /Due d1/ });
+    expect(within(link).getByText('workbench.tasks.today')).toBeInTheDocument();
+  });
+
+  it('cuts the timeline into what is late, today and the days ahead, each counted', async () => {
+    nav.search = 'view=timeline';
+    viewAnswer = whole(
+      row('late', 'l1', day(-3)),
+      row('now', 'l2', day(0)),
+      row('soon', 'l1', day(2)),
+      row('next', 'l2', day(5))
+    );
+
+    screenOf();
+
+    await screen.findByText('Due late');
+    expect(
+      screen.getAllByRole('heading', { level: 3 }).map(heading => heading.textContent)
+    ).toEqual([
+      expect.stringContaining('workbench.tasks.views.overdue'),
+      expect.stringContaining('workbench.tasks.views.today'),
+      expect.stringContaining('workbench.tasks.views.upcoming'),
+    ]);
+    const named = (part: string) =>
+      within(stretch(part))
+        .getAllByRole('link')
+        .map(link => link.getAttribute('href'))
+        .map(href => addressOf(href).task);
+    expect(named('overdue')).toEqual(['late']);
+    expect(named('today')).toEqual(['now']);
+    expect(named('upcoming')).toEqual(['soon', 'next']);
+    // The whole, then each stretch: every figure is of what is on screen, read whole.
+    expect(screen.getAllByText('workbench.tasks.to_do')).toHaveLength(4);
+    expect(within(stretch('today')).getByTitle('Trip')).toBeInTheDocument();
+  });
+
+  it('draws no stretch that holds nothing, and counts none when a list is unread', async () => {
+    nav.search = 'view=timeline';
+    viewAnswer = { tasks: [row('now', 'l2', day(0))], truncated: false, failed: ['l1'] };
+
+    screenOf();
+
+    await screen.findByText('Due now');
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(1);
+    expect(screen.queryByText('workbench.tasks.to_do')).not.toBeInTheDocument();
+    expect(screen.getByText('workbench.tasks.view_partial')).toBeInTheDocument();
+  });
+
+  it.each(['timeline', 'all'])('says a « %s » with nothing in it', async view => {
+    nav.search = `view=${view}`;
+
+    screenOf();
+
+    expect(await screen.findByText(`workbench.tasks.view_empty.${view}`)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 3 })).toBeNull();
+  });
+
+  it('opens a task beside the view: the address keeps the view and names its list', async () => {
+    nav.search = 'view=all';
+    viewAnswer = whole(row('d1', 'l2', null));
+
+    screenOf();
+
+    const link = await screen.findByRole('link', { name: /Due d1/ });
+    expect(addressOf(link.getAttribute('href'))).toEqual({ view: 'all', list: 'l2', task: 'd1' });
+  });
+
+  it('keeps the view on screen beside the open task, read in its own list', async () => {
+    nav.search = 'view=all&list=l2&task=d1';
+    viewAnswer = whole(row('d1', 'l2', null), row('d2', 'l1', null));
+    tasksPage = { items: [task('d1', { title: 'Due d1' })], next_page_token: null };
+
+    screenOf();
+
+    const detail = await screen.findByRole('complementary', {
+      name: 'workbench.tasks.detail_title',
+    });
+    expect(within(detail).getByDisplayValue('Due d1')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'workbench.tasks.views.all' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /Due d1/ })).toHaveAttribute(
+      'aria-current',
+      'true'
+    );
+    expect(screen.getByRole('link', { name: /Due d2/ })).not.toHaveAttribute('aria-current');
+    expect(api.get).toHaveBeenCalledWith(
+      '/workbench/tasks',
+      expect.objectContaining({ params: { list_id: 'l2', show_completed: false } })
+    );
+    // The list's own rows never stand in the view's place.
+    expect(screen.queryByRole('textbox', { name: 'workbench.tasks.new_task' })).toBeNull();
+  });
+
+  it('marks the open task by its list too: a namesake of another list is not it', async () => {
+    nav.search = 'view=all&list=l2&task=d1';
+    viewAnswer = whole(row('d1', 'l1', null), row('d1', 'l2', null));
+    tasksPage = { items: [task('d1')], next_page_token: null };
+
+    screenOf();
+
+    await screen.findByRole('complementary', { name: 'workbench.tasks.detail_title' });
+    const marked = (await screen.findAllByRole('link', { name: /Due d1/ })).filter(
+      link => link.getAttribute('aria-current') === 'true'
+    );
+    expect(marked.map(link => addressOf(link.getAttribute('href')).list)).toEqual(['l2']);
+  });
+
+  it('comes back to the view when the detail closes, not to the task’s list', async () => {
+    nav.search = 'view=timeline&list=l2&task=d1';
+    viewAnswer = whole(row('d1', 'l2', day(0)));
+    tasksPage = { items: [task('d1')], next_page_token: null };
+    const { user } = screenOf();
+
+    await user.click(await screen.findByRole('button', { name: 'workbench.tasks.close_detail' }));
+
+    expect(addressOf(nav.replace.mock.calls.at(-1)?.[0])).toEqual({ view: 'timeline' });
+  });
+
+  it('gives the focus back to the task’s row in the view when its detail closes', async () => {
+    nav.search = 'view=all&list=l2&task=d1';
+    viewAnswer = whole(row('d1', 'l2', null));
+    tasksPage = { items: [task('d1')], next_page_token: null };
+    const { rerender } = screenOf();
+    await screen.findByRole('complementary', { name: 'workbench.tasks.detail_title' });
+    await screen.findByRole('link', { name: /Due d1/ });
+
+    nav.search = 'view=all';
+    rerender(tool());
+
+    await waitFor(() => expect(screen.getByRole('link', { name: /Due d1/ })).toHaveFocus());
+  });
+
+  it('gives it to the view’s title when the task left the view', async () => {
+    nav.search = 'view=all&list=l2&task=d1';
+    viewAnswer = whole(row('d2', 'l1', null));
+    tasksPage = { items: [task('d1')], next_page_token: null };
+    const { rerender } = screenOf();
+    await screen.findByRole('complementary', { name: 'workbench.tasks.detail_title' });
+    await screen.findByRole('link', { name: /Due d2/ });
+
+    nav.search = 'view=all';
+    rerender(tool());
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'workbench.tasks.views.all' })).toHaveFocus()
+    );
+  });
+
+  it('reads the view again once the detail changed what a row shows', async () => {
+    nav.search = 'view=all&list=l2&task=d1';
+    viewAnswer = whole(row('d1', 'l2', null));
+    tasksPage = { items: [task('d1', { title: 'Due d1' })], next_page_token: null };
+    api.patch.mockResolvedValue(task('d1', { title: 'Renamed' }));
+    const { user } = screenOf();
+    const title = await screen.findByLabelText('workbench.tasks.title');
+    await screen.findByRole('link', { name: /Due d1/ });
+    const before = viewReads();
+
+    await user.clear(title);
+    await user.type(title, 'Renamed');
+    await user.click(screen.getByRole('button', { name: 'common.save' }));
+
+    await waitFor(() =>
+      expect(patched('/workbench/tasks')).toEqual({
+        list_id: 'l2',
+        task_id: 'd1',
+        title: 'Renamed',
+      })
+    );
+    await waitFor(() => expect(viewReads()).toBe(before + 1));
+  });
+
+  it('reads nothing again for a change no row shows', async () => {
+    features = TO_DO;
+    nav.search = 'view=all&list=l2&task=d1';
+    viewAnswer = whole(row('d1', 'l2', null));
+    tasksPage = { items: [task('d1', { importance: 'normal' })], next_page_token: null };
+    api.patch.mockResolvedValue(task('d1', { importance: 'high' }));
+    const { user } = screenOf();
+    await screen.findByRole('link', { name: /Due d1/ });
+    const before = viewReads();
+
+    await user.selectOptions(await screen.findByLabelText('workbench.tasks.importance'), 'high');
+
+    await waitFor(() =>
+      expect(patched('/workbench/tasks')).toEqual({
+        list_id: 'l2',
+        task_id: 'd1',
+        importance: 'high',
+      })
+    );
+    expect(await screen.findByLabelText('workbench.tasks.importance')).toHaveValue('high');
+    expect(viewReads()).toBe(before);
+  });
+
+  it('leaves the view as it is when the change was refused', async () => {
+    nav.search = 'view=all&list=l2&task=d1';
+    viewAnswer = whole(row('d1', 'l2', null));
+    tasksPage = { items: [task('d1', { title: 'Due d1' })], next_page_token: null };
+    api.patch.mockRejectedValue(
+      new ApiError('refused', 502, { detail: { code: 'provider_unavailable' } })
+    );
+    const { user } = screenOf();
+    const title = await screen.findByLabelText('workbench.tasks.title');
+    await screen.findByRole('link', { name: /Due d1/ });
+    const before = viewReads();
+
+    await user.type(title, ' again');
+    await user.click(screen.getByRole('button', { name: 'common.save' }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('workbench.errors.provider_unavailable')
+    );
+    expect(viewReads()).toBe(before);
+  });
+
+  it('ticking in the view the task open beside it shows it done in its detail too', async () => {
+    nav.search = 'view=all&list=l2&task=d1';
+    viewAnswer = whole(row('d1', 'l2', null));
+    tasksPage = { items: [task('d1', { title: 'Due d1' })], next_page_token: null };
+    api.patch.mockResolvedValue(task('d1', { title: 'Due d1', completed: true }));
+    const { user } = screenOf();
+    const detail = await screen.findByRole('complementary', {
+      name: 'workbench.tasks.detail_title',
+    });
+    const link = await screen.findByRole('link', { name: /Due d1/ });
+    expect(
+      within(detail).getByRole('button', { name: 'workbench.tasks.mark_done' })
+    ).toBeInTheDocument();
+
+    await user.click(
+      within(link.closest('li')!).getByRole('checkbox', { name: 'workbench.tasks.complete' })
+    );
+
+    expect(
+      await within(detail).findByRole('button', { name: 'workbench.tasks.reopen_action' })
+    ).toBeInTheDocument();
+    expect(patched('/workbench/tasks')).toEqual({ list_id: 'l2', task_id: 'd1', completed: true });
+  });
+
+  it('ticking a task of another list leaves the open task’s detail as it is', async () => {
+    nav.search = 'view=all&list=l2&task=d1';
+    viewAnswer = whole(row('d1', 'l2', null), row('d1', 'l1', null));
+    tasksPage = { items: [task('d1', { title: 'Due d1' })], next_page_token: null };
+    api.patch.mockResolvedValue(task('d1', { title: 'Due d1', completed: true }));
+    const { user } = screenOf();
+    const detail = await screen.findByRole('complementary', {
+      name: 'workbench.tasks.detail_title',
+    });
+    const namesake = (await screen.findAllByRole('link', { name: /Due d1/ })).find(link =>
+      link.getAttribute('href')?.includes('list=l1')
+    )!;
+    const before = viewReads();
+
+    await user.click(
+      within(namesake.closest('li')!).getByRole('checkbox', { name: 'workbench.tasks.complete' })
+    );
+
+    await waitFor(() => expect(viewReads()).toBe(before + 1));
+    expect(patched('/workbench/tasks')).toEqual({ list_id: 'l1', task_id: 'd1', completed: true });
+    expect(
+      within(detail).getByRole('button', { name: 'workbench.tasks.mark_done' })
+    ).toBeInTheDocument();
+  });
+
+  it('below lg, names both in the select: the three together a view, « all tasks » a list', async () => {
+    media.desktop = false;
+    const { user } = screenOf();
+
+    const select = await screen.findByRole('combobox', { name: 'workbench.tasks.list_label' });
+    await within(select).findByRole('option', { name: 'Trip' });
+    const group = (name: string) =>
+      within(within(select).getByRole('group', { name }))
+        .getAllByRole('option')
+        .map(option => option.textContent);
+    expect(group('workbench.tasks.views_title')).toEqual([
+      'workbench.tasks.views.timeline',
+      'workbench.tasks.views.today',
+      'workbench.tasks.views.overdue',
+      'workbench.tasks.views.upcoming',
+    ]);
+    expect(group('workbench.tasks.lists_title')).toEqual([
+      'workbench.tasks.views.all',
+      'Home',
+      'Trip',
+    ]);
+
+    await user.selectOptions(select, 'workbench.tasks.views.all');
+    expect(addressOf(nav.replace.mock.calls.at(-1)?.[0])).toEqual({ view: 'all' });
+    await user.selectOptions(select, 'workbench.tasks.views.timeline');
+    expect(addressOf(nav.replace.mock.calls.at(-1)?.[0])).toEqual({ view: 'timeline' });
+  });
+
+  it('below lg, shows the select on the view it is on', async () => {
+    media.desktop = false;
+    nav.search = 'view=all';
+
+    screenOf();
+
+    const select = await screen.findByRole('combobox', { name: 'workbench.tasks.list_label' });
+    expect(
+      within(select).getByRole<HTMLOptionElement>('option', { name: 'workbench.tasks.views.all' })
+        .selected
+    ).toBe(true);
   });
 });
 
@@ -776,6 +1254,14 @@ describe('TasksTool — a selection', () => {
     return view;
   }
   const bar = () => screen.getByRole('region', { name: 'workbench.tasks.selection_region' });
+  /** Sends what is ticked to a list, from « … », by the keyboard (jsdom lays no pointer path). */
+  async function sendTo(user: Awaited<ReturnType<typeof selecting>>['user'], list: string) {
+    await user.click(within(bar()).getByRole('button', { name: 'common.more_actions' }));
+    (await screen.findByRole('menuitem', { name: 'workbench.tasks.move_to_list' })).focus();
+    await user.keyboard('{ArrowRight}');
+    (await screen.findByRole('menuitem', { name: list })).focus();
+    await user.keyboard('{Enter}');
+  }
 
   it('asks for it, in place of the ticks that complete', async () => {
     await selecting();
@@ -831,10 +1317,7 @@ describe('TasksTool — a selection', () => {
     const { user } = await selecting();
     await user.click(screen.getAllByRole('checkbox', { name: 'workbench.tasks.select_task' })[0]);
 
-    await user.selectOptions(
-      within(bar()).getByRole('combobox', { name: 'workbench.tasks.move_to_list' }),
-      'l2'
-    );
+    await sendTo(user, 'Trip');
 
     await waitFor(() =>
       expect(posted('/workbench/tasks/selection/move')?.[1]).toEqual({
@@ -855,10 +1338,7 @@ describe('TasksTool — a selection', () => {
     const { user } = await selecting();
     await user.click(screen.getAllByRole('checkbox', { name: 'workbench.tasks.select_task' })[0]);
 
-    await user.selectOptions(
-      within(bar()).getByRole('combobox', { name: 'workbench.tasks.move_to_list' }),
-      'l2'
-    );
+    await sendTo(user, 'Trip');
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('workbench.errors.task_left_behind')

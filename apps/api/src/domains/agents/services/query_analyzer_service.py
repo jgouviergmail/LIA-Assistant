@@ -44,6 +44,7 @@ from langchain_core.messages import BaseMessage
 from src.core.config import settings
 from src.core.config.agents import V3RoutingConfig
 from src.core.constants import (
+    DEFAULT_USER_DISPLAY_TIMEZONE,
     INTENT_PATTERNS_CREATE,
     INTENT_PATTERNS_DELETE,
     INTENT_PATTERNS_SEND,
@@ -52,6 +53,7 @@ from src.core.constants import (
 from src.core.i18n import resolve_language
 from src.core.llm_config_helper import llm_call_timeout_seconds
 from src.core.prompt_layout import single_call_messages
+from src.core.time_utils import resolve_zone
 from src.domains.agents.analysis.efficacy_context import EfficacyAnalysis
 from src.domains.agents.analysis.query_intelligence import (
     QueryIntelligence,
@@ -81,6 +83,7 @@ from src.domains.agents.services.analysis.peer_directory import (
 from src.domains.agents.services.analysis.query_context import (
     determine_turn_type,
     extract_conversation_history,
+    render_conversation_history,
 )
 from src.domains.agents.services.analysis.semantic_expansion import (
     expand_domains_for_semantic_types,
@@ -454,7 +457,6 @@ async def analyze_query(
         >>> result.secondary_domains
         ["contact"]
     """
-    from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
     from src.core.llm_config_helper import get_llm_config_for_agent
     from src.core.time_utils import get_current_datetime_context, now_in_timezone
     from src.domains.agents.prompts.prompt_loader import load_prompt
@@ -474,15 +476,8 @@ async def analyze_query(
         # Build memory facts string
         memory_str = "None" if not memory_facts else "\n".join(f"- {fact}" for fact in memory_facts)
 
-        # Build conversation history string
-        history_str = "None"
-        if conversation_history:
-            history_lines = []
-            for turn in conversation_history[-window_size:]:
-                role = turn.get("role", "user")
-                content = turn.get("content", "")[:200]
-                history_lines.append(f"[{role}]: {content}")
-            history_str = "\n".join(history_lines)
+        # Each turn as the projection cut and stamped it (lot 17)
+        history_str = render_conversation_history(conversation_history or [], window_size)
 
         # Build user location string
         location_str = "Not available"
@@ -1380,8 +1375,13 @@ class QueryAnalyzerService:
         messages: list[BaseMessage],
         window_size: int = 5,
     ) -> list[dict[str, str]]:
-        """Delegate context handling without changing the service interface."""
-        return extract_conversation_history(messages, window_size)
+        """Delegate context handling without changing the service interface.
+
+        Each message the person wrote reads with its instant, in the zone the
+        turn's prompt states the present in (lot 17).
+        """
+        zone = resolve_zone(runtime_timezone(DEFAULT_USER_DISPLAY_TIMEZONE))
+        return extract_conversation_history(messages, zone=zone, window_size=window_size)
 
     def _map_llm_intent_to_internal(
         self,

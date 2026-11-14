@@ -28,6 +28,8 @@
  * `lib/csp.ts`), like the microphone's `lib/audio/pcm-worklet.ts`.
  */
 
+import { tapVoice, tapVoiceStream } from '@/lib/audio/voice-envelope';
+
 type SpeakingListener = (speaking: boolean) => void;
 
 /** Name registered with `registerProcessor`; the node is created with it. */
@@ -235,6 +237,8 @@ export function getPcmPlayerWorkletUrl(): string {
 export class PcmStreamPlayer {
   private context: AudioContext | null = null;
   private node: AudioWorkletNode | null = null;
+  /** Lets go of the face's tap on the node (ADR-294, follow-up of 2026-11-13). */
+  private releaseVoice: (() => void) | null = null;
   private speaking = false;
   private listener: SpeakingListener | null = null;
   private audibleListener: SpeakingListener | null = null;
@@ -305,6 +309,8 @@ export class PcmStreamPlayer {
       if (event.data?.type === 'drained' && event.data.seq === this.seq) this.setSpeaking(false);
     };
     node.connect(context.destination);
+    // The face reads the level of what this node plays, beside the speakers.
+    this.releaseVoice = tapVoice(node);
     if (this.bufferMs > 0) {
       const command: PcmPlayerCommand = {
         type: 'buffer',
@@ -315,6 +321,16 @@ export class PcmStreamPlayer {
     this.node = node;
     if (this.audibleListener)
       node.port.postMessage({ type: 'observe_audio', epoch: this.audioEpoch });
+  }
+
+  /**
+   * Lends this player's context, created and resumed on the person's gesture, to
+   * a voice another sink plays (a WebRTC session's own element) so the face hears
+   * it (ADR-294, follow-up of 2026-11-13). Nothing to lend before `warmup()` or
+   * after `dispose()`.
+   */
+  tapStream(stream: MediaStream): () => void {
+    return this.context ? tapVoiceStream(this.context, stream) : () => undefined;
   }
 
   /** Hand one chunk (at ITS rate) to the worklet; dropped before `warmup()`. */
@@ -364,6 +380,8 @@ export class PcmStreamPlayer {
 
   dispose(): void {
     this.flush();
+    this.releaseVoice?.();
+    this.releaseVoice = null;
     if (this.node) {
       this.node.port.onmessage = null;
       this.node.disconnect();

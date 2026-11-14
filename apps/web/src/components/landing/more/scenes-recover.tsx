@@ -28,7 +28,9 @@ import {
   ScrollText,
   SearchX,
   CheckCircle2,
+  type LucideIcon,
 } from '@/lib/icons';
+import { MonochromeIcons } from '@/lib/icon-style-context';
 
 import { cn } from '@/lib/utils';
 
@@ -669,7 +671,9 @@ function PageWaitsScene({ active, labels }: SceneProps) {
             phase === 'waiting' ? 'opacity-100' : 'opacity-0'
           )}
         >
-          <Play className="h-3 w-3" aria-hidden="true" />
+          <MonochromeIcons>
+            <Play className="h-3 w-3" aria-hidden="true" />
+          </MonochromeIcons>
           {labels.start}
         </span>
       </div>
@@ -677,7 +681,63 @@ function PageWaitsScene({ active, labels }: SceneProps) {
   );
 }
 
+type RoutineWhyPhase = 'ran' | 'skipped' | 'missed';
+const ROUTINE_WHY_STEPS: readonly TimelineStep<RoutineWhyPhase>[] = [
+  { at: 0, state: 'ran' },
+  { at: 1100, state: 'skipped' },
+  { at: 2200, state: 'missed' },
+];
+
+/** One line of a routine's week: what it did, or why it did not. */
+function RoutineRunRow({
+  icon: Icon,
+  label,
+  shown,
+  warning,
+}: {
+  icon: LucideIcon;
+  label: string;
+  shown: boolean;
+  warning?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-2 rounded-md border bg-background px-2 py-1 text-px-10 transition-all duration-300 motion-reduce:transition-none',
+        warning ? 'border-warning/40 text-warning' : 'border-border text-foreground/80',
+        shown ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+      )}
+    >
+      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+      <span className="truncate font-medium">{label}</span>
+    </div>
+  );
+}
+
+/**
+ * A routine's runs, each with its word: one ran, one was skipped at the usage
+ * limit, one was missed. The resting frame keeps the three, as the week view does.
+ */
+function RoutineSaysWhyScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(ROUTINE_WHY_STEPS, { active });
+  return (
+    <div className={STAGE}>
+      <div className="flex w-full max-w-[220px] flex-col gap-1">
+        <RoutineRunRow icon={Check} label={labels.ran} shown />
+        <RoutineRunRow
+          icon={AlertTriangle}
+          label={labels.skipped}
+          shown={phase !== 'ran'}
+          warning
+        />
+        <RoutineRunRow icon={Clock} label={labels.missed} shown={phase === 'missed'} warning />
+      </div>
+    </div>
+  );
+}
+
 export const RECOVER_SCENES: Readonly<Record<string, SceneComponent>> = {
+  routine_says_why: RoutineSaysWhyScene,
   meeting_banner: MeetingBannerScene,
   diagnosis_evidence: DiagnosisEvidenceScene,
   page_waits: PageWaitsScene,

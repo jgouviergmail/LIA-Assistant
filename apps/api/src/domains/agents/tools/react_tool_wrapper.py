@@ -34,7 +34,7 @@ import structlog
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, PrivateAttr
 
-from src.core.classification_projection import model_classifications
+from src.core.annotation_projection import model_annotations
 from src.core.field_names import FIELD_ITEMS_FOUND, FIELD_ITEMS_SHOWN
 from src.infrastructure.mcp.gated_tool import EffectGatedMCPTool
 
@@ -270,9 +270,10 @@ def _prepare_model_data(data: dict[str, object], result: object) -> dict[str, ob
     metadata = getattr(result, "metadata", None)
     if isinstance(metadata, dict) and metadata.get("mcp_result_projection") is True:
         return _project_mcp_data(data, metadata)
-    # A JEV qualification reaches the model as labels and a state, never as
-    # instants it would compare with a clock in another zone (2026-10-25).
-    return model_classifications(data)
+    # An annotation (a JEV qualification, a mail's reply state) reaches the model
+    # as its view — labels and a state the code decides now — never as instants
+    # it would compare with a clock in another zone (2026-10-25).
+    return model_annotations(data)
 
 
 def _carried_data(result: Any) -> dict[str, Any] | None:

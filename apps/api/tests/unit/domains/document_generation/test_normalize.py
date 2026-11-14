@@ -20,13 +20,17 @@ from src.domains.document_generation.normalize import (
     normalize_tabular,
 )
 from src.domains.document_generation.schemas import (
+    Illustration,
+    KeyFigure,
     SectionBlock,
     SectionedContent,
+    SheetInput,
     Slide,
     SlideColumn,
     SlideContent,
     TableSheet,
     TabularContent,
+    WorkbookFigure,
 )
 
 pytestmark = [pytest.mark.unit]
@@ -206,6 +210,173 @@ class TestEffectiveSlideKinds:
         assert [s.kind for s in _slides(Slide(title="t", kind="table", table=empty))] == ["content"]
 
 
+def _deck(slide: Slide, delivery: str = "") -> SlideContent:
+    content = SlideContent(filename_stem="d", title="D", delivery=delivery, slides=[slide])
+    return normalize_slides(content, "en")
+
+
+class TestKeyFiguresQuotesAndPictograms:
+    def test_figures_are_cleaned_and_a_label_alone_is_no_figure(self) -> None:
+        out = _slides(
+            Slide(
+                title="Results",
+                kind="figures",
+                figures=[
+                    KeyFigure(value="  42 % ", label=" of  sales ", icon="Trending Up"),
+                    KeyFigure(value=" ", label="orphan label"),
+                    KeyFigure(value="3", icon="unicorn"),
+                ],
+            )
+        )
+        assert [s.kind for s in out] == ["figures"]
+        assert out[0].figures == [
+            KeyFigure(value="42 %", label="of sales", icon="trending-up"),
+            KeyFigure(value="3", label="", icon=""),
+        ]
+
+    def test_a_figures_slide_with_no_figure_left_reads_as_its_bullets(self) -> None:
+        out = _slides(
+            Slide(title="t", kind="figures", figures=[KeyFigure(value=" ")], bullets=["x"])
+        )
+        assert [s.kind for s in out] == ["content"]
+
+    def test_a_quote_s_subtitle_is_its_author(self) -> None:
+        out = _slides(Slide(title="Voices", kind="quote", quote=" It  works. ", subtitle=" Ana "))
+        assert [(s.kind, s.quote, s.subtitle) for s in out] == [("quote", "It works.", "Ana")]
+
+    def test_an_empty_quote_is_no_quote_slide(self) -> None:
+        out = _slides(Slide(title="Voices", kind="quote", quote=" ", bullets=["said"]))
+        assert [s.kind for s in out] == ["content"]
+        assert out[0].subtitle == ""
+
+    def test_a_section_keeps_a_pictogram_it_can_draw(self) -> None:
+        drawn = _slides(Slide(title="P", kind="section", icon=" Rocket "))
+        assert drawn[0].icon == "rocket"
+        assert _slides(Slide(title="P", kind="section", icon="unicorn"))[0].icon == ""
+
+    @pytest.mark.parametrize(
+        ("declared", "canonical"),
+        [("presented", "presented"), (" Read ", "read"), ("keynote", ""), ("", "")],
+    )
+    def test_the_delivery_is_one_the_renderer_knows(self, declared: str, canonical: str) -> None:
+        assert _deck(Slide(title="t", bullets=["x"]), delivery=declared).delivery == canonical
+
+    def test_normalizing_the_new_kinds_twice_changes_nothing(self) -> None:
+        content = SlideContent(
+            filename_stem="d",
+            title="D",
+            delivery="Presented",
+            slides=[
+                Slide(title="Part", kind="section", subtitle="s", icon="Target"),
+                Slide(title="F", kind="figures", figures=[KeyFigure(value="1", label="l")]),
+                Slide(title="Q", kind="quote", quote="q", subtitle="a"),
+            ],
+        )
+        once = normalize_slides(content, "en")
+        assert normalize_slides(once, "en") == once
+
+
+def _pictured(*slides: Slide, budget: int, cover: Illustration | None = None) -> SlideContent:
+    content = SlideContent(
+        filename_stem="d",
+        title="D",
+        illustration=cover,
+        image_style=" flat  vector ",
+        slides=list(slides),
+    )
+    return normalize_slides(content, "en", max_illustrations=budget)
+
+
+_SCENE = Illustration(subject="  a  harbour at dawn ", alt=" Un  port ")
+
+
+class TestIllustrations:
+    def test_no_budget_strips_every_picture_and_the_style(self) -> None:
+        deck = _pictured(
+            Slide(title="P", kind="section", illustration=_SCENE),
+            Slide(title="C", bullets=["a"], illustration=_SCENE),
+            budget=0,
+            cover=_SCENE,
+        )
+        assert deck.illustration is None and deck.image_style == ""
+        assert all(slide.illustration is None for slide in deck.slides)
+
+    def test_a_picture_is_cleaned_and_a_subjectless_one_is_none(self) -> None:
+        deck = _pictured(
+            Slide(title="P", kind="section", illustration=Illustration(subject="  ")),
+            budget=3,
+            cover=_SCENE,
+        )
+        assert deck.illustration == Illustration(subject="a harbour at dawn", alt="Un port")
+        assert deck.slides[0].illustration is None
+        assert deck.image_style == "flat vector"
+
+    def test_the_cover_comes_first_then_the_slides_in_order(self) -> None:
+        deck = _pictured(
+            Slide(title="P1", kind="section", illustration=Illustration(subject="one")),
+            Slide(title="C", bullets=["a"], illustration=Illustration(subject="two")),
+            Slide(title="P2", kind="section", illustration=Illustration(subject="three")),
+            budget=2,
+            cover=Illustration(subject="cover"),
+        )
+        assert deck.illustration is not None and deck.illustration.subject == "cover"
+        kept = [slide.illustration.subject for slide in deck.slides if slide.illustration]
+        assert kept == ["one"]
+
+    def test_a_picture_goes_where_it_can_be_drawn(self) -> None:
+        table = TableSheet(name="t", headers=["a", "b"], rows=[["x", "1"]])
+        deck = _pictured(
+            Slide(title="P", kind="section", subtitle="s", illustration=_SCENE),
+            Slide(title="C", bullets=["a"] * 2, illustration=_SCENE),
+            Slide(title="T", kind="table", table=table, illustration=_SCENE),
+            Slide(title="F", kind="figures", figures=[KeyFigure(value="1")], illustration=_SCENE),
+            budget=6,
+        )
+        pictured = [(slide.kind, slide.illustration is not None) for slide in deck.slides]
+        assert pictured == [
+            ("section", True),
+            ("content", True),
+            ("table", False),
+            ("figures", False),
+        ]
+
+    def test_a_title_and_a_picture_make_a_slide(self) -> None:
+        deck = _pictured(Slide(title="The view", illustration=_SCENE), budget=1)
+        assert [(slide.kind, slide.illustration is not None) for slide in deck.slides] == [
+            ("content", True)
+        ]
+
+    def test_the_style_is_kept_only_when_a_picture_is(self) -> None:
+        deck = _pictured(Slide(title="C", bullets=["a"]), budget=4)
+        assert deck.image_style == ""
+
+    def test_normalizing_pictures_twice_changes_nothing(self) -> None:
+        once = _pictured(
+            Slide(title="P", kind="section", illustration=_SCENE),
+            Slide(title="C", bullets=["a"], illustration=_SCENE),
+            budget=1,
+            cover=_SCENE,
+        )
+        assert normalize_slides(once, "en", max_illustrations=1) == once
+
+    def test_the_dispatch_reads_the_person_s_budget(self) -> None:
+        from src.core.config import settings
+        from src.core.document_preferences import DocumentPreferences
+
+        content = SlideContent(
+            filename_stem="d", title="D", illustration=_SCENE, slides=[Slide(title="t")]
+        )
+        allowed = RenderContext(language="en", preferences=DocumentPreferences(images_allowed=True))
+        refused = RenderContext(language="en")
+
+        drawn = normalize_content(content, allowed)
+        stripped = normalize_content(content, refused)
+
+        assert isinstance(drawn, SlideContent) and isinstance(stripped, SlideContent)
+        assert (drawn.illustration is not None) is (settings.document_illustrations_max > 0)
+        assert stripped.illustration is None
+
+
 class TestTabularAndDispatch:
     def test_sheets_are_normalized_and_a_workbook_always_has_one(self) -> None:
         out = normalize_tabular(
@@ -234,6 +405,72 @@ class TestTabularAndDispatch:
             _CTX,
         )
         assert isinstance(book, TabularContent)
+
+    def test_key_figures_are_settled_against_the_canonical_workbook(self) -> None:
+        """A figure reads the sheets and inputs as the renderer will: a sheet's
+        control character stripped, an input's spacing settled — and one that
+        cannot be computed goes, never the workbook."""
+        out = normalize_tabular(
+            TabularContent(
+                filename_stem="t",
+                title="T",
+                sheets=[
+                    TableSheet(
+                        name="Sa\x07les", headers=["Region", "Revenue"], rows=[["North", "10"]]
+                    )
+                ],
+                inputs=[SheetInput(name="  Bonus  rate ", value="2")],
+                figures=[
+                    WorkbookFigure(label="Total", formula="SUM({Sales/Revenue}) * {Bonus rate}"),
+                    WorkbookFigure(label="Regions", formula="SUM({Sales/Region})"),
+                ],
+            ),
+            "en",
+        )
+        assert [figure.label for figure in out.figures] == ["Total"]
+
+    @pytest.mark.parametrize(
+        ("declared", "value", "kept"),
+        [
+            ("code", "12", ""),
+            ("text", "12", ""),
+            (" Percent ", "12%", "percent"),
+            ("year", "2026", "year"),
+            ("money", "12", ""),
+        ],
+    )
+    def test_an_input_is_a_number_or_a_date_never_a_text(
+        self, declared: str, value: str, kept: str
+    ) -> None:
+        """A formula reads an input as a number: declared a text, its cell would be
+        written as one, and Excel would compare and aggregate it as a text."""
+        assert [item.kind for item in self._inputs(value, declared)] == [kept]
+
+    @pytest.mark.parametrize(
+        ("value", "kept"),
+        [("20", ""), ("-1.5", ""), ("0.2", "percent"), ("1", "percent"), ("20%", "percent")],
+    )
+    def test_an_input_is_a_percentage_with_its_sign_or_as_a_fraction(
+        self, value: str, kept: str
+    ) -> None:
+        """« 20 » declared a percentage would read 2 000 % in its cell, and nothing says
+        the writer meant 20 %: the declaration goes, the number stays as written."""
+        assert [(item.value, item.kind) for item in self._inputs(value, "percent")] == [
+            (value, kept)
+        ]
+
+    @staticmethod
+    def _inputs(value: str, declared: str) -> list[SheetInput]:
+        out = normalize_tabular(
+            TabularContent(
+                filename_stem="t",
+                title="T",
+                sheets=[TableSheet(name="s", headers=["a"], rows=[["1"]])],
+                inputs=[SheetInput(name="Rate", value=value, kind=declared)],
+            ),
+            "en",
+        )
+        return out.inputs
 
     def test_the_dispatch_covers_every_family(self) -> None:
         """ADR-085: a family the dispatch cannot canonicalise would reach a renderer raw."""

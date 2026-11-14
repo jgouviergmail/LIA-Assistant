@@ -43,6 +43,8 @@ import type {
 const SESSION = 'a'.repeat(32);
 const START: LiveSessionStart = {
   session_id: SESSION,
+  conversation_id: '8151d469-fd4b-4191-bd20-75a6f0d4f25',
+  conversation_revision: 2,
   provider: 'gemini',
   model: 'm',
   mode: 'delegated',
@@ -333,12 +335,101 @@ describe('LiveSessionController', () => {
     await starting;
     await h.controller.end();
   });
+
+  it('releases an opening player when its chat closes before sending the mint', async () => {
+    const h = build();
+    let warmed = () => {};
+    h.player.warmup.mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          warmed = resolve;
+        })
+    );
+
+    const starting = h.controller.start();
+    await h.controller.end();
+    warmed();
+    await starting;
+
+    expect(h.post).not.toHaveBeenCalled();
+    expect(h.player.dispose).toHaveBeenCalledOnce();
+    expect(useLiveStore.getState().status).toBe('ended');
+  });
+
+  it('closes a mint acknowledged after its chat closes without opening the provider', async () => {
+    const h = build();
+    let accept: (session: typeof START) => void = () => {};
+    h.post.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          accept = resolve;
+        })
+    );
+    const starting = h.controller.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(h.post).toHaveBeenCalledWith('/live/sessions', expect.anything());
+    await h.controller.end();
+    accept(START);
+    await starting;
+
+    expect(h.post.mock.calls.map(([url]) => url)).toEqual([
+      '/live/sessions',
+      `/live/sessions/${SESSION}/end`,
+    ]);
+    expect(h.deps.startMic).not.toHaveBeenCalled();
+    expect(h.transport.connects).toHaveLength(0);
+    expect(h.player.dispose).toHaveBeenCalledOnce();
+    expect(useLiveStore.getState().status).toBe('ended');
+  });
+
   beforeEach(() => {
     vi.useFakeTimers();
     useLiveStore.getState().reset();
   });
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('pins the discussion before mint, through view changes, standby, wake and closing', async () => {
+    const h = build();
+    const origin = {
+      ...h.chat,
+      target: { conversation_id: START.conversation_id, conversation_revision: 2 },
+    };
+    const other = {
+      ...h.chat,
+      target: { conversation_id: 'd218f594-201f-48b3-a2c8-82fe85b3e5b3', conversation_revision: 0 },
+      sendMessage: vi.fn(async () => {}),
+      appendMessage: vi.fn(),
+      readAnswer: vi.fn(async () => ({ text: 'wrong discussion', pendingQuestion: null })),
+    };
+    h.controller.setChat(origin);
+    let warmed = () => {};
+    h.player.warmup.mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          warmed = resolve;
+        })
+    );
+    const starting = h.controller.start();
+    h.controller.setChat(other);
+    warmed();
+    await starting;
+    expect(h.post).toHaveBeenCalledWith('/live/sessions', expect.objectContaining(origin.target));
+    await h.controller.standby();
+    await h.controller.wake();
+    await h.transport.events.onDelegation?.([{ id: 'pinned', request: 'synthetic request' }]);
+    expect(origin.sendMessage).toHaveBeenCalledOnce();
+    expect(other.sendMessage).not.toHaveBeenCalled();
+    expect(other.readAnswer).not.toHaveBeenCalled();
+    h.transport.events.onTurnComplete?.();
+    h.transport.events.onTranscript?.('user', 'synthetic voice turn');
+    h.transport.events.onTranscript?.('assistant', 'synthetic answer');
+    h.transport.events.onTurnComplete?.();
+    await vi.advanceTimersByTimeAsync(10);
+    await h.controller.end();
+    expect(origin.appendMessage).toHaveBeenCalled();
+    expect(other.appendMessage).not.toHaveBeenCalled();
   });
 
   it('hands an offer connection the exchange door and the microphone stream, a token one neither', async () => {
@@ -427,6 +518,32 @@ describe('LiveSessionController', () => {
     await starting;
     expect(h.mic.stop).toHaveBeenCalledTimes(1);
     expect(h.transport.connects).toHaveLength(0);
+  });
+
+  it('keeps a late microphone approval out of a newer session', async () => {
+    const h = build();
+    const lateMic = { ...h.mic, stop: vi.fn(async () => {}) };
+    const permission = Promise.withResolvers<typeof lateMic>();
+    let lateAudio: (pcm: ArrayBuffer) => void = () => {};
+    vi.mocked(h.deps.startMic).mockImplementationOnce(options => {
+      lateAudio = options.onChunk;
+      return permission.promise;
+    });
+    const opening = h.controller.start();
+    await vi.advanceTimersByTimeAsync(0);
+    await h.controller.end();
+
+    h.post.mockResolvedValueOnce({ ...START, session_id: 'b'.repeat(32) });
+    await h.controller.start();
+    permission.resolve(lateMic);
+    await opening;
+    lateAudio(new ArrayBuffer(4));
+
+    expect(lateMic.stop).toHaveBeenCalledOnce();
+    expect(h.mic.stop).not.toHaveBeenCalled();
+    expect(h.transport.sent.filter(entry => entry.kind === 'audio')).toEqual([]);
+    await h.controller.end();
+    expect(h.mic.stop).toHaveBeenCalledOnce();
   });
 
   it('starts, archives a voice turn, delegates, reconnects on goAway and ends', async () => {

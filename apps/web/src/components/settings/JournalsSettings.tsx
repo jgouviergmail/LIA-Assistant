@@ -451,7 +451,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
             id="journals-enabled"
             checked={journalSettings?.journals_enabled ?? false}
             onCheckedChange={v => handleToggle('journals_enabled', v)}
-            disabled={isUpdatingSettings}
+            busy={isUpdatingSettings}
           />
         </div>
 
@@ -500,7 +500,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                     id="consolidation-enabled"
                     checked={journalSettings?.journal_consolidation_enabled ?? true}
                     onCheckedChange={v => handleToggle('journal_consolidation_enabled', v)}
-                    disabled={isUpdatingSettings}
+                    busy={isUpdatingSettings}
                   />
                 </div>
 
@@ -521,7 +521,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                     id="history-enabled"
                     checked={journalSettings?.journal_consolidation_with_history ?? false}
                     onCheckedChange={v => handleToggle('journal_consolidation_with_history', v)}
-                    disabled={isUpdatingSettings}
+                    busy={isUpdatingSettings}
                   />
                 </div>
 

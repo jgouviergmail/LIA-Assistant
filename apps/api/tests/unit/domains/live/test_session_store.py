@@ -32,6 +32,13 @@ def _record(user_id: uuid.UUID, token: str = "tok") -> LiveSessionRecord:
     )
 
 
+async def _claimed_record(store: LiveSessionStore, owner: uuid.UUID) -> LiveSessionRecord:
+    """Read the fixture's claimed session; side-list operations cannot name an account alone."""
+    record = await store.get(owner)
+    assert record is not None
+    return record
+
+
 def test_the_nonce_survives_the_round_trip_and_reads_none_when_absent() -> None:
     # An offer connection's credential lives on the record; a token connection's
     # record (and one written by the previous release) carries none.
@@ -223,18 +230,28 @@ async def test_the_kept_turns_are_ordered_bounded_and_live_with_the_record(
     assert await store.claim(_record(user), ttl_seconds=600) is True
     assert (
         await store.append_turns(
-            user, [("user", "a"), ("assistant", "b")], ttl_seconds=600, max_rows=3
+            await _claimed_record(store, user),
+            [("user", "a"), ("assistant", "b")],
+            ttl_seconds=600,
+            max_rows=3,
         )
         == 2
     )
     # Past the bound the rest is dropped, and the count says how many were kept.
     assert (
         await store.append_turns(
-            user, [("user", "c"), ("assistant", "d")], ttl_seconds=590, max_rows=3
+            await _claimed_record(store, user),
+            [("user", "c"), ("assistant", "d")],
+            ttl_seconds=590,
+            max_rows=3,
         )
         == 1
     )
-    assert await store.turns(user) == [("user", "a"), ("assistant", "b"), ("user", "c")]
+    assert await store.turns(await _claimed_record(store, user)) == [
+        ("user", "a"),
+        ("assistant", "b"),
+        ("user", "c"),
+    ]
     assert redis.ttls[f"live:session:{user}:turns"] == 590
 
 
@@ -247,7 +264,9 @@ async def test_an_extension_keeps_the_turns_alive_as_long_as_the_record(
     user = uuid.uuid4()
     record = _record(user, "a")
     assert await store.claim(record, ttl_seconds=60) is True
-    await store.append_turns(user, [("user", "a")], ttl_seconds=30, max_rows=10)
+    await store.append_turns(
+        await _claimed_record(store, user), [("user", "a")], ttl_seconds=30, max_rows=10
+    )
     extended = replace(record, expires_at=record.expires_at + timedelta(minutes=10), extensions=1)
     assert await store.extend(extended, ttl_seconds=720) is True
     assert redis.ttls[f"live:session:{user}:turns"] == 720
@@ -264,7 +283,7 @@ async def test_a_new_claim_starts_with_no_turns_of_a_dead_session(
     user = uuid.uuid4()
     redis.lists[f"live:session:{user}:turns"] = [json.dumps(["user", "stale"])]
     assert await store.claim(_record(user), ttl_seconds=60) is True
-    assert await store.turns(user) == []
+    assert await store.turns(await _claimed_record(store, user)) == []
 
 
 async def test_a_release_takes_the_turns_with_the_record(
@@ -273,7 +292,9 @@ async def test_a_release_takes_the_turns_with_the_record(
     user = uuid.uuid4()
     record = _record(user, "a")
     assert await store.claim(record, ttl_seconds=60) is True
-    await store.append_turns(user, [("user", "a")], ttl_seconds=30, max_rows=10)
+    await store.append_turns(
+        await _claimed_record(store, user), [("user", "a")], ttl_seconds=30, max_rows=10
+    )
     assert await store.release(user, "a") is True
     assert f"live:session:{user}:turns" not in redis.lists
 
@@ -364,33 +385,51 @@ async def test_the_standby_drains_the_kept_turns_atomically(
     # drain belongs to the next connection, never relayed twice.
     user = uuid.uuid4()
     assert await store.claim(_record(user), ttl_seconds=600) is True
-    await store.append_turns(user, [("user", "a"), ("assistant", "b")], ttl_seconds=600, max_rows=9)
-    assert await store.drain_turns(user, max_rows=9) == [("user", "a"), ("assistant", "b")]
-    assert await store.turns(user) == []
-    assert await store.drain_turns(user, max_rows=9) == []
-    await store.append_turns(user, [("user", "c")], ttl_seconds=600, max_rows=9)
-    assert await store.drain_turns(user, max_rows=9) == [("user", "c")]
+    await store.append_turns(
+        await _claimed_record(store, user),
+        [("user", "a"), ("assistant", "b")],
+        ttl_seconds=600,
+        max_rows=9,
+    )
+    assert await store.drain_turns(await _claimed_record(store, user), max_rows=9) == [
+        ("user", "a"),
+        ("assistant", "b"),
+    ]
+    assert await store.turns(await _claimed_record(store, user)) == []
+    assert await store.drain_turns(await _claimed_record(store, user), max_rows=9) == []
+    await store.append_turns(
+        await _claimed_record(store, user), [("user", "c")], ttl_seconds=600, max_rows=9
+    )
+    assert await store.drain_turns(await _claimed_record(store, user), max_rows=9) == [
+        ("user", "c")
+    ]
 
 
-async def test_the_standby_relay_fates_are_kept_in_order_with_the_record(
+async def test_legacy_standby_relay_results_remain_readable_until_release(
     store: LiveSessionStore, redis: FakeRedis
 ) -> None:
     user = uuid.uuid4()
     record = _record(user, "a")
     assert await store.claim(record, ttl_seconds=600) is True
-    await store.append_relay(user, "answered", None, ttl_seconds=500)
-    await store.append_relay(user, "quota_blocked", "the recap", ttl_seconds=400)
-    assert await store.relays(user) == [("answered", None), ("quota_blocked", "the recap")]
-    assert redis.ttls[f"live:session:{user}:relays"] == 400
+    relays_key = f"live:session:{user}:relays"
+    redis.lists[relays_key] = [
+        json.dumps(["answered", None]),
+        json.dumps(["quota_blocked", "the recap"]),
+    ]
+    redis.ttls[relays_key] = 400
+    assert await store.relays(await _claimed_record(store, user)) == [
+        ("answered", None),
+        ("quota_blocked", "the recap"),
+    ]
     # A rewrite of the record with a new life carries the fates along.
     assert await store.extend(replace(record, extensions=1), ttl_seconds=900) is True
-    assert redis.ttls[f"live:session:{user}:relays"] == 900
+    assert redis.ttls[relays_key] == 900
     # A new session starts without the fates of a dead one; a release takes them.
     assert await store.release(user, "a") is True
-    assert f"live:session:{user}:relays" not in redis.lists
-    redis.lists[f"live:session:{user}:relays"] = [json.dumps(["failed", None])]
+    assert relays_key not in redis.lists
+    redis.lists[relays_key] = [json.dumps(["failed", None])]
     assert await store.claim(_record(user, "b"), ttl_seconds=60) is True
-    assert await store.relays(user) == []
+    assert await store.relays(await _claimed_record(store, user)) == []
 
 
 async def test_an_extension_carries_the_lookup_budget_with_the_record(

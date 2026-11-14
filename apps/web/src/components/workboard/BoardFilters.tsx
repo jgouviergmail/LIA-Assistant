@@ -19,6 +19,10 @@
  * `<details>` and renders its children only while open), and the filter state
  * lives in the PAGE, so folding costs nothing and loses nothing. Above `lg`
  * the block is unchanged: a full-width row of four fields, always visible.
+ *
+ * **The lane filter exists only on a board that has lanes.** A reader with no
+ * category in sight has nothing to narrow to, and a list offering « all » and
+ * « to categorize » alone would describe a board they do not have.
  */
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -31,18 +35,36 @@ import { Label } from '@/components/ui/label';
 import { GlyphLabel, GlyphSelect } from '@/components/workboard/GlyphSelect';
 import { PRIORITY_ANY, PrioritySelect } from '@/components/workboard/PrioritySelect';
 import type { Language } from '@/i18n/settings';
+import { cn } from '@/lib/utils';
 import { activeFilterCount, describeFilters } from '@/lib/workboard/active-filters';
 import { SEARCH_MAX_CHARS } from '@/lib/workboard/filters-url';
-import { anyIcon, filterIcon, partyIcon, sortIcon } from '@/lib/workboard/icons';
+import { anyIcon, filterIcon, laneIcon, partyIcon, sortIcon } from '@/lib/workboard/icons';
+import { UNFILED_LANE } from '@/lib/workboard/lanes';
 import type { BoardFilters as Filters, BoardSide, BoardSort } from '@/types/workboard';
 
 const SIDES: readonly BoardSide[] = ['all', 'me', 'lia', 'peer'];
 const SORTS: readonly BoardSort[] = ['position', 'priority', 'due', 'updated', 'created'];
 
+/** The list's value for « every lane » — never a category id, which is a UUID. */
+const LANE_ANY = 'any';
+
+/** One lane the board can be narrowed to. */
+export interface LaneOption {
+  /** The category. */
+  id: string;
+  /** How the list names it — its name, and whose it is when not the reader's. */
+  name: string;
+}
+
 export interface BoardFiltersProps {
   lng: Language;
   filters: Filters;
   onChange: (filters: Filters) => void;
+  /**
+   * The categories on the reader's board, theirs and those of the tickets
+   * they hold. Empty or absent, the lane filter is not drawn.
+   */
+  lanes?: readonly LaneOption[];
   /**
    * Fold the block behind a summary. The page passes `true` below `lg`, where
    * one column of cards shows at a time and the controls would otherwise take
@@ -57,7 +79,25 @@ const ITEM_GLYPH = 'h-3.5 w-3.5 shrink-0';
 const ANY_GLYPH = 'h-3.5 w-3.5 shrink-0 text-primary';
 const FIELD = 'h-10 px-3 text-sm';
 
-export function BoardFilters({ filters, onChange, collapsible = false }: BoardFiltersProps) {
+/**
+ * What the lane list shows for the filters in force.
+ *
+ * The list picks ONE lane; a link may carry several. It then shows the first
+ * it can name — and « all » for a lane the board no longer carries, rather
+ * than a list with no selected value.
+ */
+function laneValue(filters: Filters, lanes: readonly LaneOption[]): string {
+  const chosen = filters.category?.find(id => lanes.some(lane => lane.id === id));
+  if (chosen !== undefined) return chosen;
+  return filters.uncategorized ? UNFILED_LANE : LANE_ANY;
+}
+
+export function BoardFilters({
+  filters,
+  onChange,
+  lanes = [],
+  collapsible = false,
+}: BoardFiltersProps) {
   const { t } = useTranslation();
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
   const reset = () => onChange({ assignee: 'all', sort: 'position' });
@@ -76,7 +116,12 @@ export function BoardFilters({ filters, onChange, collapsible = false }: BoardFi
           lined up with anything. One column on a phone, two from `sm`, four
           from `xl` — the fields share the width and their labels sit on the
           same baselines. */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div
+        className={cn(
+          'grid gap-3 sm:grid-cols-2',
+          lanes.length > 0 ? 'xl:grid-cols-5' : 'xl:grid-cols-4'
+        )}
+      >
         <div className="space-y-2">
           <GlyphLabel htmlFor="wb-q" glyph={filterIcon('search', LABEL_GLYPH)}>
             {t('workboard.filters.search')}
@@ -114,6 +159,44 @@ export function BoardFilters({ filters, onChange, collapsible = false }: BoardFi
             }}
           />
         </div>
+
+        {lanes.length > 0 && (
+          <div className="space-y-2">
+            {/* Which lane: « all », what is not filed yet, or one category.
+                `undefined` for an unset half, never `[]` or `false`. */}
+            <GlyphSelect
+              id="wb-lane"
+              hideLabel={false}
+              label={t('workboard.filters.category')}
+              labelGlyph={filterIcon('category', LABEL_GLYPH)}
+              value={laneValue(filters, lanes)}
+              className={FIELD}
+              items={[
+                {
+                  value: LANE_ANY,
+                  glyph: anyIcon(ANY_GLYPH),
+                  text: t('workboard.filters.category_any'),
+                },
+                {
+                  value: UNFILED_LANE,
+                  glyph: laneIcon(false, ANY_GLYPH),
+                  text: t('workboard.lanes.unfiled'),
+                },
+                ...lanes.map(lane => ({
+                  value: lane.id,
+                  glyph: laneIcon(true, ANY_GLYPH),
+                  text: lane.name,
+                })),
+              ]}
+              onChange={chosen =>
+                set({
+                  category: lanes.some(lane => lane.id === chosen) ? [chosen] : undefined,
+                  uncategorized: chosen === UNFILED_LANE ? true : undefined,
+                })
+              }
+            />
+          </div>
+        )}
 
         <div className="space-y-2">
           {/* `undefined`, never `[]` or `''`: an unset filter must cost no query
@@ -175,7 +258,7 @@ export function BoardFilters({ filters, onChange, collapsible = false }: BoardFi
 
   if (collapsible)
     return (
-      <FoldedFilters filters={filters}>
+      <FoldedFilters filters={filters} lanes={lanes}>
         {controls}
         {clearButton}
       </FoldedFilters>
@@ -210,10 +293,22 @@ export function BoardFilters({ filters, onChange, collapsible = false }: BoardFi
  * state reads too, so the board cannot say « no match » while the summary says
  * nothing is filtered.
  */
-function FoldedFilters({ filters, children }: { filters: Filters; children: ReactNode }) {
+function FoldedFilters({
+  filters,
+  lanes,
+  children,
+}: {
+  filters: Filters;
+  lanes: readonly LaneOption[];
+  children: ReactNode;
+}) {
   const { t } = useTranslation();
   const count = activeFilterCount(filters);
-  const described = describeFilters(filters, t);
+  const described = describeFilters(
+    filters,
+    t,
+    categoryId => lanes.find(lane => lane.id === categoryId)?.name
+  );
   return (
     <Disclosure
       icon={Filter}

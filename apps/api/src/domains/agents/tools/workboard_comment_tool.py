@@ -1,4 +1,9 @@
-"""The original comment capability proposes a typed, source-resolved native draft."""
+"""The original comment capability proposes a typed, source-resolved native draft.
+
+A refusal of the workboard itself — two tickets under that title, a comment
+too long — reaches the model as its stable ``workboard_*`` code
+(``workboard_refusal``), never as the shared preparation's mute sentence.
+"""
 
 from uuid import UUID
 
@@ -13,6 +18,7 @@ from src.domains.agents.application.workboard_comment_schemas import WorkboardCo
 from src.domains.agents.application.workboard_create import creation_access
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.agents.tools.workboard_refusal import workboard_refusals
 from src.domains.workboard.schemas import CommentCreate
 from src.domains.workboard.service import WorkboardService
 from src.infrastructure.database.session import get_db_context
@@ -26,11 +32,12 @@ class CommentReference(CommentCreate):
 async def _prepare_reference(
     db: AsyncSession, actor_id: UUID, request: CommentReference
 ) -> ApplicationActionDraftContent:
-    await creation_access(db, actor_id)
-    row = await WorkboardService(db).resolve_reference(actor_id, request.ticket)
-    return await prepare_workboard_comment(
-        db, actor_id, WorkboardCommentInput(ticket_id=row.id, body=request.body)
-    )
+    with workboard_refusals():
+        await creation_access(db, actor_id)
+        row = await WorkboardService(db).resolve_reference(actor_id, request.ticket)
+        return await prepare_workboard_comment(
+            db, actor_id, WorkboardCommentInput(ticket_id=row.id, body=request.body)
+        )
 
 
 async def propose_workboard_comment(

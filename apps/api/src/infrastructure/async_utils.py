@@ -25,11 +25,32 @@ Example:
 
 import asyncio
 from collections.abc import Awaitable, Callable, Collection, Coroutine, Sequence
+from contextlib import nullcontext
 from typing import Any, Final
 
+from src.core.run_authority import run_authority_scope
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+async def finish_owned_task[T](task: asyncio.Task[T]) -> T:
+    """Finish one owned cleanup through cancellation before its loop can close.
+
+    Unlike a cancellable worker, a resource closer must not be cancelled or
+    detached. Its own deadlines bound the wait. A caller's repeated requests
+    to stop are propagated only once the same cleanup has actually finished.
+    """
+    cancelled = False
+    while not task.done():
+        try:
+            await asyncio.wait({task})
+        except asyncio.CancelledError:
+            cancelled = True
+    result = task.result()
+    if cancelled:
+        raise asyncio.CancelledError
+    return result
 
 
 async def cancel_and_join[T](task: asyncio.Task[T]) -> None:
@@ -70,11 +91,13 @@ BACKGROUND_TASKS_CANCEL_JOIN_TIMEOUT_S: Final[float] = 5.0
 _run_id_tasks: dict[str, list[asyncio.Task]] = {}
 
 
-def safe_fire_and_forget(
-    coro: Coroutine[Any, Any, Any],
+def safe_fire_and_forget[YieldT, SendT, T](
+    coro: Coroutine[YieldT, SendT, T],
     name: str | None = None,
     run_id: str | None = None,
-) -> asyncio.Task:
+    *,
+    independent_of_graph: bool = False,
+) -> asyncio.Task[T]:
     """
     Launch a coroutine in the background safely.
 
@@ -93,6 +116,9 @@ def safe_fire_and_forget(
         run_id: Optional run_id to register task for later awaiting.
             When provided, the task is tracked so that ``await_run_id_tasks(run_id)``
             can wait for it before emitting the SSE done chunk.
+        independent_of_graph: Account learning or a separately admitted deferred
+            run may outlive this graph. Clear only its invocation authority,
+            retaining source identity and accounting for the caller to bind.
 
     Returns:
         The created Task (for monitoring if needed)
@@ -104,7 +130,8 @@ def safe_fire_and_forget(
         ...     run_id="3dd39222-4619-4f74-b0b8-c9d757d1d996",
         ... )
     """
-    task = asyncio.create_task(coro, name=name)
+    with run_authority_scope(None) if independent_of_graph else nullcontext():
+        task = asyncio.create_task(coro, name=name)
     _background_tasks.add(task)
 
     # Register for per-run_id awaiting (token aggregation before SSE done)
@@ -114,6 +141,8 @@ def safe_fire_and_forget(
     def _on_task_done(t: asyncio.Task) -> None:
         """Callback when task completes."""
         _background_tasks.discard(t)
+        if run_id:
+            _prune_run_tasks(run_id)
 
         # Log any exceptions
         if t.cancelled():
@@ -243,7 +272,7 @@ async def await_run_id_tasks(run_id: str, timeout: float = 15.0) -> int:
         >>> awaited = await await_run_id_tasks(run_id, timeout=15.0)
         >>> summary = await temp_tracker.get_aggregated_summary_dto_from_db()
     """
-    tasks = _run_id_tasks.pop(run_id, [])
+    tasks = tuple(_run_id_tasks.get(run_id, ()))
     if not tasks:
         return 0
 
@@ -275,8 +304,21 @@ async def await_run_id_tasks(run_id: str, timeout: float = 15.0) -> int:
             error_type=type(e).__name__,
         )
         logger.debug("run_id_tasks_await_failure_details", run_id=run_id, exc_info=e)
+    finally:
+        # Re-read the index: another task may have joined while this waiter
+        # yielded. A timeout/cancel never transfers or abandons its ownership.
+        _prune_run_tasks(run_id)
 
     return len(tasks)
+
+
+def _prune_run_tasks(run_id: str) -> None:
+    """Drop completed tasks only; retain late additions and still-running writers."""
+    pending = [task for task in _run_id_tasks.get(run_id, ()) if not task.done()]
+    if pending:
+        _run_id_tasks[run_id] = pending
+    else:
+        _run_id_tasks.pop(run_id, None)
 
 
 def get_active_background_tasks_count() -> int:

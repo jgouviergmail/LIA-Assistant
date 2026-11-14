@@ -21,6 +21,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.constants import RAG_SPACES_UPLOAD_READ_BYTES
 from src.core.exceptions import BaseAPIException, raise_not_found_or_unauthorized
 from src.domains.connectors.service import ConnectorService
 from src.domains.rag_spaces import space_creation, space_deletion
@@ -50,7 +51,9 @@ from src.domains.rag_spaces.schemas import RAGSpaceListQuery, RAGSpaceResponse
 from src.domains.rag_spaces.space_creation import SpaceCreationScope
 from src.domains.rag_spaces.space_mutation import publish_activation, source_update_values
 from src.domains.rag_spaces.upload_storage import prepare_space_directory, write_uploaded_file
+from src.domains.users.file_writers import account_file_write
 from src.domains.users.repository import UserRepository
+from src.infrastructure.async_utils import finish_owned_task
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_rag_spaces import rag_documents_total_count
 
@@ -168,6 +171,42 @@ def raise_system_space_not_found(space_name: str) -> NoReturn:
 # ============================================================================
 # Service
 # ============================================================================
+
+
+async def _read_document_upload(file: UploadFile) -> tuple[str, str, str, bytes]:
+    """Validate the declared type and bound bytes before allocating a disk destination."""
+    # Resolve MIME type: use client header, fall back to extension mapping
+    # (browsers often send application/octet-stream for .md, .csv, etc.)
+    content_type = file.content_type or "application/octet-stream"
+    original_filename = file.filename or "unnamed"
+    ext = Path(original_filename).suffix.lower()
+    expected_mime = _EXT_TO_MIME.get(ext)
+
+    if content_type == "application/octet-stream" and expected_mime:
+        content_type = expected_mime
+
+    allowed_types = [t.strip() for t in settings.rag_spaces_allowed_types.split(",")]
+    if content_type not in allowed_types:
+        raise_file_type_not_allowed(content_type)
+
+    # Validate file extension matches claimed MIME type (defense-in-depth)
+    if expected_mime and expected_mime != content_type:
+        raise_file_type_not_allowed(content_type)
+
+    # Read file content with size limit (streaming to avoid unbounded RAM usage)
+    max_size_bytes = settings.rag_spaces_max_file_size_mb * 1024 * 1024
+    chunks: list[bytes] = []
+    total_read = 0
+    while True:
+        chunk = await file.read(RAG_SPACES_UPLOAD_READ_BYTES)
+        if not chunk:
+            break
+        total_read += len(chunk)
+        if total_read > max_size_bytes:
+            raise_file_too_large(total_read, settings.rag_spaces_max_file_size_mb)
+        chunks.append(chunk)
+    content = b"".join(chunks)
+    return original_filename, content_type, ext, content
 
 
 class RAGSpaceService:
@@ -424,101 +463,75 @@ class RAGSpaceService:
         With commit=False the caller owns commit acknowledgment, rollback
         cleanup and post-ACK telemetry; files are retained until that decision.
         """
-        space = await self.get_space(space_id, user_id, for_update=True)  # Own upload/quota fence
-        if space.is_system:
-            raise_system_space_protected(space_id, "upload")
+        async with account_file_write(self.db, user_id):
+            space = await self.get_space(
+                space_id, user_id, for_update=True
+            )  # Own upload/quota fence
+            if space.is_system:
+                raise_system_space_protected(space_id, "upload")
 
-        # Check document limit
-        doc_count = await self.doc_repo.count_for_space(space_id)
-        if doc_count >= settings.rag_spaces_max_docs_per_space:
-            raise_document_limit_exceeded(settings.rag_spaces_max_docs_per_space)
+            # Check document limit
+            doc_count = await self.doc_repo.count_for_space(space_id)
+            if doc_count >= settings.rag_spaces_max_docs_per_space:
+                raise_document_limit_exceeded(settings.rag_spaces_max_docs_per_space)
 
-        # Resolve MIME type: use client header, fall back to extension mapping
-        # (browsers often send application/octet-stream for .md, .csv, etc.)
-        content_type = file.content_type or "application/octet-stream"
-        original_filename = file.filename or "unnamed"
-        ext = Path(original_filename).suffix.lower()
-        expected_mime = _EXT_TO_MIME.get(ext)
+            original_filename, content_type, ext, content = await _read_document_upload(file)
+            file_size = len(content)
 
-        if content_type == "application/octet-stream" and expected_mime:
-            content_type = expected_mime
+            # Generate UUID-based filename (anti-traversal)
+            stored_filename = f"{uuid.uuid4().hex}{ext}"
 
-        allowed_types = [t.strip() for t in settings.rag_spaces_allowed_types.split(",")]
-        if content_type not in allowed_types:
-            raise_file_type_not_allowed(content_type)
-
-        # Validate file extension matches claimed MIME type (defense-in-depth)
-        if expected_mime and expected_mime != content_type:
-            raise_file_type_not_allowed(content_type)
-
-        # Read file content with size limit (streaming to avoid unbounded RAM usage)
-        max_size_bytes = settings.rag_spaces_max_file_size_mb * 1024 * 1024
-        chunks: list[bytes] = []
-        total_read = 0
-        while True:
-            chunk = await file.read(64 * 1024)  # 64KB chunks
-            if not chunk:
-                break
-            total_read += len(chunk)
-            if total_read > max_size_bytes:
-                raise_file_too_large(total_read, settings.rag_spaces_max_file_size_mb)
-            chunks.append(chunk)
-        content = b"".join(chunks)
-        file_size = total_read
-
-        # Generate UUID-based filename (anti-traversal)
-        stored_filename = f"{uuid.uuid4().hex}{ext}"
-
-        # Write to disk, in a directory resolved and created off the loop.
-        storage_dir = await prepare_space_directory(
-            settings.rag_spaces_storage_path, user_id, space_id
-        )
-        file_path = storage_dir / stored_filename
-        # Offload the (potentially multi-MB) disk write so the event loop stays
-        # free for concurrent requests (CA-4).
-        await write_uploaded_file(file_path, content)
-
-        # Row creation failure has a known rollback; a lost commit ACK does
-        # not. Never remove a file a committed durable job may already own.
-        committing = False
-        try:
-            document = await self.doc_repo.create(
-                {
-                    **({"id": document_id} if document_id is not None else {}),
-                    "space_id": space_id,
-                    "user_id": user_id,
-                    "filename": stored_filename,
-                    "original_filename": original_filename,
-                    "file_size": file_size,
-                    "content_type": content_type,
-                    # Durable-job (audit F001): created PENDING; the fire-and-forget
-                    # process_document claims it (PENDING -> PROCESSING + lease). A
-                    # crash before/after the claim leaves a recoverable row.
-                    "status": RAGDocumentStatus.PENDING,
-                }
+            # Write to disk, in a directory resolved and created off the loop.
+            storage_dir = await prepare_space_directory(
+                settings.rag_spaces_storage_path, user_id, space_id
             )
-            if not commit:
-                return document
-            committing = True
-            await self.db.commit()
-        except Exception, asyncio.CancelledError:
-            # Rollback DB and remove orphan file on failure
-            if not committing:
-                await self.db.rollback()
-                if file_path.exists():
-                    os.remove(file_path)
-            raise
+            file_path = storage_dir / stored_filename
+            # Offload the (potentially multi-MB) disk write so the event loop stays
+            # free for concurrent requests (CA-4).
+            await write_uploaded_file(file_path, content)
 
-        rag_documents_total_count.labels(status="processing").inc()
+            # Row creation failure has a known rollback; a lost commit ACK does
+            # not. Never remove a file a committed durable job may already own.
+            committing = False
+            try:
+                document = await self.doc_repo.create(
+                    {
+                        **({"id": document_id} if document_id is not None else {}),
+                        "space_id": space_id,
+                        "user_id": user_id,
+                        "filename": stored_filename,
+                        "original_filename": original_filename,
+                        "file_size": file_size,
+                        "content_type": content_type,
+                        # Durable-job (audit F001): created PENDING; the fire-and-forget
+                        # process_document claims it (PENDING -> PROCESSING + lease). A
+                        # crash before/after the claim leaves a recoverable row.
+                        "status": RAGDocumentStatus.PENDING,
+                    }
+                )
+                if not commit:
+                    return document
+                committing = True
+                await self.db.commit()
+            except Exception, asyncio.CancelledError:
+                # Rollback DB and remove orphan file on failure
+                if not committing:
+                    await self.db.rollback()
+                    await finish_owned_task(
+                        asyncio.create_task(asyncio.to_thread(file_path.unlink, missing_ok=True))
+                    )
+                raise
 
-        logger.info(
-            "rag_document_uploaded",
-            document_id=str(document.id),
-            space_id=str(space_id),
-            content_type=content_type,
-            file_size=file_size,
-        )
-        return document
+            rag_documents_total_count.labels(status="processing").inc()
+
+            logger.info(
+                "rag_document_uploaded",
+                document_id=str(document.id),
+                space_id=str(space_id),
+                content_type=content_type,
+                file_size=file_size,
+            )
+            return document
 
     async def delete_document(
         self,

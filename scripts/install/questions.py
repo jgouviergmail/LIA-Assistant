@@ -76,6 +76,7 @@ def build_reconfiguration_questions(current: PublicAnswers) -> tuple[Question, .
         "personal_radio": _yes_no(current.personal_radio),
         "speaking_avatar": _yes_no(current.speaking_avatar),
         "world": _yes_no(current.world),
+        "web_search": _yes_no(current.web_search),
     }
     return tuple(
         dataclasses.replace(question, default=in_force[question.key] or question.default)
@@ -238,6 +239,14 @@ def build_questions() -> tuple[Question, ...]:
             kind=QuestionKind.BOOL,
             message_id="question.world",
             default="no",
+        ),
+        # Offered ON (ADR-382): without it, a person with no search key of their
+        # own finds no web link at all; a person's own key always wins.
+        Question(
+            key="web_search",
+            kind=QuestionKind.BOOL,
+            message_id="question.web_search",
+            default="yes",
         ),
         Question(
             key="admin_password",

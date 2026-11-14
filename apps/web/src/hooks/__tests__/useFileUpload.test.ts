@@ -39,6 +39,7 @@ class FakeXhr {
   onload: (() => void) | null = null;
   onerror: (() => void) | null = null;
   ontimeout: (() => void) | null = null;
+  onabort: (() => void) | null = null;
   status = 201;
   responseText = JSON.stringify({ id: 'att-1' });
   timeout = 0;
@@ -63,6 +64,7 @@ class FakeXhr {
 
   abort() {
     this.aborted = true;
+    this.onabort?.();
   }
 }
 
@@ -100,6 +102,27 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
+it('does not start a network upload after its discussion was retired during compression', async () => {
+  const file = png();
+  const compression = Promise.withResolvers<{ blob: Blob; width: number; height: number }>();
+  compressImage.mockReturnValueOnce(compression.promise);
+  const hook = renderHook(() => useFileUpload());
+  let pending: Promise<UploadOutcome> | undefined;
+  act(() => { pending = hook.result.current.uploadFile(file); });
+  hook.unmount();
+  compression.resolve({ blob: file, width: 1, height: 1 });
+  await Promise.resolve();
+  try {
+    expect(FakeXhr.instances).toHaveLength(0);
+    await expect(pending).resolves.toEqual({ error: 'upload_cancelled' });
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:preview');
+  } finally {
+    // Settle the old implementation's unexpected request on a red run.
+    FakeXhr.instances.forEach(xhr => xhr.onerror?.());
+    await pending;
+  }
+});
+
 describe('useFileUpload — validation', () => {
   it('refuses a document type that is not on the allow-list', async () => {
     const { result } = renderHook(() => useFileUpload());
@@ -112,6 +135,57 @@ describe('useFileUpload — validation', () => {
 
     expect(outcome).toEqual({ error: 'type_not_allowed' });
     expect(result.current.attachments).toHaveLength(0);
+    expect(FakeXhr.instances).toHaveLength(0);
+  });
+
+  it.each([
+    [
+      'a Word document, whatever type the browser reports',
+      'report.docx',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ],
+    ['a Markdown file, for which a browser reports no type', 'notes.md', ''],
+    ['a CSV a browser reports as a spreadsheet', 'export.CSV', 'application/vnd.ms-excel'],
+  ])('uploads %s once the instance publishes its extension', async (_label, name, type) => {
+    const { result } = renderHook(() => useFileUpload());
+    const published = { image_types: [], document_extensions: ['.csv', '.docx', '.md'] };
+
+    act(() => {
+      void result.current.uploadFile(new File(['x'], name, { type }), published);
+    });
+
+    await pendingXhr();
+    expect(result.current.attachments[0]).toMatchObject({
+      filename: name,
+      contentType: 'document',
+    });
+  });
+
+  it('refuses a document the instance does not publish, whatever it publishes else', async () => {
+    const { result } = renderHook(() => useFileUpload());
+    const published = { image_types: [], document_extensions: ['.docx'] };
+
+    let outcome!: UploadOutcome;
+    await act(async () => {
+      outcome = await result.current.uploadFile(pdf(), published);
+    });
+
+    expect(outcome).toEqual({ error: 'type_not_allowed' });
+    expect(FakeXhr.instances).toHaveLength(0);
+  });
+
+  it('keeps to images and PDFs in front of an API that publishes nothing', async () => {
+    const { result } = renderHook(() => useFileUpload());
+    const word = new File(['x'], 'report.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+
+    let outcome!: UploadOutcome;
+    await act(async () => {
+      outcome = await result.current.uploadFile(word);
+    });
+
+    expect(outcome).toEqual({ error: 'type_not_allowed' });
     expect(FakeXhr.instances).toHaveLength(0);
   });
 

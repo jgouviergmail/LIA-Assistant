@@ -255,6 +255,62 @@ async def test_preview_reads_real_app_renderer_output(tmp_path: Path, format: st
     assert b"Received excerpt" in value.content
 
 
+async def test_a_workbook_with_formulas_shows_their_values(tmp_path: Path) -> None:
+    """The chat's excerpt is a reader that never recalculates: it shows the value a
+    generated workbook caches beside each formula, never the formula's text
+    (measured 2026-11-13: ``=SUMIFS(…)`` was shown)."""
+    from src.domains.document_generation.context import RenderContext
+    from src.domains.document_generation.renderers import DOCUMENT_MIME_TYPES, render_document
+    from src.domains.document_generation.schemas import (
+        ColumnSpec,
+        DocumentType,
+        TableSheet,
+        TabularContent,
+    )
+
+    content = TabularContent(
+        filename_stem="sales",
+        title="Sales",
+        sheets=[
+            TableSheet(
+                name="Sales",
+                headers=["Region", "Revenue", "Cost"],
+                rows=[["North", "1000", "400"]],
+                columns=[ColumnSpec(header="Margin", formula="{Revenue} - {Cost}")],
+            )
+        ],
+    )
+    data = render_document(DocumentType.XLSX, content, RenderContext(language="en"))
+    value = await build_preview(
+        source(tmp_path, data, DOCUMENT_MIME_TYPES[DocumentType.XLSX]), tmp_path
+    )
+    text = value.content.decode()
+    assert "North,1000,400,600" in text
+    assert "=" not in text
+
+
+async def test_a_received_workbook_without_cache_shows_its_formula(tmp_path: Path) -> None:
+    """A file another program saved without values: its formula beats a blank."""
+    import io as _io
+
+    from openpyxl import Workbook
+
+    book = Workbook()
+    book.active.append(["a", "b", "sum"])
+    book.active.append([1, 2, "=A2+B2"])
+    buffer = _io.BytesIO()
+    book.save(buffer)
+    value = await build_preview(
+        source(
+            tmp_path,
+            buffer.getvalue(),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ),
+        tmp_path,
+    )
+    assert "1,2,=A2+B2" in value.content.decode()
+
+
 @pytest.mark.parametrize(
     "xml",
     [

@@ -19,6 +19,8 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
+
 from src.core.field_names import (
     FIELD_ACTION_REQUESTS,
     FIELD_DRAFT_ID,
@@ -89,7 +91,7 @@ async def _parse(
         patch(CLASSIFIER_PATH, return_value=classifier_instance),
     ):
         return await svc._parse_approval_decision(
-            user_message=message, conversation_id=uuid4(), run_id="test"
+            user_message=message, runtime_id=uuid4(), run_id="test"
         )
 
 
@@ -108,24 +110,20 @@ class TestContext:
         result = await _parse("whatever", None)
         assert result["decision"] == HITL_DECISION_NEW_REQUEST
 
-    async def test_redis_failure_degrades_to_new_request(self):
-        """A Redis failure during context fetch degrades to NEW_REQUEST, no crash.
+    async def test_redis_failure_refuses_an_unverifiable_answer(self):
+        """An unreadable question must never turn an answer into a new request."""
+        from src.core.exceptions import CacheError
 
-        Regression: the pre-extraction code left ``pending_data`` unbound on the
-        Redis-error path and raised ``UnboundLocalError`` in the stale-HITL log
-        (``has_pending_data=pending_data is not None``). Fixed by initializing
-        ``pending_data`` in ``_fetch_interrupt_context`` — the graceful-degradation
-        path the ``except`` was written for now actually degrades gracefully.
-        """
         svc = OrchestrationService()
-        with patch(
-            "src.infrastructure.cache.redis.get_redis_cache",
-            new=AsyncMock(side_effect=ConnectionError("redis down")),
+        with (
+            patch(
+                "src.infrastructure.cache.redis.get_redis_cache",
+                new=AsyncMock(side_effect=ConnectionError("redis down")),
+            ),
+            pytest.raises(CacheError) as error,
         ):
-            result = await svc._parse_approval_decision(
-                user_message="ok", conversation_id=uuid4(), run_id="test"
-            )
-        assert result["decision"] == HITL_DECISION_NEW_REQUEST
+            await svc._parse_approval_decision(user_message="ok", runtime_id=uuid4(), run_id="test")
+        assert error.value.status_code == 503
 
 
 # ============================================================================

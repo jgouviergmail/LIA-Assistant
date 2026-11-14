@@ -33,19 +33,43 @@ pytestmark = pytest.mark.unit
 
 
 class _Client:
-    def __init__(self, fail_create: bool = False) -> None:
+    """The workspace as the vendor keeps it: what it was sent, plus its own defaults
+    (measured 2026-11-11), rewritten in place by a PATCH that replaces the config."""
+
+    def __init__(self, fail_create: bool = False, fail_listing: bool = False) -> None:
         self.created: list[dict[str, Any]] = []
         self.deleted: list[str] = []
+        self.rewritten: list[tuple[str, dict[str, Any]]] = []
+        self.tools: dict[str, dict[str, Any]] = {}
         self.fail_create = fail_create
+        self.fail_listing = fail_listing
 
     async def create_tool(self, body: dict[str, Any]) -> str:
         if self.fail_create:
             raise ElevenLabsAgentsError(500, "boom")
         self.created.append(body)
-        return f"tool_{len(self.created)}"
+        tool_id = f"tool_{len(self.created)}"
+        self.tools[tool_id] = {"execution_mode_default": "vendor", **body["tool_config"]}
+        return tool_id
+
+    async def update_tool(self, tool_id: str, body: dict[str, Any]) -> None:
+        if tool_id not in self.tools:
+            raise ElevenLabsAgentsError(404, "gone")
+        self.rewritten.append((tool_id, body))
+        self.tools[tool_id] = dict(body["tool_config"])
+
+    async def list_tools(self, kind: str) -> list[dict[str, Any]]:
+        if self.fail_listing:
+            raise ElevenLabsAgentsError(500, "boom")
+        return [
+            {"id": tool_id, "tool_config": config}
+            for tool_id, config in self.tools.items()
+            if config.get("type") == kind
+        ]
 
     async def delete_tool(self, tool_id: str) -> None:
         self.deleted.append(tool_id)
+        self.tools.pop(tool_id, None)
 
 
 class _DB:
@@ -169,3 +193,56 @@ async def test_a_vendor_refusal_leaves_no_tool_and_no_write() -> None:
     assert tool_id is None
     assert METADATA_DELEGATION_ID not in connector.connector_metadata
     assert db.commits == 0
+
+
+async def _ensure(client: _Client, db: _DB, connector: SimpleNamespace) -> str | None:
+    return await ensure_vendor_delegation_tool(
+        db,
+        connector=connector,
+        api_key="k",
+        api_secret="whsec",
+        user_name="Alex",
+        client_factory=lambda _k: client,
+    )
+
+
+async def test_a_delegation_tool_edited_on_the_portal_is_rewritten_before_the_dial() -> None:
+    """Owner decision 2026-11-11: never an agent with tools out of date. The tool is
+    held against what the workspace serves before every Live owner call; edited on
+    the portal, it is rewritten in place under its id — nothing to record anew."""
+    client = _Client()
+    db = _DB()
+    connector = SimpleNamespace(connector_metadata={"agent_id": "ag"})
+    assert await _ensure(client, db, connector) == "tool_1"
+    client.tools["tool_1"]["description"] = "Edited by hand on the portal."
+
+    assert await _ensure(client, db, connector) == "tool_1"
+    assert client.rewritten == [
+        ("tool_1", delegation_tool_body(token=live_tool_token("whsec"), user_name="Alex"))
+    ]
+    assert len(client.created) == 1 and db.commits == 1
+
+
+async def test_a_delegation_tool_the_workspace_lost_is_re_created_and_recorded() -> None:
+    client = _Client()
+    db = _DB()
+    connector = SimpleNamespace(connector_metadata={"agent_id": "ag"})
+    assert await _ensure(client, db, connector) == "tool_1"
+    del client.tools["tool_1"]  # deleted on the portal
+
+    assert await _ensure(client, db, connector) == "tool_2"
+    assert connector.connector_metadata[METADATA_DELEGATION_ID] == "tool_2"
+    assert db.commits == 2
+
+
+async def test_a_workspace_that_cannot_be_read_leaves_the_call_without_its_tool() -> None:
+    """A tool that cannot be verified is never handed to a call: the caller then
+    decides what a call without it may be."""
+    client = _Client()
+    db = _DB()
+    connector = SimpleNamespace(connector_metadata={"agent_id": "ag"})
+    assert await _ensure(client, db, connector) == "tool_1"
+    client.fail_listing = True
+
+    assert await _ensure(client, db, connector) is None
+    assert connector.connector_metadata[METADATA_DELEGATION_ID] == "tool_1"

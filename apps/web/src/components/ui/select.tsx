@@ -5,7 +5,54 @@ import * as SelectPrimitive from '@radix-ui/react-select';
 import { Check, ChevronDown, ChevronUp } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
-const Select = SelectPrimitive.Root;
+/** Whether the enclosing list is saving its own choice (`Select`'s `busy`). */
+const SelectBusyContext = React.createContext(false);
+
+type SelectProps = React.ComponentProps<typeof SelectPrimitive.Root> & {
+  /**
+   * A save the list's own choice started is on its way. The list stays focusable and says
+   * so (`aria-busy`, `aria-disabled`), does not open and ignores a choice, typed ones
+   * included. Never `disabled` for this: disabling the trigger that holds the focus throws
+   * the keyboard to `<body>` (measured 2026-11-13). For a controlled list (`value`).
+   */
+  busy?: boolean;
+};
+
+function Select({ busy, ...props }: SelectProps) {
+  return busy === undefined ? (
+    <SelectPrimitive.Root {...props} />
+  ) : (
+    <BusyAwareSelect busy={busy} {...props} />
+  );
+}
+
+/** A list that can be busy: its opening is held here, so a busy one can refuse it. */
+function BusyAwareSelect({
+  busy,
+  open,
+  defaultOpen,
+  onOpenChange,
+  onValueChange,
+  ...props
+}: SelectProps & { busy: boolean }) {
+  const [openState, setOpenState] = React.useState(defaultOpen ?? false);
+  return (
+    <SelectBusyContext.Provider value={busy}>
+      <SelectPrimitive.Root
+        {...props}
+        open={(open ?? openState) && !busy}
+        onOpenChange={next => {
+          if (next && busy) return;
+          setOpenState(next);
+          onOpenChange?.(next);
+        }}
+        onValueChange={value => {
+          if (!busy) onValueChange?.(value);
+        }}
+      />
+    </SelectBusyContext.Provider>
+  );
+}
 
 const SelectGroup = SelectPrimitive.Group;
 
@@ -14,21 +61,26 @@ const SelectValue = SelectPrimitive.Value;
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
-  <SelectPrimitive.Trigger
-    ref={ref}
-    className={cn(
-      'flex h-10 w-full items-center justify-between rounded-xl border border-input bg-[color:var(--lia-field-background,var(--color-background))] px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
-      className
-    )}
-    {...props}
-  >
-    {children}
-    <SelectPrimitive.Icon asChild>
-      <ChevronDown className="h-4 w-4 opacity-50" />
-    </SelectPrimitive.Icon>
-  </SelectPrimitive.Trigger>
-));
+>(({ className, children, ...props }, ref) => {
+  const busy = React.useContext(SelectBusyContext);
+  return (
+    <SelectPrimitive.Trigger
+      ref={ref}
+      className={cn(
+        'flex h-10 w-full items-center justify-between rounded-xl border border-input bg-[color:var(--lia-field-background,var(--color-background))] px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 [&>span]:line-clamp-1',
+        className
+      )}
+      {...props}
+      aria-busy={busy || undefined}
+      aria-disabled={busy || props['aria-disabled']}
+    >
+      {children}
+      <SelectPrimitive.Icon asChild>
+        <ChevronDown className="h-4 w-4 opacity-50" />
+      </SelectPrimitive.Icon>
+    </SelectPrimitive.Trigger>
+  );
+});
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 
 const SelectScrollUpButton = React.forwardRef<

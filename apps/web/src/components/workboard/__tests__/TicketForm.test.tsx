@@ -11,17 +11,29 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { act, fireEvent, renderWithProviders, screen } from '@/__tests__/test-utils';
-import { TicketForm } from '@/components/workboard/TicketForm';
-import type { TicketCreateBody } from '@/types/workboard';
+import { TicketForm, type TicketFormProps } from '@/components/workboard/TicketForm';
+import type { CategoryRow, TicketCreateBody } from '@/types/workboard';
 
 const onCreate = vi.fn(async (_body: TicketCreateBody) => ({ ok: true }));
 const onClose = vi.fn();
 
 const PEERS = [{ peer_id: 'peer-1', peer_display_name: 'Marie' }];
 
-function render(open = true) {
+const CATEGORIES: CategoryRow[] = [
+  { id: 'home', owner_user_id: 'me', name: 'Maison', position: 0, ticket_count: 2 },
+  { id: 'work', owner_user_id: 'me', name: 'Travail', position: 1, ticket_count: 0 },
+];
+
+function render(open = true, extra: Partial<TicketFormProps> = {}) {
   return renderWithProviders(
-    <TicketForm open={open} lng="fr" peers={PEERS} onClose={onClose} onCreate={onCreate} />
+    <TicketForm
+      open={open}
+      lng="fr"
+      peers={PEERS}
+      onClose={onClose}
+      onCreate={onCreate}
+      {...extra}
+    />
   );
 }
 
@@ -165,5 +177,50 @@ describe('closing it', () => {
 
     expect(onClose).toHaveBeenCalled();
     expect(screen.getByLabelText('workboard.form.title')).toHaveValue('');
+  });
+});
+
+describe('the category it is filed under', () => {
+  const category = () => screen.queryByRole('combobox', { name: 'workboard.form.category' });
+
+  it('asks nothing of a reader who has no category', async () => {
+    const { user } = render();
+    expect(category()).toBeNull();
+
+    await user.type(screen.getByLabelText('workboard.form.title'), 'Sans couloir');
+    await user.click(screen.getByRole('button', { name: 'workboard.actions.create' }));
+
+    expect(onCreate.mock.calls[0][0]).not.toHaveProperty('category_id');
+  });
+
+  it('files the ticket under the category chosen', async () => {
+    const { user } = render(true, { categories: CATEGORIES });
+
+    await user.type(screen.getByLabelText('workboard.form.title'), 'Repeindre');
+    await user.click(screen.getByRole('combobox', { name: 'workboard.form.category' }));
+    await user.click(await screen.findByRole('option', { name: 'Travail' }));
+    await user.click(screen.getByRole('button', { name: 'workboard.actions.create' }));
+
+    expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({ category_id: 'work' }));
+  });
+
+  it('starts in the lane the form was opened from', async () => {
+    const { user } = render(true, { categories: CATEGORIES, initialCategoryId: 'home' });
+
+    expect(category()).toHaveTextContent('Maison');
+    await user.type(screen.getByLabelText('workboard.form.title'), 'Repeindre');
+    await user.click(screen.getByRole('button', { name: 'workboard.actions.create' }));
+
+    expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({ category_id: 'home' }));
+  });
+
+  it('sends no category for a ticket left unfiled', async () => {
+    const { user } = render(true, { categories: CATEGORIES });
+
+    expect(category()).toHaveTextContent('workboard.categories.none');
+    await user.type(screen.getByLabelText('workboard.form.title'), 'Plus tard');
+    await user.click(screen.getByRole('button', { name: 'workboard.actions.create' }));
+
+    expect(onCreate.mock.calls[0][0]).not.toHaveProperty('category_id');
   });
 });

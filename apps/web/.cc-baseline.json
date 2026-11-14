@@ -1,6 +1,6 @@
 {
   "_comment": "Frontend cyclomatic-complexity ratchet (audit F011). Shrink-only: `over` (functions >= CC 15), `max` (worst function) and each per-file {count, max} fingerprint may only DECREASE; a regression, a new offending file, or a function growing inside an offending file fails CI. Regenerate with --update ONLY after decomposing a hotspot, never to absorb a regression.",
-  "over": 34,
+  "over": 33,
   "max": 46,
   "threshold": 15,
   "perFile": {
@@ -102,11 +102,11 @@
     },
     "src/components/settings/NotificationSettings.tsx": {
       "count": 1,
-      "max": 19
+      "max": 18
     },
     "src/components/settings/UserConnectorsSection.tsx": {
       "count": 1,
-      "max": 22
+      "max": 19
     },
     "src/components/ui/avatar.tsx": {
       "count": 1,
@@ -135,10 +135,6 @@
     "src/lib/api-server.ts": {
       "count": 1,
       "max": 20
-    },
-    "src/lib/api/chat.ts": {
-      "count": 1,
-      "max": 22
     }
   }
 }

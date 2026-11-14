@@ -2,18 +2,19 @@
 /**
  * The workboard screen (ADR-276).
  *
- * The board is reached from a settings section and from every ticket
- * notification — never from the header, which is at its measured maximum of
- * seven destinations (D15). Two routes land here: `/dashboard/workboard`, which
- * reads `?ticket=`, and `/dashboard/workboard/<id>`, which the backend builds
- * in every notification. Both mount THIS component, so a ticket link and a
- * board link cannot drift apart.
+ * The board is a destination of the header, right after the meetings (owner,
+ * 2026-11-11 — D16 had refused it one and reached it from a settings section,
+ * now gone), and every ticket notification leads to it. Two routes land here:
+ * `/dashboard/workboard`, which reads `?ticket=`, and
+ * `/dashboard/workboard/<id>`, which the backend builds in every notification.
+ * Both mount THIS component, so a ticket link and a board link cannot drift
+ * apart.
  *
  * The URL carries the open ticket, so a panel is a link somebody can send.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LayoutGrid, Plus } from '@/lib/icons';
+import { Plus, SquareKanban, Tags } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { SectionToolbar } from '@/components/settings/SectionToolbar';
@@ -24,6 +25,8 @@ import { useConfirm } from '@/components/ui/use-confirm';
 import { Board } from '@/components/workboard/Board';
 import { BoardFilters } from '@/components/workboard/BoardFilters';
 import { TicketDetailPanel } from '@/components/workboard/TicketDetailPanel';
+import { useBoardCategories } from '@/components/workboard/useBoardCategories';
+import { useBoardGlance } from '@/components/workboard/useBoardGlance';
 import { useTicketCreation } from '@/components/workboard/useTicketCreation';
 import { useAuth } from '@/hooks/useAuth';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -66,8 +69,8 @@ function AccountWorkboardPage({
   // otherwise take the whole first screen: the filter block folds there.
   const wide = useMediaQuery('(min-width: 1024px)');
 
-  // The filters START from the URL — a settings figure links into a narrowed
-  // board — and the URL then FOLLOWS them (below), never the reverse while a
+  // The filters START from the URL — a link may open a narrowed board — and
+  // the URL then FOLLOWS them (below), never the reverse while a
   // person types: a search box whose value came back through the router
   // dropped every second keystroke.
   const [filters, setFilters] = useState<Filters>(() =>
@@ -84,6 +87,10 @@ function AccountWorkboardPage({
   // holds the poll for its duration rather than the hook guessing at it.
   const [dragging, setDragging] = useState(false);
   const board = useWorkboard(filters, { paused: dragging });
+  // What the lanes say of the categories, and the dialog that administers them.
+  const categories = useBoardCategories({ lng, board, peers });
+  // The whole board's figures, above the filters they can set.
+  const glance = useBoardGlance({ lng, board, revision, wide, embedded, onFilters: setFilters });
 
   useEffect(() => {
     if (embedded) return;
@@ -99,7 +106,14 @@ function AccountWorkboardPage({
   // form (`/dashboard/workboard/<id>`), which the backend puts in every ticket
   // notification; `?ticket=` is what the board itself writes.
   const open = embedded ? embeddedTicket : (initialTicketId ?? params.get('ticket'));
-  const creation = useTicketCreation({ lng, peers, board, embedded, blocked: !!open });
+  const creation = useTicketCreation({
+    lng,
+    peers,
+    board,
+    embedded,
+    blocked: !!open,
+    categories: categories.own,
+  });
 
   const openTicket = useCallback(
     (id: string | null) => {
@@ -157,7 +171,7 @@ function AccountWorkboardPage({
   if (board.isUnavailable) {
     return (
       <EmptyState
-        icon={LayoutGrid}
+        icon={SquareKanban}
         title={t('workboard.title')}
         description={t('workboard.unavailable')}
       />
@@ -168,7 +182,7 @@ function AccountWorkboardPage({
     <div className="space-y-6">
       <div>
         <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
-          <LayoutGrid className="h-7 w-7 text-primary" aria-hidden="true" />
+          <SquareKanban className="h-7 w-7 text-primary" aria-hidden="true" />
           {t('workboard.title')}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">{t('workboard.subtitle')}</p>
@@ -185,10 +199,29 @@ function AccountWorkboardPage({
           icon: Plus,
           onSelect: creation.start,
         }}
+        // Pinned: folded behind « ⋯ » on a phone it would read as absent, and
+        // it is the only way to a first category.
+        secondary={[
+          {
+            key: 'categories',
+            label: t('workboard.categories.manage'),
+            icon: Tags,
+            onSelect: categories.manage,
+            pinned: true,
+          },
+        ]}
         menuLabel={t('common.more_actions')}
       />
 
-      <BoardFilters lng={lng} filters={filters} onChange={setFilters} collapsible={!wide} />
+      {glance}
+
+      <BoardFilters
+        lng={lng}
+        filters={filters}
+        onChange={setFilters}
+        lanes={categories.lanes}
+        collapsible={!wide}
+      />
 
       {board.firstLoad ? (
         <>
@@ -200,10 +233,10 @@ function AccountWorkboardPage({
           </div>
         </>
       ) : board.error ? (
-        <EmptyState icon={LayoutGrid} description={t('workboard.load_error')} />
+        <EmptyState icon={SquareKanban} description={t('workboard.load_error')} />
       ) : board.total === 0 ? (
         <EmptyState
-          icon={LayoutGrid}
+          icon={SquareKanban}
           variant="page"
           reason={hasFilters(filters) ? 'no-match' : 'no-data'}
           title={
@@ -235,8 +268,17 @@ function AccountWorkboardPage({
             meId={user?.id}
             peers={peers}
             lng={lng}
+            lanes={board.lanes}
+            // A lane a filter emptied is not drawn: under a narrowing it
+            // would be a row saying « no match » once per column.
+            narrowed={hasFilters(filters)}
+            onAdd={creation.startIn}
+            categories={categories.own}
+            onCategoryChange={(id, patch) => void settle(board.patch(id, patch))}
             onOpen={openTicket}
-            onMove={(id, status, position) => void settle(board.move(id, status, position))}
+            onMove={(id, status, position, lane) =>
+              void settle(board.move(id, status, position, lane))
+            }
             onFollowChange={(id, follow) => void settle(board.patch(id, { follow }))}
             // The card's own lists where nothing drags (a phone): the same
             // writes the panel makes, so the two cannot disagree.
@@ -255,6 +297,8 @@ function AccountWorkboardPage({
         peers={peers}
         lng={lng}
         revision={revision}
+        categories={categories.own}
+        categoryName={categories.nameOf}
         // Closing the panel re-reads the board: whatever the person did in it
         // — answered a confirmation, changed a column — the board behind must
         // already show it when the dialog goes (owner feedback, 2026-09-09).
@@ -271,6 +315,8 @@ function AccountWorkboardPage({
         }}
         onDelete={onDelete}
       />
+
+      {categories.dialog}
 
       {confirmDialog}
     </div>

@@ -1,7 +1,8 @@
 """A selected passage becomes one bounded query and one attributed Internet search.
 
 The platform pays for query preparation through the assist accountant. Search clients
-use the person's existing connector key, or the instance's keyless Wikipedia capability.
+use the person's existing connector key, else the instance's keyless search (its
+SearXNG, lot 18), else its keyless Wikipedia capability.
 No database session survives a model or network wait. No page URL is fetched here.
 """
 
@@ -10,7 +11,7 @@ from typing import Literal, Self, get_args
 from urllib.parse import quote
 from uuid import UUID
 
-from pydantic import AnyHttpUrl, BaseModel, Field, model_validator
+from pydantic import AnyHttpUrl, BaseModel, Field, ValidationError, model_validator
 
 from src.core.config import settings
 from src.core.constants import (
@@ -27,6 +28,7 @@ from src.domains.connectors.clients.brave_search_client import BraveSearchClient
 from src.domains.connectors.clients.normalizers.html_text import html_to_text
 from src.domains.connectors.clients.perplexity_client import PerplexityClient
 from src.domains.connectors.clients.wikipedia_client import WikipediaClient, wikipedia_edition
+from src.domains.connectors.instance_search import search_instance
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
 from src.domains.feature_switches import guard
@@ -36,10 +38,13 @@ from src.domains.tool_assists.llm import ask_slot
 from src.domains.workbench.errors import NOT_CONNECTED, refuse
 from src.infrastructure.database.session import get_db_context
 
-ResearchProvider = Literal["brave", "perplexity", "wikipedia"]
+ResearchProvider = Literal["brave", "perplexity", "searxng", "wikipedia"]
+#: In order of preference: the person's own keys, then the instance's keyless search,
+#: then its keyless Wikipedia (ADR-307: the person's choice wins).
 SEARCH_CONNECTORS: dict[ResearchProvider, ConnectorType] = {
     "brave": ConnectorType.BRAVE_SEARCH,
     "perplexity": ConnectorType.PERPLEXITY,
+    "searxng": ConnectorType.SEARXNG,
     "wikipedia": ConnectorType.WIKIPEDIA,
 }
 
@@ -130,7 +135,7 @@ async def _credentials(user_id: UUID, provider: ResearchProvider) -> str | None:
         connector = SEARCH_CONNECTORS[provider]
         if not await service.is_connector_active(user_id, connector):
             refuse(NOT_CONNECTED)
-        if provider == "wikipedia":
+        if connector.is_keyless:
             return None
         credentials = await service.get_api_key_credentials(user_id, connector)
         if credentials is None:
@@ -144,6 +149,7 @@ def search_timeout_seconds() -> float:
         max(
             settings.http_timeout_brave_search,
             settings.http_timeout_perplexity,
+            settings.http_timeout_searxng,
             settings.http_timeout_wikipedia,
         )
         + LLM_RUN_BOUND_MARGIN_SECONDS
@@ -229,6 +235,31 @@ async def _perplexity(run: AssistRun, query: str, key: str) -> ResearchProposal:
         await client.close()
 
 
+async def _searxng(run: AssistRun, query: str) -> ResearchProposal:
+    """The instance's search: a failure raises (the door files it), never an empty page.
+
+    A link the engines returned without a title or with an address no browser
+    may open is left out: one malformed entry never discards the others.
+    """
+    links = await search_instance(
+        query,
+        user_id=run.user_id,
+        language=run.language,
+        count=TOOL_ASSIST_SEARCH_RESULTS_MAX,
+    )
+    sources: list[ResearchSource] = []
+    for link in links:
+        try:
+            sources.append(
+                ResearchSource.model_validate(
+                    {"title": link.title, "url": link.url, "excerpt": link.excerpt}
+                )
+            )
+        except ValidationError:
+            continue
+    return ResearchProposal(query=query, provider="searxng", sources=sources)
+
+
 async def _wikipedia(run: AssistRun, query: str) -> ResearchProposal:
     """Use the instance's keyless capability and the client's canonical language edition."""
     client = WikipediaClient(language=run.language, user_id=run.user_id)
@@ -273,6 +304,8 @@ async def research_selection(run: AssistRun, source: str) -> ResearchProposal:
         async with asyncio.timeout(search_timeout_seconds()):
             if provider == "wikipedia":
                 result = await _wikipedia(run, query.query)
+            elif provider == "searxng":
+                result = await _searxng(run, query.query)
             elif provider == "brave" and key is not None:
                 result = await _brave(run, query.query, key)
             elif provider == "perplexity" and key is not None:

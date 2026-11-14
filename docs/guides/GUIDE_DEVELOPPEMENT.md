@@ -423,6 +423,34 @@ today = now_in_timezone(user_timezone).date()
 formatage localisé 6 langues) — lire sa docstring de module avant tout nouveau code
 manipulant des dates.
 
+Trois choses s'appellent « une heure », et ne sont pas la même (ADR-380) : un **instant**
+(une `datetime` aware), une **heure murale** — ce que montre une horloge quelque part,
+ce qu'une personne dit et lit — et un **jour**. Une heure murale ne désigne un instant
+qu'AVEC son fuseau : elle se porte dans un `WallTime` (`src/core/wall_time.py`), qui ne
+sépare jamais les deux, et se remet telle quelle au fournisseur, à côté du nom du fuseau.
+Rien ne la convertit en chemin : un « Z » posé sur une heure murale en fait une AUTRE
+heure (production, 2026-11-12).
+
+```python
+from zoneinfo import ZoneInfo
+
+from src.core.wall_time import WallTime
+
+# ✅ Ce qu'une personne a écrit : lu dans SON fuseau, refusé s'il est illisible
+moment = WallTime.read("2026-11-27T09:30", ZoneInfo(user_timezone))
+moment.instant()        # 08:30 UTC à Paris en hiver, 07:30 en été
+moment.zone_suffices    # False pour une heure que les horloges sautent ou montrent deux fois
+
+# ❌ Lire l'heure d'une personne comme un instant
+# parse_datetime("2026-11-27T09:30")        → 09:30 UTC : une heure de trop à Paris
+# normalize_to_rfc3339("2026-11-27T09:30")  → « …Z » : la même erreur, envoyée au fournisseur
+```
+
+Une preuve sur des heures se fait dans un fuseau éloigné de l'UTC et en **aller-retour**
+(écrit, puis relu) : les agendas simulés de `apps/api/tests/helpers/calendar_providers.py`
+lisent une requête comme la référence de chaque fournisseur le dit, et un test qui ne
+vérifie qu'une forme, ou qui ne passe qu'en UTC, ne prouve rien.
+
 #### Langue (doctrine de la langue déclarée, ADR-323)
 
 Une phrase s'écrit dans la langue de la personne qui la lit, et le code ne choisit
@@ -774,6 +802,13 @@ contract. `ListField` puts its label before the control and aligns the control c
 on phones. `FilterChip` retains native button semantics and `aria-pressed`. Clearing
 with Escape only affects the focused search. Filters remain available for small or
 empty collections so the reader can recover from a filter with no matches.
+
+Below `sm` the labelled controls and the filter chips wait behind a « Filters » fold
+(`ListFilters`, closed by default): the search stays in the open and the list comes
+first. The fold's summary states how many narrowings apply and names them, from the
+`active` list each toolbar declares — an ordering is not one. A chip that changes
+how results are grouped (SMS by day / by sender) is a view, not a filter, and stays
+outside. From `sm` up nothing folds.
 
 The hermetic journey `apps/web/e2e/smoke/dashboard-list-consistency.spec.ts` measures
 the actual headings, action targets and control alignment from phone to desktop.

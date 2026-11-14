@@ -175,8 +175,12 @@ def _preview_stmt(
     ticket = aliased(WorkboardTicket, combined)
     return (
         select(combined.c.preview_group, ticket)
-        .options(load_only(ticket.id, ticket.title, ticket.status, ticket.due_at))
-        .order_by(
+        # `category_id` rides along: the card names the lane as a badge, and a
+        # column this statement does not load cannot be read afterwards (lazy
+        # loads are forbidden on an async session).
+        .options(
+            load_only(ticket.id, ticket.title, ticket.status, ticket.due_at, ticket.category_id)
+        ).order_by(
             combined.c.preview_group, combined.c.due_at.asc().nulls_last(), combined.c.id.asc()
         )
     )

@@ -2,6 +2,16 @@
 
 import asyncio
 from collections.abc import Callable
+from pathlib import Path
+from uuid import UUID
+
+
+def import_destination(
+    system_root: str, users_root: str, is_system: bool, owner_id: UUID | None, name: str
+) -> Path:
+    """Compute the selected scope's destination without touching disk."""
+    base = Path(system_root) if is_system else Path(users_root) / str(owner_id)
+    return base / name
 
 
 async def finish_disk_step(operation: Callable[[], None]) -> bool:

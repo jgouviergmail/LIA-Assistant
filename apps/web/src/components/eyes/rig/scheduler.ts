@@ -23,13 +23,30 @@
  */
 export type FrameDemand = 'active' | 'idle' | 'stop';
 
-/** Steps one animated subject and says what it needs next. */
+/** Steps one animated subject and says what it needs next. `dtMs` is the
+ * whole time the frame carries, which a busy page makes longer than a beat:
+ * a subject with timed beats integrates it through `stepInSlices`. */
 export type FrameSubscriber = (dtMs: number) => FrameDemand;
 
-/** Frame budget cap. A background tab, a GC pause or a blocked main thread
- * hands the loop a huge delta; the analytic springs survive it, but a timed
- * beat would be skipped whole. Clamping keeps the beats legible. */
+/** The longest step an integrator is handed at once. The analytic springs
+ * survive any delta, but a timed beat shorter than the step would be skipped
+ * whole: a blink that never closed. A longer frame is cut into equal slices
+ * no longer than this (`stepInSlices`), so a slow page costs frames, never
+ * beats. */
 export const MAX_FRAME_MS = 64;
+
+/**
+ * The wall time one frame may carry.
+ *
+ * It used to be `MAX_FRAME_MS` itself: a longer frame was truncated to it,
+ * which is a face playing in slow motion for as long as the page is busy.
+ * Measured on the public page with a processor four times slower
+ * (2026-11-11): frames of 130 ms at the median, and the face's own clock 8.6 s
+ * behind after 15 s — a blink lasting twice its length. Time is now carried
+ * whole up to four slices; past that it is a tab that slept or a debugger
+ * that stopped the world, and that time is dropped as before.
+ */
+export const MAX_CATCH_UP_MS = 4 * MAX_FRAME_MS;
 
 /** Frame budget while nothing but the perpetual loops is running. */
 export const IDLE_FRAME_MS = 33;
@@ -53,8 +70,27 @@ function anyActive(): boolean {
   return false;
 }
 
+/**
+ * Integrate one frame in equal slices no longer than `MAX_FRAME_MS`.
+ *
+ * A frame the cap used to truncate is integrated in full instead: the subject
+ * ends where the elapsed time takes it, having read every beat on the way,
+ * and its host draws once. A frame no longer than `MAX_FRAME_MS` is one slice,
+ * exactly as before. Answers with what the last slice said — whether anything
+ * is still moving is a question about where the subject ended up. A duration
+ * that is not a finite number is handed over as one step: this loop runs on
+ * the main thread, and an endless count would freeze the page, not the face.
+ */
+export function stepInSlices<T>(dtMs: number, step: (sliceMs: number) => T): T {
+  const count = Number.isFinite(dtMs) ? Math.max(1, Math.ceil(dtMs / MAX_FRAME_MS)) : 1;
+  const sliceMs = dtMs / count;
+  let answer = step(sliceMs);
+  for (let index = 1; index < count; index += 1) answer = step(sliceMs);
+  return answer;
+}
+
 function tick(now: number): void {
-  const delta = lastTime === null ? 0 : Math.min(now - lastTime, MAX_FRAME_MS);
+  const delta = lastTime === null ? 0 : Math.min(now - lastTime, MAX_CATCH_UP_MS);
   lastTime = now;
   pending += delta;
   // Nothing is travelling: sample the perpetual loops on the idle budget

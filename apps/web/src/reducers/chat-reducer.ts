@@ -379,7 +379,9 @@ const ACTION_HANDLERS: ChatActionHandlers = {
   // ADR-320: what the server holds joins what is on screen — nothing on
   // screen remounts, moves or disappears (see lib/chat-merge.ts).
   MERGE_SERVER_PAGE: (state, action) => {
-    const { messages } = mergeServerPage(state.messages, action.payload.messages);
+    // The answer being streamed stays after what was archived meanwhile (ADR-385).
+    const streamingId = state.status === 'streaming' ? state.streaming.currentMessageId : null;
+    const { messages } = mergeServerPage(state.messages, action.payload.messages, { streamingId });
     return messages === state.messages ? state : { ...state, messages };
   },
 
@@ -420,6 +422,20 @@ const ACTION_HANDLERS: ChatActionHandlers = {
     streaming: {
       ...state.streaming,
       sseStatus: 'connected',
+    },
+  }),
+
+  // ADR-384: the optimistic bubble of a send the server kept waiting goes; the
+  // waiting message below the thread is the words' only face from here.
+  WITHDRAW_MESSAGE: (state, action) => ({
+    ...state,
+    messages: state.messages.filter(message => message.id !== action.payload.id),
+    status: 'idle',
+    streaming: {
+      currentMessageId: null,
+      streamBuffer: '',
+      sseStatus: 'disconnected',
+      phase: 'answer',
     },
   }),
 
@@ -857,11 +873,13 @@ const DEBUG_HISTORY_MAX_ENTRIES = 50;
 /**
  * Helper to create initial state, hydrating debug metrics history from sessionStorage.
  */
-export function createInitialState(): ChatState {
+export function createInitialState(scope?: string): ChatState {
   let debugMetricsHistory: ChatState['debugMetricsHistory'] = [];
   if (typeof window !== 'undefined') {
     try {
-      const stored = sessionStorage.getItem(DEBUG_HISTORY_STORAGE_KEY);
+      const stored = sessionStorage.getItem(
+        scope ? `${DEBUG_HISTORY_STORAGE_KEY}.${scope}` : DEBUG_HISTORY_STORAGE_KEY
+      );
       if (stored) {
         const parsed = JSON.parse(stored);
         debugMetricsHistory = Array.isArray(parsed) ? parsed.slice(-DEBUG_HISTORY_MAX_ENTRIES) : [];
@@ -878,11 +896,17 @@ export function createInitialState(): ChatState {
  * Called from useChat via useEffect to keep reducer pure.
  * Truncates to the most recent DEBUG_HISTORY_MAX_ENTRIES entries.
  */
-export function persistDebugMetricsHistory(history: ChatState['debugMetricsHistory']): void {
+export function persistDebugMetricsHistory(
+  history: ChatState['debugMetricsHistory'],
+  scope?: string
+): void {
   if (typeof window === 'undefined') return;
   try {
     const trimmed = history.slice(-DEBUG_HISTORY_MAX_ENTRIES);
-    sessionStorage.setItem(DEBUG_HISTORY_STORAGE_KEY, JSON.stringify(trimmed));
+    sessionStorage.setItem(
+      scope ? `${DEBUG_HISTORY_STORAGE_KEY}.${scope}` : DEBUG_HISTORY_STORAGE_KEY,
+      JSON.stringify(trimmed)
+    );
   } catch {
     // sessionStorage full or unavailable — ignore
   }

@@ -462,7 +462,6 @@ function ReaderToolbar({
           labels={labels}
           messages={[message]}
           busy={busy !== null}
-          iconOnly
           onApply={onLabels}
         />
       )}

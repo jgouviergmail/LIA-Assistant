@@ -55,6 +55,15 @@ export interface UseApiMutationResult<TData = unknown, TResponse = unknown> {
   data: TResponse | null;
 }
 
+function deleteConfig(data: unknown, config?: RequestConfig): RequestConfig {
+  if (data === undefined) return { ...config, body: undefined };
+  // Fetch treats a bare string as text/plain. This hook serializes JSON, so
+  // it must declare the media type even for the optional DELETE payload.
+  const headers = new Headers(config?.headers);
+  headers.set('Content-Type', 'application/json');
+  return { ...config, headers: Object.fromEntries(headers), body: JSON.stringify(data) };
+}
+
 async function sendMutation<TData, TResponse>(
   method: UseApiMutationOptions['method'],
   endpoint: string,
@@ -74,10 +83,7 @@ async function sendMutation<TData, TResponse>(
       response = await apiClient.patch<TResponse>(endpoint, requestData, config);
       break;
     case 'DELETE':
-      response = await apiClient.delete<TResponse>(endpoint, {
-        ...config,
-        body: requestData ? JSON.stringify(requestData) : undefined,
-      });
+      response = await apiClient.delete<TResponse>(endpoint, deleteConfig(requestData, config));
       break;
   }
 

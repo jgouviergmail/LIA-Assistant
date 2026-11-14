@@ -32,6 +32,7 @@ from imap_tools import AND, MailBox
 from src.core.config import settings
 from src.core.constants import APPLE_MAIL_MESSAGE_MAX_BYTES
 from src.core.field_names import FIELD_CACHED_AT
+from src.core.read_budget import current_read_owner
 from src.domains.connectors.clients.apple_compose import (
     forward_message,
     new_message,
@@ -153,8 +154,23 @@ class AppleEmailClient(
         format: str = "full",
         fields: list[str] | None = None,
         use_cache: bool = True,
+        *,
+        mailbox_mark: bool = False,
     ) -> dict[str, Any]:
-        """Get a single email by its id (its UID and its folder), checking Redis cache first."""
+        """Get a single email by its id (its UID and its folder), checking Redis cache first.
+
+        Args:
+            message_id: The message's id: its UID and its folder.
+            format: Unused, kept for interface parity.
+            fields: Unused, kept for interface parity.
+            use_cache: Serve a copy read earlier when one is kept.
+            mailbox_mark: Accepted for parity (ADR-379): every IMAP FETCH returns the
+                flags, so the mailbox's own « answered » mark comes with the message
+                asked or not — as it stood when a served copy was read.
+
+        Returns:
+            The message in the e-mail vocabulary.
+        """
         return await self._execute_with_retry(
             "get_message",
             self._get_message_impl,
@@ -439,6 +455,10 @@ class AppleEmailClient(
                         mark_seen=False,
                         reverse=True,
                         headers_only=headers_only,
+                        # A bounded read pays for every command it sends: its page comes
+                        # in ONE FETCH and is held whole meanwhile (ADR-379). Any other
+                        # read may list far more: its messages come one at a time.
+                        bulk=current_read_owner() is not None,
                     ):
                         # Extract ALL data within context manager
                         normalized = normalize_imap_message(msg, folder, scope=scope)
@@ -646,6 +666,9 @@ class AppleEmailClient(
             attachments=attachments,
         )
         await self._smtp_send(prepare_for_smtp(message), message)
+        # SMTP tells the mailbox nothing: the original is flagged answered here, as
+        # a mail client does (ADR-379). Best effort: the reply has left.
+        await self._mark_answered(message_id)
         new_id = str(uuid.uuid4())
 
         return {

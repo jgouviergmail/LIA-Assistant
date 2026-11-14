@@ -453,7 +453,7 @@ def _setup_response_node_patches(stack):
         ),
         "psyche": stack.enter_context(
             patch(
-                "src.domains.psyche.service.psyche_post_response_background",
+                "src.domains.psyche.post_response.psyche_post_response_background",
                 new_callable=Mock,
             )
         ),

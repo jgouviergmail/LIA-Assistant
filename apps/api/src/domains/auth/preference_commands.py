@@ -33,6 +33,7 @@ from src.domains.auth.schemas import (
     TokensDisplayPreferenceRequest,
     VoiceModePreferenceRequest,
     VoicePreferenceRequest,
+    WritingStylePreferenceRequest,
 )
 from src.domains.users.extraction_consent import invalidate_extractions
 from src.domains.users.models import User
@@ -60,6 +61,7 @@ ASSISTANT_PREFERENCE_SOURCES: dict[str, tuple[type[BaseModel], str]] = {
     "onboarding_completed": (OnboardingPreferenceRequest, "onboarding_completed"),
     "debug_panel_enabled": (DebugPanelPreferenceRequest, "debug_panel_enabled"),
     "response_display_mode": (DisplayModePreferenceRequest, "response_display_mode"),
+    "writing_style_enabled": (WritingStylePreferenceRequest, "writing_style_enabled"),
 }
 
 
@@ -77,6 +79,7 @@ class AssistantPreferencePatch(BaseModel):
     onboarding_completed: StrictBool | None = None
     debug_panel_enabled: StrictBool | None = None
     response_display_mode: str | None = None
+    writing_style_enabled: StrictBool | None = None
 
     @field_validator("response_display_mode")
     @classmethod

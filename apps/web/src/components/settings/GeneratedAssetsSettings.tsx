@@ -50,6 +50,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { bookmarksReadable } from '@/lib/bookmarks/availability';
 import { PeersAvailabilityProvider } from '@/lib/peers/availability-context';
 import { EmailShareAvailabilityProvider } from '@/lib/email-share/availability-context';
 import { emailShareAvailable } from '@/lib/email-share/share';
@@ -101,7 +102,7 @@ export function GeneratedAssetsSettings({ lng, initialTab }: GeneratedAssetsSett
   const { config } = useAppConfig();
   // The deployment ceiling, not the operator's switch: switching keeping off
   // leaves what was kept readable, deletable and exportable here (ADR-280).
-  const bookmarksEnabled = config?.features?.bookmarks_enabled ?? false;
+  const bookmarksEnabled = bookmarksReadable(config);
   // `?tab=` is read ONCE, on arrival: the capability map sends a reader
   // straight to their bookmarks. The rest of the time the tab is local state.
   const requested = useSearchParams().get('tab');

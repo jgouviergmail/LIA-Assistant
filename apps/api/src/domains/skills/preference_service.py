@@ -575,6 +575,13 @@ class SkillPreferenceService:
             "is_third_party": skill_is_third_party(
                 skill.provenance, peer_authored=skill.peer_authored
             ),
+            # How often runs used it for this person (lot 14, skills/usage.py), and
+            # since when that is counted: a skill with no use is measured from there.
+            "use_count": state.use_count,
+            "last_used_at": state.last_used_at,
+            "counted_since": state.usage_counted_since,
+            # The person's last « keep it » to the switch-off proposal, if any.
+            "dormancy_kept_at": state.dormancy_kept_at,
         }
 
     @staticmethod

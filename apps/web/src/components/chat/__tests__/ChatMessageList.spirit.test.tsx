@@ -89,7 +89,7 @@ async function renderConversation(controls = false) {
     renderWithProviders(
       <>
         {controls && <GenderChoice />}
-        <ChatMessageList messages={messages} />
+        <ChatMessageList messages={messages} psycheOffered />
       </>
     )
   );
@@ -236,7 +236,7 @@ describe('Chat portrait identity and emotional history', () => {
     useEyesWidgetStore.getState().setStyle('bip');
     const plainMessage = makeMessage({ id: 'plain', role: 'assistant', metadata: {} });
     const { container } = await act(async () =>
-      renderWithProviders(<ChatMessageList messages={[plainMessage]} />)
+      renderWithProviders(<ChatMessageList messages={[plainMessage]} psycheOffered />)
     );
     const row = container.querySelector<HTMLElement>('[data-message-id="plain"]')!;
     await waitFor(() => historyPortrait(row, 'bip', 'male', 'neutral'));

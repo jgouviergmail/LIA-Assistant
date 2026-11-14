@@ -191,6 +191,7 @@ def test_emitted_installer_defaults_load_the_composed_settings(
         manifest_path=None,
         speaking_avatar=avatar_enabled,
         world=avatar_enabled,
+        web_search=avatar_enabled,
     )
     environment = derive_environment(public, generate_secrets())
     values = {
@@ -210,6 +211,8 @@ def test_emitted_installer_defaults_load_the_composed_settings(
     assert settings.diagnostics_enabled is False
     assert settings.avatar_enabled is avatar_enabled
     assert settings.world_enabled is avatar_enabled
+    # The instance's web search (ADR-382): the API asks the service the profile runs.
+    assert settings.searxng_url == ("http://searxng:8080" if avatar_enabled else "")
     for name, field in AvatarSettings.model_fields.items():
         if name != "avatar_enabled":
             assert getattr(settings, name) == field.default, name

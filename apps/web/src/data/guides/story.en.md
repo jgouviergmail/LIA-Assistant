@@ -3,8 +3,8 @@
 > Field report — a complete system, from design to production.
 
 **Version**: 3.0
-**Date**: 2026-11-10
-**Application**: LIA v4.6.0
+**Date**: 2026-11-14
+**Application**: LIA v5.0.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI. My job was to direct it: a written 
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI that was directed, supervised and checked | **≈ 100%** |
-| Source lines (excluding tests), spread across some sixty backend domain packages | **1,165,741** |
-| Automated tests inventoried, in suites matched to commits and to releases | **81,253** |
-| Documented architecture decisions (ADR) | **375** |
-| Versions shipped at a steady pace | **296** |
+| Source lines (excluding tests), spread across some sixty backend domain packages | **1,219,345** |
+| Automated tests inventoried, in suites matched to commits and to releases | **87,493** |
+| Documented architecture decisions (ADR) | **386** |
+| Versions shipped at a steady pace | **297** |
 | Languages, with parity checked automatically | **6** |
 | Technical audit across 24 areas | **7.9/10** |
 
@@ -64,7 +64,7 @@ The shared world gives the assistant places: a library for knowledge, a multimed
 
 I also wanted using an assistant to leave room for doing things yourself. The Tools workspace uses the same connected services, but a gesture by hand there calls no model and is not recorded as LIA’s act; what a click asks of it stays a proposal, traced and billed to whoever asked. Delegation and direct control can share an interface while keeping clear who decided, who acted and what was approved.
 
-Here are three structural decisions, among the 375 documented.
+Here are three structural decisions, among the 386 documented.
 
 The first is about **sovereignty**: I did not want any irreversible dependency on a vendor. The AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity and local models through Ollama) all go through the same abstraction, so each use can switch provider through configuration alone, with costs compared. On the services side, Google, Apple and Microsoft are interchangeable in each category, whether mail, calendar or contacts. Self-hosting gives control of the server: account data is stored on the instance and connector credentials are encrypted. The remote services the person chooses still receive the data they need for their part of the request.
 

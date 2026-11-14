@@ -15,7 +15,7 @@ import {
   Mic,
   MicVocal,
   Podcast,
-  Radio,
+  RadioSet,
   type LucideIcon,
 } from '@/lib/icons';
 import { useId, useState, type ReactNode } from 'react';
@@ -50,7 +50,7 @@ import type { RadioFieldsProps } from './fields';
 const CHAT_PERSONALITY = 'chat';
 const AUTOMATIC_VOICE = 'automatic';
 const ROLE_ICONS: Record<RadioRole, LucideIcon> = {
-  host: Radio,
+  host: RadioSet,
   anchor: MicVocal,
   expert: AudioLines,
   columnist: Podcast,

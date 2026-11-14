@@ -86,7 +86,7 @@ Les cartes sont triees a l'affichage par heure de declenchement (heure, minute, 
 | `domains/scheduled_actions/repository.py` | `BaseRepository` + requetes scheduler (`FOR UPDATE SKIP LOCKED`, recovery) |
 | `domains/scheduled_actions/service.py` | CRUD + toggle + recalcul timezone cascade |
 | `domains/scheduled_actions/router.py` | 7 endpoints FastAPI (`/week` declare AVANT `/{action_id}`) |
-| `core/recurrence/schedule.py` | `week_slots()` / `day_slots()` / `served_slot()` / `rearm_after()` — les trois questions qu'une chose planifiee pose au moteur. Le module vivait dans ce domaine tant que seule une routine les posait ; les rappels l'ont refute, il est remonte dans `core` |
+| `core/recurrence/schedule.py` | `week_slots()` / `day_slots()` / `served_slot()` / `rearm_after()` / `latest_occurrence()` — les questions qu'une chose planifiee pose au moteur. Le module vivait dans ce domaine tant que seule une routine les posait ; les rappels l'ont refute, il est remonte dans `core` |
 | `domains/scheduled_actions/run_repository.py` | Historique des executions `scheduled_action_runs` : insertion au resultat, lecture par semaine, purge par age (ADR-265) |
 | `domains/scheduled_actions/runs.py` | `record_run()` : une ligne par sortie de l'executeur, dans un SAVEPOINT, jamais fatale |
 | `domains/scheduled_actions/week.py` | Pliage pur de la semaine en cours : une cellule = le DERNIER run dont `slot_at` est EGAL a l'instant du creneau |
@@ -101,7 +101,7 @@ scheduled_actions
 +-- title (String 200)
 +-- action_prompt (Text)
 +-- recurrence (JSONB, nullable) -- RecurrenceSpec d'une routine time ; NULL pour une routine condition (ADR-322)
-+-- trigger_kind (String 20: time|condition) -- UNE horloge : la recurrence, ou les verifications du systeme
++-- trigger_kind (String 20: time|condition|webhook) -- UNE horloge : la recurrence, les verifications du systeme, ou l'appel signe d'un autre systeme (ADR-386)
 +-- condition_config (JSONB, nullable) -- routine condition : {type, parametres, until}
 +-- condition_state (JSONB, nullable) -- registre des faits deja vus
 +-- user_timezone (String 50, default "Europe/Paris")
@@ -125,7 +125,7 @@ scheduled_action_runs (ADR-265)
 +-- user_id (UUID, FK users.id CASCADE)
 +-- slot_at (DateTime TZ, nullable) -- le creneau SERVI ; NULL = repetition (Tester avant l'heure)
 +-- started_at, ended_at (DateTime TZ, UTC)
-+-- outcome (VARCHAR 20 + CHECK reel : success|failure|skipped_condition|proposed|skipped_hitl)
++-- outcome (VARCHAR 20 + CHECK reel : success|failure|skipped_condition|proposed|skipped_hitl|skipped_busy|skipped_quota|skipped_late)
 +-- attempts (SmallInteger) -- 0 quand le pipeline n'a pas tourne
 +-- manual (Boolean) -- lance par l'utilisateur
 +-- error (Text, nullable, tronquee)
@@ -196,9 +196,18 @@ Toutes les constantes sont definies dans `apps/api/src/core/constants.py` :
 | `SCHEDULED_ACTIONS_MAX_TIMES_PER_DAY` | `…_DEFAULT` | Executions au plus par jour d'une routine a heures fixes ou a intervalle — ADR-268 amendement 2026-10-30 |
 | `SCHEDULED_ACTIONS_CONDITION_CHECK_MINUTES` | `…_DEFAULT` | Cadence de verification d'une routine sur condition (courrier, taches, agenda, documents) — ADR-322 |
 | `SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES` | `…_DEFAULT` | Cadence d'une routine meteo — ADR-322 |
+| `SCHEDULED_ACTIONS_PAGE_CHECK_MINUTES` | `…_DEFAULT` | Cadence de lecture d'une page web surveillee (une requete, sans modele) — ADR-387 |
 | `SCHEDULED_ACTIONS_WEATHER_HORIZON_HOURS` | `…_DEFAULT` | Horizon d'une routine meteo (heures, l'heure en cours comprise) — ADR-322 amendement 2026-09-29 |
 | `SCHEDULED_ACTIONS_WEATHER_MIN_PRECIPITATION_PERCENT` | `…_DEFAULT` | Seuil STRICT de probabilite de precipitations d'une routine meteo — ADR-322 amendement 2026-09-29 |
+| `SCHEDULED_ACTIONS_QUOTA_NOTICE_COOLDOWN_HOURS` | `…_DEFAULT` | Fenêtre (heures) pendant laquelle un compte n'est pas reprévenu que sa limite d'utilisation écarte ses routines — ADR-265 amendement 2026-11-12 |
 | `SCHEDULED_ACTIONS_CONDITION_MAX_FIRES_PER_DAY` | `…_DEFAULT` | Executions au plus par routine sur condition et par jour local — ADR-322 |
+| `ROUTINE_WEBHOOKS_ENABLED` | `true` | Plafond de déploiement de la capacité `ROUTINE_WEBHOOKS` : une routine démarrée par l'appel signé d'un autre système — ADR-386 |
+| `ROUTINE_WEBHOOK_MAX_BODY_BYTES` | `…_DEFAULT` | Corps le plus gros qu'accepte l'adresse d'une routine (413 au-delà) — ADR-386 |
+| `ROUTINE_WEBHOOK_MAX_PENDING` | `…_DEFAULT` | Appels qu'une routine garde en attente (429 au-delà) — ADR-386 |
+| `ROUTINE_WEBHOOK_RATE_PER_MINUTE` | `…_DEFAULT` | Appels par minute qu'accepte l'adresse d'une routine — ADR-386 |
+| `ROUTINE_WEBHOOK_MAX_PER_RUN` | `…_DEFAULT` | Appels en attente servis par un run, les plus anciens d'abord — ADR-386 |
+
+Le mécanisme de la troisième horloge, le côté de l'expéditeur et ses réponses : [ROUTINE_WEBHOOKS.md](../technical/ROUTINE_WEBHOOKS.md).
 
 ### Enregistrement du job scheduler
 
@@ -234,7 +243,9 @@ Le router est monte sur le prefixe `/scheduled-actions` dans `apps/api/src/api/v
 | `PATCH` | `/scheduled-actions/{id}` | `200` | Modifier une action (recalcule `next_trigger_at` si le schedule change) |
 | `DELETE` | `/scheduled-actions/{id}` | `204` | Supprimer une action (hard delete) |
 | `PATCH` | `/scheduled-actions/{id}/toggle` | `200` | Toggle `is_enabled` (re-enable reset les compteurs d'erreur) |
-| `POST` | `/scheduled-actions/{id}/execute` | `202` | Execution immediate (fire-and-forget en background task) |
+| `POST` | `/scheduled-actions/{id}/execute` | `202` | Execution immediate (fire-and-forget en background task) ; refusée (400) pour une routine démarrée par un appel, qui n'a rien à exécuter sans appel (ADR-386) |
+| `POST` | `/scheduled-actions/{id}/webhook-secret` | `200` | Routine démarrée par un appel : tire un nouveau secret, rendu dans cette seule réponse ; l'ancien cesse aussitôt (ADR-386) |
+| `POST` | `/hooks/routines/{key}` | `202` | Adresse publique d'une routine démarrée par un appel, sans session, authentifiée par sa signature HMAC-SHA256 (ADR-386) |
 | `GET` | `/scheduled-actions/week` | `200` | La semaine en cours de chaque routine : ses instants (moteur cron du scheduler, depuis le lundi local de SON fuseau) et l'issue du run qui a servi chacun (ADR-265). Le navigateur ne recalcule rien : il peint. |
 
 ### Exemples de requetes
@@ -419,6 +430,8 @@ rejoue. Il rend `None` quand la serie est finie — ce que l'appelant stocke tel
 quel (une routine garde la ligne et s'affiche « terminee », un rappel se
 supprime).
 
+Une occurrence due n'est pas pour autant exécutée à n'importe quelle heure : `TriggerPlan.catch_up_deadline()` borne son retard (la moitié de l'écart avec l'occurrence suivante, plafonnée par `SCHEDULED_ACTIONS_CATCH_UP_MAX_MINUTES`), et `TriggerPlan.after_missed()` dit quoi armer une fois l'occurrence abandonnée — la plus récente si elle peut encore démarrer, trouvée par `latest_occurrence()` en remontant depuis maintenant, sinon la prochaine.
+
 ### Piege ferme par construction : l'heure murale qui n'existe pas
 
 Ces deux sections decrivaient des pieges d'APScheduler. Le moteur cron a
@@ -473,6 +486,20 @@ Quand `consecutive_failures >= SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES` (5) :
 
 **Reactivation** : l'endpoint `PATCH .../toggle` remet `consecutive_failures` a 0, `status` a `active`, et recalcule `next_trigger_at`.
 
+**La personne est prévenue** (ADR-265, amendement 2026-11-12) : un avis au premier échec de la série, un autre à la mise en pause ; les échecs intermédiaires se taisent. Une exécution lancée à la main dit toujours qu'elle a échoué.
+
+### Limite d'utilisation atteinte
+
+Une limite d'utilisation atteinte n'est pas un échec (ADR-272) : la routine est réarmée, `consecutive_failures` ne bouge pas, et le motif s'écrit — `skipped_quota` sur le créneau d'une routine `time`, `last_check_error = quota_blocked` sur le registre d'une routine `condition`. Le compte reçoit UN avis par fenêtre (`SCHEDULED_ACTIONS_QUOTA_NOTICE_COOLDOWN_HOURS`), pas un par routine.
+
+### Occurrence manquée, compte occupé
+
+Une occurrence atteinte après sa fenêtre de rattrapage n'est pas exécutée : son créneau porte `skipped_late`, `consecutive_failures` ne bouge pas, aucun avis ne part, et la routine est réarmée sur l'occurrence la plus récente encore dans sa fenêtre, sinon sur la prochaine. Un compte occupé par un autre tour ne coûte plus l'occurrence : elle reste armée sur le même instant, sans ligne, et chaque passage du planificateur la retente jusqu'à la fin de la fenêtre — `skipped_busy` n'est écrit qu'alors.
+
+### Ne prévenir que s'il y a du nouveau
+
+Avec `notify_only_when_new`, la routine s'exécute et répond dans le chat comme toujours ; seule la notification est retenue quand le modèle qui a répondu déclare n'avoir rien trouvé de nouveau (balise `<lia_nothing_new/>`, retirée de la réponse). Sans déclaration complète, et pour tout échec, la personne est prévenue. L'option est refusée avec `requires_approval` (`schemas.delivery_refusal`). Pour ajouter une déclaration de fin de réponse : un module qui l'analyse et la retire, une entrée dans `MACHINE_TAGS`, et un appel dans `services/answer_annotations.py` — jamais une ligne de plus dans le nœud de réponse.
+
 ### Crash recovery
 
 Si le processus crashe pendant l'execution (status `executing`), la methode `recover_stale_executing()` est appelee au debut de chaque cycle du scheduler. Toute action dont la reservation n'a pas ete renouvelee depuis le seuil est remise en `active`. Ce seuil est le plus grand de `SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES` et du pire cas d'un run : toutes les tentatives a leur borne, plus les pauses entre elles (`worst_case_run_seconds`). Un run vivant renouvelle sa reservation juste avant d'appeler le modele. Si un autre tick a repris la reservation entre-temps, la cloture ne marque pas la routine ; elle ecrit seulement la ligne d'historique du run, qui a bien eu lieu (ADR-276, amendement 2026-10-13 b).
@@ -483,7 +510,7 @@ Si le processus crashe pendant l'execution (status `executing`), la methode `rec
 
 ### Canaux de notification
 
-Apres execution reussie, le resultat est notifie via :
+Apres execution reussie, le resultat est notifie via (`scheduled_action_notices.notify_result`) :
 
 | Canal | Condition | Detail |
 |-------|-----------|--------|
@@ -498,14 +525,14 @@ title = f"{localized_title}: {action.title}"
 # Exemples: "Action planifiee: Meteo du jour" (fr)
 #           "Scheduled Action: Daily Weather" (en)
 from src.infrastructure.proactive.notification import plain_text_for_notification
-from src.infrastructure.scheduler.scheduled_action_executor import _truncate
+from src.infrastructure.scheduler.scheduled_action_notices import _truncate
 
 # Exemple du chemin interne : texte aplati, puis plafond configuré.
 body = _truncate(plain_text_for_notification(response_content))
 data = {"type": "scheduled_action", "action_id": str(action_id)}
 ```
 
-Les titres sont localises dans les 6 langues supportees (fr, en, es, de, it, zh) via la fonction `_get_localized_title()` dans l'executor.
+Les titres sont localises dans les 6 langues supportees (fr, en, es, de, it, zh) par `ProactiveMessages.notification_title("scheduled_action", langue)` (`core/i18n_proactive.py`).
 
 ### Format SSE
 
@@ -523,6 +550,18 @@ Le contenu SSE est tronque a 500 caracteres.
 ### Gestion des erreurs de notification
 
 Les erreurs FCM et SSE sont loguees mais ne bloquent pas l'execution. L'action est marquee comme reussie meme si la notification echoue. Le resultat reste accessible dans l'archive de conversation.
+
+### Avis d'une routine qui ne s'exécute pas
+
+Quand une routine ne s'exécute pas comme prévu, son propriétaire reçoit un avis par `NotificationDispatcher` (archive dans la conversation, push, SSE, canaux externes actifs) :
+
+| Avis (`RoutineNotice`) | Quand | Fréquence |
+|------|-------|-----------|
+| `failed` | Une exécution échoue | Au premier échec d'une série ; toujours pour une exécution lancée à la main |
+| `disabled` | Les échecs consécutifs mettent la routine en pause | Une fois, à la mise en pause |
+| `quota` | La limite d'utilisation écarte la routine | Une fois par compte et par fenêtre (`SCHEDULED_ACTIONS_QUOTA_NOTICE_COOLDOWN_HOURS`) ; toujours pour une exécution lancée à la main |
+
+Les textes vivent dans `ProactiveMessages._ROUTINE_NOTICE_BODIES` (six langues) et renvoient vers la section des routines des réglages. Un avis qui échoue ne défait jamais le tick : il est journalisé (`scheduled_action_message_dispatch_failed`), et l'envoi réussi journalise s'il a atteint un canal durable (`scheduled_action_message_dispatched`).
 
 ---
 
@@ -736,6 +775,14 @@ La methode recommandee est d'utiliser l'endpoint `PATCH /scheduled-actions/{id}/
 Le log `scheduled_action_skipped_hitl_pending` indique qu'un interrupt HITL est en attente sur la conversation de l'utilisateur. L'action sera replanifiee au prochain cycle, sans compter d'execution ; une routine sur condition garde ses faits neufs et reessaie a sa verification suivante (ADR-322).
 
 Pour debloquer : repondre a l'interrupt HITL dans le chat, ou resumer le graphe LangGraph.
+
+### L'action est ignorée à cause de la limite d'utilisation
+
+La semaine affiche « ignorée, la limite d'utilisation était atteinte » (`skipped_quota`), ou la carte d'une routine sur condition affiche ce motif pour sa dernière vérification (`quota_blocked`). Le log `scheduled_action_executor_user_usage_blocked` porte la limite dépassée. Rien n'est à réparer sur la routine : elle reprend d'elle-même à sa prochaine échéance une fois la limite levée (celle du compte, ou le budget quotidien de l'instance).
+
+### Une exécution est marquée « manquée »
+
+La semaine affiche « manquée, son heure était passée depuis trop longtemps » (`skipped_late`) : le planificateur a atteint l'occurrence après sa fenêtre de rattrapage — serveur arrêté, planificateur bloqué. Le log `scheduled_action_occurrence_missed` porte le retard en secondes et l'instant réarmé. Rien n'est à réparer sur la routine. Si des occurrences sont manquées alors que le serveur tournait, le plafond `SCHEDULED_ACTIONS_CATCH_UP_MAX_MINUTES` est trop bas pour la charge du planificateur, ou ses passages durent trop longtemps (`background_job_duration_seconds`).
 
 ### Pas de notification FCM
 

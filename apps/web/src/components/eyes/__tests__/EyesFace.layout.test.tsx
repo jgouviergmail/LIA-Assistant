@@ -66,22 +66,33 @@ describe('avatar landmarks follow the selected model and gender without new moti
       expect(root).toHaveAttribute('data-avatar-layout');
       expect(root).toHaveAttribute('data-avatar-variant', variant);
       expect(root).toHaveAttribute('data-expression', 'joy');
-      for (const token of ['crown-y', 'face-y', 'neck-y']) {
-        const value = root?.style.getPropertyValue(`--avatar-${token}`) ?? '';
+      // The host is known from here: its style is read as it is, never optionally.
+      for (const token of ['crown-y', 'face-y', 'neck-y', 'laurel-y', 'head-top-y', 'flake-y']) {
+        const value = root.style.getPropertyValue(`--avatar-${token}`);
         expect(value).toMatch(/^-?[\d.]+%$/);
         expect(parseFloat(value)).toBeGreaterThanOrEqual(-10);
         expect(parseFloat(value)).toBeLessThanOrEqual(100);
       }
-      expect(root?.style.getPropertyValue('--avatar-face-half-width')).toContain('var(--eye-w');
-      const scale = parseFloat(root?.style.getPropertyValue('--avatar-accessory-scale') ?? '');
+      // Where a drop falling down the middle meets the head: above its face; and a
+      // caught flake settles on the face, below that.
+      const headTop = parseFloat(root.style.getPropertyValue('--avatar-head-top-y'));
+      expect(headTop).toBeLessThan(parseFloat(root.style.getPropertyValue('--avatar-face-y')));
+      expect(parseFloat(root.style.getPropertyValue('--avatar-flake-y'))).toBeGreaterThan(headTop);
+      expect(root.style.getPropertyValue('--avatar-face-half-width')).toContain('var(--eye-w');
+      const scale = parseFloat(root.style.getPropertyValue('--avatar-accessory-scale'));
       expect(scale).toBeGreaterThan(0);
       expect(scale).toBeLessThanOrEqual(1.2);
+      // The frost laurel is fitted to each head, not sized like the other props.
+      const laurel = root.style.getPropertyValue('--avatar-laurel-scale');
+      expect(laurel).toMatch(/^[\d.]+$/);
+      expect(parseFloat(laurel)).toBeGreaterThan(0.5);
+      expect(parseFloat(laurel)).toBeLessThanOrEqual(1.3);
       const collar = volumeProfile(isRigEyeStyle(styleId) ? 'monitor' : styleId, variant).collar;
-      expect(parseFloat(root?.style.getPropertyValue('--avatar-neck-y') ?? '')).toBeCloseTo(
+      expect(parseFloat(root.style.getPropertyValue('--avatar-neck-y'))).toBeCloseTo(
         (collar.centerY / 2.6 + 0.5) * 100,
         3
       );
-      const scarfWidth = root?.style.getPropertyValue('--avatar-scarf-width') ?? '';
+      const scarfWidth = root.style.getPropertyValue('--avatar-scarf-width');
       expect(scarfWidth).toMatch(/^[\d.]+em$/);
       expect(parseFloat(scarfWidth)).toBeCloseTo(2 * collar.radiusX * 1.1, 5);
       if (!collar.wrap) expectScarfMaterialCoordinates(root.style, collar);

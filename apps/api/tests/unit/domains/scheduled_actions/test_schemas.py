@@ -145,6 +145,7 @@ def _response(recurrence: RecurrenceSpec | None, **over: object) -> ScheduledAct
         "trigger_kind": "time",
         "condition_config": None,
         "requires_approval": False,
+        "notify_only_when_new": False,
         "execution_mode": "react",
         "next_trigger_at": datetime(2026, 9, 8, 6, 0, tzinfo=UTC),
         "is_enabled": True,
@@ -244,6 +245,35 @@ class TestCreateConditionCoherence:
         assert created.trigger_kind is TriggerKind.TIME
         assert created.condition_config is None
         assert created.requires_approval is False
+        assert created.notify_only_when_new is False
+
+    def test_a_routine_may_ask_to_be_told_only_of_something_new(self):
+        from src.domains.scheduled_actions.schemas import ScheduledActionCreate
+
+        created = ScheduledActionCreate(**self._base(notify_only_when_new=True))
+        assert created.notify_only_when_new is True
+
+    def test_it_cannot_also_propose_first(self):
+        """A proposal IS a notification: there would be nothing to hold back."""
+        import pytest as _pytest
+        from pydantic import ValidationError as _ValidationError
+
+        from src.domains.scheduled_actions.schemas import ScheduledActionCreate
+
+        with _pytest.raises(_ValidationError, match="notify_only_when_new"):
+            ScheduledActionCreate(**self._base(notify_only_when_new=True, requires_approval=True))
+
+    def test_an_update_leaves_the_option_alone_or_sets_it_never_nulls_it(self):
+        """The column holds a boolean: an explicit null would reach it as one."""
+        import pytest as _pytest
+        from pydantic import ValidationError as _ValidationError
+
+        from src.domains.scheduled_actions.schemas import ScheduledActionUpdate
+
+        assert ScheduledActionUpdate().model_dump(exclude_unset=True) == {}
+        assert ScheduledActionUpdate(notify_only_when_new=False).notify_only_when_new is False
+        with _pytest.raises(_ValidationError, match="notify_only_when_new"):
+            ScheduledActionUpdate(notify_only_when_new=None)
 
     def test_condition_kind_requires_a_config(self):
         import pytest as _pytest
@@ -357,6 +387,45 @@ class TestOneClockPerRoutine:
             ScheduledActionCreate(**self._base())
 
 
+class TestASignedCallIsTheThirdClock:
+    """ADR-386: a routine another system starts has neither schedule nor condition."""
+
+    def _base(self, **overrides: object) -> dict[str, object]:
+        data: dict[str, object] = {
+            "title": "Door",
+            "action_prompt": "tell me who rang",
+            "trigger_kind": "webhook",
+        }
+        data.update(overrides)
+        return data
+
+    def test_it_needs_neither_a_schedule_nor_a_condition(self) -> None:
+        created = ScheduledActionCreate(**self._base())
+
+        assert created.recurrence is None and created.condition_config is None
+
+    def test_it_refuses_a_schedule(self) -> None:
+        with pytest.raises(ValidationError, match="runs when its address is called"):
+            ScheduledActionCreate(**self._base(recurrence=weekly((9, 0))))
+
+    def test_it_refuses_a_condition(self) -> None:
+        with pytest.raises(ValidationError, match="runs when its address is called"):
+            ScheduledActionCreate(
+                **self._base(condition_config=ConditionConfig(type="task_overdue"))
+            )
+
+    def test_it_cannot_propose_first(self) -> None:
+        # A proposal hands the run to the chat, which would never read the
+        # calls the routine was started for.
+        with pytest.raises(ValidationError, match="cannot propose first"):
+            ScheduledActionCreate(**self._base(requires_approval=True))
+
+    def test_it_may_ask_to_be_told_only_of_something_new(self) -> None:
+        created = ScheduledActionCreate(**self._base(notify_only_when_new=True))
+
+        assert created.notify_only_when_new is True
+
+
 class TestTheLastWatchedDay:
     def test_every_condition_type_may_stop_on_a_day(self) -> None:
         config = ConditionConfig(type="task_overdue", until=date(2026, 10, 12))
@@ -400,6 +469,85 @@ class TestAParameterItsTypeDoesNotRead:
         config = ConditionConfig(type="calendar_event", query="dentiste", within_hours=6)
 
         assert config.stored() == {"type": "calendar_event", "query": "dentiste", "within_hours": 6}
+
+
+class TestAWatchedPage:
+    """ADR-387: a page a person watches — its address, and the lines that matter."""
+
+    def test_it_reads_an_address_and_an_optional_filter(self) -> None:
+        config = ConditionConfig(
+            type="page_change", url="  https://shop.example.com/p/42?ref=a  ", contains="€"
+        )
+
+        assert config.stored() == {
+            "type": "page_change",
+            "url": "https://shop.example.com/p/42?ref=a",
+            "contains": "€",
+        }
+        assert ConditionConfig(type="page_change", url="http://example.org/").url == (
+            "http://example.org/"
+        )
+
+    def test_it_needs_its_address(self) -> None:
+        with pytest.raises(ValidationError, match="page_change requires a url"):
+            ConditionConfig(type="page_change")
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "ftp://example.org/file",
+            "javascript:alert(1)",
+            "file:///etc/passwd",
+            "https://",
+            "example.org/no-scheme",
+            "https://user:secret@example.org/",
+            "https://localhost/admin",
+            "https://printer.local/",
+            "http://127.0.0.1:8000/",
+            "http://10.0.0.5/",
+            "http://169.254.169.254/latest/meta-data",
+            "http://[::1]/",
+        ],
+    )
+    def test_an_address_no_public_page_has_is_refused_at_the_door(self, url: str) -> None:
+        # The message is matched whole: Pydantic's own text quotes the input,
+        # and a bare « url » would match a refusal of anything else.
+        with pytest.raises(ValidationError, match="url refused: "):
+            ConditionConfig(type="page_change", url=url)
+
+    @pytest.mark.parametrize(
+        ("config", "stray"),
+        [
+            ({"type": "mail_match", "query": "devis", "url": "https://example.org/"}, "url"),
+            ({"type": "task_overdue", "contains": "€"}, "contains"),
+            ({"type": "page_change", "url": "https://example.org/", "query": "prix"}, "query"),
+        ],
+    )
+    def test_a_parameter_another_type_reads_is_refused(
+        self, config: dict[str, object], stray: str
+    ) -> None:
+        with pytest.raises(ValidationError, match=f"{stray} does not apply to"):
+            ConditionConfig.model_validate(config)
+
+    def test_its_bound_is_the_one_the_schema_publishes(self) -> None:
+        from src.core.constants import PAGE_WATCH_URL_MAX_CHARS
+
+        published = ConditionConfig.model_json_schema()["properties"]["url"]
+        assert any(
+            branch.get("maxLength") == PAGE_WATCH_URL_MAX_CHARS
+            for branch in published.get("anyOf", [published])
+        )
+        too_long = "https://example.org/" + "a" * PAGE_WATCH_URL_MAX_CHARS
+        with pytest.raises(ValidationError, match=f"at most {PAGE_WATCH_URL_MAX_CHARS} characters"):
+            ConditionConfig(type="page_change", url=too_long)
+
+    def test_a_blank_filter_is_refused_like_an_empty_one(self) -> None:
+        with pytest.raises(ValidationError, match="contains is blank"):
+            ConditionConfig(type="page_change", url="https://example.org/", contains="   ")
+
+    def test_an_empty_filter_is_refused(self) -> None:
+        with pytest.raises(ValidationError, match="at least 1 character"):
+            ConditionConfig(type="page_change", url="https://example.org/", contains="")
 
 
 class TestAConditionRoutineResponse:

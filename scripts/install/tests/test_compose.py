@@ -21,6 +21,7 @@ import yaml
 from scripts.install.compose import (
     SKILL_SANDBOX_LOCAL_IMAGE,
     build_invocation,
+    locked_services,
     render_caddyfile,
     render_install_override,
     up_suffix,
@@ -45,6 +46,7 @@ def _public(
     mode: InstallMode = InstallMode.LOCAL,
     observability: bool = False,
     skill_sandbox: bool = False,
+    web_search: bool = False,
 ) -> PublicAnswers:
     return PublicAnswers(
         language="en",
@@ -55,6 +57,7 @@ def _public(
         default_language="fr",
         observability=observability,
         skill_sandbox=skill_sandbox,
+        web_search=web_search,
         server_host="192.168.1.50" if exposure is Exposure.LAN else None,
         web_domain=None if exposure is Exposure.LAN else "lia.example.org",
         api_domain=None if exposure is Exposure.LAN else "api.example.org",
@@ -219,12 +222,23 @@ def test_locked_services_match_the_dependency_catalogue_and_base_file() -> None:
         )
     }
     full = locked_services(
-        _public(Exposure.CADDY, mode=InstallMode.PREBUILT, observability=True)
+        _public(Exposure.CADDY, mode=InstallMode.PREBUILT, observability=True, web_search=True)
     )
     assert set(full) == catalogue | {"api", "web"}
     lan = locked_services(_public(Exposure.LAN, mode=InstallMode.PREBUILT))
     assert "caddy" not in lan
-    assert not any(s in lan for s in ("grafana", "prometheus"))
+    assert not any(s in lan for s in ("grafana", "prometheus", "searxng"))
+
+
+def test_the_instance_web_search_starts_its_profile_on_a_pinned_image() -> None:
+    # ADR-382: the answer selects the `searxng` profile of the base file, and a
+    # prebuilt install pins its image like any other service it starts.
+    on = _public(Exposure.LAN, mode=InstallMode.PREBUILT, web_search=True)
+    off = _public(Exposure.LAN, mode=InstallMode.PREBUILT)
+    assert "searxng" in build_invocation(on, root=Path(".")).profiles
+    assert "searxng" not in build_invocation(off, root=Path(".")).profiles
+    assert "searxng" in locked_services(on)
+    assert "searxng" not in locked_services(off)
 
 
 def test_every_profile_names_exactly_the_services_it_starts() -> None:
@@ -241,5 +255,8 @@ def test_every_profile_names_exactly_the_services_it_starts() -> None:
         }
         assert set(names) == declared, profile
     for observability in (False, True):
-        invocation = build_invocation(_public(observability=observability), root=Path("."))
-        assert set(invocation.profiles) <= set(PROFILE_SERVICES)
+        for web_search in (False, True):
+            invocation = build_invocation(
+                _public(observability=observability, web_search=web_search), root=Path(".")
+            )
+            assert set(invocation.profiles) <= set(PROFILE_SERVICES)

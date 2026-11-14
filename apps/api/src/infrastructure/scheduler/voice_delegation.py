@@ -27,15 +27,14 @@ same rules — which a test corpus and these tests pin to each other:
   busy conversation each have a line (technical English, ADR-256 — the model
   speaks the person's language).
 
-The lease is the chat's own (``active_run_lease``): a person typing in the
-chat while they speak on the phone is two runs on one thread, and the second
-must wait or step aside.
+Admission is the chat's durable account-wide slot: a person typing in any
+discussion while speaking on the phone cannot start a second graph. A newer
+voice request joins its predecessor's cleanup before asking for admission.
 """
 
 from __future__ import annotations
 
 import asyncio
-from contextlib import suppress
 from dataclasses import dataclass
 from enum import Enum
 from typing import Final
@@ -48,13 +47,11 @@ from src.core.constants import (
     REDIS_KEY_VOICE_DELEGATION_NEWEST_PREFIX,
     VOICE_DELEGATION_SUPERSEDE_POLL_SECONDS,
 )
-from src.core.field_names import FIELD_RUN_ID
-from src.domains.agents.api.hitl_pending import check_pending_hitl_uncached
 from src.domains.agents.display.plain_text import strip_html_if_markup
 from src.domains.voice_sessions.mandate import bridge_lines, tone_lines
 from src.domains.voice_sessions.projection import bound_to_tokens, flatten_for_voice
 from src.domains.voice_sessions.session import VoiceSession
-from src.infrastructure.async_utils import safe_fire_and_forget
+from src.infrastructure.async_utils import cancel_and_join, safe_fire_and_forget
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.scheduler.out_of_turn_run import (
     RunContext,
@@ -63,7 +60,6 @@ from src.infrastructure.scheduler.out_of_turn_run import (
     StreamRequest,
     stream_instruction,
 )
-from src.infrastructure.streaming.run_stream_broker import ActiveRunLockLost, active_run_lease
 
 logger = structlog.get_logger(__name__)
 
@@ -146,26 +142,7 @@ def _line(outcome: DelegationOutcome) -> DelegationResult:
     return DelegationResult(outcome=outcome, text=bridge_lines()[_LINE_OF[outcome]])
 
 
-async def _resumption(conversation_id: str) -> str | None:
-    """The run a pending question was asked on, or None — never raising.
-
-    The probe is the chat's own authority (the Redis record the chat routes
-    on, ADR-276 lot 7); a probe that fails runs the request as a fresh turn.
-    """
-    try:
-        pending = await check_pending_hitl_uncached(conversation_id)
-    except Exception as exc:  # noqa: BLE001 — a blind probe never blocks the person's request
-        logger.warning("voice_delegation_hitl_probe_failed", error_type=type(exc).__name__)
-        return None
-    if not pending:
-        return None
-    run_id = pending.get(FIELD_RUN_ID)
-    return run_id if isinstance(run_id, str) and run_id else None
-
-
-def _stream_request(
-    request: DelegationRequest, context: RunContext, resume: str | None
-) -> StreamRequest:
+def _stream_request(request: DelegationRequest, context: RunContext) -> StreamRequest:
     session = request.session
     return StreamRequest(
         user_id=session.user_id,
@@ -181,13 +158,12 @@ def _stream_request(
         # No out-of-turn origin: the person is on the line, this is their chat
         # turn — the gate ASKS, the rows are visible, the graph mints the id.
         origin=None,
-        run_id=resume,
         execution_mode=context.execution_mode,
         spoken_by_person=True,
         memory_enabled=context.memory_enabled,
         journals_enabled=context.journals_enabled,
         psyche_enabled=context.psyche_enabled,
-        original_run_id=resume,
+        resume_pending=True,
         live_session_id=session.key,
         spoken_text=request.spoken_text,
         # The person is on the line: their wait is a chat latency.
@@ -205,11 +181,11 @@ class _Stepped(str, Enum):
 async def _run_supervised(
     request: DelegationRequest, stream: StreamRequest
 ) -> RunResult | _Stepped:
-    """Run the turn under the conversation's lease, watching the newest marker.
+    """Wait for durable account admission while watching the newest marker.
 
     Returns:
         The result, or why there is none: a newer request cancelled this one
-        (or the person's own typed turn took the thread), or the lease could
+        or the account admission could
         not be taken within the bound.
     """
     session = request.session
@@ -218,25 +194,15 @@ async def _run_supervised(
     loop = asyncio.get_running_loop()
     deadline = loop.time() + settings.voice_delegation_lease_wait_seconds
     while True:
-        # Read BEFORE taking the lease: a request replaced while it waited
+        # Read BEFORE taking admission: a request replaced while it waited
         # (two vendor webhooks on two workers) must not start a turn it would
         # cancel at its first poll — a router call paid for nothing.
         if await _superseded(redis, key, request.request_id):
-            logger.info("voice_delegation_superseded_before_lease", origin_id=session.origin_id)
+            logger.info("voice_delegation_superseded_before_admission", origin_id=session.origin_id)
             return _Stepped.SUPERSEDED
-        try:
-            async with active_run_lease(
-                redis,
-                str(session.conversation_id),
-                run_id=stream.run_id or f"{session.run_id}:{request.request_id}",
-                stream_id=f"{session.origin_kind}:{request.request_id}",
-            ) as acquired:
-                if acquired:
-                    return await _run_until_superseded(redis, key, request.request_id, stream)
-        except ActiveRunLockLost:
-            # The person's own typed turn took the thread: it wins.
-            logger.info("voice_delegation_taken_over", origin_id=session.origin_id)
-            return _Stepped.SUPERSEDED
+        result = await _run_until_superseded(redis, key, request.request_id, stream)
+        if not isinstance(result, RunResult) or result.outcome is not RunOutcome.BUSY:
+            return result
         if loop.time() >= deadline:
             logger.info("voice_delegation_busy", origin_id=session.origin_id)
             return _Stepped.BUSY
@@ -252,25 +218,46 @@ async def _superseded(redis: Redis, key: str, request_id: str) -> bool:
 async def _run_until_superseded(
     redis: Redis, key: str, request_id: str, stream: StreamRequest
 ) -> RunResult | _Stepped:
-    # The lease may have been waited for: a marker moved meanwhile means the
+    # Admission may have been waited for: a marker moved meanwhile means the
     # turn is not wanted — nothing is started.
     if await _superseded(redis, key, request_id):
         return _Stepped.SUPERSEDED
-    run = asyncio.create_task(stream_instruction(stream))
+    run = asyncio.create_task(_stream_if_current(redis, key, request_id, stream))
     try:
         while True:
             done, _ = await asyncio.wait({run}, timeout=SUPERSEDE_POLL_SECONDS)
             if done:
                 return run.result()
             if await _superseded(redis, key, request_id):
-                run.cancel()
-                with suppress(asyncio.CancelledError):
-                    await run
+                await cancel_and_join(run)
                 return _Stepped.SUPERSEDED
+    except Exception, asyncio.CancelledError:
+        # Losing the marker is a supervision failure, never permission to
+        # leave its owned graph running without a supersession watcher.
+        await cancel_and_join(run)
+        raise
+
+
+async def _stream_if_current(
+    redis: Redis, key: str, request_id: str, stream: StreamRequest
+) -> RunResult | _Stepped:
+    """Recheck after SQL admission, before any model call, and join revoked work."""
+    replaced = False
+
+    async def check_current() -> None:
+        nonlocal replaced
+        if await _superseded(redis, key, request_id):
+            replaced = True
+            raise asyncio.CancelledError
+
+    try:
+        return await stream_instruction(stream, before_run=check_current)
     except asyncio.CancelledError:
-        run.cancel()
-        with suppress(asyncio.CancelledError):
-            await run
+        # stream_instruction propagates only after its owned execution closes.
+        # Only this admission check may translate cancellation into supersession.
+        # Cleanup cannot depend on another read of a possibly unavailable Redis.
+        if replaced:
+            return _Stepped.SUPERSEDED
         raise
 
 
@@ -287,6 +274,10 @@ def _shape(result: RunResult) -> DelegationResult:
     """What the voice is handed once the turn ended."""
     if result.outcome is RunOutcome.QUOTA_BLOCKED:
         return _line(DelegationOutcome.QUOTA_BLOCKED)
+    if result.outcome is RunOutcome.BUSY:
+        return _line(DelegationOutcome.BUSY)
+    if result.outcome is RunOutcome.PENDING_QUESTION:
+        return _line(DelegationOutcome.FAILED)
     if result.outcome is RunOutcome.FAILED:
         return _line(DelegationOutcome.FAILED)
     note = tone_lines().get(result.register) if result.register else None
@@ -313,27 +304,29 @@ async def delegate(request: DelegationRequest, *, context: RunContext) -> Delega
     if not request.request.strip():
         return _line(DelegationOutcome.EMPTY)
 
-    redis = await get_redis_cache()
-    # The newest request wins: whoever runs reads this marker and steps aside.
-    await redis.set(
-        newest_request_key(session.key),
-        request.request_id,
-        ex=settings.voice_delegation_run_timeout_seconds,
-    )
-    resume = await _resumption(str(session.conversation_id))
-    stream = _stream_request(request, context, resume)
-    supervised = safe_fire_and_forget(
-        _run_supervised(request, stream),
-        name=f"voice_delegation_{session.key}_{request.request_id}",
-    )
+    wait_bound: asyncio.Timeout | None = None
     try:
-        verdict = await asyncio.wait_for(asyncio.shield(supervised), timeout=request.wait_seconds)
-    except TimeoutError:
-        # The turn goes on in the thread — still supervised, so the next
-        # request cancels it; the voice says the answer will be in the chat.
-        logger.info("voice_delegation_timed_out", origin_id=session.origin_id)
-        return _line(DelegationOutcome.TIMED_OUT)
+        redis = await get_redis_cache()
+        # The newest request wins: whoever runs reads this marker and steps aside.
+        await redis.set(
+            newest_request_key(session.key),
+            request.request_id,
+            ex=settings.voice_delegation_run_timeout_seconds,
+        )
+        stream = _stream_request(request, context)
+        supervised = safe_fire_and_forget(
+            _run_supervised(request, stream),
+            name=f"voice_delegation_{session.key}_{request.request_id}",
+        )
+        wait_bound = asyncio.timeout(request.wait_seconds)
+        async with wait_bound:
+            verdict = await asyncio.shield(supervised)
     except Exception as exc:  # noqa: BLE001 — never an exception to the voice
+        if isinstance(exc, TimeoutError) and wait_bound is not None and wait_bound.expired():
+            # Only this wait expiring means the supervised turn is still alive.
+            # A Redis timeout before/during admission is an actual failure.
+            logger.info("voice_delegation_timed_out", origin_id=session.origin_id)
+            return _line(DelegationOutcome.TIMED_OUT)
         logger.error(
             "voice_delegation_failed", origin_id=session.origin_id, error_type=type(exc).__name__
         )

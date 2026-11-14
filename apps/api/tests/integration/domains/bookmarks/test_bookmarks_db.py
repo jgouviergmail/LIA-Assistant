@@ -12,13 +12,14 @@ unit test over a stub proves none of them:
   hidden run's rows are never it, and another account's message is never
   found.
 
-Everything runs inside the ``async_session`` fixture's transaction: nothing
-persists.
+Most cases use a rollback fixture. The disk-backed projection commits its
+owned fixture so the independent writer connection can verify the account.
 """
 
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -39,10 +40,36 @@ from src.domains.rag_spaces.models import (
 )
 from src.domains.rag_spaces.repository import RAGSpaceRepository
 from src.domains.users.models import User
+from tests.helpers.committed_account_session import async_session as _committed_session
 
 pytestmark = pytest.mark.integration
+committed_account_session = _committed_session
 
 NOW = datetime(2026, 9, 12, 10, 0, tzinfo=UTC)
+
+
+@pytest.fixture
+async def projection_session(
+    committed_account_session: AsyncSession,
+) -> AsyncIterator[AsyncSession]:
+    """Install the production name constraint when the test schema used metadata only."""
+    db = committed_account_session
+    existing = await db.scalar(text("SELECT to_regclass('uq_rag_spaces_user_name') IS NOT NULL"))
+    if not existing:
+        await db.execute(
+            text(
+                "CREATE UNIQUE INDEX uq_rag_spaces_user_name ON rag_spaces (user_id, name) "
+                "WHERE user_id IS NOT NULL"
+            )
+        )
+    await db.commit()
+    try:
+        yield db
+    finally:
+        await db.rollback()
+        if not existing:
+            await db.execute(text("DROP INDEX uq_rag_spaces_user_name"))
+            await db.commit()
 
 
 async def _user(db: AsyncSession) -> User:
@@ -366,7 +393,7 @@ class TestTheKnowledgeSpaceProjection:
 
     async def test_a_name_clash_with_a_hand_made_space_still_projects(
         self,
-        async_session: AsyncSession,
+        projection_session: AsyncSession,
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
     ) -> None:
@@ -377,31 +404,24 @@ class TestTheKnowledgeSpaceProjection:
         session never does, so a unit test cannot see the bookmark being
         re-read after the rollback.
         """
-        from collections.abc import AsyncIterator
         from contextlib import asynccontextmanager
 
         from src.core.i18n_bookmarks import get_space_name
         from src.domains.bookmarks import indexing
         from src.domains.rag_spaces import document_access, drive_ingest
 
-        # The name's uniqueness is a PARTIAL index the migrations own and
-        # ``create_all`` does not build: declared here, exactly as in production,
-        # inside the test's transaction (DDL is transactional on PostgreSQL).
-        await async_session.execute(
-            text(
-                "CREATE UNIQUE INDEX uq_rag_spaces_user_name ON rag_spaces (user_id, name) "
-                "WHERE user_id IS NOT NULL"
-            )
-        )
-        user = await _user(async_session)
+        db = projection_session
+        user = await _user(db)
         hand_made = RAGSpace(user_id=user.id, name=get_space_name(user.language), kind=None)
-        async_session.add(hand_made)
-        await async_session.flush()
-        kept = await _bookmark(async_session, user, None)
+        db.add(hand_made)
+        await db.flush()
+        kept = await _bookmark(db, user, None)
+        await db.commit()
 
         @asynccontextmanager
         async def _ctx() -> AsyncIterator[AsyncSession]:
-            yield async_session
+            yield db
+            await db.commit()
 
         async def _allowed(*_: object) -> bool:
             return True
@@ -421,12 +441,12 @@ class TestTheKnowledgeSpaceProjection:
         kwargs = await indexing._prepare(kept.id)
 
         assert kwargs is not None
-        await async_session.refresh(kept)
-        managed = await RAGSpaceRepository(async_session).get_by_kind_for_user(user_id, "bookmarks")
+        await db.refresh(kept)
+        managed = await RAGSpaceRepository(db).get_by_kind_for_user(user_id, "bookmarks")
         assert managed is not None and managed.id != hand_made_id
         assert managed.name == f"{hand_made_name} (2)"
         assert kept.index_state == "pending" and kept.rag_document_id == kwargs["document_id"]
-        document = await async_session.get(RAGDocument, kwargs["document_id"])
+        document = await db.get(RAGDocument, kwargs["document_id"])
         assert document is not None and document.space_id == managed.id
 
     async def test_the_link_says_whether_the_bookmark_still_exists(

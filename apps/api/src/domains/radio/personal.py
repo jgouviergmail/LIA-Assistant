@@ -228,6 +228,9 @@ def _mails(data: MailsData) -> Iterator[PersonalDraft]:
     for mail in data.items:
         if is_commercial_content(mail.subject, email=True):
             continue
+        # Unread is not unanswered (ADR-379): mail the listener already answered is no news.
+        if mail.reply_state is not None and mail.reply_state.status == "answered":
+            continue
         sender = mail.sender_name or mail.sender_email or "an unknown sender"
         text = f'Unread e-mail from {sender}: "{mail.subject}" ({mail.received_local})'
         key = f"email:{mail.id or digest(sender, mail.subject, mail.received_local)}"

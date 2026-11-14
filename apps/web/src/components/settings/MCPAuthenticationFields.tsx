@@ -12,7 +12,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { UserMCPAuthType } from '@/hooks/useUserMCPServers';
-import type { MCPServerFormSource, MCPServerFormState } from '@/lib/mcp-server-form';
+import {
+  keepsStoredSecret,
+  type MCPServerFormSource,
+  type MCPServerFormState,
+} from '@/lib/mcp-server-form';
 
 interface Props {
   id: string;
@@ -22,6 +26,7 @@ interface Props {
   t: TFunction;
 }
 function APIKeyFields({ id, form, setForm, editingServer, t }: Props) {
+  const stored = keepsStoredSecret(form, editingServer) ? editingServer : null;
   return (
     <>
       <div className="space-y-3">
@@ -32,14 +37,14 @@ function APIKeyFields({ id, form, setForm, editingServer, t }: Props) {
           onChange={e => setForm(f => ({ ...f, api_key: e.target.value }))}
           type="password"
           placeholder={
-            editingServer?.has_credentials
+            stored?.has_credentials
               ? t('settings.mcp.field_credentials_saved')
-              : editingServer
+              : stored
                 ? t('settings.mcp.field_keep_existing')
                 : ''
           }
         />
-        {editingServer?.has_credentials && !form.api_key && (
+        {stored?.has_credentials && !form.api_key && (
           <p className="text-xs text-muted-foreground">
             {t('settings.mcp.field_credentials_hint')}
           </p>
@@ -59,6 +64,7 @@ function APIKeyFields({ id, form, setForm, editingServer, t }: Props) {
 }
 
 function BearerFields({ id, form, setForm, editingServer, t }: Props) {
+  const stored = keepsStoredSecret(form, editingServer) ? editingServer : null;
   return (
     <div className="space-y-3">
       <Label htmlFor={`${id}-mcp-bearer-token`}>{t('settings.mcp.field_bearer_token')}</Label>
@@ -68,14 +74,14 @@ function BearerFields({ id, form, setForm, editingServer, t }: Props) {
         onChange={e => setForm(f => ({ ...f, bearer_token: e.target.value }))}
         type="password"
         placeholder={
-          editingServer?.has_credentials
+          stored?.has_credentials
             ? t('settings.mcp.field_credentials_saved')
-            : editingServer
+            : stored
               ? t('settings.mcp.field_keep_existing')
               : ''
         }
       />
-      {editingServer?.has_credentials && !form.bearer_token && (
+      {stored?.has_credentials && !form.bearer_token && (
         <p className="text-xs text-muted-foreground">{t('settings.mcp.field_credentials_hint')}</p>
       )}
     </div>
@@ -83,6 +89,7 @@ function BearerFields({ id, form, setForm, editingServer, t }: Props) {
 }
 
 function OAuthFields({ id, form, setForm, editingServer, t }: Props) {
+  const stored = keepsStoredSecret(form, editingServer) ? editingServer : null;
   return (
     <>
       <div className="space-y-3">
@@ -95,10 +102,10 @@ function OAuthFields({ id, form, setForm, editingServer, t }: Props) {
           value={form.oauth_client_id}
           onChange={e => setForm(f => ({ ...f, oauth_client_id: e.target.value }))}
           placeholder={
-            editingServer?.has_oauth_credentials ? t('settings.mcp.field_credentials_saved') : ''
+            stored?.has_oauth_credentials ? t('settings.mcp.field_credentials_saved') : ''
           }
         />
-        {editingServer?.has_oauth_credentials && !form.oauth_client_id && (
+        {stored?.has_oauth_credentials && !form.oauth_client_id && (
           <p className="text-xs text-muted-foreground">
             {t('settings.mcp.field_credentials_hint')}
           </p>
@@ -115,10 +122,10 @@ function OAuthFields({ id, form, setForm, editingServer, t }: Props) {
           onChange={e => setForm(f => ({ ...f, oauth_client_secret: e.target.value }))}
           type="password"
           placeholder={
-            editingServer?.has_oauth_credentials ? t('settings.mcp.field_credentials_saved') : ''
+            stored?.has_oauth_credentials ? t('settings.mcp.field_credentials_saved') : ''
           }
         />
-        {editingServer?.has_oauth_credentials && !form.oauth_client_secret && (
+        {stored?.has_oauth_credentials && !form.oauth_client_secret && (
           <p className="text-xs text-muted-foreground">
             {t('settings.mcp.field_credentials_hint')}
           </p>

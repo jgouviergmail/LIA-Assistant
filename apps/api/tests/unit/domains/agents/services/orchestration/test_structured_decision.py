@@ -58,7 +58,7 @@ async def _build(decision: dict, pending: dict | None) -> dict:
         patch("src.domains.agents.utils.HITLStore", return_value=store),
     ):
         return await build_structured_decision(
-            hitl_decision=decision, conversation_id=uuid4(), run_id="test"
+            hitl_decision=decision, runtime_id=uuid4(), run_id="test"
         )
 
 
@@ -282,7 +282,7 @@ async def _parse_nl(message: str, pending: dict | None) -> dict:
         patch("src.domains.agents.utils.HITLStore", return_value=store),
     ):
         return await parse_approval_decision(
-            user_message=message, conversation_id=uuid4(), run_id="test"
+            user_message=message, runtime_id=uuid4(), run_id="test"
         )
 
 

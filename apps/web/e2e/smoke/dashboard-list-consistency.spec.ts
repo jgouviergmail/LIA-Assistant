@@ -1,6 +1,6 @@
 /** Shared page landmarks, touch targets and reflow across the seven dashboard doors. */
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect, idleNotificationStream, type MockRoute } from '../fixtures';
+import { test, expect, idleNotificationStream, openListFilters, type MockRoute } from '../fixtures';
 import { appConfig } from '../fixtures/dashboard-shell';
 import { relationsData } from '../fixtures/relations';
 import fr from '../../locales/fr/translation.json';
@@ -51,14 +51,18 @@ const routes: MockRoute[] = [
   },
 ];
 
+/**
+ * `filters`: the collection has controls beyond its search, which a phone
+ * folds behind « Filtres » (owner, 2026-11-11). Meetings only search.
+ */
 const pages = [
-  { path: 'relations', title: fr.relations.title, collection: true },
-  { path: 'sms', title: fr.sms.title, collection: true },
-  { path: 'meetings', title: fr.meetings.list.title, collection: true },
-  { path: 'spaces', title: fr.spaces.title, collection: true },
-  { path: 'notifications', title: fr.notifications_hub.title, collection: true },
-  { path: 'settings', title: fr.settings.title, collection: false },
-  { path: 'faq', title: fr.faq.title, collection: false },
+  { path: 'relations', title: fr.relations.title, collection: true, filters: true },
+  { path: 'sms', title: fr.sms.title, collection: true, filters: true },
+  { path: 'meetings', title: fr.meetings.list.title, collection: true, filters: false },
+  { path: 'spaces', title: fr.spaces.title, collection: true, filters: true },
+  { path: 'notifications', title: fr.notifications_hub.title, collection: true, filters: true },
+  { path: 'settings', title: fr.settings.title, collection: false, filters: false },
+  { path: 'faq', title: fr.faq.title, collection: false, filters: false },
 ];
 
 for (const item of pages) {
@@ -115,6 +119,32 @@ for (const item of pages) {
         expect(Math.abs(searchBox.x - headerBox.x)).toBeLessThan(1);
         await expect(main.getByRole('button', { name: 'Rechercher', exact: true })).toHaveCount(0);
         const fields = main.locator('select, input[type="date"]');
+        if (item.filters && width === 320) {
+          // A phone opens on the list: the controls wait behind « Filtres »,
+          // closed, a full-width touch target right under the search.
+          await expect(fields).toHaveCount(0);
+          const fold = main
+            .locator('summary')
+            .filter({ has: page.getByText(fr.common.filters, { exact: true }) })
+            .first();
+          await expect(fold).toContainText(fr.common.filters_none);
+          const foldBox = await fold.boundingBox();
+          if (!foldBox) throw new Error('The filters fold must be visible on a phone');
+          expect(foldBox.height).toBeGreaterThanOrEqual(44);
+          expect(foldBox.y).toBeGreaterThanOrEqual(searchBox.y + searchBox.height);
+          expect(foldBox.x).toBeGreaterThanOrEqual(searchBox.x);
+          expect(foldBox.x + foldBox.width).toBeLessThanOrEqual(width);
+          await page.screenshot({
+            path: testInfo.outputPath(`${item.path}-${width}-folded.png`),
+            fullPage: true,
+          });
+          // Opened, its fields are measured like any other below — and they
+          // must exist, or the loop would pass on nothing.
+          await openListFilters(main, fr.common.filters);
+          await expect(fields.first()).toBeVisible();
+        }
+        // From `sm` up nothing folds.
+        if (item.filters && width === 768) await openListFilters(main, fr.common.filters);
         let controlLeft: number | undefined;
         for (const field of await fields.all()) {
           if (!(await field.isVisible())) continue;

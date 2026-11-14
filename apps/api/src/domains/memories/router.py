@@ -11,11 +11,12 @@ Provides CRUD operations for long-term user memories with:
 Phase: v1.14.0 — Migrated from LangGraph store to PostgreSQL custom
 """
 
+import asyncio
 from datetime import UTC, datetime
-from typing import Annotated, Literal
+from typing import Annotated, Literal, NoReturn
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,14 +27,18 @@ from src.core.exceptions import (
     BaseAPIException,
     ResourceConflictError,
     ResourceNotFoundError,
+    raise_invalid_input,
     raise_memory_not_found,
     raise_memory_store_error,
+    raise_payload_too_large,
 )
 from src.core.i18n_api_messages import APIMessages
 from src.core.management_export_file import prepare_management_export_file
 from src.core.management_export_response import ManagementExportResponse
 from src.core.session_dependencies import get_current_active_session
 from src.domains.agents.tools.memory_tools import get_memory_categories
+from src.domains.memories.import_commands import import_memories
+from src.domains.memories.import_file import MemoryImportFileError, parse_memory_import
 from src.domains.memories.management_commands import (
     lock_active_owned_memory,
     lock_memory_actor,
@@ -49,6 +54,7 @@ from src.domains.memories.schemas import (
     MemoryCategoryInfo,
     MemoryCreate,
     MemoryDeleteAllResponse,
+    MemoryImportResponse,
     MemoryListResponse,
     MemoryPinRequest,
     MemoryPinResponse,
@@ -124,6 +130,103 @@ async def export_memories(
             operation="export",
             detail=APIMessages.failed_to_export_memories(),
         )
+
+
+#: Bytes read from an uploaded export at a time, so an oversized file is refused early.
+_IMPORT_CHUNK_BYTES = 64 * 1024
+
+
+async def _read_import_file(file: UploadFile) -> bytes:
+    """Read an uploaded export, refusing it as soon as it passes the size it may have.
+
+    Args:
+        file: The uploaded file.
+
+    Returns:
+        The file's bytes.
+
+    Raises:
+        PayloadTooLargeError: The file is larger than one import reads.
+    """
+    limit_kb = settings.memory_import_max_file_kb
+    chunks: list[bytes] = []
+    size = 0
+    while chunk := await file.read(_IMPORT_CHUNK_BYTES):
+        size += len(chunk)
+        if size > limit_kb * 1024:
+            raise_payload_too_large(
+                APIMessages.memory_import_file_too_large(limit_kb), limit_kb=limit_kb
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def _refuse_import_file(refusal: MemoryImportFileError) -> NoReturn:
+    """Answer a file refused whole with what refused it.
+
+    Args:
+        refusal: Why the file was refused.
+
+    Raises:
+        ValidationError: Always — the file holds too many memories, or is no export.
+    """
+    if refusal.code == "too_many" and refusal.found is not None and refusal.limit is not None:
+        raise_invalid_input(
+            APIMessages.memory_import_too_many(refusal.found, refusal.limit),
+            found=refusal.found,
+            limit=refusal.limit,
+        )
+    raise_invalid_input(APIMessages.memory_import_file_unreadable())
+
+
+@router.post(
+    "/import",
+    response_model=MemoryImportResponse,
+    summary="Import a memories export",
+    description=(
+        "Bring the memories of an export (the CSV or the JSON of GET /memories/export) "
+        "into the account. A memory whose content the account already holds is left "
+        "alone; an import writes everything new or nothing. Every count is exact."
+    ),
+)
+async def import_memories_file(
+    file: Annotated[UploadFile, File(description="A memories export, CSV or JSON")],
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> MemoryImportResponse:
+    """Import an export: read with nothing held, embedded with nothing held, then written."""
+    # ADR-304: the authentication read ends here; the file, its parsing and the vectors
+    # all happen with no transaction open.
+    user_id = user.id
+    await db.commit()
+    content = await _read_import_file(file)
+    try:
+        parsed = await asyncio.to_thread(
+            parse_memory_import, content, max_memories=settings.memory_import_max_memories
+        )
+    except MemoryImportFileError as refusal:
+        _refuse_import_file(refusal)
+    try:
+        outcome = await import_memories(db, user_id, parsed)
+    except BaseAPIException:
+        raise
+    except Exception as e:
+        logger.error(
+            "memories_import_failed",
+            user_id=str(user_id),
+            error_type=type(e).__name__,
+        )
+        raise_memory_store_error(
+            operation="import",
+            detail=APIMessages.failed_to_import_memories(),
+        )
+    return MemoryImportResponse(
+        total=outcome.total,
+        imported=outcome.imported,
+        already_present=outcome.already_present,
+        duplicates=outcome.duplicates,
+        invalid=outcome.invalid,
+    )
 
 
 @router.get(

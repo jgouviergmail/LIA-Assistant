@@ -37,8 +37,9 @@ from src.domains.rag_spaces.models import (
     RAGSpace,
 )
 from src.domains.rag_spaces.repository import RAGDocumentRepository, RAGSpaceRepository
+from src.domains.users.file_writers import account_file_write
 from src.domains.users.repository import UserRepository
-from src.infrastructure.async_utils import safe_fire_and_forget
+from src.infrastructure.async_utils import finish_owned_task, safe_fire_and_forget
 from src.infrastructure.database import get_db_context
 
 logger = structlog.get_logger(__name__)
@@ -105,7 +106,7 @@ async def _write_markdown(path: Path, markdown: str) -> int:
         path.write_bytes(data)
         return len(data)
 
-    return await asyncio.to_thread(_write)
+    return await finish_owned_task(asyncio.create_task(asyncio.to_thread(_write)))
 
 
 async def _upsert_document(
@@ -204,42 +205,43 @@ async def index_minutes(meeting_id: UUID) -> bool:
             return False
         user = await UserRepository(db).get_by_id(meeting.user_id)
         language = normalize_language(getattr(user, "language", None))
-        try:
-            owned = await _owned_index_source(db, meeting, language)
-            if owned is None:
+        async with account_file_write(db, meeting.user_id):
+            try:
+                owned = await _owned_index_source(db, meeting, language)
+                if owned is None:
+                    return False
+                meeting, space = owned
+                report = MeetingReport.model_validate(meeting.report_current)
+                _header, markdown = render_all(meeting, report, language=language)
+                document = await _upsert_document(
+                    db,
+                    meeting=meeting,
+                    space=space,
+                    markdown=markdown,
+                    original_filename=f"{minutes_filename_stem(meeting, report)}.md",
+                    commit=False,
+                )
+                await repo.set_index_state(
+                    meeting_id,
+                    state=MeetingIndexState.PENDING,
+                    rag_document_id=document.id,
+                    indexed_at=None,
+                )
+            except (OSError, RuntimeError, IntegrityError, ValueError) as exc:
+                logger.warning(
+                    "meeting_index_prepare_failed",
+                    meeting_id=str(meeting_id),
+                    error_type=type(exc).__name__,
+                )
+                await repo.set_index_state(
+                    meeting_id,
+                    state=MeetingIndexState.ERROR,
+                    rag_document_id=meeting.rag_document_id,
+                    indexed_at=None,
+                )
                 return False
-            meeting, space = owned
-            report = MeetingReport.model_validate(meeting.report_current)
-            _header, markdown = render_all(meeting, report, language=language)
-            document = await _upsert_document(
-                db,
-                meeting=meeting,
-                space=space,
-                markdown=markdown,
-                original_filename=f"{minutes_filename_stem(meeting, report)}.md",
-                commit=False,
-            )
-            await repo.set_index_state(
-                meeting_id,
-                state=MeetingIndexState.PENDING,
-                rag_document_id=document.id,
-                indexed_at=None,
-            )
-        except (OSError, RuntimeError, IntegrityError, ValueError) as exc:
-            logger.warning(
-                "meeting_index_prepare_failed",
-                meeting_id=str(meeting_id),
-                error_type=type(exc).__name__,
-            )
-            await repo.set_index_state(
-                meeting_id,
-                state=MeetingIndexState.ERROR,
-                rag_document_id=meeting.rag_document_id,
-                indexed_at=None,
-            )
-            return False
-        document_id, space_id, user_id = document.id, space.id, meeting.user_id
-        filename, original_filename = document.filename, document.original_filename
+            document_id, space_id, user_id = document.id, space.id, meeting.user_id
+            filename, original_filename = document.filename, document.original_filename
 
     # process_document owns its own session and never raises.
     ready = await process_document(

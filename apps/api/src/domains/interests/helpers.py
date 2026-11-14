@@ -86,6 +86,19 @@ def anchor_topic_locally(topic: str, user_language: str, locality: str | None) -
     return topic + suffix.format(locality=locality)
 
 
+# What a web search ENGINE is asked about an interest. One wording for every
+# engine the sweep may reach (the person's Brave key, the instance's search):
+# which one answers never changes what was asked.
+WEB_SEARCH_QUERY_TEMPLATES: dict[str, str] = {
+    "fr": "Actualités et informations récentes sur {topic}",
+    "en": "Recent news and information about {topic}",
+    "es": "Noticias recientes e información sobre {topic}",
+    "de": "Aktuelle Nachrichten und Informationen über {topic}",
+    "it": "Notizie recenti e informazioni su {topic}",
+    "zh-CN": "关于{topic}的最新新闻和资讯",
+}
+
+
 def build_localized_search_query(
     topic: str,
     user_language: str,
@@ -95,7 +108,7 @@ def build_localized_search_query(
     Build a search query using language-specific templates.
 
     Shared by content sources that need localized search queries
-    (Brave Search, Perplexity).
+    (Brave Search, the instance's search, Perplexity).
 
     Args:
         topic: Interest topic to search for

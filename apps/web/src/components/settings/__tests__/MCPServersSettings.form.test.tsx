@@ -307,6 +307,38 @@ describe('MCPServersSettings — editing a server', () => {
     );
   });
 
+  it('requires the key when an OAuth server is switched to an API key', async () => {
+    // A blank secret keeps the stored one only for the scheme it was stored for: the
+    // OAuth tokens are no API key, and the API refuses the switch without one.
+    const { user } = render({
+      servers: [server({ auth_type: 'oauth2', status: 'active', has_credentials: true })],
+      total: 1,
+    });
+    await openEdit(user);
+
+    await chooseAuth(user, 'settings.mcp.auth_api_key');
+    const key = screen.getByLabelText('settings.mcp.field_api_key');
+    expect(saveButton()).toBeDisabled();
+    expect(key).not.toHaveAttribute('placeholder', 'settings.mcp.field_credentials_saved');
+    expect(screen.queryByText('settings.mcp.field_credentials_hint')).toBeNull();
+
+    await user.type(key, 'new-key');
+    await user.click(saveButton());
+    await waitFor(() =>
+      expect(updateServer).toHaveBeenCalledWith('s1', { auth_type: 'api_key', api_key: 'new-key' })
+    );
+  });
+
+  it('switches a server to OAuth with the scheme alone, the authorization coming after', async () => {
+    const { user } = render({ servers: [server()], total: 1 });
+    await openEdit(user);
+
+    await chooseAuth(user, 'settings.mcp.auth_oauth2');
+    await user.click(saveButton());
+
+    await waitFor(() => expect(updateServer).toHaveBeenCalledWith('s1', { auth_type: 'oauth2' }));
+  });
+
   it('lets an existing server be saved without retyping its credential', async () => {
     const { user } = render({
       servers: [server({ auth_type: 'bearer', has_credentials: true })],

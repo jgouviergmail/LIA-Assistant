@@ -10,7 +10,7 @@
  * in, off air and once the session is over, the listener's own name for it
  * (the one the next session will carry), else their language's.
  */
-import { Radio } from '@/lib/icons';
+import { RadioSet } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -50,7 +50,7 @@ export function RadioDashboardCard({ lng, enabled }: { lng: Language; enabled: b
           </div>
           <div className="min-w-0 space-y-1.5">
             <h2 className="flex items-center gap-2 text-base font-semibold">
-              <Radio className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              <RadioSet className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
               <span className="min-w-0 break-words">{name}</span>
             </h2>
             <p className="break-words text-sm leading-relaxed text-muted-foreground">

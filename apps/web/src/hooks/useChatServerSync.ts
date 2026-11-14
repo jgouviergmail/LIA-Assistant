@@ -28,6 +28,8 @@ import {
 } from '@/hooks/useNotifications';
 import { NOTIFICATION_PREVIEW_MAX_LENGTH, toPlainPreview } from '@/lib/notification-preview';
 import type { Message } from '@/types/chat';
+import type { ConversationSelection } from '@/types/conversation';
+import { conversationScopeKey } from '@/lib/conversation-selection';
 
 /**
  * Toast title + tint for a proactive push.
@@ -54,7 +56,44 @@ export function proactiveToastPresentation(metadata?: Record<string, unknown>): 
   };
 }
 
+/**
+ * Whether a thread signal is about the discussion this view shows. The
+ * account's channel carries every discussion's signals, and another
+ * discussion's never touches this thread.
+ *
+ * @param signalId - The discussion the signal names.
+ * @param selection - The view's coordinates, when it was opened with some.
+ * @param knownId - The shown discussion's id, when its record is known.
+ * @param isMain - The view shows Main.
+ * @returns True when the thread on screen is the one the signal names.
+ */
+function concernsShownThread(
+  signalId: string,
+  selection: ConversationSelection | undefined,
+  knownId: string | undefined,
+  isMain: boolean
+): boolean {
+  if (selection) return signalId === selection.conversation_id;
+  // Without coordinates only a view of Main listens; until its record is
+  // known it cannot tell the discussions apart and takes every signal.
+  if (!isMain) return false;
+  return knownId === undefined || signalId === knownId;
+}
+
 export interface UseChatServerSyncOptions {
+  selection?: ConversationSelection;
+  /**
+   * The discussion on screen, when its record is known although the view was
+   * opened without coordinates (the first view of Main). The account's channel
+   * carries every discussion's signals: without it, that view cannot tell its
+   * own reset from a neighbour's.
+   */
+  conversationId?: string;
+  isMain?: boolean;
+  onCatalogueChange?: () => void;
+  onSelectedReset?: () => void;
+  onMetadataChange?: () => void;
+  refreshUsage?: () => Promise<void>;
   owner: { readonly id: string } | null;
   /** An account is signed in. */
   signedIn: boolean;
@@ -85,7 +124,11 @@ export interface UseChatServerSyncOptions {
   onNotification: (notification: Notification) => void;
   /** Reconcile the pending approval alongside messages received elsewhere. */
   hydratePendingHitl: () => Promise<void>;
+  /** ADR-384: the shown thread changed elsewhere — a waiting message may have left. */
+  onThreadSignal?: () => void;
 }
+
+const ignoreThreadSignal = (): void => undefined;
 
 export function useChatServerSync(options: UseChatServerSyncOptions): void {
   const {
@@ -105,14 +148,23 @@ export function useChatServerSync(options: UseChatServerSyncOptions): void {
     setOldestCursor,
     onNotification,
     hydratePendingHitl,
+    selection,
+    conversationId,
+    isMain = true,
+    onCatalogueChange,
+    onSelectedReset,
+    onMetadataChange,
+    refreshUsage,
+    onThreadSignal = ignoreThreadSignal,
   } = options;
 
   const onSmsReceived = useSmsReceivedToast(owner?.id);
   const readSyncedPage = useCallback(async () => {
     const page = await readNewestPage();
     void hydratePendingHitl();
+    void refreshUsage?.();
     return page;
-  }, [readNewestPage, hydratePendingHitl]);
+  }, [readNewestPage, hydratePendingHitl, refreshUsage]);
 
   const syncReplacedPage = useCallback(
     (page: ConversationPage) => {
@@ -134,6 +186,7 @@ export function useChatServerSync(options: UseChatServerSyncOptions): void {
   // messages load: what is asked meanwhile runs once the thread is free.
   const { requestSync, requestReset } = useConversationSync({
     ownerId: owner?.id,
+    scopeKey: conversationScopeKey(owner?.id, selection),
     enabled: signedIn && apiAvailable,
     blocked: isTyping || historyView || isLoadingOlder,
     messages,
@@ -143,19 +196,29 @@ export function useChatServerSync(options: UseChatServerSyncOptions): void {
     onReset: syncReset,
   });
 
+  const syncNotification = useCallback(
+    (metadata?: Record<string, unknown>) => {
+      onCatalogueChange?.();
+      const target = metadata?.conversation_id;
+      if (typeof target === 'string' ? target === selection?.conversation_id : isMain)
+        requestSync('notification');
+    },
+    [onCatalogueChange, selection, isMain, requestSync]
+  );
+
   const handleReminder = useCallback(
     (content: string) => {
       // Flattened for the toast only: the thread renders the archived row.
       toast.info(toPlainPreview(content), { duration: 5000 });
-      requestSync('notification');
+      syncNotification();
     },
-    [requestSync]
+    [syncNotification]
   );
 
   const handleProactiveNotification = useCallback(
     (content: string, _targetId: string, metadata?: Record<string, unknown>) => {
       if (metadata?.sensitive_in_app_only === true) {
-        requestSync('notification');
+        syncNotification(metadata);
         return;
       }
       if (metadata?.event === 'live_relay') {
@@ -170,9 +233,9 @@ export function useChatServerSync(options: UseChatServerSyncOptions): void {
           className: presentation.className,
         });
       }
-      requestSync('notification');
+      syncNotification(metadata);
     },
-    [requestSync]
+    [syncNotification]
   );
 
   // A routine's event carries a truncated preview for the toast; the full
@@ -183,20 +246,47 @@ export function useChatServerSync(options: UseChatServerSyncOptions): void {
         duration: 5000,
         description: toPlainPreview(content, NOTIFICATION_PREVIEW_MAX_LENGTH),
       });
-      requestSync('notification');
+      syncNotification();
     },
-    [requestSync]
+    [syncNotification]
   );
 
   const handleConversationEvent = useCallback(
     (signal: ConversationSignal) => {
-      if (signal === 'conversation_reset') requestReset();
-      else requestSync('signal');
+      onCatalogueChange?.();
+      if (signal.type === 'conversation_metadata') {
+        onMetadataChange?.();
+        if (signal.conversation_id === selection?.conversation_id) onSelectedReset?.();
+        return;
+      }
+      if (!concernsShownThread(signal.conversation_id, selection, conversationId, isMain)) return;
+      if (signal.type === 'conversation_reset') {
+        // A notification can arrive late: the authenticated catalogue alone
+        // decides whether this generation was retired. Never clear a newer one.
+        if (selection) onSelectedReset?.();
+        else requestReset();
+      } else {
+        requestSync('signal');
+        onThreadSignal();
+      }
     },
-    [requestReset, requestSync]
+    [
+      onThreadSignal,
+      requestReset,
+      requestSync,
+      selection,
+      conversationId,
+      isMain,
+      onCatalogueChange,
+      onSelectedReset,
+      onMetadataChange,
+    ]
   );
   // Pub/Sub keeps nothing: a stream that was down missed what was published.
-  const handleReconnected = useCallback(() => requestSync('reconnected'), [requestSync]);
+  const handleReconnected = useCallback(() => {
+    requestSync('reconnected');
+    onSelectedReset?.();
+  }, [requestSync, onSelectedReset]);
 
   // Admin broadcasts are handled by BroadcastProvider (its own listeners).
   useNotifications({

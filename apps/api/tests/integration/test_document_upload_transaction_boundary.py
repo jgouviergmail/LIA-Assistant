@@ -13,6 +13,7 @@ from sqlalchemy import select
 from src.core.config import settings
 from src.domains.rag_spaces.models import RAGDocument, RAGSpace
 from src.domains.rag_spaces.service import RAGSpaceService
+from tests.helpers.committed_account_session import async_session as async_session
 
 pytestmark = pytest.mark.integration
 

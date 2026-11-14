@@ -10,6 +10,9 @@ structurally incapable of touching anything real:
 - no dev compose file, production hostname, or real provider secret;
 - hermetic provider endpoints only (fake-provider base URLs);
 - login/chat probes hit the real public API paths.
+
+Which providers that means is not written here: the installer contract derives
+them from the reference configuration, and the workflow must answer for each.
 """
 
 from __future__ import annotations
@@ -19,9 +22,23 @@ from pathlib import Path
 
 import pytest
 
+from src.domains.llm_config.install_contract import (
+    OPTIONAL_INSTALL_PROVIDER_IDS,
+    required_current_core_provider_ids,
+)
 from tests._repo_paths import repo_root_or_skip
 
 pytestmark = pytest.mark.unit
+
+_FAKE_ORIGIN = "http://fake-provider:18080"
+#: Anthropic's base URL is the host alone -- its SDK appends ``/v1/messages``.
+#: Every other required provider is OpenAI-compatible and is given ``/v1``.
+_BASE_URL_SUFFIX = {"anthropic": ""}
+_DEFAULT_BASE_URL_SUFFIX = "/v1"
+
+
+def _fake_base_url(provider: str) -> str:
+    return _FAKE_ORIGIN + _BASE_URL_SUFFIX.get(provider, _DEFAULT_BASE_URL_SUFFIX)
 
 
 def _workflow() -> str:
@@ -32,6 +49,10 @@ def _workflow() -> str:
 
 def _runtime_dir() -> Path:
     return repo_root_or_skip() / "scripts/install/tests/runtime"
+
+
+def _overlay() -> str:
+    return (_runtime_dir() / "docker-compose.disposable.yml").read_text(encoding="utf-8")
 
 
 def test_dispatch_only_with_approval_environment() -> None:
@@ -73,7 +94,33 @@ def test_no_dev_compose_prod_hostname_or_real_secret() -> None:
             token = line.split("#", 1)[0].strip()
             if token:
                 assert token not in body, "workflow leaks a denylisted infra token"
-    assert "secrets.OPENAI" not in body and "secrets.DEEPSEEK" not in body
+    for provider in {*required_current_core_provider_ids(), "openai", "deepseek"}:
+        assert f"secrets.{provider.upper()}" not in body, provider
+
+
+@pytest.mark.parametrize("provider", required_current_core_provider_ids())
+def test_every_required_provider_is_answered_by_the_fake(provider: str) -> None:
+    """Declared for the runner, the address ``scripts/install/verify.py`` resolves,
+    and for the API container, where the chat turn runs: a provider left out of
+    the second reaches its vendor."""
+    name = f"{provider.upper()}_BASE_URL"
+    url = re.escape(_fake_base_url(provider))
+
+    assert re.search(rf"^\s*{name}: {url}\s*$", _workflow(), re.M), name
+    assert re.search(rf"^\s*- {name}={url}\s*$", _overlay(), re.M), name
+
+
+def test_the_installer_is_given_a_key_for_every_required_provider_and_no_stale_one() -> None:
+    """A required key the answers file leaves out stops the wizard on
+    ``missing_answer``; one it no longer asks for is a provider that left."""
+    body = _workflow()
+    answered = set(re.findall(r"^\s*provider_key_([a-z0-9_]+)=", body, re.M))
+    required = set(required_current_core_provider_ids())
+
+    assert required <= answered, sorted(required - answered)
+    assert answered <= required | set(OPTIONAL_INSTALL_PROVIDER_IDS), sorted(answered)
+    for provider in required:
+        assert f"provider_key_{provider}=$FAKE_PROVIDER_KEY" in body, provider
 
 
 def test_hermetic_provider_endpoints_and_public_probes() -> None:
@@ -103,6 +150,7 @@ def test_fake_provider_is_stdlib_only_and_key_gated() -> None:
     assert "/v1/models" in body
     assert "/v1/chat/completions" in body
     assert "/v1/responses" in body
+    assert "/v1/messages" in body
     assert "sk-fake-qualification-key" in body
     for forbidden in ("import requests", "import httpx", "import fastapi"):
         assert forbidden not in body

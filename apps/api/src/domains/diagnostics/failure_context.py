@@ -344,7 +344,7 @@ async def build_runtime_failures_directive(
     """
     failures = extract_failures_from_steps(completed_steps, tool_names_by_step)
     react_failures = extract_failures_from_tool_messages(messages, limit=None)
-    total = count_failed_steps(completed_steps) + len(react_failures)
+    total = count_turn_failures(completed_steps, messages)
     failures += react_failures[: max(0, MAX_FAILURES - len(failures))]
     degradations_block = ""
     if include_degradations:
@@ -360,4 +360,26 @@ async def build_runtime_failures_directive(
             ensure_ascii=False,
         ),
         degradations_block=degradations_block,
+    )
+
+
+def count_turn_failures(completed_steps: dict[str, Any] | None, messages: list[BaseMessage]) -> int:
+    """The EXACT number of THIS turn's own failures: failed steps and failed calls.
+
+    ONE count for every reader: the directive states it as its total, and a
+    routine told to notify only of something new is never silent past it. A
+    platform degradation the advisor reports is told BESIDE the failures and is
+    no failure of the turn: read as one, a single open incident on an
+    instance's disk voided every quiet routine's silence (measured 2026-11-12).
+
+    Args:
+        completed_steps: The pipeline's step results (may be None/malformed).
+        messages: This turn's messages (ReAct ToolMessages are read); a call a
+            later call of the same tool answered is no failure.
+
+    Returns:
+        How many steps and calls failed.
+    """
+    return count_failed_steps(completed_steps) + len(
+        extract_failures_from_tool_messages(messages, limit=None)
     )

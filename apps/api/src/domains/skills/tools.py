@@ -9,14 +9,17 @@ Pattern: web_fetch_tools.py (validate_runtime_config → UnifiedToolOutput).
 
 import asyncio
 import json
+from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any
+from uuid import UUID
 
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
 
 from src.core.constants import DEFAULT_TIMEZONE
 from src.core.i18n import resolve_language
+from src.core.run_config import run_id_of
 from src.domains.agents.constants import AGENT_QUERY
 from src.domains.agents.context.runtime_context import LiaRuntimeContext, tool_runtime_context
 from src.domains.agents.tools.output import UnifiedToolOutput
@@ -29,6 +32,7 @@ from src.domains.skills.trust import (
     is_third_party,
     reads_as_external,
 )
+from src.domains.skills.usage import schedule_skill_use
 from src.infrastructure.observability.decorators import track_tool_metrics
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
@@ -194,6 +198,7 @@ async def activate_skill_tool(
     from src.domains.skills.cache import SkillsCache
 
     if reads_as_external(SkillsCache.get_by_name_for_user(name, str(config.user_id))):
+        _count_use(str(config.user_id), name, runtime)
         return await _run_third_party_skill(name, request, runtime, str(config.user_id))
     content = activate_skill(name, user_id=str(config.user_id))
     if not content:
@@ -202,10 +207,27 @@ async def activate_skill_tool(
             error_code="NOT_FOUND",
         )
 
+    _count_use(str(config.user_id), name, runtime)
     return UnifiedToolOutput.action_success(
         message=content,
         metadata={"skill_name": name, "activation": "dedicated_tool"},
     )
+
+
+def _count_use(
+    user_id: str, name: str, runtime: ToolRuntime[LiaRuntimeContext, Any] | None
+) -> None:
+    """Report the loop's use of a skill to the usage door, under its run (lot 14).
+
+    Once per turn at the source: a skill this turn's loop already activated
+    (``react_activated_skills``) was reported then. The door's run check stays
+    the second net.
+    """
+    run_id = run_id_of(runtime.config) if runtime is not None else None
+    state = runtime.state if runtime is not None else None
+    already = (state.get("react_activated_skills") or ()) if isinstance(state, Mapping) else ()
+    if run_id and name not in already:
+        schedule_skill_use(UUID(user_id), name, run_id=run_id)
 
 
 async def _run_third_party_skill(
@@ -755,6 +777,7 @@ async def import_user_skill(
 
     from src.core.exceptions import AuthorizationError, BaseAPIException
     from src.domains.agents.application.availability import application_access_error_code
+    from src.domains.skills.proposal_errors import ProposalCapacityReached
     from src.domains.skills.proposal_service import propose
     from src.infrastructure.observability.metrics_registry import skill_proposals_total
 
@@ -767,8 +790,8 @@ async def import_user_skill(
     from src.domains.agents.api.run_origin import chat_cards_reach_the_person
 
     context = tool_runtime_context(runtime)
-    conversation_id = context.conversation_id if context is not None else ""
-    if not conversation_id or not chat_cards_reach_the_person():
+    runtime_id = context.delivery_runtime_id if context is not None else None
+    if not runtime_id or not chat_cards_reach_the_person():
         # A card needs an answer to sit under, drawn where the person reads
         # it: a ticket run or a channel shows none, so nobody could install it.
         return UnifiedToolOutput.failure(
@@ -780,7 +803,16 @@ async def import_user_skill(
         )
     try:
         proposal, _evicted = await propose(
-            files_map, owner_id=UUID(str(config.user_id)), conversation_id=conversation_id
+            files_map, owner_id=UUID(str(config.user_id)), runtime_id=UUID(runtime_id)
+        )
+    except ProposalCapacityReached:
+        skill_proposals_total.labels(operation="propose", outcome="refused").inc()
+        return UnifiedToolOutput.failure(
+            message=(
+                "Pending skill installations occupy the proposal capacity. Nothing was proposed; "
+                "resolve those installations before requesting another proposal."
+            ),
+            error_code="RATE_LIMIT_EXCEEDED",
         )
     except AuthorizationError as exc:
         skill_proposals_total.labels(operation="propose", outcome="refused").inc()

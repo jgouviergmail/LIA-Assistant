@@ -37,6 +37,7 @@ pytestmark = pytest.mark.unit
 
 PARIS = ZoneInfo("Europe/Paris")
 CONVERSATION = "7d6c3b9e-2f1a-4c5d-8e9f-0a1b2c3d4e5f"
+RUNTIME = "5d4c3b9e-2f1a-4c5d-8e9f-0a1b2c3d4e5f"
 BASE = datetime(2026, 9, 24, 8, 0, tzinfo=UTC)
 
 
@@ -89,6 +90,8 @@ async def _call(
                 store=object(),
                 timezone="Europe/Paris",
                 conversation_id=CONVERSATION,
+                runtime_id=uuid.UUID(RUNTIME),
+                conversation_revision=2,
                 thread_id="sub-agent-thread",
             ),
             **kwargs,
@@ -132,14 +135,14 @@ class TestFoundAndShown:
         _output, images, documents = await _call(gallery)
 
         images.assert_called_once_with(
-            CONVERSATION,
+            RUNTIME,
             url=f"/api/v1/attachments/{cat.id}",
             alt_text="A cat",
             expires_at=cat.expires_at.isoformat(),
             kept=False,
         )
         conversation, card = documents.call_args.args
-        assert conversation == CONVERSATION
+        assert conversation == RUNTIME
         assert (card.doc_type, card.filename, card.kept) == ("pdf", "Quarterly report.PDF", False)
 
     async def test_a_kept_file_says_so_and_its_card_states_no_deadline(self) -> None:
@@ -156,7 +159,7 @@ class TestFoundAndShown:
         (item,) = (output.structured_data or {})["files"]
         assert (item["kept"], item["expires"]) == (True, None)
         images.assert_called_once_with(
-            CONVERSATION,
+            RUNTIME,
             url=f"/api/v1/attachments/{kept.id}",
             alt_text="A cat",
             expires_at=None,

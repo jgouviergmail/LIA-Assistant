@@ -10,21 +10,42 @@ resolution.
 from __future__ import annotations
 
 import uuid
-from typing import Any
 
-from src.infrastructure.observability.logging import get_logger
+import structlog
+from langchain_core.messages import HumanMessage
 
-logger = get_logger(__name__)
+from src.core.context import SkillTurnFile, record_skill_turn_files
+from src.core.conversation_target import ConversationRef
+from src.domains.agents.models import MessagesState
+from src.domains.attachments.llm_content import build_attachment_hint
+from src.domains.attachments.service import AttachmentService
+from src.infrastructure.database import get_db_context
+
+logger = structlog.get_logger(__name__)
+
+
+def _annotate_last_human(state: MessagesState, hint: str) -> None:
+    """Append the hint to the last HumanMessage, keeping everything else it carries.
+
+    A copy, never a rebuild: its id, and the instant it was written (lot 17,
+    ``message_view.WRITTEN_AT_KEY``), which every later turn reads with it.
+    """
+    messages = state["messages"]
+    for index in range(len(messages) - 1, -1, -1):
+        message = messages[index]
+        if isinstance(message, HumanMessage):
+            messages[index] = message.model_copy(update={"content": f"{message.content}\n\n{hint}"})
+            return
 
 
 async def inject_attachments_into_state(
     *,
-    state: Any,
+    state: MessagesState,
     attachment_ids: list[uuid.UUID],
     user_id: uuid.UUID,
     user_language: str,
     run_id: str,
-    db: Any,
+    target: ConversationRef,
 ) -> None:
     """Inject attachment hint + metadata into the loaded state (evolution F4).
 
@@ -32,12 +53,12 @@ async def inject_attachments_into_state(
     stores lightweight metadata for response_node late resolution. Extracted
     from the streaming orchestrator (F011/F015 hotspot budget).
     """
-    from src.core.context import SkillTurnFile, record_skill_turn_files
-    from src.domains.attachments.llm_content import build_attachment_hint
-    from src.domains.attachments.service import AttachmentService
-
-    attachment_service = AttachmentService(db)
-    attachments = await attachment_service.get_batch(attachment_ids, user_id)
+    # Accepted usage must survive even when the subsequent early archive fails.
+    # This session closes before state projection or any model/provider work.
+    async with get_db_context() as db:
+        attachments = await AttachmentService(db).accept_for_conversation(
+            attachment_ids, user_id, target
+        )
     if not attachments:
         return
 
@@ -53,15 +74,7 @@ async def inject_attachments_into_state(
         ],
         user_language=user_language,
     )
-    from langchain_core.messages import HumanMessage
-
-    for i in range(len(state["messages"]) - 1, -1, -1):
-        if isinstance(state["messages"][i], HumanMessage):
-            state["messages"][i] = HumanMessage(
-                content=f"{state['messages'][i].content}\n\n{hint}",
-                id=state["messages"][i].id,
-            )
-            break
+    _annotate_last_human(state, hint)
 
     # Store lightweight metadata for response_node late resolution
     state["metadata"]["current_turn_attachments"] = [

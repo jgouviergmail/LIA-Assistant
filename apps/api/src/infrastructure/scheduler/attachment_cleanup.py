@@ -4,8 +4,8 @@ Scheduled task for automatic attachment cleanup.
 Removes expired attachment files (disk + DB) as a safety net
 for orphan files (uploaded but never sent in a message).
 
-Runs every 6 hours. Primary cleanup happens at conversation reset;
-this is the secondary TTL-based cleanup.
+Runs at the configured interval with bounded work. Failed file removals keep
+their durable paths and are retried; unknown upload writers are never reclaimed.
 
 Phase: evolution F4 — File Attachments & Vision Analysis
 Created: 2026-03-09
@@ -14,26 +14,26 @@ Pattern: interest_cleanup.py
 """
 
 import time
-from typing import Any
+
+import structlog
 
 from src.core.constants import SCHEDULER_JOB_ATTACHMENT_CLEANUP
 from src.domains.attachments.service import AttachmentService
 from src.infrastructure.database import get_db_context
-from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
     background_job_errors_total,
 )
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 
-async def cleanup_expired_attachments() -> dict[str, Any]:
+async def cleanup_expired_attachments() -> dict[str, int]:
     """
-    Periodic attachment cleanup job (every 6 hours).
+    Bounded periodic attachment cleanup job.
 
     Removes expired attachments from disk and database.
-    Expired = created_at + TTL < now (configurable via ATTACHMENTS_TTL_HOURS).
+    The explicit expires_at column owns expiry; kept files carry no deadline.
 
     Metrics:
         - background_job_duration_seconds{job_name="attachment_cleanup"}
@@ -54,6 +54,8 @@ async def cleanup_expired_attachments() -> dict[str, Any]:
 
         duration = time.perf_counter() - start_time
         background_job_duration_seconds.labels(job_name=job_name).observe(duration)
+        if stats["errors"]:
+            background_job_errors_total.labels(job_name=job_name).inc()
 
         logger.info(
             "attachment_cleanup_completed",
@@ -72,7 +74,6 @@ async def cleanup_expired_attachments() -> dict[str, Any]:
 
         logger.error(
             "attachment_cleanup_failed",
-            error=str(e),
             error_type=type(e).__name__,
             duration_seconds=round(duration, 3),
             exc_info=True,

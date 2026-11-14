@@ -12,7 +12,12 @@ Run from the repository root:
 node scripts/icons/generate.mjs
 node scripts/icons/generate.mjs --check
 node --test scripts/icons/source-inventory.test.mjs
+node --test scripts/icons/lia-concepts.test.mjs
 ```
+
+The generator writes compact source and check mode compares tokens, never layout:
+after a generation, run Prettier on `apps/web/src/lib/icons/` so that the diff
+shows the artwork that changed and nothing else.
 
 `catalogue.mjs` declares every native correspondence. `manifest.json` records the
 exact vendor source or the authored LIA complement, its source geometry, recipe,
@@ -36,6 +41,14 @@ Controls and explicit states must retain their meaning: an unmarked calendar
 cannot replace a cancelled calendar, and a sun cannot replace rain. The manifest
 makes these choices visible instead of silently substituting an unrelated icon.
 
+An object none of the three collections draws, Lucide included, is a LIA concept
+(`LIA_CONCEPTS` in `catalogue.mjs`): a facade name of its own, drawn outright in
+both colored styles and shown in the line style with the Lucide glyph it names.
+`RadioSet` is the radio's, on every surface that names it. Lucide's `Radio` is a
+broadcast, which also marks the live and signal controls, so that name and its
+drawing stay theirs; `radio-glyph.guard.test.ts` holds the list of who shows it.
+A concept adapts no third-party geometry; the manifest files it as `lia-concept`.
+
 Every selected SVG is reviewed visually. A filename is not evidence of its
 shape: the vendor's `voice-mail-flat` is a microphone, while `play-list-4-flat`
 is only a play button. A nearby family concept is not accepted: an approval
@@ -47,8 +60,9 @@ reasons for complements, including rejected substitutions.
 lockfile-pinned installed package on each generation. `lia-recipes.json` declares
 every part's palette, fill and surface/detail layer. `lia-artwork.mjs` paints
 surfaces first, then details and contours, preserving visible keys, eyes and
-operation marks. `lia-special-artwork.mjs` owns composed objects and inherited
-fill states; `lia-control-artwork.mjs` owns filled directional command glyphs.
+operation marks. `lia-special-artwork.mjs` owns composed objects, inherited
+fill states and the concepts drawn outright; `lia-control-artwork.mjs` owns
+filled directional command glyphs.
 The authored complements are derivatives of Lucide, explicitly attributed as
 LIA artwork, and are not claimed to be official Fluent or Streamline designs.
 
@@ -56,8 +70,9 @@ The shared palettes distinguish chromatic surfaces from their contrasting ink.
 Star, Heart, Pin, Circle and Square keep caller-controlled interiors through
 `fill="inherit"`, including rules applied by an ancestor. StarHalf retains its
 half boundary and half fill. Bookmark is open until the checked variant is used.
-Disc and CircleDot retain caller-controlled ring colors and colored centers,
-including the recording state of Disc.
+CircleDot retains its caller-controlled ring color and colored center. Disc is
+the recording dot: red at rest as well as live, inside a ring whose color and
+pulse stay the caller's.
 
 `native-chromatic.mjs` preserves native silhouettes. Native Flex receives a
 contrasting surface/ink palette, or two visible inks for separate exposed parts.

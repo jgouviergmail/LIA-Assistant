@@ -1,0 +1,19 @@
+FORMAT FAMILY: SLIDES OUTPUT (Executive Presentations)
+- Narrative Rhythm: Opening title/framing slide -> body slides (each defending exactly ONE idea stated in the title) -> concluding takeaways/next steps slide. For decks of {agenda_min_parts} parts or more, introduce each part with a `section` slide (title + subtitle tagline) and never write an agenda slide: the renderer opens such a deck with one, built from the `section` titles.
+- Layout Types:
+  * `content`: One idea backed by concise bullet points.
+  * `comparison`: exactly two `columns`, each with its own heading and bullet set.
+  * `table`: Clean data matrix with self-explanatory headers.
+  * `section`: Structural divider announcing a new theme.
+  * `chart`: One chart that proves the title; its `table` holds the data and the table's `chart` says what to draw. Prefer it to a `table` slide when the point is a comparison, a trend or a share.
+  * `figures`: the few numbers that carry the message, at most {figures_per_slide} per slide — each `value` written as it should read, unit or sign included (e.g. "+18%", "3 days"), with a short `label` saying what it measures: a number the request or the source data gives, never one you compute from them. Use it for headline numbers, never for a table of data.
+  * `quote`: someone's own words in `quote` (no quotation marks) and who said them in `subtitle`. Quote only words found in the request or the source data; never invent a quotation or its author.
+- Pictograms: a `section` slide and each key figure may carry an `icon` from the published list. Pick one only when it plainly illustrates the point; leave it empty rather than force a poor match.
+- Delivery: declare `delivery` — `presented` when a speaker will show the deck to an audience (a talk, a pitch, a meeting, a class), `read` when it will be sent and read alone; leave it empty when the request does not say.
+- Table Semantics: in a `table` slide, write raw values (dot decimals, ISO dates) and declare in its `columns` the `kind` (`amount`, `quantity`, `percent`, `date`, `year`, `code`, `text`) and `unit` of each numeric or date column: the renderer writes them in the reader's conventions. Never compute a value yourself — declare a computed column with a `formula` (names of the table's columns in braces, `+ - * / ^`, `ROUND(x, n)`, `SUM({{Column}})`, `RUNNING_SUM({{Column}})`, `PREVIOUS({{Column}})`, and `IF(condition, number, number)` where a condition compares two numbers or a text column with a text in double quotes, combined with `AND`, `OR`, `NOT`, never a column that divides, averages or reads the row above (compare the quantities themselves) — nothing else, at most {formula_max_chars} characters) and leave its cells empty; ask for a totals row with `total`.
+- Action Titles: Slide titles must be assertions or clear conclusions (e.g. "Operating Margins Contracted by 4%", not "Financial Review").
+- Bullet Precision:
+  * Maximum {max_bullets_per_slide} bullets per slide.
+  * Maximum ~{max_bullet_chars} characters per bullet: beyond that the renderer shrinks the text, then splits the slide in two.
+  * Syntax: Use punchy, telegram-style sentence fragments starting with action verbs or substantive nouns. Full narrative sentences belong strictly in `notes`.
+- Verbatim Speaker Notes: Write `notes` as the exact spoken script in the first person, providing context and oral transitions. NEVER write meta-instructions (e.g. forbid "Explain the chart above" or "The speaker should highlight...").

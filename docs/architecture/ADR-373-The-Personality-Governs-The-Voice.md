@@ -196,3 +196,45 @@ stays sober with two others, before and after. Spend: 1.71 €.
   allowed-cue list declared per personality — measured first, never assumed.
 - Measurements still owed on the vendor: a PATCH of the palette on a realtime agent, the empty
   greeting on a real conversation, a non-forced delete answering 409 — on a throwaway agent.
+
+## Amendment 2026-11-11 — every conversation opens on tools verified against the workspace
+
+**Owner decision (2026-11-11).** An agent the person reaches through LIA — the phone (the person or
+a third party) or a live session (delegated or direct) — never opens a conversation with tools out of
+date or incomplete: LIA renames, changes and removes its tools, and anyone may edit or delete one on
+the portal. § 6 already set the list at every start and wake; it did not look at what the workspace
+held, and a reconnection did not look at all.
+
+**Measured the same day** (throwaway agent and tools, dev workspace): the workspace serves back every
+field LIA sent, unchanged — enums in their order, a webhook's header in clear — and adds its own
+defaults; `PATCH /tools/{id}` replaces a tool's config under the same id, a setting changed by hand
+falling back to its default; a tool deleted with force is taken off every agent silently, and naming
+it in an agent PATCH answers 404; a delete without force of an attached tool answers 409 (the last of
+the tool measurements the Consequences owed).
+
+**Decision.**
+
+- ONE door for both surfaces, `telephony/workspace_tools.py`: `holds` (a tool holds LIA's body when
+  everything LIA sent is served as sent), `repair_set` (a drifted tool rewritten in place, a lost one
+  re-created in its position, all or nothing), `create_tools` (concurrent under the bound, rolled back
+  on any failure, a lost connection raised as itself), `agent_tool_ids` (what the agent carries).
+- Live: a recorded set is held against the workspace's client tools BEFORE it is attached, at every
+  opening — the start, the wake and now each reconnection (`LiveService._remint`, with the session's
+  own setup). The set's fingerprint covers the bodies the workspace is sent (`set_bodies`), so a raised
+  timeout re-provisions, as on the phone. The listing read to verify serves the sweep. A workspace
+  that cannot be read, or a repair the vendor refuses, refuses the opening. This verification replaces
+  the heal-after-a-refused-attach § 6 described.
+- Phone: `ensure_vendor_live_tools` and `ensure_vendor_delegation_tool` hold the recorded tools
+  against the workspace's webhook tools before every owner call and answer None when they cannot. The
+  dial reads the agent ONCE (`TelephonyService._read_agent`, the palette's read too) and puts it in the
+  call's exact tool state: a call to a third party or a verification clears whatever the agent
+  carries, whatever the connector's note says. Tools that cannot be made exact, or an agent that cannot
+  be put in the call's state, refuse the call (`agent_sync_failed`) — ADR-290 amendment 2026-11-11.
+- Every repair is counted, `live_agent_tools_repaired_total{surface, reason}` (live or phone; drifted
+  or lost), on panel 25 of dashboard 30.
+
+**Not covered.** A conversation already open keeps the tools it opened with. A field the vendor adds
+and LIA does not send (interruptions, sounds) stays as the portal set it until a repair rewrites the
+tool. The agent's system tools (end call, transfers, language detection) stay the portal's. Removing
+the Live connector, or no longer choosing an agent, leaves LIA's set in the workspace: taking it back
+needs a vendor call outside the removal's transaction (ADR-304).

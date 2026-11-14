@@ -114,16 +114,18 @@ describe('wearable and facial props share the native anatomical projection', () 
     expect(root.style.getPropertyValue(tokens[1])).toBe('');
     writer.dispose();
   });
-  it('attaches the freezing laurel to its actual CSS centre, including the lower face-relative limit', () => {
+  it('attaches the freezing laurel to the centre its calibration publishes, not to the crown', () => {
     const root = host('billes', 'oscar');
+    // The silhouette's top and the face are no longer where the laurel sits.
     root.style.setProperty('--avatar-crown-y', '15%');
     root.style.setProperty('--avatar-face-y', '35.4%');
+    root.style.setProperty('--avatar-laurel-y', '2.53%');
+    root.style.setProperty('--avatar-laurel-scale', '0.75');
     const writer = createPhysicalPropWriter(root),
       values = { ...restChannelValues(), headYaw: 0.8, headPitch: -0.6 },
       profile = volumeProfile('oscar', 'female');
-    // The laurel is 1.6em high; its top is the lower of its crown and face limits.
-    const y =
-      Math.min((0.15 - 0.5) * 2.6 - 0.24 * 0.9, (0.354 - 0.5) * 2.6 - 1.25 * 0.9) + 0.8 * 0.9;
+    // The laurel's square is centred on its published share of the 2.6em frame.
+    const y = (0.0253 - 0.5) * 2.6;
     const expected = projectVolumeSurface(profile, { x: 0, y }, volumePose(values, 'oscar'));
     writer.write(values);
     const [x, dy] = translated(root, tokens[0]);

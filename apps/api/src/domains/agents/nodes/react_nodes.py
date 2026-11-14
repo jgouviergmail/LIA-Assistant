@@ -55,12 +55,20 @@ from src.domains.agents.nodes.react_observed_gaps import (
 )
 from src.domains.agents.nodes.react_output_guard import model_call_update
 from src.domains.agents.nodes.react_prompt import build_bound_system_prompt
-from src.domains.agents.nodes.react_recovery import recovery_report, with_recovery_directives
+from src.domains.agents.nodes.react_recovery import recovery_report
+from src.domains.agents.nodes.react_shown import with_shown
 from src.domains.agents.nodes.react_turn_layout import (
     compose_turn_messages,
     extended_cache_horizon,
     frequent_exchanges,
     react_slot_provider,
+)
+from src.domains.agents.nodes.react_turn_notes import (
+    merge_settled,
+    notes_update,
+    settle_turn_notes,
+    shown_this_call,
+    take_turn_notes,
 )
 from src.domains.agents.nodes.router_tool_scoring import GLOBAL_RANKING_KEY
 from src.domains.agents.orchestration.step_timeouts import compute_step_timeout
@@ -389,6 +397,9 @@ async def react_call_model_node(
     coverage_block = requested_outcome_block(state)
     if coverage_block:
         system_blocks.append(coverage_block)
+    # ADR-385: what the person added since the last call joins this one, read and
+    # archived before the model is called — never held across it.
+    turn_notes = await take_turn_notes(state)
     messages = compose_turn_messages(
         system_blocks,
         _window_messages_for_react(
@@ -396,13 +407,15 @@ async def react_call_model_node(
             turn_id=state.get(STATE_KEY_CURRENT_TURN_ID),
             blocks=cross_turn,
             turn_started_at=state.get("react_start_time"),
+            zone=state.get("user_timezone"),
         ),
         context_after_question=cross_turn,
         provider=react_slot_provider() if cross_turn else None,
     )
     # ADR-310: a recovery pass shows the model its draft and its gaps right after
-    # the draft's place — composed per call, never written to the thread.
-    messages = with_recovery_directives(messages, state.get("react_recovery_passes") or [])
+    # the draft's place; ADR-385: a note shows where the loop read it — both
+    # composed per call, never written to the thread.
+    messages = with_shown(messages, shown_this_call(state, turn_notes))
 
     _observe_delivered_context(messages)
 
@@ -466,16 +479,19 @@ async def react_call_model_node(
 
     # ADR-275 (amended): a reply the provider cut at its budget never reaches the
     # thread — the guard decides what this call writes.
-    return model_call_update(
-        response,
-        iteration=iteration,
-        # ADR-170: charge this node's COMPUTE time, never wall clock. A node
-        # that gets interrupted never returns, so the seconds a user spends
-        # deciding on an approval are structurally excluded — which is the whole
-        # point: they used to count against the loop's timeout.
-        elapsed_seconds=(state.get("react_elapsed_seconds") or 0.0)
-        + (time.perf_counter() - node_started),
-    )
+    return {
+        **model_call_update(
+            response,
+            iteration=iteration,
+            # ADR-170: charge this node's COMPUTE time, never wall clock. A node
+            # that gets interrupted never returns, so the seconds a user spends
+            # deciding on an approval are structurally excluded — which is the whole
+            # point: they used to count against the loop's timeout.
+            elapsed_seconds=(state.get("react_elapsed_seconds") or 0.0)
+            + (time.perf_counter() - node_started),
+        ),
+        **notes_update(state, turn_notes),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -516,6 +532,9 @@ async def _execute_react_calls(
         _record_react_metrics(
             state.get("react_iteration", 0), _loop_compute_seconds(state), "draft"
         )
+        # The loop hands off to the draft's confirmation: it calls its model no
+        # more, so the notes close and fold into the question (ADR-385).
+        result = merge_settled(result, await settle_turn_notes(state))
     return result
 
 
@@ -664,4 +683,6 @@ async def react_finalize_node(
     update: dict[str, Any] = {"react_agent_result": react_result}
     if abandoned:
         update["messages"] = abandoned
-    return update
+    # The loop's exit: it calls its model no more, so the notes close and fold
+    # into the question the response and the later turns read (ADR-385).
+    return merge_settled(update, await settle_turn_notes(state))

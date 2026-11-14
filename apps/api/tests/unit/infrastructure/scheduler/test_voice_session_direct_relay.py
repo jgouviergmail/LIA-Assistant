@@ -37,6 +37,7 @@ from src.infrastructure.scheduler.voice_session_closing import (
 pytestmark = pytest.mark.unit
 
 MODULE = "src.infrastructure.scheduler.voice_session_closing"
+SCHEDULER = "src.infrastructure.scheduler.voice_reservation"
 CARD_ID = uuid.uuid4()
 
 
@@ -87,7 +88,7 @@ async def test_the_closing_calls_no_model_and_schedules_the_relay() -> None:
         for seam in _closing_patches(archive=archive):
             stack.enter_context(seam)
         stack.enter_context(patch(f"{MODULE}.synthesize_relay", synth))
-        stack.enter_context(patch(f"{MODULE}.safe_fire_and_forget", scheduled))
+        stack.enter_context(patch(f"{SCHEDULER}.safe_fire_and_forget", scheduled))
         closed = await close_voice_session(
             db,
             session=_session(),
@@ -102,7 +103,6 @@ async def test_the_closing_calls_no_model_and_schedules_the_relay() -> None:
     # The task the closing owns carries the transcript and the card to rewrite.
     scheduled.assert_called_once()
     coroutine = scheduled.call_args.args[0]
-    assert coroutine.cr_code.co_name == "_settle_direct_relay"
     coroutine.close()
 
 
@@ -115,7 +115,7 @@ async def test_a_session_with_nothing_said_relays_nothing_and_schedules_nothing(
         for seam in _closing_patches(archive=archive):
             stack.enter_context(seam)
         stack.enter_context(patch(f"{MODULE}.synthesize_relay", synth))
-        stack.enter_context(patch(f"{MODULE}.safe_fire_and_forget", scheduled))
+        stack.enter_context(patch(f"{SCHEDULER}.safe_fire_and_forget", scheduled))
         closed = await close_voice_session(
             db,
             session=_session(),
@@ -290,19 +290,20 @@ async def test_a_rewrite_that_raised_is_retried_with_the_true_fate() -> None:
 
 
 async def _settle_standby(rig: _Rig) -> AsyncMock:
-    keep_fate = AsyncMock()
+    persist = AsyncMock(return_value=True)
     with ExitStack() as stack:
         for seam in rig.patches():
             stack.enter_context(seam)
-        await _settle_standby_relay(_session(), _transcript(), keep_fate)
-    return keep_fate
+        stack.enter_context(patch(f"{MODULE}._persist_standby_result", persist))
+        await _settle_standby_relay(_session(), _transcript())
+    return persist
 
 
 async def test_a_standby_relay_keeps_its_fate_and_tells_the_screen() -> None:
     rig = _Rig()
-    keep_fate = await _settle_standby(rig)
-    keep_fate.assert_awaited_once_with(RelayOutcome.ANSWERED.value, None)
-    rig.notify.assert_awaited_once()
+    persist = await _settle_standby(rig)
+    assert persist.await_count == 1 and persist.await_args.args[1] is None
+    assert rig.notify.await_args.args[3] == RelayOutcome.ANSWERED.value
     # No card exists yet: nothing is rewritten.
     rig.rewrite.assert_not_awaited()
     rig.counter.labels.assert_called_with(outcome=RelayOutcome.ANSWERED.value)
@@ -311,24 +312,26 @@ async def test_a_standby_relay_keeps_its_fate_and_tells_the_screen() -> None:
 async def test_a_standby_relay_that_did_not_run_keeps_the_recap_of_the_words() -> None:
     rig = _Rig()
     rig.relay_outcome = RelayOutcome.BUSY
-    keep_fate = await _settle_standby(rig)
-    keep_fate.assert_awaited_once_with(RelayOutcome.BUSY.value, "s")
+    persist = await _settle_standby(rig)
+    assert persist.await_count == 1 and persist.await_args.args[1] == "s"
+    assert rig.notify.await_args.args[3] == RelayOutcome.BUSY.value
 
 
 async def test_a_standby_relay_that_raised_still_keeps_a_failed_fate() -> None:
     rig = _Rig()
     rig.relay_run = AsyncMock(side_effect=RuntimeError("lease lost"))
-    keep_fate = await _settle_standby(rig)
-    keep_fate.assert_awaited_once_with(RelayOutcome.FAILED.value, None)
+    persist = await _settle_standby(rig)
+    assert persist.await_count == 1 and persist.await_args.args[1] is None
+    assert rig.notify.await_args.args[3] == RelayOutcome.FAILED.value
     rig.counter.labels.assert_called_with(outcome=RelayOutcome.FAILED.value)
 
 
 async def test_the_standby_relay_runs_off_the_request_path() -> None:
     scheduled = MagicMock()
-    with patch(f"{MODULE}.safe_fire_and_forget", scheduled):
-        schedule_standby_relay(_session(), _transcript(), keep_fate=AsyncMock())
+    with patch(f"{SCHEDULER}.safe_fire_and_forget", scheduled):
+        await schedule_standby_relay(_session(), _transcript())
+    scheduled.assert_called_once()
     coroutine = scheduled.call_args.args[0]
-    assert coroutine.cr_code.co_name == "_settle_standby_relay"
     coroutine.close()
 
 

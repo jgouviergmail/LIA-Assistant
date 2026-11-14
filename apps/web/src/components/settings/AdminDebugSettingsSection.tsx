@@ -171,7 +171,7 @@ export default function AdminDebugSettingsSection({ lng }: BaseSettingsProps) {
             id="debug-panel"
             checked={isEnabled}
             onCheckedChange={handleTogglePanel}
-            disabled={updatingPanel}
+            busy={updatingPanel}
             aria-label={t('settings.admin.debug.toggleLabel')}
           />
           <span className="text-sm font-medium text-primary">{t('common.on')}</span>
@@ -209,7 +209,7 @@ export default function AdminDebugSettingsSection({ lng }: BaseSettingsProps) {
             id="debug-panel-user-access"
             checked={isUserAccessEnabled}
             onCheckedChange={handleToggleUserAccess}
-            disabled={updatingUserAccess}
+            busy={updatingUserAccess}
             aria-label={t('settings.admin.debug.userAccessToggleLabel')}
           />
           <span className="text-sm font-medium text-primary">{t('common.on')}</span>

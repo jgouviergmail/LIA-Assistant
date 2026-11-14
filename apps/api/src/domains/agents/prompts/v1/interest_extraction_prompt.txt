@@ -96,6 +96,8 @@ JSON array only, no prose. `[]` when nothing qualifies. At most ONE create per e
 For update/delete use ONLY UUIDs from the list below. Never invent one.
 </output_specifications>
 
+A message may start with the date and time it was written, in brackets, in the person's time zone, the one named with the current date and time below: resolve a relative date it contains ("tomorrow", "on Friday") against the moment it was written, never against the present.
+
 --- DYNAMIC CONTEXT (all variable data below) ---
 
 <execution_context>

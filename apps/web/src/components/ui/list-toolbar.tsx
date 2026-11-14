@@ -1,9 +1,23 @@
 'use client';
 
 import { useId, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { DISPLAY_SEARCH_MAX_LENGTH } from '@/lib/constants';
+import { Filter } from '@/lib/icons';
+import { Disclosure, type DisclosureProps } from './disclosure';
 import { Label } from './label';
 import { SearchInput } from './search-input';
+
+/**
+ * Where the controls stop sharing a row: the exact complement of Tailwind's
+ * `sm:`, the width from which `ListControls` lays them side by side. Asked as
+ * « is this a phone », so the server and a first paint answer « no ».
+ */
+export const LIST_FILTERS_FOLD = 'not all and (min-width: 40rem)';
+
+/** Between two narrowings on the folded line, as the workboard's fold joins its own. */
+const JOIN = ' · ';
 
 interface Choice<T extends string> {
   value: T;
@@ -98,7 +112,7 @@ export function ListChoice<T extends string>({
           const choice = options.find(option => option.value === event.target.value);
           if (choice) onChange(choice.value);
         }}
-        className="h-11 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-base text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring md:text-sm"
+        className="h-11 w-full min-w-0 rounded-lg border border-input bg-[color:var(--lia-field-background,var(--color-background))] px-3 text-base text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring md:text-sm"
       >
         {options.map(option => (
           <option key={option.value} value={option.value}>
@@ -107,6 +121,47 @@ export function ListChoice<T extends string>({
         ))}
       </select>
     </ListField>
+  );
+}
+
+/**
+ * On a phone the controls wait behind « Filters » (owner, 2026-11-11).
+ *
+ * One control per row above one column of cards is a wall, and the reader came
+ * for the list. Folded, the block is an index entry: it says HOW MANY
+ * narrowings apply and names them in the words their own controls carry, so
+ * nobody opens it to find out whether something is filtered. `active` is
+ * declared by the caller, which alone knows what is a narrowing and what is a
+ * default; an ordering is not one.
+ *
+ * Closed means unmounted (`Disclosure`), which costs nothing here: every
+ * control is controlled by the list above it. From `sm` up nothing changes.
+ */
+export function ListFilters({
+  active,
+  surface,
+  children,
+}: {
+  /** The narrowings in force, already translated, in control order. */
+  active: readonly string[];
+  /** `nested` when the toolbar already sits on a card. */
+  surface?: DisclosureProps['surface'];
+  children: ReactNode;
+}) {
+  const { t } = useTranslation();
+  const folded = useMediaQuery(LIST_FILTERS_FOLD);
+  if (!folded) return <>{children}</>;
+  return (
+    <Disclosure
+      icon={Filter}
+      title={t('common.filters')}
+      badge={active.length > 0 ? active.length : undefined}
+      badgeClassName={active.length > 0 ? 'bg-primary/15 text-primary' : undefined}
+      description={active.length > 0 ? active.join(JOIN) : t('common.filters_none')}
+      surface={surface}
+    >
+      {children}
+    </Disclosure>
   );
 }
 
@@ -119,6 +174,8 @@ export function ListToolbar<T extends string>({
   onSort,
   sortLabel,
   sortOptions,
+  active,
+  surface,
   children,
   chips,
 }: {
@@ -129,16 +186,21 @@ export function ListToolbar<T extends string>({
   onSort: (sort: T) => void;
   sortLabel: string;
   sortOptions: readonly Choice<T>[];
+  /** What narrows the list beyond the search words — see `ListFilters`. */
+  active: readonly string[];
+  surface?: DisclosureProps['surface'];
   children?: ReactNode;
   chips?: ReactNode;
 }) {
   return (
     <div className="space-y-3">
       <ListSearch query={query} onQuery={onQuery} searchLabel={searchLabel} />
-      <ListControls chips={chips}>
-        {children}
-        <ListChoice label={sortLabel} value={sort} options={sortOptions} onChange={onSort} />
-      </ListControls>
+      <ListFilters active={active} surface={surface}>
+        <ListControls chips={chips}>
+          {children}
+          <ListChoice label={sortLabel} value={sort} options={sortOptions} onChange={onSort} />
+        </ListControls>
+      </ListFilters>
     </div>
   );
 }

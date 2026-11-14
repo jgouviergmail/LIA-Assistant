@@ -12,6 +12,11 @@ const PROPS = {
   fog: 'weatherFog',
   wind: 'weatherWind',
   night: 'weatherNight',
+  sun: 'weatherSun',
+  cloud: 'weatherCloud',
+  // What a weather scene carries, announced while it travels (ADR-294, 2026-11-13).
+  drop: 'weatherDrop',
+  flake: 'weatherFlake',
 } as const;
 export function createAmbientPropWriter(root: HTMLElement) {
   const entries = Object.entries(PROPS);

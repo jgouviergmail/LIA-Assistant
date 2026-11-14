@@ -108,11 +108,16 @@ export interface UserMCPServerUpdate {
 /**
  * Test connection response.
  */
+/** Why a test did not succeed, when the remedy is stated in the person's language. */
+export type MCPTestErrorCode = 'oauth_authorization_required';
+
 export interface TestConnectionResponse {
   success: boolean;
   tool_count: number;
   tools: MCPDiscoveredTool[];
   error: string | null;
+  /** Absent on older answers; set when the failure has a remedy (an authorization). */
+  error_code?: MCPTestErrorCode | null;
   domain_description: string | null;
 }
 
@@ -145,8 +150,13 @@ const ENDPOINT = '/mcp/servers';
 
 /**
  * Hook for user MCP servers CRUD operations.
+ *
+ * @param enabled - Whether the instance offers the personal servers now. Their
+ *   router refuses every route under the operator's switch (ADR-280): a caller
+ *   that mounts outside their own section — a routine's form — says so, and
+ *   nothing is asked.
  */
-export function useUserMCPServers() {
+export function useUserMCPServers(enabled = true) {
   // Query: list all
   const {
     data: listData,
@@ -156,7 +166,7 @@ export function useUserMCPServers() {
     setData,
     ownerId,
     isCurrent,
-  } = useApplicationAccountQuery<UserMCPServerListResponse>(ENDPOINT, 'UserMCPServers');
+  } = useApplicationAccountQuery<UserMCPServerListResponse>(ENDPOINT, 'UserMCPServers', enabled);
   useApplicationResourceSync(ownerId, 'user_mcp', refetch);
 
   const inAccount = useCallback(
@@ -283,8 +293,9 @@ export function useUserMCPServers() {
   const testConnection = useCallback(
     async (serverId: string) => {
       const result = await inAccount(() => testMutation.mutate(`${ENDPOINT}/${serverId}/test`));
-      if (result?.success) {
-        // Refresh to get updated tools cache and status
+      if (result) {
+        // Every answered test stored a status (and, on success, the tools): a failure
+        // that left the server `auth_required` must offer its authorization at once.
         refetch();
       }
       return result;

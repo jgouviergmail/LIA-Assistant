@@ -208,7 +208,7 @@ export const ICON_GROUPS = [
   ['MessageSquarePlus', 'chat_add', null],
   ['MessageSquareQuote', null, null],
   ['MessageSquareReply', null, null],
-  ['MessageSquareText', 'chat_more', 'chat-bubble-text-square-flat'],
+  ['MessageSquareText', null, 'chat-bubble-text-square-flat'],
   ['MessagesSquare', 'chat_multiple', 'discussion-converstion-reply-flat'],
   ['Metronome', null, null],
   ['Mic MicVocal', 'mic', 'voice-mail-flat'],
@@ -373,9 +373,24 @@ Star Heart Pin Disc Bookmark
   .split(/\s+/);
 
 export const EXACT_CONTROL_REASONS = {
-  Disc: 'Preserve the recording indicator: caller-owned color and pulse distinguish active recording.',
+  Disc: 'Draw the recording indicator itself, a red dot: the caller-owned ring color and pulse distinguish active recording.',
   Bookmark:
     'Preserve the unkept outline; filled vendor artwork would imply a kept answer before BookmarkCheck is selected.',
+};
+
+/**
+ * Objects no pinned collection draws, Lucide included. The line style keeps the
+ * Lucide glyph the application already showed; each colored style receives a
+ * drawing of the object itself, authored outright in lia-special-artwork.mjs.
+ * The Lucide name stays free for the other meanings its glyph carries.
+ */
+export const LIA_CONCEPTS = {
+  RadioSet: {
+    lucide: 'Radio',
+    family: 'communication',
+    reason:
+      'The radio is shown as the set itself wherever it is named. Lucide draws a broadcast, which also marks the live and signal controls; neither color collection draws a radio.',
+  },
 };
 
 /** Per-pack reasons for visually rejected substitutions and meaningful states. */
@@ -423,6 +438,11 @@ export const NATIVE_ABSENCE_REASONS = [
     'MailWarning',
     'fluent',
     'The mail-alert artwork carries a notification bell, not a warning mark.',
+  ],
+  [
+    'MessageSquareText',
+    'fluent',
+    'The chat-more artwork has the very geometry of the chat artwork: a message carrying its text was drawn as the chat itself, and the header showed two destinations alike.',
   ],
   [
     'Phone PhoneCall',

@@ -16,6 +16,7 @@ from src.infrastructure.browser import accessibility, pool, security
 from src.infrastructure.browser.models import BrowserSessionInfo
 from src.infrastructure.browser.session import BrowserSession
 from src.infrastructure.resilience import circuit_breaker
+from tests.fixtures.browser_scope import browser_scope
 from tests.support.structlog_capture import fresh_module_logger
 
 pytestmark = pytest.mark.unit
@@ -35,9 +36,10 @@ async def test_a_redis_outage_keeps_its_fallback_and_no_private_log(
     operation: str, error_type: type[Exception]
 ) -> None:
     browser_pool = pool.BrowserPool()
-    browser_pool._session_info["owner"] = BrowserSessionInfo(
+    browser_pool._session_info[browser_scope("owner")] = BrowserSessionInfo(
         session_id="test-owner-token",
-        user_id="owner",
+        user_id=str(browser_scope("owner").owner_id),
+        runtime_id=browser_scope("owner").runtime_id,
         created_at=datetime.now(UTC),
         worker_pid=1,
     )
@@ -50,15 +52,15 @@ async def test_a_redis_outage_keeps_its_fallback_and_no_private_log(
         structlog.testing.capture_logs() as captured,
     ):
         if operation == "reserve":
-            assert await browser_pool._reserve_session_redis("owner") is None
+            assert await browser_pool._reserve_session_redis(browser_scope("owner")) is None
         elif operation == "own":
-            assert await browser_pool._owns_session("owner") is True
+            assert await browser_pool._owns_session(browser_scope("owner")) is True
         elif operation == "recover":
-            assert await browser_pool._get_recovery_url("owner") is None
+            assert await browser_pool._get_recovery_url(browser_scope("owner")) is None
         elif operation == "update":
-            await browser_pool.update_session_redis("owner", PRIVATE, PRIVATE)
+            await browser_pool.update_session_redis(browser_scope("owner"), PRIVATE, PRIVATE)
         else:
-            await browser_pool._remove_session_redis("owner")
+            await browser_pool._remove_session_redis(browser_scope("owner"))
     visible = [entry for entry in captured if entry["log_level"] != "debug"]
     assert len(visible) == 1
     assert visible[0]["error_type"] == error_type.__name__
@@ -158,7 +160,7 @@ async def test_a_failed_snapshot_is_distinct_from_a_successful_empty_page(fails:
     page = MagicMock(url="https://example.org", is_closed=MagicMock(return_value=False))
     page.title = AsyncMock(return_value="Empty page")
     page.context.new_cdp_session = AsyncMock(return_value=cdp)
-    session = BrowserSession("owner", MagicMock(), MagicMock())
+    session = BrowserSession(browser_scope("owner"), MagicMock(), MagicMock())
     session.page = page
     with (
         patch.object(

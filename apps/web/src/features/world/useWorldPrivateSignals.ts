@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { capabilityMounted } from '@/lib/capability-availability';
 import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { useNotifications, type Notification } from '@/hooks/useNotifications';
+import { smsAvailable } from '@/lib/sms/availability';
 import type { SmsReceivedSignal } from '@/lib/sms/notification';
+import { workboardAvailable } from '@/lib/workboard/availability';
 import { DeviceInbox, type DeviceNotice } from './device-inbox';
 import { WORLD } from './definition';
 import { projectPrivateSignals, signalPresentation } from './private-signal-projection';
@@ -24,12 +27,16 @@ export function useWorldPrivateSignals(
   const inbox = useMemo(() => new DeviceInbox(ownerId), [ownerId]);
   const notices = useSyncExternalStore(inbox.subscribe, inbox.snapshot, inbox.snapshot);
   const [gap, setGap] = useState<typeof inbox | null>(null);
-  const smsEnabled = config?.features.sms_enabled === true;
+  // What the instance offers NOW (the operator's switch included): a signal
+  // must not point at a workspace the switch closed, nor read its routes.
+  const smsEnabled = smsAvailable(config);
   const { isCurrent: isSmsCurrent } = useApplicationAccountLifetime(
     authorized && smsEnabled ? ownerId : undefined
   );
-  const workboardEnabled = config?.features.workboard_enabled === true;
-  const assetsEnabled = config?.features.attachments_enabled === true;
+  const workboardEnabled = workboardAvailable(config);
+  // The files LIA produced are a RECORD, read under the deployment ceiling
+  // whatever a switch says (ADR-279): only uploading is an ability.
+  const assetsEnabled = capabilityMounted(config, 'attachments');
   const resources = useWorldSignalReads(ownerId, authorized, workboardEnabled, assetsEnabled);
   const [acknowledged, setAcknowledged] = useState({
     inbox,

@@ -17,6 +17,9 @@ from enum import Enum
 from typing import Final, Literal, get_args
 from uuid import UUID
 
+from src.core.conversation_execution import ReservedWork
+from src.core.conversation_publication import PinnedReservationPublication
+
 #: How a session runs: every request delegated to the chat (HITL, actions,
 #: registers), or the voice reading LIA's tools itself and never acting.
 VoiceSessionMode = Literal["delegated", "direct"]
@@ -100,6 +103,7 @@ class VoiceSession:
     conversation_id: UUID
     language: str
     timezone: str
+    reservation: ReservedWork | None = None
 
     def __post_init__(self) -> None:
         as_voice_session_mode(self.mode)
@@ -114,6 +118,13 @@ class VoiceSession:
         """Whether every request goes to the chat."""
         return self.mode == "delegated"
 
+    @property
+    def publication(self) -> UUID | PinnedReservationPublication:
+        """A browser archive proves its running contribution; the phone keeps its own policy."""
+        if self.reservation is not None:
+            return PinnedReservationPublication(self.reservation)
+        return self.conversation_id
+
     @classmethod
     def browser(
         cls,
@@ -125,6 +136,7 @@ class VoiceSession:
         conversation_id: UUID,
         language: str,
         timezone: str,
+        reservation: ReservedWork | None = None,
     ) -> VoiceSession:
         """A browser session: the session id is the key, the run id its own."""
         return cls(
@@ -137,6 +149,7 @@ class VoiceSession:
             conversation_id=conversation_id,
             language=language,
             timezone=timezone,
+            reservation=reservation,
         )
 
     @classmethod

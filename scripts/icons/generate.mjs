@@ -9,10 +9,11 @@ import {
   EXACT_CONTROLS,
   NATIVE_ABSENCE_REASONS,
   ICON_GROUPS,
+  LIA_CONCEPTS,
   PALETTE_GROUPS,
 } from './catalogue.mjs';
 import { assertFacadeImports, readIconImports, sourceTokens } from './source-inventory.mjs';
-import { liaArtwork } from './lia-artwork.mjs';
+import { conceptArtwork, liaArtwork } from './lia-artwork.mjs';
 import { nativeArtwork } from './native-chromatic.mjs';
 import { opticalViewBox } from './optical-framing.mjs';
 
@@ -81,6 +82,8 @@ for (const name of EXACT_CONTROLS) {
       'Preserve exact control, state or weather geometry; no equivalent in the pinned color sets.'
   );
 }
+const concepts = new Map(Object.entries(LIA_CONCEPTS));
+for (const [name, concept] of concepts) declare(name, null, null, concept.reason);
 const absenceReasons = new Map();
 for (const [names, style, reason] of NATIVE_ABSENCE_REASONS) {
   for (const name of names.split(' ')) {
@@ -135,6 +138,12 @@ for (const [name, snapshot] of Object.entries(lucideGeometry.icons)) {
 }
 const aliases = new Map();
 for (const name of names) {
+  if (concepts.has(name)) {
+    // A concept is its own drawing; the name must never shadow a Lucide glyph.
+    if (lucide[name]) throw new Error(`LIA concept ${name} collides with a Lucide export`);
+    aliases.set(name, name);
+    continue;
+  }
   const original = lucide[name];
   if (!original) throw new Error(`Lucide has no export named ${name}`);
   const sameComponent = names.filter(candidate => lucide[candidate] === original);
@@ -152,6 +161,14 @@ for (const name of names) {
   }
 }
 const canonicalNames = names.filter(name => aliases.get(name) === name);
+for (const [name, concept] of concepts) {
+  // The line style draws this glyph, so it must be a canonical facade icon.
+  if (concepts.has(concept.lucide) || aliases.get(concept.lucide) !== concept.lucide) {
+    throw new Error(`LIA concept ${name} needs a canonical Lucide glyph: ${concept.lucide}`);
+  }
+}
+/** The Lucide glyph the line style draws for a facade name. */
+const lucideGlyph = name => concepts.get(name)?.lucide ?? name;
 const used = { fluent: new Map(), flex: new Map() };
 const selections = new Map();
 for (const name of canonicalNames) {
@@ -161,8 +178,9 @@ for (const name of canonicalNames) {
     const source = entry[style];
     const key = source ?? `lia_${name}`;
     if (!used[style].has(key)) {
-      const artwork =
-        source === null
+      const artwork = concepts.has(name)
+        ? conceptArtwork(name, concepts.get(name).family, style)
+        : source === null
           ? liaArtwork(name, lucideGeometry.icons, liaRecipes[name], style)
           : nativeArtwork(style, source, vendor[style][source], paletteNames.get(source) ?? 'blue');
       used[style].set(key, {
@@ -206,7 +224,10 @@ function facadeSource() {
     "'use client';",
     '',
     '/** Application icon facade. Generated from the reviewed semantic catalogue. */',
-    `import {\n${canonicalNames.map(name => `  ${name} as Lucide${name},`).join('\n')}\n} from 'lucide-react';`,
+    `import {\n${canonicalNames
+      .filter(name => !concepts.has(name))
+      .map(name => `  ${name} as Lucide${name},`)
+      .join('\n')}\n} from 'lucide-react';`,
     "import { createAppIcon } from '@/components/icons/create-app-icon';",
     "export type { LucideIcon, LucideProps, IconNode } from 'lucide-react';",
   ];
@@ -222,10 +243,10 @@ function facadeSource() {
     const fluent = constantName('fluent', selected.fluent);
     const flex = constantName('flex', selected.flex);
     lines.push(
-      `export const ${name} = /*#__PURE__*/ createAppIcon('${name}', Lucide${name}, {`,
+      `export const ${name} = /*#__PURE__*/ createAppIcon('${name}', Lucide${lucideGlyph(name)}, {`,
       `  fluent: ${fluent},`,
       `  flex: ${flex},`,
-      `}, '${classNames.get(name)}');`
+      `}, '${classNames.get(lucideGlyph(name))}');`
     );
   }
   for (const name of names.filter(name => aliases.get(name) !== name)) {
@@ -237,6 +258,30 @@ function facadeSource() {
 const manifest = {};
 for (const name of names) {
   const entry = declarations.get(name);
+  if (concepts.has(name)) {
+    // The drawing adapts no third-party geometry; only the line style borrows
+    // a glyph, and that is what the entry records.
+    manifest[name] = Object.fromEntries(
+      ['fluent', 'flex'].map(style => [
+        style,
+        {
+          source: `lia:${name}`,
+          kind: 'lia-concept',
+          lineStyle: {
+            package: lucideGeometry.package,
+            version: lucideGeometry.version,
+            license: 'ISC',
+            glyph: lucideGlyph(name),
+            geometry: lucideGeometry.icons[lucideGlyph(name)].source,
+          },
+          palette: concepts.get(name).family,
+          treatment: style === 'fluent' ? 'LIA Soft' : 'LIA Flat',
+          reason: entry.reason,
+        },
+      ])
+    );
+    continue;
+  }
   const canonical = aliases.get(name);
   manifest[name] = Object.fromEntries(
     ['fluent', 'flex'].map(style => [
@@ -309,6 +354,10 @@ and state layers are painted by explicit recipes. These complements are LIA
 artwork, not official Fluent Color or Streamline artwork. They replace missing
 native concepts without a monochrome fallback. Lucide mode itself is unchanged.
 
+An object none of these collections draws (the radio set) is drawn by LIA outright
+in both colored styles and adapts no third-party geometry. Lucide mode keeps the
+Lucide glyph the manifest names for it.
+
 ----- Microsoft license -----
 ${fluentLicense}
 ----- Lucide and Feather licenses -----
@@ -351,7 +400,10 @@ const counts = Object.fromEntries(
     style,
     {
       native: names.filter(name => declarations.get(name)[style] !== null).length,
-      liaComplements: names.filter(name => declarations.get(name)[style] === null).length,
+      liaComplements: names.filter(
+        name => declarations.get(name)[style] === null && !concepts.has(name)
+      ).length,
+      liaConcepts: concepts.size,
       monochromeFallback: 0,
       uniqueArtworks: used[style].size,
     },

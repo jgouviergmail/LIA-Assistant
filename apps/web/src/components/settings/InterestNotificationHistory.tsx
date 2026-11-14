@@ -47,6 +47,8 @@ export interface InterestNotificationHistoryProps {
 const KNOWN_SOURCES = new Set([
   'perplexity',
   'brave',
+  // The instance's web search (lot 18)
+  'searxng',
   'rss',
   'web',
   'wikipedia',

@@ -85,12 +85,11 @@ def test_every_code_default_has_a_catalogue_row() -> None:
     the deprecation guard could not catch it: the question is not "does the
     model exist in the world" but "does this deployment carry a row for it".
     """
-    from src.core.constants import FALLBACK_MODELS_DEFAULT, SUMMARIZATION_MODEL_DEFAULT
+    from src.core.constants import FALLBACK_MODELS_DEFAULT
     from src.domains.llm_config.constants import LLM_DEFAULTS
 
     catalogue = _catalogue_models()
     named = {config.model for config in LLM_DEFAULTS.values() if config.model}
-    named.add(SUMMARIZATION_MODEL_DEFAULT)
     named.update(part.strip() for part in FALLBACK_MODELS_DEFAULT.split(",") if part.strip())
 
     missing = sorted(model for model in named if model not in catalogue)

@@ -270,3 +270,342 @@ restent ouvertes (décision 3 : l'interrupteur retire la capacité, jamais
 l'archive). Les quatre lectures de l'état effectif d'une capacité côté web
 (signets, radio, envoi par e-mail, connexions) passent par une seule règle,
 `lib/capability-state.ts`.
+
+## Amendement 2026-11-11 — une destination suit l'interrupteur, dans chacune de ses listes
+
+Six destinations de l'en-tête sont montées par un plafond de déploiement et
+fermées par un interrupteur dont la garde est sur le routeur : le monde, les
+Outils, les SMS, les réunions, le tableau de travail et les espaces de
+connaissances. L'en-tête en lisait quatre dans leur état effectif, épelés à la
+main, et les réunions et les espaces sur leur plafond ; la liste
+« Application » du monde 3D lisait les six plafonds, comme ses espaces de
+travail (réunions, tableau, SMS) et les signaux privés qui y mènent. Coupée par
+l'opérateur, une destination restait offerte et ouvrait sur un refus.
+
+La liste a désormais UNE porte, `components/dashboard/offered-destinations.ts` :
+chaque drapeau de la table y prend la réponse de la porte de sa capacité
+(`worldAvailable`, `workbenchAvailable`, `smsAvailable`, `meetingsAvailable`,
+`workboardAvailable`, `ragSpacesAvailable`, toutes sur `capabilityEnabled`).
+L'objet est typé `Required` : un drapeau ajouté à la table sans sa porte échoue
+au typage, il ne cache pas sa destination et ne relit pas un plafond. L'en-tête,
+le menu du logo sur téléphone et le monde lisent cette liste ; les espaces de
+travail et les signaux du monde lisent les mêmes portes. Un garde refuse tout
+autre appelant du filtre de la table (`offered-destinations.guard.test.ts`) :
+l'appel direct du monde compilait, avec des drapeaux de la bonne forme.
+
+Le drapeau d'une capacité n'a plus qu'UN lecteur côté web, sa porte. Prouvée
+dans un navigateur, la liste a montré son reste : interrupteur des réunions
+coupé, la destination disparaissait et l'entrée « Enregistrer une réunion »
+restait offerte. Le recensement qui a suivi a croisé chaque lecture d'un drapeau
+de déploiement avec ce que l'interrupteur ferme côté serveur. Un lecteur pose
+désormais l'une de DEUX questions, par la porte propre de sa capacité ou par la
+porte commune `lib/capability-availability.ts` :
+
+- **`capabilityAvailable`, pour un ACTE** — la capacité est-elle offerte
+  maintenant, interrupteur compris. L'enregistreur de réunions, le « + » du
+  composeur (réunion, import, documents des espaces, envoi de fichier), les
+  sections de réglages des réunions, de l'avatar, du mode Live, des fils ouverts
+  et des connexions, le bouton Live du chat, le partage de capacité, l'indice du
+  portrait, les étapes de la liste de démarrage, les tickets, les messages de
+  pairs et les propositions du hub des alertes, le bouton « Recalculer » des
+  habitudes.
+- **`capabilityMounted`, pour une ARCHIVE** — le déploiement la monte-t-il, quoi
+  que dise l'interrupteur (décision 2). Les habitudes apprises, les
+  autorisations du bac à sable, la clé d'un connecteur Live, l'historique des
+  notifications proactives, les fichiers produits et les réponses gardées.
+
+Un garde refuse toute autre lecture d'un drapeau de capacité, commentaires
+compris, et lit la liste des drapeaux dans le registre du backend lui-même
+(`lib/__tests__/capability-flags.guard.test.ts`). Rien n'est effacé : un
+enregistrement en attente n'est plus offert tant que l'interrupteur est coupé,
+et revient avec lui.
+
+**Une section de réglages dont l'interrupteur ferme TOUTES les routes est
+derrière sa capacité** (2026-11-11, suite). Un écran qui ne lit aucun drapeau
+échappait au garde ci-dessus. Six routeurs portent `capability_dependencies` sur
+le ROUTEUR, lectures comprises : les canaux, la psyché, les journaux, les
+skills, les serveurs MCP personnels et les espaces de connaissances. Leurs
+sections restaient listées et s'ouvraient sur un refus. Huit sections sont
+concernées : les six de la personne, et deux d'administration (« skills
+systèmes », « RAG système ») que l'administrateur ouvrait sur le refus de
+l'interrupteur qu'il venait de couper.
+
+La porte d'une section est son entrée dans l'index des réglages
+(`SETTINGS_SEARCH_META`), pas un test dans le composant : le volet ne charge
+RIEN qu'une porte décidable écarte (`SettingsPaneFrame`). Un seul verdict retire
+donc la section du rail, de la vue d'ensemble, de la recherche, du choix des
+raccourcis et du catalogue du monde, et un lien périmé dit que la section n'est
+pas disponible sans envoyer une requête. Une section d'administration nomme sa
+capacité EN PLUS du statut de super-utilisateur. La section des serveurs MCP de
+l'instance reste : son routeur (`/mcp/admin-servers`) ne porte aucun
+interrupteur.
+
+Deux capacités n'ont pas de drapeau de déploiement publié par `/config` — la
+psyché et les serveurs MCP personnels. La carte des capacités répond seule pour
+elles (`CAPABILITY_CEILING` porte `null`) ; elle contient déjà le plafond du
+déploiement, donc une instance qui ne monte pas la psyché n'en liste plus la
+section. Un garde tient la table : chaque capacité de la porte commune est une
+capacité du registre du backend, son drapeau est celui du registre, et une
+entrée sans drapeau cesse d'être admise le jour où `/config` publie le sien. Le
+raccourci « Ce que LIA comprend de toi » ne demande plus le portrait là où les
+journaux ne sont pas offerts : la page lui passe le verdict qui liste la
+section, il ne relit pas `/config` (chaque lecteur de la configuration émet sa
+propre requête).
+
+Prouvé : 32 mutants tués sur un miroir de l'arbre (porte, verdicts du hook,
+huit portes de l'index, volet, raccourci et son câblage par la page,
+bibliothèque de skills) ; dans un
+navigateur, `smoke/settings-capability-doors.spec.ts` — les six sections
+absentes du rail, un lien périmé qui dit l'absence, et AUCUNE requête vers l'un
+des six routeurs — avec son témoin joué hors de l'arbre : rien de coupé, les
+mêmes libellés sont dans le rail et chaque section montée envoie les requêtes
+que le parcours guette. Une absence se constate sinon pour une mauvaise raison.
+
+**Hors de l'index, personne ne demande une route que son interrupteur ferme**
+(2026-11-12, suite). Le recensement de la veille nommait sept surfaces
+restantes. Relu contre le code, il était inexact sur trois points, et les
+corriger fait partie du lot :
+
+- *le choix de la voix n'était pas un défaut* : `/voice/lia-voices` appartient à
+  un routeur qu'aucun interrupteur ne ferme, à dessein — la page reste lisible
+  et le serveur lui dit si LIA parle. Le balayage par préfixe l'avait confondu
+  avec le routeur `/voice` de la dictée ;
+- *le groupe téléphonie des connecteurs ne lit rien* : il OFFRE trois actes
+  (valider une clé, activer, déconnecter) que le routeur refuse tous. Ce sont
+  les deux sections voisines, « Mon téléphone » et « Appels récents », qui
+  lisaient une route fermée — et le refus de l'interrupteur est un 403, là où
+  leurs lecteurs ne reconnaissaient que le 404 d'un routeur non monté : sous
+  l'interrupteur la première tournait sans fin et la seconde s'ouvrait sur une
+  erreur ;
+- *un cinquième lecteur manquait hors des réglages* : la bande « LIA est au
+  téléphone » du chat, qui relit les appels à chaque tour de conversation.
+
+Ce que le lot ferme :
+
+- **Le chat.** La psyché du fil, les skills du menu « / » et la bande d'appel
+  ne partent que là où leur capacité est offerte. `ChatWorkspace` tient la
+  configuration de l'instance et passe le verdict (`capabilityAvailable`) à
+  `ChatMessageList` et à `ActiveCallBanner` — deux propriétés OBLIGATOIRES : un
+  second appelant ne peut pas l'oublier — et à `useSkills`. Les hooks
+  `usePsyche`, `useSkills` et `useUserMCPServers` prennent un `enabled` que leur
+  section de réglages n'a pas à passer : la porte de l'index la garde déjà.
+- **Le formulaire d'une routine.** Les serveurs MCP personnels ne sont demandés
+  que là où ils sont offerts (`useRoutinePreapprovableServers`) ; ceux de
+  l'instance restent lus et proposés, leur routeur n'étant fermé par aucun
+  interrupteur.
+- **La carte de configuration MCP d'une réponse.** Ce lecteur-là n'était pas
+  silencieux : il lit au clic et dit son échec. Il n'offre plus le formulaire
+  là où l'instance a fermé les serveurs, ferme celui que l'interrupteur
+  rattrape, et dit que l'action ne peut pas aboutir — APRÈS tout ce que la
+  commande dit d'elle-même (enregistrée, en cours, expirée, incertaine). Tant
+  que la configuration n'a pas répondu il n'offre rien et n'affirme rien.
+- **Les réglages.** La génération d'images (ses options sont refusées sous
+  l'interrupteur, et son commutateur personnel offrirait un générateur fermé),
+  « Mon téléphone » et « Appels récents » passent derrière leur capacité.
+  « Appels récents » reste une section `runtime` — vide tant qu'aucun appel n'a
+  été passé, ce que l'index ne peut pas savoir — mais une porte `runtime` peut
+  désormais NOMMER sa capacité : « vide aujourd'hui » est indécidable, « fermé
+  par l'opérateur » ne l'est pas (ADR-172). Le groupe téléphonie des connecteurs
+  est extrait (`TelephonyConnectorGroup`, sur le modèle du groupe Live) et
+  décide de sa présence ; le connecteur reste en base et revient avec la
+  capacité.
+- **Le dock des raccourcis.** Il ne dessine que ce que le compte peut ouvrir, lu
+  dans la configuration que la mise en page a déjà lue : ADR-277, D7 amendée.
+
+La porte commune répond pour deux capacités de plus, sans drapeau publié comme
+la psyché et les serveurs MCP : la génération d'images et la téléphonie
+(`CAPABILITY_CEILING` porte quatre `null`). Les verdicts des sections ont UNE
+lecture, `settingsCapabilityVerdicts`, que la page interroge sur sa propre
+lecture de `/config` et le dock sur celle de la mise en page.
+
+Le message d'absence d'une section disait « n'est peut-être pas disponible sur
+ton compte ». Une section manque aussi parce que l'INSTANCE l'a fermée ou que
+l'APPAREIL ne peut pas l'offrir (le retour haptique, ADR-172) : la phrase nomme
+les trois, dans les six langues.
+
+Prouvé : 55 mutants tués sur un miroir de l'arbre — la porte, les
+verdicts de la page et ceux du dock, les portes de l'index, les cinq lecteurs,
+la carte MCP et son message, le groupe téléphonie, la liste épinglée, le dock,
+le sélecteur, l'appareil. Dans un navigateur,
+`smoke/settings-capability-doors.spec.ts` : aucune des neuf sections dans le
+rail, quatre liens périmés qui disent l'absence sans rien charger, aucune
+requête vers un routeur fermé, une capacité coupée à la fois, le groupe
+téléphonie, l'appareil sans API Vibration ; et
+`smoke/capability-closed-readers.spec.ts` : le chat avec UNE capacité coupée à
+la fois — les lecteurs des deux autres partent, celui de la capacité coupée non,
+ce qui démasquerait un lecteur câblé sur la mauvaise capacité —, le formulaire
+d'une routine, le dock et le compteur du sélecteur. Chaque absence a son
+témoin sur la même page : rien de coupé, la requête part et la section est là.
+
+**Ce que l'amendement ne fait pas.** Aucun garde mécanique ne relie encore un
+module du web à la capacité dont il écrit une adresse : c'est ce garde, et non
+un recensement de plus, qui aurait trouvé la bande d'appel. Mesuré le
+2026-11-12, après ce lot : 120 modules écrivent une adresse sous l'un des 24
+préfixes fermés vus ; 7 lisent une porte, 41 portent un `enabled`, 77 rien — la
+plupart ne vivent que sous une page déjà gardée, et c'est ce que chacun aurait à
+déclarer. `useTelephonyCallable`
+lit la carte des capacités sans passer par la porte commune, et répond « non »
+là où la porte répond « oui » (un serveur qui ne publie pas la carte). La
+déconnexion du connecteur de téléphonie passe par le routeur que l'interrupteur
+ferme : tant que la capacité est coupée, la personne ne peut pas retirer sa clé,
+alors qu'une clé Live reste retirable (décision 2) ; la rendre retirable demande
+de sortir cette route de la garde du routeur. La section des serveurs MCP
+personnels suit `capabilities.mcp`, dont le plafond est `mcp_enabled`, alors que
+leur routeur est monté par `mcp_user_enabled`, que `/config` ne publie pas : sur
+un déploiement qui active l'un sans l'autre, la section s'ouvre sur un 404.
+Enfin la porte lit `/config` au chargement : une page restée ouverte pendant que
+l'opérateur coupe une capacité reçoit encore un refus à sa prochaine lecture.
+
+## Amendement 2026-11-12 (suite) — la table des routes fermées, lue des deux côtés
+
+Trois points que le paragraphe ci-dessus laissait écrits sous « ne fait pas ».
+
+### La clé d'un connecteur est une archive : son retrait sort de l'interrupteur
+
+`DELETE /telephony/connector` — qui efface aussi l'agent que LIA a créé chez le
+fournisseur — était servi par le routeur que l'interrupteur ferme : capacité
+coupée, la personne ne pouvait plus retirer sa clé, alors qu'une clé Live part
+par la route des connecteurs, qu'aucun interrupteur ne ferme. Le domaine a
+maintenant DEUX routeurs sous le même préfixe (`telephony/router.py`) :
+`router` EST la capacité et garde sa garde ; `record_router` sert ce que
+l'interrupteur doit laisser atteindre, et rien qui place un appel, en lise un
+ou crée quoi que ce soit chez le fournisseur. Les deux restent montés par
+`telephony_enabled`.
+
+Le web distingue les deux moitiés du groupe des connecteurs : connecter une clé
+est un ACTE (l'assistant de connexion crée un agent) et ne s'offre que là où la
+téléphonie l'est ; une clé déjà stockée est une ARCHIVE, montrée avec son retrait
+tant que le déploiement monte la téléphonie. Pour distinguer « coupée » de
+« non montée », `/config` publie `telephony_enabled`, et la téléphonie prend sa
+place parmi les capacités à drapeau de la porte commune. Un retrait qui échoue
+le dit (il échouait sans un mot : c'est ce que la personne voyait sous
+l'interrupteur).
+
+### Un routeur monté par un drapeau qui n'est le plafond de personne
+
+La carte des capacités dit « offerte » depuis le plafond ET l'interrupteur.
+Elle ne peut pas dire qu'un routeur monté par un AUTRE drapeau est absent : les
+serveurs MCP personnels (plafond `mcp_enabled`, les serveurs de l'instance ;
+routeur monté par `mcp_user_enabled`) ouvraient leur section sur un 404 dès que
+le déploiement activait le premier sans le second.
+
+La règle est lue sur les routes elles-mêmes : tout drapeau qui monte une
+opération fermée par une capacité est le plafond d'une capacité qui la ferme,
+ou bien il est NOMMÉ (`router_flags`) et `/config` le publie. Sur 26 capacités
+qui ferment des routes, un seul cas : `mcp`. La porte commune du web le lit
+(`CAPABILITY_ROUTER_FLAGS`) : seul un « faux » explicite ferme, un serveur qui
+ne publie pas le drapeau l'a précédé. Changer le plafond du registre aurait
+ouvert les serveurs personnels sur tout déploiement qui les fermait par
+`MCP_ENABLED=false` — le démonstrateur le fait.
+
+### Le garde mécanique
+
+Quelles routes un interrupteur ferme, l'API le sait — la garde est une
+dépendance de chacune — et le web le devinait, préfixe par préfixe. Le
+recensement par préfixe s'y est trompé (`/voice/lia-voices` n'était pas fermé).
+
+`apps/api/tests/unit/capability_route_table.json` l'écrit UNE fois : chaque
+opération servie sous une famille où un interrupteur en ferme au moins une,
+avec les interrupteurs qui la ferment. `test_capability_route_table_guard.py`
+tient le fichier égal à l'application, parcourue une fois, tous les drapeaux de
+montage allumés, chaque dépendance suivie ; quel drapeau monte quel routeur est
+lu là où c'est décidé (chaque `include_router` enregistré avec sa ligne, le
+`if` qui l'entoure évalué drapeau par drapeau) — un rechargement par drapeau
+disait la même chose en 67 secondes, sur 838 opérations, sans un écart. Mesuré :
+838 opérations servies, 435 publiées sous 27 familles, 403 fermées.
+
+`apps/web/src/lib/__tests__/capability-callers.guard.test.ts` résout contre
+cette table chaque adresse qu'un module de `src/` écrit — littéral, constante
+sur laquelle d'autres adresses sont bâties, table de chemins lue ailleurs
+(l'adresse revient au module qui la LIT), trou d'un gabarit, méthode quand
+l'appel la dit. Un couple (module, capacité) est FERMÉ quand aucune chaîne
+d'imports ne mène d'une route de l'application au module sans rencontrer la
+porte de cette capacité : un module qui la lit (`capabilityAvailable`, ou une
+fonction de porte comme `workbenchAvailable`) ferme ce qu'il importe ; une
+section de réglages n'est montée que si le verdict de sa porte tient (index et
+verdicts lus tels quels) ; une mise en page qui rend ses pages dans une coquille
+lisant la porte les ferme (`ROUTE_SHELLS`, déclaré et vérifié).
+`capabilityMounted` n'est PAS une porte : il répond pour une archive que l'API
+laisse ouverte, et une route que l'interrupteur ferme n'est pas derrière lui.
+
+Mesuré le 2026-11-12 : 2 129 modules lus, 160 couples sur 141 modules et 26
+capacités ; 93 fermés, 67 sans porte sur leur chemin. Ces 67 sont figés dans
+`OPEN_CHAINS`, qui ne peut que décroître (un plafond l'y oblige) : un couple
+nouveau fait échouer le garde, qui nomme la chaîne ; un couple fermé depuis doit
+quitter la liste.
+
+Ce que le garde ne voit pas, et ne prétend pas voir. Il raisonne par MODULE : un
+module qui lit une porte ferme tout ce qu'il importe, que son code conditionne
+ou non tel enfant. Un verdict passé vers le bas par un contexte ou une propriété
+(la coquille des Outils donne `assists` à ses écrans, la page des réglages
+`journalsOffered` au raccourci du portrait) et un acte qu'un seul clic envoie,
+depuis un contrôle qu'un module voisin retire (le démarrage d'une session
+Live), n'ont pas de porte sur leur propre chaîne : ils sont dans la liste, à
+côté de lecteurs que personne n'avait fermés — le battement de présence posé
+dans la mise en page racine, dont le refus est avalé ; la connexion d'une clé
+Live, offerte sous l'interrupteur alors que ses routes refusent (lu dans la
+table et le code, non exercé dans un navigateur). La liste dit « non prouvé »,
+pas « défaut » : chaque ligne se lit avant de se corriger.
+
+Prouvé : 33 mutants tués sur un miroir de l'arbre — dont la porte de la bande
+d'appel retirée de `ChatWorkspace`, que le garde retrouve seul et nomme, une
+section privée de sa porte dans l'index, la coquille des Outils qui ne lit plus
+la sienne, une route que l'API ferme sous un module qui l'appelait déjà — et 11
+en mémoire côté API. Dans un navigateur, `smoke/settings-capability-doors.spec.ts`
+: une clé stockée reste visible et retirable sous l'interrupteur (la requête
+part, la carte s'en va), aucune clé sur un déploiement qui ne monte pas la
+téléphonie, aucune section des serveurs MCP personnels ni requête vers leur
+routeur quand il n'est pas monté ; `smoke/capability-closed-readers.spec.ts` :
+le formulaire d'une routine ne demande alors que les serveurs de l'instance.
+
+**Ce que l'amendement ne fait pas.** Il ne ferme aucun des 67 couples : c'est
+un lot par famille, à décider. Drapeau de déploiement coupé, une clé de
+téléphonie n'est plus montrée, comme une clé Live aujourd'hui (la route
+générique des connecteurs la retire toujours). Le numéro vérifié et l'historique
+des appels restent sous l'interrupteur, ainsi que le webhook de fin d'appel (ce
+qu'il advient d'un appel en cours au moment où l'opérateur coupe n'a pas été
+mesuré). Le retrait de la clé appelle le fournisseur avec la session de la
+requête encore ouverte (lu dans le code, non mesuré par `pg_stat_activity` ;
+ADR-304). `route_enforced` reste faux pour `habits` et `tts`, dont des routes
+portent pourtant la garde. Les onze constantes `API_ENDPOINTS.RAG_SPACES` ne
+sont lues par aucun module de `src/`.
+
+### Le même jour : quatre des points laissés ouverts sont fermés
+
+**Les archives de la téléphonie sortent de l'interrupteur.** Le routeur sans
+garde sert maintenant tout ce que la personne possède déjà, et rien d'autre :
+le retrait de sa clé, la lecture de son numéro et son retrait, l'historique de
+ses appels, et le webhook de fin d'appel — le fournisseur ne le livre qu'une
+fois, et un appel placé avant la coupure doit se clore sur son résultat
+(ADR-263). Restent la capacité, donc fermés : valider et activer une clé,
+déclarer un numéro, le vérifier par un appel, confirmer le code, régler les
+appels du propriétaire. Côté écran, « Mon téléphone » et « Appels récents »
+suivent le drapeau de déploiement comme les habitudes apprises : sous
+l'interrupteur, la première montre le numéro stocké en lecture seule avec son
+retrait, et rien sans numéro (sa porte devient `runtime`).
+
+**`route_enforced` dit ce qui est servi.** `habits` et `tts` portaient leur
+garde sur des routes en déclarant le contraire, et le panneau d'administration
+l'affichait. Les deux sont déclarés aux deux endroits, et le garde de la table
+impose l'égalité dans les deux sens : une capacité est `route_enforced` si et
+seulement si une route servie porte sa garde.
+
+**Deux lecteurs que personne n'avait fermés.** Le battement de présence de la
+mise en page racine n'est envoyé que là où l'instance apprend des habitudes (il
+était refusé, sans un mot, sur chaque page de chaque personne connectée) ; il
+ne demande la configuration que pour une personne connectée. La connexion d'une
+clé Live n'est plus offerte sous l'interrupteur, où ses routes refusent ; la clé
+stockée reste, avec son retrait. Trois lignes quittent `OPEN_CHAINS` (64).
+
+**Onze constantes mortes retirées** : `API_ENDPOINTS.RAG_SPACES`, que le garde
+avait trouvées sans lecteur.
+
+Prouvé : mutants tués côté API et côté web (voir le compte rendu du lot) ; dans
+un navigateur, le numéro stocké lisible et retirable sous l'interrupteur, sans
+bouton d'appel ni d'enregistrement. Non prouvé : la clôture réelle d'un appel
+dont le webhook arrive après la coupure — lue sur les routes servies, pas
+exercée contre le fournisseur.
+
+**Reste ouvert.** Les 64 couples, à décider famille par famille ; le retrait de
+la clé qui appelle le fournisseur session ouverte (ADR-304) ; drapeau de
+déploiement coupé, rien de la téléphonie n'est montré.

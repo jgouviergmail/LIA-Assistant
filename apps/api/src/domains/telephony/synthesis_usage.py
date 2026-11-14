@@ -78,7 +78,13 @@ async def track_synthesis_usage(usage: SynthUsage | None, *, call_id: UUID, user
 
 
 async def track_voice_synthesis_usage(
-    usage: SynthUsage | None, *, user_id: UUID, task_type: str, target_id: str, run_id: str
+    usage: SynthUsage | None,
+    *,
+    user_id: UUID,
+    task_type: str,
+    target_id: str,
+    run_id: str,
+    conversation_id: UUID | None = None,
 ) -> None:
     """The ONE accountant of a relay synthesis, whichever carrier (ADR-301).
 
@@ -89,6 +95,7 @@ async def track_voice_synthesis_usage(
         target_id: The call or the session.
         run_id: The run the euros are filed under — the carrier's own, so the
             session's card and the calls listing read one row.
+        conversation_id: The browser session's discussion, when pinned.
     """
     if usage is None or usage.accounting_handled:
         return
@@ -97,7 +104,7 @@ async def track_voice_synthesis_usage(
             user_id=user_id,
             task_type=task_type,
             target_id=target_id,
-            conversation_id=None,
+            conversation_id=conversation_id,
             tokens_in=usage.tokens_in,
             tokens_out=usage.tokens_out,
             tokens_cache=usage.tokens_cache,

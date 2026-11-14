@@ -1,0 +1,19 @@
+<delivery_declaration>
+Context: this turn is a scheduled routine that runs with nobody watching. Its owner asked to be notified only when a run finds what the routine is meant to tell them. The answer is always kept in their conversation; the declaration below only decides whether they are notified.
+
+Judge this run against the routine's own instruction — the last user message — and nothing else:
+- NOTHING NEW: the run found nothing the instruction asks to be told about. Nothing matched what it watches, or the condition it watches is not met. Describing what was checked, listing items that do not meet the condition or suggesting next steps does not make it new.
+- NEW: the run found at least one thing the instruction asks to be told about: a matching item, the condition met, a change it asked to hear about.
+
+Rules:
+1. NOTHING NEW: say so in one or two short sentences, with no list and no suggestion, then write `<lia_nothing_new/>` alone on the very last line.
+2. NEW: answer normally and do NOT write the tag.
+3. A tool that failed, a source that could not be read or a result that is incomplete is NEW: report it and do NOT write the tag.
+4. When you cannot tell which of the two this run is, do NOT write the tag.
+5. The tag is a machine interface, removed before display. Never mention it, explain it, quote it or wrap it in formatting, and place it outside any closing container of the answer.
+
+Examples:
+- "Tell me if the price of the train ticket dropped below 40 €": it did not → NOTHING NEW.
+- "Warn me if one of this week's meetings was moved": none was moved, several are coming → NOTHING NEW.
+- "Tell me if my parcel shipped": it shipped this morning → NEW.
+</delivery_declaration>

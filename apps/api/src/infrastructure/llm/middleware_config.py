@@ -29,9 +29,7 @@ import importlib.util
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from langchain.agents.middleware import SummarizationMiddleware
-
-from langchain.chat_models import init_chat_model
+    from src.infrastructure.llm.slot_summarization import SlotSummarizationMiddleware
 
 from src.core.config import settings
 from src.infrastructure.llm.fallback_policy import KnownOutcomeFallbackMiddleware
@@ -99,7 +97,7 @@ def create_agent_middleware_stack(
     enable_call_limit: bool | None = None,
     enable_context_editing: bool | None = None,
     primary_model: str | None = None,
-    summarization_class: type[SummarizationMiddleware] | None = None,
+    summarization_class: type[SlotSummarizationMiddleware] | None = None,
 ) -> list[Any]:
     """
     Create middleware stack for an agent based on settings.
@@ -121,6 +119,9 @@ def create_agent_middleware_stack(
         enable_context_editing: Override context editing setting (default: from settings)
         primary_model: Primary model for fallback middleware and context window calculation
                        (required if fallback enabled, used for summarization trigger)
+        summarization_class: The summarizer to mount, a ``SlotSummarizationMiddleware``
+            (default: that class itself); whichever it is writes with the
+            ``compaction`` slot.
 
     Returns:
         List of middleware instances to pass to create_agent()
@@ -464,35 +465,36 @@ def _create_retry_middleware() -> Any | None:
 
 
 def _create_summarization_middleware(
-    agent_model: str | None = None, middleware_class: type[SummarizationMiddleware] | None = None
+    agent_model: str | None = None,
+    middleware_class: type[SlotSummarizationMiddleware] | None = None,
 ) -> Any | None:
     """
-    Create SummarizationMiddleware with settings configuration.
+    Create the history summarizer, which writes with the ``compaction`` slot.
 
-    LangChain SummarizationMiddleware API (v1.0.x):
-    - model: str | BaseChatModel (required) - model for generating summaries
-    - max_tokens_before_summary: int | None - token threshold to trigger summarization
-    - messages_to_keep: int (default: 20) - number of recent messages to preserve
-    - token_counter: optional custom token counter
-    - summary_prompt: optional custom prompt template
-    - summary_prefix: str - prefix for summary messages
+    The model is not chosen here: ``SlotSummarizationMiddleware`` asks the
+    factory for the slot at each summary (``slot_summarization.py``). This
+    function only decides WHEN a history is summarized and how much of it
+    stays verbatim.
 
     Args:
         agent_model: The LLM model used by the agent (for context window calculation).
                      If None, the window of the ``response`` slot is used.
+        middleware_class: The summarizer to build (default: the slot summarizer itself).
 
     Returns:
-        SummarizationMiddleware instance or None if creation fails
+        The summarizer, or None if creation fails
     """
     if not _SUMMARIZATION_MIDDLEWARE_AVAILABLE:
         return None
 
     try:
-        from langchain.agents.middleware import SummarizationMiddleware
-
         from src.core.llm_config_helper import (
             get_effective_context_window,
             get_effective_context_window_for_slot,
+        )
+        from src.infrastructure.llm.slot_summarization import (
+            SUMMARIZATION_LLM_TYPE,
+            SlotSummarizationMiddleware,
         )
 
         # The summarization trigger is based on the AGENT's context, never the
@@ -515,28 +517,14 @@ def _create_summarization_middleware(
             # Already an absolute token count
             max_tokens = int(trigger_fraction)
 
-        # Create summarization LLM with proper API key injection.
-        # SummarizationMiddleware accepts str | BaseChatModel. Passing a string
-        # causes init_chat_model(model) without API key — breaks when OPENAI_API_KEY
-        # is not in .env (keys are now DB-only via LLM Config Admin).
-        # Solution: pass a pre-configured BaseChatModel instance.
-        from src.infrastructure.llm.providers.adapter import _require_api_key
-
-        summarization_model_name = settings.summarization_model
-        summarization_llm = init_chat_model(
-            model=summarization_model_name,
-            openai_api_key=_require_api_key("openai"),
-        )
-
-        middleware = (middleware_class or SummarizationMiddleware)(
-            model=summarization_llm,
+        middleware = (middleware_class or SlotSummarizationMiddleware)(
             trigger=("tokens", max_tokens),
             keep=("messages", settings.summarization_keep_messages),
         )
 
         logger.info(
             "summarization_middleware_created",
-            model=summarization_model_name,
+            llm_type=SUMMARIZATION_LLM_TYPE,
             agent_model=agent_model,
             context_window=context_window,
             trigger_fraction=trigger_fraction,
@@ -554,16 +542,9 @@ def _create_summarization_middleware(
             msg="Trying minimal SummarizationMiddleware configuration",
         )
         try:
-            from langchain.agents.middleware import SummarizationMiddleware
+            from src.infrastructure.llm.slot_summarization import SlotSummarizationMiddleware
 
-            from src.infrastructure.llm.providers.adapter import _require_api_key
-
-            summarization_llm_fallback = init_chat_model(
-                model=settings.summarization_model,
-                openai_api_key=_require_api_key("openai"),
-            )
-            return (middleware_class or SummarizationMiddleware)(
-                model=summarization_llm_fallback,
+            return (middleware_class or SlotSummarizationMiddleware)(
                 keep=("messages", settings.summarization_keep_messages),
             )
         except TypeError, ImportError, ValueError, RuntimeError:

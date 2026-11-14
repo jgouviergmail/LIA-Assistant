@@ -11,6 +11,7 @@
  * width) and the journey (open the menu, land on the page).
  */
 import { test, expect, briefingCardsMock, type MockRoute } from '../fixtures';
+import { appConfig } from '../fixtures/dashboard-shell';
 
 const ROUTES: MockRoute[] = [
   briefingCardsMock,
@@ -29,6 +30,12 @@ const ROUTES: MockRoute[] = [
   { url: '**/api/v1/usage/**', json: {} },
 ];
 
+/**
+ * What the shell fixture's instance offers: the six ungated destinations, plus
+ * the workboard and the knowledge spaces its configuration switches on.
+ */
+const DESTINATIONS_OFFERED = 8;
+
 const PHONE = { width: 390, height: 800 };
 const DESKTOP = { width: 1280, height: 900 };
 
@@ -45,17 +52,56 @@ test.describe('mobile navigation', () => {
     });
     await trigger.click();
 
-    // Every destination of the desktop nav, none missing. Seven since
-    // 2026-11-09, when knowledge spaces joined after meetings (six since
-    // 2026-08-04 and the notifications hub) — the phone menu and the desktop
-    // row render the SAME list, so a divergence here means one of the two
-    // drifted.
+    // Every destination of the desktop nav, none missing. Eight since
+    // 2026-11-11, when the workboard joined after the meetings (seven since
+    // 2026-11-09 and the knowledge spaces, six since 2026-08-04 and the
+    // notifications hub) — the phone menu and the desktop row render the SAME
+    // list, so a divergence here means one of the two drifted.
     const items = page.getByRole('menuitem');
-    await expect(items).toHaveCount(7);
+    await expect(items).toHaveCount(DESTINATIONS_OFFERED);
+    await expect(page.getByRole('menuitem', { name: /Workboard/i })).toBeVisible();
 
     // And the journey actually completes.
     await page.getByRole('menuitem', { name: /Réglages/i }).click();
     await page.waitForURL(/\/dashboard\/settings/, { timeout: 30_000 });
+  });
+
+  test('a destination the operator switched off is not offered', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    // The deployment mounts the meetings and the knowledge spaces, and the
+    // operator switched both off: their routes refuse, so neither is a door.
+    // The list read the deployment's ceilings for these two, and offered them.
+    await authenticate({ language: 'fr' });
+    await mockApi([
+      ...ROUTES,
+      {
+        url: '**/api/v1/config',
+        json: {
+          ...appConfig,
+          features: { ...appConfig.features, meetings_enabled: true },
+          capabilities: {
+            meetings: { enabled: false, family: 'media' },
+            rag_spaces: { enabled: false, family: 'knowledge' },
+            workboard: { enabled: true, family: 'work' },
+          },
+        },
+      },
+    ]);
+    await page.setViewportSize(PHONE);
+    await page.goto('/fr/dashboard/chat');
+
+    const trigger = page.getByRole('button', { name: 'Menu' });
+    await expect(trigger).toBeVisible({ timeout: 30_000 });
+    await trigger.click();
+
+    await expect(page.getByRole('menuitem', { name: /Workboard/i })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: /Réunions/i })).toHaveCount(0);
+    await expect(page.getByRole('menuitem', { name: /Connaissances/i })).toHaveCount(0);
+    // The six ungated destinations and the workboard, which is still on.
+    await expect(page.getByRole('menuitem')).toHaveCount(DESTINATIONS_OFFERED - 1);
   });
 
   test('the desktop keeps its plain link, and no menu', async ({ page, authenticate, mockApi }) => {
@@ -157,6 +203,6 @@ test.describe('mobile navigation', () => {
     expect(headerTop).toBeGreaterThanOrEqual(0);
 
     // And the menu is still usable from there.
-    await expect(page.getByRole('menuitem')).toHaveCount(7);
+    await expect(page.getByRole('menuitem')).toHaveCount(DESTINATIONS_OFFERED);
   });
 });

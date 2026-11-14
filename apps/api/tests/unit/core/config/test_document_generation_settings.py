@@ -109,3 +109,30 @@ class TestDocumentGenerationSettings:
 
         assert "document_generation_enabled" in Settings.model_fields
         assert "max_document_generation_tool_timeout_seconds" in Settings.model_fields
+        assert "interactive_page_map_providers" in Settings.model_fields
+
+
+@pytest.mark.unit
+class TestInteractivePageMapProviders:
+    """The map tile sources a page may load are an allowlist the operator reads (ADR-370)."""
+
+    def test_the_default_is_the_constant_as_a_list(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from src.core.constants import INTERACTIVE_PAGE_MAP_PROVIDERS_DEFAULT
+
+        monkeypatch.delenv("INTERACTIVE_PAGE_MAP_PROVIDERS", raising=False)
+        s = DocumentGenerationSettings(_env_file=None)
+        assert s.interactive_page_map_providers == list(INTERACTIVE_PAGE_MAP_PROVIDERS_DEFAULT)
+
+    def test_reads_a_comma_separated_list(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("INTERACTIVE_PAGE_MAP_PROVIDERS", " OSM_DE ")
+        assert DocumentGenerationSettings().interactive_page_map_providers == ["osm_de"]
+
+    def test_an_empty_value_allows_no_source(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("INTERACTIVE_PAGE_MAP_PROVIDERS", "")
+        assert DocumentGenerationSettings().interactive_page_map_providers == []
+
+    def test_an_undeclared_source_stops_the_boot(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A host an operator typed must never reach a content policy unread."""
+        monkeypatch.setenv("INTERACTIVE_PAGE_MAP_PROVIDERS", "osm_de,https://tiles.example")
+        with pytest.raises(ValidationError):
+            DocumentGenerationSettings()

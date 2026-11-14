@@ -3879,7 +3879,7 @@
       "recipe": "Disc",
       "palette": "general",
       "treatment": "LIA Soft",
-      "reason": "Preserve the recording indicator: caller-owned color and pulse distinguish active recording."
+      "reason": "Draw the recording indicator itself, a red dot: the caller-owned ring color and pulse distinguish active recording."
     },
     "flex": {
       "source": "lia:Disc",
@@ -3893,7 +3893,7 @@
       "recipe": "Disc",
       "palette": "general",
       "treatment": "LIA Flat",
-      "reason": "Preserve the recording indicator: caller-owned color and pulse distinguish active recording."
+      "reason": "Draw the recording indicator itself, a red dot: the caller-owned ring color and pulse distinguish active recording."
     }
   },
   "DollarSign": {
@@ -8161,14 +8161,18 @@
   },
   "MessageSquareText": {
     "fluent": {
-      "source": "chat_more_24_color.svg",
-      "kind": "native",
-      "correspondence": {
-        "applicationConcept": "MessageSquareText",
-        "vendorConcept": "chat_more",
-        "review": "svg_geometry"
+      "source": "lia:MessageSquareText",
+      "kind": "lia-complement",
+      "basedOn": {
+        "package": "lucide-react",
+        "version": "1.55.0",
+        "license": "ISC",
+        "geometry": "./icons/message-square-text.mjs"
       },
-      "colorAdaptation": "Original multicolor palette retained"
+      "recipe": "MessageSquareText",
+      "palette": "communication",
+      "treatment": "LIA Soft",
+      "reason": "The chat-more artwork has the very geometry of the chat artwork: a message carrying its text was drawn as the chat itself, and the header showed two destinations alike."
     },
     "flex": {
       "source": "chat-bubble-text-square-flat",
@@ -10016,6 +10020,36 @@
       "palette": "communication",
       "treatment": "LIA Flat",
       "reason": "A satellite dish depicts satellite reception, not a radio or podcast control."
+    }
+  },
+  "RadioSet": {
+    "fluent": {
+      "source": "lia:RadioSet",
+      "kind": "lia-concept",
+      "lineStyle": {
+        "package": "lucide-react",
+        "version": "1.55.0",
+        "license": "ISC",
+        "glyph": "Radio",
+        "geometry": "./icons/radio.mjs"
+      },
+      "palette": "communication",
+      "treatment": "LIA Soft",
+      "reason": "The radio is shown as the set itself wherever it is named. Lucide draws a broadcast, which also marks the live and signal controls; neither color collection draws a radio."
+    },
+    "flex": {
+      "source": "lia:RadioSet",
+      "kind": "lia-concept",
+      "lineStyle": {
+        "package": "lucide-react",
+        "version": "1.55.0",
+        "license": "ISC",
+        "glyph": "Radio",
+        "geometry": "./icons/radio.mjs"
+      },
+      "palette": "communication",
+      "treatment": "LIA Flat",
+      "reason": "The radio is shown as the set itself wherever it is named. Lucide draws a broadcast, which also marks the live and signal controls; neither color collection draws a radio."
     }
   },
   "Receipt": {

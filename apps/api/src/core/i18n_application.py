@@ -289,6 +289,8 @@ _APPLICATION_FIELD_NAMES = (
     "image_generation_default_size",
     "image_generation_output_format",
     "image_generation_prompt_enhancement",
+    "document_illustrations",
+    "document_animations",
     "exchange_rhythm",
     "mcp_hitl_required",
 )
@@ -311,6 +313,8 @@ APPLICATION_FIELD_LABELS: dict[Language, dict[str, str]] = {
                 "Image size",
                 "Image format",
                 "Image prompt enhancement",
+                "Illustrations in documents",
+                "Animations in presentations",
                 "Exchange rhythm",
                 "Always ask before an MCP tool",
             ),
@@ -334,6 +338,8 @@ APPLICATION_FIELD_LABELS: dict[Language, dict[str, str]] = {
                 "Taille d’image",
                 "Format d’image",
                 "Amélioration du prompt d’image",
+                "Illustrations des documents",
+                "Animations des présentations",
                 "Rythme des échanges",
                 "Toujours demander avant un outil MCP",
             ),
@@ -357,6 +363,8 @@ APPLICATION_FIELD_LABELS: dict[Language, dict[str, str]] = {
                 "Bildgröße",
                 "Bildformat",
                 "Bildprompt-Verbesserung",
+                "Illustrationen in Dokumenten",
+                "Animationen in Präsentationen",
                 "Gesprächsrhythmus",
                 "Vor einem MCP-Werkzeug immer fragen",
             ),
@@ -380,6 +388,8 @@ APPLICATION_FIELD_LABELS: dict[Language, dict[str, str]] = {
                 "Tamaño de imagen",
                 "Formato de imagen",
                 "Mejora del prompt de imagen",
+                "Ilustraciones de los documentos",
+                "Animaciones de las presentaciones",
                 "Ritmo de conversación",
                 "Preguntar siempre antes de una herramienta MCP",
             ),
@@ -403,6 +413,8 @@ APPLICATION_FIELD_LABELS: dict[Language, dict[str, str]] = {
                 "Dimensione dell’immagine",
                 "Formato dell’immagine",
                 "Miglioramento del prompt",
+                "Illustrazioni dei documenti",
+                "Animazioni delle presentazioni",
                 "Ritmo della conversazione",
                 "Chiedere sempre prima di uno strumento MCP",
             ),
@@ -426,6 +438,8 @@ APPLICATION_FIELD_LABELS: dict[Language, dict[str, str]] = {
                 "图像尺寸",
                 "图像格式",
                 "图像提示词优化",
+                "文档插图",
+                "演示文稿动画",
                 "交流节奏",
                 "使用 MCP 工具前始终询问",
             ),
@@ -1037,6 +1051,17 @@ APPLICATION_ROUTINE_CREATION: dict[Language, ApplicationExportCopy] = {
         "确认后创建此已启用的自动任务，不会立即执行。未来触发将遵循这些设置，包括事先审批选项，并可能产生受现有配额限制的 LLM 费用。",
         "自动任务设置",
     ),
+}
+
+#: ADR-386: a routine started by calls gets its address and secret from the
+#: server, and the secret never reaches the chat — the card says where to draw it.
+APPLICATION_ROUTINE_WEBHOOK_NOTE: dict[Language, str] = {
+    "fr": "Cette automatisation s’exécute quand un autre système appelle son adresse. Son adresse et son secret sont tirés à la création ; le secret n’est jamais montré dans le chat : ouvre l’automatisation dans les réglages des routines et tire un nouveau secret à donner avec l’adresse.",
+    "en": "This routine runs when another system calls its address. Its address and secret are drawn on creation; the secret is never shown in the chat: open the routine in the routine settings and draw a new secret to hand out with the address.",
+    "de": "Diese Routine läuft, wenn ein anderes System ihre Adresse aufruft. Adresse und Geheimnis werden bei der Erstellung erzeugt; das Geheimnis wird nie im Chat angezeigt: Öffne die Routine in den Routineneinstellungen und erzeuge ein neues Geheimnis, das du zusammen mit der Adresse weitergibst.",
+    "es": "Esta automatización se ejecuta cuando otro sistema llama a su dirección. Su dirección y su secreto se generan al crearla; el secreto nunca se muestra en el chat: abre la automatización en los ajustes de rutinas y genera un nuevo secreto para entregarlo con la dirección.",
+    "it": "Questa automazione viene eseguita quando un altro sistema chiama il suo indirizzo. Indirizzo e segreto vengono generati alla creazione; il segreto non viene mai mostrato nella chat: apri l’automazione nelle impostazioni delle routine e genera un nuovo segreto da fornire insieme all’indirizzo.",
+    "zh-CN": "当其他系统调用其地址时，此自动任务就会运行。地址和密钥在创建时生成；密钥绝不会在聊天中显示：请在例程设置中打开该自动任务，生成新密钥，并与地址一起提供。",
 }
 
 APPLICATION_ROUTINE_RUN: dict[Language, ApplicationExportCopy] = {

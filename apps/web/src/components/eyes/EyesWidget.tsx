@@ -36,6 +36,7 @@ import {
 import { useEyesAnchor, type AnchorPosition } from '@/components/eyes/useEyesAnchor';
 import { useEyesDrag, type EyesDrag } from '@/components/eyes/useEyesDrag';
 import { useEyesParallax } from '@/components/eyes/useEyesParallax';
+import { useGazeTarget } from '@/components/eyes/useGazeTarget';
 import { useCompanionEnvironment } from './useCompanionEnvironment';
 import { useEyesAvoidance } from './useEyesAvoidance';
 import {
@@ -83,12 +84,15 @@ function resolveEyesSize(
   return surface === 'chat' && isDesktop ? 'lg' : 'sm';
 }
 
-/** Gaze priority: engine-directed > live cursor parallax > idle wander.
- * Only the wander carries its own travel time (saccade jump / eased return). */
+/** Gaze priority: the thing the frame names, where the screen says it is >
+ * engine-directed > live cursor parallax > idle wander. Only the wander
+ * carries its own travel time (saccade jump / eased return). */
 function resolveGaze(
   behavior: EyesBehavior,
+  target: Gaze | null,
   parallax: Gaze | null
 ): { gaze: Gaze | null; ms: number | undefined } {
+  if (target) return { gaze: target, ms: undefined };
   if (behavior.frame.gaze) return { gaze: behavior.frame.gaze, ms: undefined };
   if (parallax) return { gaze: parallax, ms: undefined };
   if (behavior.idleGaze) return { gaze: behavior.idleGaze.gaze, ms: behavior.idleGaze.ms };
@@ -347,10 +351,14 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
     drag
   );
 
-  // Desktop cursor parallax — gated, expiring (see useEyesParallax).
+  // Desktop cursor parallax — gated, expiring (see useEyesParallax). A frame
+  // that names what it looks at is held on it: the cursor does not take it.
   const gazeFree =
-    behavior.frame.gaze === null && PARALLAX_EXPRESSIONS.has(behavior.frame.expression);
+    behavior.frame.gaze === null &&
+    !behavior.frame.target &&
+    PARALLAX_EXPRESSIONS.has(behavior.frame.expression);
   const parallax = useEyesParallax(rootRef, active && gazeFree);
+  const targetGaze = useGazeTarget(rootRef, active ? (behavior.frame.target ?? null) : null);
 
   // Two quick drags can still satisfy the browser's dblclick heuristics —
   // a wink right after dropping the widget reads as a glitch, not a wink.
@@ -383,7 +391,7 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
     );
   }
 
-  const resolved = resolveGaze(behavior, gazeFree ? parallax : null);
+  const resolved = resolveGaze(behavior, targetGaze, gazeFree ? parallax : null);
   // The positioning resolver is also the authority on whether a fallback is
   // needed; duplicating its three cases in the JSX can disagree with it.
 

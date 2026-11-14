@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from src.core.task_due import due_day, task_due_day, todo_due
+from src.core.task_due import due_day, in_due_order, task_due_day, todo_due
 
 pytestmark = pytest.mark.unit
 
@@ -63,6 +63,45 @@ class TestANormalizedTask:
 
     def test_without_a_due_has_no_day(self) -> None:
         assert task_due_day({"title": "Pay", "_provider": "microsoft"}, PARIS) is None
+
+
+class TestOneOrderAcrossLists:
+    """Whoever reads every list puts their tasks in this order (2026-11-10)."""
+
+    def test_the_earliest_due_first_and_the_undated_last(self) -> None:
+        tasks = [
+            {"id": "late", "due": "2026-11-20T00:00:00.000Z"},
+            {"id": "undated-1"},
+            {"id": "soon-1", "due": "2026-11-12T00:00:00.000Z"},
+            {"id": "undated-2"},
+            {"id": "soon-2", "due": "2026-11-12T00:00:00.000Z"},
+        ]
+
+        ordered = in_due_order(tasks, PARIS)
+
+        assert [task["id"] for task in ordered] == [
+            "soon-1",
+            "soon-2",
+            "late",
+            "undated-1",
+            "undated-2",
+        ]
+        assert tasks[0]["id"] == "late", "a new list: what came in is kept"
+
+    def test_a_due_nobody_can_read_goes_with_the_undated(self) -> None:
+        tasks = [{"id": "odd", "due": "someday"}, {"id": "dated", "due": "2026-11-12T00:00:00Z"}]
+
+        assert [task["id"] for task in in_due_order(tasks, PARIS)] == ["dated", "odd"]
+
+    def test_a_to_do_due_is_ordered_on_the_day_it_is_in_the_account_s_zone(self) -> None:
+        """Its instant is the evening before in UTC: read there, it would come first."""
+        todo = {"id": "todo", "due": "2026-11-12T23:00:00.000Z", "_provider": "microsoft"}
+        google = {"id": "google", "due": "2026-11-13T00:00:00.000Z"}
+        earlier = {"id": "earlier", "due": "2026-11-12T00:00:00.000Z"}
+
+        ordered = in_due_order([todo, google, earlier], PARIS)
+
+        assert [task["id"] for task in ordered] == ["earlier", "todo", "google"]
 
 
 class TestAToDoWrite:

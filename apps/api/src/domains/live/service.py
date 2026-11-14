@@ -8,9 +8,11 @@ voice-only exchanges and closes the books at the end.
 
 from __future__ import annotations
 
+import asyncio
 import hmac
 import uuid
-from dataclasses import asdict, replace
+from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
@@ -19,30 +21,31 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import (
-    LIVE_DELEGATION_TOOL_NAME,
     LIVE_DIRECT_TRANSCRIPT_MAX_ROWS,
-    LIVE_DURATION_UNLIMITED,
-    LIVE_SESSION_RUN_PREFIX,
     LIVE_TURN_TEXT_MAX_CHARS,
     REDIS_KEY_LIVE_MINT_PREFIX,
 )
+from src.core.conversation_publication import PinnedReservationPublication
+from src.core.conversation_selection import ConversationSelection
+from src.core.reservation_work import require_reserved_work
 from src.domains.agents.api.archive_metadata import (
     build_live_turn_metadata,
 )
 from src.domains.connectors.models import (
+    Connector,
     ConnectorType,
 )
+from src.domains.conversations.models import ConversationMessage
+from src.domains.live.binding import quarantine_uncertain, session_work
 from src.domains.live.connector_service import LiveConnectorService
 from src.domains.live.errors import (
     raise_live_connector_missing,
     raise_live_credential_invalid,
-    raise_live_instance_busy,
     raise_live_mint_rate_limited,
     raise_live_mode_unsupported,
     raise_live_model_unpriced,
     raise_live_provider_refused,
     raise_live_session_expired,
-    raise_live_session_in_progress,
     raise_live_session_not_found,
     raise_live_session_standby,
 )
@@ -55,14 +58,13 @@ from src.domains.live.providers import (
     OfferExchanging,
     provider_by_id,
     setup_inputs_from_dict,
-    setup_inputs_to_dict,
 )
 from src.domains.live.schemas import (
+    LiveConnectorSettings,
     LiveCredentialResponse,
     LiveEndRequest,
     LiveEndResponse,
     LiveExtendResponse,
-    LiveModelCapabilitiesResponse,
     LiveOfferRequest,
     LiveOfferResponse,
     LiveRates,
@@ -78,8 +80,9 @@ from src.domains.live.schemas import (
     LiveWakeResponse,
 )
 from src.domains.live.session_end import end_session
+from src.domains.live.session_start import live_session_run_id as live_session_run_id
+from src.domains.live.session_start import start_session
 from src.domains.live.session_store import LiveSessionRecord, LiveSessionStore
-from src.domains.live.setup_render import render_setup_inputs
 from src.domains.live.standby import enter_standby, wake
 from src.domains.live.tool_door import run_session_tool
 from src.domains.users.models import User
@@ -95,19 +98,14 @@ from src.infrastructure.observability.metrics_live import (
     live_mint_total,
     live_offer_exchanges_total,
     live_session_extensions_total,
-    live_sessions_active,
     live_turns_archived_total,
     live_voice_cues_invented_total,
     live_voice_cues_per_turn,
 )
-from src.infrastructure.rate_limiting.redis_limiter import get_rate_limiter
+from src.infrastructure.rate_limiting.redis_limiter import RedisRateLimiter, get_rate_limiter
+from src.infrastructure.streaming.reservation_work import require_live_work
 
 logger = structlog.get_logger(__name__)
-
-
-def live_session_run_id(session_id: str) -> str:
-    """The run id every euro and every row of a session is filed under."""
-    return f"{LIVE_SESSION_RUN_PREFIX}{session_id}"
 
 
 class LiveService:
@@ -126,7 +124,7 @@ class LiveService:
     async def _store(self) -> LiveSessionStore:
         return LiveSessionStore(await get_redis_cache())
 
-    async def _limiter(self) -> Any:
+    async def _limiter(self) -> RedisRateLimiter:
         return await get_rate_limiter()
 
     async def _personality_of(self, user_id: uuid.UUID) -> str:
@@ -163,17 +161,14 @@ class LiveService:
             logger.warning("live_expression_unreadable", error_type=type(exc).__name__)
             return NO_CUES
 
-    async def _conversation_id(self, user_id: uuid.UUID, *, language: str) -> uuid.UUID:
-        from src.domains.conversations.service import ConversationService
-
-        conversation = await ConversationService().get_or_create_conversation(
-            user_id, self.db, language=language
-        )
-        return conversation.id
-
     async def _archive(
-        self, *, conversation_id: uuid.UUID, role: str, content: str, metadata: dict[str, Any]
-    ) -> Any:
+        self,
+        *,
+        conversation_id: uuid.UUID | PinnedReservationPublication,
+        role: str,
+        content: str,
+        metadata: dict[str, Any],
+    ) -> ConversationMessage:
         from src.domains.conversations.service import ConversationService
 
         return await ConversationService().archive_message(
@@ -187,7 +182,7 @@ class LiveService:
     async def _sync_agent(
         self,
         provider: LiveProvider,
-        connector: Any,
+        connector: Connector,
         api_key: str,
         inputs: LiveSetupInputs,
         *,
@@ -196,11 +191,17 @@ class LiveService:
         """Let an agent-bound provider prepare the person's agent; keep what it holds on the connector."""
         if not isinstance(provider, AgentSyncing):
             return
+        await self.db.commit()
+        await require_live_work()
         try:
             synced = await provider.sync_agent(
                 api_key, dict(connector.connector_metadata or {}), inputs
             )
+        except asyncio.CancelledError as exc:
+            await quarantine_uncertain(exc)
+            raise
         except Exception as exc:
+            await quarantine_uncertain(exc)
             live_mint_total.labels(provider=provider.provider_id, outcome="provider_error").inc()
             logger.warning("live_agent_sync_failed", error_type=type(exc).__name__)
             raise_live_provider_refused(language, type(exc).__name__)
@@ -217,16 +218,22 @@ class LiveService:
         *,
         expires_at: datetime,
         language: str,
-        on_failure: Any,
+        on_failure: Callable[[], Awaitable[None]],
     ) -> LiveCredentialResponse:
         connect_deadline_at = datetime.now(UTC) + timedelta(
             seconds=settings.live_connect_window_seconds
         )
+        await self.db.commit()
+        await require_live_work()
         try:
             credential = await provider.mint(
                 api_key, inputs, expires_at=expires_at, connect_deadline_at=connect_deadline_at
             )
+        except asyncio.CancelledError as exc:
+            await quarantine_uncertain(exc)
+            raise
         except Exception as exc:
+            await quarantine_uncertain(exc)
             await on_failure()
             live_mint_total.labels(provider=provider.provider_id, outcome="provider_error").inc()
             logger.warning("live_mint_failed", error_type=type(exc).__name__)
@@ -262,11 +269,11 @@ class LiveService:
         nonced = replace(record, nonce=minted.credential, nonce_until=minted.connect_deadline_at)
         if not await store.rewrite(nonced, now=datetime.now(UTC)):
             return None
-        return nonced
+        return replace(nonced, record_revision=nonced.record_revision + 1)
 
     async def _admit(
         self, user: User, mode: LiveSessionMode, *, language: str
-    ) -> tuple[Any, LiveProvider, Any, LiveRates | None]:
+    ) -> tuple[Connector, LiveProvider, LiveConnectorSettings, LiveRates | None]:
         """The refusals of a start, in order: no connector, rate limit, no tariff, no such mode.
 
         Returns:
@@ -279,6 +286,7 @@ class LiveService:
             live_mint_total.labels(provider="none", outcome="connector_missing").inc()
             raise_live_connector_missing(language)
         provider = PROVIDERS[ConnectorType(connector.connector_type)]
+        await self.db.commit()
         if await self._rate_limited(user.id):
             live_mint_total.labels(provider=provider.provider_id, outcome="rate_limited").inc()
             raise_live_mint_rate_limited(language)
@@ -315,145 +323,18 @@ class LiveService:
         display_name: str,
         mode: LiveSessionMode = "delegated",
         audio_transport: Literal["websocket", "webrtc"] = "websocket",
+        selection: ConversationSelection | None = None,
     ) -> LiveSessionStartResponse:
-        """Refuse in order, then claim, mint and hand the browser its setup.
-
-        A DIRECT session (ADR-300 wave 4) renders the direct mandate — the
-        phone's context block and LIA's read-only tools declared on the
-        setup, no delegation — and is refused on a model whose wire carries
-        no tool schema (``direct_tools`` false).
-        """
-        connector, provider, chosen, rates = await self._admit(user, mode, language=language)
-        connector_type = ConnectorType(connector.connector_type)
-        capabilities = provider.capabilities_of(chosen.model)
-        prefs = self.connectors.preferences(user)
-        now = datetime.now(UTC)
-        # An unlimited cap (0) rolls by extension slices the client renews without
-        # asking; a bounded one is the model's own. Either way the credential and
-        # the record live to the cap, never for ever (a key with no TTL is never written).
-        cap_minutes = chosen.session_max_minutes or settings.live_extension_minutes
-        expires_at = now + timedelta(minutes=cap_minutes)
-        session_id = uuid.uuid4().hex
-        api_key = await self.connectors.api_key_of(user.id, connector_type)
-        # The reads end before the vendor is asked (ADR-304): nothing is
-        # written yet, and the session does not expire what it loaded.
-        await self.db.commit()
-        cue_dialect = await self._expression_of(provider, api_key, chosen.model)
-        inputs = await render_setup_inputs(
-            self.connectors,
-            provider,
+        """Pin the target before setup, through the common Live opening protocol."""
+        return await start_session(
+            self,
             user,
-            chosen,
-            mode=mode,
             language=language,
             timezone=timezone,
             display_name=display_name,
-            now=now,
-            personality=await self._personality_of(user.id),
-            psyche_block=await self._inner_state_of(user.id, timezone),
-            cue_dialect=cue_dialect,
-        )
-        if provider.provider_id == "elevenlabs" and audio_transport == "webrtc":
-            inputs = replace(inputs, audio_transport="webrtc")
-        # A provider whose sessions run on the person's AGENT prepares it for
-        # THIS setup (the tools of the mode, the prompt permission) before
-        # anything is claimed: a vendor refusal is a start that never happened.
-        # The render's reads end first (ADR-304).
-        await self.db.commit()
-        await self._sync_agent(provider, connector, api_key, inputs, language=language)
-        record = LiveSessionRecord(
-            session_id=session_id,
-            user_id=user.id,
-            provider=provider.provider_id,
-            model=chosen.model,
-            run_id=live_session_run_id(session_id),
-            started_at=now,
-            expires_at=expires_at,
-            token=uuid.uuid4().hex,
-            setup_inputs=setup_inputs_to_dict(inputs),
-            unlimited_cap=chosen.session_max_minutes == LIVE_DURATION_UNLIMITED,
             mode=mode,
-        )
-        store = await self._store()
-        ttl_seconds = record.remaining_life_seconds(now)
-        if not await store.claim(record, ttl_seconds=ttl_seconds):
-            # The claim is per ACCOUNT: whoever holds it is this same person, in
-            # a tab that died without closing its books (a crash, a killed
-            # page) or one still open elsewhere. A new start SUPERSEDES it —
-            # its books are closed with that outcome, its slot freed — rather
-            # than locking the person out until the record's TTL.
-            previous = await store.get(user.id)
-            superseded = previous is not None and await self._supersede(
-                user, previous, language=language
-            )
-            if not superseded or not await store.claim(record, ttl_seconds=ttl_seconds):
-                live_mint_total.labels(
-                    provider=provider.provider_id, outcome="session_in_progress"
-                ).inc()
-                raise_live_session_in_progress(language)
-        if await store.count_active(now) >= settings.live_max_concurrent_sessions:
-            await store.release(user.id, record.token)
-            live_mint_total.labels(provider=provider.provider_id, outcome="instance_busy").inc()
-            raise_live_instance_busy(language)
-
-        async def _undo() -> None:
-            await store.release(user.id, record.token)
-
-        credential = await self._mint(
-            provider,
-            api_key,
-            inputs,
-            expires_at=expires_at,
-            language=language,
-            on_failure=_undo,
-        )
-        # Two starts of one account in the same second: the second superseded
-        # this record while the credential was being minted. The slot is the
-        # other tab's now — count nothing for this one and refuse it honestly.
-        current = await store.get(user.id)
-        kept = (
-            await self._keep_nonce(store, provider, record, credential)
-            if current is not None and current.token == record.token
-            else None
-        )
-        if kept is None:
-            live_mint_total.labels(
-                provider=provider.provider_id, outcome="session_in_progress"
-            ).inc()
-            raise_live_session_in_progress(language)
-        await store.register_active(session_id, expires_at)
-        live_sessions_active.set(await store.count_active(now))
-        logger.info(
-            "live_session_minted", session_id=session_id, provider=provider.provider_id, mode=mode
-        )
-        return LiveSessionStartResponse(
-            **credential.model_dump(),
-            session_id=session_id,
-            provider=provider.provider_id,
-            model=chosen.model,
-            run_id=record.run_id,
-            mode=mode,
-            expression=expression_of(cue_dialect),
-            expires_at=expires_at,
-            session_max_minutes=chosen.session_max_minutes,
-            idle_timeout_seconds=chosen.idle_timeout_seconds,
-            standby_max_seconds=settings.live_standby_max_seconds,
-            preferences=prefs,
-            capabilities=LiveModelCapabilitiesResponse(**asdict(capabilities)),
-            delegation_tool_name=LIVE_DELEGATION_TOOL_NAME,
-            tool_names=[
-                str(tool["name"])
-                for tool in (
-                    [inputs.tool_declaration]
-                    if inputs.tool_declaration is not None
-                    else inputs.direct_tools
-                )
-            ],
-            delegation_timeout_seconds=settings.live_delegation_timeout_seconds,
-            delegation_result_max_tokens=settings.live_delegation_result_max_tokens,
-            turn_text_max_chars=LIVE_TURN_TEXT_MAX_CHARS,
-            rates=rates,
-            session_budget_eur=chosen.session_budget_eur,
+            audio_transport=audio_transport,
+            selection=selection or ConversationSelection(),
         )
 
     async def run_tool(
@@ -470,16 +351,17 @@ class LiveService:
 
         The record must be the person's; the rest is ``tool_door.run_session_tool``.
         """
-        record = await self._awake_record(user, session_id, language=language)
-        return await run_session_tool(
-            record,
-            await self._store(),
-            user,
-            payload,
-            language=language,
-            timezone=timezone,
-            display_name=display_name,
-        )
+        async with session_work(self, user, session_id, language=language):
+            record = await self._awake_record(user, session_id, language=language)
+            return await run_session_tool(
+                record,
+                await self._store(),
+                user,
+                payload,
+                language=language,
+                timezone=timezone,
+                display_name=display_name,
+            )
 
     async def _owned_record(
         self, user: User, session_id: str, *, language: str
@@ -503,7 +385,8 @@ class LiveService:
         self, user: User, session_id: str, payload: LiveStandbyRequest, *, language: str
     ) -> LiveStandbyResponse:
         """Put the session to sleep (ADR-329) — ``standby.enter_standby``."""
-        return await enter_standby(self, user, session_id, payload, language=language)
+        async with session_work(self, user, session_id, language=language):
+            return await enter_standby(self, user, session_id, payload, language=language)
 
     async def wake(
         self,
@@ -516,15 +399,16 @@ class LiveService:
         display_name: str,
     ) -> LiveWakeResponse:
         """Wake a sleeping session (ADR-329) — ``standby.wake``."""
-        return await wake(
-            self,
-            user,
-            session_id,
-            payload,
-            language=language,
-            timezone=timezone,
-            display_name=display_name,
-        )
+        async with session_work(self, user, session_id, language=language):
+            return await wake(
+                self,
+                user,
+                session_id,
+                payload,
+                language=language,
+                timezone=timezone,
+                display_name=display_name,
+            )
 
     async def renew_credential(
         self, user: User, session_id: str, *, language: str
@@ -535,11 +419,12 @@ class LiveService:
         a fresh one with the resumption handle can. The session's expiry does
         not move — the credential expires with the session it belongs to.
         """
-        record = await self._awake_record(user, session_id, language=language)
-        if await self._rate_limited(user.id):
-            live_mint_total.labels(provider=record.provider, outcome="rate_limited").inc()
-            raise_live_mint_rate_limited(language)
-        return await self._remint(user, record, language=language)
+        async with session_work(self, user, session_id, language=language):
+            record = await self._awake_record(user, session_id, language=language)
+            if await self._rate_limited(user.id):
+                live_mint_total.labels(provider=record.provider, outcome="rate_limited").inc()
+                raise_live_mint_rate_limited(language)
+            return await self._remint(user, record, language=language)
 
     async def _remint(
         self, user: User, record: LiveSessionRecord, *, language: str
@@ -547,7 +432,11 @@ class LiveService:
         """A fresh credential for the SAME record, minted to the record's own expiry.
 
         On the SESSION's provider (the record's), never the account's current
-        choice: a switch made mid-session must not reconnect elsewhere.
+        choice: a switch made mid-session must not reconnect elsewhere. An
+        agent-bound provider prepares the person's agent first, for the
+        session's own setup (owner decision 2026-11-11): a reconnection opens a
+        new conversation on the agent, which must find its tools exact like the
+        start and the wake did — a refusal refuses the reconnection.
         """
         connector = await self.connectors.connector_of(user, record.provider, language=language)
         connector_type = ConnectorType(connector.connector_type)
@@ -556,10 +445,14 @@ class LiveService:
         async def _nothing() -> None:
             return None
 
+        api_key = await self.connectors.api_key_of(user.id, connector_type)
+        await self.db.commit()
+        inputs = setup_inputs_from_dict(record.setup_inputs)
+        await self._sync_agent(provider, connector, api_key, inputs, language=language)
         minted = await self._mint(
             provider,
-            await self.connectors.api_key_of(user.id, connector_type),
-            setup_inputs_from_dict(record.setup_inputs),
+            api_key,
+            inputs,
             expires_at=record.expires_at,
             language=language,
             on_failure=_nothing,
@@ -578,42 +471,50 @@ class LiveService:
         and the browser asks for a fresh credential to try again (« one
         credential opens one connection », on both providers).
         """
-        record = await self._awake_record(user, session_id, language=language)
-        connector = await self.connectors.connector_of(user, record.provider, language=language)
-        provider = PROVIDERS[ConnectorType(connector.connector_type)]
-        if provider.connection != "offer" or not isinstance(provider, OfferExchanging):
-            live_offer_exchanges_total.labels(provider=record.provider, outcome="refused").inc()
-            raise_live_provider_refused(language, "not an offer connection")
-        now = datetime.now(UTC)
-        if (
-            record.nonce is None
-            or not hmac.compare_digest(record.nonce, payload.credential)
-            or record.nonce_until is None
-            or now >= record.nonce_until
-        ):
-            live_offer_exchanges_total.labels(provider=record.provider, outcome="refused").inc()
-            raise_live_credential_invalid(language)
-        consumed = replace(record, nonce=None, nonce_until=None)
-        if not await (await self._store()).rewrite(consumed, now=now):
-            raise_live_session_not_found(language)
-        try:
-            answer = await provider.exchange_offer(
-                await self.connectors.api_key_of(user.id, ConnectorType(connector.connector_type)),
-                setup_inputs_from_dict(record.setup_inputs),
-                payload.sdp,
-                timeout=settings.live_probe_timeout_seconds,
+        async with session_work(self, user, session_id, language=language):
+            record = await self._awake_record(user, session_id, language=language)
+            connector = await self.connectors.connector_of(user, record.provider, language=language)
+            provider = PROVIDERS[ConnectorType(connector.connector_type)]
+            if provider.connection != "offer" or not isinstance(provider, OfferExchanging):
+                live_offer_exchanges_total.labels(provider=record.provider, outcome="refused").inc()
+                raise_live_provider_refused(language, "not an offer connection")
+            now = datetime.now(UTC)
+            if (
+                record.nonce is None
+                or not hmac.compare_digest(record.nonce, payload.credential)
+                or record.nonce_until is None
+                or now >= record.nonce_until
+            ):
+                live_offer_exchanges_total.labels(provider=record.provider, outcome="refused").inc()
+                raise_live_credential_invalid(language)
+            consumed = replace(record, nonce=None, nonce_until=None)
+            api_key = await self.connectors.api_key_of(
+                user.id, ConnectorType(connector.connector_type)
             )
-        except Exception as exc:
-            live_offer_exchanges_total.labels(
-                provider=record.provider, outcome="provider_error"
-            ).inc()
-            logger.warning(
-                "live_offer_exchange_failed", error_type=type(exc).__name__, detail=str(exc)[:200]
-            )
-            raise_live_provider_refused(language, str(exc)[:200])
-        live_offer_exchanges_total.labels(provider=record.provider, outcome="ok").inc()
-        logger.info("live_offer_exchanged", session_id=session_id, provider=record.provider)
-        return LiveOfferResponse(sdp=answer)
+            await self.db.commit()
+            if not await (await self._store()).rewrite(consumed, now=now):
+                raise_live_session_not_found(language)
+            await require_live_work()
+            try:
+                answer = await provider.exchange_offer(
+                    api_key,
+                    setup_inputs_from_dict(record.setup_inputs),
+                    payload.sdp,
+                    timeout=settings.live_probe_timeout_seconds,
+                )
+            except asyncio.CancelledError as exc:
+                await quarantine_uncertain(exc)
+                raise
+            except Exception as exc:
+                await quarantine_uncertain(exc)
+                live_offer_exchanges_total.labels(
+                    provider=record.provider, outcome="provider_error"
+                ).inc()
+                logger.warning("live_offer_exchange_failed", error_type=type(exc).__name__)
+                raise_live_provider_refused(language, type(exc).__name__)
+            live_offer_exchanges_total.labels(provider=record.provider, outcome="ok").inc()
+            logger.info("live_offer_exchanged", session_id=session_id, provider=record.provider)
+            return LiveOfferResponse(sdp=answer)
 
     async def extend(self, user: User, session_id: str, *, language: str) -> LiveExtendResponse:
         """Prolong the session by the published extension, on the person's explicit word.
@@ -632,48 +533,54 @@ class LiveService:
         browser keeps its connection (measured 2026-09-19: a reconnection
         there would be a NEW provider session, its context lost).
         """
-        record = await self._owned_record(user, session_id, language=language)
-        provider = provider_by_id(record.provider)
-        reconnects = (
-            provider is not None
-            and provider.connection == "token"
-            and record.setup_inputs.get("audio_transport") != "webrtc"
-            # Asleep there is no connection to reconnect (ADR-329).
-            and not record.in_standby
-        )
-        now = datetime.now(UTC)
-        if now >= record.expires_at:
-            raise_live_session_expired(language)
-        if reconnects and await self._rate_limited(user.id):
-            live_mint_total.labels(provider=record.provider, outcome="rate_limited").inc()
-            raise_live_mint_rate_limited(language)
-        extended = replace(
-            record,
-            expires_at=record.expires_at + timedelta(minutes=settings.live_extension_minutes),
-            extensions=record.extensions + (0 if record.unlimited_cap else 1),
-        )
-        ttl_seconds = extended.life_seconds(
-            now, standby_max_seconds=settings.live_standby_max_seconds
-        )
-        store = await self._store()
-        if not await store.extend(extended, ttl_seconds=ttl_seconds):
-            # The claim is a successor's: this session is over for this tab.
-            raise_live_session_not_found(language)
-        if not extended.in_standby:
-            await store.register_active(session_id, extended.expires_at)
-        credential = await self._remint(user, extended, language=language) if reconnects else None
-        live_session_extensions_total.labels(
-            provider=record.provider, kind="rolling" if record.unlimited_cap else "explicit"
-        ).inc()
-        logger.info(
-            "live_session_extended",
-            session_id=session_id,
-            extensions=extended.extensions,
-            expires_at=extended.expires_at.isoformat(),
-        )
-        return LiveExtendResponse(
-            expires_at=extended.expires_at, extensions=extended.extensions, credential=credential
-        )
+        async with session_work(self, user, session_id, language=language):
+            record = await self._owned_record(user, session_id, language=language)
+            provider = provider_by_id(record.provider)
+            reconnects = (
+                provider is not None
+                and provider.connection == "token"
+                and record.setup_inputs.get("audio_transport") != "webrtc"
+                # Asleep there is no connection to reconnect (ADR-329).
+                and not record.in_standby
+            )
+            now = datetime.now(UTC)
+            if now >= record.expires_at:
+                raise_live_session_expired(language)
+            if reconnects and await self._rate_limited(user.id):
+                live_mint_total.labels(provider=record.provider, outcome="rate_limited").inc()
+                raise_live_mint_rate_limited(language)
+            extended = replace(
+                record,
+                expires_at=record.expires_at + timedelta(minutes=settings.live_extension_minutes),
+                extensions=record.extensions + (0 if record.unlimited_cap else 1),
+            )
+            ttl_seconds = extended.life_seconds(
+                now, standby_max_seconds=settings.live_standby_max_seconds
+            )
+            store = await self._store()
+            if not await store.extend(extended, ttl_seconds=ttl_seconds):
+                # The claim is a successor's: this session is over for this tab.
+                raise_live_session_not_found(language)
+            extended = replace(extended, record_revision=extended.record_revision + 1)
+            if not extended.in_standby:
+                await store.register_active(session_id, extended.expires_at)
+            credential = (
+                await self._remint(user, extended, language=language) if reconnects else None
+            )
+            live_session_extensions_total.labels(
+                provider=record.provider, kind="rolling" if record.unlimited_cap else "explicit"
+            ).inc()
+            logger.info(
+                "live_session_extended",
+                session_id=session_id,
+                extensions=extended.extensions,
+                expires_at=extended.expires_at.isoformat(),
+            )
+            return LiveExtendResponse(
+                expires_at=extended.expires_at,
+                extensions=extended.extensions,
+                credential=credential,
+            )
 
     # -- trace -----------------------------------------------------------------------
 
@@ -687,48 +594,51 @@ class LiveService:
         the person would have typed (ADR-301) — so the same door accumulates
         them, and answers no row ids.
         """
-        record = await self._awake_record(user, session_id, language=language)
-        payload = payload.model_copy(
-            update={"assistant_text": _as_heard(record, payload.assistant_text)}
-        )
-        if record.mode == "direct":
-            # ADR-301: kept in the record until the end, when the exchanges
-            # become the person's own turn — never archived one by one.
-            kept = await (await self._store()).append_turns(
-                user.id,
-                [
-                    (role, text.strip()[:LIVE_TURN_TEXT_MAX_CHARS])
-                    for role, text in (
-                        ("user", payload.user_text),
-                        ("assistant", payload.assistant_text),
-                    )
-                    if text and text.strip()
-                ],
-                ttl_seconds=record.remaining_life_seconds(datetime.now(UTC)),
-                max_rows=LIVE_DIRECT_TRANSCRIPT_MAX_ROWS,
+        async with session_work(self, user, session_id, language=language):
+            record = await self._awake_record(user, session_id, language=language)
+            payload = payload.model_copy(
+                update={"assistant_text": _as_heard(record, payload.assistant_text)}
             )
-            logger.debug("live_direct_turn_kept", session_id=session_id, rows=kept)
-            return LiveTurnResponse(user_message_id=None, assistant_message_id=None)
-        conversation_id = await self._conversation_id(user.id, language=language)
-        ids: dict[str, uuid.UUID | None] = {"user": None, "assistant": None}
-        for role, text in (("user", payload.user_text), ("assistant", payload.assistant_text)):
-            if not text or not text.strip():
-                continue
-            row = await self._archive(
-                conversation_id=conversation_id,
-                role=role,
-                content=text.strip()[:LIVE_TURN_TEXT_MAX_CHARS],
-                metadata=build_live_turn_metadata(
-                    run_id=record.run_id,
-                    live_session_id=session_id,
-                    started_at=payload.started_at,
-                    ended_at=payload.ended_at,
-                ),
+            if record.mode == "direct":
+                # ADR-301: kept in the record until the end, when the exchanges
+                # become the person's own turn — never archived one by one.
+                kept = await (await self._store()).append_turns(
+                    record,
+                    [
+                        (role, text.strip()[:LIVE_TURN_TEXT_MAX_CHARS])
+                        for role, text in (
+                            ("user", payload.user_text),
+                            ("assistant", payload.assistant_text),
+                        )
+                        if text and text.strip()
+                    ],
+                    ttl_seconds=record.remaining_life_seconds(datetime.now(UTC)),
+                    max_rows=LIVE_DIRECT_TRANSCRIPT_MAX_ROWS,
+                )
+                logger.debug("live_direct_turn_kept", session_id=session_id, rows=kept)
+                return LiveTurnResponse(user_message_id=None, assistant_message_id=None)
+            conversation_id = PinnedReservationPublication(require_reserved_work())
+            ids: dict[str, uuid.UUID | None] = {"user": None, "assistant": None}
+            for role, text in (("user", payload.user_text), ("assistant", payload.assistant_text)):
+                if not text or not text.strip():
+                    continue
+                row = await self._archive(
+                    conversation_id=conversation_id,
+                    role=role,
+                    content=text.strip()[:LIVE_TURN_TEXT_MAX_CHARS],
+                    metadata=build_live_turn_metadata(
+                        run_id=record.run_id,
+                        live_session_id=session_id,
+                        started_at=payload.started_at,
+                        ended_at=payload.ended_at,
+                    ),
+                )
+                ids[role] = row.id
+                live_turns_archived_total.labels(role=role).inc()
+            await self.db.commit()
+            return LiveTurnResponse(
+                user_message_id=ids["user"], assistant_message_id=ids["assistant"]
             )
-            ids[role] = row.id
-            live_turns_archived_total.labels(role=role).inc()
-        await self.db.commit()
-        return LiveTurnResponse(user_message_id=ids["user"], assistant_message_id=ids["assistant"])
 
     async def _supersede(self, user: User, previous: LiveSessionRecord, *, language: str) -> bool:
         """Close a same-account session a new start replaces; False when it could not."""
@@ -746,7 +656,8 @@ class LiveService:
         self, user: User, session_id: str, payload: LiveEndRequest, *, language: str
     ) -> LiveEndResponse:
         """Close the books, then free the slot — ``session_end.end_session``."""
-        return await end_session(self, user, session_id, payload, language=language)
+        async with session_work(self, user, session_id, language=language, closing=True):
+            return await end_session(self, user, session_id, payload, language=language)
 
 
 def _as_heard(record: LiveSessionRecord, text: str | None) -> str | None:

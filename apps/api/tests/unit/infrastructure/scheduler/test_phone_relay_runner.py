@@ -65,23 +65,16 @@ def _install(
     async def _context(_db, _user_id):  # noqa: ANN001
         return context
 
-    async def _pending(_db, _user_id, _language):  # noqa: ANN001
-        return pending, (uuid4() if conversation_id == "conv" else conversation_id)
-
-    @contextlib.asynccontextmanager
-    async def _lease(_redis, _conversation_id, *, run_id, stream_id):  # noqa: ANN001
-        captured.setdefault("lease_attempts", 0)
-        captured["lease_attempts"] += 1
-        yield lease_acquired
-
     async def _stream(request):  # noqa: ANN001
+        captured["lease_attempts"] = captured.get("lease_attempts", 0) + 1
+        if not lease_acquired:
+            return RunResult(outcome=RunOutcome.BUSY)
+        if pending:
+            return RunResult(outcome=RunOutcome.PENDING_QUESTION)
         captured["request"] = request
         # No session of any runner's may be open while the turn runs.
         captured["open_during_turn"] = captured.get("open", 0)
         return result or RunResult(outcome=RunOutcome.SUCCESS, text="ok", attempts=1)
-
-    async def _redis():
-        return object()
 
     @contextlib.asynccontextmanager
     async def _db_context():  # noqa: ANN202
@@ -110,10 +103,7 @@ def _install(
     monkeypatch.setattr(runner, "NotificationDispatcher", _Dispatcher)
     monkeypatch.setattr(runner, "get_db_context", _db_context)
     monkeypatch.setattr(voice_relay, "get_db_context", _db_context)
-    monkeypatch.setattr(voice_relay, "conversation_has_pending_hitl", _pending)
-    monkeypatch.setattr(voice_relay, "active_run_lease", _lease)
     monkeypatch.setattr(voice_relay, "stream_instruction", _stream)
-    monkeypatch.setattr(voice_relay, "get_redis_cache", _redis)
     monkeypatch.setattr(settings, "telephony_relay_busy_retries", 2, raising=False)
     monkeypatch.setattr(settings, "telephony_relay_busy_delay_seconds", 0, raising=False)
     return captured
@@ -200,7 +190,7 @@ async def test_an_unresolved_conversation_runs_without_a_lock(
     captured = _install(monkeypatch, conversation_id=None)
     outcome = await run_relay(_request())
     assert outcome is RelayOutcome.ANSWERED
-    assert "lease_attempts" not in captured
+    assert captured["lease_attempts"] == 1
 
 
 @pytest.mark.unit

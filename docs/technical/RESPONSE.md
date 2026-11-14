@@ -362,7 +362,18 @@ cache paie ce qu'il payait (ADR-309).
 **Contenu** : `<TemporalContext>` (la date et l'heure courantes, la taille de la
 fenêtre), puis `{context_sections}` — les sections de contexte déclarées dans
 `response_context_sections.txt`, chacune émise seulement quand son contenu existe
-(ADR-284).
+(ADR-284). La dernière, `MailAlreadyAnswered` (clé `answered_mail`), énonce à part les
+mails du tour auxquels la personne a déjà répondu, après sa question : sa place est
+mesurée, pas choisie (ADR-379, [état de réponse d'un mail](./MAIL_REPLY_STATE.md)).
+
+**Moment de chaque message** ([ADR-381](../architecture/ADR-381-A-Model-Reads-When-Each-Message-Was-Written.md)) —
+chaque message de la personne porte l'instant où il a été écrit (`original_created_at`,
+posé au début de son tour), et le nœud lit la conversation avec ce moment en tête, dans
+le fuseau de la personne : `[Tue 10 Nov 2026, 09:12] …` (`message_view.with_written_at`),
+la question courante comprise ; l'historique texte remis au sous-agent d'une skill de
+dialogue aussi. La règle 3 de la partie statique dit ce qu'est ce préfixe : une
+expression relative d'un message antérieur se lit depuis son moment, jamais depuis
+`<TemporalContext>`.
 
 **Injected via ChatPromptTemplate**:
 - Agent results

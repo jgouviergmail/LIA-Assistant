@@ -45,6 +45,8 @@ import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { ExecutionModeField } from '@/components/workboard/ExecutionModeField';
+import { CategoryBadge } from '@/components/workboard/CategoryBadge';
+import { CategorySelect } from '@/components/workboard/CategorySelect';
 import { HolderSelect } from '@/components/workboard/HolderSelect';
 import { PrioritySelect } from '@/components/workboard/PrioritySelect';
 import { StatusSelect } from '@/components/workboard/StatusSelect';
@@ -61,7 +63,13 @@ import { workboardApi } from '@/lib/workboard/api';
 import { dueAtFromInput, dueDateInput } from '@/lib/workboard/dates';
 import { assignPatch, heldBy, ownerParty, type PeerName } from '@/lib/workboard/display';
 import { columnIcon } from '@/lib/workboard/icons';
-import { type ExecutionMode, type TicketDetail, type TicketUpdateBody } from '@/types/workboard';
+import { lanePatch } from '@/lib/workboard/lanes';
+import {
+  type CategoryOption,
+  type ExecutionMode,
+  type TicketDetail,
+  type TicketUpdateBody,
+} from '@/types/workboard';
 
 /** What the panel needs to act on a ticket. */
 interface PanelActions {
@@ -72,7 +80,15 @@ interface PanelActions {
   onDelete: (id: string, title: string) => void;
 }
 
-export interface TicketDetailPanelProps extends PanelActions {
+/** What the panel knows of the board's categories. */
+interface PanelCategories {
+  /** The reader's own categories — the lanes they may file their tickets under. */
+  categories?: readonly CategoryOption[];
+  /** The name of any category on the reader's board, theirs or not. */
+  categoryName?: (categoryId: string) => string | undefined;
+}
+
+export interface TicketDetailPanelProps extends PanelActions, PanelCategories {
   ticketId: string | null;
   meId: string | undefined;
   peers: readonly PeerName[];
@@ -81,7 +97,7 @@ export interface TicketDetailPanelProps extends PanelActions {
   revision?: number;
 }
 
-interface BodyProps extends PanelActions {
+interface BodyProps extends PanelActions, PanelCategories {
   ticketId: string;
   meId: string | undefined;
   peers: readonly PeerName[];
@@ -184,18 +200,70 @@ function AssigneeField({
   );
 }
 
+/**
+ * The lane a ticket is filed under.
+ *
+ * The category is the OWNER's (owner arbitration, 2026-11-11). Its owner files
+ * the ticket from here — the one way to do it where nothing drags; whoever
+ * holds it for them reads the lane as a fact, and is offered no control the
+ * service would refuse (`workboard_peer_cannot_edit_field`). Nothing is drawn
+ * for an owner with no category, nor for a held ticket filed under nothing.
+ */
+function CategoryField({
+  ticket,
+  meId,
+  categories = [],
+  categoryName,
+  onPatch,
+}: {
+  ticket: TicketDetail['ticket'];
+  meId: string | undefined;
+  onPatch: PanelActions['onPatch'];
+} & PanelCategories) {
+  const { t } = useTranslation();
+  if (ticket.owner_user_id !== meId) {
+    const name = ticket.category_id === null ? undefined : categoryName?.(ticket.category_id);
+    if (name === undefined) return null;
+    return (
+      <div className="space-y-2">
+        {/* A fact, not a field: a `<label>` with no control would name nothing. */}
+        <p className="text-sm font-medium">{t('workboard.form.category')}</p>
+        <div className="flex min-h-10 items-center">
+          <CategoryBadge name={name} />
+        </div>
+      </div>
+    );
+  }
+  if (categories.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <CategorySelect
+        id="wb-category"
+        hideLabel={false}
+        label={t('workboard.form.category')}
+        value={ticket.category_id}
+        categories={categories}
+        className="h-10 px-3 text-sm"
+        onChange={categoryId => void onPatch(ticket.id, lanePatch(categoryId))}
+      />
+    </div>
+  );
+}
+
 /** The column, the holder, the priority, the dates and the modes, written straight through. */
 function TicketFields({
   ticket,
   meId,
   peers,
+  categories,
+  categoryName,
   onPatch,
 }: {
   ticket: TicketDetail['ticket'];
   meId: string | undefined;
   peers: readonly PeerName[];
   onPatch: PanelActions['onPatch'];
-}) {
+} & PanelCategories) {
   const { t } = useTranslation();
   // Whichever side of the ticket the reader is on: the owner subscribes with
   // `follow_owner`, a holder with `follow_assignee`, and the API reads the
@@ -218,6 +286,15 @@ function TicketFields({
       {/* The column and the holder FIRST: on a phone nothing drags, so these
           two lists are how a ticket moves (owner, 2026-09-10). */}
       <AssigneeField ticket={ticket} meId={meId} peers={peers} onPatch={onPatch} />
+      {/* The lane, third: with the column and the holder it is everything a
+          drag does on a wide screen. */}
+      <CategoryField
+        ticket={ticket}
+        meId={meId}
+        categories={categories}
+        categoryName={categoryName}
+        onPatch={onPatch}
+      />
       <div className="space-y-2">
         {/* The same ranked list the form and the filter bar carry (D81). */}
         <PrioritySelect
@@ -274,6 +351,8 @@ function TicketDetailBody({
   peers,
   lng,
   revision,
+  categories,
+  categoryName,
   onClose,
   onPatch,
   onComment,
@@ -362,7 +441,14 @@ function TicketDetailBody({
         </Panel>
 
         <Panel icon={SlidersHorizontal} title={t('workboard.detail.settings')}>
-          <TicketFields ticket={ticket} meId={meId} peers={peers} onPatch={onPatch} />
+          <TicketFields
+            ticket={ticket}
+            meId={meId}
+            peers={peers}
+            categories={categories}
+            categoryName={categoryName}
+            onPatch={onPatch}
+          />
         </Panel>
 
         {/* Each on its own line, at the full width: the cost is ONE line by
@@ -371,7 +457,11 @@ function TicketDetailBody({
         <LastRunBlock ticket={ticket} locale={locale} />
         <TicketUsageBlock ticket={ticket} />
 
-        <StepsBlock steps={detail.children} />
+        <StepsBlock
+          steps={detail.children}
+          parentCategoryId={ticket.category_id}
+          categoryName={categoryName}
+        />
         <CommentsBlock comments={detail.comments} locale={locale}>
           <div className="mt-2 flex gap-2">
             <Textarea

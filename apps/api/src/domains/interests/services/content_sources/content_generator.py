@@ -47,6 +47,9 @@ from src.domains.interests.services.content_sources.llm_reflection_source import
 from src.domains.interests.services.content_sources.perplexity_source import (
     PerplexityContentSource,
 )
+from src.domains.interests.services.content_sources.searxng_source import (
+    SearXNGContentSource,
+)
 from src.domains.shared.consultation_surfaces import record_surface_consultations
 from src.infrastructure.observability.logging import get_logger
 
@@ -111,6 +114,8 @@ class InterestContentGenerator:
         self._primary_sources: list[ContentSourceStrategy] = [
             self._brave_source,
             self._perplexity_source,
+            # The instance's search, for a person with no Brave key (lot 18)
+            SearXNGContentSource(),
         ]
 
     async def generate(
@@ -246,9 +251,10 @@ class InterestContentGenerator:
             source_name = source.source_name
             sources_tried.append(f"{source_name}{suffix}")
 
-            if not source.is_available(context.user_id):
+            # A source that would ask nothing is skipped and files nothing
+            if not await source.applies(context.user_id):
                 logger.debug(
-                    "content_source_not_available",
+                    "content_source_not_applicable",
                     source=source_name,
                     user_id=context.user_id,
                 )

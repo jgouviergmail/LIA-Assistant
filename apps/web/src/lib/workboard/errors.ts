@@ -16,6 +16,15 @@
  */
 import { toast } from 'sonner';
 
+/**
+ * The cap on categories was reached.
+ *
+ * Named because the board states this one BEFORE asking: the cap is published
+ * with the list (ADR-184), so the dialog explains it instead of sending a
+ * create the server would refuse — with the server's own sentence.
+ */
+export const TOO_MANY_CATEGORIES = 'workboard_too_many_categories';
+
 /** Every code the board can answer with, and what it says to a person. */
 export const WORKBOARD_ERROR_KEYS: Record<string, string> = {
   workboard_title_required: 'workboard.errors.title_required',
@@ -40,6 +49,16 @@ export const WORKBOARD_ERROR_KEYS: Record<string, string> = {
   workboard_dates_inverted: 'workboard.errors.dates_inverted',
   workboard_peers_disabled: 'workboard.errors.peers_disabled',
   workboard_not_found: 'workboard.errors.not_found',
+  // Categories — the lanes of the board. « Taken » is about what a name FOLDS
+  // to (case, accents), which is why the sentence says « this name » and not
+  // « this spelling ».
+  workboard_category_name_required: 'workboard.errors.category_name_required',
+  workboard_category_name_too_long: 'workboard.errors.category_name_too_long',
+  workboard_category_name_taken: 'workboard.errors.category_name_taken',
+  // Spelled out, like every key here: the backend guard reads this table
+  // by its literal keys. `TOO_MANY_CATEGORIES` above is the same code.
+  workboard_too_many_categories: 'workboard.errors.too_many_categories',
+  workboard_category_unknown: 'workboard.errors.category_unknown',
 };
 
 /**

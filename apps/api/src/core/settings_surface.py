@@ -10,6 +10,7 @@ PERSONAL_SETTINGS_SECTION_TOKENS = frozenset(
         "connectors",
         "debug-panel",
         "display-mode",
+        "documents",
         "eyes-style",
         "font",
         "font-size",
@@ -52,7 +53,7 @@ PERSONAL_SETTINGS_SECTION_TOKENS = frozenset(
         "usage-preferences",
         "user-consumption-export",
         "voice-mode",
-        "workboard",
+        "writing-style",
     }
 )
 

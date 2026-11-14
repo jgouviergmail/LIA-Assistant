@@ -24,12 +24,22 @@ from src.domains.agents.data_registry.models import (
     RegistryItemMeta,
     RegistryItemType,
 )
+from src.domains.agents.tasks.parameter_descriptions import (
+    TASK_LIST_NAMED_DESCRIPTION,
+    TASK_LIST_OF_TASK_DESCRIPTION,
+)
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.decorators import connector_tool
 from src.domains.agents.tools.mailbox_draft_base import refusal
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.agents.tools.task_list_scope import (
+    LIST_PARAMETER,
+    named_task_list,
+    new_task_list,
+    own_task_list_id,
+)
 from src.domains.agents.tools.validation_helpers import require_field
 from src.domains.connectors.clients.google_tasks_client import GoogleTasksClient
 from src.domains.connectors.clients.task_details import TaskLeftBehindError
@@ -64,7 +74,9 @@ class RenameTaskListTool(ConnectorTool[GoogleTasksClient]):
         self, client: GoogleTasksClient, user_id: UUID, **kwargs: Any
     ) -> dict[str, Any]:
         """Rename the list."""
-        task_list_id: str = require_field(kwargs, "task_list_id")
+        # The list named, by its id or its name: one no list answers to is refused.
+        named = await named_task_list(client, require_field(kwargs, LIST_PARAMETER))
+        task_list_id = str(named["id"])
         title: str = require_field(kwargs, "title")
         renamed = await client.rename_task_list(task_list_id, title)
         logger.info("task_list_renamed", user_id=str(user_id))
@@ -96,8 +108,12 @@ class MoveTaskTool(ConnectorTool[GoogleTasksClient]):
     ) -> dict[str, Any]:
         """Move the task; its id may change, and the answer gives the one it has now."""
         task_id: str = require_field(kwargs, "task_id")
-        task_list_id: str = require_field(kwargs, "task_list_id")
-        destination: str = require_field(kwargs, "destination_list_id")
+        # From the task's own list to the one named, each by its id or its name.
+        task_list_id = await own_task_list_id(
+            client, user_id, task_id, kwargs, runtime=self.runtime, tool_name=self.tool_name
+        )
+        named = await named_task_list(client, require_field(kwargs, "destination_list_id"))
+        destination = str(named["id"])
         if destination == task_list_id:
             return refusal(ToolErrorCode.INVALID_INPUT, "The task is already in that list.")
         try:
@@ -152,7 +168,10 @@ class ListTaskListsTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
             total_results=len(task_lists),
         )
 
-        return {"task_lists": task_lists}
+        # Which one a new task goes in when nobody names a list (the settings' default).
+        default = await new_task_list(client, user_id, None)
+
+        return {"task_lists": task_lists, "default_list_id": default["id"]}
 
     def format_response(self, result: dict[str, Any]) -> str:
         """Format using JSON (legacy mode)."""
@@ -182,10 +201,15 @@ class ListTaskListsTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         """
         Format as Data Registry UnifiedToolOutput.
 
-        Note: Task lists don't go through fewshots (no display in response).
-        They're used for internal reference only.
+        The lists reach the answer through ``structured_data`` (ADR-347): each one's id
+        and name, and which is the default one. That last fact is said only when it is
+        known: a default list that is not among those listed marks none of them, rather
+        than telling the model that no list is the default. The registry items stay what
+        a later step references (``tasks[i].id``).
         """
         task_lists = result.get("task_lists", [])
+        default_id = result.get("default_list_id")
+        default_known = any(tl.get("id") == default_id for tl in task_lists)
         registry_updates: dict[str, RegistryItem] = {}
         item_ids: list[str] = []
         item_names: list[str] = []
@@ -212,6 +236,18 @@ class ListTaskListsTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         return UnifiedToolOutput.data_success(
             message=summary,
             registry_updates=registry_updates,
+            structured_data={
+                "task_lists": [
+                    {
+                        "id": tl.get("id"),
+                        "title": tl.get("title"),
+                        **({"is_default": tl.get("id") == default_id} if default_known else {}),
+                    }
+                    for tl in task_lists
+                    if tl.get("id")
+                ],
+                "count": len(task_lists),
+            },
             metadata={
                 "tool_name": "list_task_lists_tool",
                 "total_results": len(task_lists),
@@ -259,7 +295,7 @@ _move_task_tool_instance = MoveTaskTool()
     category="write",
 )
 async def rename_task_list_tool(
-    task_list_id: Annotated[str, "The list (from list_task_lists_tool)"],
+    task_list_id: Annotated[str, TASK_LIST_NAMED_DESCRIPTION],
     title: Annotated[str, "Its new name"],
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
@@ -287,8 +323,8 @@ async def rename_task_list_tool(
 )
 async def move_task_tool(
     task_id: Annotated[str, "The task"],
-    task_list_id: Annotated[str, "Its list"],
-    destination_list_id: Annotated[str, "The list it goes to (from list_task_lists_tool)"],
+    destination_list_id: Annotated[str, TASK_LIST_NAMED_DESCRIPTION],
+    task_list_id: Annotated[str | None, TASK_LIST_OF_TASK_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -296,8 +332,8 @@ async def move_task_tool(
 
     Args:
         task_id: The task
-        task_list_id: Its list
         destination_list_id: The list it goes to
+        task_list_id: Its own list; omit when unknown
         runtime: Tool runtime (injected)
 
     Returns:

@@ -131,6 +131,9 @@ test('world widgets: deliberate phone choices, native SMS and display mode', asy
   await page.screenshot({ path: info.outputPath('world-hud-dark.png') });
   await tools.getByRole('button', { name: en.theme.to_oled }).click();
   await expect(page.locator('html')).toHaveAttribute('data-oled', '');
+  // An account's circle goes through automatic (ADR-243, amendment 2026-11-12), which
+  // shows the day or the night: only its way out is the same at every hour.
+  await tools.getByRole('button', { name: en.theme.to_auto }).click();
   await tools.getByRole('button', { name: en.theme.to_light }).click();
   await expect(page.locator('html')).not.toHaveClass(/dark/);
 });

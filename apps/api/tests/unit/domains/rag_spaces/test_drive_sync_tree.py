@@ -16,11 +16,18 @@ import pytest
 from src.core.constants import GOOGLE_DRIVE_FOLDER_MIME
 from src.domains.rag_spaces import drive_ingest, drive_sync, storage_paths
 from src.domains.rag_spaces.models import RAGDriveSyncStatus
+from tests.helpers.account_file_writes import account_writer_sql_stub as account_writer_sql_stub
 from tests.unit.domains.rag_spaces.drive_fakes import (
     FakeDetachedConnectors,
     FakeDriveClient,
     drive_file,
 )
+
+
+@pytest.fixture(autouse=True)
+def _writer_sql(account_writer_sql_stub: None) -> None:
+    """Only SQL is substituted; disk and task ownership stay real."""
+
 
 pytestmark = pytest.mark.unit
 

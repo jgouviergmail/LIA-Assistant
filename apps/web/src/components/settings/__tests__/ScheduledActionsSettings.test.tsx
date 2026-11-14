@@ -28,6 +28,21 @@ vi.mock('sonner', () => ({ toast }));
 vi.mock('@/hooks/useRoutinePreapprovableServers', () => ({
   useRoutinePreapprovableServers: () => [{ key: 'p-1', name: 'Notes', family: 'personal' }],
 }));
+// The secret door of a routine started by calls (ADR-386), apart from the CRUD hook.
+const secretDoor = vi.hoisted(() => ({
+  drawWebhookSecret: vi.fn(),
+  drawingSecret: false,
+}));
+vi.mock('@/hooks/useRoutineWebhookSecret', () => ({
+  useRoutineWebhookSecret: () => secretDoor,
+}));
+// The instance's capability map (`/config`): none loaded unless a test says so.
+const appConfig = vi.hoisted(() => ({
+  current: null as null | { capabilities: Record<string, { enabled: boolean; family: string }> },
+}));
+vi.mock('@/hooks/useAppConfig', () => ({
+  useAppConfig: () => ({ config: appConfig.current, loading: false, error: null }),
+}));
 
 import { ScheduledActionsSettings } from '../ScheduledActionsSettings';
 import type { useScheduledActions as useScheduledActionsFn } from '@/hooks/useScheduledActions';
@@ -80,11 +95,15 @@ const DELETE = 'common.delete';
 const SAVE = 'common.save';
 const FIELD_TITLE = 'scheduled_actions.field_title';
 const FIELD_PROMPT = 'scheduled_actions.field_prompt';
+const TEMPLATE = 'scheduled_actions.templates.label';
 /** Monday, in the WEEKDAYS 1..7 numbering the form uses. */
 
 const saveButton = () => screen.getByRole('button', { name: SAVE });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  appConfig.current = null;
+});
 
 describe('ScheduledActionsSettings — list states', () => {
   it('shows a loading spinner on the FIRST load only', () => {
@@ -273,6 +292,33 @@ describe('ScheduledActionsSettings — creation', () => {
     await waitFor(() => expect(screen.queryByLabelText(FIELD_TITLE)).not.toBeInTheDocument());
   });
 
+  it('creates a routine from a template: its words, its clock and its delivery (lot 13)', async () => {
+    const createAction = vi.fn().mockResolvedValue(action());
+    useScheduledActions.mockReturnValue(hook({ createAction }));
+    const { user } = render();
+    await openCreate(user);
+
+    await user.selectOptions(screen.getByRole('combobox', { name: TEMPLATE }), 'inbox_triage');
+    expect(screen.getByLabelText(FIELD_TITLE)).toHaveValue(
+      'scheduled_actions.templates.inbox_triage.title'
+    );
+    expect(createAction).not.toHaveBeenCalled(); // nothing is scheduled before the save
+    await user.click(saveButton());
+
+    await waitFor(() =>
+      expect(createAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'scheduled_actions.templates.inbox_triage.title',
+          action_prompt: 'scheduled_actions.templates.inbox_triage.prompt',
+          trigger_kind: 'time',
+          recurrence: expect.objectContaining({ freq: 'weekly', byweekday: [1, 2, 3, 4, 5] }),
+          requires_approval: false,
+          notify_only_when_new: true,
+        })
+      )
+    );
+  });
+
   it('creates the action with the MCP servers its form ticked (spec D9)', async () => {
     const createAction = vi.fn().mockResolvedValue(action());
     useScheduledActions.mockReturnValue(hook({ createAction }));
@@ -348,6 +394,8 @@ describe('ScheduledActionsSettings — edition', () => {
     const { user } = render();
     expect(await openEdit(user)).toHaveValue('Morning brief');
     expect(screen.getByLabelText(FIELD_PROMPT)).toHaveValue('Summarise my day');
+    // A template starts a NEW routine: an edited one is never offered one (lot 13).
+    expect(screen.queryByRole('combobox', { name: TEMPLATE })).toBeNull();
   });
 
   it('sends only the field that actually changed', async () => {
@@ -452,6 +500,15 @@ describe('ScheduledActionsSettings — duplication', () => {
       'Morning brief scheduled_actions.duplicate_suffix'
     );
     expect(screen.getByLabelText(FIELD_PROMPT)).toHaveValue('Summarise my day');
+  });
+
+  it('offers no template: a copy starts from its source (lot 13)', async () => {
+    useScheduledActions.mockReturnValue(hook({ actions: [action()] }));
+    const { user } = render();
+
+    await openDuplicate(user);
+
+    expect(screen.queryByRole('combobox', { name: TEMPLATE })).toBeNull();
   });
 
   it('creates nothing until the reader saves', async () => {
@@ -901,6 +958,85 @@ describe('ScheduledActionsSettings — one clock per routine (ADR-322)', () => {
     });
   });
 
+  describe('a watched page (ADR-387)', () => {
+    const PAGE = 'https://shop.example.org/chair';
+    const URL_FIELD = 'scheduled_actions.studio.page_url';
+    const FILTER_FIELD = 'scheduled_actions.studio.query_label.page_change';
+
+    async function choosePage(user: User) {
+      await chooseCondition(user);
+      await user.click(
+        screen.getByRole('combobox', { name: 'scheduled_actions.studio.condition_type' })
+      );
+      await user.click(
+        await screen.findByRole('option', {
+          name: 'scheduled_actions.studio.condition.page_change',
+        })
+      );
+    }
+
+    it('watches a page by its address, a line filter included', async () => {
+      const createAction = vi.fn().mockResolvedValue(action());
+      useScheduledActions.mockReturnValue(hook({ createAction }));
+      const { user } = render();
+      await openCreate(user);
+      await choosePage(user);
+
+      await user.type(screen.getByLabelText(URL_FIELD), `  ${PAGE}  `);
+      await user.type(screen.getByLabelText(FILTER_FIELD), '€');
+      await user.click(saveButton());
+
+      await waitFor(() => expect(createAction).toHaveBeenCalledTimes(1));
+      expect(createAction.mock.calls[0][0]).toMatchObject({
+        trigger_kind: 'condition',
+        condition_config: { type: 'page_change', url: PAGE, contains: '€' },
+      });
+      expect(createAction.mock.calls[0][0].condition_config).not.toHaveProperty('query');
+    });
+
+    it('asks for the address, then for one a page can have', async () => {
+      const createAction = vi.fn();
+      useScheduledActions.mockReturnValue(hook({ createAction }));
+      const { user } = render();
+      await openCreate(user);
+      await choosePage(user);
+
+      expect(saveButton()).toBeDisabled();
+      expect(screen.getByRole('alert')).toHaveTextContent('scheduled_actions.studio.url_required');
+      await user.type(screen.getByLabelText(URL_FIELD), 'shop.example.org/chair');
+      expect(saveButton()).toBeDisabled();
+      expect(screen.getByRole('alert')).toHaveTextContent('scheduled_actions.studio.url_invalid');
+      await user.clear(screen.getByLabelText(URL_FIELD));
+      await user.type(screen.getByLabelText(URL_FIELD), PAGE);
+      expect(saveButton()).toBeEnabled();
+    });
+
+    it('reads a watched page back, and sends a changed filter with its address', async () => {
+      const watching = action({
+        trigger_kind: 'condition',
+        recurrence: null,
+        condition_config: { type: 'page_change', url: PAGE, contains: 'stock' },
+      });
+      const updateAction = vi.fn().mockResolvedValue(watching);
+      useScheduledActions.mockReturnValue(hook({ actions: [watching], updateAction }));
+      const { user } = render();
+      await user.click(screen.getByRole('button', { name: EDIT }));
+      await screen.findByLabelText(FIELD_TITLE);
+
+      expect(screen.getByLabelText(URL_FIELD)).toHaveValue(PAGE);
+      expect(screen.getByLabelText(FILTER_FIELD)).toHaveValue('stock');
+      await user.clear(screen.getByLabelText(FILTER_FIELD));
+      await user.type(screen.getByLabelText(FILTER_FIELD), '€');
+      await user.click(saveButton());
+
+      await waitFor(() =>
+        expect(updateAction).toHaveBeenCalledWith('a1', {
+          condition_config: { type: 'page_change', url: PAGE, contains: '€' },
+        })
+      );
+    });
+  });
+
   it('creates a condition routine with no schedule, its last day included', async () => {
     const createAction = vi.fn().mockResolvedValue(action());
     useScheduledActions.mockReturnValue(hook({ createAction }));
@@ -1073,5 +1209,250 @@ describe('ScheduledActionsSettings — the schedule caps are the server’s (ADR
       screen.queryByRole('group', { name: 'recurrence.section_when' })
     ).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('common.loading');
+  });
+});
+
+describe('ScheduledActionsSettings — only told of something new (ADR-265 amendment c)', () => {
+  const QUIET = 'scheduled_actions.studio.notify_only_when_new';
+  const APPROVAL = 'scheduled_actions.studio.requires_approval';
+
+  async function openCreate(user: User) {
+    await user.click(screen.getByRole('button', { name: CREATE }));
+    await screen.findByLabelText(FIELD_TITLE);
+    await user.type(screen.getByLabelText(FIELD_TITLE), 'Watch');
+    await user.type(screen.getByLabelText(FIELD_PROMPT), 'Tell me');
+  }
+
+  it('offers the option beside the other way a routine reaches its owner', async () => {
+    useScheduledActions.mockReturnValue(hook());
+    const { user } = render();
+    await openCreate(user);
+
+    const execution = screen.getByRole('group', { name: 'scheduled_actions.section_execution' });
+    const quiet = screen.getByRole('switch', { name: QUIET });
+    expect(execution).toContainElement(quiet);
+    expect(quiet).not.toBeChecked();
+    expect(quiet).toBeEnabled();
+  });
+
+  it('sends the option when the person asks for it', async () => {
+    const createAction = vi.fn().mockResolvedValue(action());
+    useScheduledActions.mockReturnValue(hook({ createAction }));
+    const { user } = render();
+    await openCreate(user);
+
+    await user.click(screen.getByRole('switch', { name: QUIET }));
+    await user.click(saveButton());
+
+    await waitFor(() =>
+      expect(createAction).toHaveBeenCalledWith(
+        expect.objectContaining({ notify_only_when_new: true, requires_approval: false })
+      )
+    );
+  });
+
+  it('is switched off and unavailable once the routine asks before running', async () => {
+    // A proposal IS a notification: the server refuses the pair, so the form
+    // never lets it be composed.
+    const createAction = vi.fn().mockResolvedValue(action());
+    useScheduledActions.mockReturnValue(hook({ createAction }));
+    const { user } = render();
+    await openCreate(user);
+
+    await user.click(screen.getByRole('switch', { name: QUIET }));
+    await user.click(screen.getByRole('switch', { name: APPROVAL }));
+
+    const quiet = screen.getByRole('switch', { name: QUIET });
+    expect(quiet).not.toBeChecked();
+    // Unavailable is said, never removed from the tab order: the handler refuses.
+    expect(quiet).toHaveAttribute('aria-disabled', 'true');
+    await user.click(quiet);
+    expect(quiet).not.toBeChecked();
+    await user.click(saveButton());
+    await waitFor(() => expect(createAction).toHaveBeenCalled());
+    const sent = createAction.mock.calls[0][0];
+    expect(sent.requires_approval).toBe(true);
+    expect(sent).not.toHaveProperty('notify_only_when_new');
+  });
+
+  it('reads the stored option and sends its change alone', async () => {
+    const updateAction = vi.fn().mockResolvedValue(action());
+    useScheduledActions.mockReturnValue(
+      hook({ actions: [action({ notify_only_when_new: true })], updateAction })
+    );
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: EDIT }));
+    await screen.findByLabelText(FIELD_TITLE);
+
+    const quiet = screen.getByRole('switch', { name: QUIET });
+    expect(quiet).toBeChecked();
+    await user.click(quiet);
+    await user.click(saveButton());
+
+    await waitFor(() =>
+      expect(updateAction).toHaveBeenCalledWith('a1', { notify_only_when_new: false })
+    );
+  });
+
+  it('sends both halves when asking before running replaces it on a stored routine', async () => {
+    const updateAction = vi.fn().mockResolvedValue(action());
+    useScheduledActions.mockReturnValue(
+      hook({ actions: [action({ notify_only_when_new: true })], updateAction })
+    );
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: EDIT }));
+    await screen.findByLabelText(FIELD_TITLE);
+
+    await user.click(screen.getByRole('switch', { name: APPROVAL }));
+    await user.click(saveButton());
+
+    await waitFor(() =>
+      expect(updateAction).toHaveBeenCalledWith('a1', {
+        requires_approval: true,
+        notify_only_when_new: false,
+      })
+    );
+  });
+});
+
+describe('ScheduledActionsSettings — a routine started by calls (ADR-386)', () => {
+  const KIND = 'scheduled_actions.studio.trigger_kind';
+  const WEBHOOK = 'scheduled_actions.studio.kind_webhook';
+  const URL = 'https://lia.example/api/v1/hooks/routines/AbCdEfGhIjKlMnOpQrStUvWx';
+
+  function offered(enabled: boolean) {
+    appConfig.current = { capabilities: { routine_webhooks: { enabled, family: 'work' } } };
+  }
+
+  function onCalls(over: Partial<ScheduledAction> = {}): ScheduledAction {
+    return action({
+      trigger_kind: 'webhook',
+      recurrence: null,
+      next_trigger_at: null,
+      next_occurrences: [],
+      webhook_url: URL,
+      schedule_display: 'Started by a signed call to its address',
+      ...over,
+    });
+  }
+
+  async function openCreate(user: User) {
+    await user.click(screen.getByRole('button', { name: CREATE }));
+    await screen.findByLabelText(FIELD_TITLE);
+    await user.type(screen.getByLabelText(FIELD_TITLE), 'Door');
+    await user.type(screen.getByLabelText(FIELD_PROMPT), 'Tell me who rang');
+  }
+
+  async function chooseCalls(user: User) {
+    await user.click(screen.getByRole('combobox', { name: KIND }));
+    await user.click(await screen.findByRole('option', { name: WEBHOOK }));
+  }
+
+  it('offers the third clock only where the instance offers it', async () => {
+    offered(false);
+    useScheduledActions.mockReturnValue(hook());
+    const { user } = render();
+    await openCreate(user);
+
+    await user.click(screen.getByRole('combobox', { name: KIND }));
+
+    expect(
+      await screen.findByRole('option', { name: 'scheduled_actions.studio.kind_condition' })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: WEBHOOK })).not.toBeInTheDocument();
+  });
+
+  it('asks for no schedule and no condition, and shows the secret drawn at creation once', async () => {
+    offered(true);
+    const createAction = vi
+      .fn()
+      .mockResolvedValue(onCalls({ id: 'a9', new_webhook_secret: 'S3cr3t-shown-once' }));
+    useScheduledActions.mockReturnValue(hook({ createAction }));
+    const { user } = render();
+    await openCreate(user);
+
+    await chooseCalls(user);
+
+    expect(
+      screen.queryByRole('group', { name: 'recurrence.section_when' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('group', { name: 'scheduled_actions.section_condition' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('scheduled_actions.webhook.hint_new')).toBeInTheDocument();
+    await user.click(saveButton());
+
+    await waitFor(() => expect(createAction).toHaveBeenCalled());
+    const sent = createAction.mock.calls[0][0];
+    expect(sent.trigger_kind).toBe('webhook');
+    expect(sent).not.toHaveProperty('recurrence');
+    expect(sent).not.toHaveProperty('condition_config');
+    expect(sent.requires_approval).toBe(false);
+    const shown = await screen.findByRole('dialog', {
+      name: 'scheduled_actions.webhook.secret_title',
+    });
+    expect(shown).toHaveTextContent('S3cr3t-shown-once');
+    // The dialog IS the confirmation: no toast drawn over its title.
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole('group', { name: 'scheduled_actions.webhook.address' })
+    ).toHaveTextContent(URL);
+    expect(
+      screen.getByRole('group', { name: 'scheduled_actions.webhook.secret' })
+    ).toHaveTextContent('S3cr3t-shown-once');
+  });
+
+  it('rules « ask first » out for a routine started by calls', async () => {
+    offered(true);
+    useScheduledActions.mockReturnValue(hook());
+    const { user } = render();
+    await openCreate(user);
+    await user.click(
+      screen.getByRole('switch', { name: 'scheduled_actions.studio.requires_approval' })
+    );
+
+    await chooseCalls(user);
+
+    const asksFirst = screen.getByRole('switch', {
+      name: 'scheduled_actions.studio.requires_approval',
+    });
+    expect(asksFirst).not.toBeChecked();
+    expect(asksFirst).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('lists it as active while it waits for a call, and never offers to run it by hand', () => {
+    useScheduledActions.mockReturnValue(hook({ actions: [onCalls()], total: 1 }));
+    render();
+
+    expect(screen.getByText('scheduled_actions.status.active')).toBeInTheDocument();
+    expect(screen.queryByText('scheduled_actions.status.finished')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: EXECUTE })).not.toBeInTheDocument();
+  });
+
+  it('draws a new secret only once confirmed, and shows it once', async () => {
+    offered(true);
+    const drawWebhookSecret = secretDoor.drawWebhookSecret.mockResolvedValue({
+      webhook_url: URL,
+      webhook_secret: 'N3w-s3cr3t',
+    });
+    useScheduledActions.mockReturnValue(hook({ actions: [onCalls()], total: 1 }));
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: EDIT }));
+    await screen.findByLabelText(FIELD_TITLE);
+
+    expect(
+      screen.getByRole('group', { name: 'scheduled_actions.webhook.address' })
+    ).toHaveTextContent(URL);
+    await user.click(screen.getByRole('button', { name: 'scheduled_actions.webhook.draw_new' }));
+    expect(drawWebhookSecret).not.toHaveBeenCalled();
+    await user.click(
+      await screen.findByRole('button', { name: 'scheduled_actions.webhook.draw_confirm' })
+    );
+
+    await waitFor(() => expect(drawWebhookSecret).toHaveBeenCalledWith('a1'));
+    const shown = await screen.findByRole('dialog', {
+      name: 'scheduled_actions.webhook.secret_title',
+    });
+    expect(shown).toHaveTextContent('N3w-s3cr3t');
   });
 });

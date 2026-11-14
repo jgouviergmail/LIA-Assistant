@@ -114,6 +114,8 @@ class PlatformCapability(str, Enum):
     WORKBENCH = "workbench"
     # ADR-372 — what LIA does from those same screens, one click at a time.
     TOOL_ASSISTS = "tool_assists"
+    # ADR-386 — another system starts a routine with a signed call.
+    ROUTINE_WEBHOOKS = "routine_webhooks"
 
 
 @dataclass(frozen=True)
@@ -198,8 +200,10 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         family="media",
         env_flag="voice_tts_enabled",
         setting_key=SystemSettingKey.CAPABILITY_TTS_ENABLED,
-        # No route of its own: speech is synthesized inside the chat stream,
-        # so the gate lives at the single voice-synthesis chokepoint.
+        # A spoken answer is synthesized inside the chat stream, so the gate
+        # lives at the single voice-synthesis chokepoint; the two routes that
+        # speak by themselves (a voice sample, a text read aloud) carry it too.
+        route_enforced=True,
         service_enforced=True,
     ),
     PlatformCapability.IMAGE_GENERATION: CapabilitySpec(
@@ -344,14 +348,16 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
     # initiative — that fill a record the person keeps reading. Measured with
     # the operator switch OFF: the acts went on and only the panel had
     # closed. The guard now sits at the acts (``habits/capability.py``, the
-    # heartbeat scheduler, the wake and moment sweeps) and on the two habits
-    # routes that ARE acts (``/recompute``, ``/presence``); GET / PATCH /
-    # DELETE stay open, like the memories and the gallery.
+    # heartbeat scheduler, the wake and moment sweeps) and on the habits
+    # routes that ARE acts (``/recompute``, ``/presence``, a proposal's
+    # verdict); GET / PATCH / DELETE stay open, like the memories and the
+    # gallery. Both are declared: the panel prints where a switch bites.
     PlatformCapability.HABITS: CapabilitySpec(
         capability=PlatformCapability.HABITS,
         family="knowledge",
         env_flag="habits_enabled",
         setting_key=SystemSettingKey.CAPABILITY_HABITS_ENABLED,
+        route_enforced=True,
         service_enforced=True,
     ),
     PlatformCapability.PROACTIVE_DISCUSSIONS: CapabilitySpec(
@@ -529,6 +535,18 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         env_flag="tool_assists_enabled",
         setting_key=SystemSettingKey.CAPABILITY_TOOL_ASSISTS_ENABLED,
         route_enforced=True,
+    ),
+    # ADR-386: the ability is two doors and one act. The public address refuses
+    # a call, the routine's form drawing a new secret refuses, and a run stops
+    # serving what already arrived (the act) — while every routine, its address
+    # and the deliveries already accepted stay recorded (ADR-280).
+    PlatformCapability.ROUTINE_WEBHOOKS: CapabilitySpec(
+        capability=PlatformCapability.ROUTINE_WEBHOOKS,
+        family="work",
+        env_flag="routine_webhooks_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_ROUTINE_WEBHOOKS_ENABLED,
+        route_enforced=True,
+        service_enforced=True,
     ),
 }
 

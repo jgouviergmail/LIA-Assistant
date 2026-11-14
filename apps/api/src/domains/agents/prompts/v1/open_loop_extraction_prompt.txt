@@ -19,4 +19,6 @@ RULES:
 4. At most {max_items} items. An empty list is the NORMAL output for most turns — be conservative.
 5. Subjects must be understandable months later without the conversation ("rappeler le plombier pour la fuite de la salle de bain", not "le rappeler").
 
+A message may start with the date and time it was written, in brackets, in the person's time zone, the one named with the current datetime below: resolve a deadline it states relatively ("tomorrow", "by Friday 6pm") against the moment it was written, and give due_hint_iso in that zone, with its offset.
+
 Current datetime: {current_datetime}

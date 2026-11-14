@@ -15,6 +15,7 @@ Date: 2025-12-21
 
 import json
 import time
+from datetime import UTC
 from types import SimpleNamespace
 
 import pytest
@@ -100,14 +101,14 @@ class TestFormatMessagesForExtraction:
     def test_format_human_messages(self):
         """Test formatting of human messages."""
         messages = [HumanMessage(content="Hello, how are you?")]
-        result = _format_messages_for_extraction(messages)
+        result = _format_messages_for_extraction(messages, zone=UTC)
 
         assert "USER: Hello, how are you?" in result
 
     def test_format_ai_messages(self):
         """Test formatting of AI messages."""
         messages = [AIMessage(content="I'm doing well, thank you!")]
-        result = _format_messages_for_extraction(messages)
+        result = _format_messages_for_extraction(messages, zone=UTC)
 
         assert "ASSISTANT: I'm doing well, thank you!" in result
 
@@ -119,7 +120,7 @@ class TestFormatMessagesForExtraction:
             HumanMessage(content="How are you?"),
             AIMessage(content="Great, thanks!"),
         ]
-        result = _format_messages_for_extraction(messages)
+        result = _format_messages_for_extraction(messages, zone=UTC)
 
         assert "USER: Hello" in result
         assert "ASSISTANT: Hi there!" in result
@@ -133,7 +134,7 @@ class TestFormatMessagesForExtraction:
         """
         long_content = "x" * 3500
         messages = [HumanMessage(content=long_content)]
-        result = _format_messages_for_extraction(messages)
+        result = _format_messages_for_extraction(messages, zone=UTC)
 
         # Should be truncated to 3000 chars + "..." + "USER: " prefix
         # 3000 + 3 + 6 = 3009 chars max
@@ -548,6 +549,7 @@ class TestMemoryExtractionPromptDoctrine:
             existing_memories="None",
             known_relationships=[],
             health_context="",
+            zone=UTC,
         )
 
     def test_every_bound_the_parser_enforces_is_published_to_the_model(self):

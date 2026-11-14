@@ -14,6 +14,7 @@ import { MessageSquarePlus } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { capabilityMounted } from '@/lib/capability-availability';
 import type { AttachSource } from '@/lib/attach-source-link';
 import { chatAttachHref } from '@/lib/chat-href';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
@@ -29,7 +30,9 @@ export function UseInChatButton({
   label: string;
 }) {
   const { config } = useAppConfig();
-  if (config?.features?.attachments_enabled === false) return null;
+  // A file LIA produced is brought back by reference, never uploaded: it is
+  // a RECORD, offered under the deployment flag whatever the switch says.
+  if (!capabilityMounted(config, 'attachments', true)) return null;
   return (
     <Button
       variant="ghost"

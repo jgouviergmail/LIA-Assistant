@@ -1,0 +1,13 @@
+# The person's writing style as each e-mail writer reads it (ADR-383), one
+# `key|template` per line; blank lines and #-comments are ignored (ADR-284: prose
+# never lives in a .py). Read by domains/agents/emails/writing_style.py. Each header is
+# followed, on the next lines, by the profile itself; neither is sent when no
+# profile exists. Both wordings are the measured ones
+# (scripts/emails/measure_writing_style.py).
+
+# The reply drafter (mailbox_reply_draft_prompt), before the received e-mail.
+reply|How the person writes their e-mails (from their own sent mail; their voice only, never their facts — follow it unless the instruction says otherwise):
+
+# The new-mail writer (email_content_generation_prompt), whose own rules on the
+# greeting, the sign-off and the signature it replaces.
+compose|WRITING STYLE of the sender, from their own sent e-mails: their voice only, never their facts. Unless the INSTRUCTION says otherwise, it decides the greeting, the sign-off, the signature, the register, the length and the tone, in place of rules 3, 4 and 5 below:

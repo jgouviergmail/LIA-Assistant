@@ -214,7 +214,7 @@ export function DeviceSessionsSettings() {
           id="login-notifications-toggle"
           checked={user?.login_notifications_enabled ?? true}
           onCheckedChange={handleNotifToggle}
-          disabled={notifBusy}
+          busy={notifBusy}
         />
       </div>
 

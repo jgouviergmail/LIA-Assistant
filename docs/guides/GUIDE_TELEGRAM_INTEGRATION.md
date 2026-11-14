@@ -29,7 +29,7 @@
 
 ## 1. Introduction
 
-LIA supporte les **canaux de messagerie externes** comme complement a l'interface web. Telegram est la **premiere implementation concrete** d'une architecture multi-canal generique.
+LIA supporte les **canaux de messagerie externes** comme complément à l'interface web. Telegram est la **première implémentation concrète**, et à ce jour la seule, d'une architecture prévue pour plusieurs canaux.
 
 ### Fonctionnalites offertes via Telegram
 
@@ -37,12 +37,12 @@ LIA supporte les **canaux de messagerie externes** comme complement a l'interfac
 |----------------|-------------|
 | Chat bidirectionnel | Messages texte Telegram <-> pipeline agent LIA |
 | Notifications proactives | Interets, rappels, actions planifiees, heartbeat autonome -> Telegram |
-| HITL (Human-in-the-Loop) | Boutons inline Telegram pour approuver/rejeter des plans |
+| HITL (Human-in-the-Loop) | Boutons inline Telegram pour confirmer ou annuler un brouillon, une action, une boucle FOR_EACH ; réponse tapée pour une clarification |
 | Messages vocaux | OGG/Opus -> PCM 16kHz -> Sherpa STT -> texte |
 | Liaison OTP | Code 6 chiffres via Redis, TTL 5min, single-use |
 | Multi-langue | 6 langues (fr, en, es, de, it, zh-CN -- le code backend du chinois) pour les messages du bot et les boutons HITL : la langue du compte lie, celle que declare le client Telegram tant que personne n'est connu (ADR-323) |
 
-L'architecture est **generique** : les abstractions `BaseChannelSender` et `BaseChannelWebhookHandler` permettent d'ajouter d'autres canaux (Discord, WhatsApp...) sans modifier le domaine.
+Les interfaces `BaseChannelSender` et `BaseChannelWebhookHandler`, le modèle `UserChannelBinding` et la liaison par code sont génériques. Le reste du domaine importe encore directement l'implémentation Telegram : ajouter un autre canal (Discord, WhatsApp...) commence par généraliser ces points, voir la [section 9](#9-comment-ajouter-un-nouveau-canal).
 
 ---
 
@@ -52,27 +52,32 @@ L'architecture est **generique** : les abstractions `BaseChannelSender` et `Base
 
 L'integration suit le pattern DDD du projet :
 
-- **Domaine** (`domains/channels/`) : abstractions generiques, modeles, service, router -- independant de Telegram
+- **Domaine** (`domains/channels/`) : interfaces génériques, modèles, service, routeur. Il n'est pas encore indépendant de Telegram : le routeur, le traitement des messages et la projection des liaisons importent l'implémentation Telegram (voir la section 9)
 - **Infrastructure** (`infrastructure/channels/telegram/`) : implementation specifique Telegram (bot API, formatage, HITL keyboard, voice)
 
 ### 2.2 Structure des fichiers
 
 ```
-apps/api/src/domains/channels/           # Domaine (generique)
+apps/api/src/domains/channels/           # Domaine (interfaces génériques ; le traitement importe encore Telegram)
 +-- abstractions.py                      # Interfaces : BaseChannelSender, BaseChannelWebhookHandler
 +-- models.py                            # UserChannelBinding (SQLAlchemy), ChannelType (StrEnum)
 +-- schemas.py                           # Pydantic v2 : OTP, Binding CRUD
 +-- repository.py                        # UserChannelBindingRepository
 +-- service.py                           # ChannelService (OTP, CRUD, toggle)
++-- preferences.py                       # Préférences de la personne, résolues une fois pour le message et le bouton HITL
++-- preference_commands.py               # Activer, couper, délier une liaison (HTTP et actions d'application confirmées)
++-- read_projection.py                   # Projection de la liste des liaisons (HTTP et lecture d'application)
 +-- message_router.py                    # ChannelMessageRouter (binding lookup, lock, rate limit)
 +-- inbound_handler.py                   # InboundMessageHandler (agent pipeline, content_replacement)
 +-- router.py                            # FastAPI endpoints + webhook + background tasks
 
-apps/api/src/infrastructure/channels/    # Infrastructure (specifique Telegram)
-+-- telegram/
+apps/api/src/infrastructure/channels/
++-- assistant_gateway.py                 # Frontière canal -> assistant, installée au démarrage (le domaine n'importe pas les agents)
++-- telegram/                            # Implémentation Telegram
     +-- bot.py                           # Bot lifecycle (init/shutdown, webhook setup, getMe)
     +-- webhook_handler.py               # Signature check, parse Update -> ChannelInboundMessage
-    +-- sender.py                        # TelegramSender (send, typing, edit, notification)
+    +-- sender.py                        # TelegramSender (send_message, send_text, typing, notification, remove_keyboard)
+    +-- flood_control.py                 # Lecteur unique du délai demandé par le contrôle de débit de Telegram
     +-- formatter.py                     # MD->HTML, split (texte brut), strip_html_cards, i18n messages
     +-- html_split.py                    # Decoupe d'un message HTML en parties analysables (point 8)
     +-- hitl_keyboard.py                 # InlineKeyboard builders pour HITL (6 langues)
@@ -180,7 +185,7 @@ CHANNELS_ENABLED=true
 # Token BotFather (obligatoire)
 TELEGRAM_BOT_TOKEN=123456789:ABCDEFghijklmnop...
 
-# Webhook secret (recommande en production)
+# Webhook secret (obligatoire dès que TELEGRAM_WEBHOOK_URL est défini : sans lui l'API refuse de démarrer)
 TELEGRAM_WEBHOOK_SECRET=un-secret-aleatoire-fort
 
 # URL webhook (production uniquement -- sans cette variable, le bot utilise le long polling)
@@ -211,7 +216,7 @@ Toutes les variables sont definies dans `core/config/channels.py` via la classe 
 | Transport | Long polling via `python-telegram-bot` Application | Webhook via FastAPI endpoint |
 | Bridge | `MessageHandler` + `CallbackQueryHandler` -> `process_telegram_update()` | FastAPI endpoint -> `process_telegram_update()` |
 | URL publique | Non requise | Requise (HTTPS) |
-| Secret | Optionnel (accepts all en dev) | Fortement recommande |
+| Secret | Sans objet : Telegram n'appelle pas la route, et une requête qui y arrive sans secret configuré est refusée | Obligatoire : sans secret réel, l'API refuse de démarrer (SEC-024) |
 
 Le choix est automatique dans `bot.py` :
 
@@ -334,39 +339,51 @@ async def verify_otp(code, channel_type, channel_user_id, channel_username=None)
 Le webhook est un endpoint **non authentifie** (pas de session cookie) -- la securite repose sur le header `X-Telegram-Bot-Api-Secret-Token` :
 
 ```python
-# apps/api/src/domains/channels/router.py
-@router.post("/telegram/webhook", include_in_schema=False)
+# apps/api/src/domains/channels/router.py (abrégé)
+@router.post("/telegram/webhook", include_in_schema=False, summary="Telegram webhook")
 async def telegram_webhook(request: Request) -> dict:
-    body = await request.body()
     signature = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
 
     handler = TelegramWebhookHandler()
-    if not await handler.validate_signature(body, signature):
-        raise_invalid_webhook_signature("telegram")  # 403 — raiser centralise (regle #18, ADR-124)
+    # Le secret est vérifié AVANT la lecture du corps (SEC-024) : Telegram envoie
+    # le secret tel quel dans l'en-tête, ce n'est pas une signature du contenu
+    if not await handler.validate_signature(b"", signature):
+        raise_invalid_webhook_signature("telegram")  # 403 — raiser centralisé (règle #18, ADR-124)
 
-    payload = json.loads(body)
+    body = await request.body()
+    payload = json.loads(body)  # un corps illisible, ou qui n'est pas un objet, répond {"ok": False}
 
-    # Fire-and-forget : retourne 200 immediatement
-    asyncio.create_task(process_telegram_update(payload))
+    # Une mise à jour déjà vue (relivrée par Telegram, ou rejouée) est écartée
+    if not await _claim_telegram_update(payload.get("update_id")):
+        return {"ok": True}
+
+    # Retourne 200 immédiatement : le traitement part en arrière-plan
+    safe_fire_and_forget(process_telegram_update(payload), name="telegram_webhook_update")
     return {"ok": True}
 ```
 
-**Point critique** : Le webhook **retourne 200 immediatement**. Le traitement se fait dans `asyncio.create_task()` en background. Sinon Telegram renvoie la mise a jour apres ~5 secondes de timeout.
+**Point critique** : Le webhook **retourne 200 immédiatement**. Le traitement part en arrière-plan par `safe_fire_and_forget()`, qui garde une référence forte sur la tâche et journalise ses exceptions. Sinon Telegram renvoie la mise à jour après ~5 secondes de timeout.
+
+**Rejeu** : `_claim_telegram_update()` pose la clé `telegram_update:{update_id}` une seule fois, pour `TELEGRAM_UPDATE_DEDUP_TTL_SECONDS`. Une mise à jour que Telegram relivre, ou qu'un tiers rejoue, n'est donc traitée qu'une fois ; si le cache ne répond pas, elle est traitée quand même.
 
 ### 5.2 Validation de signature
 
 ```python
-# apps/api/src/infrastructure/channels/telegram/webhook_handler.py
+# apps/api/src/infrastructure/channels/telegram/webhook_handler.py (abrégé)
 async def validate_signature(self, body: bytes, signature: str) -> bool:
     expected = getattr(settings, "telegram_webhook_secret", None)
     if not expected:
-        return True  # Dev mode : accepte tout
+        # SEC-024 : sans secret configuré, la requête est REFUSÉE et journalisée
+        logger.error("telegram_webhook_rejected_no_secret", ...)
+        return False
 
     if not signature:
         return False
 
     return hmac.compare_digest(signature, expected)  # Comparaison constant-time
 ```
+
+Sans `TELEGRAM_WEBHOOK_SECRET`, aucune requête n'est acceptée. Rien de légitime n'y perd : en mode webhook, le démarrage refuse un secret absent ou resté à sa valeur d'exemple (`ChannelsSettings._webhook_mode_requires_a_real_secret`) ; en interrogation longue, Telegram n'appelle jamais cette route.
 
 ### 5.3 Parsing des Updates
 
@@ -557,6 +574,7 @@ Le `html.escape()` est essentiel pour eviter les erreurs `BadRequest` de Telegra
 | Source | Module appelant |
 |--------|----------------|
 | Rappels utilisateur | `infrastructure/scheduler/reminder_notification.py` |
+| Ouvertures des discussions proactives | `infrastructure/proactive/discussion_delivery.py` |
 | Interets proactifs | `NotificationDispatcher._send_channels()` |
 | Heartbeat autonome | `NotificationDispatcher._send_channels()` |
 | Actions planifiees | `NotificationDispatcher._send_channels()` |
@@ -569,7 +587,11 @@ Si l'utilisateur a bloque le bot, `TelegramSender` recoit une exception `Forbidd
 # apps/api/src/infrastructure/channels/telegram/sender.py
 except Forbidden:
     logger.warning("telegram_bot_blocked", chat_id=channel_user_id)
-    asyncio.create_task(_auto_disable_binding(channel_user_id))
+    channel_send_errors_total.labels(channel_type=CHANNEL_TYPE_TELEGRAM, error_type="forbidden").inc()
+    safe_fire_and_forget(
+        _auto_disable_binding(channel_user_id),
+        name="telegram_auto_disable_binding",
+    )
     return None
 ```
 
@@ -622,99 +644,22 @@ async def transcribe_voice_message(bot, voice_file_id, voice_duration_seconds=No
 
 ## 9. Comment ajouter un nouveau canal
 
-Pour ajouter un canal (ex: Discord), suivre ces etapes :
+Telegram est le seul canal implémenté ; aucun autre n'a encore été ajouté. Ce guide ne décrit donc pas une procédure éprouvée, et deux documents font foi :
 
-### 9.1 Modele
+- l'état du code — ce qui est générique, ce qui est câblé sur Telegram, la question du transport : [CHANNELS_INTEGRATION.md](../technical/CHANNELS_INTEGRATION.md), section « Ajout d'un Nouveau Canal » ;
+- la marche à suivre, phase par phase : [NEW_CHANNEL_CHECKLIST.md](../templates/NEW_CHANNEL_CHECKLIST.md).
 
-Ajouter le type dans l'enum `ChannelType` :
+### 9.1 Ce qu'un canal fournit
 
-```python
-# apps/api/src/domains/channels/models.py
-class ChannelType(StrEnum):
-    TELEGRAM = "telegram"
-    DISCORD = "discord"     # Nouveau
-```
+Les deux interfaces de la section 2.3 (`BaseChannelSender`, `BaseChannelWebhookHandler`), un formateur qui convertit le Markdown de l'assistant au format du canal et le découpe sous sa limite, la présentation des questions HITL, les messages du bot dans les six langues, ses réglages et son initialisation au démarrage.
 
-### 9.2 Infrastructure -- Sender
+### 9.2 Ce qui doit être généralisé d'abord
 
-Creer `infrastructure/channels/discord/sender.py` implementant `BaseChannelSender` :
+Le domaine n'est pas encore indépendant de Telegram. Le routeur construit lui-même `TelegramSender` et `TelegramWebhookHandler` ; le traitement des messages importe le formateur, le clavier HITL et la voix de Telegram ; `_send_to_channel()` n'a qu'une branche ; l'écran des réglages ne connaît que `telegram`. Un second canal commence donc par une généralisation, dont la liste exacte est tenue dans le document technique.
 
-```python
-# apps/api/src/infrastructure/channels/discord/sender.py  (exemple — canal Discord illustratif)
-from src.domains.channels.abstractions import BaseChannelSender, ChannelOutboundMessage
+### 9.3 Transport
 
-class DiscordSender(BaseChannelSender):
-    async def send_message(self, channel_user_id: str, message: ChannelOutboundMessage) -> str | None:
-        # Implementation specifique Discord
-        ...
-
-    async def send_typing_indicator(self, channel_user_id: str) -> None:
-        ...
-
-    async def send_notification(self, channel_user_id: str, title: str, body: str, data=None) -> bool:
-        ...
-
-    async def remove_keyboard(self, channel_user_id: str, message_id: str) -> bool:
-        ...
-```
-
-### 9.3 Infrastructure -- Webhook Handler
-
-Creer `infrastructure/channels/discord/webhook_handler.py` implementant `BaseChannelWebhookHandler` :
-
-```python
-from src.domains.channels.abstractions import BaseChannelWebhookHandler, ChannelInboundMessage
-
-class DiscordWebhookHandler(BaseChannelWebhookHandler):
-    async def validate_signature(self, body: bytes, signature: str) -> bool:
-        # Validation Ed25519 specifique Discord
-        ...
-
-    async def parse_update(self, payload: dict) -> ChannelInboundMessage | None:
-        # Parse Discord interaction -> ChannelInboundMessage
-        ...
-```
-
-### 9.4 Routage des notifications
-
-Ajouter le routage dans la fonction `_send_to_channel()` du module de notification :
-
-```python
-async def _send_to_channel(binding: UserChannelBinding, title: str, body: str) -> bool:
-    if binding.channel_type == ChannelType.TELEGRAM:
-        sender = TelegramSender()
-        return await sender.send_notification(binding.channel_user_id, title, body)
-    elif binding.channel_type == ChannelType.DISCORD:
-        sender = DiscordSender()
-        return await sender.send_notification(binding.channel_user_id, title, body)
-    return False
-```
-
-### 9.5 Router FastAPI
-
-Ajouter un endpoint webhook dans `router.py` pour Discord.
-
-### 9.6 Internationalisation
-
-Ajouter les messages bot et labels HITL dans les dictionnaires i18n de `formatter.py` et `hitl_keyboard.py`.
-
-### 9.7 Configuration
-
-Ajouter les settings Discord dans `core/config/channels.py` et les constantes dans `core/constants.py`.
-
-### 9.8 Checklist
-
-- [ ] `ChannelType` enum mis a jour
-- [ ] `BaseChannelSender` implemente
-- [ ] `BaseChannelWebhookHandler` implemente
-- [ ] Routage notification ajoute
-- [ ] Endpoint webhook ajoute
-- [ ] Messages bot i18n (6 langues)
-- [ ] Labels HITL i18n (6 langues)
-- [ ] Configuration `.env` + `ChannelsSettings`
-- [ ] Constantes dans `core/constants.py`
-- [ ] Tests unitaires
-- [ ] Migration Alembic (si colonnes supplementaires)
+`BaseChannelWebhookHandler` suppose un fournisseur qui envoie ses mises à jour sur une route HTTP. Un canal qui les livre par une connexion maintenue ouverte n'a pas de modèle en production : l'interrogation longue de Telegram n'existe qu'en développement (section 3.3).
 
 ---
 
@@ -724,7 +669,8 @@ Ajouter les settings Discord dans `core/config/channels.py` et les constantes da
 
 | Risque | Mitigation | Implementation |
 |--------|-----------|----------------|
-| Webhook forge | `X-Telegram-Bot-Api-Secret-Token` avec `hmac.compare_digest` | `TelegramWebhookHandler.validate_signature()` |
+| Webhook forge | `X-Telegram-Bot-Api-Secret-Token` avec `hmac.compare_digest`, vérifié avant la lecture du corps ; requête refusée quand aucun secret n'est configuré (SEC-024) | `TelegramWebhookHandler.validate_signature()` |
+| Mise à jour rejouée | Chaque `update_id` n'est traité qu'une fois pendant `TELEGRAM_UPDATE_DEDUP_TTL_SECONDS` | `_claim_telegram_update()` |
 | Spam / flooding | Rate limit per-user (10/min) + global (25/sec) | `ChannelMessageRouter` + `RedisRateLimiter` |
 | Messages concurrents | Verrou Redis par personne a jeton de proprietaire, pris par le message comme par le bouton (`try_claim`), tenu pendant le tour et libere par son jeton (`held_claim` ; `CHANNEL_MESSAGE_LOCK_TTL_SECONDS` borne un crash) | `ChannelMessageRouter.route_message()`, `_handle_hitl_callback()` |
 | Usurpation d'identite | OTP single-use + TTL + contraintes UNIQUE bidirectionnelles | `ChannelService.verify_otp()` + `UserChannelBinding` |
@@ -934,7 +880,7 @@ async def test_parse_hitl_callback():
 ### Probleme : Webhook renvoie 403
 
 - Verifier que `TELEGRAM_WEBHOOK_SECRET` dans `.env` correspond au secret configure lors de `set_webhook()`
-- En dev sans secret configure, le handler accepte tout (log warning `telegram_webhook_no_secret_configured`)
+- Sans secret configuré, toute requête est refusée, y compris en développement (erreur `telegram_webhook_rejected_no_secret` au journal). En interrogation longue, sans `TELEGRAM_WEBHOOK_URL`, Telegram n'appelle pas cette route
 
 ### Probleme : OTP invalide ou expire
 

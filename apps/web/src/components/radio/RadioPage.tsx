@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useId, useState } from 'react';
-import { Play, Radio, Timer, Users } from '@/lib/icons';
+import { Play, RadioSet, Timer, Users } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -179,7 +179,7 @@ export function RadioPage({ lng, available }: { lng: Language; available: boolea
     <div className="space-y-6">
       <header>
         <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-          <Radio className="h-6 w-6 text-primary" aria-hidden="true" />
+          <RadioSet className="h-6 w-6 text-primary" aria-hidden="true" />
           {t('radio.page.title')}
         </h1>
         <p className="text-sm text-muted-foreground">{t('radio.page.subtitle')}</p>

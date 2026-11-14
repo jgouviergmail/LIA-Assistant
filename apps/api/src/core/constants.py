@@ -286,6 +286,10 @@ BRAVE_SEARCH_MAX_CONTEXT_CHARS = 1500  # Max chars per result description (trunc
 # repaired before the call, never reported as a defect.
 BRAVE_SEARCH_MAX_QUERY_CHARS = 400
 BRAVE_SEARCH_MAX_QUERY_WORDS = 50
+# LIA searches the web UNFILTERED (owner decision 2026-11-13, ADR-382 amendment):
+# Brave filters « moderate » when the parameter is absent, so its word for
+# « off » rides every request (the instance's search: SEARXNG_SAFESEARCH_OFF).
+BRAVE_SAFESEARCH_OFF: Final = "off"
 
 # Web Fetch Tool (evolution F1 — Web Page Content Extraction)
 WEB_FETCH_MAX_CONTENT_LENGTH = 2_000_000  # bytes, max HTTP response body size
@@ -703,6 +707,18 @@ EMAILS_DIGEST_CONCURRENCY_DEFAULT: int = 4
 # ADR-287: the quoted history and the signature leave a reply body at the client
 # boundary (six languages of markers, measured on a 48-body corpus).
 EMAILS_TRIM_QUOTED_REPLIES_DEFAULT: bool = True
+# ADR-379: where a listed message stands in its conversation (« already answered »).
+# One read of the page's conversations per listing, no model call. Measured on real
+# mailboxes (2026-11-11): fifty-one Gmail threads in 0.9 s, seven Graph conversations
+# in 0.3 s — the time budget leaves room for a slow mailbox and fails open past it.
+MAIL_REPLY_STATE_ENABLED_DEFAULT: bool = True
+MAIL_REPLY_STATE_MAX_MESSAGES_DEFAULT: int = 50
+MAIL_REPLY_STATE_CONVERSATION_MAX_MESSAGES_DEFAULT: int = 20
+MAIL_REPLY_STATE_TIMEOUT_SECONDS_DEFAULT: float = 4.0
+# A « no reply yet » is the reading of a moment: past this, a model is told
+# « not checked » and must look again before it says so.
+MAIL_REPLY_STATE_VALIDITY_SECONDS_DEFAULT: int = 120
+MAIL_REPLY_STATE_EXCERPT_MAX_CHARS_DEFAULT: int = 160
 # Reading ONE attachment of a message (``get_email_attachment``): the bytes
 # are classified by what they are, text is extracted through the knowledge
 # spaces' own pipeline, and an image or a PDF without a text layer is read by
@@ -1012,6 +1028,88 @@ SCHEDULED_ACTIONS_WEATHER_MIN_PRECIPITATION_PERCENT_DEFAULT = 50
 #: flaps must not turn into a stream of them. Twelve, like the most moments a
 #: timed routine may declare a day by default (``SCHEDULED_ACTIONS_MAX_TIMES_PER_DAY_DEFAULT``).
 SCHEDULED_ACTIONS_CONDITION_MAX_FIRES_PER_DAY_DEFAULT = 12
+#: How long an account is not told again that its usage ceiling stood its
+#: routines aside. The ceiling blocks EVERY routine of the account at once, so
+#: the notice is the account's, claimed once per window, never one per routine.
+SCHEDULED_ACTIONS_QUOTA_NOTICE_COOLDOWN_HOURS_DEFAULT = 24
+# The claim of that notice. Pattern: scheduled_action:quota_notified:{user_id}
+SCHEDULED_ACTIONS_QUOTA_NOTIFIED_KEY_PREFIX = "scheduled_action:quota_notified"
+#: Longest an occurrence of a time routine may start late, in minutes. An
+#: occurrence is caught up inside HALF the gap to the one that follows it, and
+#: never past this maximum: a morning routine answered in the afternoon is not
+#: the morning's. Two hours — the bound a daily routine reaches.
+SCHEDULED_ACTIONS_CATCH_UP_MAX_MINUTES_DEFAULT = 120
+#: The smallest maximum an operator may set. The scheduler passes every
+#: ``SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS`` and a batch queues behind its
+#: concurrency bound: under two minutes, an occurrence served on time by a busy
+#: scheduler would read as late.
+SCHEDULED_ACTIONS_CATCH_UP_MAX_MINUTES_FLOOR = 2
+#: How many local days the search for a later occurrence walks back once one is
+#: given up. Only the last occurrence of a series can be older than the maximum
+#: above and still be served; past a year the series is closed without it, and
+#: a walk over an ancient row stays bounded.
+SCHEDULED_ACTIONS_CATCH_UP_LOOKBACK_DAYS = 366
+
+# --- A signed call starts a routine (ADR-386) -----------------------------
+#: Random bytes behind a routine's address key and its HMAC secret: 24 bytes
+#: make 32 url-safe characters, 32 bytes make 43 — unguessable both.
+ROUTINE_WEBHOOK_KEY_BYTES: Final = 24
+ROUTINE_WEBHOOK_SECRET_BYTES: Final = 32
+#: Where a caller puts the signature of the body: LIA's own header first, then
+#: the one code forges send for the very same scheme (HMAC-SHA256, ``sha256=``).
+ROUTINE_WEBHOOK_SIGNATURE_HEADERS: Final = ("x-lia-signature-256", "x-hub-signature-256")
+ROUTINE_WEBHOOK_SIGNATURE_PREFIX: Final = "sha256="
+#: Where a caller names its delivery, so a retried call is stored once.
+ROUTINE_WEBHOOK_DELIVERY_HEADERS: Final = ("x-lia-delivery", "x-github-delivery")
+ROUTINE_WEBHOOK_DELIVERY_ID_MAX_LENGTH: Final = 200
+#: Largest accepted body: a door sensor, a release, a form fit in a few KiB.
+ROUTINE_WEBHOOK_MAX_BODY_BYTES_DEFAULT = 65_536
+#: Deliveries a routine keeps waiting before a further call is refused (429).
+ROUTINE_WEBHOOK_MAX_PENDING_DEFAULT = 20
+#: Calls one address takes a minute.
+ROUTINE_WEBHOOK_RATE_PER_MINUTE_DEFAULT = 30
+#: Deliveries one run serves; what is left waits for the next run.
+ROUTINE_WEBHOOK_MAX_PER_RUN_DEFAULT = 5
+#: Characters of one delivery's body the run is shown; the cut is said.
+ROUTINE_WEBHOOK_PROMPT_CHARS: Final = 8_000
+#: Calls one client address may make to every routine address a minute.
+RATE_LIMIT_ROUTINE_WEBHOOK_PER_IP_PER_MINUTE: Final = 120
+#: How long a routine whose run FAILED waits before serving its calls again —
+#: a run already retried inside itself, and a loop at every pass would spend a
+#: model call a minute on a provider that is down (the condition cadence's order).
+ROUTINE_WEBHOOK_FAILURE_RETRY_SECONDS: Final = 600
+#: How long a served call's row stays (its body erased at serving) so that the
+#: same delivery, sent again, is recognised and not served twice.
+ROUTINE_WEBHOOK_SERVED_RETENTION_DAYS: Final = 7
+#: The path of a routine's address under the API prefix: ``…/{key}``.
+ROUTINE_WEBHOOK_PATH: Final = "/hooks/routines"
+#: Redis prefix of the per-address call window (``routine_webhook:{routine id}``)
+#: and of the per-client one (``routine_webhook:call:{ip}``).
+ROUTINE_WEBHOOK_RATE_LIMIT_KEY_PREFIX: Final = "routine_webhook"
+
+# --- A page a person watches is read without a model (ADR-387) --------------
+#: How often the system reads a watched page. A page changes at its owner's
+#: pace, not the person's: an hour is fresh enough for a price or a notice, and
+#: polite to the site, which sees one request an hour per watch.
+SCHEDULED_ACTIONS_PAGE_CHECK_MINUTES_DEFAULT = 60
+#: Longest address a page watch keeps — published in the condition's schema.
+PAGE_WATCH_URL_MAX_CHARS: Final = 2_048
+#: Longest line filter (« only the lines that contain… »).
+PAGE_WATCH_CONTAINS_MAX_CHARS: Final = 120
+#: Largest page a check reads, in decoded bytes: a shop's product page weighs
+#: one to three megabytes with its inline scripts; past this, nothing is read.
+PAGE_WATCH_MAX_BYTES: Final = 4_000_000
+#: Seconds one page read may take, every redirect included.
+PAGE_WATCH_TIMEOUT_SECONDS: Final = 20
+#: Lines of a page one check keeps, in page order: the ledger holds one hashed
+#: key per line, and what lies past this is the page's tail, not its news.
+PAGE_WATCH_MAX_LINES: Final = 400
+#: Longest line kept: a longer one is cut, for its key and for its display.
+PAGE_WATCH_LINE_MAX_CHARS: Final = 500
+#: Characters of new lines one run is shown; the rest is counted, never dropped silently.
+PAGE_WATCH_NOTE_MAX_CHARS: Final = 6_000
+#: How a page watch introduces itself to the sites it reads.
+PAGE_WATCH_USER_AGENT: Final = "LIA-PageWatch/1.0 (+https://github.com/jgouviergmail/LIA)"
 
 # ============================================================================
 # TELEPHONY (agentic outbound calls)
@@ -1327,6 +1425,8 @@ DATABASE_SESSION_CLOSE_CANCELLATION_GRACE_ATTEMPTS: Final = 3
 TRACKER_COMMIT_CANCELLATION_GRACE_ATTEMPTS: Final = 3
 # How long a cancelled turn waits for its stream to close, spend written included.
 STREAM_TEARDOWN_WAIT_SECONDS: Final = 5.0
+# Inline SSE backpressure is bounded in memory; disconnect abandons this queue.
+CHAT_INLINE_QUEUE_MAX_CHUNKS: Final = 16
 
 # LangGraph PostgreSQL connection pools (ADR-111 — checkpointer & store scalability)
 # Replaces the former single persistent AsyncConnection per worker (audit S2/A7):
@@ -1499,6 +1599,12 @@ ACCOUNT_EXPORT_STALE_RUNNING_MINUTES_DEFAULT = 30  # crashed-run detection
 SCHEDULER_JOB_ACCOUNT_EXPORT = "account_export_executor"
 ACCOUNT_EXPORT_EXECUTOR_INTERVAL_SECONDS = 60
 RATE_LIMIT_ACCOUNT_EXPORT_PER_MINUTE = 3  # per-user on export request endpoints
+# Per user, on the export of ONE discussion: a complete read of its history,
+# so a handful a minute — a person exports, a script does not page with it.
+RATE_LIMIT_CONVERSATION_EXPORT_PER_MINUTE = 6
+# Per user, on the routes that keep, edit, withdraw or send a waiting message
+# (ADR-384): a person types and clicks; a script that loops on them is refused.
+RATE_LIMIT_WAITING_MESSAGE_PER_MINUTE = 60
 # Per administrator, on the voice library's paid or vendor-writing requests
 # (clone, design, save, local transcript) — ADR-345.
 RATE_LIMIT_FISHAUDIO_VOICE_LIBRARY_PER_MINUTE = 6
@@ -1629,6 +1735,13 @@ WEATHER_CACHE_FORECAST_TTL = 1800  # 30 minutes - weather forecast
 
 # Weather forecast configuration
 WEATHER_FORECAST_MAX_DAYS = 5  # OpenWeatherMap free tier limit (5-day forecast)
+
+# The companion's weather (ADR-294, follow-up of 2026-11-13). An observation of the
+# present conditions stays the present this long after the provider made it: the
+# companion shows nothing older, whichever read made it.
+PRESENT_WEATHER_FRESH_SECONDS = 3600
+# Redis prefix of each account's newest such observation (no place in it).
+COMPANION_WEATHER_CACHE_PREFIX = "companion:weather"
 
 # Cache TTL for Wikipedia API responses (in seconds)
 WIKIPEDIA_CACHE_SEARCH_TTL = 3600  # 1 hour - search results (static content)
@@ -1773,6 +1886,17 @@ HTTP_TIMEOUT_PERPLEXITY = 60.0  # Perplexity AI (complex queries can be slow)
 HTTP_TIMEOUT_WEATHER = 10.0  # OpenWeatherMap API
 HTTP_TIMEOUT_WIKIPEDIA = 15.0  # Wikipedia API
 HTTP_TIMEOUT_BRAVE_SEARCH = 5.0  # Brave Search API (per request)
+# The instance's SearXNG (lot 18): it waits up to 6 s for its slowest engine
+# (infrastructure/searxng/settings.yml, outgoing.max_request_timeout); LIA waits
+# a little above, measured p95 1.6 s and max 3.0 s on 60 searches.
+HTTP_TIMEOUT_SEARXNG = 8.0
+# A search URL carries words, not a paragraph a planner wrote: cut at a word boundary.
+SEARXNG_QUERY_MAX_CHARS = 400
+# The longest a search waits for the instance's shaper (ADR-254): past it, it goes ahead.
+SEARXNG_SLOT_WAIT_SECONDS = 2.0
+# Unfiltered, like Brave (BRAVE_SAFESEARCH_OFF): SearXNG's word for « off », sent on
+# every request so no settings.yml an operator edits can filter LIA's searches.
+SEARXNG_SAFESEARCH_OFF: Final = 0
 # NOTE: HTTP_TIMEOUT_CURRENCY_API removed in Wave 4 (G1, 2026-05-15) — duplicate
 # of CURRENCY_API_TIMEOUT_SECONDS_DEFAULT. The currency client reads
 # settings.currency_api_timeout_seconds (advanced.py).
@@ -2037,7 +2161,11 @@ REDIS_KEY_OAUTH_STATE_PREFIX = "oauth:state:"
 
 # HITL (Human-in-the-Loop) keys
 REDIS_KEY_HITL_PENDING_PREFIX = "hitl_pending:"
+REDIS_KEY_HITL_RATE_LIMIT_PREFIX = "hitl_rate_limit:"
 REDIS_KEY_HITL_REQUEST_TS_PREFIX = "hitl:request_ts:"
+REDIS_KEY_RUNTIME_WRITER_PREFIX = "conversation:writer:"
+REDIS_KEY_RUNTIME_INVENTORY_PREFIX = "conversation:inventory:"
+REDIS_KEY_RECURRENCE_WRITER_PREFIX = "recurrence_writer:"
 
 # Pricing cache keys
 REDIS_KEY_MODEL_PRICE_PREFIX = "async_model_price_"
@@ -2055,10 +2183,57 @@ REDIS_KEY_RUN_LISTENERS_PREFIX = "chat:listeners:"
 # Lot 3: user-requested cancellation signal per stream
 REDIS_KEY_RUN_CANCEL_PREFIX = "chat:cancel:"
 
-# Conversation message history search (GET /conversations/me/messages?search=)
-# Case-insensitive ILIKE substring match on ConversationMessage.content.
+# The words searched across every discussion of the account (GET
+# /conversations/me/search, and the assistant's search_conversations_tool):
+# case- and accent-insensitive substring match on ConversationMessage.content.
 CONVERSATION_SEARCH_MIN_LENGTH = 2  # Shortest substring accepted (avoid 1-char noise)
 CONVERSATION_SEARCH_MAX_LENGTH = 200  # Upper bound to prevent pathological queries
+# The assistant's lookup across every discussion (search_conversations_tool):
+# most passages one call returns, and the characters of each passage around the
+# words it found (the person reads the whole message in the chat).
+CONVERSATION_SEARCH_TOOL_MAX_RESULTS_DEFAULT = 10
+CONVERSATION_SEARCH_EXCERPT_CHARS = 280
+CONVERSATION_TITLE_MAX_LENGTH = 500
+CONVERSATION_TITLE_PATTERN = r"^[^\x00]*$"  # PostgreSQL text cannot store NUL.
+CONVERSATION_LIST_SQL_MAX = 2_147_483_647  # Native INTEGER limit/offset parameters.
+# Python's Unicode whitespace set, also passed to PostgreSQL btrim so a direct
+# SQL writer cannot create a title the request validator would consider blank.
+UNICODE_WHITESPACE = (
+    "\t\n\v\f\r\x1c\x1d\x1e\x1f \x85\xa0\u1680"
+    "\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a"
+    "\u2028\u2029\u202f\u205f\u3000"
+)
+# Retained name for the title constraint and its already-published migration.
+CONVERSATION_TITLE_WHITESPACE = UNICODE_WHITESPACE
+# What a deleted annex's row holds in place of the title its owner wrote: the
+# row stays for its receipt and cleanup, the constraint wants a nonblank title,
+# and no reader ever shows a retired row.
+CONVERSATION_RETIRED_TITLE = "retired"
+# Longest title a discussion takes from its first message, ellipsis included.
+# Not an env setting: it is a reading width — what fits the discussion list on
+# a phone without wrapping — not a behaviour an operator calibrates; a typed
+# title keeps the full CONVERSATION_TITLE_MAX_LENGTH.
+CONVERSATION_AUTO_TITLE_MAX_LENGTH = 60
+CONVERSATION_HISTORY_CURSOR_MAX_LENGTH = 512
+CONVERSATION_OWNER_LOCK_SCOPE = "conversation_lifecycle"
+CONVERSATION_REVISION_MAX = 9_223_372_036_854_775_807  # PostgreSQL BIGINT.
+CONVERSATION_CLEANUP_INTERVAL_SECONDS = 15
+CONVERSATION_CLEANUP_BATCH_SIZE = 20
+CONVERSATION_CLEANUP_LEASE_SECONDS = 60
+CONVERSATION_CLEANUP_PHASE_SECONDS = 60
+CONVERSATION_CLEANUP_MAX_ATTEMPTS = 8
+CONVERSATION_CLEANUP_RETRY_SECONDS = 30
+CONVERSATION_CLEANUP_RETENTION_DAYS = 30
+CONVERSATION_CLEANUP_PAGE_SIZE = 100
+CONVERSATION_LEGACY_CLEANUP_WAIT_SECONDS = 10
+ACCOUNT_CLEANUP_WAIT_SECONDS = 30
+UNVERIFIED_ACCOUNT_CLEANUP_BATCH_SIZE = 100
+SCHEDULER_JOB_CONVERSATION_CLEANUP = "conversation_cleanup"
+CONVERSATION_RUN_ID_MAX_LENGTH = 255
+CONVERSATION_LIST_DEFAULT_LIMIT = 30
+CONVERSATION_LIST_MAX_LIMIT = 100
+CONVERSATION_RETURN_MIN_AGE_SECONDS = 3600
+CONVERSATION_RETURN_WINDOWS: tuple[tuple[str, int], ...] = (("24h", 86400), ("7d", 604800))
 DISPLAY_SEARCH_MAX_LENGTH = 256  # Literal metadata search in application lists
 DISPLAY_READ_BATCH_ROWS = 128  # Bound memory while matching complete display-text streams
 ACTIVITY_TIMELINE_PAGE_SIZE_MAX = 100
@@ -2694,6 +2869,9 @@ REDIS_KEY_PRESENCE_PREFIX = "presence:"  # + {user_id}:{local_date}:{hour} | las
 # Context aggregation
 HEARTBEAT_CONTEXT_CALENDAR_HOURS_DEFAULT = 4
 HEARTBEAT_CONTEXT_TASKS_DAYS_DEFAULT = 2
+# Hard cap on the pending tasks injected into the decision prompt: the most pressing of
+# EVERY list (owner rule, 2026-11-10), and the page asked of each list.
+HEARTBEAT_CONTEXT_TASKS_MAX = 10
 HEARTBEAT_CONTEXT_MEMORY_LIMIT_DEFAULT = 5
 HEARTBEAT_CONTEXT_EMAILS_MAX_DEFAULT = 5
 # Birthdays look-ahead for the heartbeat source (P7): 1 = today + tomorrow
@@ -3079,12 +3257,8 @@ TASK_ORCHESTRATOR_EXECUTION_TIMEOUT_SECONDS_DEFAULT = 600.0
 HITL_MAX_WAIT_SECONDS_DEFAULT = 900
 RETRY_MAX_ATTEMPTS_DEFAULT = 3
 RETRY_BACKOFF_FACTOR_DEFAULT = 2.0
-# gpt-4.1-nano retires 2026-10-23 and models.dev already flags it deprecated.
-# gpt-5.6-luna is the cheapest active OpenAI chat model in the catalogue
-# ($0.20/$1.20 per 1M against gpt-4.1-mini's $0.40/$1.60) and carries a
-# 922k window. The summarization middleware calls init_chat_model without
-# sampling parameters, so a reasoning model is safe here.
-SUMMARIZATION_MODEL_DEFAULT = "gpt-5.6-luna"
+# The history summarizer names no model here: it writes with the ``compaction``
+# slot (infrastructure/llm/slot_summarization.py).
 SUMMARIZATION_TRIGGER_FRACTION_DEFAULT = 0.7
 SUMMARIZATION_KEEP_MESSAGES_DEFAULT = 10
 # Both previous entries were dead: claude-sonnet-4-5 is absent from the
@@ -3160,6 +3334,12 @@ MEMORY_CONTENT_MAX_CHARS_DEFAULT = 500  # `content` is a Text column: a setting 
 MEMORY_CONTENT_MIN_CHARS = 3
 MEMORY_TRIGGER_TOPIC_MAX_CHARS = 100  # The column's width: moving it takes a migration
 MEMORY_USAGE_NUANCE_MAX_CHARS = 300  # The column's width: moving it takes a migration
+# Importing a memories export (POST /memories/import). The two ceilings are settings,
+# published to the screen through `MemoryLimits`; the batch is how many texts one
+# embedding call carries (under the provider's per-request bound), never a setting.
+MEMORY_IMPORT_MAX_MEMORIES_DEFAULT = 500
+MEMORY_IMPORT_MAX_FILE_KB_DEFAULT = 2048
+MEMORY_IMPORT_EMBEDDING_BATCH_SIZE = 50
 MEMORY_EXTRACTION_MAX_TOKENS_DEFAULT = 1000
 MEMORY_EXTRACTION_MESSAGE_MAX_CHARS_DEFAULT = 3000
 MEMORY_EXTRACTION_TOP_P_DEFAULT = 1.0
@@ -3312,6 +3492,9 @@ CLIENT_RATE_LIMIT_GOOGLE_PER_SECOND_DEFAULT = 10
 CLIENT_RATE_LIMIT_PERPLEXITY_PER_SECOND_DEFAULT = 2.0
 PERPLEXITY_SEARCH_MODEL_DEFAULT = "sonar-pro"
 CLIENT_RATE_LIMIT_BRAVE_SEARCH_PER_SECOND_DEFAULT = 20.0
+# ONE bucket for the whole instance: every account's search leaves from the
+# same address, and the public engines SearXNG asks throttle an address.
+CLIENT_RATE_LIMIT_SEARXNG_PER_SECOND_DEFAULT = 3.0
 CLIENT_RATE_LIMIT_MICROSOFT_PER_SECOND_DEFAULT = 4
 CLIENT_RATE_LIMIT_OPENWEATHERMAP_PER_SECOND_DEFAULT = 1
 CLIENT_RATE_LIMIT_WIKIPEDIA_PER_SECOND_DEFAULT = 0.5
@@ -3395,6 +3578,9 @@ ENTITY_RESOLUTION_MAX_CANDIDATES_CAP = 10
 # the analyzer is shown at most fifteen of those items (≈25 tokens each).
 ENTITY_RESOLUTION_MAX_TURN_AGE_DEFAULT = 3
 ENTITY_RESOLUTION_SHOWN_ITEMS_MAX_DEFAULT = 15
+# What the analyzer reads of each earlier turn: its text, cut here, after the
+# moment it was written (lot 17: the moment never takes the text's room).
+QUERY_ANALYZER_HISTORY_TURN_MAX_CHARS: Final = 200
 FORMAT_TRUNCATE_SUBJECT_LENGTH_DEFAULT = 70  # Aligned from .env.prod (was 55)
 REDIS_SCAN_COUNT_DEFAULT = 100
 CURRENCY_CACHE_TTL_HOURS_DEFAULT = 24
@@ -3613,6 +3799,8 @@ MCP_USER_OAUTH_RESULT_PARAM = "mcp_oauth"
 MCP_USER_OAUTH_RESULT_SUCCESS = "success"
 MCP_USER_OAUTH_RESULT_ERROR = "error"
 MCP_USER_OAUTH_RESULT_DENIED = "denied"  # User refused consent
+# The server changed while the person consented: the tokens were not stored.
+MCP_USER_OAUTH_RESULT_CHANGED = "changed"
 SCHEDULER_JOB_USER_MCP_EVICTION = "user_mcp_pool_eviction"
 
 # MCP domain description algorithmic fallback (shared admin + user MCP)
@@ -4628,7 +4816,7 @@ INTENT_PATTERNS_UPDATE: frozenset[str] = frozenset(
 # IMPORTANT: Planner generates Gmail syntax queries in English after semantic
 # pivot, so only English/Gmail patterns are needed.
 #
-# Used by: GetEmailsTool._normalize_query(), SearchEmailsTool._normalize_email_query()
+# Used by: GetEmailsTool (through ``normalize_gmail_query``)
 # ============================================================================
 
 # Keywords indicating user explicitly wants INBOX only
@@ -4956,10 +5144,33 @@ ATTACHMENTS_MAX_PER_MESSAGE_DEFAULT = 5
 ATTACHMENTS_ALLOWED_IMAGE_TYPES_DEFAULT = (
     "image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif"
 )
-ATTACHMENTS_ALLOWED_DOC_TYPES_DEFAULT = "application/pdf"
+#: Every document format LIA extracts text from (comma-separated): 15 formats
+#: + the ``text/xml`` variant. ONE list for the two doors a document enters
+#: by — a knowledge space and a chat message — because a copy from a space
+#: already brings any of them into a message (ADR-295): the composer accepts
+#: by upload what it accepts by copy.
+EXTRACTABLE_DOCUMENT_TYPES_DEFAULT = (
+    "text/plain,text/markdown,application/pdf,"
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document,"
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation,"
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,"
+    "text/csv,application/rtf,text/html,"
+    "application/vnd.oasis.opendocument.text,"
+    "application/vnd.oasis.opendocument.spreadsheet,"
+    "application/vnd.oasis.opendocument.presentation,"
+    "application/epub+zip,application/json,"
+    "application/xml,text/xml"
+)
+ATTACHMENTS_ALLOWED_DOC_TYPES_DEFAULT = EXTRACTABLE_DOCUMENT_TYPES_DEFAULT
 
 # Lifecycle
 ATTACHMENTS_TTL_HOURS_DEFAULT = 24
+ATTACHMENTS_READ_CHUNK_BYTES = 64 * 1024
+ATTACHMENTS_FILENAME_MAX_CHARS = 255
+ATTACHMENTS_FILE_SUFFIX_MAX_CHARS = 16
+ATTACHMENTS_CLEANUP_BATCH_SIZE_DEFAULT = 100
+ATTACHMENTS_CLEANUP_INTERVAL_SECONDS_DEFAULT = 60
+ATTACHMENTS_REMOVAL_CLAIM_SECONDS_DEFAULT = 60
 
 # Keeping a generated file past its deadline (ADR-319): the gallery lets a
 # person exempt some files from the cleanup. Bounded per account, because
@@ -4969,6 +5180,9 @@ GENERATED_ASSETS_KEEP_MAX_MB_DEFAULT = 500
 
 # PDF processing
 ATTACHMENTS_MAX_PDF_TEXT_CHARS_DEFAULT = 50000
+# Most a zipped document (Office, OpenDocument, EPUB) may declare once inflated before
+# its text is read: its readers inflate whole parts in memory, inside the upload request.
+ATTACHMENTS_MAX_INFLATED_MB_DEFAULT = 100
 
 # ============================================================================
 # EMAIL SHARE (ADR-321) — a generated file or an answer sent by e-mail
@@ -5135,9 +5349,16 @@ WORKBENCH_CALENDAR_NAME_MAX_CHARS: Final = 255
 WORKBENCH_FILE_NAME_MAX_CHARS: Final = 255
 #: What OneDrive refuses in a name beyond a path's own separators, which no drive takes.
 ONEDRIVE_REFUSED_NAME_CHARACTERS: Final = '"*:<>?|'
-#: The dated tasks a calendar draws: how many lists are read at once, and how many pages
-#: of each. A list longer than that is stated as read in part (ADR-185).
-WORKBENCH_DUE_TASKS_CONCURRENCY: Final = 4
+#: Every task list of an account read in one go (owner rule, 2026-11-10: whoever reads a
+#: person's tasks reads all their lists): how many lists are asked at once. A provider answers
+#: a burst with 429, whoever reads.
+TASK_LISTS_READ_CONCURRENCY: Final = 4
+#: The lists such a read takes: the home's card, the assistant's tools, the heartbeat, the
+#: radio, a peer's shared titles. An account holding more is told the read is partial
+#: (ADR-185). A discussion read is bounded by its own call budget instead.
+TASK_LISTS_READ_MAX: Final = 25
+#: The lists scanned to find the one a model names, by its id or by its name.
+TASK_LIST_NAMES_SCAN_MAX: Final = 100
 
 # --- What LIA can do from the Tools (ADR-372) -----------------------------------------
 #: The slot of the short helpers. A summary or a reply stays on the slot that writes it for
@@ -5179,6 +5400,8 @@ TOOL_ASSIST_SEARCH_SOURCES_MAX: Final = 100
 TOOL_ASSIST_STEPS_MAX: Final = 8
 TOOL_ASSIST_LISTS_MAX: Final = 50
 TOOL_ASSIST_LABELS_MAX: Final = 200
+#: The pages the Tools read of one task list for a view across the lists or a calendar's dated
+#: tasks. A list longer than that is stated as read in part (ADR-185).
 WORKBENCH_DUE_TASKS_PAGES_MAX: Final = 5
 # Events one search answers, over every calendar asked.
 WORKBENCH_EVENT_SEARCH_MAX: Final = 50
@@ -5269,6 +5492,7 @@ SCHEDULER_JOB_RAG_JOB_REAPER = "rag_job_reaper"
 
 # Chunking
 RAG_SPACES_CHUNK_SIZE_DEFAULT = 1000
+RAG_SPACES_UPLOAD_READ_BYTES = 64 * 1024
 RAG_SPACES_CHUNK_OVERLAP_DEFAULT = 200
 RAG_SPACES_MAX_CHUNKS_PER_DOCUMENT_DEFAULT = 500
 
@@ -5300,18 +5524,7 @@ RAG_SPACES_MAX_CONTEXT_TOKENS_DEFAULT = 2000
 RAG_SPACES_BM25_BONUS_WEIGHT_DEFAULT = 0.05
 
 # MIME types (comma-separated) — 15 document formats + text/xml variant
-RAG_SPACES_ALLOWED_TYPES_DEFAULT = (
-    "text/plain,text/markdown,application/pdf,"
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document,"
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation,"
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,"
-    "text/csv,application/rtf,text/html,"
-    "application/vnd.oasis.opendocument.text,"
-    "application/vnd.oasis.opendocument.spreadsheet,"
-    "application/vnd.oasis.opendocument.presentation,"
-    "application/epub+zip,application/json,"
-    "application/xml,text/xml"
-)
+RAG_SPACES_ALLOWED_TYPES_DEFAULT = EXTRACTABLE_DOCUMENT_TYPES_DEFAULT
 
 # Embedding
 RAG_SPACES_EMBEDDING_MODEL_DEFAULT = "models/gemini-embedding-001"
@@ -5480,6 +5693,16 @@ SKILLS_NAME_MAX_LENGTH = 64
 SKILLS_DESCRIPTION_MAX_LENGTH = 1024
 SKILLS_MAX_FILE_SIZE_KB = 100
 SKILLS_MAX_PER_USER_DEFAULT = 20
+# A skill left active and unused still enters the analyzer's list on every turn:
+# after this many days without a use, the settings propose switching it off.
+SKILLS_DORMANT_AFTER_DAYS_DEFAULT = 60
+# The most skills one answer to the unused-skill proposal may name: what a
+# person can see is the system skills plus their own (SKILLS_MAX_PER_USER).
+SKILLS_DORMANT_DECISION_MAX_IDS = 200
+# Beside a person's skills, the reserved folder holding, per skill, the ONE
+# version its last replacement replaced (skills/previous_version.py). A leading
+# dot: never a valid skill name, so never read as a skill.
+SKILLS_PREVIOUS_VERSIONS_DIR = ".lia-previous"
 
 # Declarative output channels a skill may advertise in its frontmatter
 # (``outputs:`` — UXR Lot 10/B12). MUST stay equal to the generator's
@@ -6035,6 +6258,7 @@ ADAPTIVE_THRESHOLD_STATE_TTL_DAYS_DEFAULT = 90
 JOURNAL_CONSOLIDATION_MIN_ENTRIES_DEFAULT = 1
 JOURNAL_CONSOLIDATION_HISTORY_MAX_MESSAGES_DEFAULT = 20
 JOURNAL_CONSOLIDATION_HISTORY_MAX_DAYS_DEFAULT = 7
+JOURNAL_CONSOLIDATION_HISTORY_MESSAGE_MAX_CHARS = 500
 
 # The portrait's budgets (2026-09-16 design, part B). They used to be prose in
 # the prompt (« ~150-220 tokens »): a number a prompt states is a number
@@ -6125,6 +6349,26 @@ EMBEDDING_RETRY_MAX_ATTEMPTS_DEFAULT: int = 2
 #: the provider — never after a timeout or a loss once sent (spec 2026-10-21 E2, Q3 (a)).
 LLM_TRANSIENT_RETRY_MAX_DEFAULT: int = 2
 EMBEDDING_RETRY_BACKOFF_FACTOR_DEFAULT: float = 1.0
+
+#: The provider's own delay (ADR-254 amendment 2026-11-10). A quota refusal says
+#: when to come back (`RetryInfo.retryDelay`): measured on 2026-11-09, 581
+#: refusals of the per-minute quota, each naming 20 to 49 s, each retried one
+#: second later — 302 retries that could not succeed. The profile above stays
+#: the DEFAULT of every caller: an embedding on somebody's turn never waits for
+#: a quota, and now does not spend its retry on one the provider already
+#: refused. Only work that DECLARES itself (`patient_embeddings`, opened by the
+#: bulk indexing doors) serves the named delay, up to this many seconds.
+#: Forgetting to declare costs nobody a second — the fear a per-call flag
+#: raised. A per-minute quota never asks for more than a minute; a refusal
+#: asking for longer (a daily quota) is not waited at all.
+EMBEDDING_PATIENT_RETRY_MAX_WAIT_SECONDS_DEFAULT: float = 60.0
+#: Added to a named delay before it is served: the structured value is rounded
+#: DOWN to whole seconds (`40s` beside a message reading « retry in
+#: 40.38414246s »), and a retry that arrives a fraction early is refused again.
+EMBEDDING_PROVIDER_DELAY_MARGIN_SECONDS: float = 1.0
+#: Upper bound of the random spread added on top, so the documents of one batch
+#: do not all come back in the same instant.
+EMBEDDING_PROVIDER_DELAY_JITTER_SECONDS: float = 1.0
 
 #: Ceiling the defaults must respect, guarded by test: the seam is on a chat
 #: turn's critical path, and a resilience budget that grows past this stops
@@ -6454,6 +6698,10 @@ INTERACTIVE_PAGE_TOOL_NAME: str = "generate_interactive_page"
 # factor, not a tunable. Measured 2026-11-04 (o200k_base) on real pages inside
 # their JSON field: 2.78 to 2.80, kept ~20% under for language and markup.
 INTERACTIVE_PAGE_BYTES_PER_OUTPUT_TOKEN: float = 2.2
+# Map tile sources a page may load, by key of `core/map_tile_providers.py`
+# (ADR-370 amendment 2026-11-12): the page's policy names their origins for
+# images and nothing else. Empty, a page names no host at all.
+INTERACTIVE_PAGE_MAP_PROVIDERS_DEFAULT: tuple[str, ...] = ("osm_hot", "osm_fr")
 
 # ----------------------------------------------------------------------------
 # Rendering craft (ADR-276)
@@ -6487,6 +6735,34 @@ DOCUMENT_GENERATION_WORDS_PER_OUTPUT_TOKEN: dict[str, float] = {
     "SlideContent": 0.55,
     "TabularContent": 0.20,
 }
+
+# A computed column's expression (ADR-274 amendment 2026-11-13): the grammar
+# bound PUBLISHED to the writer and ENFORCED by the parser. A sheet formula past
+# a couple of hundred characters is a model doing the renderer's work; the
+# column is then written without its formula rather than refusing the document.
+DOCUMENT_GENERATION_FORMULA_MAX_CHARS: int = 240
+# The values a column's drop-down list offers, at most (published, enforced).
+DOCUMENT_GENERATION_COLUMN_CHOICES_MAX: int = 50
+#: Key figures a workbook computes once (ADR-388): published to the writer, held by
+#: normalization.
+DOCUMENT_GENERATION_WORKBOOK_FIGURES_MAX: int = 24
+
+# Illustrations (ADR-274 amendment 2026-11-13): the pictures a writer asks for,
+# drawn by the configured image model at the person's quality and size tier and
+# billed to the turn like any image. The cap is PUBLISHED to the writer and
+# ENFORCED by normalization; 0 switches illustrations off for the instance.
+DOCUMENT_ILLUSTRATIONS_MAX_DEFAULT: int = 6
+# Pictures of one document asked of the vendor at once: a deck's six arrive in
+# two waves instead of a burst a vendor answers with 429s.
+DOCUMENT_ILLUSTRATION_CONCURRENCY: int = 3
+# A picture is resampled to its frame at this resolution, then written as JPEG at
+# this quality: a deck of six stays near a megabyte, far under what a mail
+# server takes (a 3 MB attachment is refused by some), and is embedded once.
+DOCUMENT_ILLUSTRATION_DPI: int = 150
+DOCUMENT_ILLUSTRATION_JPEG_QUALITY: int = 85
+# A picture still drawing when its document's time is up is cancelled, and its
+# end is worth waiting for this long before the document leaves without it.
+DOCUMENT_ILLUSTRATION_CANCEL_GRACE_SECONDS: float = 5.0
 
 # ============================================================================
 # MEETINGS (meeting recording & structured minutes, ADR-258)
@@ -6900,6 +7176,13 @@ WORKBOARD_RUN_MAX_ATTEMPTS_DEFAULT = 3
 WORKBOARD_QUOTA_RETRY_MINUTES_DEFAULT = 30
 WORKBOARD_MAX_TICKETS_PER_USER_DEFAULT = 2000
 WORKBOARD_MAX_CHILDREN_PER_TICKET_DEFAULT = 50
+# Categories one account may define: each is a LANE of its board, so the cap
+# bounds how tall a board can grow, not a storage cost. Twenty lanes is already
+# more than one screen reads at a glance.
+WORKBOARD_MAX_CATEGORIES_PER_USER_DEFAULT = 20
+# A category name is a lane header and a badge on other screens: it has to fit
+# both on a phone.
+WORKBOARD_CATEGORY_NAME_MAX_CHARS_DEFAULT = 40
 # Runs one ticket may have in its LIFE (ADR-276 D3b). With two archived rows
 # per run at ~2.4 kB each (measured 2026-09-08), this is what bounds the
 # hidden transcripts a board can accumulate.
@@ -7570,6 +7853,12 @@ LIVE_DELEGATION_RESULT_MAX_TOKENS_DEFAULT: int = 600
 #: The longest message a person may send in one turn — typed in the chat, or
 #: spoken and handed over by a voice (ADR-301). One bound, read by both doors.
 CHAT_MESSAGE_MAX_LENGTH: int = 10_000
+#: What joins two messages written while LIA works into the one that waits for
+#: its turn (ADR-384): a blank line, as the person would have typed it.
+WAITING_MESSAGE_SEPARATOR: Final = "\n\n"
+#: How many times a departure reads the queue again after an edit the person
+#: made meanwhile took the version it read (ADR-384): bounded, so edits cannot spin it.
+WAITING_DEPARTURE_ROUNDS: Final = 3
 # The server-side delegation bridge (ADR-301, the phone's Live mode): the hard
 # bound of the delegated turn itself — whatever the voice could wait, the run
 # goes on in the thread up to this —, how long a request waits for the
@@ -7832,3 +8121,22 @@ REDIS_KEY_WORLD_MESSAGE_PREFIX = "world:message:"
 
 # Selection assists: schema/message framing reserve, never provider-billed tokens.
 TOOL_ASSIST_PROMPT_OVERHEAD_TOKENS = 256
+
+# ============================================================================
+# WRITING STYLE (lot 19, ADR-383): how the person writes, learned from their sent mail
+# ============================================================================
+#: How many of the person's latest sent e-mails a profile is built from.
+WRITING_STYLE_SENT_MAILS_DEFAULT: Final = 12
+#: Fewer sent e-mails than this teach no style: the profile is recorded as built and empty.
+WRITING_STYLE_MIN_SENT_MAILS: Final = 3
+#: A profile is built again once it is older than this (days).
+WRITING_STYLE_MAX_AGE_DAYS_DEFAULT: Final = 30
+#: What the profile reads of one sent e-mail: its opening and its end, where the greeting,
+#: the sign-off and the signature are, never its middle beyond these bounds (characters).
+WRITING_STYLE_MAIL_HEAD_CHARS: Final = 600
+WRITING_STYLE_MAIL_TAIL_CHARS: Final = 400
+#: The longest profile kept: the model is asked for at most eight short lines.
+WRITING_STYLE_PROFILE_MAX_CHARS: Final = 1500
+#: Messages read at once where a listing carries previews only (Graph): what one
+#: mailbox bears, the width a move across folders already keeps (``MOVE_CONCURRENCY``).
+WRITING_STYLE_READ_CONCURRENCY: Final = 4

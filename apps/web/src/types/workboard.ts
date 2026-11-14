@@ -116,8 +116,30 @@ export interface TicketRow {
   total_tokens_cache: number;
   total_google_requests: number;
   total_cost_eur: number;
+  /**
+   * The OWNER's category, by id — the lane the ticket is filed under; null when
+   * it is filed under nothing. The name travels with the board's lanes and the
+   * category list, never on every row.
+   */
+  category_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * One lane of the board: a category, and its EXACT count per column over the
+ * page's own filter (ADR-185).
+ *
+ * `category_id` is null for the lane of tickets filed under nothing. A lane
+ * whose `owner_user_id` is not the reader is somebody else's category, on the
+ * reader's board because they hold a ticket filed under it: they read it, and
+ * cannot manage it.
+ */
+export interface LaneRow {
+  category_id: string | null;
+  name: string | null;
+  owner_user_id: string | null;
+  counts_by_status: Record<string, number>;
 }
 
 /**
@@ -126,11 +148,64 @@ export interface TicketRow {
  * `counts_by_status` covers every column, zero-filled — never derive a column's
  * count from the rows on the page, which under-reports the moment the board
  * outgrows one page.
+ *
+ * `lanes` is EMPTY for a reader with no category in sight: the board then draws
+ * what it drew before categories existed. Otherwise the unfiled lane leads,
+ * then the reader's own categories in their order, then the others'.
  */
 export interface BoardPage {
   tickets: TicketRow[];
   total: number;
   counts_by_status: Record<string, number>;
+  lanes: LaneRow[];
+}
+
+/** One category, as `CategoryRow` publishes it. */
+export interface CategoryRow {
+  id: string;
+  owner_user_id: string;
+  name: string;
+  /** Order among its owner's categories, dense from 0. */
+  position: number;
+  /** EXACT number of tickets on the reader's board filed under it. */
+  ticket_count: number;
+}
+
+/**
+ * A category as a list offers it: what it is, and what it is called.
+ *
+ * What the board's own lanes already say of every category in sight, so the
+ * lists that file a ticket read the board rather than a second request.
+ */
+export type CategoryOption = Pick<CategoryRow, 'id' | 'name'>;
+
+/**
+ * Every category on the reader's board — their own first, then those of the
+ * tickets they hold for somebody else — and the caps the instance enforces
+ * (ADR-184): a bound the form cannot read is a bound the person walks into.
+ */
+export interface CategoryList {
+  categories: CategoryRow[];
+  max_categories: number;
+  name_max_chars: number;
+}
+
+/** The body of `POST /workboard/categories`. */
+export interface CategoryCreateBody {
+  name: string;
+  /** Index among the caller's categories; omitted appends. */
+  position?: number;
+}
+
+/** The body of `PATCH /workboard/categories/{id}` — a name, a place, or both. */
+export interface CategoryUpdateBody {
+  name?: string;
+  position?: number;
+}
+
+export interface CategoryDeleteResult {
+  /** Tickets sent back to the unfiled lane. No ticket is ever deleted. */
+  released: number;
 }
 
 export interface CommentRow {
@@ -161,6 +236,12 @@ export interface TicketDetail {
 export interface NeedsMePage {
   tickets: TicketRow[];
   total: number;
+  /**
+   * Name of every category a ticket of THIS page is filed under, by id. Off
+   * the board there is no lane to say it, so the page carries the names;
+   * absent from an API that predates categories.
+   */
+  categories?: Record<string, string>;
 }
 
 /**
@@ -177,6 +258,12 @@ export interface BoardSummary {
   held_by_me: number;
   /** Waiting on this account, or late on its board. */
   needs_me: number;
+  /**
+   * Exact count per category and per column over the WHOLE visible board, the
+   * unfiled lane first. Empty with no category in sight; absent from an API
+   * that predates categories.
+   */
+  lanes?: LaneRow[];
   /** Owned — what the cap counts. */
   owned: number;
   max_tickets: number;
@@ -219,6 +306,10 @@ export interface BoardFilters {
   sort?: BoardSort;
   limit?: number;
   offset?: number;
+  /** Lanes to keep, by category id. */
+  category?: readonly string[];
+  /** Also keep the tickets filed under nothing — it WIDENS `category`. */
+  uncategorized?: boolean;
 }
 
 /** The body of `POST /workboard/tickets`. */
@@ -234,14 +325,16 @@ export interface TicketCreateBody {
   parent_id?: string | null;
   execution_mode?: ExecutionMode;
   follow?: boolean;
+  /** One of the caller's OWN categories; omitted, a step takes its parent's. */
+  category_id?: string | null;
 }
 
 /**
  * The body of `PATCH /workboard/tickets/{id}`.
  *
- * An absent field means « not mentioned »; the two `clear_*` flags are how a
- * date is REMOVED, since `null` and « unchanged » would otherwise be the same
- * wire value.
+ * An absent field means « not mentioned »; the `clear_*` flags are how a date
+ * or the category is REMOVED, since `null` and « unchanged » would otherwise be
+ * the same wire value.
  */
 export interface TicketUpdateBody {
   title?: string;
@@ -256,11 +349,22 @@ export interface TicketUpdateBody {
   assignee_user_id?: string | null;
   execution_mode?: ExecutionMode;
   follow?: boolean;
+  /** File it under this category of the owner's (owner only). */
+  category_id?: string;
+  /** Take it out of its category (owner only). */
+  clear_category?: boolean;
 }
 
-/** The body of the drag-and-drop write. */
+/**
+ * The body of the drag-and-drop write.
+ *
+ * A drop in another lane changes the column AND the category in one write; a
+ * move that names no lane leaves the ticket filed where it was.
+ */
 export interface MoveBody {
   status: string;
   /** Index inside the column, 0 first. */
   position: number;
+  category_id?: string;
+  clear_category?: boolean;
 }

@@ -38,6 +38,7 @@ from langchain_core.tools import InjectedToolArg
 from pydantic import BaseModel
 
 from src.core.config import get_settings
+from src.core.field_names import FIELD_TASK_LIST_ID
 from src.core.i18n import get_locale_for_language
 from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.constants import AGENT_TASK, CONTEXT_DOMAIN_TASKS
@@ -49,6 +50,10 @@ from src.domains.agents.tasks.parameter_descriptions import (
     TASK_CLEAR_REMINDER_DESCRIPTION,
     TASK_CLEAR_REPEAT_DESCRIPTION,
     TASK_IMPORTANCE_DESCRIPTION,
+    TASK_LIST_GET_DESCRIPTION,
+    TASK_LIST_NEW_DESCRIPTION,
+    TASK_LIST_OF_TASK_DESCRIPTION,
+    TASK_LIST_READ_DESCRIPTION,
     TASK_REMINDER_DESCRIPTION,
     TASK_REPEAT_DESCRIPTION,
     TASK_STEPS_DESCRIPTION,
@@ -59,79 +64,28 @@ from src.domains.agents.tools.exceptions import ToolValidationError
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.task_extras import extras_refusal, read_extras
+from src.domains.agents.tools.task_list_scope import (
+    LIST_PARAMETER,
+    UNKNOWN_TASK,
+    new_task_list,
+    own_task_list_id,
+    task_list_id_of,
+    task_list_ids_of,
+)
+from src.domains.agents.tools.tasks_reading import (
+    partial_read_note,
+    read_tasks,
+    with_partial_note,
+)
 from src.domains.agents.tools.validation_helpers import (
     require_field,
     validate_positive_int_or_default,
 )
 from src.domains.connectors.clients.google_tasks_client import GoogleTasksClient
+from src.domains.connectors.clients.task_lists import TaskListing
 from src.domains.connectors.models import ConnectorType
-from src.domains.connectors.preferences.resolver import resolve_task_list_name
 
 logger = structlog.get_logger(__name__)
-
-
-async def _resolve_default_task_list(
-    client: Any,
-    user_id: UUID,
-    task_list_id_input: str,
-) -> str:
-    """
-    Resolve task list ID from user preferences if using @default.
-
-    Supports both Google Tasks and Microsoft To Do clients.
-
-    Args:
-        client: Tasks client instance (GoogleTasksClient or MicrosoftTasksClient).
-        user_id: User UUID.
-        task_list_id_input: Input task list ID or @default.
-
-    Returns:
-        Resolved task list ID.
-    """
-    from src.domains.connectors.preferences.owner_defaults import resolve_owner_task_list_id
-    from src.domains.connectors.provider_resolver import resolve_active_connector
-
-    # If not using @default, resolve the name directly
-    if task_list_id_input != "@default":
-        resolved_id = await resolve_task_list_name(
-            client=client,
-            name=task_list_id_input,
-            fallback="@default",
-        )
-        logger.debug(
-            "task_list_id_resolved",
-            input=task_list_id_input,
-            resolved=resolved_id,
-        )
-        return resolved_id
-
-    # Try to get user's default preference (provider-aware).
-    #
-    # The broad catch stays HERE rather than moving into the shared resolver:
-    # that resolver deliberately lets infrastructure failures propagate (a
-    # silent fallback would read the wrong list), and this call site has always
-    # swallowed everything. Keeping the net at the call site preserves this
-    # tool's behaviour byte-for-byte while the resolution itself is shared.
-    try:
-        connector_service = client.connector_service
-        resolved_type = await resolve_active_connector(user_id, "tasks", connector_service)
-        if resolved_type:
-            resolved_id = await resolve_owner_task_list_id(
-                client=client,
-                owner_id=user_id,
-                connector_type=resolved_type,
-            )
-            logger.debug(
-                "task_list_id_resolved",
-                input="preference",
-                resolved=resolved_id,
-            )
-            return resolved_id
-    except Exception as e:
-        logger.warning("tasks_preference_resolution_failed", error=str(e))
-
-    # Fallback to @default
-    return "@default"
 
 
 # ============================================================================
@@ -200,11 +154,8 @@ class ListTasksTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         **kwargs: Any,
     ) -> dict[str, Any]:
         """Execute list tasks API call - business logic only."""
-        task_list_id_input: str = kwargs.get("task_list_id", "@default")
+        given: str | None = kwargs.get(LIST_PARAMETER)
         settings = get_settings()
-
-        # BugFix 2025-12-19: Resolve default task list from user preferences
-        task_list_id = await _resolve_default_task_list(client, user_id, task_list_id_input)
 
         raw_max_results = kwargs.get("max_results")
         default_max_results = settings.tasks_tool_default_max_results
@@ -251,26 +202,28 @@ class ListTasksTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         # When requesting completed tasks, we need both flags
         show_hidden = show_completed or only_completed
 
-        result = await client.list_tasks(
-            task_list_id=task_list_id,
-            max_results=fetch_limit,
-            show_completed=show_completed or only_completed,
-            show_hidden=show_hidden,
-            due_min=due_min,
-            due_max=due_max,
+        # Every list, unless the model names one (owner rule, 2026-11-10).
+        read = await read_tasks(
+            client,
+            given,
+            TaskListing(
+                max_results=fetch_limit,
+                show_completed=show_completed or only_completed,
+                show_hidden=show_hidden,
+                due_min=due_min,
+                due_max=due_max,
+            ),
         )
-
-        tasks = result.get("items", [])
-
-        # If only_completed requested, filter to ONLY completed tasks
-        if only_completed:
-            tasks = [t for t in tasks if t.get("status") == "completed"]
-            tasks = tasks[:max_results]  # Apply limit after filtering
+        user_timezone, locale = await self.get_user_preferences_safe()
+        tasks, more_exist = read.shown(
+            max_results, timezone=user_timezone, only_completed=only_completed
+        )
 
         logger.info(
             "list_tasks_success",
             user_id=str(user_id),
-            task_list_id=task_list_id,
+            task_list_id=read.list_id,
+            unread_lists=len(read.unread_lists),
             show_completed=show_completed,
             only_completed=only_completed,
             show_hidden=show_hidden,
@@ -279,12 +232,12 @@ class ListTasksTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
             total_results=len(tasks),
         )
 
-        # Get user preferences for timezone conversion
-        user_timezone, locale = await self.get_user_preferences_safe()
-
         return {
             "tasks": tasks,
-            "task_list_id": task_list_id,
+            "task_list_id": read.list_id,
+            "partial_note": partial_read_note(
+                more_exist=more_exist, unread_lists=read.unread_lists
+            ),
             "show_completed": show_completed,
             "only_completed": only_completed,
             "user_timezone": user_timezone,
@@ -333,13 +286,14 @@ class ListTasksTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
 
         # Use ToolOutputMixin helper with timezone conversion
         # build_tasks_output returns UnifiedToolOutput directly
-        return self.build_tasks_output(
+        output = self.build_tasks_output(
             tasks=tasks,
             task_list_id=task_list_id,
             from_cache=False,
             user_timezone=user_timezone,
             locale=locale,
         )
+        return with_partial_note(output, result.get("partial_note") or "")
 
 
 _list_tasks_tool_instance = ListTasksTool()
@@ -352,9 +306,7 @@ _list_tasks_tool_instance = ListTasksTool()
     category="read",
 )
 async def list_tasks_tool(
-    task_list_id: Annotated[
-        str, "Task list ID (default: '@default' for primary list)"
-    ] = "@default",
+    task_list_id: Annotated[str | None, TASK_LIST_READ_DESCRIPTION] = None,
     max_results: Annotated[
         int | None, "Maximum number of results (defaults to settings, max 100)"
     ] = None,
@@ -374,10 +326,10 @@ async def list_tasks_tool(
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
-    List tasks from a Google Tasks list.
+    List the pending tasks of every list, or of the one named.
 
     Args:
-        task_list_id: Task list ID, use '@default' for primary list
+        task_list_id: The one list to read, by id or name; omit to read every list
         max_results: Maximum tasks to return (default from settings)
         show_completed: Include completed tasks along with pending tasks (default False)
         only_completed: Return ONLY completed tasks, excluding pending ones (default False).
@@ -447,13 +399,22 @@ class GetTaskDetailsTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         """
         task_id: str | None = kwargs.get("task_id")
         task_ids: list[str] | None = kwargs.get("task_ids")
-        task_list_id_input: str = kwargs.get("task_list_id", "@default")
+        # Each task is fetched in its OWN list: the one named, else the one the
+        # conversation read it from, else the one found to hold it (the tasks of a
+        # reply may span several lists).
+        given: str | None = kwargs.get(LIST_PARAMETER)
 
         # Determine mode: batch takes precedence
         if task_ids and len(task_ids) > 0:
-            return await self._execute_batch(client, user_id, task_ids, task_list_id_input)
+            lists = await task_list_ids_of(
+                client, user_id, task_ids, given, runtime=self.runtime, tool_name=self.tool_name
+            )
+            return await self._execute_batch(client, user_id, task_ids, lists)
         elif task_id:
-            return await self._execute_single(client, user_id, task_id, task_list_id_input)
+            task_list_id = await task_list_id_of(
+                client, user_id, task_id, given, runtime=self.runtime, tool_name=self.tool_name
+            )
+            return await self._execute_single(client, user_id, task_id, task_list_id)
         else:
             raise ValueError("Either task_id or task_ids must be provided")
 
@@ -462,12 +423,9 @@ class GetTaskDetailsTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         client: GoogleTasksClient,
         user_id: UUID,
         task_id: str,
-        task_list_id_input: str,
+        task_list_id: str,
     ) -> dict[str, Any]:
-        """Execute single task details fetch."""
-        # BugFix 2025-12-19: Resolve default task list from user preferences
-        task_list_id = await _resolve_default_task_list(client, user_id, task_list_id_input)
-
+        """Execute single task details fetch, in the task's own list."""
         result = await client.get_task(task_list_id, task_id)
 
         logger.info(
@@ -493,7 +451,7 @@ class GetTaskDetailsTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         client: GoogleTasksClient,
         user_id: UUID,
         task_ids: list[str],
-        task_list_id_input: str,
+        lists: dict[str, str],
     ) -> dict[str, Any]:
         """Execute batch task details fetch using asyncio.gather for parallelism.
 
@@ -501,15 +459,15 @@ class GetTaskDetailsTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         """
         import asyncio
 
-        # BugFix 2025-12-19: Resolve default task list from user preferences
-        task_list_id = await _resolve_default_task_list(client, user_id, task_list_id_input)
-
-        # Fetch all tasks in parallel
+        # Fetch all tasks in parallel, each in its own list
         async def fetch_single(tid: str) -> tuple[str, dict[str, Any] | None, str | None]:
             """Fetch single task, return (task_id, task_data, error)."""
+            if tid not in lists:
+                # No list holds it: said for this task, the others are still fetched.
+                return (tid, None, UNKNOWN_TASK)
             try:
-                result = await client.get_task(task_list_id, tid)
-                return (tid, result, None)
+                result = await client.get_task(lists[tid], tid)
+                return (tid, {**result, FIELD_TASK_LIST_ID: lists[tid]}, None)
             except Exception as e:
                 logger.warning("get_task_details_batch_item_failed", task_id=tid, error=str(e))
                 return (tid, None, str(e))
@@ -539,7 +497,7 @@ class GetTaskDetailsTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         return {
             "tasks": tasks,
             "task_ids": task_ids,
-            "task_list_id": task_list_id,
+            "task_list_id": None,
             "user_timezone": user_timezone,
             "locale": locale,
             "mode": "batch",
@@ -642,7 +600,7 @@ async def get_task_details_tool(
         list[str] | None,
         "List of Task IDs to retrieve (batch mode for multi-ordinal queries)",
     ] = None,
-    task_list_id: Annotated[str, "Task list ID (default: '@default')"] = "@default",
+    task_list_id: Annotated[str | None, TASK_LIST_OF_TASK_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -668,7 +626,7 @@ async def get_task_details_tool(
     Args:
         task_id: Google Tasks task ID for single mode (from list_tasks_tool results)
         task_ids: List of Google Tasks task IDs for batch mode
-        task_list_id: Task list ID (default: '@default')
+        task_list_id: The task's own list, by id or name; omit when unknown
         runtime: Tool runtime (injected)
 
     Returns:
@@ -718,7 +676,6 @@ class CreateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         title: str = require_field(kwargs, "title")
         notes: str | None = kwargs.get("notes")
         due: str | None = kwargs.get("due")
-        task_list_id_input: str = kwargs.get("task_list_id", "@default")
         extras = read_extras(kwargs)
         if refused := extras_refusal(client, extras, has_due=bool(due)):
             return refused
@@ -730,8 +687,9 @@ class CreateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
             _user_tz, _ = await self.get_user_preferences_safe()
             due = normalize_user_datetime(due, _user_tz) or due
 
-        # BugFix 2025-12-19: Resolve default task list from user preferences
-        task_list_id = await _resolve_default_task_list(client, user_id, task_list_id_input)
+        # The default list is where a new task goes when nobody names one; a list
+        # the model names is that list or a refusal (owner rule, 2026-11-10).
+        target = await new_task_list(client, user_id, kwargs.get(LIST_PARAMETER))
 
         logger.info(
             "create_task_draft_prepared",
@@ -743,7 +701,8 @@ class CreateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
             "title": title,
             "notes": notes,
             "due": due,
-            "task_list_id": task_list_id,
+            "task_list_id": str(target["id"]),
+            "task_list_name": target.get("title"),
             **extras.fields(),
         }
 
@@ -765,6 +724,7 @@ class CreateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
             notes=result.get("notes"),
             due=result.get("due"),
             task_list_id=result.get("task_list_id", "@default"),
+            task_list_name=result.get("task_list_name"),
             extras=read_extras(result),
             source_tool="create_task_tool",
             user_language=self.get_user_language(),
@@ -784,7 +744,7 @@ async def create_task_tool(
     title: Annotated[str, "Task title (required)"],
     notes: Annotated[str | None, "Task notes/description (optional)"] = None,
     due: Annotated[str | None, "Due date in RFC 3339 format (e.g., '2025-01-15T00:00:00Z')"] = None,
-    task_list_id: Annotated[str, "Task list ID (default: '@default')"] = "@default",
+    task_list_id: Annotated[str | None, TASK_LIST_NEW_DESCRIPTION] = None,
     importance: Annotated[str | None, TASK_IMPORTANCE_DESCRIPTION] = None,
     reminder: Annotated[str | None, TASK_REMINDER_DESCRIPTION] = None,
     repeat: Annotated[str | None, TASK_REPEAT_DESCRIPTION] = None,
@@ -801,7 +761,7 @@ async def create_task_tool(
         title: Task title (required)
         notes: Task notes/description (optional)
         due: Due date in RFC 3339 format (optional)
-        task_list_id: Task list ID (default: '@default')
+        task_list_id: The list it goes in, by id or name; omit for the default list
         importance: How much it matters (To Do only)
         reminder: When it reminds (To Do only)
         repeat: How it repeats from its due date (To Do only)
@@ -850,10 +810,9 @@ class CompleteTaskTool(ConnectorTool[GoogleTasksClient]):
     ) -> dict[str, Any]:
         """Execute complete task API call."""
         task_id: str = require_field(kwargs, "task_id")
-        task_list_id_input: str = kwargs.get("task_list_id", "@default")
-
-        # BugFix 2025-12-19: Resolve default task list from user preferences
-        task_list_id = await _resolve_default_task_list(client, user_id, task_list_id_input)
+        task_list_id = await own_task_list_id(
+            client, user_id, task_id, kwargs, runtime=self.runtime, tool_name=self.tool_name
+        )
 
         result = await client.complete_task(task_list_id, task_id)
 
@@ -889,7 +848,7 @@ _complete_task_tool_instance = CompleteTaskTool()
 )
 async def complete_task_tool(
     task_id: Annotated[str, "Task ID to mark as complete"],
-    task_list_id: Annotated[str, "Task list ID (default: '@default')"] = "@default",
+    task_list_id: Annotated[str | None, TASK_LIST_OF_TASK_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -897,7 +856,7 @@ async def complete_task_tool(
 
     Args:
         task_id: Task ID to complete
-        task_list_id: Task list ID (default: '@default')
+        task_list_id: The task's own list, by id or name; omit when unknown
         runtime: Tool runtime (injected)
 
     Returns:
@@ -949,7 +908,6 @@ class UpdateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         notes: str | None = kwargs.get("notes")
         due: str | None = kwargs.get("due")
         status: str | None = kwargs.get("status")
-        task_list_id_input: str = kwargs.get("task_list_id", "@default")
         clear_due = bool(kwargs.get("clear_due", False))
         if clear_due and due:
             raise ToolValidationError(
@@ -966,8 +924,9 @@ class UpdateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
             _user_tz, _ = await self.get_user_preferences_safe()
             due = normalize_user_datetime(due, _user_tz) or due
 
-        # BugFix 2025-12-19: Resolve default task list from user preferences
-        task_list_id = await _resolve_default_task_list(client, user_id, task_list_id_input)
+        task_list_id = await own_task_list_id(
+            client, user_id, task_id, kwargs, runtime=self.runtime, tool_name=self.tool_name
+        )
 
         current_task = await self._current_task(client, task_list_id, task_id)
 
@@ -1070,7 +1029,7 @@ async def update_task_tool(
     notes: Annotated[str | None, "New task notes/description (optional)"] = None,
     due: Annotated[str | None, "New due date in RFC 3339 format (optional)"] = None,
     status: Annotated[str | None, "New status: 'needsAction' or 'completed' (optional)"] = None,
-    task_list_id: Annotated[str, "Task list ID (default: '@default')"] = "@default",
+    task_list_id: Annotated[str | None, TASK_LIST_OF_TASK_DESCRIPTION] = None,
     clear_due: Annotated[bool, TASK_CLEAR_DUE_DESCRIPTION] = False,
     importance: Annotated[str | None, TASK_IMPORTANCE_DESCRIPTION] = None,
     reminder: Annotated[str | None, TASK_REMINDER_DESCRIPTION] = None,
@@ -1091,7 +1050,7 @@ async def update_task_tool(
         notes: New task notes/description (optional)
         due: New due date in RFC 3339 format (optional)
         status: New status - 'needsAction' or 'completed' (optional)
-        task_list_id: Task list ID (default: '@default')
+        task_list_id: The task's own list, by id or name; omit when unknown
         clear_due: Remove the due date (never with ``due``)
         importance: How much it matters (To Do only)
         reminder: When it reminds (To Do only)
@@ -1154,13 +1113,11 @@ class DeleteTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         First fetches task details to show user what will be deleted.
         """
         task_id: str = require_field(kwargs, "task_id")
-        task_list_id_input: str = kwargs.get("task_list_id", "@default")
-
-        # BugFix 2025-12-19: Resolve default task list from user preferences
-        task_list_id = await _resolve_default_task_list(client, user_id, task_list_id_input)
-
         if not task_id:
             raise ToolValidationError(APIMessages.field_required("task_id"), field="task_id")
+        task_list_id = await own_task_list_id(
+            client, user_id, task_id, kwargs, runtime=self.runtime, tool_name=self.tool_name
+        )
 
         # Fetch task details to show user what will be deleted
         task = await client.get_task(task_list_id, task_id)
@@ -1212,7 +1169,7 @@ _delete_task_draft_tool_instance = DeleteTaskDraftTool()
 )
 async def delete_task_tool(
     task_id: Annotated[str, "Task ID to delete (required)"],
-    task_list_id: Annotated[str, "Task list ID (default: '@default')"] = "@default",
+    task_list_id: Annotated[str | None, TASK_LIST_OF_TASK_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -1225,7 +1182,7 @@ async def delete_task_tool(
 
     Args:
         task_id: Task ID to delete (required)
-        task_list_id: Task list ID (default: '@default')
+        task_list_id: The task's own list, by id or name; omit when unknown
         runtime: Tool runtime (injected)
 
     Returns:
@@ -1253,7 +1210,7 @@ async def get_tasks_tool(
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     task_id: str | None = None,
     task_ids: list[str] | None = None,
-    task_list_id: str | None = None,
+    task_list_id: Annotated[str | None, TASK_LIST_GET_DESCRIPTION] = None,
     max_results: int | None = None,
     show_completed: bool = False,
     only_completed: bool = False,
@@ -1269,14 +1226,16 @@ async def get_tasks_tool(
     Modes:
     - ID mode: get_tasks_tool(task_id="abc123") → fetch specific task
     - Batch mode: get_tasks_tool(task_ids=["abc", "def"]) → fetch multiple
-    - List mode: get_tasks_tool() → return pending tasks with full details
+    - List mode: get_tasks_tool() → return the pending tasks of EVERY list, each
+      carrying its own list (`tasklist_id`, `taskListName`); `task_list_id` reads one
     - Filter mode: get_tasks_tool(only_completed=True) → completed tasks only
 
     Args:
         runtime: Runtime dependencies injected automatically.
         task_id: Single task ID for direct fetch.
         task_ids: Multiple task IDs for batch fetch.
-        task_list_id: Target task list (default: primary).
+        task_list_id: The one list to read, by id or name; omit to read every list.
+            With task ids, the list those tasks live in.
         max_results: Maximum results, bounded by the administrator's configured task limit.
         show_completed: Include completed tasks (default False).
         only_completed: Only completed tasks (default False).

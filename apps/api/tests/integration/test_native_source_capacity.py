@@ -1,14 +1,18 @@
 """Approved native file/capacity limits refuse before bytes or rows are added."""
 
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import func, select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.domains.rag_spaces.drive_ingest import create_pending_document
 from src.domains.rag_spaces.models import RAGDocument, RAGDriveSource, RAGSpace
 from src.domains.rag_spaces.source_worker_lease import SourceWorkerLease, source_worker_scope
+from src.domains.users.models import User
+from tests.helpers.committed_account_session import async_session as async_session
 
 pytestmark = pytest.mark.integration
 
@@ -17,8 +21,12 @@ pytestmark = pytest.mark.integration
     "scenario", ["approved_file", "approved_capacity", "lower_current_capacity"]
 )
 async def test_native_source_capacity_is_the_smaller_of_current_and_approved(
-    async_session, test_user, monkeypatch, tmp_path, scenario
-):
+    async_session: AsyncSession,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    scenario: str,
+) -> None:
     for flag in (
         "application_tools_enabled",
         "rag_spaces_enabled",

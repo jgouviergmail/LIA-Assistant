@@ -16,11 +16,12 @@ import {
   CloudSun,
   MessageSquareText,
   Phone,
-  Radio,
+  RadioSet,
   Smartphone,
   ArrowLeft,
   PanelsTopLeft,
 } from '@/lib/icons';
+import { MonochromeIcons } from '@/lib/icon-style-context';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import {
@@ -295,7 +296,7 @@ function DeviceToolbar({
             onClick={radio.run}
           >
             <span className="world-device-icon world-radio-icon">
-              <Radio aria-hidden="true" />
+              <RadioSet aria-hidden="true" />
             </span>
             <span className="world-device-label">{t('world.device.radio_short')}</span>
           </Button>
@@ -318,7 +319,9 @@ function DeviceToolbar({
               className="absolute -left-1 -top-1 flex items-center rounded-full bg-primary px-1 text-[10px] text-primary-foreground motion-safe:animate-pulse"
               aria-hidden="true"
             >
-              <MessageSquareText className="size-3" />
+              <MonochromeIcons>
+                <MessageSquareText className="size-3" />
+              </MonochromeIcons>
               {sms}
             </span>
           )}

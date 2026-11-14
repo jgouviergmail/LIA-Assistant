@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -49,6 +50,9 @@ class BrowserSessionInfo(BaseModel):
 
     session_id: str = Field(..., description="Unique session identifier.")
     user_id: str = Field(..., description="User who owns this session.")
+    runtime_id: UUID | None = Field(
+        default=None, description="Root runtime generation; absent only on legacy recovery records."
+    )
     created_at: datetime = Field(..., description="Session creation timestamp (UTC).")
     current_url: str | None = Field(default=None, description="Last navigated URL.")
     page_title: str | None = Field(default=None, description="Last page title.")

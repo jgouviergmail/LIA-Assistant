@@ -28,6 +28,9 @@ async def test_cancelled_copy_waits_for_worker_and_withdraws_file(tmp_path: Path
         copy.cancel()
         await asyncio.sleep(0)
         assert not copy.done()
+        copy.cancel()
+        await asyncio.sleep(0.01)
+        assert not copy.done(), "Repeated cancellation abandoned the real disk writer"
     finally:
         release.set()
     with pytest.raises(asyncio.CancelledError):

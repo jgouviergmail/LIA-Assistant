@@ -65,7 +65,13 @@ class TestGmail:
 
         found = await client.get_conversation("m2", 10)
 
-        client.get_thread.assert_awaited_once_with("t1", format=GMAIL_FORMAT_METADATA)
+        client.get_thread.assert_awaited_once()
+        asked_for = client.get_thread.await_args
+        assert asked_for.args == ("t1",)
+        assert asked_for.kwargs["format"] == GMAIL_FORMAT_METADATA
+        # Named headers, never every header of every message (588 KB against 60 KB
+        # for a thread of a hundred messages, measured 2026-11-11).
+        assert "From" in asked_for.kwargs["metadata_headers"]
         assert [item["id"] for item in found["messages"]] == ["m1", "m2"]
         assert found["messages"][0]["from"] == "m1@example.com"
         assert found["truncated"] is False

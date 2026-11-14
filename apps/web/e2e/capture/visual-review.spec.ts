@@ -545,10 +545,14 @@ test.describe('visual review', () => {
     await page.screenshot({ path: `${OUT}/shortcuts-phone.png`, fullPage: false });
   });
 
-  test('settings — the workboard at a glance', async ({ page, authenticate, mockApi }) => {
+  test('workboard — the board at a glance, above its filters', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
     await authenticate({ language: 'fr' });
     await mockApi([
-      ...dashboardShellMocks,
+      ...boardMocks,
       {
         url: '**/api/v1/workboard/summary',
         json: {
@@ -579,10 +583,10 @@ test.describe('visual review', () => {
       },
     ]);
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.goto('/fr/dashboard/settings?section=workboard');
+    await page.goto('/fr/dashboard/workboard');
     await page.getByRole('progressbar').waitFor({ timeout: 60_000 });
     await page.waitForTimeout(1200);
-    await page.screenshot({ path: `${OUT}/settings-workboard.png`, fullPage: false });
+    await page.screenshot({ path: `${OUT}/workboard-glance.png`, fullPage: false });
   });
 
   test('settings hub', async ({ page, authenticate, mockApi }) => {

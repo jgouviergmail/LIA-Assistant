@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Annotated, Any
 from uuid import uuid4
@@ -26,7 +27,9 @@ from langchain_core.tools import InjectedToolArg, tool
 
 import src.domains.agents.telephony.live_tools as mod
 from src.core.config import settings
+from src.core.mail_reply_state import REPLY_STATE_KEY, ReplyMessage, ReplyState, ReplyStatus
 from src.domains.agents.registry.catalogue import ParameterConstraint, ParameterSchema
+from src.domains.agents.telephony.live_provisioning import ensure_vendor_live_tools
 from src.domains.agents.telephony.live_tools import (
     NATIVE_LOOKUPS,
     LiveToolSpec,
@@ -34,7 +37,6 @@ from src.domains.agents.telephony.live_tools import (
     assert_live_tools_completeness,
     available_live_tools,
     derive_live_tool_specs,
-    ensure_vendor_live_tools,
     exposed_parameter_names,
     live_tool_description,
     live_tool_parameters,
@@ -261,6 +263,34 @@ def test_the_real_catalogue_yields_the_person_s_services() -> None:
 
 
 @pytest.mark.unit
+def test_a_voice_reads_the_categories_of_the_workboard() -> None:
+    """The board's categories are read aloud like the rest of it (ADR-276
+    amendment 2026-11-11). The rule offers the reader of the categories by
+    itself; what it cannot do is describe it for a VOICE — the catalogue's
+    words speak of filing a ticket, which no call can do — so it has a line of
+    its own. And the board is narrowed to a category by its NAME, which the
+    tickets' line must say or the voice model never asks for it."""
+    from src.domains.agents.registry.agent_registry import AgentRegistry
+    from src.domains.agents.registry.catalogue_loader import initialize_catalogue
+
+    registry = AgentRegistry()
+    initialize_catalogue(registry)
+    specs = {
+        spec.name: spec
+        for spec in derive_live_tool_specs(
+            registry.list_tool_manifests(), domain_of=lambda m: mod.domain_of(m, registry)
+        )
+    }
+    reader = specs["list_ticket_categories_tool"]
+    assert (reader.domain, reader.parameters, reader.native) == ("ticket", (), False)
+    lines = tool_descriptions()
+    assert "categor" in lines["list_ticket_categories_tool"]
+    assert "fil" not in lines["list_ticket_categories_tool"], "a call files nothing"
+    assert {"category", "uncategorized"} <= set(specs["list_tickets_tool"].parameters)
+    assert "category" in lines["list_tickets_tool"]
+
+
+@pytest.mark.unit
 def test_completeness_refuses_a_native_lookup_without_a_description_line(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -481,10 +511,17 @@ def test_function_declaration_projects_a_derived_tool_and_a_native_lookup(
 
 
 class _Client:
-    def __init__(self, fail_create: bool = False) -> None:
+    """The workspace as the vendor keeps it: what it was sent, plus its own defaults
+    (measured 2026-11-11), rewritten in place by a PATCH that replaces the config."""
+
+    def __init__(self, fail_create: bool = False, fail_listing: bool = False) -> None:
         self.created: list[dict] = []
         self.deleted: list[str] = []
+        self.rewritten: list[tuple[str, dict]] = []
+        self.listings = 0
+        self.tools: dict[str, dict] = {}
         self.fail_create = fail_create
+        self.fail_listing = fail_listing
         self.in_flight = 0
         self.max_in_flight = 0
 
@@ -498,10 +535,35 @@ class _Client:
         await asyncio.sleep(0)
         self.in_flight -= 1
         self.created.append(body)
-        return f"tool_{body['tool_config']['name']}"
+        tool_id = f"tool_{body['tool_config']['name']}"
+        if any(tool_id == f"tool_{b['tool_config']['name']}" for b in self.created[:-1]):
+            tool_id = f"{tool_id}_{len(self.created)}"  # the vendor never reissues an id
+        self.tools[tool_id] = {"disable_interruptions": False, **body["tool_config"]}
+        return tool_id
+
+    async def update_tool(self, tool_id: str, body: dict) -> None:
+        from src.domains.telephony.client import ElevenLabsAgentsError
+
+        if tool_id not in self.tools:
+            raise ElevenLabsAgentsError(404, "gone")
+        self.rewritten.append((tool_id, body))
+        self.tools[tool_id] = dict(body["tool_config"])
+
+    async def list_tools(self, kind: str) -> list[dict]:
+        from src.domains.telephony.client import ElevenLabsAgentsError
+
+        self.listings += 1
+        if self.fail_listing:
+            raise ElevenLabsAgentsError(500, "boom")
+        return [
+            {"id": tool_id, "tool_config": config}
+            for tool_id, config in self.tools.items()
+            if config.get("type") == kind
+        ]
 
     async def delete_tool(self, tool_id: str) -> None:
         self.deleted.append(tool_id)
+        self.tools.pop(tool_id, None)
 
 
 class _DB:
@@ -561,12 +623,15 @@ async def test_provisioning_creates_the_tools_once_and_stores_ids_and_fingerprin
     assert meta["agent_id"] == "ag"  # a NEW dict, the old keys kept
     assert db.commits == 1
 
-    # Second call, nothing drifted: no vendor round trip, same bindings.
+    # Second call, nothing drifted: the workspace is read and the set held against
+    # it (owner decision 2026-11-11), nothing created, rewritten or recorded.
+    assert client.listings == 0  # a set just created is exact by construction
     again = await ensure_vendor_live_tools(
         db, connector=connector, api_key="k", api_secret="whsec", client_factory=lambda _k: client
     )
     assert again == bindings
-    assert len(client.created) == len(specs)
+    assert len(client.created) == len(specs) and client.rewritten == []
+    assert client.listings == 1
     assert db.commits == 1
 
 
@@ -611,7 +676,10 @@ async def test_provisioning_replaces_the_tools_when_the_fingerprint_drifts(
 
 
 @pytest.mark.unit
-async def test_provisioning_never_blocks_a_call_on_a_vendor_failure(_provisioning: dict) -> None:
+async def test_a_vendor_refusal_answers_none_never_a_set_without_tools(_provisioning: dict) -> None:
+    """Owner decision 2026-11-11: an owner call never leaves with tools missing. A
+    refusal is NONE — the caller refuses the call — never an empty set it would
+    read as « no tool to offer » and dial with."""
     client = _Client(fail_create=True)
     connector = _connector()
     bindings = await ensure_vendor_live_tools(
@@ -621,8 +689,72 @@ async def test_provisioning_never_blocks_a_call_on_a_vendor_failure(_provisionin
         api_secret="whsec",
         client_factory=lambda _k: client,
     )
-    assert bindings == ()
+    assert bindings is None
     assert "live_tool_ids" not in connector.connector_metadata
+
+
+async def _ensure_twice(client: _Client, db: _DB, connector: SimpleNamespace, edit: Any) -> tuple:
+    """Provision, let ``edit`` change the workspace as a hand would, provision again."""
+    first = await ensure_vendor_live_tools(
+        db, connector=connector, api_key="k", api_secret="whsec", client_factory=lambda _k: client
+    )
+    edit(client.tools)
+    again = await ensure_vendor_live_tools(
+        db, connector=connector, api_key="k", api_secret="whsec", client_factory=lambda _k: client
+    )
+    return first, again
+
+
+@pytest.mark.unit
+async def test_a_tool_edited_on_the_portal_is_rewritten_before_the_owner_call(
+    _provisioning: dict,
+) -> None:
+    client, db, connector = _Client(), _DB(), _connector()
+
+    def _edit(tools: dict) -> None:
+        tools["tool_get_events_tool"]["description"] = "Edited by hand on the portal."
+
+    first, again = await _ensure_twice(client, db, connector, _edit)
+
+    assert again == first  # rewritten in place: the same ids, nothing to record
+    assert [tool_id for tool_id, _body in client.rewritten] == ["tool_get_events_tool"]
+    assert (
+        client.tools["tool_get_events_tool"]["description"]
+        == tool_descriptions()["get_events_tool"]
+    )
+    assert db.commits == 1
+
+
+@pytest.mark.unit
+async def test_a_tool_the_workspace_lost_is_re_created_and_recorded_before_the_owner_call(
+    _provisioning: dict,
+) -> None:
+    client, db, connector = _Client(), _DB(), _connector()
+
+    def _lose(tools: dict) -> None:
+        del tools["tool_get_events_tool"]
+
+    first, again = await _ensure_twice(client, db, connector, _lose)
+
+    renewed = {binding.name: binding.vendor_id for binding in again}
+    assert renewed["get_events_tool"] not in {"tool_get_events_tool"}
+    assert renewed["get_events_tool"] in client.tools
+    assert connector.connector_metadata["live_tool_ids"] == renewed
+    assert {b.name: b.vendor_id for b in first if b.name != "get_events_tool"} == {
+        name: tool_id for name, tool_id in renewed.items() if name != "get_events_tool"
+    }
+    assert db.commits == 2
+
+
+@pytest.mark.unit
+async def test_a_workspace_that_cannot_be_read_answers_none(_provisioning: dict) -> None:
+    client, db, connector = _Client(), _DB(), _connector()
+
+    def _blind(_tools: dict) -> None:
+        client.fail_listing = True
+
+    _first, again = await _ensure_twice(client, db, connector, _blind)
+    assert again is None
 
 
 @pytest.mark.unit
@@ -883,6 +1015,52 @@ async def test_run_reads_every_item_out_in_words_a_voice_can_say(
     assert "dimanche 20 à 14:00" in text
 
 
+def _listed_mail(status: ReplyStatus) -> UnifiedToolOutput:
+    """One listed mail carrying where it stands in its conversation (ADR-379)."""
+    now = datetime.now(UTC)
+    state = ReplyState(
+        status=status,
+        message=ReplyMessage(
+            message_id="m-reply",
+            at=now - timedelta(hours=2),
+            correspondents="Marc Dupont",
+            excerpt="Thursday at ten suits me.",
+        ),
+        observed_at=now,
+        valid_until=now + timedelta(minutes=2),
+    )
+    return UnifiedToolOutput.data_success(
+        message="1 email",
+        structured_data={
+            "emails": [
+                {
+                    "id": "m1",
+                    "subject": "Thursday?",
+                    "from": "Lea Martin <lea@example.org>",
+                    REPLY_STATE_KEY: state.model_dump(mode="json"),
+                }
+            ]
+        },
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("status", "heard"),
+    [
+        ("answered", "answered on"),
+        ("answer_drafted", "answer drafted, not sent"),
+        ("reply_received", "reply received on"),
+    ],
+)
+def test_a_voice_hears_what_happened_to_a_listed_mail(status: ReplyStatus, heard: str) -> None:
+    """A voice reads no nested structure, so the state reaches it as its one line
+    (ADR-379): told nothing, a call would offer to answer a mail already answered."""
+    text = mod._project(_listed_mail(status), "get_emails_tool", {})
+    assert heard in text
+    assert "Marc Dupont" in text and "Thursday at ten suits me." in text
+
+
 @pytest.mark.unit
 async def test_run_spends_under_the_call_s_own_run_id(
     _execution: dict, monkeypatch: pytest.MonkeyPatch
@@ -951,8 +1129,9 @@ async def test_run_files_a_live_session_lookup_under_the_session_s_own_run(
         return UnifiedToolOutput.data_success(message="ok", structured_data={"events": []})
 
     monkeypatch.setattr(mod, "get_tool", lambda _n: get_events_tool)
-    session_id = "s" * 32
+    session_id = uuid4().hex
     run_id = f"live_session_{session_id}"
+    discussion_id = uuid4()
     await run_live_tool(
         spec_for("get_events_tool"),  # type: ignore[arg-type]
         {"query": "q"},
@@ -960,10 +1139,11 @@ async def test_run_files_a_live_session_lookup_under_the_session_s_own_run(
         language="fr",
         timezone="Europe/Paris",
         display_name="Alex",
-        host=VoiceToolHost.live_session(session_id, run_id),
+        host=VoiceToolHost.live_session(session_id, run_id, conversation_id=discussion_id),
     )
     assert _execution["tracker"]["run_id"] == run_id
     assert _execution["tracker"]["session_id"] == f"live_session_{session_id}"
+    assert _execution["tracker"]["conversation_id"] == discussion_id
     assert _execution["collector_run_id"] == run_id
     consultation = _execution["consultations"][0]
     assert consultation["surface"] == "live_session"

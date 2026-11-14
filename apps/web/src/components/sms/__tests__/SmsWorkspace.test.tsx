@@ -162,6 +162,12 @@ it('automatically opens results from the external search and applies dates in th
   );
 });
 
+/** The grouping by sender, chosen: the archive opens on the day view. */
+async function showSenders(): Promise<void> {
+  fireEvent.click(screen.getByRole('button', { name: fr.sms.by_sender }));
+  await screen.findByText(message.display_name, { selector: 'summary span' });
+}
+
 function unfold(title: string): HTMLDetailsElement {
   const details = fold(title);
   details.open = true;
@@ -313,7 +319,7 @@ it('erases one SMS without a visible reload: the sender stays open and takes the
     erased && path === '/sms/senders' ? freshSenders.promise : served?.(path)
   );
   await open('fr');
-  await screen.findByText(message.display_name);
+  await showSenders();
   const sender = unfold(message.display_name);
   const erase = await within(sender).findByRole('button', {
     name: new RegExp(fr.sms.erase_message),
@@ -379,7 +385,7 @@ it('alternates its grounds: a fold is the card, what it holds the page, a fold w
   // What the archive holds stands on the page's background…
   const focused = await screen.findByLabelText(fr.sms.title, { selector: 'div[tabindex="-1"]' });
   expect(focused).toHaveClass('bg-background');
-  await screen.findByText(message.display_name, { selector: 'summary span' });
+  await showSenders();
   const sender = fold(message.display_name);
   expect(sender).toHaveClass('bg-background');
 
@@ -400,12 +406,13 @@ it('alternates its grounds: a fold is the card, what it holds the page, a fold w
 });
 
 it('draws an empty archive on the page’s background', async () => {
-  const served = get.getMockImplementation();
-  get.mockImplementation(async (path: string) =>
-    path === '/sms/senders'
-      ? { items: [], total: 0, as_of: '2026-10-19T13:00:00Z', revision: 1, next_cursor: null }
-      : served?.(path)
-  );
+  post.mockImplementation(async () => ({
+    items: [],
+    total: 0,
+    revision: 1,
+    as_of: '2026-10-19T13:00:00Z',
+    next_cursor: null,
+  }));
   await open('fr');
   expect((await screen.findByText(fr.sms.empty)).closest('p')).toHaveClass('bg-background');
 });

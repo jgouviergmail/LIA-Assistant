@@ -203,6 +203,7 @@ APPLICATION_TOOL_ALIASES: tuple[str, ...] = (
     "import_user_skill",
     "get_ticket_tool",
     "list_tickets_tool",
+    "list_ticket_categories_tool",
     "cancel_reminder_tool",
     "create_reminder_tool",
     "list_reminders_tool",

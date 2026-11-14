@@ -42,6 +42,8 @@ statically against the audited snapshots (`1c1c5d66`, re-verified on `c5955b73`)
    per derived provider, and the verifier checks coverage on that same effective view.
    Optional seeded capabilities (Gemini vision, ElevenLabs voice, Anthropic MCP-App widgets)
    degrade without their key and are named in the final report.
+   *Amended 2026-11-11: the same derivation now yields Anthropic + DeepSeek, and another
+   list of optional capabilities (amendment below).*
 7. **`/ready` is necessary, never sufficient** (B12): installation completes only after the
    non-secret backend verifier (single Alembic head, exact seed marker, reference-data
    postconditions, active admin, decryptable provider rows, effective provider coverage) and,
@@ -162,3 +164,61 @@ runs keep it. And the bootstrap reads the providers `provider_api_keys` holds,
 in its transaction, to compute the degraded list: computed from the run's own
 payload, a resume that skipped the optional key again reported its
 capabilities degraded while an earlier run's row was stored.
+
+## Amendment 2026-11-11 — the provider baseline follows the production configuration: Anthropic + DeepSeek
+
+The reference `llm_config_seed.sql` was regenerated from the production
+configuration as it stood on 2026-11-11 (owner decision: production is the
+reference, and the installer follows it). Five of the seven pipeline-core slots
+now answer on Anthropic, the response and the ReAct loop on DeepSeek, so the
+derivation of decision 6 yields **Anthropic + DeepSeek** and OpenAI leaves the
+required set. The mechanism is unchanged — the baseline is derived from the
+post-seed effective configuration and held by the anti-drift test — only its
+result moved:
+
+- the questionnaire asks `provider_key_anthropic` and `provider_key_deepseek`;
+  the ephemeral secrets a resume re-prompts (decision 9) are the administrator
+  password, these two keys and the optional Gemini one;
+- an Anthropic key is read from `x-api-key`, beside the `anthropic-version`
+  header that API requires, never as a bearer token (`scripts/install/verify.py`);
+- the provider adapter honours `ANTHROPIC_BASE_URL` like every other
+  `{PROVIDER}_BASE_URL` override: the host alone, the SDK appending
+  `/v1/messages`;
+- the hermetic fake of decision 10 answers on both wire formats:
+  OpenAI-compatible for the response and the ReAct loop, Anthropic Messages
+  (plain, named server-sent events, token count) for the other core slots. It
+  is driven by the client classes the adapter builds
+  (`apps/api/tests/unit/test_installer_fake_provider_protocols.py`), because the
+  workflow that would say so runs on GitHub alone;
+- what stays degraded without a key is derived the same way: image generation
+  and the evaluator wait for an OpenAI key, speech for Fish Audio (synthesis)
+  and ElevenLabs (remote dictation), searches by meaning for Gemini. Image
+  analysis now runs on the Anthropic key; MCP App widgets and proactive
+  discussions no longer wait for a key of their own.
+
+The seed carries what production configured, never what an account chose: the
+voices of the speech slots are left out, so a fresh install speaks with the
+default voices the code ships for the slot's provider, and a row whose slot the
+code no longer declares is left out too.
+
+One dependence the derivation could not see was removed the same day: the
+history summarizer of the generic agents named an OpenAI model in a setting of
+its own, outside every slot. It now writes with the `compaction` slot
+([ADR-244](ADR-244-LLM-Catalogue-Truth.md), amendment of 2026-11-11 (b)), which
+the seed places on a required provider.
+
+The key check decision 6 relies on (B10) had tests and no caller since the
+first release of the installer: it is wired. As soon as the keys are collected
+— on a fresh run, a dry run and a resume that asks them again — each required
+provider is asked about its key (`advise_on_provider_keys`). A rejected key
+and an unreachable provider are said in the wizard's language and stop
+nothing; an accepted key is said nothing about; the log keeps the provider and
+its answer, never the key; an optional key is sent nowhere.
+
+Proven on a disposable stack beside the development one (its own Compose
+project, PostgreSQL and Redis, the artifacts the installer itself renders):
+migrations replayed from an empty database, the seed bundle applied with its
+blocking postconditions, the bootstrap run with the two keys, the verifier
+green, then the workflow's own probes — login and a streamed chat — answered
+through the fake on both wire formats. The four-leg matrix itself runs on
+GitHub at the next release.

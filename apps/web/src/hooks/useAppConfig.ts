@@ -18,9 +18,11 @@
 import { createContext, useContext } from 'react';
 
 import { useApiQuery } from '@/hooks/useApiQuery';
+import type { ConversationCatalogueConfig } from '@/types/conversation';
 
 /** Shape of the backend `/api/v1/config` response. */
 export interface AppConfig {
+  conversations?: ConversationCatalogueConfig;
   route_maps?: { enabled: boolean; estimated_cost_eur?: string };
   place_maps?: { enabled: boolean; estimated_cost_eur?: string };
   sse: {
@@ -30,6 +32,14 @@ export interface AppConfig {
     enabled: boolean;
     per_minute: number;
     burst: number;
+  };
+  /**
+   * What an upload takes (ADR-295 amendment 2026-11-12); absent on an API that
+   * predates it — the composer then keeps its historical images and PDFs.
+   */
+  attachments?: {
+    image_types: string[];
+    document_extensions: string[];
   };
   i18n: {
     supported_languages: string[];
@@ -64,8 +74,8 @@ export interface AppConfig {
     // Importing a meeting from a file (2026-10-24) — gates the « Import » actions.
     meetings_import_enabled?: boolean;
     sms_enabled?: boolean;
-    // The workboard (ADR-276) — gates its settings section, its hub section and
-    // the board page itself. Published by the API since lot 1.
+    // The workboard (ADR-276) — gates its header destination, its hub section
+    // and the board page itself. Published by the API since lot 1.
     workboard_enabled?: boolean;
     // Message bookmarks (ADR-282) — the deployment ceiling of the « Bookmarks » tab;
     // the bubble reads the effective state in `capabilities.bookmarks`
@@ -92,6 +102,16 @@ export interface AppConfig {
     // What LIA does from the Tools (ADR-372) — the deployment ceiling; the effective
     // state is `capabilities.tool_assists`.
     tool_assists_enabled?: boolean;
+    // A routine started by a signed call (ADR-386) — the deployment ceiling of the
+    // routine form's third clock; the effective state is `capabilities.routine_webhooks`.
+    routine_webhooks_enabled?: boolean;
+    // Telephony — what mounts its routes. A stored key stays removable under
+    // the operator's switch (ADR-280); the effective state is `capabilities.telephony`.
+    telephony_enabled?: boolean;
+    // Personal MCP servers — what mounts THEIR router, which is not the ceiling
+    // of the MCP capability (the instance's own servers): `capabilities.mcp`
+    // alone cannot say this router is absent.
+    mcp_user_enabled?: boolean;
   };
   // Every capability of the registry with its EFFECTIVE state (deployment
   // ceiling AND operator switch), keyed like `capabilities.items.<key>`.

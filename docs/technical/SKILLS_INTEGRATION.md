@@ -188,6 +188,12 @@ No domain-overlap heuristic is used anywhere: skill identification is purely des
 
 **Example**: *"Je veux mon briefing quotidien"* → QueryAnalyzer reads the `briefing-quotidien` description and sets `detected_skill_name="briefing-quotidien"` → `SkillBypassStrategy.plan` loads the template for the user → deterministic plan with all 5 steps (or fewer if OAuth scopes are missing).
 
+**A system template is checked against what runs** (`tests/unit/domains/skills/test_system_skill_templates_guard.py`): every step of every deterministic system template names a tool the catalogue holds (every feature flag on), under that tool's own agent, with parameters the registered tool accepts — its argument schema, which takes some the planner is never shown (`days_ahead`) — and a step type a template can run. A typo would otherwise fail at RUN time, for every account the skill is detected for; the guard is proven on a failing fixture.
+
+**Detection is measured, not assumed** (`task skills:detection:measure`, `apps/api/scripts/skills/measure_skill_detection.py`): English pivots — triggers of the skills under test, and neighbours one domain away that a loose description would take — go through the production `analyze_query` with the checkout's system skills in its list, on the families named by `--models`. A hijack (a neighbour taken by a skill under test) is read first, a miss second; a failed analysis is an error, never « no skill ». Measured on 2026-11-13 for `revue-hebdomadaire` and `tri-boite-reception` (22 requests, three families): no hijack in 72 neighbour asks over two runs; every trigger found by two families, and 20 of 22 requests right on the third, whose two misses fall back to the ordinary planner. The first wording missed five triggers on that family; naming the missed phrasings in the trigger sentence brought it to two, with no hijack appearing. Cost of the measurement: 0.15 EUR.
+
+**Weekly review and inbox triage** (system skills, lot 13): `revue-hebdomadaire` reads the tasks completed and still open, the tracked commitments (`get_lia_open_loops_tool`), the next seven days of the calendar and the pending reminders, and answers done / still open / the week ahead / to decide; `tri-boite-reception` reads the unread inbox once (`in:inbox is:unread`, `detail=summary`, the page size the operator's setting) and sorts it into to answer / to read / for information / promotions, `reply_state` keeping an answered message out of « to answer » — it never replies, archives or deletes. A part whose step did not run (a capability off, no account connected) is left out, never shown as empty. The studio's ready-made routines ask for both in words ([SCHEDULED_ACTIONS.md](SCHEDULED_ACTIONS.md)).
+
 ### 6. Early Detection Guard
 
 The planner has an "early insufficient content detection" feature that short-circuits LLM planning when required parameters are missing (e.g., *"send an email"* without subject/body). This must be skipped whenever the user's request has been identified as a skill invocation — otherwise the skill's template or instructions would be replaced by a clarification prompt.
@@ -260,6 +266,10 @@ see — the runner's `UserLocation` context existed for exactly that request.
 | `domains/skills/sandbox_toolbox.py` | What the sandbox image holds — commands, libraries, absences — declared once |
 | `domains/skills/catalogue_manifests.py` | Tool manifests |
 | `domains/skills/router.py` | API endpoints (list, import, delete, toggle, reload) |
+| `domains/skills/usage.py` | A skill's use: one atomic count per run, the dormancy verdict, the ONE door the answer to the switch-off proposal goes through (lot 14) |
+| `domains/skills/previous_version.py` | The ONE previous version a replacement keeps (the person's own words only), settled after every commit (lot 14) |
+| `domains/skills/restore.py` | Restoring that version through the import pipeline, itself reversible (lot 14) |
+| `domains/skills/lifecycle_router.py` | `POST /skills/dormant-decision`, `POST /skills/{name}/restore-previous` (lot 14) |
 | `domains/skills/trust.py` | What a third-party skill may do: `is_third_party`, the isolated runner's scope ([ADR-327](../architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md)) |
 | `domains/skill_library/` | The skill library: portal search, GitHub origin, install and update ([ADR-327](../architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md)) |
 | `core/config/skills.py` | SkillsSettings |
@@ -269,8 +279,9 @@ see — the runner's `UserLocation` context existed for exactly that request.
 
 | File | Purpose |
 |------|---------|
-| `hooks/useSkills.ts` | API hook (list, import, delete, reload, toggle, download, translateDescription, updateDescription, deleteAdmin) |
-| `components/settings/SkillsSettings.tsx` | User skills (Features tab) — list, import, delete, toggle, download |
+| `hooks/useSkills.ts` | API hook (list, import, delete, reload, toggle, download, translateDescription, updateDescription, deleteAdmin, restorePreviousSkill, settleDormant) |
+| `components/settings/SkillsSettings.tsx` | User skills (Features tab) — list, import, delete, toggle, download, the switch-off proposal, the restoration |
+| `components/settings/DormantSkillsNotice.tsx`, `SkillRestoreDialog.tsx`, `lib/skill-life.ts` | The proposal to switch off unused skills, the confirmation of a restoration, the usage line (lot 14) |
 | `components/settings/AdminSkillsSection.tsx` | Admin skills (Administration tab) — list, import, reload, translate, edit description, download, delete |
 | `components/settings/SkillGuideModal.tsx` | User guide modal (SKILL.md format, plan_template reference) |
 | `components/settings/skill-library/` | « Find skills »: search, GitHub address, preview, install, installed skills and their updates |
@@ -289,6 +300,8 @@ see — the runner's `UserLocation` context existed for exactly that request.
 | DELETE | `/skills/{name}` | User | Delete user skill |
 | PATCH | `/skills/{name}/toggle` | User | Toggle skill on/off for current user |
 | GET | `/skills/{name}/download` | User | Download skill as .zip (own or admin skills) |
+| POST | `/skills/dormant-decision` | User | Answer the unused-skill proposal: `{skill_ids, decision: switch_off \| keep}`; only the listed skills still dormant are settled (lot 14) |
+| POST | `/skills/{name}/restore-previous` | User | Put back the version the last replacement of the person's own skill replaced; 404 when none was kept (lot 14) |
 
 ### Skill library endpoints ([ADR-327](../architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md))
 
@@ -421,6 +434,7 @@ SKILLS_USERS_PATH=data/skills/users
 
 # Limits
 SKILLS_MAX_PER_USER=20
+SKILLS_DORMANT_AFTER_DAYS=60   # lot 14: unused this long (7-365) → the settings propose switching it off
 
 # Import hardening (ADR-118)
 SKILLS_CHAT_IMPORT_ENABLED=true
@@ -530,9 +544,57 @@ has **disabled** — it is absent from the injected catalogue, but
 `SkillsCache.get_by_name_for_user` does not filter on activity, so naming it
 explicitly would otherwise edit something the user believes is off.
 
-There is **no version history**: a replacement cannot be undone. The card is
-the safeguard, which is why it enumerates the files that disappear instead of
-announcing a vague modification.
+The card is the safeguard before the click, which is why it enumerates the
+files that disappear instead of announcing a vague modification. After the
+click, **one way back** exists (lot 14, see « A skill's life » below): the
+version a replacement put aside stays restorable until the next replacement.
+There is still no version *history* — one step, never a list.
+
+### A skill's life: its use, the switch-off proposal, the way back (lot 14)
+
+**Use.** A run uses a skill when the response node activates the one it settled
+on, or when the ReAct loop activates one itself (`activate_skill_tool`); a skill
+injected passively (`always_loaded`) is no use. A run reports a skill once at the
+source — the loop's first activation, or the response node when the loop did not
+activate it (`react_activated_skills`) — to ONE door
+(`skills/usage.py::record_skill_use`): a single `UPDATE` on the person's
+`user_skill_states` row, `use_count + 1` only when `last_used_run_id IS DISTINCT
+FROM` the run (the second net), off the turn's path on a short session of its
+own. Counting began with the migration (`usage_counted_since`): a count is
+always stated « since » that day, and a skill used every day before it never
+reads as unused.
+
+**The switch-off proposal.** A skill left on and unused still enters the
+analyzer's list on every message. `is_dormant` is ONE rule: on, observable (not
+`always_loaded`, whose use cannot be seen), and nothing used or kept it during
+`SKILLS_DORMANT_AFTER_DAYS` (default 60) of counting. The settings name those
+skills above the folds and ask: **switch them off**, or **keep them** — keeping
+stamps `dormancy_kept_at` and the proposal waits a whole period again, on every
+device. Both answers go through `settle_dormant` (`POST
+/skills/dormant-decision`), which takes the verdict again on the state locked
+for the write and touches only the skills the screen showed. The assistant reads
+the same facts (`get_lia_skills_tool`: `use_count`, `counted_since`,
+`last_used_at`, `dormant`, `previous_version_at`) and can switch a skill off
+through its confirmed settings update; those facts stay outside the identity a
+confirmation seals, so a use between a draft and its click never reads as a
+changed skill.
+
+**The way back.** After every committed replacement of a person's skill, the
+version the swap parked moves to `<users>/<owner>/.lia-previous/<name>/`
+(`settle_previous`, inside the import's account fence and owner lock), replacing
+the older one — only when both the replaced and the replacing version are the
+person's own words (`authored`, an upload or a chat edit). A third party's bytes
+(an address, a library, a plugin, a peer) are never restored as the person's
+own: that would launder ADR-327's trust decision, and a managed skill changes
+through its channel only. Every other replacement empties the slot, so a
+previous version never outlives the incarnation it belongs to; deleting the
+skill removes it, deleting the account removes the tree. The disk is the record:
+the listing reads the slots (`previous_version_at`, the slot's time — when the
+version was replaced). `POST /skills/{name}/restore-previous` puts it back
+through `import_directory`, every check included, and the version it puts aside
+becomes the previous one: a restoration can be undone in turn. A disk failure
+after a committed replacement loses at most the way back, never the new
+version, and is logged (`skill_previous_version_unsettled`).
 
 ### Dialogue skills (`dialogue: true` extension field)
 
@@ -549,6 +611,28 @@ an earlier text game, the model took the request for a reply within it and ran
 no script, production 2026-09-20), the dialogue resumes where it left off
 instead of restarting. One-shot skills (qr-code, dice-roller…) keep the
 anti-contamination behavior and never see the history.
+
+#### A skill made from what was just done (lot 20)
+
+« Make it a skill » right after a task needs no mechanism of its own: the generator is a
+dialogue skill, so its runner reads the conversation, and the answers tell what was done.
+Measured on 2026-11-13 with fictional conversations
+(`apps/api/scripts/skills/measure_skill_from_conversation.py`, three families, two
+skills per scenario and arm, €0.26):
+
+| Arm | Facts of the conversation copied into the skill |
+|---|---|
+| the history, as today | 7 |
+| plus the tools that ran after each answer (what the archive's execution trace holds) | 7 |
+| plus a rule « generalise: never write a name, place or subject of that conversation » | 6 |
+
+Neither addition was adopted: the tools that ran are already inferred from the answers and
+the catalogue, and the family that copies names copies them under the rule too. The proposal
+card is where a copied name is caught: the person reads the files before installing.
+Detection is the analyzer family's: for « make it a skill » the generator was found 8/8,
+8/8 and 0/8 times on three families, and the third finds it once in 12 even for a skill
+described in words (`task skills:detection:measure -- --only skill-generator`). A
+description naming the conversation case changed none of it and was not kept.
 
 ## Script Execution Security
 
@@ -863,8 +947,8 @@ All `agent_name` values (from `domains/agents/constants.py`):
 | agent_name | tool_name | Key parameters | Notes |
 |------------|-----------|----------------|-------|
 | `email_agent` | `get_emails_tool` | `query` (Gmail syntax), `max_results`, `message_id` | Unified v2. Query examples: `"in:inbox newer_than:1d"`, `"from:john"`, `"subject:invoice"` |
-| `email_agent` | `send_email_tool` | `to`, `subject`, `body`, `cc`, `bcc` | |
-| `email_agent` | `reply_email_tool` | `message_id`, `body` | |
+| `email_agent` | `send_email_tool` | `to`, `subject`, `body`, `content_instruction`, `cc`, `bcc` | `content_instruction`: LIA writes the e-mail, in the person's voice when it knows how they write (ADR-383) |
+| `email_agent` | `reply_email_tool` | `message_id`, `content_instruction` or `body` | `body` only for dictated words; otherwise LIA writes the reply in the person's voice (ADR-383) |
 | `email_agent` | `forward_email_tool` | `message_id`, `to`, `body` | |
 | `email_agent` | `delete_email_tool` | `message_id` | |
 | `contact_agent` | `get_contacts_tool` | `query`, `contact_id` | Unified v2 |

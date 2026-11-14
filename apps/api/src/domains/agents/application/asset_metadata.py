@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.agents.application.command_service import CommandRejected
-from src.domains.attachments.models import Attachment
+from src.domains.attachments.models import Attachment, AttachmentStatus
 from src.domains.attachments.origin import GENERATED_ORIGINS
 from src.domains.attachments.schemas import GeneratedAssetSummary
 
@@ -39,6 +39,7 @@ async def owned_generated_metadata(
     predicate = (
         Attachment.id.in_(ids),
         Attachment.user_id == actor_id,
+        Attachment.status == AttachmentStatus.READY,
         Attachment.origin.in_([origin.value for origin in GENERATED_ORIGINS]),
     )
     if lock:

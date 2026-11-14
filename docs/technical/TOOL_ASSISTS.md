@@ -30,7 +30,7 @@ their action registries and destination forms are described below.
 | `catalogue.py` | Every assist, the slot that answers it and the sources it opens; boot completeness assert. |
 | `door.py` | `run_assist`: both ceilings, the spend billed whatever happens, the read filed, the outcome counted, a failure in the workbench's words. |
 | `llm.py` | `ask_slot`, `ask_slot_on_image`: one short structured call; `assist_line`, the one-line scaffolds. |
-| `mail.py` | A message's summary (the digest), reply, translation, a conversation's summary, a whole message, a subject. |
+| `mail.py` | A message's summary (the digest), reply, translation, a conversation's summary, a whole message, a subject. A reply proposed to a message the person already answered reads that earlier answer and continues from it ([reply state](./MAIL_REPLY_STATE.md)). |
 | `mail_words.py` | A sentence as search criteria, or as a filter's form. |
 | `mail_triage.py` | What the messages of a page weigh. |
 | `text.py` | Words being written: changed, translated, written from an instruction. |
@@ -156,6 +156,18 @@ including Tab, a different editor and window blur. Closing for that reason never
 focus back. A genuinely different native selection is admitted after dismissal, even
 when a selection handle or accessibility tool emits no pointer event.
 
+The bubble is a non-modal layer beside every Radix popup: a dialog, its lists, a menu.
+They share Radix's module-level focus-scope and dismissable-layer stacks, which hold only
+as ONE copy. Measured 2026-11-13 with two (the `Select` of one release beside the `Dialog`
+of the next): a dialog's trap pushed the focus out of every open list, so no option could
+be chosen from the keyboard, and once a bubble had paused that trap the two traps sent the
+focus to each other until the page froze. `radix-layer-singletons.guard.test.ts` refuses a
+lockfile resolving two versions of `focus-scope`, `dismissable-layer` or `focus-guards`, and
+`e2e/smoke/select-in-dialog-focus.spec.ts` holds the journey. With one copy, a matrix of two
+dialog lists, a page menu and a page list, each without a bubble, with Dictate and with a
+selection, by mouse and by keyboard, found no freeze and the focus inside every open popup:
+the bubble needs no rule of its own.
+
 Native touch selection can interrupt the pointer stream without its terminal event.
 The observer keeps both pointer and native-touch lifetimes: selection remains hidden
 while a finger is down, and the final touch release retires touch pointers only. A held
@@ -179,14 +191,17 @@ Recording callbacks are retired during the React commit, before a new account or
 run its layout effects; a queued result cannot leak words or feedback across that boundary.
 
 Internet prepares one query from the complete, untrusted selection on the assist slot,
-then uses one available service: Brave first, Perplexity next, otherwise Wikipedia.
+then uses one available service: Brave first, Perplexity next, then the instance's own
+search (SearXNG, keyless, when the operator runs one — [WEB_SEARCH.md](./WEB_SEARCH.md)),
+otherwise Wikipedia.
 The web-search capability is checked before preparation and before lookup, and the
 chosen connector is rechecked after preparation. No second service is tried on failure.
 The bubble names the actual service, query and source links; an empty result is explicit.
 Perplexity's numbered citations retain their original order, including repeated URLs.
 Only HTTP(S) links without credentials are admitted, and source markup is shown as text.
 No page URL is fetched. The model preparation follows the existing platform ceilings and
-accounting; Brave and Perplexity use the person's connector key. The actual provider read
+accounting; Brave and Perplexity use the person's connector key, SearXNG and Wikipedia
+none. The actual provider read
 is filed on the same run through the `tool_assist` consultation surface, also on failure
 or cancellation. Every client is closed and no SQL session spans either network phase.
 

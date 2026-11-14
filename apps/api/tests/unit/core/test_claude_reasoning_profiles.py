@@ -37,6 +37,9 @@ EXPECTED: dict[str, tuple[str, tuple[str, ...], bool, str | None]] = {
     "claude-sonnet-5": ("anthropic_adaptive_display", ("none", *_FULL), True, "high"),
     "claude-fable-5": ("anthropic_adaptive_display", _FULL, False, "high"),
     "claude-fable-5-1": ("anthropic_adaptive_display", _FULL, False, "high"),
+    # Five effort levels and no off switch, as the Models API declares them
+    # (2026-11-11); « the API default is high » is the vendor's page.
+    "claude-fable-5-2": ("anthropic_adaptive_display", _FULL, False, "high"),
     "claude-opus-5-5": ("anthropic_adaptive_display", _FULL, False, "medium"),
     # Its off switch is ``between_tools``, not ``disabled``: a family of its own.
     "claude-sonnet-5-5": ("anthropic_between_tools", ("none", *_FULL), True, "high"),
@@ -63,7 +66,13 @@ def test_the_budget_family_keeps_its_token_range() -> None:
 
 def test_no_later_generation_accepts_a_budget() -> None:
     """``budget_tokens`` is a 400 from Opus 4.7 on."""
-    for model in ("claude-opus-4-7", "claude-opus-5", "claude-fable-5-1", "claude-opus-5-5"):
+    for model in (
+        "claude-opus-4-7",
+        "claude-opus-5",
+        "claude-fable-5-1",
+        "claude-fable-5-2",
+        "claude-opus-5-5",
+    ):
         assert resolve_reasoning_profile("anthropic", model).supports_budget is False
 
 

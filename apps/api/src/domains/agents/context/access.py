@@ -36,7 +36,12 @@ from typing import TYPE_CHECKING
 from langchain_core.runnables import RunnableConfig
 
 from src.core.field_names import FIELD_THREAD_ID
-from src.domains.agents.context.runtime_context import runtime_user_id_str
+from src.core.tool_context_scope import ToolContextScope
+from src.domains.agents.context.runtime_context import (
+    runtime_context_if_running,
+    runtime_tool_context_scope,
+    runtime_user_id_str,
+)
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -61,7 +66,7 @@ class TcmSession:
     manager: ToolContextManager
     store: BaseStore
     user_id: str
-    session_id: str
+    session_id: ToolContextScope
 
 
 async def get_tcm_session(config: RunnableConfig) -> TcmSession | None:
@@ -89,7 +94,8 @@ async def get_tcm_session(config: RunnableConfig) -> TcmSession | None:
 
         configurable = config.get("configurable", {}) if config else {}
         user_id = runtime_user_id_str()
-        session_id = configurable.get(FIELD_THREAD_ID)
+        context = runtime_context_if_running()
+        session_id = runtime_tool_context_scope(configurable.get(FIELD_THREAD_ID), context)
         if not user_id or not session_id:
             return None
 
@@ -97,7 +103,7 @@ async def get_tcm_session(config: RunnableConfig) -> TcmSession | None:
             manager=ToolContextManager(),
             store=store,
             user_id=str(user_id),
-            session_id=str(session_id),
+            session_id=session_id,
         )
     except Exception:
         # Defensive: never let TCM acquisition break the caller's control flow.

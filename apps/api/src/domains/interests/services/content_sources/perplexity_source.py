@@ -233,20 +233,19 @@ class PerplexityContentSource:
         """
         return build_localized_search_query(topic, user_language, _SEARCH_QUERY_TEMPLATES)
 
-    def is_available(self, user_id: str | None = None) -> bool:
+    async def applies(self, user_id: str | None) -> bool:
         """
-        Check if Perplexity source is potentially available.
-
-        Note: This only checks if user_id is provided. Actual API key
-        verification is done in generate() since it requires async DB access.
+        Whether Perplexity would be asked: only with the person's own key.
 
         Args:
-            user_id: User ID (required for Perplexity)
+            user_id: Whose interest.
 
         Returns:
-            True if user_id provided (actual availability checked in generate)
+            True when the person configured a Perplexity key.
         """
-        return user_id is not None
+        if not user_id:
+            return False
+        return bool(await get_connector_api_key(user_id, ConnectorType.PERPLEXITY))
 
     async def close(self) -> None:
         """Cleanup all HTTP clients."""

@@ -11,6 +11,7 @@ import {
   buildWidgetFrameCsp,
   resolveCoepMode,
 } from './src/lib/csp';
+import { nonIndexedHeaderSources } from './src/lib/public-pages';
 
 // Allowed dev origins for cross-origin requests in development
 // Must include patterns for local network access
@@ -214,6 +215,13 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      // Routes kept out of the index (src/lib/public-pages.ts) say so on the
+      // wire: robots.txt forbids a crawl, it cannot forbid indexing an
+      // address someone else linked, and several of these carry a token.
+      ...nonIndexedHeaderSources().map(source => ({
+        source,
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
+      })),
       {
         // Widget airlock (see src/lib/csp.ts + ADR-098): third-party MCP App
         // widgets are bootstrapped into this same-origin shell so they get a

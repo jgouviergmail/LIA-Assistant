@@ -105,6 +105,36 @@ class AppleMailStateMixin:
             max_retries=0,
         )
 
+    async def _mark_answered(self: _AppleStateHost, message_id: str) -> bool:
+        """Flag a message the person just answered, as every mail client does (ADR-379).
+
+        IMAP sends through SMTP: nothing tells the mailbox a message was answered
+        unless the client that answered says so. Best effort by design — the reply
+        has LEFT, and a failure here must never make it read as unsent.
+
+        Args:
+            message_id: The answered message.
+
+        Returns:
+            Whether the mailbox took the mark.
+        """
+        location = read_message_handle(message_id)
+        if location is None or location.scope_digest is None:
+            return False  # an id nobody can locate is not worth a session
+        try:
+            result = await self._execute_with_retry(
+                "mark_answered",
+                self._set_flag_impl,
+                [message_id],
+                MailMessageFlags.ANSWERED,
+                True,
+                max_retries=0,
+            )
+        except Exception as error:
+            logger.warning("apple_mark_answered_failed", error_type=type(error).__name__)
+            return False
+        return bool(result["updated"])
+
     async def _set_flag_impl(
         self: _AppleStateHost, ids: list[str], flag: str, value: bool
     ) -> dict[str, Any]:

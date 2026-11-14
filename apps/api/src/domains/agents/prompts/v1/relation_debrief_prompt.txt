@@ -26,6 +26,7 @@ WHAT THE JSON MEANS — read these rules before writing a word:
    - Filter out automated notifications, transactional receipts, and system alerts.
    - Recurring calendar invites without meeting notes or attached messages do NOT count as active human discussions.
 7. INTERMEDIARY RECOGNITION: If communications come from an assistant, secretariat, or shared company address, attribute the communication to the representative or office, not directly to {person_name}'s personal voice.
+8. A mail may carry `reply_state`, read from the mailbox when this evidence was assembled. `answered …`: {user_name} already replied to that mail — what it asked for is settled, never an open point for {user_name}. `reply received …`: someone wrote back after a mail {user_name} sent. `awaiting_reply`: nobody has yet. `unanswered`: nothing from {user_name} after it. `answer drafted, not sent …`: an unsent reply sits in their drafts. A mail with no `reply_state` says nothing either way.
 
 HOW TO WRITE IT
 

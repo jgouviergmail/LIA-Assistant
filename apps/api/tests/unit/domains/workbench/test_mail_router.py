@@ -52,6 +52,7 @@ from src.domains.workbench.schemas.mail import (
     MailListing,
     MailMessage,
     MailPage,
+    MailReplyMarks,
     MoveOutcome,
     TrashEmptied,
 )
@@ -100,6 +101,7 @@ _READS: dict[str, Any] = {
         attachments=[],
     ),
     "read_message_html": MailHtml(html="<p>Hello</p>", truncated=False),
+    "read_reply_marks": MailReplyMarks(items=[]),
     "read_reply_recipients": ReplyRecipients(to=[], cc=[]),
 }
 _ACTS: dict[str, Any] = {
@@ -293,6 +295,15 @@ _ROUTES: list[tuple[str, str, dict[str, Any] | None, str, int, str]] = [
         "/workbench/mail/message/html?id=m1",
         None,
         "read_message_html",
+        200,
+        "workbench_read",
+    ),
+    (
+        # A read, though it posts: a page of ids does not fit an address (ADR-379).
+        "POST",
+        "/workbench/mail/reply-marks",
+        {"messages": [{"id": "m1", "thread_id": "t1"}]},
+        "read_reply_marks",
         200,
         "workbench_read",
     ),
@@ -757,3 +768,32 @@ async def test_the_person_s_attachable_files_are_listed(http: Any) -> None:
     assert response.status_code == 200, response.text
     listed.assert_awaited_once_with(seams.user.id, query="rap", offset=25)
     assert refused.status_code == 422
+
+
+class TestTheReplyMarksAtTheDoor:
+    """The marks of a page are asked for a page: never none, never more than one holds."""
+
+    @pytest.mark.parametrize(
+        "rows", [0, settings.api_max_items_per_request + 1], ids=["none", "above_a_page"]
+    )
+    async def test_a_request_outside_a_page_is_refused_before_the_mailbox(
+        self, http: tuple[AsyncClient, Any], rows: int
+    ) -> None:
+        client, services = http
+        refs = [{"id": f"m{index}", "thread_id": f"t{index}"} for index in range(rows)]
+
+        response = await client.post("/workbench/mail/reply-marks", json={"messages": refs})
+
+        assert response.status_code == 422
+        services.read_reply_marks.assert_not_awaited()
+
+    async def test_an_id_of_the_wrong_shape_is_refused(self, http: tuple[AsyncClient, Any]) -> None:
+        client, services = http
+
+        response = await client.post(
+            "/workbench/mail/reply-marks",
+            json={"messages": [{"id": "m 1", "thread_id": "t1"}]},
+        )
+
+        assert response.status_code == 422
+        services.read_reply_marks.assert_not_awaited()

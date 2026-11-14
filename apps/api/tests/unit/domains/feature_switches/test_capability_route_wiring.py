@@ -86,6 +86,13 @@ _ROUTER_MODULES: dict[PlatformCapability, str] = {
     PlatformCapability.WORKBENCH: "src.domains.workbench.router",
     # ADR-372 — a click asks a model from those screens: the routes are that ability.
     PlatformCapability.TOOL_ASSISTS: "src.domains.tool_assists.router",
+    # ADR-386 — the public address IS the ability; the routines and the calls
+    # already accepted stay readable (the secret's route carries it too).
+    PlatformCapability.ROUTINE_WEBHOOKS: "src.domains.scheduled_actions.webhook_router",
+    # Guarded at the ACT and on the routes that are acts (recompute, presence).
+    PlatformCapability.HABITS: "src.domains.habits.router",
+    # Guarded at the synthesis chokepoint and on the routes that speak a sample.
+    PlatformCapability.TTS: "src.domains.voice.lia_voices_router",
 }
 
 
@@ -160,6 +167,9 @@ def test_habits_are_guarded_at_the_two_ACT_routes_only() -> None:
         if "habits" in _names_in(getattr(route, "dependencies", []))
     }
     assert guarded == {"/habits/recompute", "/habits/presence"}, guarded
+    # Guarded at the act AND on those routes: the declaration says both.
+    spec = CAPABILITY_SPECS[PlatformCapability.HABITS]
+    assert spec.route_enforced is True and spec.service_enforced is True
 
 
 def test_the_heartbeat_record_is_never_gated_on_the_switch() -> None:
@@ -180,16 +190,64 @@ def test_the_generated_gallery_is_not_gated_on_uploads() -> None:
     assert _guarded_capabilities(router) == set()
 
 
-def test_speech_synthesis_is_service_enforced_not_route_enforced() -> None:
-    # TTS has no route of its own — spoken answers are produced inside the
-    # chat stream — so a router dependency would enforce nothing. The switch
-    # lives at the single voice-synthesis chokepoint instead, and the
-    # declaration says so rather than pretending.
+def test_speech_synthesis_is_enforced_at_its_chokepoint_and_on_the_routes_that_speak() -> None:
+    # A spoken answer is produced inside the chat stream, so the switch lives
+    # at the single voice-synthesis chokepoint. Two routes speak too — a voice
+    # sample, a text read aloud — and carry the guard: the declaration says
+    # both, since the panel prints it.
     spec = CAPABILITY_SPECS[PlatformCapability.TTS]
-    assert spec.route_enforced is False
+    assert spec.route_enforced is True
     assert spec.service_enforced is True
 
+    from src.domains.voice.lia_voices_router import router as voices
     from src.domains.voice.router import router
 
+    assert "tts" in _guarded_capabilities(voices)
     # The recording side (STT) does have routes, and they are guarded.
     assert "stt" in _guarded_capabilities(router)
+
+
+def test_a_telephony_key_is_removed_whatever_the_switch_says() -> None:
+    """ADR-280 amendment (2026-11-12): a switch removes the capability, never
+    the record. The key a person stored is theirs: removing it — the agent LIA
+    created at the vendor, then the connector — goes through a door the switch
+    does not close, as a Live key goes through the connectors' own route.
+    Everything else on ``/telephony`` IS the ability and stays guarded."""
+    from src.domains.telephony import router as telephony
+
+    record_door = {
+        (method, route.path)
+        for route in served_routes(telephony.record_router)
+        for method in route.methods or ()
+    }
+    # What the person already HAS — a key, a number, a history — is read and
+    # taken back whatever the switch says; and a call placed before it was
+    # flipped still reports its end, or its account would be lost.
+    assert record_door == {
+        ("DELETE", "/telephony/connector"),
+        ("GET", "/telephony/calls"),
+        ("GET", "/telephony/calls/{call_id}"),
+        ("GET", "/telephony/identity"),
+        ("DELETE", "/telephony/identity/number"),
+        ("POST", "/telephony/webhook"),
+    }, record_door
+    assert _guarded_capabilities(telephony.record_router) == set()
+
+    assert "telephony" in _names_in(telephony.router.dependencies)
+    guarded = {
+        (method, route.path)
+        for route in served_routes(telephony.router)
+        for method in route.methods or ()
+    }
+    assert guarded.isdisjoint(record_door)
+    # Whatever places a call, creates something at the vendor or sets up the
+    # next call is the capability: declaring a number, verifying it by a call,
+    # the preferences of owner calls, activating a key.
+    assert guarded == {
+        ("POST", "/telephony/connector/validate-key"),
+        ("POST", "/telephony/connector/activate"),
+        ("PUT", "/telephony/identity/number"),
+        ("POST", "/telephony/identity/verify"),
+        ("POST", "/telephony/identity/confirm"),
+        ("PATCH", "/telephony/identity"),
+    }, guarded

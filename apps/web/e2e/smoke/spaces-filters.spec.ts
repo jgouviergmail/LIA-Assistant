@@ -1,6 +1,6 @@
 /** Both knowledge-space doors use literal metadata criteria at a narrow viewport. */
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect } from '../fixtures';
+import { test, expect, openListFilters } from '../fixtures';
 import type { RAGSpace } from '../../src/types/rag-spaces';
 
 for (const width of [390, 1280]) {
@@ -73,6 +73,7 @@ for (const width of [390, 1280]) {
     await page.reload();
     await expect(favorites).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`spaces-${width}.png`), fullPage: true });
+    await openListFilters(page, 'Filtres');
     await page.getByRole('button', { name: 'Géré par LIA', exact: true }).click();
     await expect(page.getByText('Recherche', { exact: true })).toHaveCount(0);
     await page.getByRole('searchbox').fill('absent');
@@ -127,6 +128,7 @@ for (const path of ['/en/dashboard/spaces', '/en/dashboard/settings?section=rag-
     ]);
     await page.goto(path);
     await expect(page.getByText('École', { exact: true })).toBeVisible();
+    await openListFilters(page, 'Filters');
     await page.getByRole('combobox', { name: 'Search in', exact: true }).selectOption('filename');
     await page.getByRole('searchbox', { name: 'Search by filename' }).fill('été');
     await expect.poll(() => requests.at(-1)?.get('q')).toBe('été');

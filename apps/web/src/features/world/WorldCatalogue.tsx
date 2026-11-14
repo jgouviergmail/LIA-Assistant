@@ -9,7 +9,8 @@ import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { SettingsSearchAvailability } from '@/lib/settings-search';
 import type { SettingsSectionToken } from '@/lib/settings-sections';
-import { visibleDestinations, destinationPath } from '@/lib/dashboard-nav';
+import { offeredDestinations } from '@/components/dashboard/offered-destinations';
+import { destinationPath } from '@/lib/dashboard-nav';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { normalizeSearchText } from '@/lib/utils';
@@ -126,7 +127,7 @@ export function WorldCatalogue({
               {t('world.functions.application')}
             </h3>
             <div className="flex flex-wrap gap-2">
-              {visibleDestinations(config?.features)
+              {offeredDestinations(config)
                 .filter(item => !['world', 'settings', 'chat'].includes(item.segment))
                 .map(item => (
                   <Button key={item.segment} variant="outline" className="min-h-11" asChild>

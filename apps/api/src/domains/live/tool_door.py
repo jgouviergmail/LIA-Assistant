@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Final
 import structlog
 
 from src.core.config import settings
+from src.core.reservation_work import require_reserved_work
 from src.domains.agents.expressivity.activity import capture_activity
 from src.domains.agents.telephony.live_tools import VoiceToolHost
 from src.domains.agents.telephony.voice_lookup import LookupRefusal, serve_voice_lookup
@@ -84,7 +85,11 @@ async def run_session_tool(
             language=language,
             timezone=timezone,
             display_name=display_name,
-            host=VoiceToolHost.live_session(record.session_id, record.run_id),
+            host=VoiceToolHost.live_session(
+                record.session_id,
+                record.run_id,
+                conversation_id=require_reserved_work().admission.target.id,
+            ),
         )
     if verdict.refusal is not None:
         live_tool_calls_total.labels(provider=record.provider, outcome=verdict.refusal.value).inc()

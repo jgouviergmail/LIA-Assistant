@@ -31,6 +31,7 @@ from src.domains.attachments.models import (
 from src.domains.workbench import mail_files
 from src.domains.workbench.errors import TOO_LARGE
 from src.domains.workbench.files_service import DriveDownload
+from tests.helpers.attachment_publication import stub_publication
 
 pytestmark = pytest.mark.unit
 
@@ -77,28 +78,14 @@ class TestAFileOfTheDevice:
 
     PNG = bytes.fromhex("89504e470d0a1a0a0000000d49484452")
 
-    def _kept(self, tmp_path: Path, *, create: Any = None) -> Any:
-        """The door, on a disk of the test's and a session that files the row."""
-        made = create or AsyncMock(
-            side_effect=lambda fields: SimpleNamespace(id=uuid4(), title=None, **fields)
-        )
-
-        @contextlib.asynccontextmanager
-        async def opened() -> AsyncIterator[Any]:
-            yield MagicMock()
-
-        return (
-            patch.object(mail_files.settings, "attachments_storage_path", str(tmp_path)),
-            patch.object(mail_files, "get_db_context", opened),
-            patch.object(mail_files, "AttachmentRepository", return_value=MagicMock(create=made)),
-            made,
-        )
-
     async def _keep(self, tmp_path: Path, file: mail_files.DeviceFile) -> Any:
-        path, session, repository, made = self._kept(tmp_path)
-        with path, session, repository:
+        opened = AsyncMock()
+        with (
+            patch.object(mail_files, "get_db_context", return_value=opened),
+            stub_publication(tmp_path) as writer,
+        ):
             kept = await mail_files.keep_device_file(USER, file)
-        return kept, made.await_args.args[0]
+        return kept, writer.created[0]
 
     async def test_its_bytes_are_kept_where_the_send_reads_them(self, tmp_path: Path) -> None:
         file = mail_files.DeviceFile("notes.txt", "text/plain", b"hello")
@@ -168,10 +155,11 @@ class TestAFileOfTheDevice:
     async def test_a_row_that_could_not_be_filed_leaves_nothing_on_the_disk(
         self, tmp_path: Path
     ) -> None:
-        path, session, repository, _made = self._kept(
-            tmp_path, create=AsyncMock(side_effect=RuntimeError("down"))
-        )
-        with path, session, repository, pytest.raises(RuntimeError):
+        with (
+            patch.object(mail_files, "get_db_context", return_value=AsyncMock()),
+            stub_publication(tmp_path, fail_stage=True),
+            pytest.raises(RuntimeError),
+        ):
             await mail_files.keep_device_file(
                 USER, mail_files.DeviceFile("a.txt", "text/plain", b"x")
             )

@@ -46,6 +46,7 @@ import {
 } from '../useNotifications';
 import type { Notification } from '@/hooks/useNotifications';
 import { logger } from '@/lib/logger';
+import { useCompanionEnvironmentStore } from '@/stores/companionEnvironmentStore';
 
 /** A controllable EventSource: the test decides when it opens, fails, emits. */
 class FakeEventSource {
@@ -364,12 +365,40 @@ describe('useNotifications — the thread sync signals (ADR-320)', () => {
     act(() => live().emit({ type: 'conversation_reset', conversation_id: 'c1' }));
 
     expect(onConversationEvent.mock.calls).toEqual([
-      ['conversation_updated'],
-      ['conversation_reset'],
+      [{ type: 'conversation_updated', conversation_id: 'c1' }],
+      [{ type: 'conversation_reset', conversation_id: 'c1' }],
     ]);
     expect(onNotification).not.toHaveBeenCalled();
     expect(result.current.notifications).toHaveLength(0);
     expect(result.current.unreadCount).toBe(0);
+  });
+});
+
+describe('useNotifications — the companion weather (ADR-294, 2026-11-13)', () => {
+  it('asks the companion to read its weather again, and is no notification', () => {
+    const onNotification = vi.fn();
+    const before = useCompanionEnvironmentStore.getState().refreshRequests;
+    const { result } = connected({ onNotification });
+
+    act(() => live().emit({ type: 'companion_weather' }));
+
+    expect(useCompanionEnvironmentStore.getState().refreshRequests).toBe(before + 1);
+    expect(onNotification).not.toHaveBeenCalled();
+    expect(result.current.notifications).toHaveLength(0);
+    // Read as a notice, the signal would be reported as a malformed message each time.
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('asks again when a dropped stream is open again: what was said meanwhile is lost', () => {
+    vi.useFakeTimers();
+    connected();
+    const before = useCompanionEnvironmentStore.getState().refreshRequests;
+
+    act(() => live().fail());
+    act(() => void vi.advanceTimersByTime(RECONNECT_DELAY_MS));
+    act(() => live().onopen?.());
+
+    expect(useCompanionEnvironmentStore.getState().refreshRequests).toBe(before + 1);
   });
 });
 

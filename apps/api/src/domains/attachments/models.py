@@ -13,20 +13,24 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.infrastructure.database.models import BaseModel
-
 # --- Domain constants (str, not Enum — avoids _CHECKPOINT_ALLOWED_MODULES registration) ---
-
-
-class AttachmentStatus:
-    """Lifecycle status values for attachments."""
-
-    UPLOADED = "uploaded"
-    READY = "ready"
-    EXPIRED = "expired"
+from src.core.attachment_lifecycle import AttachmentStatus as AttachmentStatus
+from src.core.constants import ATTACHMENTS_FILENAME_MAX_CHARS
+from src.infrastructure.database.models import BaseModel
 
 
 class AttachmentContentType:
@@ -65,7 +69,9 @@ class Attachment(BaseModel):
 
     Lifecycle:
         uploaded → ready (after validation + optional text extraction)
-        ready → expired (TTL safety net or conversation reset)
+        ready → deleting (retirement commits before physical removal)
+        uploaded → deleting (joined failed writer or explicitly stopped worker)
+        deleting → removed (only after explicit file-removal success)
 
     Security:
         - Files stored as UUID-based filenames (anti-traversal)
@@ -84,7 +90,7 @@ class Attachment(BaseModel):
 
     # Original filename (for display only, never used in file paths)
     original_filename: Mapped[str] = mapped_column(
-        String(255),
+        String(ATTACHMENTS_FILENAME_MAX_CHARS),
         nullable=False,
     )
 
@@ -193,6 +199,23 @@ class Attachment(BaseModel):
         ),
     )
 
+    # A retired file keeps its exact path until physical removal succeeds.
+    deletion_reason: Mapped[str | None] = mapped_column(String(30), nullable=True)
+
+    # The file's own durable I/O owner. An unknown uploader never expires into
+    # cleanup; deletion claims may be retried because their path is immutable.
+    io_worker_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    io_owner_token: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    io_fence: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    io_claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Native confirmed deletion keeps the exact file identity the person approved.
+    # With check=True and digest=None, the file was absent: a later file is not it.
+    deletion_check_identity: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    deletion_expected_digest: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
     # Composite index for user queries (ownership + chronological order)
     __table_args__ = (
         Index("ix_attachments_user_id_created_at", "user_id", "created_at"),
@@ -203,5 +226,38 @@ class Attachment(BaseModel):
         CheckConstraint(
             "expires_at IS NOT NULL OR origin <> 'upload'",
             name="ck_attachments_upload_expires",
+        ),
+        CheckConstraint(
+            "status <> 'deleting' OR deletion_reason IS NOT NULL",
+            name="ck_attachments_deletion_reason",
+        ),
+        CheckConstraint("io_fence >= 0", name="ck_attachments_io_fence"),
+        Index("ix_attachments_io_worker", "io_worker_id"),
+    )
+
+
+class ConversationAttachmentUsage(BaseModel):
+    """An accepted file use, independent of generation provenance or upload drafts."""
+
+    __tablename__ = "conversation_attachment_usages"
+
+    attachment_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("attachments.id", ondelete="CASCADE"), nullable=False
+    )
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False
+    )
+    # The discussion's own revision is a BIGINT: the copy kept here has its range.
+    conversation_revision: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "attachment_id", "conversation_id", name="uq_conversation_attachment_usage"
+        ),
+        Index(
+            "ix_conversation_attachment_usages_source", "conversation_id", "conversation_revision"
+        ),
+        CheckConstraint(
+            "conversation_revision >= 0", name="ck_conversation_attachment_usage_revision"
         ),
     )

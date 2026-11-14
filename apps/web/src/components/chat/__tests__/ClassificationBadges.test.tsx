@@ -70,6 +70,60 @@ describe('closed JEV badges', () => {
       expect(screen.queryByText('classification.reply_expected')).not.toBeInTheDocument();
     }
   });
+  describe('where a mail stands in its conversation (ADR-379)', () => {
+    const asking = {
+      ...value,
+      version: 'email-event-v2-reply',
+      category: 'professional',
+      priority: 'normal',
+      reply_expected: true,
+    };
+    const standing = (status: string) => ({ version: 'mail-reply-state-v1', status });
+
+    it('marks a mail the person answered and withdraws the reply it asked for', () => {
+      render(<ClassificationBadges value={asking} replyState={standing('answered')} />);
+      const badge = screen.getByText('mail_reply_state.answered');
+      // Settled, not pending: the success family, never the theme colour of a live request.
+      expect(badge.className).toMatch(/\btext-success\b/);
+      expect(screen.queryByText('classification.reply_expected')).not.toBeInTheDocument();
+      expect(screen.getByText('classification.professional')).toBeInTheDocument();
+    });
+    it('keeps the mark of an answer when nothing qualifies the mail any more', () => {
+      const expired = { ...asking, valid_until: new Date(now - 1000).toISOString() };
+      const { rerender } = render(
+        <ClassificationBadges value={expired} replyState={standing('answered')} />
+      );
+      expect(screen.getByText('mail_reply_state.answered')).toBeInTheDocument();
+      rerender(<ClassificationBadges value={null} replyState={standing('reply_received')} />);
+      expect(screen.getByText('mail_reply_state.reply_received')).toBeInTheDocument();
+    });
+    it('says nothing of a reading of a moment, and leaves the request standing', () => {
+      // « Nobody answered yet » and « a draft waits » stop being true without the card knowing.
+      for (const status of ['unanswered', 'answer_drafted', 'awaiting_reply']) {
+        const { unmount } = render(
+          <ClassificationBadges value={asking} replyState={standing(status)} />
+        );
+        expect(screen.queryByText(`mail_reply_state.${status}`)).not.toBeInTheDocument();
+        expect(screen.getByText('classification.reply_expected')).toBeInTheDocument();
+        unmount();
+      }
+    });
+    it('reads nothing into a value that is no reply state', () => {
+      const { container, rerender } = render(
+        <ClassificationBadges value={null} replyState={{ status: 'answered' }} />
+      );
+      expect(container).toBeEmptyDOMElement();
+      rerender(
+        <ClassificationBadges
+          value={null}
+          replyState={{ version: 'mail-reply-state-v1', status: '<img src=x>' }}
+        />
+      );
+      expect(container).toBeEmptyDOMElement();
+      rerender(<ClassificationBadges value={null} replyState="answered" />);
+      expect(container).toBeEmptyDOMElement();
+    });
+  });
   it('never restarts historical attention and bounds a remount to the remaining time', () => {
     expect(classificationAttentionStyle(new Date(now - 10000).toISOString(), now)).toEqual({});
     expect(classificationAttentionStyle(new Date(now - 2000).toISOString(), now)).toEqual({

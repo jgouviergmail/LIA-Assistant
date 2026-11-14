@@ -24,7 +24,7 @@ async def test_linked_callback_stages_or_closes_but_never_persists(monkeypatch, 
     factory._consume_state = AsyncMock(return_value={"application_command_id": str(command)})
     monkeypatch.setattr(module, "MCPOAuthFlowHandler", factory)
     writer = AsyncMock()
-    monkeypatch.setattr(module.UserMCPServerService, "update_oauth_credentials", writer)
+    monkeypatch.setattr(module, "persist_bound_oauth_credentials", writer)
     callbacks = MCPApplicationOAuthCallbacks(AsyncMock(), AsyncMock(), AsyncMock())
     if scenario == "stage_failure":
         callbacks.stage.side_effect = RuntimeError("private-provider-token")

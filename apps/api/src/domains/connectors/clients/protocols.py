@@ -19,6 +19,8 @@ from src.domains.connectors.clients.contact_details import ContactDetails
 from src.domains.connectors.clients.contact_directory import ContactDirectory
 from src.domains.connectors.clients.contact_photos import ContactPhoto
 from src.domains.connectors.clients.email_attachments import EmailAttachmentContent
+from src.domains.connectors.clients.event_bounds import BoundsChange, EventBounds
+from src.domains.connectors.clients.mail_conversation import Conversation
 from src.domains.connectors.clients.mail_inline_images import InlineBudget
 from src.domains.connectors.clients.mail_moves import MailPlace, UnreadCounts
 from src.domains.connectors.clients.mail_unsubscribe import Unsubscribe
@@ -66,6 +68,11 @@ class EmailClientProtocol(OutgoingCeiling, Protocol):
         format: str = "full",
         fields: list[str] | None = None,
         use_cache: bool = True,
+        *,
+        # Read with the message what its mailbox says it did with it — « answered »
+        # (ADR-379): on Graph the one expansion of the request, so the files are left
+        # out; already in every IMAP read; nothing on Gmail, which keeps no such mark.
+        mailbox_mark: bool = False,
     ) -> dict: ...
 
     async def send_email(
@@ -166,6 +173,20 @@ class EmailClientProtocol(OutgoingCeiling, Protocol):
 
     async def get_conversation(self, message_id: str, max_messages: int) -> dict:
         """The conversation a message belongs to, headers alone (``mail_conversation``)."""
+        ...
+
+    async def conversations_of(
+        self, messages: Sequence[Mapping[str, Any]], max_messages: int
+    ) -> dict[str, Conversation]:
+        """What the conversations of listed messages hold, drafts apart (ADR-379).
+
+        Keyed by each message's ``threadId``. The owner's own messages carry the
+        ``SENT`` label and a message carries what its mailbox says of it, whatever
+        the provider (``mail_conversation.Conversation``). A conversation that could
+        not be read is ABSENT, never empty: its messages then get no reply state.
+        A read that fails as a whole raises what its transport raised: the caller
+        decides what a page without reply states is worth.
+        """
         ...
 
     async def get_message_html(self, message_id: str) -> str | None:
@@ -372,38 +393,37 @@ class CalendarClientProtocol(Protocol):
     async def create_event(
         self,
         summary: str,
-        start_datetime: str,
-        end_datetime: str,
-        timezone: str | None = None,
+        bounds: EventBounds,
         description: str | None = None,
         location: str | None = None,
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
         add_conference: bool = False,
         idempotency_key: str | None = None,
-        all_day: bool = False,
         options: EventOptions | None = None,
     ) -> dict:
-        """With ``all_day`` the bounds are dates, the end EXCLUSIVE (``normalizers.all_day``)."""
+        """An event at the bounds it is given: wall times in their zone, or days (ADR-380).
+
+        Never text: a client says the bounds in its provider's words, and reads
+        no time on the way (``event_bounds``).
+        """
         ...
 
     async def update_event(
         self,
         event_id: str,
         summary: str | None = None,
-        start_datetime: str | None = None,
-        end_datetime: str | None = None,
-        timezone: str | None = None,
+        bounds: BoundsChange | None = None,
         description: str | None = None,
         location: str | None = None,
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
-        all_day: bool | None = None,
         send_updates: str | None = None,
         add_conference: bool = False,
         options: EventOptions | None = None,
     ) -> dict:
-        """``all_day`` None keeps the event's shape; True/False switches it, both bounds given.
+        """What changes of its ``bounds``: a whole pair gives the event its shape, sides
+        alone keep the shape it has, None leaves its bounds as they are (ADR-380).
 
         ``send_updates`` says who is told (Google ``sendUpdates``; None, the
         provider's own default). Graph tells attendees on its own and CalDAV

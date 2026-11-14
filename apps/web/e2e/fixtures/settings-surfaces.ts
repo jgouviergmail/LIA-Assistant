@@ -24,6 +24,8 @@ export const surfaceMemoryLimits = {
   content_max_chars: 500,
   trigger_topic_max_chars: 100,
   usage_nuance_max_chars: 300,
+  import_max_memories: 500,
+  import_max_file_kb: 2048,
 };
 /** Mirrors the pure MemoryListResponse wire fields in useMemories.ts. */
 const surfaceMemories = {

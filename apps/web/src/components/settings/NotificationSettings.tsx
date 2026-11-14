@@ -153,13 +153,8 @@ function AccountNotificationSettings({
                   setShowDisableConfirm(true);
                 }
               }}
-              disabled={
-                !isSupported ||
-                !isConfigured ||
-                permissionStatus === 'denied' ||
-                isLoading ||
-                (currentDeviceToken && deletingTokenId === currentDeviceToken.id)
-              }
+              busy={isLoading || (!!currentDeviceToken && deletingTokenId === currentDeviceToken.id)}
+              disabled={!isSupported || !isConfigured || permissionStatus === 'denied'}
             />
           </div>
 

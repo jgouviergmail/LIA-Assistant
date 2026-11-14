@@ -39,11 +39,11 @@ from langchain_core.messages import (
     BaseMessage,
     HumanMessage,
     RemoveMessage,
-    SystemMessage,
 )
 from langchain_core.runnables import RunnableConfig
 
 from src.domains.agents.nodes.react_observed_gaps import observed_gaps, observed_recovery_outcome
+from src.domains.agents.nodes.react_shown import Shown, recovery_order, with_shown
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.utils.react_budget import react_exit_reason
 from src.infrastructure.llm.message_text import coerce_content_to_text
@@ -204,16 +204,37 @@ async def react_recovery_node(state: MessagesState, config: RunnableConfig) -> d
     return {"messages": [RemoveMessage(id=str(draft.id))], "react_recovery_passes": passes}
 
 
+def recovery_shown(passes: Sequence[Mapping[str, Any]]) -> list[Shown]:
+    """What each pass shows a call: its draft as an assistant message, then the directive.
+
+    Each sits after its anchor (the draft's predecessor). Passes sharing an anchor (a
+    pass whose reply called no tool leaves the next draft the same predecessor) come in
+    the order they were taken, and a note the person added comes where it was read
+    (``react_shown``, ADR-385).
+
+    Args:
+        passes: The turn's recovery records.
+
+    Returns:
+        One item per pass.
+    """
+    return [
+        Shown(
+            anchor_id=str(record["anchor_id"]),
+            order=recovery_order(index),
+            messages=(
+                AIMessage(content=record["draft"]),
+                HumanMessage(content=_directive_text(record["unresolved"])),
+            ),
+        )
+        for index, record in enumerate(passes)
+    ]
+
+
 def with_recovery_directives(
     messages: Sequence[BaseMessage], passes: Sequence[Mapping[str, Any]]
 ) -> list[BaseMessage]:
     """The messages of one call, with each pass's draft and directive shown in place.
-
-    Each pass puts, after its anchor (the draft's predecessor) and after the
-    system messages glued to it — the turn's context under ADR-308 stays right
-    after its question — the draft as an assistant message, then the directive.
-    Passes sharing an anchor (a pass whose reply called no tool leaves the next
-    draft the same predecessor) are shown together, in the order they were taken.
 
     Args:
         messages: The composed messages of the call.
@@ -222,26 +243,7 @@ def with_recovery_directives(
     Returns:
         A new list; the given one is never modified.
     """
-    by_anchor: dict[str, list[BaseMessage]] = {}
-    for record in passes:
-        by_anchor.setdefault(str(record["anchor_id"]), []).extend(
-            [
-                AIMessage(content=record["draft"]),
-                HumanMessage(content=_directive_text(record["unresolved"])),
-            ]
-        )
-    out = list(messages)
-    for anchor_id, shown in by_anchor.items():
-        at = next((i for i, m in enumerate(out) if m.id == anchor_id), None)
-        if at is None:
-            logger.warning("react_recovery_anchor_missing", pass_count=len(passes))
-            out.extend(shown)
-            continue
-        at += 1
-        while at < len(out) and isinstance(out[at], SystemMessage):
-            at += 1
-        out[at:at] = shown
-    return out
+    return with_shown(messages, recovery_shown(passes))
 
 
 def _directive_text(unresolved: Sequence[str]) -> str:

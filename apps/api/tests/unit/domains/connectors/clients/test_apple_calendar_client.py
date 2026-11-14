@@ -5,6 +5,10 @@ Regression coverage for the 2026-07 codebase audit (wave 1):
   ``_apply_timezone`` ignored timezone-aware values, so the ``timezone``
   parameter of create/update was NEVER applied: an event created at
   "10:00 Europe/Paris" was stored at 10:00 UTC (12:00 Paris in summer).
+
+The same defect came back on another provider in 2026-11, so the client is no
+longer handed text to interpret (ADR-380): it takes bounds whose wall times
+carry their zone, and ``_parse_iso_datetime`` reads search bounds only.
 """
 
 from datetime import UTC, datetime
@@ -18,6 +22,9 @@ from src.domains.connectors.clients.apple_calendar_client import (
     AppleCalendarClient,
     _parse_iso_datetime,
 )
+from src.domains.connectors.clients.event_bounds import bounds_of, change_of
+
+PARIS = ZoneInfo("Europe/Paris")
 
 # ============================================================================
 # FIXTURES
@@ -61,9 +68,7 @@ async def test_create_event_applies_requested_timezone(client, mock_calendar):
     ):
         await client._create_event_impl(
             summary="Dentiste",
-            start_datetime="2026-07-10T10:00:00",
-            end_datetime="2026-07-10T11:00:00",
-            timezone="Europe/Paris",
+            bounds=bounds_of("2026-07-10T10:00:00", "2026-07-10T11:00:00", PARIS, all_day=False),
             description=None,
             location=None,
             attendees=None,
@@ -72,42 +77,16 @@ async def test_create_event_applies_requested_timezone(client, mock_calendar):
         )
 
     kwargs = mock_calendar.save_event.await_args.kwargs
-    expected_start = datetime(2026, 7, 10, 10, 0, tzinfo=ZoneInfo("Europe/Paris"))
-    expected_end = datetime(2026, 7, 10, 11, 0, tzinfo=ZoneInfo("Europe/Paris"))
+    expected_start = datetime(2026, 7, 10, 10, 0, tzinfo=PARIS)
+    expected_end = datetime(2026, 7, 10, 11, 0, tzinfo=PARIS)
     assert kwargs["dtstart"] == expected_start
     assert str(kwargs["dtstart"].tzinfo) == "Europe/Paris"
     assert kwargs["dtend"] == expected_end
 
 
 @pytest.mark.unit
-async def test_create_event_naive_without_timezone_falls_back_to_utc(client, mock_calendar):
-    """Without a timezone parameter, naive datetimes keep the historic UTC fallback."""
-    with (
-        patch.object(client, "_get_calendar", AsyncMock(return_value=mock_calendar)),
-        patch(
-            "src.domains.connectors.clients.apple_calendar_client.normalize_vevent",
-            return_value={},
-        ),
-    ):
-        await client._create_event_impl(
-            summary="Standup",
-            start_datetime="2026-07-10T10:00:00",
-            end_datetime="2026-07-10T10:30:00",
-            timezone=None,
-            description=None,
-            location=None,
-            attendees=None,
-            calendar_id="primary",
-            uid="fixed-uid",
-        )
-
-    kwargs = mock_calendar.save_event.await_args.kwargs
-    assert kwargs["dtstart"] == datetime(2026, 7, 10, 10, 0, tzinfo=UTC)
-
-
-@pytest.mark.unit
-async def test_create_event_aware_input_wins_over_timezone_param(client, mock_calendar):
-    """An explicit offset in the input datetime is preserved as-is."""
+async def test_create_event_keeps_the_instant_an_offset_names(client, mock_calendar):
+    """A time written with an offset is an instant: stored at it, on the person's wall."""
     with (
         patch.object(client, "_get_calendar", AsyncMock(return_value=mock_calendar)),
         patch(
@@ -117,9 +96,9 @@ async def test_create_event_aware_input_wins_over_timezone_param(client, mock_ca
     ):
         await client._create_event_impl(
             summary="Call NYC",
-            start_datetime="2026-07-10T10:00:00-04:00",
-            end_datetime="2026-07-10T11:00:00-04:00",
-            timezone="Europe/Paris",
+            bounds=bounds_of(
+                "2026-07-10T10:00:00-04:00", "2026-07-10T11:00:00-04:00", PARIS, all_day=False
+            ),
             description=None,
             location=None,
             attendees=None,
@@ -128,7 +107,10 @@ async def test_create_event_aware_input_wins_over_timezone_param(client, mock_ca
         )
 
     kwargs = mock_calendar.save_event.await_args.kwargs
-    assert kwargs["dtstart"].utcoffset().total_seconds() == -4 * 3600
+    # Ten in New York is 14:00 UTC, four in the afternoon on a Paris wall in summer.
+    assert kwargs["dtstart"].astimezone(UTC) == datetime(2026, 7, 10, 14, 0, tzinfo=UTC)
+    assert str(kwargs["dtstart"].tzinfo) == "Europe/Paris"
+    assert (kwargs["dtstart"].hour, kwargs["dtend"].hour) == (16, 17)
 
 
 @pytest.mark.unit
@@ -150,16 +132,15 @@ async def test_update_event_applies_requested_timezone(client):
         await client._update_event_impl(
             event_id="uid-123",
             summary=None,
-            start_datetime="2026-07-10T09:00:00",
-            end_datetime=None,
-            timezone="Europe/Paris",
+            bounds=change_of("2026-07-10T09:00:00", None, PARIS, all_day=None),
             description=None,
             location=None,
             attendees=None,
             calendar_id="primary",
         )
 
-    assert vevent.dtstart.value == datetime(2026, 7, 10, 9, 0, tzinfo=ZoneInfo("Europe/Paris"))
+    assert vevent.dtstart.value == datetime(2026, 7, 10, 9, 0, tzinfo=PARIS)
+    assert str(vevent.dtstart.value.tzinfo) == "Europe/Paris"
 
 
 # ============================================================================
@@ -168,8 +149,8 @@ async def test_update_event_applies_requested_timezone(client):
 
 
 @pytest.mark.unit
-def test_parse_iso_datetime_default_stamps_utc():
-    """Default behavior (search bounds): naive input is treated as UTC."""
+def test_parse_iso_datetime_stamps_utc_on_a_search_bound():
+    """A search bound that names no offset is read as UTC."""
     assert _parse_iso_datetime("2026-07-10T10:00:00") == datetime(2026, 7, 10, 10, 0, tzinfo=UTC)
 
 
@@ -178,11 +159,3 @@ def test_parse_iso_datetime_preserves_explicit_offset():
     """An explicit offset in the string is preserved."""
     parsed = _parse_iso_datetime("2026-07-10T10:00:00+02:00")
     assert parsed.utcoffset().total_seconds() == 2 * 3600
-
-
-@pytest.mark.unit
-def test_parse_iso_datetime_naive_mode_keeps_naive():
-    """assume_utc=False returns a naive datetime so the caller can localize it."""
-    parsed = _parse_iso_datetime("2026-07-10T10:00:00", assume_utc=False)
-    assert parsed.tzinfo is None
-    assert parsed == datetime(2026, 7, 10, 10, 0)

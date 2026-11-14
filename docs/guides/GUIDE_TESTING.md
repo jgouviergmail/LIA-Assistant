@@ -2106,6 +2106,31 @@ async def test_with_mocked_llm_call():
         planner.llm.ainvoke.assert_called_once()
 ```
 
+### Prouver une heure : le trajet, pas la forme (ADR-380)
+
+Un test qui compare ce qu'un client ENVOIE fige une forme, juste ou fausse : la référence
+figée des clients d'agenda contenait une heure murale estampillée « Z » et restait verte,
+parce qu'elle était prise en UTC, le seul fuseau où cette forme fausse est juste. Une heure
+se prouve donc sur son trajet complet, dans un fuseau éloigné de l'UTC :
+
+- `apps/api/tests/helpers/calendar_providers.py` simule Google Agenda, Microsoft Graph et
+  CalDAV d'après leur propre référence : chacun LIT la requête comme sa documentation le
+  dit et refuse ce qu'elle ne définit pas (`refused`) ;
+- `connected(provider, user_id)` branche un VRAI client sur son simulateur ;
+- l'oracle est un instant écrit à la main en UTC, jamais calculé par le code testé.
+
+```python
+async with connected("google", USER) as (client, provider):
+    bounds = bounds_of("2026-11-27T09:30", "2026-11-27T10:30", PARIS, all_day=False)
+    made = await client.create_event("Visit", bounds)
+    # Neuf heures et demie à Paris en novembre : 08:30 UTC, jamais 09:30 UTC.
+    assert provider.held(made["id"])[0] == datetime(2026, 11, 27, 8, 30, tzinfo=UTC)
+```
+
+`apps/api/tests/unit/domains/connectors/clients/test_event_time_round_trip.py` est le modèle
+à imiter : trois fournisseurs, hiver et été, des fuseaux à la demi-heure et à un jour de
+l'UTC, les nuits de changement d'heure.
+
 ---
 
 ## Coverage et Qualité

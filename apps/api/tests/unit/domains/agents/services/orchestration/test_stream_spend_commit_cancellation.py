@@ -20,6 +20,7 @@ from src.domains.agents.models import create_initial_state
 from src.domains.agents.services.orchestration import service as orchestration_module
 from src.domains.agents.services.orchestration import turn_input
 from src.domains.agents.services.orchestration.service import OrchestrationService
+from tests.fixtures.conversation_cases import conversation_target
 
 pytestmark = pytest.mark.unit
 
@@ -76,8 +77,7 @@ async def _consume(tracker: _GatedTracker, ran_on: list[str]) -> None:
     async for _mode, _chunk in OrchestrationService().execute_graph_stream(
         graph=_OneChunkGraph(),
         state=create_initial_state(user_id, "session", "run"),
-        conversation_id=uuid4(),
-        user_id=user_id,
+        target=conversation_target(user_id, uuid4()),
         session_id="session",
         run_id="run",
         tool_deps=None,

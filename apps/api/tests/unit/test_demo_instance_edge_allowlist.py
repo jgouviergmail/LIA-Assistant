@@ -63,6 +63,9 @@ EXPECTED_ALLOWED = {
     "/api/v1/psyche/*",
     "/api/v1/journals*",
     "/api/v1/memories*",
+    # ADR-383: what LIA learned of how the visitor writes — their own row, beside
+    # their memories; nothing is learned without a connected mailbox.
+    "/api/v1/writing-style*",
     # ADR-263: the visitor's own action register, on their own demo account —
     # same class as memories and journals, and the settings surface that reads
     # it is part of the real product the demonstrator shows.

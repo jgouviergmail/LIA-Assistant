@@ -285,16 +285,16 @@ def test_a_capability_its_deployment_forbids_is_not_demanded_at_boot() -> None:
 
 def test_a_capability_without_agents_declares_where_it_IS_enforced() -> None:
     # Speech owns no catalogue entry. Recording is refused at the route layer;
-    # synthesis has no route at all (it is produced inside the chat stream) and
-    # is refused at the single voice-synthesis chokepoint. The spec states
-    # which one, so a reader never has to guess — and the wiring test can
-    # check the claim.
+    # a spoken answer is produced inside the chat stream and refused at the
+    # single voice-synthesis chokepoint, and the two routes that speak a
+    # sample carry the guard as well. The spec states where, so a reader never
+    # has to guess — and the route table checks the claim.
     stt = CAPABILITY_SPECS[PlatformCapability.STT]
     assert stt.agents == () and stt.route_enforced is True
 
     tts = CAPABILITY_SPECS[PlatformCapability.TTS]
     assert tts.agents == () and tts.service_enforced is True
-    assert tts.route_enforced is False
+    assert tts.route_enforced is True
 
 
 def test_every_capability_is_enforced_somewhere() -> None:

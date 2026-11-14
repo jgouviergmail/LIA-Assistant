@@ -225,7 +225,7 @@ function ChannelSettingsContent({
             <Switch
               checked={telegramBinding.is_active}
               onCheckedChange={() => handleToggle(telegramBinding)}
-              disabled={toggling}
+              busy={toggling}
               aria-label={t('settings.channels.toggle_label')}
             />
           </div>

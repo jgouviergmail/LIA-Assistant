@@ -218,15 +218,12 @@ class LLMReflectionContentSource:
             )
             return None
 
-    def is_available(self, user_id: str | None = None) -> bool:
+    async def applies(self, user_id: str | None) -> bool:
         """
-        Check if LLM reflection source is available.
-
-        LLM reflection is always available as it uses the configured LLM
-        without external dependencies.
+        Whether the reflection would run: always, it needs no service of its own.
 
         Args:
-            user_id: Not used (LLM doesn't need per-user auth)
+            user_id: Not used (the reflection needs no per-user auth)
 
         Returns:
             Always True

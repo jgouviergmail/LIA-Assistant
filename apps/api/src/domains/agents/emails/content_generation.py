@@ -9,6 +9,10 @@ message is the instruction. That resolution used to live inside
 Two cleanups travelled with it: the INFO logs carried the instruction and a
 subject preview (the person's words) — they now carry counts only — and the
 generator is public, reached by name rather than as a private of another module.
+
+A letter to someone is written in the person's own voice when LIA knows how they
+write (ADR-383, ``writing_style``); a note to their own mailbox and a subject alone
+read no style.
 """
 
 from __future__ import annotations
@@ -28,6 +32,7 @@ from src.domains.agents.context.runtime_context import (
     tool_runtime_context,
     tool_user_id_str,
 )
+from src.domains.agents.emails import writing_style
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.tools.exceptions import ContentGenerationError
 from src.domains.agents.tools.output import UnifiedToolOutput
@@ -58,6 +63,8 @@ async def generate_email_content(
     existing_body: str | None = None,
     config: RunnableConfig | None = None,
     sender_name: str | None = None,
+    user_id: str | None = None,
+    style_reading: writing_style.Reading | None = None,
 ) -> dict[str, str]:
     """Generate an e-mail's subject and/or body from an instruction.
 
@@ -72,12 +79,16 @@ async def generate_email_content(
         config: The run's RunnableConfig, so the turn's tracker bills the call.
         sender_name: The sender's first name, for an explicitly requested
             signature (None = unknown).
+        user_id: The sender's account, whose writing style a letter follows (ADR-383).
+        style_reading: How a caller outside a turn files a read of the person's
+            mailbox, should their style have to be learned first.
 
     Returns:
         ``{"subject": ...}`` always, ``"body"`` only when it was generated.
 
     Raises:
         ContentGenerationError: If generation fails or returns an invalid format.
+        UsageLimitExceededError: A spending ceiling refused learning the style.
     """
     from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 
@@ -91,11 +102,20 @@ async def generate_email_content(
         )
         required_fields = ["subject"]
     else:
+        # A note to the person's own mailbox has no greeting nor sign-off: no voice to follow.
+        style = (
+            None
+            if recipient == NOTE_TO_SELF_RECIPIENT
+            else await writing_style.writing_style_for(
+                user_id, config=config, reading=style_reading
+            )
+        )
         prompt = load_prompt("email_content_generation_prompt").format(
             instruction=instruction,
             recipient=recipient,
             sender_name=sender_name or "unknown",
             user_language=language_name,
+            writing_style=writing_style.compose_block(style),
         )
         required_fields = ["subject", "body"]
     logger.debug(
@@ -186,6 +206,8 @@ async def resolve_email_content(
                 existing_body=body if body and not subject else None,
                 config=runtime.config if runtime is not None else None,
                 sender_name=context.display_name if context is not None else None,
+                # None without a runtime: tool_user_id_str reads its own absence.
+                user_id=tool_user_id_str(runtime),
             )
         except ContentGenerationError as e:
             logger.error("email_content_generation_failed", error_type=type(e).__name__)
@@ -198,7 +220,7 @@ async def resolve_email_content(
         # Counts only at INFO: the instruction and the subject are the person's words.
         logger.info(
             "email_content_generated",
-            user_id=tool_user_id_str(runtime) if runtime is not None else None,
+            user_id=tool_user_id_str(runtime),
             instruction_chars=len(instruction),
             subject_generated=not subject,
             body_generated=not body,

@@ -355,7 +355,8 @@
       "domains": [
         "agents",
         "connectors",
-        "email_share"
+        "email_share",
+        "writing_style"
       ],
       "surfaces": [
         "/dashboard/chat"

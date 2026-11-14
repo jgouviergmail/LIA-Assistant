@@ -162,6 +162,27 @@ test.describe('capability constellation', () => {
     await page.waitForURL(/section=memories/, { timeout: 30_000 });
   });
 
+  test('a star whose capability lives on a page leads to that page', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await authenticate({ language: 'fr' });
+    await mockApi(ROUTES);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto('/fr/dashboard/capabilities');
+
+    // The relations are set up on their own page (ADR-269). With no settings
+    // section to name, the star fell back to the settings root — a door to a
+    // screen that holds nothing about them.
+    const star = page.getByRole('link', { name: /^Relations — / });
+    await expect(star).toBeVisible({ timeout: 30_000 });
+    await expect(star).toHaveAttribute('href', '/fr/dashboard/relations');
+
+    await star.click();
+    await page.waitForURL(/\/dashboard\/relations$/, { timeout: 30_000 });
+  });
+
   test('a phone gets the list, with the same destinations', async ({
     page,
     authenticate,
@@ -175,5 +196,9 @@ test.describe('capability constellation', () => {
     await expect(page.getByRole('list').first()).toBeVisible({ timeout: 30_000 });
     await expect(page.locator('.capability-scene svg[viewBox="0 0 100 100"]')).toHaveCount(0);
     await expect(page.getByRole('link', { name: /Mémoire/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /^Relations/ })).toHaveAttribute(
+      'href',
+      '/fr/dashboard/relations'
+    );
   });
 });

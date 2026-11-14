@@ -4,14 +4,17 @@ opening holds the next one back for a while, never for its whole reply window.""
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from src.core.config import settings
+from src.core.conversation_execution import RunAdmission, RunEnd
 from src.core.field_names import FIELD_IS_AUTOMATED_SOURCE
+from src.domains.conversations.catalogue_service import conversation_ref
+from src.domains.conversations.execution_repository import ConversationExecutionRepository
 from src.domains.conversations.models import ConversationMessage
 from src.domains.conversations.repository import ConversationRepository
 from src.domains.heartbeat.models import HeartbeatNotification
@@ -42,7 +45,6 @@ def quiet_turns(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
             return False
 
     monkeypatch.setattr(discussion_attention, "get_redis_cache", AsyncMock(return_value=object()))
-    monkeypatch.setattr(discussion_attention, "get_active_run", AsyncMock(return_value=None))
     monkeypatch.setattr(discussion_attention, "HITLStore", NoApproval)
     yield
 
@@ -282,18 +284,28 @@ def _approval(waiting: bool) -> type:
     return Approval
 
 
-async def test_a_turn_streaming_in_the_conversation_is_named_unless_it_is_the_runs_own(
+async def test_a_durable_graph_holds_attention_until_its_actual_closure(
     async_engine: AsyncEngine, discussion_owner: UUID, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     await _conversation(async_engine, discussion_owner)
+    async with AsyncSession(async_engine) as db:
+        row = await ConversationRepository(db).get_active_for_user(discussion_owner)
+        assert row is not None
+        admission = await ConversationExecutionRepository(db).admit(
+            conversation_ref(row),
+            run_id="a-turn",
+            stream_id="a-stream",
+            worker_id=uuid4(),
+        )
+        await db.commit()
     monkeypatch.setattr(discussion_attention, "get_redis_cache", AsyncMock(return_value=object()))
-    monkeypatch.setattr(
-        discussion_attention, "get_active_run", AsyncMock(return_value={"stream_id": "a-turn"})
-    )
     monkeypatch.setattr(discussion_attention, "HITLStore", _approval(False))
     assert await _hold(async_engine, discussion_owner, now=NOW) == "turn_streaming"
     async with AsyncSession(async_engine) as db:
-        assert await attention_hold(db, discussion_owner, now=NOW, lease_owner="a-turn") is None
+        assert isinstance(admission, RunAdmission)
+        assert await ConversationExecutionRepository(db).close_owned(admission, end=RunEnd.NORMAL)
+        await db.commit()
+    assert await _hold(async_engine, discussion_owner, now=NOW) is None
 
 
 async def test_an_approval_waiting_in_the_conversation_is_named(
@@ -301,6 +313,5 @@ async def test_an_approval_waiting_in_the_conversation_is_named(
 ) -> None:
     await _conversation(async_engine, discussion_owner)
     monkeypatch.setattr(discussion_attention, "get_redis_cache", AsyncMock(return_value=object()))
-    monkeypatch.setattr(discussion_attention, "get_active_run", AsyncMock(return_value=None))
     monkeypatch.setattr(discussion_attention, "HITLStore", _approval(True))
     assert await _hold(async_engine, discussion_owner, now=NOW) == "approval_pending"

@@ -59,6 +59,8 @@ def render_report(
     ]
     if public.observability:
         lines.append("  Observability stack: enabled (profile 'observability')")
+    if public.web_search:
+        lines.append("  Instance web search: enabled (profile 'searxng')")
     if optional_unkeyed is None:
         lines += [
             "",

@@ -4,6 +4,7 @@ import json
 from collections.abc import Iterator
 
 from src.core.classification_projection import classification_fields
+from src.core.mail_reply_state import reply_state_fields
 from src.domains.briefing.constants import SECTION_NAMES, SECTIONS_NOT_SUMMARISED
 from src.domains.briefing.schemas import CardsBundle, CardSection, CardStatus
 
@@ -95,6 +96,7 @@ def _project_mails(summary: dict[str, object], cards: CardsBundle, verbose: bool
                         "from": (m.sender_name or m.sender_email or "(unknown)"),
                         "subject": m.subject,
                         **classification_fields(m.classification),
+                        **reply_state_fields(m.reply_state),
                     }
                     for m in items[:3]
                 ],

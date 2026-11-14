@@ -16,6 +16,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    EMBEDDING_PATIENT_RETRY_MAX_WAIT_SECONDS_DEFAULT,
     EMBEDDING_RATE_LIMIT_MAX_CALLS_DEFAULT,
     EMBEDDING_RATE_LIMIT_WAIT_SECONDS_DEFAULT,
     EMBEDDING_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
@@ -244,6 +245,21 @@ class LLMSettings(BaseSettings):
         default=EMBEDDING_RETRY_BACKOFF_FACTOR_DEFAULT,
         gt=0,
         description="Wait between embedding attempts is backoff_factor ** attempt seconds.",
+    )
+
+    embedding_patient_retry_max_wait_seconds: float = Field(
+        default=EMBEDDING_PATIENT_RETRY_MAX_WAIT_SECONDS_DEFAULT,
+        ge=0,
+        description=(
+            "Longest delay NAMED BY THE PROVIDER (a quota refusal says when to "
+            "come back) that bulk indexing serves before its retry. Only work "
+            "that declares itself patient waits; an embedding on a chat turn "
+            "never does. A refusal naming a longer delay is not retried at all. "
+            "0 switches the waiting off. Held at boot under half the RAG job "
+            "lease, counted once per retry a batch may make "
+            "(embedding_retry_max_attempts - 1): the waits happen inside one "
+            "embedding batch of a leased document."
+        ),
     )
 
     llm_transient_retry_max: int = Field(

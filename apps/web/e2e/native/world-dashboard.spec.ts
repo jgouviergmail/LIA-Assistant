@@ -172,7 +172,7 @@ for (const viewport of [
         );
       });
       await panel(page)
-        .getByRole('link', { name: new RegExp(en.settings.workboard.tile_lia) })
+        .getByRole('link', { name: new RegExp(en.workboard.summary.tile_lia) })
         .click();
       await boardRead;
       if (viewport.width < 768)

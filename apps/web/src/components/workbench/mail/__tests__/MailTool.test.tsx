@@ -998,7 +998,7 @@ describe('MailTool — selection, search and chips', () => {
     ).toBeChecked();
   });
 
-  it('says each act of the selection in a short word', async () => {
+  it('draws the acts of a selection on one line: two icons, the rest behind « … »', async () => {
     const { user } = screenOf();
 
     const boxes = await screen.findAllByRole('checkbox', {
@@ -1007,9 +1007,21 @@ describe('MailTool — selection, search and chips', () => {
     await user.click(boxes[0]!);
     const bar = within(screen.getByRole('region', { name: 'workbench.mail.selection_region' }));
 
-    for (const key of ['bar_read', 'bar_unread', 'bar_star', 'bar_spam']) {
-      expect(bar.getByRole('button', { name: `workbench.mail.${key}` })).toBeInTheDocument();
-    }
+    expect(bar.getAllByRole('button').map(button => button.getAttribute('aria-label'))).toEqual([
+      'workbench.mail.clear_selection',
+      'workbench.mail.mark_read',
+      'workbench.mail.archive',
+      'common.more_actions',
+      'workbench.mail.trash',
+    ]);
+    await user.click(bar.getByRole('button', { name: 'common.more_actions' }));
+    expect((await screen.findAllByRole('menuitem')).map(line => line.textContent)).toEqual([
+      'workbench.mail.mark_unread',
+      'workbench.mail.star',
+      'workbench.mail.move_to',
+      'workbench.mail.report_spam',
+      'workbench.mail.labels_title',
+    ]);
   });
 
   it('narrows the listing with a chip, and offers the attachment chip only where it filters', async () => {
@@ -1728,7 +1740,7 @@ describe('MailTool — from a message to the other tools', () => {
 
     expect(openChat).toHaveBeenCalledWith('/en/dashboard/chat');
     expect(nav.push).not.toHaveBeenCalled();
-    expect(window.localStorage.getItem('lia.chatDraft.owner')).toBe('workbench.ask.mail');
+    expect(window.localStorage.getItem('lia.chatDraft.owner.main')).toBe('workbench.ask.mail');
     expect(api.post).not.toHaveBeenCalled();
   });
 
@@ -1741,7 +1753,7 @@ describe('MailTool — from a message to the other tools', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'workbench.ask.ready.mail' }));
 
     expect(openChat).toHaveBeenCalledWith('/en/dashboard/chat');
-    expect(window.localStorage.getItem('lia.chatDraft.owner')).toBe(
+    expect(window.localStorage.getItem('lia.chatDraft.owner.main')).toBe(
       'workbench.ask.ready.mail_words'
     );
     expect(api.post).not.toHaveBeenCalled();
@@ -2024,6 +2036,8 @@ describe('MailTool — its keys', () => {
     messages.m3 = message('m3');
     screenOf();
     await screen.findByRole('article');
+    // Its last row listed: with nothing listed yet, « j » has nowhere to go and proves nothing.
+    await screen.findByRole('link', { name: /Subject m3/ });
 
     press('j');
 
@@ -2380,6 +2394,59 @@ describe('MailTool — unavailable', () => {
 
     expect(await screen.findByText('workbench.states.not_connected_title')).toBeInTheDocument();
     expect(api.get).not.toHaveBeenCalledWith('/workbench/mail/folders', expect.anything());
+  });
+});
+
+describe('MailTool — where a row stands in its conversation (ADR-379)', () => {
+  const MARKS = '/workbench/mail/reply-marks';
+  const LIST = 'workbench.mail.messages_title';
+
+  /** The marks route answers; every other POST keeps the answer its test gave it. */
+  function answerMarks(items: { id: string; status: string }[]) {
+    api.post.mockImplementation((path: string) =>
+      Promise.resolve(path === MARKS ? { items } : { done: [], failed: [] })
+    );
+  }
+
+  it('marks the rows something happened to, once the page is on screen', async () => {
+    features = [...GMAIL, 'reply_marks'];
+    answerMarks([
+      { id: 'm1', status: 'answered' },
+      { id: 'm2', status: 'answer_drafted' },
+    ]);
+    screenOf();
+
+    const list = await screen.findByRole('list', { name: LIST });
+    const [first, second, third] = within(list).getAllByRole('listitem');
+    expect(
+      await within(first).findByRole('img', { name: 'workbench.mail.answered' })
+    ).toBeInTheDocument();
+    expect(
+      within(second).getByRole('img', { name: 'workbench.mail.answer_drafted' })
+    ).toBeInTheDocument();
+    expect(within(third).queryByRole('img', { name: /answer|reply_received/ })).toBeNull();
+    expect(posted(MARKS)).toEqual({
+      messages: [
+        { id: 'm1', thread_id: 'm1' },
+        { id: 'm2', thread_id: 'm2' },
+        { id: 'm3', thread_id: 'm3' },
+      ],
+    });
+  });
+
+  it('asks nothing of a mailbox that offers no mark, nor in the trash', async () => {
+    answerMarks([{ id: 'm1', status: 'answered' }]);
+    const { unmount } = screenOf();
+    await screen.findByRole('list', { name: LIST });
+    expect(postsTo(MARKS)).toBe(0);
+    unmount();
+
+    features = [...GMAIL, 'reply_marks'];
+    nav.search = 'folder=system:trash';
+    screenOf();
+    await screen.findByRole('list', { name: LIST });
+
+    expect(postsTo(MARKS)).toBe(0);
   });
 });
 

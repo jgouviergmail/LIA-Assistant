@@ -12,7 +12,7 @@
 
 LIA supporte les **canaux de messagerie externes** comme complément à l'interface web. Les utilisateurs peuvent chatter avec LIA, recevoir des notifications proactives, répondre aux questions HITL (confirmer un brouillon ou une action, trancher une ambiguïté) et envoyer des messages vocaux — le tout depuis Telegram.
 
-L'architecture est **générique** : Telegram est la première implémentation, mais l'abstraction `BaseChannelSender` et le modèle `UserChannelBinding` permettent d'ajouter d'autres canaux (Discord, WhatsApp...) sans modifier le domaine.
+Telegram est aujourd'hui le seul canal. Ce qui a été écrit pour en accueillir d'autres (Discord, WhatsApp...) est en place : les interfaces `BaseChannelSender` et `BaseChannelWebhookHandler`, le modèle `UserChannelBinding`, la liaison par code et les métriques, toutes étiquetées par type de canal. Le reste du domaine ne l'est pas encore : il importe directement l'implémentation Telegram. Ajouter un canal commence donc par généraliser ces points, listés dans la section « Ajout d'un Nouveau Canal » en fin de document.
 
 ### Fonctionnalités
 
@@ -48,24 +48,32 @@ NotificationDispatcher.dispatch()
 ### Structure des Fichiers
 
 ```
-apps/api/src/domains/channels/           # Domaine (générique)
-├── abstractions.py                      # Interfaces: BaseChannelSender, ChannelInboundMessage, etc.
-├── models.py                            # UserChannelBinding (SQLAlchemy)
+apps/api/src/domains/channels/           # Domaine (interfaces génériques ; le traitement importe encore Telegram)
+├── abstractions.py                      # Interfaces: BaseChannelSender, BaseChannelWebhookHandler, messages normalisés
+├── models.py                            # UserChannelBinding (SQLAlchemy), ChannelType
 ├── schemas.py                           # Pydantic: OTP, Binding CRUD
 ├── repository.py                        # UserChannelBindingRepository
 ├── service.py                           # ChannelService (OTP, CRUD, toggle)
+├── preferences.py                       # Préférences de la personne, résolues une fois pour le message et le bouton HITL
+├── preference_commands.py               # Activer, couper, délier une liaison (HTTP et actions d'application confirmées)
+├── read_projection.py                   # Projection de la liste des liaisons (HTTP et lecture d'application)
 ├── message_router.py                    # ChannelMessageRouter (binding lookup, lock, rate limit)
 ├── inbound_handler.py                   # InboundMessageHandler (agent pipeline, content_replacement dedup)
 └── router.py                            # FastAPI endpoints + webhook + background tasks
 
-apps/api/src/infrastructure/channels/    # Infrastructure (spécifique Telegram)
-└── telegram/
+apps/api/src/infrastructure/channels/
+├── assistant_gateway.py                 # Frontière canal → assistant, installée au démarrage (le domaine n'importe pas les agents)
+└── telegram/                            # Implémentation Telegram
     ├── bot.py                           # Bot lifecycle (init/shutdown, webhook setup, getMe → bot_username)
     ├── webhook_handler.py               # Signature check, parse Update
-    ├── sender.py                        # TelegramSender (send, typing, edit, notification)
+    ├── sender.py                        # TelegramSender (send_message, send_text, typing, notification, remove_keyboard)
+    ├── flood_control.py                 # Lecteur unique du délai demandé par le contrôle de débit de Telegram
     ├── formatter.py                     # MD→HTML, split, strip_html_cards, notification format, bot messages i18n
+    ├── html_split.py                    # Découpe d'un message HTML en parties que Telegram sait analyser
     ├── hitl_keyboard.py                 # InlineKeyboard builders pour HITL (6 langues)
     └── voice.py                         # Download OGG → transcode PCM → Sherpa STT
+
+apps/api/src/domains/agents/api/channel_gateway.py   # Implémentation de la frontière, côté assistant
 
 apps/web/src/
 ├── components/settings/ChannelSettings.tsx    # UI liaison Telegram
@@ -87,9 +95,12 @@ apps/web/src/
 | `TELEGRAM_MESSAGE_MAX_LENGTH` | `4000` | Max avant split (100-4096) |
 | `CHANNEL_OTP_TTL_SECONDS` | `300` | TTL OTP Redis |
 | `CHANNEL_OTP_LENGTH` | `6` | Longueur code OTP |
+| `CHANNEL_OTP_MAX_ATTEMPTS` | `5` | Tentatives de code avant blocage, par chat |
+| `CHANNEL_OTP_BLOCK_TTL_SECONDS` | `900` | Durée du blocage après trop de tentatives |
 | `CHANNEL_RATE_LIMIT_PER_USER_PER_MINUTE` | `10` | Rate limit inbound |
 | `CHANNEL_RATE_LIMIT_GLOBAL_PER_SECOND` | `25` | Rate limit global bot |
 | `CHANNEL_MESSAGE_LOCK_TTL_SECONDS` | `120` | Borne de crash du verrou de tour (réarmé pendant le tour) |
+| `TELEGRAM_UPDATE_DEDUP_TTL_SECONDS` | `600` | Fenêtre pendant laquelle une mise à jour déjà vue est écartée |
 
 ### Mode Dev vs Prod
 
@@ -126,9 +137,9 @@ apps/web/src/
 
 ### 2. Message Inbound
 
-**Critique** : Le webhook retourne 200 immédiatement (sinon Telegram retry ~5s). Le traitement se fait en `asyncio.create_task()`.
+**Critique** : Le webhook retourne 200 immédiatement (sinon Telegram retry ~5s). Le traitement part en arrière-plan par `safe_fire_and_forget()` (`infrastructure/async_utils.py` : référence forte sur la tâche, exceptions journalisées).
 
-1. `POST /channels/telegram/webhook` → validate signature → `return {"ok": True}`
+1. `POST /channels/telegram/webhook` → secret vérifié avant toute lecture du corps (SEC-024 ; sans secret configuré, la requête est refusée) → une mise à jour déjà vue est écartée (`_claim_telegram_update()` : clé `telegram_update:{update_id}` posée une seule fois pour `TELEGRAM_UPDATE_DEDUP_TTL_SECONDS` ; si le cache ne répond pas, la mise à jour est traitée) → `return {"ok": True}`
 2. Background task: `process_telegram_update(payload)`
 3. `TelegramWebhookHandler.parse_update()` → `ChannelInboundMessage`
 4. `ChannelMessageRouter.route_message()`:
@@ -210,6 +221,7 @@ Chaque type d'interaction déclare sa réponse (`hitl_keyboard._HITL_TYPE_BUTTON
 **Callers** :
 - `NotificationDispatcher._send_channels()` → notifications proactives (intérêts, heartbeat)
 - `reminder_notification.py` → rappels utilisateur (si `CHANNELS_ENABLED=true`)
+- `discussion_delivery.py` → ouvertures des discussions proactives (si `CHANNELS_ENABLED=true`, pour une ouverture non sensible que `_may_send()` autorise)
 
 ### 5. Messages Vocaux
 
@@ -244,7 +256,8 @@ Pipeline : Telegram OGG/Opus → ffmpeg (sous-processus borné, `infrastructure/
 
 | Risque | Mitigation |
 |--------|-----------|
-| Webhook forgé | `X-Telegram-Bot-Api-Secret-Token` (hmac.compare_digest) |
+| Webhook forgé | `X-Telegram-Bot-Api-Secret-Token` (hmac.compare_digest), vérifié avant la lecture du corps ; sans secret configuré, la requête est refusée et le mode webhook ne démarre pas (SEC-024) |
+| Mise à jour rejouée | Chaque `update_id` n'est traité qu'une fois pendant `TELEGRAM_UPDATE_DEDUP_TTL_SECONDS` |
 | Spam | Rate limit per-user (10/min) + global (25/sec) |
 | Messages concurrents | Verrou Redis par personne à jeton de propriétaire, pris par le message comme par le bouton (`try_claim`), tenu pendant le tour et libéré par son jeton (`held_claim` ; `CHANNEL_MESSAGE_LOCK_TTL_SECONDS` borne un crash) |
 | Usurpation d'identité | OTP single-use + TTL + UNIQUE constraints bidirectionnelles |
@@ -307,12 +320,43 @@ cd apps/api && .venv/Scripts/pytest --collect-only --no-cov tests/unit/domains/c
 
 ## Ajout d'un Nouveau Canal
 
-Pour ajouter un nouveau canal (ex: Discord) :
+Telegram est le seul canal implémenté et aucun second canal n'a encore été ajouté : ce qui suit décrit l'état du code, pas une procédure éprouvée. La marche à suivre, phase par phase, est dans [NEW_CHANNEL_CHECKLIST.md](../templates/NEW_CHANNEL_CHECKLIST.md).
 
-1. Ajouter `DISCORD = "discord"` dans `ChannelType` (`models.py`)
-2. Créer `infrastructure/channels/discord/` avec `sender.py` implémentant `BaseChannelSender`
-3. Ajouter le routage dans `_send_to_channel()` (fonction module-level dans `notification.py`)
-4. Ajouter un webhook handler dans `router.py`
-5. Ajouter les messages bot et labels HITL dans les dictionnaires i18n
-6. Ajouter les constantes dans `core/constants.py`
-7. Ajouter la configuration dans `core/config/channels.py`
+### Ce qui est déjà générique
+
+- Les interfaces `BaseChannelSender` et `BaseChannelWebhookHandler`, et les messages normalisés `ChannelInboundMessage` / `ChannelOutboundMessage` (`abstractions.py`).
+- Le modèle `UserChannelBinding` : `channel_type` est une chaîne, une nouvelle valeur ne demande aucune migration.
+- La liaison par code : `ChannelService.generate_otp()`, `verify_otp()` et `create_binding()` prennent le type de canal en paramètre.
+- `ChannelMessageRouter` et `InboundMessageHandler` reçoivent un `BaseChannelSender` et n'appellent que les méthodes de l'interface.
+- La frontière vers l'assistant (`ChannelAssistantGateway`), les préférences de la personne (`resolve_channel_preferences()`) et le verrou de tour.
+- Les métriques de `metrics_channels.py`, toutes étiquetées `channel_type`.
+
+### Ce qui est câblé sur Telegram
+
+Chacun de ces points doit être généralisé avant qu'un second canal fonctionne :
+
+| Où | Ce qui est câblé |
+|----|------------------|
+| `router.py` | La seule route entrante est `/telegram/webhook`. Le traitement (`process_telegram_update()`, `_dispatch_update()`, `_handle_hitl_callback()`, `_handle_otp_verification()`) construit lui-même `TelegramWebhookHandler` et `TelegramSender`, et répond par `send_text()`, une méthode de `TelegramSender` que l'interface ne déclare pas. La déduplication porte sur l'`update_id` de Telegram |
+| `inbound_handler.py` | Le rendu du texte (`markdown_to_telegram_html()`, `strip_html_cards()`), le clavier des questions (`build_hitl_keyboard()`), la voix et l'intervalle de frappe viennent du paquet Telegram ; la métrique des questions HITL est étiquetée `telegram` en dur |
+| `message_router.py` | Les messages du bot (`busy`, `unbound`, `error`...) sont lus par `get_bot_message()` dans `TELEGRAM_BOT_MESSAGES`, la table du formateur Telegram |
+| `abstractions.py` | `ChannelOutboundMessage.parse_mode` vaut `"HTML"` par défaut, le format de Telegram |
+| `read_projection.py`, `schemas.py` | La liste des liaisons porte un champ `telegram_bot_username` |
+| `infrastructure/proactive/notification.py` | `_send_to_channel()` n'a qu'une branche ; tout autre type est journalisé `channel_type_unsupported` et rien n'est envoyé |
+| Démarrage et arrêt | `init_telegram_bot()` (`infrastructure/startup/integrations.py`), la pose du webhook par le leader (`infrastructure/startup/schedulers.py`), `shutdown_telegram_bot()` (`infrastructure/startup/shutdown.py`) |
+| Écran des réglages | `ChannelSettings.tsx` et `useChannelBindings.ts` ne connaissent que `telegram` |
+
+### Transport
+
+`BaseChannelWebhookHandler` suppose un fournisseur qui envoie ses mises à jour sur une route HTTP. Un canal qui les livre par une connexion maintenue ouverte n'a pas de modèle en production : l'interrogation longue de Telegram n'existe qu'en développement, dans la boucle du worker, alors que la production tourne à plusieurs workers et fait poser le webhook par le seul leader du planificateur (ADR-304). Une telle connexion devrait, elle aussi, n'être tenue que par un processus.
+
+### Étapes
+
+1. Généraliser les points du tableau ci-dessus.
+2. Ajouter la valeur dans `ChannelType` (`models.py`) et sa constante dans `core/constants.py`.
+3. Créer le paquet du canal sous `infrastructure/channels/` : expéditeur (`BaseChannelSender`), entrée, formateur.
+4. Ajouter sa branche dans `_send_to_channel()`.
+5. Ajouter ses réglages dans `core/config/channels.py` et dans les gabarits d'environnement.
+6. Écrire les messages du bot et les libellés des questions dans les six langues ; ouvrir l'écran des réglages au nouveau canal.
+
+Le détail de chaque étape, les gardes à satisfaire et la validation finale sont dans la liste de contrôle.

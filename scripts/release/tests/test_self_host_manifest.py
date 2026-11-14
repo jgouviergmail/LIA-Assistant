@@ -278,5 +278,6 @@ def test_dependency_catalogue_covers_the_compose_stack() -> None:
         "redis-exporter",
         "portainer",
         "caddy",
+        "searxng",
     }
     assert services == expected

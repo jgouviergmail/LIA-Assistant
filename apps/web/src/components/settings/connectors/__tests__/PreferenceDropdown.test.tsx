@@ -56,6 +56,22 @@ describe('PreferenceDropdown', () => {
     expect(refetch).toHaveBeenCalled();
   });
 
+  it('keeps the list focusable while its choice is saved: busy, never disabled', () => {
+    useConnectorItems.mockReturnValue(hook({ items: [{ name: 'Work', isDefault: true }] }));
+    renderWithProviders(
+      <PreferenceDropdown
+        connector={connector}
+        savedValue="Work"
+        saving={true}
+        t={t}
+        onSelect={vi.fn()}
+      />
+    );
+    const list = screen.getByRole('combobox');
+    expect(list).toHaveAttribute('aria-busy', 'true');
+    expect(list).not.toBeDisabled();
+  });
+
   it('renders the select combobox once items are ready', () => {
     useConnectorItems.mockReturnValue(hook({ items: [{ name: 'Work', isDefault: true }] }));
     renderWithProviders(

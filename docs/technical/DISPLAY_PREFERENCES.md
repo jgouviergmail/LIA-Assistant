@@ -28,10 +28,23 @@ Absolute black refines `.dark` with `data-oled`; automatic intent stays separate
 The pre-paint script serializes the same pure `automaticThemeAt` resolver used at
 runtime, validates cached data, and supplies the resolved value before
 `next-themes` reads it. Device storage is optional: failure leaves the authenticated
-runtime working. Manual header cycling exits automatic mode.
+runtime working. For an account the header's circle enters automatic after OLED
+and leaves it for light ([ADR-243](../architecture/ADR-243-OLED-Display-Mode-Refinement.md),
+amendment 2026-11-12).
 
-Evidence lives in the theme schedule unit tests, provider lifecycle tests,
-`apps/api/tests/integration/test_user_theme_schedule.py` and
-`apps/web/e2e/smoke/settings-automatic-theme.spec.ts`. The browser journey runs
-against intercepted APIs, covers a narrow viewport, a clock boundary, paired
-editing, reload and leaving automatic mode. It makes no model or provider call.
+A press is drawn by its reveal alone (ADR-243, follow-up 2026-11-14). The provider's
+drawing function keeps one identity, so the account is redrawn when the ACCOUNT
+changes and never because the theme just changed locally — `next-themes` hands out
+a new `setTheme` at every theme change. The automatic clock starts, and the save is
+read back, on a page already drawn: either one drawing first leaves the reveal
+nothing to unfold.
+
+Evidence lives in the theme schedule unit tests, provider lifecycle tests, the walk
+of the circle on the real provider
+(`apps/web/src/components/__tests__/theme-cycle-walk.test.tsx`),
+`apps/api/tests/integration/test_user_theme_schedule.py`,
+`apps/web/e2e/smoke/settings-automatic-theme.spec.ts` and
+`apps/web/e2e/smoke/theme-cycle.spec.ts`. The browser journeys run against
+intercepted APIs; the first covers a narrow viewport, a clock boundary, paired
+editing, reload and leaving automatic mode, the second every press of the circle and
+what its reveal photographs. They make no model or provider call.

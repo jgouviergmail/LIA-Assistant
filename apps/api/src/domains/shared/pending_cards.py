@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import threading
 
+from src.core.run_authority import current_run_authority
+
 
 class PendingCards[T]:
     """Cards queued per conversation, until the answer carrying them is sent.
@@ -41,7 +43,25 @@ class PendingCards[T]:
             card: The card's payload.
         """
         with self._lock:
+            self._own_payloads(conversation_id)
             self._cards.setdefault(conversation_id, []).append(card)
+
+    def replace(self, runtime_id: str, card: T) -> None:
+        """Keep only the latest payload, as a browser screenshot requires."""
+        with self._lock:
+            self._own_payloads(runtime_id)
+            self._cards[runtime_id] = [card]
+
+    def _own_payloads(self, runtime_id: str) -> None:
+        """Called under the store lock so retirement cannot race a late writer."""
+        authority = current_run_authority()
+        if authority is not None:
+            authority.retain_payloads(self, runtime_id, self.discard)
+
+    def discard(self, runtime_id: str) -> None:
+        """Retire this runtime's payloads; persistent generated assets are untouched."""
+        with self._lock:
+            self._cards.pop(runtime_id, None)
 
     def peek(self, conversation_id: str) -> list[T]:
         """The queued cards, left in place (the archive; the done chunk still needs them).

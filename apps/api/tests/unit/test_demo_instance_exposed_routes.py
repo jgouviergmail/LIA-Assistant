@@ -99,6 +99,15 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "GET /api/v1/agents/runs/active",
         "POST /api/v1/agents/runs/active/cancel",
         "GET /api/v1/agents/runs/{stream_id}/stream",
+        # Words written while LIA works wait for their turn (ADR-384): the
+        # visitor's own chat, on its own account, under the chat's guards.
+        "GET /api/v1/agents/chat/waiting",
+        "POST /api/v1/agents/chat/waiting",
+        "PUT /api/v1/agents/chat/waiting",
+        "DELETE /api/v1/agents/chat/waiting",
+        # ADR-385: the same message joins the visitor's own answer in progress.
+        "POST /api/v1/agents/chat/waiting/join",
+        "POST /api/v1/agents/chat/waiting/send",
         "GET /api/v1/auth/features",
         "POST /api/v1/auth/login",
         "POST /api/v1/auth/logout",
@@ -168,8 +177,30 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         # Read-only availability is needed by the dashboard even when the
         # personal avatar capability is switched off on the public demo.
         "GET /api/v1/avatars/config",
+        # Secondary discussions: authenticated metadata and idempotent creation
+        # for the visitor's OWN account, with no provider call. Creation still
+        # obeys SECONDARY_CONVERSATIONS_ENABLED; reads survive its withdrawal.
+        "GET /api/v1/conversations",
+        "POST /api/v1/conversations",
+        "GET /api/v1/conversations/{conversation_id}",
+        # Rename requires the account's session and the reviewed annex title and revision.
+        "PATCH /api/v1/conversations/{conversation_id}",
+        # Owned lifecycle receipts remain readable when creation is disabled.
+        # Every route requires a session; deletion refuses Main, and private
+        # target/receipt ownership is enforced before any state transition.
+        "DELETE /api/v1/conversations/{conversation_id}",
+        "POST /api/v1/conversations/{conversation_id}/reset",
+        "GET /api/v1/conversations/operations/{operation_id}",
+        "POST /api/v1/conversations/operations/{operation_id}/retry",
         "GET /api/v1/conversations/me",
+        # The visitor's OWN discussion as a Markdown file (2026-11-12): the
+        # words `/me/messages` already serves, read-only, behind the session
+        # and a per-account rate limit, with no provider call and no model.
+        "GET /api/v1/conversations/me/export",
         "GET /api/v1/conversations/me/messages",
+        # The visitor's OWN discussions searched (2026-11-13): what `/me/messages`
+        # already serves, read-only, one statement, no provider call and no model.
+        "GET /api/v1/conversations/me/search",
         "POST /api/v1/conversations/me/messages/{message_id}/feedback",
         "POST /api/v1/conversations/me/reset",
         "GET /api/v1/conversations/me/stats",
@@ -220,6 +251,9 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "GET /api/v1/journals/{entry_id}/provenance",
         "GET /api/v1/mcp/servers",
         "POST /api/v1/mcp/servers",
+        # The known catalogue (2026-11-12): public facts, the same for every account,
+        # read by the visitor's own create form — reviewed, same exposure as the list.
+        "GET /api/v1/mcp/servers/known",
         "GET /api/v1/mcp/servers/oauth/callback",
         # Spec 2026-10-30 D5: read-only previews of the visitor's OWN servers
         # (ownership-checked, nothing written) — reviewed, same exposure as the list.
@@ -243,6 +277,10 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "POST /api/v1/memories",
         "GET /api/v1/memories/categories",
         "GET /api/v1/memories/export",
+        # Bringing an export back (2026-11-12): the visitor's own account, the creation's
+        # own spend ceilings, and a lower ceiling in the demonstrator's template
+        # (MEMORY_IMPORT_MAX_MEMORIES) — reviewed, same exposure as the creation above.
+        "POST /api/v1/memories/import",
         "DELETE /api/v1/memories/{memory_id}",
         "GET /api/v1/memories/{memory_id}",
         "PATCH /api/v1/memories/{memory_id}",
@@ -357,6 +395,10 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "PATCH /api/v1/scheduled-actions/{action_id}",
         "POST /api/v1/scheduled-actions/{action_id}/execute",
         "PATCH /api/v1/scheduled-actions/{action_id}/toggle",
+        # ADR-386: a new secret for a routine started by calls. Reachable like
+        # its siblings, and refused by its capability guard: the demonstrator
+        # switches routine webhooks off (its public address is not mounted).
+        "POST /api/v1/scheduled-actions/{action_id}/webhook-secret",
         "GET /api/v1/system-settings/debug-panel-status",
         "GET /api/v1/usage-limits/me",
         "GET /api/v1/usage/export/consumption-summary",
@@ -430,6 +472,12 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "GET /api/v1/bookmarks/state",
         "DELETE /api/v1/bookmarks/by-message/{message_id}",
         "DELETE /api/v1/bookmarks/{bookmark_id}",
+        # How the visitor writes (ADR-383): their own row, read, switched and forgotten by the
+        # session owner. No mailbox can be connected here, so nothing is ever learned;
+        # the settings section shows that honestly instead of a route that fails.
+        "GET /api/v1/writing-style",
+        "PATCH /api/v1/writing-style",
+        "DELETE /api/v1/writing-style",
         # The workboard (ADR-276): a visitor's own tickets, held by them or by
         # LIA. A run spends the visitor's own allowance exactly as a routine
         # does (scheduled-actions, exposed above), under the same ceilings;
@@ -445,6 +493,17 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "POST /api/v1/workboard/tickets/{ticket_id}/comments",
         "POST /api/v1/workboard/tickets/{ticket_id}/move",
         "POST /api/v1/workboard/tickets/{ticket_id}/run-now",
+        # Ticket categories — the lanes of that same board (reviewed
+        # 2026-11-11). Rows of the session owner only: a category that is not
+        # theirs answers the neutral 404 of one that does not exist. Bounded
+        # by WORKBOARD_MAX_CATEGORIES_PER_USER and by the name's own cap; no
+        # model spend, no external effect, and deleting one deletes no ticket.
+        # The board reads the list on arrival, so a hidden route would be a
+        # screen that fails to load its own lanes.
+        "GET /api/v1/workboard/categories",
+        "POST /api/v1/workboard/categories",
+        "PATCH /api/v1/workboard/categories/{category_id}",
+        "DELETE /api/v1/workboard/categories/{category_id}",
         # Peer connections: two demonstrator accounts, throwaway on both sides
         # and wiped together the same night. Discovery answers an EXACT email
         # only (the by-email search above is already exposed), a request has

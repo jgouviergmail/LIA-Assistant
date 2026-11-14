@@ -456,3 +456,13 @@ export function drawMouthLifeDelayMs(random: () => number): number {
     : [MOUTH_LIFE_MIN_DELAY_MS, MOUTH_LIFE_MAX_DELAY_MS];
   return Math.round(min + random() * (max - min));
 }
+
+/**
+ * A whole silence, never a follow-up: the wait of a face that was held back
+ * and played nothing. A follow-up continues a beat, and there was none.
+ */
+export function drawMouthLifeSilenceMs(random: () => number): number {
+  return Math.round(
+    MOUTH_LIFE_MIN_DELAY_MS + random() * (MOUTH_LIFE_MAX_DELAY_MS - MOUTH_LIFE_MIN_DELAY_MS)
+  );
+}

@@ -1,160 +1,84 @@
-"""A lease says LIA is busy; it never names a stream nobody writes (point 25b).
+"""SQL occupancy names only transports and cancellation that actually exist.
 
-Two kinds of run hold a conversation's active-run lock. The chat producer
-RELAYS its chunks through the run stream, so a client may follow it, reattach
-to it, or stop it. A lease — a workboard ticket, a voice relay, a voice
-delegation — runs the turn itself and publishes nothing there. It used to be
-served exactly like the first kind: ``/runs/active`` and the 409 handed the
-client its stream id, the client reattached to a stream that never received a
-chunk, and Stop answered « cancelled » while nothing listened for the signal.
-
-The lock records which kind it is, and every client-facing read goes through
-one view of it. Only Redis is replaced here: the lock is taken by the real
-broker functions and read by the real routes.
+Actual status/cancel/reattach routes are exercised against PostgreSQL and Redis
+in test_chat_http_admission. The retired Redis lease cannot confer authority.
 """
 
-from __future__ import annotations
-
-import asyncio
-import json
-from collections.abc import Iterator
-from contextlib import suppress
-from typing import Any
-from unittest.mock import AsyncMock, patch
+import ast
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from fastapi import HTTPException
 
-from src.core.config import settings
-from src.domains.agents.api import router as agents_router
-from src.domains.users.models import User
-from src.infrastructure.streaming.run_stream_broker import (
-    active_run_key,
-    active_run_lease,
-    heartbeat_active_run,
-    public_active_run,
-    register_active_run,
-)
+from src.core.conversation_execution import ExecutionKind, ExecutionPhase, RunBusy
+from src.core.conversation_target import ConversationKind, ConversationRef
+from src.domains.agents.api.run_schemas import ActiveRunResponse
 
 pytestmark = pytest.mark.unit
-
-CONVERSATION = "c-1"
-
-
-class _Locks:
-    """The active-run lock and the cancel signal, in memory.
-
-    ``SET NX`` and the two owner-conditional scripts behave as on the server;
-    nothing else of Redis is needed by these routes.
-    """
-
-    def __init__(self) -> None:
-        self.values: dict[str, str] = {}
-
-    async def set(self, key: str, value: str, nx: bool = False, ex: int | None = None) -> Any:
-        if nx and key in self.values:
-            return None
-        self.values[key] = value
-        return True
-
-    async def get(self, key: str) -> str | None:
-        return self.values.get(key)
-
-    async def eval(self, script: str, _numkeys: int, key: str, stream_id: str, *_args: Any) -> int:
-        raw = self.values.get(key)
-        if raw is None or json.loads(raw)["stream_id"] != stream_id:
-            return 0
-        if "DEL" in script:
-            del self.values[key]
-        return 1
+RETIRED = {
+    "active_run_lease",
+    "register_active_run",
+    "heartbeat_active_run",
+    "public_active_run",
+    "active_run_key",
+    "ActiveRunLockLost",
+}
 
 
-@pytest.fixture
-def locks(monkeypatch: pytest.MonkeyPatch) -> Iterator[_Locks]:
-    """Routes wired to the in-memory locks, for one conversation."""
-    store = _Locks()
-    monkeypatch.setattr(settings, "background_runs_enabled", True, raising=False)
-    with (
-        patch(
-            "src.infrastructure.cache.get_conversation_id_cached",
-            AsyncMock(return_value=CONVERSATION),
-        ),
-        patch("src.infrastructure.cache.redis.get_redis_cache", AsyncMock(return_value=store)),
-    ):
-        yield store
+@pytest.mark.parametrize("phase", list(ExecutionPhase))
+@pytest.mark.parametrize("relayed,cancellable", [(False, False), (False, True), (True, True)])
+def test_only_a_live_offered_transport_can_be_followed_or_stopped(
+    phase: ExecutionPhase, relayed: bool, cancellable: bool
+) -> None:
+    target = ConversationRef(uuid4(), uuid4(), ConversationKind.SECONDARY, 3, uuid4())
+    busy = RunBusy(
+        target, ExecutionKind.GRAPH, phase, "billing", "stream" if relayed else None, cancellable
+    )
+    status = ActiveRunResponse.occupied(busy, "Annex", selected=True)
+    assert status.can_resume is (relayed and phase == ExecutionPhase.RUNNING)
+    assert status.can_cancel is (cancellable and phase == ExecutionPhase.RUNNING)
+    assert status.stream_id == ("stream" if relayed else None)
+    assert status.conversation_id == target.id and status.conversation_revision == 3
+    assert status.selected and status.run_id == "billing"
+    payload = status.model_dump(mode="json")
+    assert not {"runtime_id", "activity_id", "owner_token", "fence", "worker_id"} & payload.keys()
+    assert str(target.runtime_id) not in repr(payload)
 
 
-def _user() -> User:
-    return User(id=uuid4(), email="visibility@test.local", hashed_password="x")
+def _retired_symbols(source: str) -> set[str]:
+    """Read actual definitions, imports (including aliases) and calls, never comments."""
+    found: set[str] = set()
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            found.add(node.name)
+        elif isinstance(node, ast.ImportFrom):
+            found.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                found.add(node.func.id)
+            elif isinstance(node.func, ast.Attribute):
+                found.add(node.func.attr)
+    return found & RETIRED
 
 
-class TestALeaseNamesNoStream:
-    async def test_lia_is_busy_but_there_is_no_stream_to_follow(self, locks: _Locks) -> None:
-        async with active_run_lease(
-            locks, CONVERSATION, run_id="run-1", stream_id="workboard:run-1"
-        ) as acquired:
-            assert acquired
-            status = await agents_router.get_active_run_status(current_user=_user())
-
-        assert status == {"active": True, "run_id": "run-1", "stream_id": None}
-
-    async def test_stop_does_not_claim_to_cancel_what_nothing_listens_to(
-        self, locks: _Locks
-    ) -> None:
-        async with active_run_lease(
-            locks, CONVERSATION, run_id="run-1", stream_id="workboard:run-1"
-        ):
-            answer = await agents_router.cancel_active_run(current_user=_user())
-            signals = [key for key in locks.values if key != active_run_key(CONVERSATION)]
-
-        assert answer == {"cancelled": False}
-        assert signals == []
-
-    async def test_a_lease_stream_cannot_be_reattached(self, locks: _Locks) -> None:
-        async with active_run_lease(
-            locks, CONVERSATION, run_id="run-1", stream_id="workboard:run-1"
-        ):
-            with pytest.raises(HTTPException) as refused:
-                await agents_router.reattach_run_stream(
-                    "workboard:run-1", current_user=_user(), lia_session=None
-                )
-
-        assert refused.value.status_code == 404
-
-    async def test_a_lease_that_re_takes_its_lock_stays_a_lease(
-        self, locks: _Locks, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """The heartbeat re-takes an EXPIRED lock with a payload of its own:
-        written as a chat run's, the lease would hand out its stream again."""
-        monkeypatch.setattr(settings, "background_runs_heartbeat_seconds", 0, raising=False)
-        beat = asyncio.create_task(
-            heartbeat_active_run(
-                locks, CONVERSATION, "workboard:run-1", run_id="run-1", relayed=False
-            )
-        )
-        for _ in range(5):
-            await asyncio.sleep(0)
-        beat.cancel()
-        with suppress(asyncio.CancelledError):
-            await beat
-
-        retaken = json.loads(locks.values[active_run_key(CONVERSATION)])
-        assert retaken["relayed"] is False
+def test_retired_redis_admission_has_no_production_caller_or_definition() -> None:
+    source = Path(__file__).resolve().parents[4] / "src"
+    offenders = {
+        str(path.relative_to(source)): names
+        for path in source.rglob("*.py")
+        if (names := _retired_symbols(path.read_text(encoding="utf-8")))
+    }
+    assert source.is_dir() and not offenders, offenders
 
 
-class TestAChatRunStillNamesItsStream:
-    async def test_the_producer_s_stream_is_followed_and_stopped(self, locks: _Locks) -> None:
-        await register_active_run(locks, CONVERSATION, run_id="s-1", stream_id="s-1")
-
-        status = await agents_router.get_active_run_status(current_user=_user())
-        stopped = await agents_router.cancel_active_run(current_user=_user())
-
-        assert status == {"active": True, "run_id": "s-1", "stream_id": "s-1"}
-        assert stopped == {"cancelled": True, "stream_id": "s-1"}
-
-    async def test_a_lock_written_before_the_field_existed_reads_as_relayed(self) -> None:
-        legacy = {"run_id": "s-1", "stream_id": "s-1"}
-
-        assert public_active_run(legacy) == {"run_id": "s-1", "stream_id": "s-1"}
-        assert public_active_run(None) is None
+@pytest.mark.parametrize(
+    "body",
+    [
+        "from broker import active_run_lease as lease",
+        "async def register_active_run(): pass",
+        "broker.public_active_run(value)",
+    ],
+)
+def test_the_retired_admission_guard_detects_code_but_not_comments(body: str) -> None:
+    assert _retired_symbols(body)
+    assert not _retired_symbols("# active_run_lease\nvalue = 'register_active_run'")

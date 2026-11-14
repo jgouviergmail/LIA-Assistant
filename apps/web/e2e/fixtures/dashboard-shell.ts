@@ -26,6 +26,9 @@ export const appConfig = {
   features: {
     // ADR-276: the board's own gate hides it when this is absent.
     workboard_enabled: true,
+    // Telephony's sections, its connector group and the in-call band hide
+    // without the flag that mounts its routes (ADR-280).
+    telephony_enabled: true,
     tool_approval_enabled: false,
     attachments_enabled: true,
     rag_spaces_enabled: true,

@@ -30,24 +30,22 @@ CURRENT_CORE_LLM_TYPES: tuple[str, ...] = (
 )
 
 #: Audited derivation result — the questionnaire collects one key for each.
-#: The seed retargets the core pipeline's qwen defaults to deepseek.
-#: Dedicated discussion slots keep their independently configurable qwen
-#: defaults and are declared optional below: they never add a required key
-#: to the installer questionnaire. The guard derives this contract from
-#: effective seeded slots, so a provider change requires an explicit review.
-CURRENT_CORE_PROVIDER_IDS: tuple[str, ...] = ("deepseek", "openai")
+#: The seed is the production configuration as extracted on 2026-11-11: five
+#: of the seven core slots answer on anthropic, the response and the ReAct
+#: loop on deepseek. The guard derives this contract from effective seeded
+#: slots, so a provider change requires an explicit review.
+CURRENT_CORE_PROVIDER_IDS: tuple[str, ...] = ("anthropic", "deepseek")
 
-#: Seeded slots that stay degraded without their (optional) provider key —
-#: every seeded slot outside the core whose provider needs a key, held equal
-#: to the post-seed derivation by the anti-drift test.
+#: Slots that stay degraded without their (optional) provider key — every
+#: slot outside the core whose effective provider needs a key the installer
+#: does not require, held equal to the post-seed derivation by the anti-drift
+#: test.
 OPTIONAL_SEEDED_CAPABILITIES: dict[str, str] = {
-    "discussion_context": "qwen",
-    "discussion_decision": "qwen",
-    "discussion_message": "qwen",
-    "vision_analysis": "gemini",
-    "voice_tts": "elevenlabs",
+    "evaluator": "openai",
+    "image_generation": "openai",
     "voice_transcription": "elevenlabs",
-    "mcp_app_react_agent": "anthropic",
+    "voice_tts": "fishaudio",
+    "radio_voice": "fishaudio",
 }
 
 #: What else stays degraded without a key: the embeddings behind memory
@@ -59,7 +57,6 @@ OPTIONAL_PLATFORM_CAPABILITIES: dict[str, str] = {
 
 #: Providers of seeded slots that need no install key, each with its reason.
 KEYLESS_SEEDED_PROVIDERS: dict[str, str] = {
-    "edge": "Edge voices are free and keyless",
     "typesafe": "JEV runs only once an administrator switches it on, and falls back",
 }
 

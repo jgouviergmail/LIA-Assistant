@@ -154,6 +154,7 @@ class TestCallbackNominalPath:
 
         class _FakeHandler:
             application_command_id = None
+            binding = "row-witness"
 
             async def __aenter__(self):
                 return self
@@ -164,10 +165,8 @@ class TestCallbackNominalPath:
             handle_callback = handle_callback_mock
 
         monkeypatch.setattr(router_module, "MCPOAuthFlowHandler", _FakeHandler)
-        update_creds = AsyncMock()
-        monkeypatch.setattr(
-            router_module.UserMCPServerService, "update_oauth_credentials", update_creds
-        )
+        persist = AsyncMock(return_value=True)
+        monkeypatch.setattr(router_module, "persist_bound_oauth_credentials", persist)
 
         response = await oauth_callback(
             code="auth-code", state="state-1", iss="https://auth.example.com"
@@ -176,4 +175,31 @@ class TestCallbackNominalPath:
         assert response.status_code == 302
         assert "mcp_oauth=success" in response.headers["location"]
         assert handle_callback_mock.call_args.kwargs["iss"] == "https://auth.example.com"
-        update_creds.assert_awaited_once_with(server_id, "encrypted-creds")
+        persist.assert_awaited_once_with(server_id, user_id, "row-witness", "encrypted-creds")
+
+    @pytest.mark.asyncio
+    async def test_a_server_changed_during_the_consent_keeps_its_credentials(self, monkeypatch):
+        server_id, user_id = uuid4(), uuid4()
+
+        class _FakeHandler:
+            application_command_id = None
+            binding = "row-witness"
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc: object) -> None:
+                return None
+
+            handle_callback = AsyncMock(return_value=(server_id, user_id, "encrypted-creds"))
+
+        monkeypatch.setattr(router_module, "MCPOAuthFlowHandler", _FakeHandler)
+        monkeypatch.setattr(
+            router_module, "persist_bound_oauth_credentials", AsyncMock(return_value=False)
+        )
+
+        response = await oauth_callback(code="auth-code", state="state-1")
+
+        assert response.status_code == 302
+        assert "mcp_oauth=changed" in response.headers["location"]
+        assert "success" not in response.headers["location"]

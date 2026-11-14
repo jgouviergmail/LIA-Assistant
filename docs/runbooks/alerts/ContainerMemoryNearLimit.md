@@ -12,7 +12,13 @@ secondes à quelques minutes selon le service.
 
 ```promql
 (
-  container_memory_working_set_bytes{name=~"lia.*"}
+  (
+    container_memory_working_set_bytes{name=~"lia.*"}
+    - (
+      container_memory_total_active_file_bytes{name=~"lia.*"}
+      or container_memory_working_set_bytes{name=~"lia.*"} * 0
+    )
+  )
   / (container_spec_memory_limit_bytes{name=~"lia.*"} > 0)
 ) * 100 > 95
 ```
@@ -33,9 +39,23 @@ sonnait donc en boucle sur un conteneur parfaitement sain — c'est ce qui a
 motivé le passage à `working_set` (`usage - inactive_file`). Ce n'est pas
 exactement la grandeur du noyau : il récupère d'abord le cache **inactif**, mais
 les pages de fichiers **actives** restent comptées dans le working set alors
-qu'elles sont encore récupérables. C'est la meilleure approximation que publie
-cAdvisor de ce qui ne peut plus être rendu avant un OOM — la décomposition du
-diagnostic (§ 1) tranche.
+qu'elles sont encore récupérables.
+
+### Pourquoi le cache actif est retranché (2026-11-10)
+
+Un gros binaire est projeté en mémoire et ses pages restent « actives » tant que
+rien ne les fait vieillir. Mesuré sur Alloy (`lia-promtail-prod`, binaire de
+507 Mo, limite de 256 Mo) : working set à 98 % pendant une heure, alerte
+déclenchée 29 minutes, pour 122 Mio de mémoire anonyme. Puis le working set est
+passé de 233 à 118 Mio en une minute **à usage constant** (251 Mio) : les pages
+n'avaient fait que changer de liste. Rien n'avait été à risque.
+
+L'alerte retranche donc `container_memory_total_active_file_bytes`. En cgroup
+v2, la mémoire partagée et les tmpfs sont comptés sur les listes anonymes : ce
+qui reste est la mémoire anonyme, partagée et noyau, soit exactement ce qu'une
+récupération ne peut pas rendre. Le repli `or … * 0` ne retranche rien pour un
+conteneur dont la série de cache actif manque : l'alerte juge alors le working
+set, comme avant, plutôt que de se taire.
 
 **Conséquence pratique** : depuis ce changement, une occurrence de cette alerte
 signale une vraie pression mémoire. Elle mérite d'être traitée, pas acquittée.
@@ -62,7 +82,9 @@ cat /sys/fs/cgroup/system.slice/docker-$CG.scope/memory.stat \
   | grep -E "^(anon|file|inactive_file|slab) "
 ```
 
-`working_set ≈ anon + (file - inactive_file) + slab`.
+`working_set ≈ anon + (file - inactive_file) + slab`, et l'alerte lit
+`working_set - active_file` : ajouter `active_file` au `grep` ci-dessus pour
+retrouver sa valeur.
 
 ### 2. Y a-t-il déjà eu un OOM ?
 

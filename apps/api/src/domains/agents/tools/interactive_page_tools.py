@@ -92,6 +92,11 @@ _REFUSAL_MESSAGES: Final[dict[PageRefusal, str]] = {
         "No page was produced: it depends on an external script, which the sandbox "
         "blocks. A page holds all its code."
     ),
+    PageRefusal.EMBEDDED_DOCUMENT: (
+        "No page was produced: it embeds another document (iframe, embed or object), "
+        "which the sandbox never shows. A page shows only what it holds: ask for the "
+        "same page without an embedded document."
+    ),
 }
 
 
@@ -248,6 +253,7 @@ async def generate_interactive_page(
                 mode=parsed_mode,
                 user_id=context.user_id,
                 conversation_id=context.conversation_id,
+                delivery_runtime_id=context.delivery_runtime_id,
                 instructions=instructions,
                 source_data=source_data,
                 base=await resolve_page_base(parsed_mode, source_data, context.conversation_id),

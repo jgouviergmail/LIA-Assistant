@@ -132,7 +132,8 @@ function CapabilityRow({
       <Switch
         id={switchId}
         checked={capability.switch_enabled}
-        disabled={saving || blockedByDeployment}
+        busy={saving}
+        disabled={blockedByDeployment}
         onCheckedChange={checked => void onToggle(capability, checked)}
         aria-label={t(capability.label_key)}
       />

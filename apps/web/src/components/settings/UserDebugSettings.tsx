@@ -53,7 +53,7 @@ export function UserDebugSettings({ lng }: BaseSettingsProps) {
           className="shrink-0"
           checked={user?.debug_panel_enabled ?? false}
           onCheckedChange={handleToggle}
-          disabled={updating}
+          busy={updating}
         />
       </div>
 

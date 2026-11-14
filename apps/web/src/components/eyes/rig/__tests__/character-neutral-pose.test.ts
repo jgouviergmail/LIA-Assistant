@@ -60,7 +60,7 @@ describe('a character has a quiet welcoming rest, not a new emotion', () => {
     }
   });
 
-  it('yields its courtesy to signed temperament and leaves activity and speech unchanged', () => {
+  it('yields its courtesy to signed temperament and to work, and keeps it under a factual answer', () => {
     const rig = neutralRig('oscar');
     for (const pleasure of [-1, -0.8, 0, 0.8, 1]) {
       rig.setContext({ ...NEUTRAL_CONTEXT, pleasure });
@@ -89,20 +89,24 @@ describe('a character has a quiet welcoming rest, not a new emotion', () => {
       0.001
     );
     expect(negative.mouthCurve).toBe(positive.mouthCurve);
-    for (const context of [
-      { ...NEUTRAL_CONTEXT, activity: 'reading' as const },
-      { ...NEUTRAL_CONTEXT, responding: true },
-    ]) {
-      rig.setContext(context);
-      rig.settle();
-      const baseline = createEyeRig({
-        initial: { expression: 'neutral', styleId: 'billes', family: 'calm' },
-        reducedMotion: true,
-      });
-      baseline.setContext(context);
-      baseline.settle();
-      expect(rig.values()).toEqual(baseline.values());
-    }
+    const working = { ...NEUTRAL_CONTEXT, activity: 'reading' as const };
+    rig.setContext(working);
+    rig.settle();
+    const baseline = createEyeRig({
+      initial: { expression: 'neutral', styleId: 'billes', family: 'calm' },
+      reducedMotion: true,
+    });
+    baseline.setContext(working);
+    baseline.settle();
+    expect(rig.values()).toEqual(baseline.values());
+    // A factual answer earns `neutral`, the face the character rests on: it
+    // used to put the courtesy out the moment it was delivered.
+    rig.setContext({ ...NEUTRAL_CONTEXT, responding: true });
+    rig.settle();
+    const answering = { ...rig.values() };
+    rig.setContext(NEUTRAL_CONTEXT);
+    rig.settle();
+    expect(answering).toEqual(rig.values());
   });
 
   it('recalibrates a settled identity change without changing the current frame', () => {

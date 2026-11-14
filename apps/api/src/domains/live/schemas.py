@@ -18,6 +18,7 @@ from src.core.constants import (
     LIVE_SESSION_BUDGET_EUR_MAX,
     LIVE_TOOL_CALL_MAX_ARGUMENTS,
 )
+from src.core.conversation_selection import ConversationSelection
 from src.domains.agents.expressivity.activity import Activity
 from src.domains.live.model_settings import LiveModelSettings
 from src.domains.live.preferences import LivePreferences
@@ -419,7 +420,7 @@ class LiveCredentialResponse(BaseModel):
     audio_transport: Literal["websocket", "webrtc"] = "websocket"
 
 
-class LiveSessionStartRequest(BaseModel):
+class LiveSessionStartRequest(ConversationSelection):
     """``POST /live/sessions`` — how the session should run."""
 
     mode: LiveSessionMode = Field(
@@ -429,13 +430,19 @@ class LiveSessionStartRequest(BaseModel):
             "direct: the voice reads LIA's tools itself and never acts (ADR-300 wave 4)."
         ),
     )
-    audio_transport: Literal["websocket", "webrtc"] = "websocket"
+    audio_transport: Literal["websocket", "webrtc"] = Field(
+        "websocket", description="The browser's supported audio transport."
+    )
 
 
 class LiveSessionStartResponse(LiveCredentialResponse):
     """``POST /live/sessions`` — everything the browser needs to open the session."""
 
     session_id: str
+    conversation_id: UUID = Field(description="LIA discussion fixed for this session's lifetime.")
+    conversation_revision: int = Field(
+        description="The discussion generation this session protects."
+    )
     provider: str
     model: str
     run_id: str

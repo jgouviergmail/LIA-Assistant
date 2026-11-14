@@ -2067,6 +2067,65 @@
         }
       },
       "description": "What the proactive discussions' execution tables occupy (audit AC-034a): runs, openings, outbox, spend reservations and budget buckets, which leave only with the account. No retention ships; it is decided on this figure (AC-034b). Rows per table: the planner's estimate, an exact count where it has none."
+    },
+    {
+      "id": 70,
+      "title": "Routines started by a call (ADR-386)",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 122
+      },
+      "panels": []
+    },
+    {
+      "id": 71,
+      "title": "Calls to routine addresses (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 123
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(routine_webhook_calls_total[24h])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(increase(routine_webhook_calls_served_total[24h])) or vector(0)",
+          "legendFormat": "served by a run",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "What each call to a routine's address became, and how many accepted calls a run read and answered. 'unknown' is an address with no routine (a scanner, an old address); 'bad_signature' a sender with a wrong secret or a body changed on the way; 'full' a routine whose runs do not keep up. Accepted against served, over a day, is what still waits."
     }
   ]
 }

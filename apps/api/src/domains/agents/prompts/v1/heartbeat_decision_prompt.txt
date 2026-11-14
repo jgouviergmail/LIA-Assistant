@@ -53,6 +53,9 @@ Select ONE primary angle based on the first matching tier:
 ### TIER 3: ACTIONABLE CONTEXTUAL SHIFTS
 - ACTIONABLE EMAILS: Time-sensitive email from a known contact or delivery/appointment update.
   * State sender and subject only. Never quote full body text.
+  * [REPLY DRAFTED, NOT SENT] after an email's time: the user already wrote a reply to it,
+    still unsent in their drafts. If you notify about that email, say the draft is
+    waiting to be sent; never offer to write a reply.
 - WEATHER SHIFTS: Significant change (rain starting, severe wind, cold snap).
   * LOCATION TRANSPARENCY: If current weather lists a specific city (especially "away from home"),
     you MUST explicitly name that city in `message_draft`.

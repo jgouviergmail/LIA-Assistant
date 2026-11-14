@@ -41,7 +41,11 @@ async def test_the_manual_run_carries_the_token_it_reserved_under() -> None:
             action.id, user=user, db=MagicMock(commit=AsyncMock())
         )
 
+    # The click is declared: an overdue slot is never a reason to give this run up.
     run.assert_called_once_with(
-        action_id=action.id, user_id=user.id, execution_token=action.execution_token
+        action_id=action.id,
+        user_id=user.id,
+        execution_token=action.execution_token,
+        started_by_person=True,
     )
     assert len(fired) == 1

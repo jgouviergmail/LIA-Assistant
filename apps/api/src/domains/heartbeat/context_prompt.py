@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from src.core.mail_reply_state import REPLY_STATE_KEY
 from src.domains.heartbeat.sms_context import sms_prompt_sections
 
 if TYPE_CHECKING:
@@ -51,7 +52,9 @@ def _section_calendar_events(context: HeartbeatContext, sections: list[str]) -> 
 def _section_pending_tasks(context: HeartbeatContext, sections: list[str]) -> None:
     if context.pending_tasks:
         tasks_text = "\n".join(
-            f"  - {t.get('title', 'Untitled')} (due: {t.get('due', 'no date')})"
+            f"  - {t.get('title', 'Untitled')} (due: {t.get('due', 'no date')}"
+            # The tasks come from every list: each says which it lives in.
+            + (f", list: {t['list']})" if t.get("list") else ")")
             + (" [OVERDUE]" if t.get("overdue") else "")
             for t in context.pending_tasks
         )
@@ -62,7 +65,10 @@ def _section_unread_emails(context: HeartbeatContext, sections: list[str]) -> No
     if context.unread_emails:
         emails_text = "\n".join(
             f"  - From: {e.get('from', '?')} — \"{e.get('subject', 'No subject')}\" "
-            f"({e.get('date', '?')})" + (f" [{e['snippet'][:80]}...]" if e.get("snippet") else "")
+            f"({e.get('date', '?')})"
+            # The system's own note sits outside the brackets of what the sender wrote.
+            + (" [REPLY DRAFTED, NOT SENT]" if e.get(REPLY_STATE_KEY) == "answer_drafted" else "")
+            + (f" [{e['snippet'][:80]}...]" if e.get("snippet") else "")
             for e in context.unread_emails
         )
         sections.append(f"UNREAD EMAILS (received today):\n{emails_text}")

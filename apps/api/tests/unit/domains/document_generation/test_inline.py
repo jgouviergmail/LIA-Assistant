@@ -74,10 +74,31 @@ class TestWhatMustStayLiteral:
 
 class TestLinksAndPlainText:
     def test_a_link_becomes_text_and_its_url(self) -> None:
-        """A document is read on paper too: the address must survive visibly."""
+        """A document is read on paper too: the address survives visibly — and opens."""
         assert parse_inline("see [LIA](https://example.org/x) now") == [
-            Span("see LIA (https://example.org/x) now")
+            Span("see LIA ("),
+            Span("https://example.org/x", url="https://example.org/x"),
+            Span(") now"),
         ]
+
+    def test_an_address_keeps_its_underscores_and_its_emphasis(self) -> None:
+        """Set aside while emphasis is tokenized: an underscore in an address is no italic."""
+        assert parse_inline("**see [a](https://x.org/_a_b_) now**") == [
+            Span("see a (", bold=True),
+            Span("https://x.org/_a_b_", bold=True, url="https://x.org/_a_b_"),
+            Span(") now", bold=True),
+        ]
+
+    def test_an_escaped_marker_in_an_address_is_the_character(self) -> None:
+        _words, address, _close = parse_inline(r"[a](https://x.org/a\_b)")
+        assert address.url == address.text == "https://x.org/a_b"
+
+    def test_two_links_keep_their_own_addresses(self) -> None:
+        spans = parse_inline("[a](https://x.org/1) and [b](https://x.org/2)")
+        assert [span.url for span in spans if span.url] == ["https://x.org/1", "https://x.org/2"]
+
+    def test_plain_text_keeps_the_address_printed(self) -> None:
+        assert strip_inline("see [LIA](https://example.org/x)") == "see LIA (https://example.org/x)"
 
     def test_strip_returns_the_words_without_the_markers(self) -> None:
         assert strip_inline("**b** and *i* and `c`") == "b and i and c"

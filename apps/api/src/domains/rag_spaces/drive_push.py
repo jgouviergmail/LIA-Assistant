@@ -80,7 +80,7 @@ from src.domains.rag_spaces.drive_ingest import (
 )
 from src.domains.rag_spaces.drive_provider import drive_client_of
 from src.domains.rag_spaces.drive_sync import RAGDriveSyncService, sync_folder_background
-from src.domains.rag_spaces.jobs_repository import RAGJobsRepository
+from src.domains.rag_spaces.jobs_repository import DRIVE_SOURCE_TABLE, RAGJobsRepository
 from src.domains.rag_spaces.models import RAGDriveSyncStatus
 from src.domains.rag_spaces.repository import RAGDriveSourceRepository
 from src.infrastructure.async_utils import safe_fire_and_forget
@@ -382,7 +382,9 @@ async def _apply(user_id: UUID, credentials: ConnectorCredentials, entry: Touche
                 # The last change may only have READ (a removal of nothing):
                 # end that transaction before the embeddings reach the network.
                 await db.commit()
-                synced, _failed = await process_queued(queued)
+                synced, _failed = await process_queued(
+                    queued, source_id=route.id, source_table=DRIVE_SOURCE_TABLE
+                )
                 await repo.update(source, _completed(source, entry, synced))
             except Exception as exc:  # noqa: BLE001 — the source must not stay locked
                 await db.rollback()

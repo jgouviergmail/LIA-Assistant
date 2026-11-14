@@ -2877,6 +2877,122 @@
         }
       }
     ]
+  },
+  {
+   "id": 73,
+   "type": "row",
+   "title": "Mail reply state — was a listed message answered (ADR-379)",
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 208
+   },
+   "panels": []
+  },
+  {
+   "id": 74,
+   "type": "timeseries",
+   "title": "Reply state: page reads (by mailbox and outcome)",
+   "description": "One read of a listed page's conversations tells which messages were answered. The read fails open: 'failed' and 'timeout' are pages served WITHOUT reply states, which nothing on the page says.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {},
+     "noValue": "0"
+    },
+    "overrides": []
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 209
+   },
+   "targets": [
+    {
+     "expr": "sum by (provider, outcome) (rate(mail_reply_state_reads_total[$__rate_interval])) or vector(0)",
+     "legendFormat": "{{provider}} · {{outcome}}",
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 75,
+   "type": "timeseries",
+   "title": "Reply state: read time p95 (by mailbox)",
+   "description": "How long that read took for one page, against the budget MAIL_REPLY_STATE_TIMEOUT_SECONDS.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {},
+     "noValue": "0",
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 209
+   },
+   "targets": [
+    {
+     "expr": "histogram_quantile(0.95, sum by (provider, le) (rate(mail_reply_state_read_duration_seconds_bucket[$__rate_interval]))) or vector(0)",
+     "legendFormat": "{{provider}}",
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 76,
+   "type": "timeseries",
+   "title": "Reply state: what listed mail says (by status)",
+   "description": "Listed messages by the state decided for them. 'unknown' is a message nothing could be established of: a conversation not read, or cut before the message.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {},
+     "noValue": "0"
+    },
+    "overrides": []
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 217
+   },
+   "targets": [
+    {
+     "expr": "sum by (status) (rate(mail_reply_states_total[$__rate_interval])) or vector(0)",
+     "legendFormat": "{{status}}",
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     }
+    }
+   ]
   }
  ]
 }

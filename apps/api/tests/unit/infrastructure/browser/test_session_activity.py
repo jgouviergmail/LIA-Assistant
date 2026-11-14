@@ -9,6 +9,7 @@ import pytest
 from src.core.config import settings
 from src.infrastructure.browser.pool import BrowserPool
 from src.infrastructure.browser.session import BrowserSession
+from tests.fixtures.browser_scope import browser_scope
 
 
 @pytest.mark.parametrize("cancel", [False, True])
@@ -28,12 +29,12 @@ async def test_idle_cleanup_retains_an_inflight_navigation_and_closes_after_it_b
     page.close = AsyncMock()
     context = MagicMock(close=AsyncMock())
     security = MagicMock(validate_navigation_url=AsyncMock(return_value=(True, "")))
-    session = BrowserSession("user", context, security)
+    session = BrowserSession(browser_scope("user"), context, security)
     session.page = page
     monkeypatch.setattr(session, "_dismiss_cookie_banner", AsyncMock())
     monkeypatch.setattr(session, "get_page_content", AsyncMock())
     pool = BrowserPool()
-    pool._sessions["user"] = session
+    pool._sessions[browser_scope("user")] = session
     monkeypatch.setattr(pool, "_owns_session", AsyncMock(return_value=True))
     monkeypatch.setattr(pool, "_remove_session_redis", AsyncMock())
     from src.infrastructure.browser.pool import browser_sessions_active
@@ -58,4 +59,4 @@ async def test_idle_cleanup_retains_an_inflight_navigation_and_closes_after_it_b
 
     assert closed_while_busy == 0, "idle cleanup closed a navigation still awaiting its page"
     context.close.assert_awaited_once()
-    assert "user" not in pool._sessions
+    assert browser_scope("user") not in pool._sessions

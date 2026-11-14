@@ -12,10 +12,13 @@ const state = vi.hoisted(() => ({
   options: {} as UseNotificationsOptions,
   get: vi.fn(),
   features: { sms_enabled: true, workboard_enabled: true, attachments_enabled: true },
+  capabilities: undefined as Record<string, { enabled: boolean; family: string }> | undefined,
 }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: state.user }) }));
 vi.mock('@/hooks/useAppConfig', () => ({
-  useAppConfig: () => ({ config: { features: state.features } }),
+  useAppConfig: () => ({
+    config: { features: state.features, capabilities: state.capabilities },
+  }),
 }));
 vi.mock('@/hooks/useNotifications', () => ({
   useNotifications: (options: UseNotificationsOptions) => {
@@ -31,6 +34,7 @@ vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn() } }));
 beforeEach(() => {
   state.user = makeUser({ id: owner, is_active: true });
   state.features = { sms_enabled: true, workboard_enabled: true, attachments_enabled: true };
+  state.capabilities = undefined;
   state.get
     .mockReset()
     .mockImplementation(async (path: string) =>
@@ -105,6 +109,32 @@ it('shares phone acknowledgment and hides withdrawn SMS and obsolete owners imme
   act(() => state.options.onReconnected?.());
   expect(state.get).toHaveBeenCalledTimes(count);
 });
+it('reads nothing of a board or of SMS the operator switched off, whatever the ceiling says', async () => {
+  // The ceiling still mounts the routes; the switch closes them (ADR-280), so
+  // a read would be refused and a signal would point at a closed workspace.
+  state.capabilities = {
+    workboard: { enabled: false, family: 'work' },
+    sms: { enabled: false, family: 'knowledge' },
+  };
+  const { result } = renderHook(() => useWorldPrivateSignals(owner, true));
+  // The files LIA produced are a record: still read, and the proof the hook ran.
+  act(() => publishApplicationResources(owner, new Set(['generated_assets'])));
+  await waitFor(() => expect(state.get).toHaveBeenCalledTimes(3));
+
+  expect(state.get.mock.calls.map(call => call[0])).not.toContain('/workboard/needs-me');
+  expect(result.current.signals.some(item => item.kind === 'workboard')).toBe(false);
+  act(() =>
+    state.options.onSmsReceived?.({
+      type: 'sms_received',
+      user_id: owner,
+      message_id: id,
+      occurrence_id: owner,
+    })
+  );
+  expect(result.current.signals.some(item => item.kind === 'sms')).toBe(false);
+  expect(result.current.entries.some(item => item.kind === 'sms')).toBe(false);
+});
+
 it('marks a reconnect gap as uncertainty and failed native reads as unavailable, never zero', async () => {
   state.get.mockRejectedValue(new Error('offline'));
   const { result } = renderHook(() => useWorldPrivateSignals(owner, true));

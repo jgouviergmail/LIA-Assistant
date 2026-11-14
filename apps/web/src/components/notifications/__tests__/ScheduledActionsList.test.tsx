@@ -54,6 +54,25 @@ describe('ScheduledActionsList', () => {
     expect(screen.queryByText('notifications_hub.next_run_unknown')).not.toBeInTheDocument();
   });
 
+  it('announces no run for a routine started by calls, only what starts it', () => {
+    render(
+      <ScheduledActionsList
+        actions={[
+          row({
+            trigger_kind: 'webhook',
+            next_trigger_at: '2026-09-25T12:01:00Z',
+            schedule_display: 'Started by a signed call to its address',
+          }),
+        ]}
+        locale="en-GB"
+      />
+    );
+
+    expect(screen.getByText('Started by a signed call to its address')).toBeInTheDocument();
+    expect(screen.queryByText('notifications_hub.next_run')).not.toBeInTheDocument();
+    expect(screen.queryByText('notifications_hub.next_run_unknown')).not.toBeInTheDocument();
+  });
+
   it('says an enabled routine is enabled, in green, and a disabled one in grey', () => {
     // Owner request 2026-10-21: both states are SAID. Only the exception used
     // to be, so an active routine wore nothing a reader could scan for.

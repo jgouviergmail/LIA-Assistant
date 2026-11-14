@@ -73,6 +73,7 @@ async def test_memory_disabled_after_context_creation_is_refused_before_model_or
             str(actor_id),
             [HumanMessage(content="Je suis allergique aux arachides depuis mon enfance.")],
             "consent-test",
+            user_timezone=None,
         )
     assert result == 0
     consent.assert_awaited_once()
@@ -139,6 +140,7 @@ async def test_optout_during_paid_model_preserves_accounting_and_refuses_late_wr
             [HumanMessage(content="Je bois du thé chaque matin.")],
             "consent-paid",
             query_embedding=[],
+            user_timezone=None,
         )
     assert applied == 0
     invoke.assert_awaited_once()

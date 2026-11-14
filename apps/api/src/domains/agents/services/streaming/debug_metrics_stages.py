@@ -380,6 +380,7 @@ async def add_interest_detection(
             messages=state.get("messages", []),
             session_id=run_id,
             user_language=resolve_language(state.get("user_language")),
+            user_timezone=state.get("user_timezone"),
         )
         debug_metrics["interest_profile"] = interest_detection
         logger.debug(

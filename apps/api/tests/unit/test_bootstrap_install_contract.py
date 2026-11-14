@@ -1,10 +1,10 @@
 """Install bootstrap + provider contract (ADR-215, B10/B10-bis/B11).
 
 What must hold:
-- the derived current-core provider set is exactly openai/deepseek —
+- the derived current-core provider set is exactly anthropic/deepseek —
   machine-derived from code defaults merged with the PARSED seed overrides
-  (the seed overrides every qwen code default to deepseek, and every slot
-  absent from the seed defaults to openai, so qwen is NOT a required key);
+  (the seed is the production configuration and names the provider of every
+  core slot, so no code default decides a required key);
 - moving one core slot (code default or seed) outside the set turns the
   anti-drift red;
 - the admin path has no default password, no --password argv, and calls
@@ -56,7 +56,7 @@ VALID_PAYLOAD = {
         "password": "Xx12!!abcdA9$Z",
         "full_name": "Ops",
     },
-    "provider_keys": {"openai": CANARY, "deepseek": "dk"},
+    "provider_keys": {"anthropic": CANARY, "deepseek": "dk"},
 }
 
 
@@ -67,7 +67,7 @@ VALID_PAYLOAD = {
 
 def test_derived_set_is_exactly_the_audited_baseline() -> None:
     assert required_current_core_provider_ids() == CURRENT_CORE_PROVIDER_IDS
-    assert set(CURRENT_CORE_PROVIDER_IDS) == {"openai", "deepseek"}
+    assert set(CURRENT_CORE_PROVIDER_IDS) == {"anthropic", "deepseek"}
 
 
 def test_every_core_slot_resolves_inside_the_baseline() -> None:
@@ -77,26 +77,25 @@ def test_every_core_slot_resolves_inside_the_baseline() -> None:
 
 def test_seed_parse_matches_known_rows() -> None:
     overrides = seeded_provider_overrides()
-    # Audited seed facts (B10-bis, re-audited 2026-08-15 on the regenerated
-    # production extraction): planner moved deepseek → openai, response stays
-    # deepseek — the DERIVED provider set is unchanged (deepseek, openai).
-    assert overrides["planner"] == "openai"
+    # Audited seed facts (B10-bis, re-audited 2026-11-11 on the regenerated
+    # production extraction): the planner answers on anthropic, the response
+    # stays on deepseek — the DERIVED provider set is (anthropic, deepseek).
+    assert overrides["planner"] == "anthropic"
     assert overrides["response"] == "deepseek"
     # A row that pins a model but no provider parses as None (the resolver then
-    # falls back to the code default). ``briefing`` is such a row; ``router``
-    # used to be the example here until ADR-244 removed the slot.
-    assert overrides["briefing"] is None
-    assert overrides["vision_analysis"] == "gemini"
-    # 39 after ADR-244 removed the two dead slots and the mcp_excalidraw orphan.
-    assert len(overrides) >= 39
+    # falls back to the code default). ``image_generation`` is such a row.
+    assert overrides["image_generation"] is None
+    assert overrides["voice_tts"] == "fishaudio"
+    # Every declared slot but the one production leaves on its code default.
+    assert len(overrides) >= 60
 
 
 def test_anti_drift_catches_an_out_of_set_slot() -> None:
     with patch(
         "src.domains.llm_config.install_contract.seeded_provider_overrides",
-        return_value={**seeded_provider_overrides(), "planner": "anthropic"},
+        return_value={**seeded_provider_overrides(), "planner": "qwen"},
     ):
-        assert "anthropic" in required_current_core_provider_ids()
+        assert "qwen" in required_current_core_provider_ids()
         assert (
             required_current_core_provider_ids() != CURRENT_CORE_PROVIDER_IDS
         ), "a third-party core slot must change the derived set (CI red)"
@@ -129,9 +128,11 @@ def test_a_given_key_takes_its_capabilities_off_the_degraded_list() -> None:
     with_gemini = unkeyed_capabilities(core | {"gemini"})
 
     assert without["semantic_search"] == "gemini"
-    assert without["vision_analysis"] == "gemini"
-    assert "semantic_search" not in with_gemini and "vision_analysis" not in with_gemini
-    assert with_gemini["voice_tts"] == "elevenlabs"
+    assert without["image_generation"] == "openai"
+    assert "semantic_search" not in with_gemini
+    # A key for one provider takes nothing off another's list.
+    assert with_gemini["image_generation"] == "openai"
+    assert with_gemini["voice_tts"] == "fishaudio"
 
 
 # ---------------------------------------------------------------------------
@@ -271,7 +272,7 @@ def test_an_optional_key_left_empty_is_no_key() -> None:
             json.dumps(
                 {
                     "admin": VALID_PAYLOAD["admin"],
-                    "provider_keys": {"openai": "x", "qwen": "y"},
+                    "provider_keys": {"anthropic": "x", "qwen": "y"},
                 }
             ),
             "missing_provider_keys:deepseek",
@@ -282,11 +283,11 @@ def test_an_optional_key_left_empty_is_no_key() -> None:
                     "admin": VALID_PAYLOAD["admin"],
                     "provider_keys": {
                         **VALID_PAYLOAD["provider_keys"],
-                        "anthropic": "z",
+                        "openai": "z",
                     },
                 }
             ),
-            "unexpected_provider_keys:anthropic",
+            "unexpected_provider_keys:openai",
         ),
     ],
 )
@@ -303,7 +304,7 @@ def test_payload_errors_are_stable_and_value_free(raw: str, code: str) -> None:
 
 
 def _fake_db(
-    stored: tuple[str, ...] = ("deepseek", "openai"), events: list[str] | None = None
+    stored: tuple[str, ...] = ("anthropic", "deepseek"), events: list[str] | None = None
 ) -> MagicMock:
     """A session whose transaction and stored-keys read are recorded in ``events``.
 
@@ -361,12 +362,12 @@ async def test_bootstrap_runs_everything_inside_one_transaction(
         result = await bootstrap(payload, db)
 
     assert calls[:2] == ["begin", "admin"]
-    assert sorted(calls[2:4]) == ["key:deepseek", "key:openai"]
+    assert sorted(calls[2:4]) == ["key:anthropic", "key:deepseek"]
     # The stored keys are read after the writes, before the commit.
     assert calls[4:] == ["read_stored_keys", "commit"]
     db.begin.assert_called_once()  # ONE transaction wraps admin + all keys
     assert result.status == "bootstrapped"
-    assert result.optional_unkeyed == unkeyed_capabilities(frozenset({"openai", "deepseek"}))
+    assert result.optional_unkeyed == unkeyed_capabilities(frozenset({"anthropic", "deepseek"}))
     assert result.optional_unkeyed["semantic_search"] == "gemini"
     # The result never carries a secret.
     assert CANARY not in json.dumps(
@@ -382,11 +383,11 @@ async def test_the_degraded_list_counts_the_keys_the_database_already_holds() ->
     """A resume that skips the optional key again keeps the row an earlier run stored.
 
     The list was computed from this run's payload: the resumed install was told
-    semantic search and vision were degraded while the Gemini row sat in the table.
+    semantic search was degraded while the Gemini row sat in the table.
     """
     payload = parse_payload(json.dumps(VALID_PAYLOAD))
     assert "gemini" not in payload.provider_keys
-    db = _fake_db(stored=("deepseek", "gemini", "openai"))
+    db = _fake_db(stored=("anthropic", "deepseek", "gemini"))
     with (
         patch(
             "scripts.data.create_admin.ensure_admin",
@@ -404,13 +405,12 @@ async def test_the_degraded_list_counts_the_keys_the_database_already_holds() ->
         result = await bootstrap(payload, db)
 
     assert result.optional_unkeyed == unkeyed_capabilities(
-        frozenset({"deepseek", "gemini", "openai"})
+        frozenset({"anthropic", "deepseek", "gemini"})
     )
     assert "semantic_search" not in result.optional_unkeyed
-    assert "vision_analysis" not in result.optional_unkeyed
-    assert result.optional_unkeyed["voice_tts"] == "elevenlabs"
+    assert result.optional_unkeyed["voice_tts"] == "fishaudio"
     # The keys this run wrote are still the ones it reports writing.
-    assert result.providers == ("deepseek", "openai")
+    assert result.providers == ("anthropic", "deepseek")
 
 
 async def test_failure_on_second_provider_propagates_from_the_transaction() -> None:
@@ -463,11 +463,13 @@ async def test_publication_failure_returns_stable_status() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_openai_and_deepseek_have_base_url_defaults() -> None:
+def test_the_providers_a_fresh_install_calls_have_base_url_defaults() -> None:
     from src.infrastructure.llm.providers.adapter import _BASE_URL_DEFAULTS
 
-    assert _BASE_URL_DEFAULTS["openai"] == "https://api.openai.com/v1"
+    assert _BASE_URL_DEFAULTS["anthropic"] == "https://api.anthropic.com"
     assert _BASE_URL_DEFAULTS["deepseek"] == "https://api.deepseek.com"
+    # No longer a core provider; two optional capabilities still answer on it.
+    assert _BASE_URL_DEFAULTS["openai"] == "https://api.openai.com/v1"
 
 
 def test_base_url_env_overrides_are_honored(
@@ -475,8 +477,10 @@ def test_base_url_env_overrides_are_honored(
 ) -> None:
     from src.infrastructure.llm.providers.adapter import _get_base_url
 
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "http://fake:18080")
     monkeypatch.setenv("OPENAI_BASE_URL", "http://fake:18080/v1")
     monkeypatch.setenv("DEEPSEEK_BASE_URL", "http://fake:18080/v1")
+    assert _get_base_url("anthropic") == "http://fake:18080"
     assert _get_base_url("openai") == "http://fake:18080/v1"
     assert _get_base_url("deepseek") == "http://fake:18080/v1"
 

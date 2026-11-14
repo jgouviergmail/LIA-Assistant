@@ -50,6 +50,12 @@ export interface ThemePreferences {
   mode: DisplayMode;
   resolved: 'light' | 'dark';
   oled: boolean;
+  /**
+   * Whether the automatic mode can run here. Its hours and its zone belong to
+   * an account: without one, `apply` has no schedule to follow and the mode
+   * would draw nothing, so no control offers it.
+   */
+  automaticAvailable: boolean;
   schedule: ThemeSchedule;
   saving: boolean;
   saveError: boolean;
@@ -89,6 +95,9 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
   const active = useRef(true);
   const inFlight = useRef<AbortController | null>(null);
   const renderedMode = useRef(theme);
+  const applyTheme = useRef(setTheme);
+  /** Settles once the latest press has been drawn by its reveal. */
+  const drawn = useRef(Promise.resolve());
   const { mutate } = useApiMutation<ThemePatch, User>({
     method: 'PATCH',
     componentName: 'ThemeModeProvider',
@@ -128,20 +137,23 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
   }, []);
   useLayoutEffect(() => {
     renderedMode.current = theme;
-  }, [theme]);
+    applyTheme.current = setTheme;
+  }, [theme, setTheme]);
 
-  const draw = useCallback(
-    (state: ThemeModeState) => {
-      writeStoredOled(state.oled);
-      if (document.documentElement.hasAttribute('data-oled') !== state.oled)
-        applyOledAttribute(state.oled);
-      if (state.mode !== 'auto' && state.mode !== renderedMode.current) {
-        renderedMode.current = state.mode;
-        setTheme(state.mode);
-      }
-    },
-    [setTheme]
-  );
+  // ONE identity for the life of the provider. `next-themes` hands out a new
+  // `setTheme` at every theme change; a `draw` that followed it made the account's
+  // effect below run again on the very change a press makes, and redraw what the
+  // account still said: the press was undone until the account was read back, and
+  // two tabs of one account threw the theme at each other (owner report 2026-11-14).
+  const draw = useCallback((state: ThemeModeState) => {
+    writeStoredOled(state.oled);
+    if (document.documentElement.hasAttribute('data-oled') !== state.oled)
+      applyOledAttribute(state.oled);
+    if (state.mode !== 'auto' && state.mode !== renderedMode.current) {
+      renderedMode.current = state.mode;
+      applyTheme.current(state.mode);
+    }
+  }, []);
 
   useEffect(() => {
     applyOledAttribute(readStoredOled());
@@ -243,6 +255,10 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
         inFlight.current = null;
         if (active.current) setSaving(false);
       }
+      // The account is read back on a page already drawn. A server can answer within
+      // the frame a reveal waits for: read back sooner, its new value was drawn by the
+      // account's effect ahead of the reveal, which then had nothing left to unfold.
+      await drawn.current;
       if (isCurrentOwner(ownerId)) await refreshUser?.();
     },
     [mutate, refreshUser, isCurrentOwner, setSaveError]
@@ -252,10 +268,12 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
     async (next: ThemeModeState, origin?: TransitionOrigin) => {
       if (!isCurrentOwner(user?.id)) return;
       const stored = next.mode === 'auto' && user ? { ...hours, timezone, ownerId: user.id } : null;
-      setAutomatic(stored);
-      writeThemeSchedule(stored);
-      withThemeTransition(
-        () =>
+      // A press is drawn by its reveal, and the automatic clock starts on a page
+      // already drawn. Started first, the clock drew the day's light at once: the
+      // reveal then photographed a page already changed, and entering automatic
+      // snapped where every other press unfolds (owner report 2026-11-14).
+      drawn.current = new Promise<void>(resolve =>
+        withThemeTransition(() => {
           draw(
             stored
               ? automaticThemeAt(
@@ -265,8 +283,11 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
                   stored.darkStartMinute
                 )
               : next
-          ),
-        origin
+          );
+          setAutomatic(stored);
+          writeThemeSchedule(stored);
+          resolve();
+        }, origin)
       );
       if (user) await persist(user.id, { theme: toPersistedTheme(next) });
     },
@@ -304,6 +325,7 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
         mode,
         resolved: resolvedTheme === 'dark' ? 'dark' : 'light',
         oled,
+        automaticAvailable: Boolean(userId),
         schedule: { ...hours, timezone },
         saving,
         saveError,

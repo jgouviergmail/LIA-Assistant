@@ -19,7 +19,6 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-from src.domains.document_generation.context import RenderContext  # noqa: E402
 from src.domains.document_generation.renderers import (  # noqa: E402
     DOCUMENT_EXTENSIONS,
     render_document,
@@ -28,6 +27,7 @@ from src.domains.document_generation.schemas import (  # noqa: E402
     SCHEMA_BY_DOC_TYPE,
     DocumentType,
 )
+from tests.helpers.document_pictures import fixture_context  # noqa: E402
 
 CORPUS = REPO_ROOT / "tests" / "fixtures" / "document_corpus"
 DEFAULT_OUT = REPO_ROOT / "data" / "document_corpus_out"
@@ -41,9 +41,7 @@ def render_all(out: Path) -> int:
         raw = json.loads(path.read_text(encoding="utf-8"))
         doc_types = [DocumentType(value) for value in raw["doc_types"]]
         content = SCHEMA_BY_DOC_TYPE[doc_types[0]].model_validate(raw["content"])
-        context = RenderContext(
-            language=raw.get("language", "en"), structure=raw.get("structure", "auto")
-        )
+        context = fixture_context(raw, content)
         for doc_type in doc_types:
             target = out / f"{path.stem}.{DOCUMENT_EXTENSIONS[doc_type]}"
             target.write_bytes(render_document(doc_type, content, context))

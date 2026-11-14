@@ -13,6 +13,7 @@ be loaded never reaches the resolver: both callers answer and refuse first.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -22,6 +23,17 @@ import pytest
 from src.domains.channels.abstractions import ChannelInboundMessage
 from src.domains.channels.inbound_handler import InboundMessageHandler
 from src.domains.channels.models import ChannelType
+from tests.fixtures.instruction_runtime import instruction_runtime
+
+_OWNER = uuid4()
+
+
+@pytest.fixture(autouse=True)
+def admitted_reader() -> Iterator[None]:
+    """Keep preference projection tests independent of SQL/Redis admission."""
+    with instruction_runtime(_OWNER):
+        yield
+
 
 _PATCH_AGENT_SERVICE = "src.domains.agents.api.service.AgentService"
 _PATCH_MD_TO_HTML = "src.infrastructure.channels.telegram.formatter.markdown_to_telegram_html"
@@ -85,7 +97,7 @@ class TestHandlerForwardsPreferences:
 
         await handler.handle(
             message=text_message,
-            user_id=uuid4(),
+            user_id=_OWNER,
             user_language="fr",
             user_timezone="Europe/Paris",
             user_memory_enabled=True,
@@ -118,7 +130,7 @@ class TestHandlerForwardsPreferences:
 
         await handler.handle(
             message=text_message,
-            user_id=uuid4(),
+            user_id=_OWNER,
             user_language="fr",
             user_timezone="Europe/Paris",
             user_memory_enabled=False,
@@ -165,7 +177,7 @@ class TestPsycheTagNeverLeaksToTheChannel:
 
         await handler.handle(
             message=text_message,
-            user_id=uuid4(),
+            user_id=_OWNER,
             user_language="fr",
             user_timezone="Europe/Paris",
             user_memory_enabled=True,

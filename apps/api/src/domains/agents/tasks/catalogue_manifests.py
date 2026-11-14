@@ -28,6 +28,9 @@ from src.domains.agents.tasks.parameter_descriptions import (
     TASK_CLEAR_REMINDER_DESCRIPTION,
     TASK_CLEAR_REPEAT_DESCRIPTION,
     TASK_IMPORTANCE_DESCRIPTION,
+    TASK_LIST_GET_DESCRIPTION,
+    TASK_LIST_NEW_DESCRIPTION,
+    TASK_LIST_OF_TASK_DESCRIPTION,
     TASK_REMINDER_DESCRIPTION,
     TASK_REPEAT_DESCRIPTION,
     TASK_STEPS_DESCRIPTION,
@@ -53,7 +56,9 @@ _get_tasks_desc = (
     "**Tool: get_tasks_tool** - Get tasks with full details.\n"
     "\n"
     "**USAGE**:\n"
-    "- List all: omit parameters (returns pending tasks)\n"
+    "- List all: omit parameters (returns the pending tasks of EVERY list; each task "
+    "carries its own list in `tasklist_id` and `taskListName`)\n"
+    "- One list only: `task_list_id` = that list's id or name\n"
     "- Fetch by ID (from $steps or CONTEXT only): use `task_id` or `task_ids`\n"
     "- Filter by status: use `only_completed` or `show_completed`\n"
     "\n"
@@ -129,7 +134,7 @@ get_tasks_catalogue_manifest = ToolManifest(
             name="task_list_id",
             type="string",
             required=False,
-            description="Target list ID (def: default list)",
+            description=TASK_LIST_GET_DESCRIPTION,
             semantic_type="task_list_id",
         ),
         ParameterSchema(
@@ -171,6 +176,19 @@ get_tasks_catalogue_manifest = ToolManifest(
             semantic_type="Text",
         ),
         OutputFieldSchema(
+            path="tasks[].tasklist_id",
+            type="string",
+            description="The task's own list: pass it as task_list_id to act on the task",
+            semantic_type="task_list_id",
+        ),
+        OutputFieldSchema(
+            path="tasks[].taskListName",
+            type="string",
+            nullable=True,
+            description="That list's name",
+            semantic_type="Text",
+        ),
+        OutputFieldSchema(
             path="tasks[].updated",
             type="string",
             description="Last updated",
@@ -203,7 +221,9 @@ get_tasks_catalogue_manifest = ToolManifest(
 # ============================================================================
 _create_desc = (
     "**Tool: create_task_tool** - Create new task. **REQUIRES HITL**.\n"
-    "**Dates**: Use ISO 8601 (YYYY-MM-DD)."
+    "**Dates**: Use ISO 8601 (YYYY-MM-DD).\n"
+    "**List**: the person's default list, unless `task_list_id` names another one "
+    "(its id or its name)."
 )
 
 create_task_catalogue_manifest = ToolManifest(
@@ -250,7 +270,7 @@ create_task_catalogue_manifest = ToolManifest(
             name="task_list_id",
             type="string",
             required=False,
-            description="Target list ID",
+            description=TASK_LIST_NEW_DESCRIPTION,
             semantic_type="task_list_id",
         ),
     ],
@@ -320,7 +340,7 @@ complete_task_catalogue_manifest = ToolManifest(
             name="task_list_id",
             type="string",
             required=False,
-            description="List ID (if known)",
+            description=TASK_LIST_OF_TASK_DESCRIPTION,
             semantic_type="task_list_id",
         ),
     ],
@@ -431,7 +451,7 @@ update_task_catalogue_manifest = ToolManifest(
             name="task_list_id",
             type="string",
             required=False,
-            description="List ID",
+            description=TASK_LIST_OF_TASK_DESCRIPTION,
             semantic_type="task_list_id",
         ),
     ],
@@ -492,7 +512,7 @@ delete_task_catalogue_manifest = ToolManifest(
             name="task_list_id",
             type="string",
             required=False,
-            description="List ID",
+            description=TASK_LIST_OF_TASK_DESCRIPTION,
             semantic_type="task_list_id",
         ),
     ],
@@ -522,7 +542,11 @@ delete_task_catalogue_manifest = ToolManifest(
 # ============================================================================
 # 6. LIST TASK LISTS
 # ============================================================================
-_lists_desc = "**Tool: list_task_lists_tool** - List available task lists to find 'task_list_id'."
+_lists_desc = (
+    "**Tool: list_task_lists_tool** - List the account's task lists: each one's id and "
+    "name, and which is the default (`is_default`: where a new task goes when no list "
+    "is named). Any other tool takes a list by its id or by its name."
+)
 
 list_task_lists_catalogue_manifest = ToolManifest(
     name="list_task_lists_tool",

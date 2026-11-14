@@ -27,7 +27,7 @@ function skill(over: Partial<Skill> = {}): Skill {
   };
 }
 
-const t = (key: string, options?: Record<string, string>) =>
+const t = (key: string, options?: Record<string, string | number>) =>
   options?.name ? `${key}:${options.name}` : key;
 
 function cardOf(name: string): HTMLElement {

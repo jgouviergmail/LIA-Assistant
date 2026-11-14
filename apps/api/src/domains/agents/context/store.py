@@ -10,8 +10,8 @@ Pattern:
       connection instead of queueing on a single persistent one (ADR-111)
     - PostgreSQL-backed for persistence across restarts
     - Semantic search via Gemini gemini-embedding-001 (1536 dims)
-    - Thread-safe, module-level singleton
-    - Lazy initialization on first access
+    - Module-level singleton owned by the worker's event loop
+    - Initialized by startup before graph requests are served
 
 BUGFIX: Changed from InMemoryStore to AsyncPostgresStore to fix context
 resolution regression where "affiche le detail de la premiere" failed because
@@ -36,15 +36,15 @@ References:
 """
 
 import asyncio
-from contextlib import suppress
 from typing import cast
 
-from langgraph.store.postgres import AsyncPostgresStore
 from psycopg import AsyncConnection
 from psycopg.rows import DictRow
 from psycopg_pool import AsyncConnectionPool
 
 from src.core.config import settings
+from src.domains.conversations.runtime_store import RuntimeAsyncPostgresStore as AsyncPostgresStore
+from src.infrastructure.async_utils import finish_owned_task
 from src.infrastructure.database.psycopg_pool_config import (
     psycopg_pool_kwargs,
     resolve_psycopg_url,
@@ -109,7 +109,7 @@ async def get_tool_context_store() -> AsyncPostgresStore:
     - Semantic search with vector embeddings (pgvector)
 
     Namespaces:
-        - (user_id, "context", domain)    → Tool context (existing)
+        - (user_id, runtime_id, "context", domain[, child_id]) → Working context
         - (user_id, "memories")           → Long-term user memory (new)
         - (user_id, "documents", source)  → Future RAG documents
 
@@ -150,7 +150,11 @@ async def get_tool_context_store() -> AsyncPostgresStore:
             ),
         )
         # Fail fast at startup: wait until min_size connections are established.
-        await pool.open(wait=True, timeout=settings.database_pool_timeout)
+        try:
+            await pool.open(wait=True, timeout=settings.database_pool_timeout)
+        except BaseException:
+            await finish_owned_task(asyncio.create_task(pool.close()))
+            raise
         _store_pool = pool
 
         # Build index configuration for semantic search (Gemini embeddings).
@@ -200,11 +204,9 @@ async def get_tool_context_store() -> AsyncPostgresStore:
             # (includes the pgvector index when semantic search is enabled).
             async with postgres_setup_lock(pool, TOOL_CONTEXT_STORE_SETUP_LOCK_KEY):
                 await _tool_context_store.setup()
-        except Exception:
+        except BaseException:
             # Don't leak an opened pool if setup fails: next call re-enters init.
-            await pool.close()
-            _store_pool = None
-            _tool_context_store = None
+            await cleanup_tool_context_store()
             raise
 
         logger.info(
@@ -235,33 +237,24 @@ async def cleanup_tool_context_store() -> None:
     if _tool_context_store is not None or _store_pool is not None:
         logger.info("tool_context_store_cleanup_started")
 
-        if _store_pool is not None:
-            await _store_pool.close()
-            _store_pool = None
-
-        _tool_context_store = None
+        try:
+            if _tool_context_store is not None:
+                await _tool_context_store.aclose()
+        finally:
+            _tool_context_store = None
+            try:
+                if _store_pool is not None:
+                    await finish_owned_task(asyncio.create_task(_store_pool.close()))
+            finally:
+                _store_pool = None
         logger.info("tool_context_store_cleanup_completed")
 
 
 def reset_tool_context_store() -> None:
-    """
-    Reset global tool context store (for testing only).
+    """Assert that test redirection is not abandoning an owned Store or pool.
 
-    WARNING: Only use in tests to force recreation of store.
-    Production code should never call this method.
-
-    This method clears the global singleton, forcing a new store to be created
-    on next access. The previous pool is closed best-effort: as a background
-    task when an event loop is running, abandoned otherwise (prefer
-    `await cleanup_tool_context_store()` from async code).
+    An initialized Store must be closed with await cleanup_tool_context_store()
+    on its owning loop, before replacing its database configuration.
     """
-    global _tool_context_store, _store_pool
-    if _store_pool is not None:
-        pool = _store_pool
-        # No running loop (sync context): abandon the pool; connections are
-        # reclaimed at process exit. Test-only path, mirrors previous behavior.
-        with suppress(RuntimeError):
-            asyncio.get_running_loop().create_task(pool.close(), name="store_pool_close_on_reset")
-    _tool_context_store = None
-    _store_pool = None
-    logger.warning("tool_context_store_reset")
+    if _tool_context_store is not None or _store_pool is not None:
+        raise RuntimeError("Await cleanup_tool_context_store() before resetting the Store")

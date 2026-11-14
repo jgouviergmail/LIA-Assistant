@@ -1,6 +1,8 @@
 -- LLM Model Pricing Seed Data
 -- Generated: 2026-11-06
--- Source: Production database extraction
+-- Source: Production database extraction (read again on 2026-11-11: the two
+-- tables held what this file held, row for row; that day claude-fable-5-2 was
+-- added and applying the bundle retired four models it prices only in the past)
 -- Prices in USD per the unit each row declares (per_1m_tokens for text
 -- models, per_audio_hour for speech models — the unit travels with the row
 -- since 2026-08-15; the previous generation hardcoded per_1m_tokens and
@@ -116,6 +118,13 @@ INSERT INTO llm_models (
     ('openai', 'gpt-image-1.5', 8192, 4096, true, true, false, true, false, false, true, true, true, true, 'image', NULL, NULL, false),
     ('openai', 'gpt-image-1-mini', 8192, 4096, true, true, false, true, false, false, true, true, true, true, 'image', NULL, NULL, false),
     ('openai', 'gpt-image-2', 8192, 4096, false, true, false, true, true, false, true, true, true, true, 'image', NULL, NULL, true),
+    -- The model production's image slot names (llm_config_seed.sql): priced in
+    -- image_generation_pricing_seed.sql and served by its image family, it had
+    -- no row here, so the slot resolved to the conservative default profile and
+    -- verify_reference_seeds.sql refused the bundle. The shape is gpt-image-2's:
+    -- placeholders no reader consults for an image model. Migration 45cf916cc02f
+    -- carries it to upgraded instances.
+    ('openai', 'gpt-image-2.6-flare', 8192, 4096, false, true, false, true, true, false, true, true, true, true, 'image', NULL, NULL, true),
     ('openai', 'gpt-realtime', 32000, 4096, true, true, false, true, false, false, true, true, true, true, 'realtime', NULL, NULL, true),
     ('openai', 'gpt-realtime-1.5', 32000, 4096, true, true, false, true, false, false, true, true, true, true, 'realtime', NULL, NULL, true),
     ('openai', 'gpt-realtime-mini', 128000, 4096, true, true, false, true, false, false, true, true, true, true, 'realtime', NULL, NULL, true),
@@ -147,9 +156,16 @@ INSERT INTO llm_models (
     -- where the Models API reports 1M). A non-default temperature is refused
     -- from Opus 4.7 on, and top_p never reaches a Claude model (the adapter
     -- drops it).
-    -- Fable 5, Fable 5.1 and Opus 5.5 cannot switch thinking off: no `none` on
+    -- Fable 5, 5.1, 5.2 and Opus 5.5 cannot switch thinking off: no `none` on
     -- their ladder. The Mythos models are Project Glasswing only (absent from
     -- the Models API of an ordinary organisation), so not offered here.
+    -- Fable 5.2 (released 2026-11-09), read 2026-11-11 on its overview page
+    -- (platform.claude.com/docs/en/models/fable-5-2/overview) and measured the
+    -- same day on the Models API and by validation requests: 1M in / 128K out,
+    -- text and images in, adaptive thinking always on (no `none`), five effort
+    -- levels (`high` unasked, the vendor's page), sampling and a forced tool
+    -- call refused.
+    ('anthropic', 'claude-fable-5-2', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_always_on', true),
     ('anthropic', 'claude-fable-5-1', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_always_on', true),
     ('anthropic', 'claude-fable-5', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_always_on', true),
     ('anthropic', 'claude-opus-5-5', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_always_on', true),
@@ -182,12 +198,16 @@ INSERT INTO llm_models (
     ('perplexity', 'sonar', 123904, 4096, false, true, false, true, false, false, true, true, true, true, 'chat', NULL, NULL, true),
     ('perplexity', 'sonar-deep-research', 128000, 32768, false, true, false, true, false, true, true, true, true, true, 'chat', '["low", "medium", "high"]'::jsonb, 'perplexity_deep', true),
     ('perplexity', 'sonar-pro', 200000, 8192, false, true, false, true, true, false, true, true, true, true, 'chat', NULL, NULL, true),
-    ('perplexity', 'sonar-reasoning', 128000, 4096, true, true, false, true, false, false, true, true, true, true, 'chat', NULL, NULL, true),
+    ('perplexity', 'sonar-reasoning', 128000, 4096, true, true, false, true, false, false, true, true, true, true, 'chat', NULL, NULL, false),
     ('perplexity', 'sonar-reasoning-pro', 128000, 4096, false, true, false, true, true, false, true, true, true, true, 'chat', NULL, NULL, true),
+    -- llama3.2, mistral, qwen2.5 and sonar-reasoning (above) left the catalogue on
+    -- 2026-11-11: this bundle prices them only in the past and no slot names them,
+    -- so its retirement block takes them out wherever it is applied -- production
+    -- included, that day, on the owner's decision.
     ('ollama', 'llama3.1', 8192, 8192, true, true, false, true, false, false, true, true, true, true, 'chat', NULL, NULL, true),
-    ('ollama', 'llama3.2', 131072, 4096, true, true, false, true, true, false, true, true, true, true, 'chat', NULL, NULL, true),
-    ('ollama', 'mistral', 8192, 8192, true, true, false, true, false, false, true, true, true, true, 'chat', NULL, NULL, true),
-    ('ollama', 'qwen2.5', 131072, 8192, true, true, false, true, false, false, true, true, false, true, 'chat', NULL, NULL, true),
+    ('ollama', 'llama3.2', 131072, 4096, true, true, false, true, true, false, true, true, true, true, 'chat', NULL, NULL, false),
+    ('ollama', 'mistral', 8192, 8192, true, true, false, true, false, false, true, true, true, true, 'chat', NULL, NULL, false),
+    ('ollama', 'qwen2.5', 131072, 8192, true, true, false, true, false, false, true, true, false, true, 'chat', NULL, NULL, false),
     -- An inactive Gemini row is a model the Gemini API no longer serves: absent
     -- from its own model list (GET /v1beta/models, 2026-09-26) and, but for
     -- the experimental gemini-2.0-flash-exp, past the shutdown its deprecations
@@ -213,7 +233,8 @@ INSERT INTO llm_models (
     -- The live (speech-to-speech) models, ADR-300 wave 3: kind `realtime`, required
     -- by no slot, so a live model is never offered to a chat or STT slot. The
     -- native-audio name used to carry `audio`, which offered a bidi model to the
-    -- voice_transcription slot. Token limits are the catalogue's defaults.
+    -- voice_transcription slot -- and a row that already existed kept it until
+    -- migration 43891b5db14c. Token limits are the catalogue's defaults.
     ('gemini', 'gemini-2.5-flash-native-audio-latest', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, true),
     ('gemini', 'gemini-2.5-flash-native-audio-preview-09-2025', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, true),
     ('gemini', 'gemini-2.5-flash-native-audio-preview-12-2025', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, false),
@@ -334,6 +355,13 @@ WHERE model_name = 'gpt-6.1-terra'
   AND model_name IN (SELECT model_name FROM _lia_inserted_models)
   AND capability_provenance = 'declared';
 
+-- Read on its vendor's pages on 2026-11-11.
+UPDATE llm_models
+SET capability_provenance = 'verified'
+WHERE model_name = 'claude-fable-5-2'
+  AND model_name IN (SELECT model_name FROM _lia_inserted_models)
+  AND capability_provenance = 'declared';
+
 -- The bundle is materialised once: the model set below is read TWICE (to retire
 -- the tariffs this bundle supersedes, then to insert its own), and duplicating
 -- its rows to read them twice is how the two copies drift apart.
@@ -377,11 +405,15 @@ INSERT INTO _lia_pricing_bundle VALUES
     ('claude-sonnet-4-6', 3.000000, 0.300000, 15.000000, 'per_1m_tokens', '2026-10-19T10:31:42.378712+00:00', true),
     -- Claude, read 2026-09-23 on platform.claude.com/docs/en/about-claude/pricing
     -- (ADR-306). `cached` is « cache hits and refreshes »: 0.1x input, except
-    -- Fable 5.1 (0.025x), Opus 5.5 and Sonnet 5.5 (0.05x). A cache WRITE is billed 1.25x
+    -- Fable 5.1 and 5.2 (0.025x), Opus 5.5 and Sonnet 5.5 (0.05x). A cache WRITE is billed 1.25x
     -- input on the 5-minute TTL (the only one LIA writes) and 2x on the 1-hour
     -- one: a multiplier of the input price for every Claude model, so it is
     -- applied by the cost computation to the written token count the API
     -- reports, never stored as a price here. Fast mode is not used.
+    -- Fable 5.2, read 2026-11-11 on the same page: the list price (no
+    -- introductory rate is published), its cache read at 0.025x like Fable 5.1,
+    -- the whole 1M window at this one rate.
+    ('claude-fable-5-2', 8.000000, 0.200000, 40.000000, 'per_1m_tokens', '2026-11-11T00:00:00+00:00', true),
     ('claude-fable-5-1', 10.000000, 0.250000, 50.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('claude-fable-5', 10.000000, 1.000000, 50.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('claude-opus-5-5', 4.000000, 0.200000, 20.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),

@@ -63,12 +63,14 @@ vision_llm_duration_seconds = Histogram(
 DELETION_REASON_EXPIRED = "expired"
 DELETION_REASON_CONVERSATION_RESET = "conversation_reset"
 DELETION_REASON_USER = "user_deleted"
+DELETION_REASON_FAILED_UPLOAD = "upload_failed"
 
 DELETION_REASONS: frozenset[str] = frozenset(
     {
         DELETION_REASON_EXPIRED,
         DELETION_REASON_CONVERSATION_RESET,
         DELETION_REASON_USER,
+        DELETION_REASON_FAILED_UPLOAD,
     }
 )
 

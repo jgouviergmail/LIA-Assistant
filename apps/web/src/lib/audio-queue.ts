@@ -26,6 +26,7 @@
 // ============================================================================
 import type { DecodedAudioOutput } from './voice-output/types';
 import { VOICE_ENCODED_MAX_BYTES, VOICE_RUN_END_HOLD_MS } from './voice-output/types';
+import { tapVoice } from '@/lib/audio/voice-envelope';
 
 /** Maximum attempts to auto-resume AudioContext before requiring user interaction */
 const AUDIO_MAX_RESUME_ATTEMPTS = 3;
@@ -111,6 +112,8 @@ export class AudioQueue {
   private isPlaying = false;
   private playbackGeneration = 0;
   private currentSource: AudioBufferSourceNode | null = null;
+  /** Lets go of the playing chunk's tap on the voice level the face reads. */
+  private releaseVoice: (() => void) | null = null;
   private onPlaybackComplete: (() => void) | null = null;
   private onError: ((error: Error) => void) | null = null;
   private onStateChange: ((state: AudioQueueState) => void) | null = null;
@@ -475,10 +478,13 @@ export class AudioQueue {
       this.currentSource = source;
       source.buffer = audioBuffer;
       source.connect(context.destination);
+      // The face opens its mouth on what plays (ADR-294, 2026-11-13).
+      this.releaseVoice = tapVoice(source);
 
       // Handle playback completion
       source.onended = () => {
         if (generation !== this.playbackGeneration || this.currentSource !== source) return;
+        this.letVoiceGo();
         source.disconnect();
         this.currentSource = null;
         this.isPlaying = false;
@@ -494,8 +500,14 @@ export class AudioQueue {
     }
   }
 
+  private letVoiceGo(): void {
+    this.releaseVoice?.();
+    this.releaseVoice = null;
+  }
+
   private handlePlaybackFailure(error: unknown, generation: number): void {
     audioLogger.error('Failed to play audio chunk:', error);
+    this.letVoiceGo();
     this.currentSource?.disconnect();
     this.currentSource = null;
     this.externalPlayback?.abort();
@@ -607,6 +619,7 @@ export class AudioQueue {
     this.queue = [];
 
     // Stop current playback
+    this.letVoiceGo();
     if (this.currentSource) {
       this.currentSource.onended = null;
       try {

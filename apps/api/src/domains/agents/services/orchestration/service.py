@@ -18,12 +18,15 @@ from contextlib import suppress
 from typing import Any
 
 from langchain_core.exceptions import ContextOverflowError
-from langchain_core.messages import HumanMessage, RemoveMessage
+from langchain_core.messages import RemoveMessage
 from langchain_core.runnables import RunnableConfig
+from langgraph.types import StateSnapshot
 from structlog import get_logger
 
 from src.core.application_origin import ApplicationOrigin
 from src.core.config import settings
+from src.core.conversation_target import ConversationRef
+from src.core.exceptions import DatabaseError
 from src.core.field_names import (
     FIELD_ABANDON_PENDING,
     FIELD_CONVERSATION_ID,
@@ -33,6 +36,7 @@ from src.core.field_names import (
     FIELD_USER_ID,
 )
 from src.core.i18n import resolve_language
+from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.constants import (
     HITL_DECISION_NEW_REQUEST,
 )
@@ -46,7 +50,9 @@ from src.domains.agents.models import (
     needs_migration,
 )
 from src.domains.agents.services.orchestration import turn_input
+from src.domains.agents.services.orchestration.person_message import person_message
 from src.domains.agents.services.orchestration.tracking_commit import commit_tracked_spend
+from src.domains.conversations.runtime_identity import checkpoint_config
 from src.infrastructure.llm.instrumentation import enrich_config_with_callbacks
 from src.infrastructure.observability.callbacks import TokenTrackingCallback
 from src.infrastructure.observability.metrics_agents import agent_messages_history_count
@@ -61,8 +67,28 @@ from src.infrastructure.observability.metrics_langgraph import (
 logger = get_logger(__name__)
 
 
+def _checkpoint_is_interrupted(
+    snapshot: StateSnapshot | None, *, run_id: str, conversation_id: uuid.UUID
+) -> bool:
+    """Read pending interrupts from the checkpoint, the sole authority for resumption."""
+    if snapshot is None:
+        return False
+    for task in snapshot.tasks:
+        if task.interrupts:
+            logger.info(
+                "detected_pending_interrupt",
+                run_id=run_id,
+                conversation_id=str(conversation_id),
+                task_id=task.id,
+                task_name=task.name,
+                interrupts_count=len(task.interrupts),
+            )
+            return True
+    return False
+
+
 async def drop_replaced_question(
-    conversation_id: uuid.UUID, decision_data: dict[str, Any], run_id: str
+    runtime_id: uuid.UUID, decision_data: dict[str, Any], run_id: str
 ) -> None:
     """Clear the pending question a new request replaces.
 
@@ -71,7 +97,7 @@ async def drop_replaced_question(
     left in place, their next message would be read as its answer again.
 
     Args:
-        conversation_id: The conversation whose question is pending.
+        runtime_id: The admitted generation whose question is pending.
         decision_data: The parsed decision (``FIELD_ABANDON_PENDING`` when abandoned).
         run_id: The run, for logging.
     """
@@ -84,9 +110,9 @@ async def drop_replaced_question(
             redis_client=redis, ttl_seconds=settings.hitl_pending_data_ttl_seconds
         )
         if decision_data.get(FIELD_ABANDON_PENDING):
-            await hitl_store.clear_interrupt(str(conversation_id))
+            await hitl_store.clear_interrupt(str(runtime_id))
         else:
-            await hitl_store.clear_if_invalid(str(conversation_id))
+            await hitl_store.clear_if_invalid(str(runtime_id))
     except (ConnectionError, TimeoutError, RuntimeError, OSError) as cleanup_err:
         logger.error(
             "stale_hitl_cleanup_failed",
@@ -191,7 +217,7 @@ class OrchestrationService:
     async def _parse_approval_decision(
         self,
         user_message: str,
-        conversation_id: uuid.UUID,
+        runtime_id: uuid.UUID,
         run_id: str,
         user_language: str | None = None,
     ) -> dict[str, Any]:
@@ -209,7 +235,7 @@ class OrchestrationService:
 
         Args:
             user_message: User's response message
-            conversation_id: Conversation UUID for Redis lookup
+            runtime_id: Admitted runtime UUID for Redis lookup
             run_id: Run ID for logging
             user_language: Language of the static notices the parser may emit
                 (ambiguity, clarification) — taken from the checkpointed state
@@ -239,7 +265,7 @@ class OrchestrationService:
         )
 
         return await parse_approval_decision(
-            user_message, conversation_id, run_id, resolve_language(user_language)
+            user_message, runtime_id, run_id, resolve_language(user_language)
         )
 
     async def _inject_proactive_messages(
@@ -339,9 +365,8 @@ class OrchestrationService:
     async def load_or_create_state(
         self,
         graph: Any,  # CompiledGraph
-        conversation_id: uuid.UUID,
+        target: ConversationRef,
         user_message: str,
-        user_id: uuid.UUID,
         session_id: str,
         run_id: str,
         user_timezone: str,
@@ -367,17 +392,16 @@ class OrchestrationService:
 
         Args:
             graph: Compiled LangGraph instance
-            conversation_id: Conversation UUID (used as thread_id)
+            target: Business identity and the admitted runtime generation.
             user_message: User's message content
-            user_id: User UUID
             session_id: Session identifier
             run_id: Unique run identifier
             user_timezone: User's IANA timezone
             user_language: User's language code
             oauth_scopes: User's OAuth scopes from active connectors
             personality_instruction: LLM personality prompt instruction (optional)
-            is_hitl_resumption: True if resuming from HITL interrupt (detected via Redis).
-                               Used as fallback when checkpoint-based detection fails.
+            is_hitl_resumption: True if Redis names a pending question. The
+                checkpoint must independently confirm that it is still suspended.
             user_display_name: User's friendly first name for sender/signature context
                                (optional).
             hitl_decision: Structured one-click decision (Lot 1 option B). When
@@ -391,45 +415,28 @@ class OrchestrationService:
 
         Example:
             >>> state = await service.load_or_create_state(
-            ...     graph, conversation_id, "Hello",
-            ...     user_id, session_id, run_id,
+            ...     graph, target, "Hello",
+            ...     session_id, run_id,
             ...     "Europe/Paris", "fr", []
             ... )
         """
         # === CRITICAL: Load existing state from LangGraph checkpoints ===
         # This restores conversation context from previous sessions
         # Without this, LangGraph starts with empty state every time, losing all context!
-        runnable_config_for_state = RunnableConfig(configurable={"thread_id": str(conversation_id)})
+        conversation_id = target.id
+        user_id = target.owner_id
+        runnable_config_for_state = checkpoint_config(target)
 
-        # Initialize is_interrupted BEFORE try block to avoid UnboundLocalError
-        # if exception occurs during checkpoint loading.
-        # Use is_hitl_resumption as initial value - this is the router's Redis-based detection
-        # which serves as fallback when checkpoint-based detection (tasks.interrupts) fails.
-        # This ensures HITL resumption works even if the interrupt was cleared from checkpoint.
-        is_interrupted = is_hitl_resumption
+        # Redis describes the question; only the checkpoint can authorize resumption.
+        is_interrupted = False
         checkpoint_created_at: str | None = None
 
         try:
             current_state = await graph.aget_state(runnable_config_for_state)
 
-            # === PHASE 8 - HITL: Detect if we're resuming from an interrupt ===
-            # When LangGraph pauses at interrupt(), StateSnapshot.tasks contains PregelTask objects
-            # Each PregelTask has an 'interrupts' field - if non-empty, graph is paused
-            # We need to check if there's a pending interrupt BEFORE adding the user message
-            if current_state and current_state.tasks:
-                # Check if any task has active interrupts
-                for task in current_state.tasks:
-                    if hasattr(task, "interrupts") and task.interrupts:
-                        is_interrupted = True
-                        logger.info(
-                            "detected_pending_interrupt",
-                            run_id=run_id,
-                            conversation_id=str(conversation_id),
-                            task_id=task.id if hasattr(task, "id") else "unknown",
-                            task_name=task.name if hasattr(task, "name") else "unknown",
-                            interrupts_count=len(task.interrupts),
-                        )
-                        break
+            is_interrupted = _checkpoint_is_interrupted(
+                current_state, run_id=run_id, conversation_id=conversation_id
+            )
 
             if current_state and current_state.values and current_state.values.get("messages"):
                 # State exists in checkpoints - restore it
@@ -536,30 +543,25 @@ class OrchestrationService:
                     oauth_scopes_count=len(oauth_scopes),
                     has_personality=personality_instruction is not None,
                 )
-        except (
-            RuntimeError,
-            ValueError,
-            ConnectionError,
-            OSError,
-            AttributeError,
-        ) as checkpoint_error:
-            # Fallback to new state if checkpoint read fails
+        except Exception as checkpoint_error:
+            # An unreadable history is never an empty one, nor proof that an
+            # external act can be resumed or repeated. Preserve it and refuse.
             logger.warning(
-                "checkpoint_load_failed_using_new_state",
+                "checkpoint_load_failed",
                 run_id=run_id,
-                error=str(checkpoint_error),
                 error_type=type(checkpoint_error).__name__,
             )
-            state = create_initial_state(
-                user_id,
-                session_id,
-                run_id,
-                user_timezone=user_timezone,
-                user_language=user_language,
-                oauth_scopes=oauth_scopes,
-                personality_instruction=personality_instruction,
-                user_display_name=user_display_name,
+            raise DatabaseError(
+                operation="checkpoint_read",
+                detail=APIMessages.service_unavailable("PostgreSQL"),
+            ) from checkpoint_error
+
+        if is_hitl_resumption and not is_interrupted:
+            from src.domains.agents.services.orchestration.approval_decision import (
+                reject_completed_question,
             )
+
+            await reject_completed_question(target.runtime_id)
 
         # === PROACTIVE MESSAGE INJECTION ===
         # Inject proactive notification messages sent since the last checkpoint.
@@ -577,7 +579,7 @@ class OrchestrationService:
         state.get("metadata", {}).pop("current_turn_attachments", None)
 
         # Add user message to state (always add, even when resuming from interrupt)
-        state["messages"].append(HumanMessage(content=user_message))
+        state["messages"].append(person_message(user_message))
 
         # === INCREMENT TURN_ID: New conversation turn begins ===
         state["current_turn_id"] = state.get("current_turn_id", 0) + 1
@@ -597,7 +599,7 @@ class OrchestrationService:
 
                 decision_data = await build_structured_decision(
                     hitl_decision=hitl_decision,
-                    conversation_id=conversation_id,
+                    runtime_id=target.runtime_id,
                     run_id=run_id,
                 )
             else:
@@ -605,7 +607,7 @@ class OrchestrationService:
                 # Issue #61 Fix: Now uses LLM classifier for EDIT detection
                 decision_data = await self._parse_approval_decision(
                     user_message=user_message,
-                    conversation_id=conversation_id,
+                    runtime_id=target.runtime_id,
                     run_id=run_id,
                     # From the checkpoint: the language the previous turn ran in.
                     # Some resume notices are streamed verbatim to the user.
@@ -624,7 +626,7 @@ class OrchestrationService:
                     reason=decision_data.get("reason"),
                 )
 
-                await drop_replaced_question(conversation_id, decision_data, run_id)
+                await drop_replaced_question(target.runtime_id, decision_data, run_id)
 
                 # Reset is_interrupted flag to treat as new message
                 is_interrupted = False
@@ -682,8 +684,7 @@ class OrchestrationService:
         self,
         graph: Any,  # CompiledGraph
         state: MessagesState,
-        conversation_id: uuid.UUID,
-        user_id: uuid.UUID,
+        target: ConversationRef,
         session_id: str,
         run_id: str,
         tool_deps: Any,  # ToolDependencies
@@ -717,8 +718,7 @@ class OrchestrationService:
         Args:
             graph: Compiled LangGraph instance
             state: Initial graph state (with user message added)
-            conversation_id: Conversation UUID (thread_id)
-            user_id: User UUID
+            target: Business identity and the admitted runtime generation.
             session_id: Session identifier
             run_id: Unique run identifier
             tool_deps: Tool dependencies container (DB session, services, clients)
@@ -746,6 +746,8 @@ class OrchestrationService:
         # === TRACKING: Create token tracking callback ===
         # Modern approach (2025): Callbacks intercept ALL LLM calls,
         # including with_structured_output() which doesn't add AIMessage to state.
+        conversation_id = target.id
+        user_id = target.owner_id
         token_callback = TokenTrackingCallback(tracker, run_id)
 
         # === Long-Term Memory: Get store for psychological profile injection ===
@@ -769,9 +771,7 @@ class OrchestrationService:
         # (ADR-231). Keeping both planes populated would leave two authorities on
         # the same fact, and the untyped one always wins by being easier to read.
         runnable_config = RunnableConfig(
-            configurable={
-                "thread_id": str(conversation_id),  # Links to LangGraph checkpoint
-            },
+            configurable=checkpoint_config(target)["configurable"],
             metadata={
                 FIELD_RUN_ID: run_id,
                 FIELD_USER_ID: str(user_id),
@@ -805,8 +805,7 @@ class OrchestrationService:
         # this frozen service does not grow a second construction site.
         runtime_context = build_runtime_context(
             state=state,
-            user_id=user_id,
-            conversation_id=conversation_id,
+            target=target,
             memory_store=memory_store,
             tool_deps=tool_deps,
             browser_context=browser_context,
@@ -1053,7 +1052,6 @@ class OrchestrationService:
         Returns:
             Command object with resume value and optional message updates
         """
-        from langchain_core.messages import HumanMessage
         from langgraph.types import Command
 
         from src.domains.agents.constants import STATE_KEY_MESSAGES
@@ -1097,7 +1095,7 @@ class OrchestrationService:
                 )
                 return Command(
                     resume=resume_data,
-                    update={STATE_KEY_MESSAGES: [HumanMessage(content=user_message)]},
+                    update={STATE_KEY_MESSAGES: [person_message(user_message)]},
                 )
 
             logger.debug(
@@ -1159,7 +1157,7 @@ class OrchestrationService:
                 )
 
             # Add reformulated intent
-            messages_to_update.append(HumanMessage(content=reformulated_intent))
+            messages_to_update.append(person_message(reformulated_intent))
 
             logger.info(
                 "hitl_edit_message_reformulation_applied",

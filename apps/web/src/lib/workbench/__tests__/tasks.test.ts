@@ -5,8 +5,11 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { WorkbenchTask } from '../types';
+import type { ViewTask, WorkbenchTask } from '../types';
 import {
+  ALL_TASKS_VIEW,
+  NAMED_TASK_VIEWS,
+  TASK_VIEWS,
   dayIn,
   dueTone,
   openCount,
@@ -16,6 +19,7 @@ import {
   siblingsOf,
   taskTree,
   taskView,
+  timelineSections,
 } from '../tasks';
 
 function task(id: string, overrides: Partial<WorkbenchTask> = {}): WorkbenchTask {
@@ -82,6 +86,60 @@ describe('taskView', () => {
   it('reads anything else as no view', () => {
     expect(taskView('someday')).toBeNull();
     expect(taskView(null)).toBeNull();
+  });
+
+  it('knows the three together and every open task too', () => {
+    expect(taskView('timeline')).toBe('timeline');
+    expect(taskView('all')).toBe('all');
+  });
+
+  it('keeps « all tasks » out of the views group, which the three together head', () => {
+    expect(TASK_VIEWS).toEqual(['timeline', 'today', 'overdue', 'upcoming']);
+    expect(TASK_VIEWS).not.toContain(ALL_TASKS_VIEW);
+    expect(NAMED_TASK_VIEWS).toEqual([...TASK_VIEWS, ALL_TASKS_VIEW]);
+  });
+});
+
+describe('timelineSections', () => {
+  const TODAY = '2026-11-10';
+  const due = (id: string, day: string | null): ViewTask => ({
+    id,
+    list_id: 'l1',
+    title: id,
+    due: day,
+  });
+
+  it('cuts what the timeline gathers into what is late, today and the days ahead', () => {
+    const tasks = [
+      due('old', '2019-01-01'),
+      due('yesterday', '2026-11-09'),
+      due('now', '2026-11-10'),
+      due('tomorrow', '2026-11-11'),
+      due('later', '2026-11-17'),
+    ];
+
+    const sections = timelineSections(tasks, TODAY);
+
+    expect(sections.map(section => [section.part, section.tasks.map(task => task.id)])).toEqual([
+      ['overdue', ['old', 'yesterday']],
+      ['today', ['now']],
+      ['upcoming', ['tomorrow', 'later']],
+    ]);
+  });
+
+  it('draws no stretch that holds nothing', () => {
+    expect(timelineSections([due('now', TODAY)], TODAY).map(section => section.part)).toEqual([
+      'today',
+    ]);
+    expect(timelineSections([], TODAY)).toEqual([]);
+  });
+
+  it('places every dated task once, and never one without a day', () => {
+    const tasks = [due('a', '2026-11-09'), due('b', TODAY), due('c', '2026-11-12'), due('d', null)];
+
+    const placed = timelineSections(tasks, TODAY).flatMap(section => section.tasks);
+
+    expect(placed.map(task => task.id)).toEqual(['a', 'b', 'c']);
   });
 });
 
@@ -151,6 +209,11 @@ describe('dueTone', () => {
     expect(dueTone(task('t', { due: '2026-11-04' }), '2026-11-03')).toBe('later');
     expect(dueTone(task('t', { due: '2026-11-02', completed: true }), '2026-11-03')).toBe('later');
     expect(dueTone(task('t'), '2026-11-03')).toBeNull();
+  });
+
+  it('reads a row of a view, which holds a day and is never done', () => {
+    expect(dueTone({ due: '2026-11-02', completed: false }, '2026-11-03')).toBe('overdue');
+    expect(dueTone({ due: '2026-11-03', completed: false }, '2026-11-03')).toBe('today');
   });
 });
 

@@ -55,6 +55,8 @@ async def _rows(db: Any, user_id: UUID) -> list[ScheduledAction]:
 def _schedule(row: ScheduledAction, language: str, lines: dict[str, str]) -> str:
     if row.trigger_kind == TriggerKind.TIME.value and row.recurrence:
         return describe(RecurrenceSpec.model_validate(row.recurrence), language)
+    if row.trigger_kind == TriggerKind.WEBHOOK.value:
+        return lines["routines_webhook"]
     condition = (row.condition_config or {}).get("type") or lines["routines_condition_unknown"]
     return lines["routines_condition"].format(condition=condition)
 

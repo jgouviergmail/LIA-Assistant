@@ -14,6 +14,10 @@ from src.domains.agents.registry.catalogue import (
     PermissionProfile,
     ToolManifest,
 )
+from src.domains.agents.tasks.parameter_descriptions import (
+    TASK_LIST_NAMED_DESCRIPTION,
+    TASK_LIST_OF_TASK_DESCRIPTION,
+)
 
 rename_task_list_catalogue_manifest = ToolManifest(
     name="rename_task_list_tool",
@@ -34,7 +38,7 @@ rename_task_list_catalogue_manifest = ToolManifest(
             name="task_list_id",
             type="string",
             required=True,
-            description="List ID",
+            description=TASK_LIST_NAMED_DESCRIPTION,
             semantic_type="task_list_id",
         ),
         ParameterSchema(name="title", type="string", required=True, description="Its new name"),
@@ -85,15 +89,15 @@ move_task_catalogue_manifest = ToolManifest(
         ParameterSchema(
             name="task_list_id",
             type="string",
-            required=True,
-            description="Its list ID",
+            required=False,
+            description=TASK_LIST_OF_TASK_DESCRIPTION,
             semantic_type="task_list_id",
         ),
         ParameterSchema(
             name="destination_list_id",
             type="string",
             required=True,
-            description="The list it goes to",
+            description=TASK_LIST_NAMED_DESCRIPTION,
             semantic_type="task_list_id",
         ),
     ],

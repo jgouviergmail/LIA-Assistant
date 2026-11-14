@@ -36,6 +36,27 @@ class TestTheReactPrompt:
         static = _static("react_agent_prompt")
         assert "<unresolved>" in static and "(fallback)" in static
 
+    def test_the_fallback_mark_follows_what_the_loop_did(self) -> None:
+        """Measured on dev (2026-11-14): with Brave, the unified web search, two
+        encyclopedia tools and thirteen MCP tools bound, a loop searched the web ONCE for a
+        public chronology and wrote « fallback, aucune autre source disponible »; the answer
+        told the person no other source existed. The rule tied the mark to « the tool
+        dedicated to its domain », a judgment a public fact has no tool for. The mark says
+        what the loop did — another source, after the tool called for the fact did not
+        deliver it, on the second rung or the sandbox's rung the <Computation> block adds —
+        a first source, the web included, carries none. The prompt forbids no sentence
+        about the other sources: no code enforces one, it would forbid a statement that
+        can be true, and the one tried was not obeyed (ADR-310 amendment 2026-11-14)."""
+        static = _static("react_agent_prompt")
+        final = static.split("<FinalResponse>", 1)[1]
+        assert "outside the tool dedicated to its domain" not in final
+        assert "after the tool you called for it did not deliver it" in final
+        assert "a web search included" in final
+        assert "carries its source without the mark" in final
+        assert "no other source" not in static
+        rung = static.split("  2. Another source", 1)[1].split("\n", 1)[0]
+        assert "(fallback)" in rung
+
     def test_the_exemplar_passes_no_relative_date(self) -> None:
         assert 'date="tomorrow"' not in load_prompt("react_agent_prompt")
 

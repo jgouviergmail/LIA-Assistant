@@ -187,7 +187,7 @@ class TestGetPeerTasks:
             known_p,
             patch(
                 "src.domains.agents.tools.peers_read_tools._peer_task_titles",
-                new=AsyncMock(return_value=["Acheter du pain", "Appeler le plombier"]),
+                new=AsyncMock(return_value=(["Acheter du pain", "Appeler le plombier"], False)),
             ),
         ):
             output = await peers_read_tools.get_peer_tasks_tool.coroutine(  # type: ignore[misc]
@@ -195,6 +195,8 @@ class TestGetPeerTasks:
             )
         assert output.success is True
         assert output.structured_data["task_titles"] == ["Acheter du pain", "Appeler le plombier"]
+        assert output.structured_data["partial"] is False
+        assert "INCOMPLETE" not in output.message
         repo.log_access.assert_awaited_once()
         assert repo.log_access.await_args.kwargs["domain"] == "task"
 
@@ -223,7 +225,7 @@ class TestPeerNameResolution:
             known_p,
             patch(
                 "src.domains.agents.tools.peers_read_tools._peer_task_titles",
-                new=AsyncMock(return_value=["Réserver la salle"]),
+                new=AsyncMock(return_value=(["Réserver la salle"], False)),
             ),
         ):
             output = await peers_read_tools.get_peer_tasks_tool.coroutine(  # type: ignore[misc]
@@ -297,3 +299,125 @@ class TestPeerNameResolution:
                 peer_name="Paul", runtime=MagicMock()
             )
         assert order == ["commit", "directory"]
+
+
+@pytest.mark.unit
+class TestAPeersTasksAreReadInEveryList:
+    """Owner decision, 2026-11-10: a peer's default list is where THEY create a task, not what
+    they share. Every list is read; what leaves stays the titles."""
+
+    @staticmethod
+    def _door(opened):
+        @asynccontextmanager
+        async def door(category, user_id, **options):
+            assert (category, user_id, options) == ("tasks", PEER_ID, {}), "no default list asked"
+            yield opened
+
+        return patch.object(peers_read_tools, "open_active_client", door)
+
+    @staticmethod
+    def _client(pages):
+        from src.domains.connectors.active_client import ActiveClient
+
+        async def read(list_id, **_kwargs):
+            answer = pages[list_id]
+            if isinstance(answer, Exception):
+                raise answer
+            return {"items": [dict(task) for task in answer], "next_page_token": None}
+
+        client = MagicMock(
+            list_tasks=AsyncMock(side_effect=read),
+            list_task_lists=AsyncMock(
+                return_value={"items": [{"id": key, "title": f"Liste {key}"} for key in pages]}
+            ),
+        )
+        return ActiveClient(client=client, connector_type="google", preferred_name=None)
+
+    @staticmethod
+    def _task(title, due=None, status="needsAction"):
+        return {"id": title, "title": title, "status": status, **({"due": due} if due else {})}
+
+    async def test_the_titles_of_every_list_the_most_pressing_first(self):
+        opened = self._client(
+            {
+                "home": [
+                    self._task("Plus tard", "2026-11-20T00:00:00.000Z"),
+                    self._task("Sans date"),
+                ],
+                "work": [
+                    self._task("Bientôt", "2026-11-12T00:00:00.000Z"),
+                    self._task("Fait", "2026-11-01T00:00:00.000Z", status="completed"),
+                    self._task("", "2026-11-02T00:00:00.000Z"),
+                ],
+            }
+        )
+
+        with self._door(opened):
+            titles, partial = await peers_read_tools._peer_task_titles(_peer())
+
+        assert titles == ["Bientôt", "Plus tard", "Sans date"]
+        assert partial is False
+        assert [call.args[0] for call in opened.client.list_tasks.await_args_list] == [
+            "home",
+            "work",
+        ]
+
+    async def test_only_titles_leave_never_a_list_s_name(self):
+        opened = self._client({"home": [self._task("Appeler")], "work": [self._task("Envoyer")]})
+
+        with self._door(opened):
+            titles, _partial = await peers_read_tools._peer_task_titles(_peer())
+
+        assert sorted(titles) == ["Appeler", "Envoyer"]
+        assert not any("Liste" in title for title in titles)
+
+    async def test_more_than_the_bound_is_cut_and_said(self):
+        crowd = [self._task(f"T{index}") for index in range(peers_read_tools._PEER_TASKS_MAX)]
+        opened = self._client({"home": crowd, "work": [self._task("Une de plus")]})
+
+        with self._door(opened):
+            titles, partial = await peers_read_tools._peer_task_titles(_peer())
+
+        assert len(titles) == peers_read_tools._PEER_TASKS_MAX
+        assert partial is True
+
+    async def test_a_list_that_fails_leaves_the_others_and_is_said(self):
+        opened = self._client({"home": TimeoutError(), "work": [self._task("Envoyer")]})
+
+        with self._door(opened):
+            titles, partial = await peers_read_tools._peer_task_titles(_peer())
+
+        assert titles == ["Envoyer"]
+        assert partial is True
+
+    async def test_nothing_beside_a_failed_list_is_a_failure_never_no_pending_task(self):
+        opened = self._client({"home": TimeoutError(), "work": []})
+
+        with self._door(opened), pytest.raises(TimeoutError):
+            await peers_read_tools._peer_task_titles(_peer())
+
+    async def test_no_usable_connector_is_said_as_such(self):
+        from src.domains.connectors.active_client import ClientUnavailable
+
+        with self._door(ClientUnavailable.NO_CONNECTOR), pytest.raises(LookupError):
+            await peers_read_tools._peer_task_titles(_peer())
+
+    async def test_a_partial_read_reaches_the_answer(self):
+        repo = _repo(shares=[_share(PeerShareDomain.TASK, PeerShareLevel.TITLES)])
+        db_p, repo_p, rt_p, known_p = _patches(repo)
+        with (
+            db_p,
+            repo_p,
+            rt_p,
+            known_p,
+            patch(
+                "src.domains.agents.tools.peers_read_tools._peer_task_titles",
+                new=AsyncMock(return_value=(["Réserver la salle"], True)),
+            ),
+        ):
+            output = await peers_read_tools.get_peer_tasks_tool.coroutine(  # type: ignore[misc]
+                peer_name="Marie Dupont", runtime=MagicMock()
+            )
+
+        assert output.structured_data["partial"] is True
+        assert "INCOMPLETE" in output.message

@@ -67,12 +67,28 @@ export function editMCPServerForm(server: MCPServerFormSource): MCPServerFormSta
   };
 }
 
-export function isMCPServerFormValid(form: MCPServerFormState, editing: boolean): boolean {
+/**
+ * A blank secret keeps the stored one only while the scheme stays the one it was stored
+ * for: a server switched to an API key or a bearer token needs it (the API refuses the
+ * switch without it, and never carries a secret over from another scheme).
+ */
+export function keepsStoredSecret(
+  form: Pick<MCPServerFormState, 'auth_type'>,
+  existing: Pick<MCPServerFormSource, 'auth_type'> | null
+): boolean {
+  return existing !== null && existing.auth_type === form.auth_type;
+}
+
+export function isMCPServerFormValid(
+  form: MCPServerFormState,
+  existing: Pick<MCPServerFormSource, 'auth_type'> | null
+): boolean {
+  const keeps = keepsStoredSecret(form, existing);
   return (
     form.name.trim() !== '' &&
     form.url.trim() !== '' &&
-    (form.auth_type !== 'api_key' || form.api_key.trim() !== '' || editing) &&
-    (form.auth_type !== 'bearer' || form.bearer_token.trim() !== '' || editing)
+    (form.auth_type !== 'api_key' || form.api_key.trim() !== '' || keeps) &&
+    (form.auth_type !== 'bearer' || form.bearer_token.trim() !== '' || keeps)
   );
 }
 

@@ -58,6 +58,11 @@ export const HUE_CONNECTOR_TYPES = ['philips_hue'] as const;
 
 export const TELEPHONY_CONNECTOR_TYPES = ['elevenlabs_telephony'] as const;
 
+/** Whether a stored connector type (any case) is the telephony one. */
+export function isTelephonyConnectorType(connectorType: string): boolean {
+  return (TELEPHONY_CONNECTOR_TYPES as readonly string[]).includes(connectorType.toLowerCase());
+}
+
 // Gmail types (new + legacy) for checking if Gmail is connected
 export const GMAIL_TYPES = ['google_gmail', 'gmail'] as const;
 
@@ -171,6 +176,7 @@ export const CONNECTOR_ICONS: Record<string, ConnectorIconConfig> = {
   wikipedia: { icon: Book, emoji: '📚', color: 'slate' },
   perplexity: { icon: Search, emoji: '🔍', color: 'indigo' },
   brave_search: { icon: Search, emoji: '🦁', color: 'violet' },
+  searxng: { icon: Search, emoji: '🔎', color: 'slate' },
   browser: { icon: Globe, emoji: '🌐', color: 'blue' },
   // Smart Home
   philips_hue: { emoji: '💡', color: 'yellow' },

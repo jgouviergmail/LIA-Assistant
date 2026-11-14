@@ -71,6 +71,33 @@ The `AccountDeletionService` explicitly deletes data from 24 tables in FK-safe o
 - Large RAG datasets may slow the deletion transaction. Mitigation: files deleted before DB transaction.
 - OAuth revocation is best-effort (external API). Acceptable: user is already deactivated.
 
+## Amendment — recoverable multi-discussion erasure (2026-11-10)
+
+`deletion_started_at` fences an account while its external cleanup runs. A SQL
+constraint prevents reactivation once this stage commits. The short staging
+transaction refuses unknown graph/Live/file writers, retires every current
+discussion and records its immutable runtime in `conversation_operations`.
+Previously retired runtimes retain their existing operations. Attachment rows
+remain durable removal intents until the exact filesystem removal succeeds.
+
+Native cleanup runs without an open account transaction. A bounded attempt may
+return a conflict while the account remains inactive and recoverable. Scheduled
+runtime/file cleanup continues; retrying account deletion finishes the final
+personal-data purge. Failed directory removal also propagates instead of losing
+its only account reference. `deleted_at` means the full purge completed, never
+merely that it started. Account caches are invalidated after the final commit.
+
+Every final users-row deletion goes through `users.account_erasure`: repository
+hard deletion, GDPR erasure, demo purge, expired unverified signups and the older
+authentication repository. An unverified inactive account is not assumed empty.
+The legacy hard-delete endpoint
+now requires the same completed purge as the GDPR endpoint, closing its earlier
+cascade bypass. Directory writers (RAG, skills, plugins, meeting audio and peer
+copies) commit their content-free ownership before any disk work and retain it
+through cancellation until that work joins. Interrupted writers require explicit
+worker-stop evidence, never an elapsed-time guess. Content-free runtime cleanup receipts survive row removal until
+their successful retention period ends; failed work has no expiry.
+
 ## Files Changed
 
 - `src/domains/auth/models.py` — `deleted_at`, `deleted_reason`, `is_deleted`

@@ -14,6 +14,7 @@ import type { RadioSegment } from '@/lib/radio/types';
 import { IDLE_RADIO_VIEW, useRadioStore } from '@/stores/radioStore';
 import { ICON_STYLES } from '@/lib/icon-style';
 import { IconStyleContext } from '@/lib/icon-style-context';
+import { RadioSet } from '@/lib/icons';
 
 const player = vi.hoisted(() => ({
   start: vi.fn(async () => undefined),
@@ -67,6 +68,8 @@ describe('RadioControl', () => {
         expect(button).toHaveAttribute('aria-pressed', 'false');
         expect(button).not.toHaveClass('border-primary', 'bg-primary/10');
         expect(button.querySelector('svg')).toHaveAttribute('data-icon-style', style);
+        // The set, never the broadcast glyph the live voice shows beside it.
+        expect(button.querySelector('svg')).toHaveAttribute('data-icon-name', 'RadioSet');
         await user.tab();
         expect(button).toHaveFocus();
         await user.keyboard('{Enter}');
@@ -122,6 +125,7 @@ describe('RadioControl', () => {
   it('offers the same command in the logo menu', () => {
     const { result } = renderHook(() => useRadioMenuAction('en', true));
     expect(result.current?.label).toBe('radio.header.start');
+    expect(result.current?.icon).toBe(RadioSet);
     act(() => useRadioStore.getState().setView({ ...IDLE_RADIO_VIEW, status: 'waiting' }));
     expect(result.current?.tone).toBe('destructive');
   });

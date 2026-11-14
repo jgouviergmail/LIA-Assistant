@@ -2,10 +2,10 @@
 
 One tick does three things, in this order and for a reason:
 
-1. **housekeeping** — release the claims a dead worker still holds, and delete
+1. **housekeeping** — retire the claims a dead worker still holds, and delete
    the hidden transcripts of tickets closed past the retention window. Both are
-   bounded statements, and they run FIRST so a stranded ticket is offered again
-   in the very same tick.
+   bounded statements. An unknown result is shown as interrupted and is never
+   offered again without the person's explicit retry.
 2. **claim ONE ticket** — ``FOR UPDATE SKIP LOCKED`` plus a conditional
    ``UPDATE`` in the same transaction, committed before any work starts. One at
    a time on purpose: a worker that claimed five and was killed would strand
@@ -31,6 +31,7 @@ Two properties are load-bearing:
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -44,6 +45,7 @@ from src.core.constants import (
     WORKBOARD_RUN_RETRY_DELAY_SECONDS,
     WORKBOARD_RUN_SESSION_PREFIX,
 )
+from src.core.conversation_execution import ExecutionRevoked
 from src.core.i18n import normalize_language
 from src.core.i18n_workboard import WorkboardMessages
 from src.core.time_utils import now_utc
@@ -75,6 +77,7 @@ from src.domains.workboard.notifications import (
     ticket_url,
 )
 from src.domains.workboard.repository import KEEP_PENDING_ACTION, WorkboardRepository
+from src.infrastructure.async_utils import finish_owned_task
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.metrics_workboard import (
     lia_hidden_run_bytes,
@@ -90,15 +93,11 @@ from src.infrastructure.scheduler.out_of_turn_run import (
     RunResult,
     StreamRequest,
     TurnInterrupt,
-    conversation_has_pending_hitl,
+    clear_question_of_run,
     resolve_run_context,
     stream_instruction,
     unattended_turn_seconds,
     worst_case_run_seconds,
-)
-from src.infrastructure.streaming.run_stream_broker import (
-    ActiveRunLockLost,
-    active_run_lease,
 )
 
 if TYPE_CHECKING:
@@ -125,8 +124,6 @@ class ClaimedRun:
         timezone: IANA zone of the holder.
         display_name: What the assistant calls them.
         display_mode: ``cards`` | ``html`` | ``html_cards`` | ``markdown``.
-        conversation_id: The thread the run writes into; None when the probe
-            could not resolve it, in which case no lock is taken.
         brief: The instruction, composed from the OWNER's words only.
         claimed_at: When the claim landed — the start of what
             ``workboard_run_duration_seconds`` measures. Taken from the claim
@@ -145,7 +142,6 @@ class ClaimedRun:
     timezone: str
     display_name: str
     display_mode: str
-    conversation_id: uuid.UUID | None
     brief: str
     claimed_at: datetime
     execution_mode: str
@@ -377,8 +373,9 @@ async def _housekeeping(db: AsyncSession, now: datetime) -> None:
 async def _claim_and_prepare(db: AsyncSession, now: datetime) -> ClaimedRun | None:
     """Take the next ticket and answer whether it may actually run.
 
-    Everything that can refuse a run happens here, INSIDE the claim, so a
-    refusal always has a claim to release and never leaves a ticket held.
+    Commit the claim before any remote gate. Account and quota refusals close
+    that owned claim; graph occupancy and pending questions are checked by
+    the common admission door immediately before the turn.
 
     Args:
         db: The tick's session.
@@ -409,13 +406,24 @@ async def _claim_and_prepare(db: AsyncSession, now: datetime) -> ClaimedRun | No
     if ticket is None:
         # Somebody claimed it between the scan and the write. Nothing to undo.
         return None
-    return await _prepare_claimed(repository, ticket, run_id=run_id, now=now)
+    ticket_id = ticket.id
+    try:
+        await db.commit()
+        return await _prepare_claimed(repository, ticket, run_id=run_id, now=now)
+    except Exception, asyncio.CancelledError:
+
+        async def close_preparation() -> None:
+            await db.rollback()
+            await _abandon_claim(ticket_id, run_id)
+
+        await finish_owned_task(asyncio.create_task(close_preparation()))
+        raise
 
 
 async def _prepare_claimed(
     repository: WorkboardRepository, ticket: WorkboardTicket, *, run_id: str, now: datetime
 ) -> ClaimedRun | None:
-    """Run the three gates a claimed ticket must pass, then build its brief.
+    """Check the claimed ticket's account and quota, then build its brief.
 
     Args:
         repository: The tick's repository.
@@ -442,6 +450,9 @@ async def _prepare_claimed(
             error=RunError.ASSIGNEE_INACTIVE.value,
         )
         return None
+    # The quota gate reads Redis and owns its SQL reads. Release this claim's
+    # connection first; the committed owner token protects its later writes.
+    await repository.db.commit()
     if await UsageLimitService.is_user_blocked_for_llm(holder, layer=SPEND_LAYER):
         await _release(
             repository,
@@ -452,26 +463,7 @@ async def _prepare_claimed(
             retry_after=now + timedelta(minutes=settings.workboard_quota_retry_minutes),
         )
         return None
-    pending, conversation_id = await conversation_has_pending_hitl(
-        repository.db, holder, context.language
-    )
-    if pending:
-        await _release(
-            repository,
-            ticket_id=ticket.id,
-            run_id=run_id,
-            outcome=RunOutcome.SKIPPED_BUSY,
-            now=now,
-        )
-        return None
     brief = await build_ticket_brief(repository, ticket, language=context.language)
-    await repository.add_event(
-        ticket_id=ticket.id,
-        actor_kind=ActorKind.LIA.value,
-        actor_user_id=None,
-        kind=TicketEventKind.RUN_STARTED.value,
-        payload={"run_id": run_id},
-    )
     return ClaimedRun(
         ticket_id=ticket.id,
         holder_id=holder,
@@ -480,7 +472,6 @@ async def _prepare_claimed(
         timezone=context.timezone,
         display_name=context.display_name,
         display_mode=context.display_mode,
-        conversation_id=conversation_id,
         brief=brief,
         claimed_at=now,
         execution_mode=ticket.execution_mode,
@@ -525,15 +516,10 @@ async def _release(
 
 
 async def _run(prepared: ClaimedRun) -> RunResult | None:
-    """Drive the turn, under the conversation's own lock.
+    """Drive the turn under the shared durable account admission.
 
     Returns None when the thread is already carrying a live run: a person
     typing in the chat owns their conversation, and a ticket can wait a minute.
-
-    The lock is skipped — and the fact logged — when the conversation could not
-    be resolved: the probe that resolves it FAILS OPEN by contract, and turning
-    « I could not ask » into « I will not run » would make a Redis hiccup stop
-    the whole board.
 
     Args:
         prepared: The claimed run.
@@ -567,75 +553,14 @@ async def _run(prepared: ClaimedRun) -> RunResult | None:
         # of the ticket's life, and the next run reads what it says.
         execution_mode=prepared.execution_mode,
     )
-    if prepared.conversation_id is None:
-        logger.warning(
-            "workboard_run_unlocked_thread",
-            ticket_id=str(prepared.ticket_id),
-            run_id=prepared.run_id,
-        )
+
+    async def announce() -> None:
         await _announce_start(prepared)
-        return await stream_instruction(request)
 
-    from src.infrastructure.cache.redis import get_redis_cache
-
-    redis = await get_redis_cache()
-    try:
-        async with active_run_lease(
-            redis,
-            str(prepared.conversation_id),
-            run_id=prepared.run_id,
-            stream_id=f"{RUN_ORIGIN_KIND}:{prepared.run_id}",
-        ) as acquired:
-            if not acquired:
-                return None
-            await _announce_start(prepared)
-            return await stream_instruction(request)
-    except ActiveRunLockLost:
-        # Another producer took the conversation while the turn was running —
-        # the person started talking, typically. `None` is the SAME answer the
-        # pre-checks give for a busy conversation: the claim goes back and the
-        # ticket retries, rather than spending one of its ten runs on a verdict
-        # about work that was never LIA's to finish.
-        logger.info(
-            "workboard_run_conversation_taken_over",
-            ticket_id=str(prepared.ticket_id),
-            run_id=prepared.run_id,
-        )
-        return None
-
-
-async def _clear_pending_question(prepared: ClaimedRun) -> None:
-    """Drop the question the abandoned turn left on the thread.
-
-    A run that stops on a HITL interrupt leaves a pending decision in the
-    store, and nobody will ever answer it THERE — the person is asked on the
-    ticket instead. Left behind, their next ordinary chat message would be read
-    as the answer to a question they never saw (the call
-    ``service.py`` already makes when a turn ends on one).
-
-    Best-effort and idempotent: a thread with nothing pending is not an error,
-    and a Redis hiccup must not turn a settled run into a failed one.
-
-    Args:
-        prepared: The claimed run, for its conversation.
-    """
-    if prepared.conversation_id is None:
-        return
-    from src.domains.agents.utils.hitl_store import HITLStore
-    from src.infrastructure.cache.redis import get_redis_cache
-
-    try:
-        store = HITLStore(
-            redis_client=await get_redis_cache(),
-            ttl_seconds=settings.hitl_pending_data_ttl_seconds,
-        )
-        await store.clear_interrupt(thread_id=str(prepared.conversation_id))
-    except Exception as clear_error:  # noqa: BLE001 — never costs a settle
-        logger.warning(
-            "workboard_run_clear_interrupt_failed",
-            run_id=prepared.run_id,
-            error=str(clear_error),
-        )
+    result = await stream_instruction(request, before_run=announce)
+    return (
+        None if result.outcome in {StreamOutcome.BUSY, StreamOutcome.PENDING_QUESTION} else result
+    )
 
 
 async def _settle(db: AsyncSession, prepared: ClaimedRun, result: RunResult) -> SettlePlan | None:
@@ -675,7 +600,7 @@ async def _settle(db: AsyncSession, prepared: ClaimedRun, result: RunResult) -> 
         return None
     plan = plan_settle(result, language=prepared.language, timezone=prepared.timezone)
     if plan.outcome in STOPPED_ON_A_QUESTION:
-        await _clear_pending_question(prepared)
+        await clear_question_of_run(result.admission)
     usage = await repository.run_usage(prepared.run_id)
     # A run that stops on a QUESTION or delivers a result to validate has
     # passed the ball: the ticket goes back to its owner in the same statement
@@ -823,7 +748,7 @@ async def _notify(
 async def _announce_start(prepared: ClaimedRun) -> None:
     """« LIA a commencé » — sent once the run REALLY starts.
 
-    After the lease, never at the claim: a claim that is then released for a
+    After admission, never at the claim: a claim that is then released for a
     busy thread or a quota ceiling ran nothing, and a person following the
     ticket would have been told about work that did not happen.
 
@@ -831,6 +756,17 @@ async def _announce_start(prepared: ClaimedRun) -> None:
         prepared: The claimed run.
     """
     async with get_db_context() as db:
+        repository = WorkboardRepository(db)
+        if not await repository.lock_owned_run(prepared.ticket_id, prepared.run_id):
+            raise ExecutionRevoked()
+        await repository.add_event(
+            ticket_id=prepared.ticket_id,
+            actor_kind=ActorKind.LIA.value,
+            actor_user_id=None,
+            kind=TicketEventKind.RUN_STARTED.value,
+            payload={"run_id": prepared.run_id},
+        )
+        await db.commit()
         await _notify(db, prepared, WorkboardEvent.RUN_STARTED, None)
         await db.commit()
 
@@ -909,13 +845,13 @@ async def _notify_one(
             ticket_id=str(ticket.id),
             run_id=run_id,
             notification_event=event.value,
-            error=str(notify_error),
+            error_type=type(notify_error).__name__,
         )
     workboard_notifications_total.labels(event=event.value, delivered=str(delivered).lower()).inc()
 
 
 async def sweep_workboard_runs() -> None:
-    """One tick of the workboard sweep. Never raises.
+    """One tick of the workboard sweep; cancellation closes its owned claim.
 
     A scheduler job that raises is a job the operator finds out about from a
     stack trace; this one settles or releases whatever it took and logs.
@@ -926,17 +862,62 @@ async def sweep_workboard_runs() -> None:
             await _housekeeping(db, now)
             await db.commit()
     except Exception as housekeeping_error:  # noqa: BLE001 — never blocks a run
-        logger.warning("workboard_housekeeping_failed", error=str(housekeeping_error))
+        logger.warning(
+            "workboard_housekeeping_failed", error_type=type(housekeeping_error).__name__
+        )
 
     try:
         async with get_db_context() as db:
             prepared = await _claim_and_prepare(db, now)
             await db.commit()
     except Exception as claim_error:  # noqa: BLE001 — the reaper covers a lost claim
-        logger.error("workboard_claim_failed", error=str(claim_error))
+        logger.error("workboard_claim_failed", error_type=type(claim_error).__name__)
         return
     if prepared is None:
         return
+
+    try:
+        await _serve_claim(prepared)
+    except asyncio.CancelledError:
+        await finish_owned_task(
+            asyncio.create_task(_abandon_claim(prepared.ticket_id, prepared.run_id))
+        )
+        raise
+
+
+async def _abandon_claim(ticket_id: uuid.UUID, run_id: str) -> None:
+    """Close only this interrupted claim and retain spend; never queue it again.
+
+    A failed database write leaves the conditional reaper as the recovery path.
+    The caller joins this closer through repeated cancellation before teardown.
+    """
+    try:
+        async with get_db_context() as db:
+            repository = WorkboardRepository(db)
+            usage = await repository.run_usage(run_id)
+            changed = await repository.settle_run(
+                ticket_id=ticket_id,
+                run_id=run_id,
+                status=TicketStatus.IN_PROGRESS.value,
+                outcome=RunOutcome.FAILED.value,
+                error=RunError.RUN_FAILED.value,
+                now=now_utc(),
+                usage=usage,
+            )
+            await db.commit()
+        if changed:
+            workboard_runs_total.labels(outcome=RunOutcome.FAILED.value).inc()
+    except Exception as error:
+        logger.error(
+            "workboard_claim_close_failed",
+            ticket_id=str(ticket_id),
+            run_id=run_id,
+            error_type=type(error).__name__,
+        )
+
+
+async def _serve_claim(prepared: ClaimedRun) -> None:
+    """Run, settle and then notify for the one committed ticket claim."""
 
     try:
         result = await _run(prepared)
@@ -948,7 +929,7 @@ async def sweep_workboard_runs() -> None:
             "workboard_run_crashed",
             ticket_id=str(prepared.ticket_id),
             run_id=prepared.run_id,
-            error=f"{type(run_error).__name__}: {run_error}",
+            error_type=type(run_error).__name__,
         )
         result = RunResult(
             outcome=StreamOutcome.FAILED,
@@ -979,7 +960,7 @@ async def sweep_workboard_runs() -> None:
             "workboard_settle_failed",
             ticket_id=str(prepared.ticket_id),
             run_id=prepared.run_id,
-            error=f"{type(settle_error).__name__}: {settle_error}",
+            error_type=type(settle_error).__name__,
         )
         return
 
@@ -998,5 +979,5 @@ async def sweep_workboard_runs() -> None:
                 "workboard_notification_phase_failed",
                 ticket_id=str(prepared.ticket_id),
                 run_id=prepared.run_id,
-                error=f"{type(notify_error).__name__}: {notify_error}",
+                error_type=type(notify_error).__name__,
             )

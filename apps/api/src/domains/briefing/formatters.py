@@ -20,6 +20,7 @@ from src.core.classification_projection import (
 from src.core.geo_utils import wind_deg_to_cardinal
 from src.core.i18n import resolve_language
 from src.core.i18n_v3 import V3Messages
+from src.core.mail_reply_state import REPLY_STATE_KEY, read_reply_state
 from src.core.task_due import task_due_day
 from src.core.time_utils import format_time_with_date_context
 from src.domains.briefing.constants import BRIEFING_FORECAST_ALERT_HORIZON_HOURS
@@ -624,6 +625,7 @@ def format_email_item(raw_msg: dict[str, Any], user_tz: ZoneInfo, language: str)
     return MailItem(
         sender_name=sender_name,
         classification=email_classification(raw_msg.get("classification")),
+        reply_state=read_reply_state(raw_msg.get(REPLY_STATE_KEY)),
         sender_email=sender_email,
         subject=subject,
         received_local=received_local,
@@ -852,7 +854,12 @@ def extract_today_value_from_summary(
 
 
 def format_task_item(
-    task: dict[str, Any], today_local: date, *, zone: tzinfo, list_id: str | None = None
+    task: dict[str, Any],
+    today_local: date,
+    *,
+    zone: tzinfo,
+    list_id: str | None = None,
+    list_name: str | None = None,
 ) -> TaskItem | None:
     """Map one provider-normalized task to a TaskItem (None if not pending).
 
@@ -861,7 +868,7 @@ def format_task_item(
     00:00 UTC has passed. The day is read through the one door
     (``core/task_due``): a Google due is the date it names, a To Do due
     its local midnight read in ``zone``. ``list_id`` is the list's real id,
-    where the Tools open the task.
+    where the Tools open the task, and ``list_name`` what the card calls it.
     """
     if task.get("status") != "needsAction":
         return None
@@ -884,4 +891,5 @@ def format_task_item(
         overdue=days_until is not None and days_until < 0,
         id=str(task_id) if task_id else None,
         list_id=list_id,
+        list_name=list_name,
     )

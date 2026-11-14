@@ -1,5 +1,7 @@
 """A queued run cannot consume a newer reservation or its originating chat turn."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
@@ -7,6 +9,8 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.conversation_execution import ExecutionKind, ExecutionPhase, RunBusy
+from src.core.conversation_target import ConversationKind, ConversationRef
 from src.domains.agents.application.routine_execution_policy import (
     RoutineExecutionReservation,
     authorize_reserved_routine,
@@ -19,23 +23,49 @@ pytestmark = pytest.mark.unit
 
 
 async def test_queued_run_waits_for_the_confirming_chat_to_release_its_lock() -> None:
-    redis = AsyncMock()
-    redis.exists.side_effect = [True, True, False]
-    with patch(
-        "src.domains.agents.application.routine_execution_policy.asyncio.sleep", AsyncMock()
-    ) as sleep:
-        result = await wait_for_routine_turn(
-            redis, str(uuid4()), datetime.now(UTC) + timedelta(minutes=1)
-        )
-    assert result and redis.exists.await_count == 3 and sleep.await_count == 2
+    opened: list[bool] = []
+    owner = uuid4()
+    occupied = RunBusy(
+        ConversationRef(owner, uuid4(), ConversationKind.SECONDARY, 0, uuid4()),
+        ExecutionKind.GRAPH,
+        ExecutionPhase.RUNNING,
+        "run",
+        None,
+    )
+
+    @asynccontextmanager
+    async def session() -> AsyncIterator[AsyncSession]:
+        opened.append(True)
+        try:
+            yield AsyncMock(spec=AsyncSession)
+        finally:
+            opened.pop()
+
+    async def sleep_without_session(_: float) -> None:
+        assert not opened
+
+    with (
+        patch("src.domains.agents.application.routine_execution_policy.get_db_context", session),
+        patch(
+            "src.domains.agents.application.routine_execution_policy.asyncio.sleep",
+            AsyncMock(side_effect=sleep_without_session),
+        ) as sleep,
+        patch(
+            "src.domains.conversations.execution_repository.ConversationExecutionRepository.active_for_owner",
+            AsyncMock(side_effect=[occupied, occupied, None]),
+        ) as occupancy,
+    ):
+        result = await wait_for_routine_turn(owner, datetime.now(UTC) + timedelta(minutes=1))
+    assert result and occupancy.await_count == 3 and sleep.await_count == 2
+    assert all(call.args == (owner,) for call in occupancy.await_args_list)
 
 
 async def test_an_expired_queued_run_never_touches_the_chat_or_starts_a_worker() -> None:
-    redis = AsyncMock()
-    assert not await wait_for_routine_turn(
-        redis, str(uuid4()), datetime.now(UTC) - timedelta(seconds=1)
-    )
-    redis.exists.assert_not_awaited()
+    with patch(
+        "src.domains.agents.application.routine_execution_policy.get_db_context"
+    ) as sessions:
+        assert not await wait_for_routine_turn(uuid4(), datetime.now(UTC) - timedelta(seconds=1))
+    sessions.assert_not_called()
 
 
 async def test_expiry_during_the_final_authority_read_refuses_inference() -> None:

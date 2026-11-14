@@ -10,6 +10,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import Any, Final
 
+from src.core.mail_vocabulary import UNREAD_LABEL
+
 #: The message is not in the mailbox any more (or the id cannot be one).
 READ_STATE_NOT_FOUND: Final = "not_found"
 #: The provider refused or failed for this message alone.
@@ -20,8 +22,8 @@ READ_STATE_FAILURE_STATUSES: Final = frozenset(
     {READ_STATE_NOT_FOUND, READ_STATE_FAILED, READ_STATE_UNANSWERED}
 )
 
-#: The system label Gmail marks an unread message with.
-GMAIL_UNREAD_LABEL: Final = "UNREAD"
+#: The system label Gmail marks an unread message with — the vocabulary's own.
+GMAIL_UNREAD_LABEL: Final = UNREAD_LABEL
 
 
 def unique_ids(message_ids: Iterable[str]) -> list[str]:

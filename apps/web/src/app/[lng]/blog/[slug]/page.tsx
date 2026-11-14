@@ -103,14 +103,13 @@ export default async function BlogArticlePage({ params }: ArticlePageProps) {
   const { t } = await initI18next(lng);
   const { prev, next } = getAdjacentArticles(slug);
 
-  const localeMap: Record<string, string> = {
-    fr: 'fr-FR',
-    en: 'en-US',
-    de: 'de-DE',
-    es: 'es-ES',
-    it: 'it-IT',
-    zh: 'zh-CN',
-  };
+  // The words the article really holds, counted on its text rather than derived
+  // from a reading time. A language written without spaces states none.
+  const articleWords = t(`blog.articles.${slug}.body`)
+    .replace(/<[^>]*>/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean).length;
+  const wordCount = lng === 'zh' ? undefined : articleWords;
 
   // Build JSON-LD for BlogPosting — origin-bearing structured data renders
   // only when a canonical origin is configured (B03: never invent a host).
@@ -136,8 +135,8 @@ export default async function BlogArticlePage({ params }: ArticlePageProps) {
         },
         mainEntityOfPage: buildLangUrl(`/blog/${slug}`, lng),
         keywords: article.tags.join(', '),
-        inLanguage: localeMap[lng] || 'fr-FR',
-        wordCount: article.readTime * 200,
+        inLanguage: LOCALE_MAP[lng],
+        ...(wordCount ? { wordCount } : {}),
         articleSection: article.category,
       }
     : null;

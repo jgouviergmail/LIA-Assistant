@@ -8,11 +8,48 @@
 
 **Tech Stack:** FastAPI, SQLAlchemy, PostgreSQL, Redis, LangGraph, Next.js/React/TypeScript, pytest, Vitest, Playwright ; versions et dépendances du dépôt, sans nouvelle bibliothèque prévue.
 
-**Spec:** [analyse, décisions, risques et matrice T01–T40](2026-11-09-secondary-conversations-analysis.md) et [contre-revue des trois arbitrages](2026-11-09-secondary-conversations-counter-review.md). Lire les deux avant le plan. Les fichiers marqués « créer » sont des propositions ; les autres sont des points d'ancrage vérifiés. Aucun lot ci-dessous n'a été implémenté.
+**Spec** — [Analyse, décisions, risques et matrice T01–T40](2026-11-09-secondary-conversations-analysis.md) et [contre-revue des trois arbitrages](2026-11-09-secondary-conversations-counter-review.md). Les lots 0 à 10 ont été implémentés et revus. Le [rapport de qualification](2026-11-09-secondary-conversations-qualification.md) consigne les preuves du lot 11 et leurs limites.
 
-Date : 2026-11-09. Statut : **prêt pour revue et exécution TDD, activation interdite avant les portes de qualification**.
+Plan établi le 9 novembre 2026. L’implémentation est disponible dans Docker dev. Le rapport de qualification distingue le périmètre vérifié et les portes globales de livraison.
+
+## Ajustements vérifiés pendant le lot 1
+
+- Le contrat immuable réside dans `src/core/conversation_target.py`, sans dépendance applicative : le domaine `shared` importe déjà les modèles conversation via son lecteur de provenance. Le placer là aurait ajouté le cycle `conversations ↔ shared`, refusé par le ratchet. Aucun plafond de cycle n'a été relevé.
+- La migration refuse aussi un downgrade après rotation d'un runtime ou présence d'un reçu de création, même si l'annexe a ensuite disparu. Une ancienne version ne pourrait ni lire le nouveau runtime ni respecter les retries historiques. Les anciens writers doivent être drainés avant la migration, puisque `runtime_id` est obligatoire pour une nouvelle ligne.
+- L'API du catalogue réutilise `PrivateApplicationInputRoute` : les titres privés ne sont jamais réfléchis dans une erreur de validation et les réponses ne sont pas mises en cache. Le test HTTP couvre un Unicode invalide et un caractère NUL ; les bornes de pagination sont refusées avant SQL.
+- Le résolveur recharge les attributs de l'identité en base : le cache d'identité SQLAlchemy ne doit pas masquer une révision modifiée par une autre connexion. Le test concurrent a reproduit ce défaut avant correction.
+- Les cinq nouveaux fichiers de tests sont soumis à MyPy strict dans `lint:backend`. Les ratchets de taille suivent la réduction du repository et du service, sans relèvement des plafonds.
+- Le démonstrateur expose les trois routes du catalogue avec la même authentification et le même cloisonnement par compte. La création reste soumise au drapeau serveur ; ces routes ne déclenchent ni appel fournisseur ni coût LLM. Leur déclaration explicite dans le guard des routes publiques évite une ouverture silencieuse par préfixe.
+
+## Ajustements vérifiés pendant le lot 2
+
+- Les adapters natifs ne conservent pas spontanément les coordonnées applicatives dans leurs configurations retournées. Le saver conserve donc explicitement `runtime_scope` au retour et à la lecture, y compris dans la configuration parente. Les sous-graphes natifs utilisent le namespace du checkpoint ; les sous-agents ReAct ne reçoivent aucun saver.
+- Le Store natif alloue une tâche de batching et ouvre sa connexion avant d'attendre ses embeddings. L'adapter prépare les embeddings ordinaires avant le checkout, puis délègue aux builders et à l'exécuteur natifs sans copier leur SQL. Les contextes d'outils utilisent `index=False`. Le comportement réel est vérifié avec PostgreSQL pendant un embedding suspendu et avec un batch mixte.
+- Les contextes enfant portent explicitement leur runtime parent. Les deux familles vocales directes (`phone_call`, `live_session`) restent des contextes légitimes hors graphe, sous la protection du compte ; elles ne deviennent pas des discussions par analyse de leur nom.
+- La fermeture joint les tâches natives et les opérations encore actives avant de fermer leur pool, même après échec d'un closer ou annulation répétée. Les anciens helpers synchrones de reset refusent maintenant d'abandonner un pool vivant.
+- La revue a trouvé une omission de livraison des cartes de pages interactives et un writer calendrier redondant sans lecteur. Le premier transmet désormais la destination runtime distincte de la provenance métier ; le second est retiré au profit du décorateur de contexte existant. Les tests couvrent la carte effectivement récupérée et les contextes racine/enfant effectivement relus.
+- `orjson`, déjà présent dans les lockfiles, est déclaré directement dans le manifeste parce que la signature native du désérialiseur l'importe. La régénération avec l'outil épinglé n'a changé aucune version ni aucun hash.
+- La contre-revue du catalogue a corrigé deux écarts au contrat : tri par date de création puis UUID, et borne du titre après trimming. Les titres entièrement invisibles sont refusés par l'API via la classification Unicode existante ; les écritures internationales et emoji restent intactes. Le CHECK SQL garantit le socle non vide/non blanc, sans prétendre reconnaître chaque glyphe invisible.
+- Les tests SQL ciblés, la suite rapide complète et le lint complet sont verts après corrections. Les deux collections d'intégration complètes avaient exposé deux fixtures obsolètes (horloge déplacée et compte non visible entre connexions), corrigées et rejouées sans neutraliser leurs frontières natives. La mesure de couverture cumulée antérieure ne vaut pas qualification du snapshot corrigé : les suites complètes et leur union seront rejouées au lot 11. L'admission durable, le routage HITL et le lifecycle restent à réaliser dans leurs lots, et la création reste désactivée.
+
+## Ajustements vérifiés pendant le lot 3
+
+- L'admission est une autorité SQL durable par compte, distincte du transport Redis. Les sorties SSE, les reprises HITL, les writers natifs et les runners indépendants portent l'invocation exacte. Une perte Redis ne libère pas un graphe vivant ; annulation et échec du superviseur joignent ses tâches possédées avant clôture.
+- Les anciennes admissions Redis ont été retirées. Une reprise après arrêt brutal passe par le runbook de récupération : quarantaine, preuve explicite de l'arrêt du worker et de ses enfants, puis clôture conditionnelle. Aucune ancienneté ni expiration ne vaut preuve d'arrêt, et aucun résultat fournisseur inconnu n'est rejoué.
+- Les archives précoces sont idempotentes par invocation, distincte du run de facturation partagé par les reprises HITL. L'historique possède un curseur strict lié à la discussion et à sa révision ; les compteurs de jetons sont projetés une seule fois sur la réponse lisible correspondante. Le navigateur d'outils est isolé par compte et runtime.
+- La qualification comprend les collections d'intégration réelles et la suite unitaire rapide complète. Le seul échec restant de cette dernière est documentaire : son contrôle lit l'index Git, dans lequel le nouveau runbook n'est pas encore ajouté ; le contrôle du workspace passe. Aucune opération Git n'est effectuée pour masquer cette limite. La couverture séquentielle complète et l'union finale doivent encore être rejouées sur le snapshot final au lot 11. Le drapeau de création reste désactivé.
 
 ## Global Constraints
+
+Le lot 4 a établi le lien d'usage accepté, distinct de la provenance d'un fichier,
+et la publication/reprise durable des effets disque. Les tests PostgreSQL et
+filesystem couvrent annulation, concurrence, chemins corrompus, publication sur
+source retirée et reprise après échec. Les fichiers générés et partagés restent
+protégés. Le branchement au lifecycle compte/discussion relève du lot 5. Le lint
+backend et les suites ciblées passent ; la suite globale a rencontré des fichiers
+de briefing modifiés simultanément et le contrôle documentaire limité à l'index
+Git. Une qualification finale sur un état stable reste obligatoire, sans affaiblir
+les contrôles ni activer la création entre-temps.
 
 - Principale jamais supprimable ; les UUID existants et checkpoints initiaux sont conservés.
 - Aucun état de sélection global au compte ; `/me` et absence de cible signifient Principale.
@@ -77,7 +114,7 @@ Ordre : **0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11*
 
 **Modifier :** `apps/api/src/domains/conversations/models.py`, `repository.py`, `schemas.py`, `apps/api/src/infrastructure/database/registry.py`, `apps/api/src/domains/users/user_data_map.py`.
 
-**Créer :** une migration sous `apps/api/alembic/versions/` depuis la tête effective ; `apps/api/src/domains/shared/conversation_target.py` pour les types communs ; `apps/api/src/domains/conversations/catalogue_repository.py` pour les requêtes du catalogue.
+**Créer :** une migration sous `apps/api/alembic/versions/` depuis la tête effective ; `apps/api/src/core/conversation_target.py` pour les types communs ; `apps/api/src/domains/conversations/catalogue_repository.py` pour les requêtes du catalogue.
 
 **Interfaces proposées :**
 
@@ -172,6 +209,7 @@ class ConversationRef:
 - [ ] Relâcher l'activité à une pause HITL seulement après suspension effective, en gardant la question attachée au runtime. Cancel sans accusé d'arrêt ou crash inconnu → recovering ; aucune relance d'un effet fournisseur inconnu. Récupération bornée et runbook explicite, pas un lease qui expire silencieusement.
 - [ ] Migrer explicitement les producteurs Principale : notification, reminder_notification, discussion_persistence, discussion_attention, discussion_runner, workboard_runner, phone_relay_runner, voice_delegation, canaux Telegram, self_call_context et lecteurs radio qui résolvent une conversation unique. Vérifier chaque import/type, pas le seul nom de méthode.
 - [ ] Déclarer les nouvelles clés dans `key_families.py` avec leur forme/identité ; séparer la purge d'un runtime du verrou d'admission compte.
+- [ ] Vérification complémentaire du 10 novembre : `browser_tools._get_session` et `BrowserPool.acquire_session` partagent encore la page/cookies/URL de reprise par compte. Porter une identité compte/runtime explicite jusque dans le pool et son registre Redis, conserver son plafond global, éprouver deux pages indépendantes et le nettoyage d'un seul runtime. Le namespace des résultats d'outils ne suffit pas à isoler le navigateur réel.
 - [ ] Pour chaque runner autonome, éprouver le contrat d'occupation/report sans nouvelle file implicite ni faux succès. Notifications qui archivent seulement hors admission graphe. Typer `CurrentPrimaryPublication` et `PinnedRunPublication`, test T37 : un ancien résultat ne peut pas se rebinder en notification indépendante.
 
 **Tests nouveaux :** `apps/api/tests/integration/infrastructure/streaming/test_account_run_admission.py`, `test_run_lifecycle_races.py`, PostgreSQL et Redis jetables, deux workers ; tests unitaires du drainage par run et des états de récupération. **Sortie :** T12/T24/T35/T37 verts ; sélectionner une annexe ne détourne aucune sortie autonome.
@@ -248,13 +286,13 @@ Ces signatures sont celles du service recevant sa session en constructeur. La re
 
 Le port de validité s'exécute dans la session de l'écriture : verrou de ligne ou condition SQL révision+état, sans réseau avant commit. Tester la course où le reset survient entre un premier check et le retour du modèle ; un booléen mis en cache avant le wait ne vaut pas autorisation d'écrire.
 
-- [ ] RED T13/T14 : six extractions ordinaires sur P et A, consentement changé, reset A, traitement partiellement payé ; source retirée n'écrit plus, coût reste rattaché au run, B n'est pas invalidée.
-- [ ] Réutiliser les politiques propres aux six familles : le helper `ExtractionKind` actuel ne déclare que mémoire/journal/psyché. Garder la variante de révision pour les autres sources, sans inventer des valeurs supportées. Vérifier source/consentement dans la transaction finale selon l'ordre de verrous commun.
-- [ ] Remplacer les deux lectures singleton du journal par un flux/ensemble compte borné globalement ; agréger les rythmes, groupement du dialogue par discussion, tri stable et coupe publiée.
-- [ ] RED T15/T16 : sujets distincts, budgets saturés, lecture indisponible, réponse annexe ne répondant pas à l'ouverture principale. Réutiliser `_reply_to` existant et prouver son maintien.
-- [ ] Corriger la résolution implicite du bookmark avec la conversation du runtime ; la commande « garder cette réponse » ne lit plus `latest` au compte. Vérifier les autres actions de carte par leur source, pas seulement leur propriétaire.
-- [ ] Déclarer et tester les scopes de tous les lecteurs ; garder les lecteurs d'activité/export déjà transversaux. Ajouter une fixture AST réellement fautive à la garde.
-- [ ] Retirer précisément les supports des sources supprimées et republier les contextes dérivés avec le fencing existant. Conserver apprentissages canoniques et derniers états valides non dépendants de la source retirée.
+- [x] RED T13/T14 : six extractions ordinaires sur P et A, consentement changé, reset A, traitement partiellement payé ; source retirée n'écrit plus, coût reste rattaché au run, B n'est pas invalidée.
+- [x] Réutiliser les politiques propres aux six familles : le helper `ExtractionKind` actuel ne déclare que mémoire/journal/psyché. Garder la variante de révision pour les autres sources, sans inventer des valeurs supportées. Vérifier source/consentement dans la transaction finale selon l'ordre de verrous commun.
+- [x] Remplacer les deux lectures singleton du journal par un flux/ensemble compte borné globalement ; agréger les rythmes, groupement du dialogue par discussion, tri stable et coupe publiée.
+- [x] RED T15/T16 : sujets distincts, budgets saturés, lecture indisponible, réponse annexe ne répondant pas à l'ouverture principale. Réutiliser `_reply_to` existant et prouver son maintien.
+- [x] Corriger la résolution implicite du bookmark avec la conversation du runtime ; la commande « garder cette réponse » ne lit plus `latest` au compte. Vérifier les autres actions de carte par leur source, pas seulement leur propriétaire.
+- [x] Déclarer et tester les scopes de tous les lecteurs ; garder les lecteurs d'activité/export déjà transversaux. Ajouter une fixture AST réellement fautive à la garde.
+- [x] Retirer précisément les supports des sources supprimées et republier les contextes dérivés avec le fencing existant. Conserver apprentissages canoniques et derniers états valides non dépendants de la source retirée.
 
 **Tests nouveaux :** `apps/api/tests/integration/domains/journals/test_multi_conversation_sources.py`, `apps/api/tests/unit/domains/agents/nodes/test_secondary_extraction_parity.py`, `apps/api/tests/unit/domains/bookmarks/test_current_conversation_keep.py`, `apps/api/tests/unit/test_conversation_reader_scopes_guard.py`.
 
@@ -322,13 +360,13 @@ Le port de validité s'exécute dans la session de l'écriture : verrou de ligne
 
 **Créer seulement si nécessaire :** `apps/api/src/infrastructure/observability/metrics_conversation_lifecycle.py` avec tableaux/panneaux/alertes correspondants, et un runbook de purge en attente. Les métriques de sync existantes restent la référence pour les signaux.
 
-- [ ] RED T20–T22 : compte/instance bloqués restent bloqués dans une annexe neuve ; compteurs affichés locaux et dépenses globales ; propre clé connecteur ; 429/timeout sans double appel ; sources retirées et coût payé conservé.
-- [ ] Garder la comptabilité par run et le rattachement à la discussion métier pour toutes les modalités ; vérifier les extractions différées et leurs fallbacks, pas seulement le modèle de réponse.
-- [ ] Donner à la clé cache les dépendances sémantiques nécessaires, dont runtime/révision si implicites. Le test interdit de dépendre d'un `config` actuellement exclu ou de purger les caches d'autres comptes.
-- [ ] Mesurer les formes de prompts des deux modes et les compteurs cache natifs fournisseurs sur les fixtures : historique A/B correctement isolé, contexte commun borné une seule fois, coûts historiques non recalculés.
-- [ ] Vérifier les lecteurs de registres, exports, profils et suppressions : message source null admissible, aucun resealing ou acte synthétique pour un clic de CRUD.
-- [ ] Publier erreurs/retards de cleanup et runs recovering avec labels fermés et alertes testées ; distinguer attente, refus, reprise et succès. Aucun UUID/titre en label. Mesurer `pg_stat_activity` pendant les attentes fournisseurs et les purges externes.
-- [ ] Exécuter les guards de spend roads, user-data map, key families, messages readers, logging/PII et métriques. Faire baisser les hotspots réellement réduits, sans ajuster un baseline avant mesure.
+- [x] T20–T22 sur PostgreSQL et Redis. Les deux plafonds refusent aussi une annexe neuve et réinitialisée. Les coûts tardifs restent dans les ledgers et le compteur local suit la génération courante. Les tests de politique fournisseur couvrent 429 et timeout sans renvoi non autorisé.
+- [x] La comptabilité reste par run. Le suivi des extractions et de la synthèse ou consultation Live prend la source déclarée, y compris un résultat payé suivi d'un échec.
+- [x] L'unique consommateur du cache LLM ne dépend que du texte et du prompt, avec isolation par compte. Le test appelle le vrai graphe typé et Redis avec plusieurs discussions et révisions. Aucun changement de clé pour ce consommateur sans dépendance à l'historique.
+- [x] Les fixtures de contexte, de prix et de cache vérifient l'isolation des historiques, la composition des prompts et la conservation des prix historiques. Les scénarios fournisseur utilisent des réponses contrôlées.
+- [x] Les lecteurs de registres, exports et suppressions réutilisent leurs contrats. Un reset réel conserve la décision à pointeurs nuls et la copie du favori. Il ne crée pas de décision de graphe.
+- [x] L'état durable des nettoyages, leur âge, la fraîcheur de la mesure et les réservations `recovering` sont exposés. Les scénarios Prometheus vérifient déclenchement et résolution. Les tests natifs contrôlent les transactions ouvertes pendant les attentes pertinentes.
+- [x] Gardes ciblées de facturation, données utilisateur, Redis, lectures, logs et métriques. Aucun plafond relevé. Les preuves et les limites figurent dans le journal d'exécution.
 
 **Tests nouveaux :** `apps/api/tests/integration/domains/conversations/test_multi_conversation_accounting.py`, `apps/api/tests/unit/infrastructure/cache/test_conversation_llm_cache_scope.py`, `apps/api/tests/integration/domains/conversations/test_retained_records.py`.
 
@@ -336,13 +374,13 @@ Le port de validité s'exécute dans la session de l'écriture : verrou de ligne
 
 - [ ] Relancer chaque T01–T40 sur le snapshot final et tenir un rapport : commandes exactes, exits, compte de tests, warnings, runtime/browsers, limites. Un succès datant d'avant une modification importante n'est pas recyclé.
 - [ ] Passer `task lint`, `task test:backend:unit:fast`, `task test:frontend`, `task test:frontend:coverage` et les intégrations ciblées sur PostgreSQL/Redis jetables. Pour les changements de tâches de fond, passer aussi la couverture backend séquentielle ; aucun warning de ressource ou stderr après résumé accepté.
-- [ ] Passer `task db:migrate:replay-check`, vérifier une seule tête Alembic et les migrations depuis une copie jetable des formes de données historiques. Ne jamais utiliser la base dev/prod comme cible destructive de test.
-- [ ] Exécuter les nouveaux parcours et les parcours critiques touchés dans le harness Playwright hermétique. Chromium obligatoire ; Firefox/WebKit et reflow/zoom requis pour les nouveaux contrôles et la voix selon la matrice existante. Le navigateur ne doit joindre aucun fournisseur payant.
-- [ ] Vérifier le clavier tactile et les safe-areas sur les shells mobiles selon les moyens disponibles ; une émulation desktop ne sera pas annoncée comme un test sur téléphone physique.
-- [ ] Mesurer le listing sans N+1, les deux navigateurs/onglets simultanés, les notifications pendant switch, les crashs aux frontières de commit et la reprise après redémarrage du worker.
-- [ ] Ajouter l'ADR au numéro libre réellement courant, les entrées des cartes vivantes et leurs six traductions. Mettre à jour les guides chat/mémoire/fichiers/Live, FAQ6 locales, README et architectures réellement impactées. Ne pas recopier des defaults détenus par le code.
+- [x] Passer `task db:migrate:replay-check`, vérifier une seule tête Alembic et les migrations depuis une copie jetable des formes de données historiques. Ne jamais utiliser la base dev/prod comme cible destructive de test.
+- [x] Exécuter les nouveaux parcours et les parcours critiques touchés dans le harness Playwright hermétique. Chromium, Firefox et WebKit ont passé les parcours du catalogue. La vérification du reflow descend à 320 pixels CSS. Le navigateur utilise des API et des échanges SSE contrôlés.
+- [ ] Vérifier le clavier tactile et les safe-areas sur les shells mobiles selon les moyens disponibles ; une émulation desktop ne sera pas annoncée comme un test sur téléphone physique. Le contrôle ADB a trouvé zéro appareil connecté.
+- [x] Mesurer le listing sans N+1, les deux navigateurs/onglets simultanés, les notifications pendant switch, les crashs aux frontières de commit et la reprise après redémarrage du worker.
+- [x] Ajouter l'ADR au numéro libre réellement courant, les entrées des cartes vivantes et leurs six traductions. Mettre à jour les guides chat/mémoire/fichiers/Live, FAQ6 locales, README et architectures réellement impactées. Ne pas recopier des defaults détenus par le code.
 - [ ] Si une règle générale est nécessaire, modifier `CLAUDE.md` et régénérer `AGENTS.md` par `task docs:sync-agents`. Exécuter les gates docs/maps/i18n ; ne pas « corriger » un faux défaut d'index que le preview élimine.
-- [ ] Établir le protocole d'activation : schema/code compatible, workers drainés/remplacés, backlog cleanup sain, activation de création. Retour arrière opérationnel = création off, données toujours consultables ; ancien schéma singleton non réinstallable en présence d'annexes.
+- [x] Établir le protocole d'activation : schema/code compatible, workers drainés/remplacés, backlog cleanup sain, activation de création. Retour arrière opérationnel = création off, données toujours consultables ; ancien schéma singleton non réinstallable en présence d'annexes.
 - [ ] Avant toute demande future de push, `task ci:fast` puis suites supplémentaires exigées par l'impact. Aucune commande Git ou de déploiement n'est incluse dans ce plan.
 
 **Critère de livraison :** toutes les conditions fonctionnelles de l'analyse et T01–T40 ont leur preuve ; les limites de moyens sont nommées et ne dispensent d'aucun invariant critique. Aucun mélange de cible, aucune suppression collatérale, aucun contournement de quota, aucun contrôle inaccessible, aucun succès de purge prématuré. Aucun scénario critique non exécuté n'est accepté implicitement. Une limitation nouvelle n'est pas masquée par un drapeau ou un mock.

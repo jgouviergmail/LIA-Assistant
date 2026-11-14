@@ -13,12 +13,21 @@ Doctrine boundary: this module repairs what is mechanically repairable
 never invents content — a repair that yields an empty object or array from an
 incomplete slice is rejected, because "nothing" recovered from garbage is a
 claim, not a repair.
+
+Two readings serve a tool call's arguments rather than a text answer (ADR-388):
+``drop_trailing_closers`` keeps a whole value a model closed once too often
+(« Extra data »: only brackets follow it, and a bracket carries nothing), and
+``close_cut_structure`` closes a structure a model stopped writing BETWEEN two
+values — never inside a string — so the caller can put back what the model
+wrote after it. Neither runs on an answer the provider cut: the
+structured-output door consults ADR-275's truncation verdict first.
 """
 
 from __future__ import annotations
 
 import json
 import re
+from dataclasses import dataclass
 
 _FENCED_BLOCK = re.compile(r"```[^\n`]*\n(.*?)```", re.DOTALL)
 _OPENERS = "{["
@@ -86,16 +95,26 @@ def _scan_source(source: str) -> str | None:
     return None
 
 
-def _balanced_slice(source: str, start: int) -> tuple[str, bool] | None:
-    """The balanced JSON slice starting at ``start``, string-aware.
+@dataclass(frozen=True, slots=True)
+class _Scan:
+    """Where a structure opened at some index stands.
 
-    Walks the text tracking string boundaries and escapes so braces inside
-    string values never count. When the text ends before the structure closes
-    (truncated completion), the open string is closed and the bracket stack
-    unwound — flagged as repaired so degenerate recoveries can be rejected.
+    Attributes:
+        end: Index just past its closing bracket — ``None`` when the text ended first.
+        owed: The closing brackets still owed when it did, innermost last.
+        in_string: Whether the text ended inside a string.
+    """
 
-    Returns:
-        ``(slice, was_repaired)``, or ``None`` on a malformed nesting.
+    end: int | None
+    owed: tuple[str, ...]
+    in_string: bool
+
+
+def _scan_structure(source: str, start: int) -> _Scan | None:
+    """Walk the structure opened at ``start``; ``None`` on a mismatched nesting.
+
+    String boundaries and escapes are tracked, so a brace inside a string value
+    never counts.
     """
     stack: list[str] = []
     in_string = False
@@ -120,14 +139,85 @@ def _balanced_slice(source: str, start: int) -> tuple[str, bool] | None:
                 return None  # mismatched nesting — not a JSON structure
             stack.pop()
             if not stack:
-                return source[start : index + 1], False
+                return _Scan(index + 1, (), False)
+    return _Scan(None, tuple(stack), in_string)
 
+
+def _balanced_slice(source: str, start: int) -> tuple[str, bool] | None:
+    """The balanced JSON slice starting at ``start``, string-aware.
+
+    When the text ends before the structure closes (truncated completion), the
+    open string is closed and the bracket stack unwound — flagged as repaired
+    so degenerate recoveries can be rejected.
+
+    Returns:
+        ``(slice, was_repaired)``, or ``None`` on a malformed nesting.
+    """
+    scan = _scan_structure(source, start)
+    if scan is None:
+        return None
+    if scan.end is not None:
+        return source[start : scan.end], False
     # End of text with the structure still open: mechanical truncation repair.
     repaired = source[start:].rstrip()
-    if in_string:
+    if scan.in_string:
         repaired += '"'
-    repaired += "".join(reversed(stack))
-    return repaired, True
+    return repaired + "".join(reversed(scan.owed)), True
+
+
+def close_cut_structure(text: str) -> tuple[str, int] | None:
+    """A structure the text stopped writing between two values, closed.
+
+    The text must open an object or an array and stop after a value or between
+    two, and the brackets it still owes must make it valid JSON — which is what
+    refuses every other stop: a dangling comma, colon or key, a text cut inside
+    a string (the brackets added stay inside it), a whole value followed by
+    something. Nothing is invented: only those brackets are added.
+
+    Args:
+        text: A value a model wrote as text where a structure belongs.
+
+    Returns:
+        ``(json_text, depth)`` — valid JSON and how many containers the text
+        left open (0 when it was whole) — or ``None``.
+    """
+    stripped = text.strip()
+    if not stripped or stripped[0] not in _OPENERS:
+        return None
+    scan = _scan_structure(stripped, 0)
+    if scan is None:
+        return None
+    closed = stripped + "".join(reversed(scan.owed))
+    try:
+        json.loads(closed)
+    except json.JSONDecodeError:
+        return None
+    return closed, len(scan.owed)
+
+
+def drop_trailing_closers(text: str) -> tuple[str, int]:
+    """The text's first JSON value, when only closing brackets follow it.
+
+    A model that closes its arguments once too often wrote a whole value and
+    then a bracket that closes nothing (« Extra data »): such a bracket carries
+    nothing, so it goes. Anything else after the value stays — it may be content.
+
+    Args:
+        text: A tool call's arguments as the provider spelled them.
+
+    Returns:
+        ``(text, dropped)`` — the value alone and how many brackets went — or the
+        text unchanged and 0.
+    """
+    start = len(text) - len(text.lstrip())
+    try:
+        _value, end = json.JSONDecoder().raw_decode(text, start)
+    except json.JSONDecodeError:
+        return text, 0
+    rest = "".join(text[end:].split())
+    if not rest or set(rest) - set("}]"):
+        return text, 0
+    return text[:end], len(rest)
 
 
 def _strip_trailing_commas(payload: str) -> str:

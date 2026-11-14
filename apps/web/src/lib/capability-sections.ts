@@ -12,11 +12,16 @@
  * class of drift this repo keeps paying for — so the reverse direction is
  * derived, never typed twice.
  *
- * A capability with no section (document generation: the instance offers it or
- * it does not, there is nothing for a reader to configure) is simply absent;
- * both lookups answer `null` rather than guessing. The backend guard
+ * A capability no section configures is simply absent; both lookups answer
+ * `null` rather than guessing. (Document generation was that case until the
+ * « Documents » section gave the reader its illustration and animation
+ * choices, 2026-11-13.) The backend guard
  * `test_capability_coverage_guard.py` reads this file and fails when a
  * capability ships without either a pairing here or a written exemption.
+ *
+ * A capability whose place is a PAGE of the application rather than a section
+ * of the settings says so in `CAPABILITY_PAGE`: the constellation then sends
+ * the reader there, never to the settings root.
  */
 
 import type { SettingsSectionToken } from '@/lib/settings-sections';
@@ -36,13 +41,14 @@ export const CAPABILITY_SECTION: Readonly<Record<string, SettingsSectionToken>> 
   proactivity: 'heartbeat',
   proactive_discussions: 'proactive-discussions',
   images: 'image-generation',
+  // How the documents LIA creates are illustrated and animated.
+  documents: 'documents',
   interests: 'interests',
   routines: 'scheduled-actions',
   // The node that counts open loops points at the section that holds them.
   // It was keyed « relations » and pointed here, so « Relationships » sent a
   // reader to their unfinished threads.
   open_loops: 'open-loops',
-  workboard: 'workboard',
   reminders: 'reminders',
   generated_files: 'generated-assets',
   habits: 'habits',
@@ -79,6 +85,32 @@ export const CAPABILITY_SECTION_TAB: Readonly<
 > = {
   bookmarks: { token: 'generated-assets', tab: 'bookmarks' },
 };
+
+/**
+ * Capability node key → the dashboard page it lives on, when no settings
+ * section configures it.
+ *
+ * The relations are set up where they are read: ADR-269 put the debrief's
+ * switch on the Relations page. The workboard had a settings section, the
+ * board's only door besides a notification, until the owner made the board a
+ * destination of the header (2026-11-11) and that section went. Both stars
+ * lead to the page itself — and every page named here is a destination the
+ * header offers (`lib/dashboard-nav.ts`), which the sibling test holds.
+ */
+export const CAPABILITY_PAGE: Readonly<Record<string, string>> = {
+  relations: '/dashboard/relations',
+  workboard: '/dashboard/workboard',
+};
+
+/**
+ * The page a capability lives on, when it has no settings section.
+ *
+ * @param capability - A `capabilities.nodes.*` key.
+ * @returns Its route under the localized root, or null.
+ */
+export function pageOfCapability(capability: string): string | null {
+  return CAPABILITY_PAGE[capability] ?? null;
+}
 
 /**
  * The section that configures a capability.

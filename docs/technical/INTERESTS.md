@@ -137,7 +137,8 @@ apps/api/src/domains/interests/
     └── content_sources/         # Sources de contenu pour notifications proactives
         ├── __init__.py
         ├── base.py                  # ContentSource protocol, ContentResult
-        ├── brave_source.py          # Brave Search API (source prioritaire)
+        ├── brave_source.py          # Brave Search API (cle de la personne)
+        ├── searxng_source.py        # Recherche web de l'instance, sans cle (lot 18, ADR-382)
         ├── perplexity_source.py     # Perplexity API (fallback)
         ├── llm_reflection_source.py # LLM reflection (fallback final)
         └── wikipedia_source.py      # Wikipedia (deprecie, remplace par Brave)
@@ -411,6 +412,8 @@ Le contenu est genere via une **chaine de fallback** :
 ```
 
 > **Note historique** : Wikipedia etait la source prioritaire initiale mais a ete remplacee par Brave Search (2026-02) pour obtenir du contenu plus frais et diversifie.
+
+> **Lot 18 (2026-11-13, [ADR-382](../architecture/ADR-382-The-Instance-Searches-The-Web-For-Who-Has-No-Key.md))** : la recherche web de l'instance (SearXNG) rejoint les sources principales pour une personne sans cle Brave (sa cle reste prioritaire). Chaque source dit, AVANT de tourner, si elle interrogerait son service (`applies`, asynchrone, qui remplace `is_available`) : une source qui ne demanderait rien est sautee et n'enregistre aucune consultation — plus de « Brave consulte » pour une personne sans cle. Une recherche SearXNG en echec leve : la consultation est classee en echec, jamais « rien trouve ».
 
 **Deduplication** :
 - Hash SHA256 du contenu compare aux 30 derniers jours

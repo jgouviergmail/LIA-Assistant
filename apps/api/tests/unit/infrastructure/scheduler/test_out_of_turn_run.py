@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from collections.abc import Iterator
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -30,6 +31,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.core.config import settings
+from src.core.conversation_execution import RunAdmission
 from src.core.i18n import resolve_language
 from src.domains.agents.api.run_origin import RunOrigin, current_origin
 from src.domains.agents.services.streaming.latency_sli import a_person_is_waiting
@@ -38,16 +40,23 @@ from src.infrastructure.scheduler.out_of_turn_run import (
     StreamRequest,
     _run_acted,
     clear_question_of_run,
-    conversation_has_pending_hitl,
     resolve_run_context,
     stream_instruction,
 )
+from tests.fixtures.instruction_runtime import instruction_runtime
 
 pytestmark = pytest.mark.unit
 
 _ENGINE = "src.infrastructure.scheduler.out_of_turn_run"
 
 USER = uuid.uuid4()
+
+
+@pytest.fixture(autouse=True)
+def runtime() -> Iterator[RunAdmission]:
+    """Reader tests substitute infrastructure; real admission has integration contracts."""
+    with instruction_runtime(USER) as admission:
+        yield admission
 
 
 def _chunk(
@@ -165,73 +174,39 @@ class TestResolvingWhoTheRunBelongsTo:
         assert context.display_mode == "cards"
 
 
-class TestTheThreadAlreadyHoldsAQuestion:
-    """The probe reads the SAME record the chat routes an answer on: the
-    pending-HITL entry in Redis. A run that moved its question to the ticket
-    deletes that record, and the next ticket of the account must not step
-    aside for a question nobody can see any more (lot 7)."""
+class TestPendingQuestionAdmission:
+    """A blind or occupied question never becomes a new model turn."""
 
-    async def _ask(self, record: dict[str, Any] | None) -> tuple[bool, Any]:
-        conversation = SimpleNamespace(id=uuid.uuid4())
-        conv_service = MagicMock()
-        conv_service.get_or_create_conversation = AsyncMock(return_value=conversation)
-        probe = AsyncMock(return_value=record)
+    async def test_a_pending_question_starts_no_model(self) -> None:
+        service = _service_yielding([_chunk("token", "Must not run")])
         with (
-            patch(
-                "src.domains.conversations.service.ConversationService",
-                return_value=conv_service,
-            ),
-            patch("src.domains.agents.api.hitl_pending.check_pending_hitl_uncached", probe),
-        ):
-            pending, conversation_id = await conversation_has_pending_hitl(MagicMock(), USER, "fr")
-        probe.assert_awaited_once_with(str(conversation.id))
-        return pending, conversation_id
-
-    async def test_an_unanswered_question_stops_the_run(self) -> None:
-        pending, _ = await self._ask({"action_requests": [{"type": "clarification"}]})
-        assert pending is True
-
-    async def test_a_quiet_thread_lets_it_proceed(self) -> None:
-        pending, conversation_id = await self._ask(None)
-        assert pending is False
-        assert conversation_id is not None
-
-    async def test_the_checkpoint_is_not_consulted(self) -> None:
-        """After a run moved its question to the ticket the checkpoint still
-        says « interrupted » until the next input; reading it would make the
-        board stall on its own question."""
-        conv_service = MagicMock()
-        conv_service.get_or_create_conversation = AsyncMock(
-            return_value=SimpleNamespace(id=uuid.uuid4())
-        )
-        agent_service = MagicMock()
-        with (
-            patch(
-                "src.domains.conversations.service.ConversationService",
-                return_value=conv_service,
-            ),
-            patch("src.domains.agents.api.service.AgentService", return_value=agent_service),
             patch(
                 "src.domains.agents.api.hitl_pending.check_pending_hitl_uncached",
-                AsyncMock(return_value=None),
+                AsyncMock(
+                    return_value={
+                        "run_id": "question",
+                        "action_requests": [{"type": "clarification"}],
+                    }
+                ),
             ),
+            patch("src.domains.agents.api.service.AgentService", return_value=service),
         ):
-            pending, _ = await conversation_has_pending_hitl(MagicMock(), USER, "fr")
-        assert pending is False
-        agent_service._ensure_graph_built.assert_not_called()
+            result = await stream_instruction(_request())
+        assert result.outcome is RunOutcome.PENDING_QUESTION and result.attempts == 0
+        service.stream_chat_response.assert_not_called()
 
-    async def test_a_probe_that_fails_never_blocks_the_run(self) -> None:
-        """The guard exists to avoid stepping on a pending question; failing to
-        ASK must not become a reason to do nothing at all."""
-        conv_service = MagicMock()
-        conv_service.get_or_create_conversation = AsyncMock(side_effect=RuntimeError("db down"))
-        with patch(
-            "src.domains.conversations.service.ConversationService",
-            return_value=conv_service,
+    async def test_an_unreadable_question_starts_no_model(self) -> None:
+        service = _service_yielding([_chunk("token", "Must not run")])
+        with (
+            patch(
+                "src.domains.agents.api.hitl_pending.check_pending_hitl_uncached",
+                AsyncMock(side_effect=ConnectionError("Redis unavailable")),
+            ),
+            patch("src.domains.agents.api.service.AgentService", return_value=service),
         ):
-            pending, conversation_id = await conversation_has_pending_hitl(MagicMock(), USER, "fr")
-        assert pending is False
-        assert conversation_id is None
+            result = await stream_instruction(_request())
+        assert result.outcome is RunOutcome.FAILED and result.attempts == 0
+        service.stream_chat_response.assert_not_called()
 
 
 class TestDrivingTheTurn:
@@ -310,12 +285,12 @@ class TestDrivingTheTurn:
             await stream_instruction(_request(run_id="run-42"))
         assert [call["run_id"] for call in attempts] == ["run-42", "run-42"]
 
-    async def test_a_caller_with_no_row_lets_the_graph_mint_its_own_id(self) -> None:
-        """A voice delegation that resumes nothing names no run: the graph mints one."""
+    async def test_a_caller_with_no_row_gets_the_admitted_run_id(self) -> None:
+        """The authority owns the correlation before any graph attempt starts."""
         service = _service_yielding([_chunk("token", "ok")])
         with patch("src.domains.agents.api.service.AgentService", return_value=service):
             await stream_instruction(_request())
-        assert service.calls[0]["run_id"] is None
+        assert service.calls[0]["run_id"] == service.calls[0]["admission"].run_id
 
     async def test_a_hitl_interrupt_settles_as_waiting_without_retrying(self) -> None:
         """Asking again a question nobody answered is not a retry."""
@@ -470,8 +445,8 @@ class TestAQuestionIsReadFromTheStream:
         assert result.attempts == 2
         assert attempts[0]["session_id"] != attempts[1]["session_id"]
 
-    async def test_only_the_first_attempt_archives_the_question(self) -> None:
-        """Archive-first persisted it once; a retry must not duplicate the row."""
+    async def test_every_attempt_asks_the_idempotent_archive_door_for_the_request(self) -> None:
+        """A first attempt can fail before archiving; SQL proves once-only insertion."""
         service = MagicMock()
         attempts: list[dict[str, Any]] = []
 
@@ -489,7 +464,7 @@ class TestAQuestionIsReadFromTheStream:
         with patch("src.domains.agents.api.service.AgentService", return_value=service):
             await stream_instruction(_request())
         assert attempts[0]["archive_user_message"] is True
-        assert attempts[1]["archive_user_message"] is False
+        assert attempts[1]["archive_user_message"] is True
 
     async def test_exhausting_the_attempts_settles_as_failed(self) -> None:
         service = MagicMock()
@@ -829,8 +804,19 @@ class TestADelegatedVoiceTurn:
 
     async def test_an_answer_to_a_pending_question_resumes_that_run(self) -> None:
         service = _service_yielding([_chunk("token", "ok")])
-        with patch("src.domains.agents.api.service.AgentService", return_value=service):
-            await stream_instruction(_request(original_run_id="run-asked", run_id="run-asked"))
+        with (
+            patch("src.domains.agents.api.service.AgentService", return_value=service),
+            patch(
+                "src.domains.agents.api.hitl_pending.check_pending_hitl_uncached",
+                AsyncMock(
+                    return_value={
+                        "run_id": "run-asked",
+                        "action_requests": [{"type": "clarification"}],
+                    }
+                ),
+            ),
+        ):
+            await stream_instruction(_request(resume_pending=True))
         kwargs = service.calls[0]
         assert kwargs["original_run_id"] == "run-asked"
         assert kwargs["run_id"] == "run-asked"
@@ -891,10 +877,12 @@ class TestTakingBackTheQuestionOfARun:
 
     async def test_a_thread_nobody_could_name_clears_nothing(self) -> None:
         with patch("src.domains.agents.utils.hitl_store.HITLStore") as store:
-            assert await clear_question_of_run(None, "run-1") is False
+            assert await clear_question_of_run(None) is False
         store.assert_not_called()
 
-    async def test_a_store_that_fails_answers_false_and_never_raises(self) -> None:
+    async def test_a_store_that_fails_answers_false_and_never_raises(
+        self, runtime: RunAdmission
+    ) -> None:
         failing = MagicMock(clear_interrupt_for_run=AsyncMock(side_effect=ConnectionError("down")))
         with (
             patch("src.domains.agents.utils.hitl_store.HITLStore", return_value=failing),
@@ -903,7 +891,7 @@ class TestTakingBackTheQuestionOfARun:
                 AsyncMock(return_value=MagicMock()),
             ),
         ):
-            assert await clear_question_of_run(uuid.uuid4(), "run-1") is False
+            assert await clear_question_of_run(runtime) is False
         failing.clear_interrupt_for_run.assert_awaited_once()
 
 
@@ -1008,3 +996,76 @@ class TestARoutinePreapprovalTravelsWithTheTurn:
 
         assert seen == [preapproval]
         assert current_mcp_preapproval() is None, "a leak would pre-approve the next turn"
+
+
+@pytest.mark.unit
+class TestARoutineToldToNotifyOnlyOfSomethingNew:
+    """The routine's option reaches the answering model through the stream, and
+    the model's declaration comes back on ``done`` (ADR-265 amendment 2026-11-12 c)."""
+
+    async def test_the_run_publishes_the_option_then_clears_it(self) -> None:
+        from src.domains.agents.services.nothing_new import is_quiet_run
+
+        seen: list[bool] = []
+
+        def stream(**_kwargs: Any) -> Any:
+            async def generator() -> Any:
+                seen.append(is_quiet_run())
+                yield _chunk("token", "ok")
+
+            return generator()
+
+        service = MagicMock()
+        service.stream_chat_response = MagicMock(side_effect=stream)
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            await stream_instruction(_request(quiet_when_nothing_new=True))
+
+        assert seen == [True]
+        assert is_quiet_run() is False, "a leak would teach the next turn the tag"
+
+    async def test_a_run_that_tells_everything_publishes_nothing(self) -> None:
+        from src.domains.agents.services.nothing_new import is_quiet_run
+
+        seen: list[bool] = []
+
+        def stream(**_kwargs: Any) -> Any:
+            async def generator() -> Any:
+                seen.append(is_quiet_run())
+                yield _chunk("token", "ok")
+
+            return generator()
+
+        service = MagicMock()
+        service.stream_chat_response = MagicMock(side_effect=stream)
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            await stream_instruction(_request())
+
+        assert seen == [False]
+
+    async def test_the_declaration_is_read_from_the_done_chunk(self) -> None:
+        service = _service_yielding(
+            [_chunk("token", "Nothing new."), _chunk("done", "", {"nothing_new": True})]
+        )
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            result = await stream_instruction(_request(quiet_when_nothing_new=True))
+
+        assert (result.outcome, result.nothing_new) == (RunOutcome.SUCCESS, True)
+
+    @pytest.mark.parametrize("metadata", [{}, {"nothing_new": False}, {"nothing_new": "yes"}])
+    async def test_anything_but_an_explicit_declaration_tells_the_owner(
+        self, metadata: dict[str, Any]
+    ) -> None:
+        service = _service_yielding(
+            [_chunk("token", "Two invoices."), _chunk("done", "", metadata)]
+        )
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            result = await stream_instruction(_request(quiet_when_nothing_new=True))
+
+        assert result.nothing_new is False
+
+    async def test_a_turn_with_no_done_chunk_declares_nothing(self) -> None:
+        service = _service_yielding([_chunk("token", "ok")])
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            result = await stream_instruction(_request(quiet_when_nothing_new=True))
+
+        assert result.nothing_new is False

@@ -22,6 +22,7 @@ from src.domains.agents.application.document_upload_spec import DOCUMENT_UPLOAD_
 from src.domains.agents.application.secure_continuation import ContinuationCompletionUnknown
 from src.domains.rag_spaces.models import RAGDocument, RAGSpace
 from src.domains.users.preference_cas import PreferenceWriteReceipt
+from tests.helpers.committed_account_session import async_session as async_session
 
 pytestmark = pytest.mark.integration
 

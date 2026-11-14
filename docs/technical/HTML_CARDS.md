@@ -181,7 +181,7 @@ A missing measurement, zero and false are different states. A renderer does not 
 | Weather | Received forecast slots, comparison controls, finite measurements, source condition icons and source time; attribution is preserved |
 | Research | Complete received extracts, article sections/categories, sources and citation ordinals tied to their original valid destinations |
 | Hue | Read-only state and brightness meter, valid supplied color temperature/device range and exact CIE coordinates |
-| Tickets | Shared status/priority/assignment summary; full reads retain description, steps, comments and known run outcome/cost/token usage |
+| Tickets | Shared status/priority/assignment/category summary (the category by its name, never a colour of its own); full reads retain description, steps, comments and known run outcome/cost/token usage |
 | MCP | Bounded public JSON snapshots, application-authored server identity/public origin and invoked method, binary metadata and explicit redaction/limit indicators |
 
 This is a policy for **received** information, not a promise that every list endpoint requests every provider field. Provider masks and detail operations keep their established scope. Internal credentials, raw binary bodies, private orchestration fields and unsupported technical records are deliberately excluded. No new light command, ticket action, provider fetch or model call is caused by opening a disclosure. Google conference identifiers and signatures do not serve as join information; only the supplied public entry points and their access codes do.

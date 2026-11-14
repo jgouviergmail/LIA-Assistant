@@ -504,6 +504,7 @@ def _import_tool_modules() -> None:
         ("src.domains.agents.tools.documents_tools", "documents_tools"),
         # Long-term memory as an active lookup (ADR-313).
         ("src.domains.agents.tools.memory_search_tools", "memory_search_tools"),
+        ("src.domains.agents.tools.conversation_search_tools", "conversation_search_tools"),
         # Exact arithmetic, dates and currency conversion (ADR-318).
         ("src.domains.agents.tools.calculation_tools", "calculation_tools"),
         # LIA's own registers and gallery as lookups (ADR-318).

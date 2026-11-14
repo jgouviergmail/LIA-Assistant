@@ -12,6 +12,8 @@ export type WeatherFeeling =
   | 'hot'
   | 'heat';
 export type DayPhase = 'dawn' | 'morning' | 'noon' | 'afternoon' | 'evening' | 'night';
+/** The sky of an ordinary day: no condition the face plays, only what it sees. */
+export type SkyCover = 'clear' | 'clouds';
 
 function validTimezone(timezone: string): boolean {
   try {
@@ -113,6 +115,19 @@ export function weatherFlagsAt(
   const flags = Object.freeze(WEATHER_ORDER.filter((_, index) => mask & (1 << index)));
   weatherFlags.set(mask, flags);
   return flags;
+}
+
+const SKIES: Readonly<Record<string, SkyCover>> = { Clear: 'clear', Clouds: 'clouds' };
+
+/**
+ * The sky of the current observation, apart from the weather a face plays: a
+ * clear or cloudy day is no condition (`weatherFlagsAt` stays as it was), it is
+ * a sky to draw. Same freshness as every other reading of the observation.
+ */
+export function skyAt(context: CompanionEnvironment | null, now: number): SkyCover | null {
+  const weather = freshWeatherAt(context, now);
+  if (!weather || !Object.hasOwn(SKIES, weather.condition_code)) return null;
+  return SKIES[weather.condition_code];
 }
 
 /** Legacy dominant intention retains condition → wind → temperature precedence. */

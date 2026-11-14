@@ -18,6 +18,7 @@ from langchain_core.runnables import RunnableConfig
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException
 from src.domains.agents.emails.digest import DIGEST_STATUS_FIELD, EmailDigest
+from src.domains.agents.emails.previous_reply import PreviousReply
 from src.domains.connectors.models import ConnectorType
 from src.domains.tool_assists import mail
 from src.domains.tool_assists.door import AssistRun
@@ -191,6 +192,8 @@ async def test_a_reply_is_written_from_the_message_read_and_the_person_s_instruc
     assert seen["user_language"] == "fr"
     assert seen["user_id"] == str(run.user_id)
     assert seen["config"] is run.config
+    # Should the person's writing style have to be learned, the assist files that read.
+    assert seen["style_reading"] == run.reading
     assert run.opened is True
 
 
@@ -245,6 +248,9 @@ async def test_a_whole_message_is_the_assistant_s_writer_on_the_person_s_words(
     assert seen["language"] == "fr"
     assert seen["sender_name"] == "Jean"
     assert seen["config"] is run.config
+    # The letter follows how the person writes (ADR-383), learned on this run if need be.
+    assert seen["user_id"] == str(run.user_id)
+    assert seen["style_reading"] == run.reading
 
 
 async def test_a_message_with_no_words_is_a_failure(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -488,3 +494,28 @@ async def test_an_empty_answer_on_a_conversation_is_a_failure(
 
     with pytest.raises(BaseAPIException):
         await summarize_conversation(_run(), MESSAGE_ID)
+
+
+async def test_a_proposed_reply_reads_what_the_person_already_answered(
+    client: _Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR-379: asked for a reply to a message already answered, the writer is told so."""
+    seen: dict[str, Any] = {}
+
+    async def write(original: dict[str, Any], **fields: Any) -> str:
+        seen.update(fields)
+        return "And Monday?"
+
+    async def earlier(mailbox: object, original: dict[str, Any], **fields: Any) -> PreviousReply:
+        seen["asked_of"] = (mailbox, original["id"], fields)
+        return PreviousReply(at=None, words="Friday works for me.")
+
+    monkeypatch.setattr(mail, "draft_reply_body", write)
+    monkeypatch.setattr(mail, "previous_reply_of", earlier)
+
+    await propose_reply(_run(), MESSAGE_ID, None, None)
+
+    assert seen["previous_reply"].words == "Friday works for me."
+    mailbox, message_id, fields = seen["asked_of"]
+    assert mailbox is client and message_id == MESSAGE_ID
+    assert fields["with_words"] is True

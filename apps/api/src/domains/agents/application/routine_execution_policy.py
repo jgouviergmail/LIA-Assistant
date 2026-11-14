@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import structlog
-from redis.asyncio import Redis
 from sqlalchemy import Result, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,10 +16,10 @@ from src.domains.agents.application.authorization import load_actor
 from src.domains.agents.application.availability import require_application_tools
 from src.domains.agents.application.routine_operations import routine_snapshot
 from src.domains.agents.application.routine_schemas import RoutineSnapshot
+from src.domains.conversations.execution_repository import ConversationExecutionRepository
 from src.domains.scheduled_actions.models import ScheduledAction
 from src.domains.scheduled_actions.repository import ScheduledActionRepository
 from src.infrastructure.database.session import get_db_context
-from src.infrastructure.streaming.run_stream_broker import active_run_key
 
 logger = structlog.get_logger(__name__)
 
@@ -33,11 +32,13 @@ class RoutineExecutionReservation:
     expires_at: datetime
 
 
-async def wait_for_routine_turn(redis: Redis, conversation_id: str, expires_at: datetime) -> bool:
+async def wait_for_routine_turn(owner_id: UUID, expires_at: datetime) -> bool:
     """Wait only within the approval deadline, without holding a SQL transaction."""
     while datetime.now(UTC) < expires_at:
-        if not await redis.exists(active_run_key(conversation_id)):
-            return True
+        async with get_db_context() as db:
+            occupied = await ConversationExecutionRepository(db).active_for_owner(owner_id)
+        if occupied is None:
+            return datetime.now(UTC) < expires_at
         remaining = (expires_at - datetime.now(UTC)).total_seconds()
         if remaining <= 0:
             return False

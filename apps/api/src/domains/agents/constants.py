@@ -166,11 +166,9 @@ CONTEXT_DOMAIN_TICKETS = "tickets"  # Workboard tickets (ADR-276), = the domain 
 WEB_SEARCH_SOURCE_PERPLEXITY = "perplexity"
 WEB_SEARCH_SOURCE_BRAVE = "brave"
 WEB_SEARCH_SOURCE_WIKIPEDIA = "wikipedia"
-WEB_SEARCH_ALL_SOURCES: list[str] = [
-    WEB_SEARCH_SOURCE_PERPLEXITY,
-    WEB_SEARCH_SOURCE_BRAVE,
-    WEB_SEARCH_SOURCE_WIKIPEDIA,
-]
+# The instance's SearXNG (lot 18): the page links of a person with no Brave key.
+# Equal to ``connectors.instance_search.INSTANCE_SEARCH_SOURCE`` (a test holds it).
+WEB_SEARCH_SOURCE_SEARXNG = "searxng"
 
 # Context type names (used in Store namespace)
 CONTEXT_TYPE_CONTACTS_LIST = "contacts_list"
@@ -634,7 +632,7 @@ __all__ = [
     "WEB_SEARCH_SOURCE_PERPLEXITY",
     "WEB_SEARCH_SOURCE_BRAVE",
     "WEB_SEARCH_SOURCE_WIKIPEDIA",
-    "WEB_SEARCH_ALL_SOURCES",
+    "WEB_SEARCH_SOURCE_SEARXNG",
     "CONTEXT_TYPE_CONTACTS_LIST",
     "CONTEXT_TYPE_CONTACTS_ITEM",
     "ALL_CONTEXT_TYPES",

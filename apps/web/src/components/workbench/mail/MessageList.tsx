@@ -43,6 +43,8 @@ export interface MessageListProps {
   searching: boolean;
   whenOf: (message: MailSummary) => string | null;
   labelName: MessageRowProps['labelName'];
+  /** Where a row stands in its conversation, once read (ADR-379). */
+  replyMarkOf?: (message: MailSummary) => MessageRowProps['replyMark'];
   hrefOf: (message: MailSummary) => string;
   onOpen: (message: MailSummary) => void;
   onToggle: MessageRowProps['onToggle'];
@@ -87,6 +89,7 @@ export function MessageList({
   searching,
   whenOf,
   labelName,
+  replyMarkOf,
   hrefOf,
   onOpen,
   onToggle,
@@ -156,6 +159,7 @@ export function MessageList({
             onForever={onForever}
             draggable={draggable}
             conversation={members.length > 1}
+            replyMark={replyMarkOf?.(message)}
             linkRef={(_, link) => members.forEach(member => linkRef(member.id, link))}
           />
         ))}

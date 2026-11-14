@@ -16,7 +16,19 @@ vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'phone-owner' 
 import { renderWithProviders, screen, userEvent, waitFor } from '@/__tests__/test-utils';
 import type { TelephonyIdentity } from '@/types/telephony';
 
-const { useTelephonyIdentity } = vi.hoisted(() => ({ useTelephonyIdentity: vi.fn() }));
+const { useTelephonyIdentity, operator } = vi.hoisted(() => ({
+  useTelephonyIdentity: vi.fn(),
+  operator: { offered: true },
+}));
+
+vi.mock('@/hooks/useAppConfig', () => ({
+  useAppConfig: () => ({
+    config: {
+      features: { telephony_enabled: true },
+      capabilities: { telephony: { enabled: operator.offered, family: 'media' } },
+    },
+  }),
+}));
 
 vi.mock('@/hooks/useTelephonyIdentity', async importOriginal => {
   const actual = await importOriginal<typeof import('@/hooks/useTelephonyIdentity')>();
@@ -73,6 +85,54 @@ function mockHook(value: TelephonyIdentity | null, overrides: Record<string, unk
 describe('TelephonyIdentitySection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    operator.offered = true;
+  });
+
+  describe('under the operator switch', () => {
+    beforeEach(() => {
+      operator.offered = false;
+    });
+
+    it('keeps the stored number readable and removable, and offers nothing else', async () => {
+      // The number is the person's record; declaring one, verifying it by a
+      // call and tuning owner calls are the capability the switch closed.
+      const actions = mockHook(identity({ verified: true }));
+      const { user } = renderWithProviders(<TelephonyIdentitySection lng="fr" />);
+
+      const field = screen.getByRole('textbox', {
+        name: 'settings.telephony.identity.number_label',
+      });
+      expect(field).toHaveValue('+33612345678');
+      expect(field).toHaveAttribute('readonly');
+      expect(screen.queryByRole('button', { name: 'common.save' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'settings.telephony.identity.verify_by_call' })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText('settings.telephony.identity.call_mode.label')
+      ).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'settings.telephony.identity.remove' }));
+
+      expect(actions.clearNumber).toHaveBeenCalledTimes(1);
+      expect(actions.setNumber).not.toHaveBeenCalled();
+    });
+
+    it('says why a removal was refused', async () => {
+      mockHook(identity(), { clearNumber: vi.fn().mockResolvedValue('refused') });
+      const { user } = renderWithProviders(<TelephonyIdentitySection lng="fr" />);
+
+      await user.click(screen.getByRole('button', { name: 'settings.telephony.identity.remove' }));
+
+      expect(await screen.findByText('refused')).toBeInTheDocument();
+    });
+
+    it('renders nothing where no number is stored', () => {
+      mockHook(identity({ phone_number: null }));
+      const { container } = renderWithProviders(<TelephonyIdentitySection lng="fr" />);
+
+      expect(container).toBeEmptyDOMElement();
+    });
   });
 
   it('renders nothing when the feature is off', () => {
@@ -241,6 +301,35 @@ describe('TelephonyIdentitySection', () => {
     expect(screen.getByRole('switch', { name: 'treatments.domains.event' })).not.toBeChecked();
     await userEvent.click(email);
     expect(actions.setDisabledDomains).toHaveBeenLastCalledWith(['email', 'event']);
+  });
+
+  it('while a change is saved, the call mode list stays focusable and does not open', async () => {
+    const actions = mockHook(identity(), { isBusy: true });
+    renderWithProviders(<TelephonyIdentitySection lng="fr" />);
+
+    const list = screen.getByRole('combobox', {
+      name: 'settings.telephony.identity.call_mode.label',
+    });
+    expect(list).toHaveAttribute('aria-busy', 'true');
+    expect(list).not.toBeDisabled();
+    await userEvent.click(list);
+    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(actions.setCallMode).not.toHaveBeenCalled();
+  });
+
+  it('while a change is saved, a domain switch stays focusable and ignores a toggle', async () => {
+    // A switch that disables itself while it saves its own change hands the focus to the page.
+    const actions = mockHook(identity(), { isBusy: true });
+    renderWithProviders(<TelephonyIdentitySection lng="fr" />);
+
+    const email = screen.getByRole('switch', { name: 'treatments.domains.email' });
+    expect(email).toHaveAttribute('aria-busy', 'true');
+    expect(email).not.toBeDisabled();
+    email.focus();
+    await userEvent.click(email);
+
+    expect(email).toHaveFocus();
+    expect(actions.setDisabledDomains).not.toHaveBeenCalled();
   });
 
   it('when Live cannot run here, the list is disabled and says which mode a call will run', () => {

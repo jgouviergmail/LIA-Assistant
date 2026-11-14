@@ -2,11 +2,13 @@
  * Tasks card (P15 extension) — strictly pending/overdue tasks.
  *
  * Rows open the chat with a direction-aware intent: reschedule for overdue,
- * progress for pending (QW-9 `?draft=` pattern).
+ * progress for pending (QW-9 `?draft=` pattern). The card gathers every list
+ * (2026-11-10): each task names its own in a badge, and a list that could not
+ * be read in full is said under the tasks.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderWithProviders, screen, fireEvent } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, fireEvent, within } from '@/__tests__/test-utils';
 
 import { TasksCard } from '../cards/TasksCard';
 import type { CardSection, TasksData } from '@/types/briefing';
@@ -107,6 +109,63 @@ describe('TasksCard', () => {
     expect(
       screen.queryByText(/dashboard\.briefing\.cards\.tasks\.due_in_days/)
     ).not.toBeInTheDocument();
+  });
+
+  it('names the list of each task in a badge, before a screen reader as on screen', () => {
+    renderWithProviders(
+      <TasksCard
+        {...cardProps}
+        section={section({
+          overdue_count: 0,
+          items: [
+            {
+              title: 'Acheter du pain',
+              due_date_iso: '2026-07-22',
+              days_until_due: 0,
+              overdue: false,
+              list_name: 'Courses',
+            },
+            {
+              title: 'Relancer Paul',
+              due_date_iso: null,
+              days_until_due: null,
+              overdue: false,
+              list_name: 'Travail',
+            },
+          ],
+        })}
+      />
+    );
+
+    const dated = screen.getByRole('button', { name: /subject=Acheter du pain/ });
+    const undated = screen.getByRole('button', { name: /subject=Relancer Paul/ });
+    expect(within(dated).getByTitle('Courses')).toHaveTextContent(
+      'workbench.tasks.list_label Courses'
+    );
+    // A task without a day still says where it lives.
+    expect(within(undated).getByTitle('Travail')).toHaveTextContent(
+      'workbench.tasks.list_label Travail'
+    );
+  });
+
+  it('draws no badge for a task whose list has no name (a payload cached before it)', () => {
+    renderWithProviders(<TasksCard {...cardProps} section={section(fullData)} />);
+
+    expect(screen.queryByText(/workbench\.tasks\.list_label/)).not.toBeInTheDocument();
+  });
+
+  it('says so when a list could not be read in full, and nothing otherwise', () => {
+    const { rerender } = renderWithProviders(
+      <TasksCard {...cardProps} section={section({ ...fullData, partial: true })} />
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('dashboard.briefing.cards.tasks.partial');
+
+    rerender(<TasksCard {...cardProps} section={section({ ...fullData, partial: false })} />);
+    expect(screen.queryByText('dashboard.briefing.cards.tasks.partial')).not.toBeInTheDocument();
+
+    rerender(<TasksCard {...cardProps} section={section(fullData)} />);
+    expect(screen.queryByText('dashboard.briefing.cards.tasks.partial')).not.toBeInTheDocument();
   });
 
   it('shows the empty state when the section is empty', () => {

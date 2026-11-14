@@ -39,11 +39,21 @@ def _mail(labels: list[str], headers: dict[str, str] | None = None) -> dict:
 @pytest.mark.parametrize(
     ("message", "passes", "reason"),
     [
-        (_mail(["INBOX", "IMPORTANT"]), True, "important"),
-        (_mail(["INBOX"]), False, "no_required_label"),
-        (_mail(["INBOX", "IMPORTANT", "CATEGORY_PROMOTIONS"]), False, "excluded_label"),
-        (_mail(["INBOX", "IMPORTANT"], {"List-Unsubscribe": "<mailto:x>"}), False, "list_mail"),
-        (_mail(["INBOX", "IMPORTANT"], {"Precedence": "bulk"}), False, "list_mail"),
+        (_mail(["INBOX", "IMPORTANT", "UNREAD"]), True, "important"),
+        # Opened since it arrived: nothing left to announce, however important.
+        (_mail(["INBOX", "IMPORTANT"]), False, "already_read"),
+        (_mail(["INBOX", "UNREAD"]), False, "no_required_label"),
+        (
+            _mail(["INBOX", "IMPORTANT", "UNREAD", "CATEGORY_PROMOTIONS"]),
+            False,
+            "excluded_label",
+        ),
+        (
+            _mail(["INBOX", "IMPORTANT", "UNREAD"], {"List-Unsubscribe": "<mailto:x>"}),
+            False,
+            "list_mail",
+        ),
+        (_mail(["INBOX", "IMPORTANT", "UNREAD"], {"Precedence": "bulk"}), False, "list_mail"),
         ({}, False, "no_required_label"),
     ],
 )
@@ -53,9 +63,11 @@ def test_mail_verdicts(message: dict, passes: bool, reason: str) -> None:
 
 
 def test_mail_batch_passes_when_any_message_does() -> None:
-    assert any_mail_passes([_mail(["INBOX"]), _mail(["IMPORTANT"])], RULES).passes is True
+    assert any_mail_passes([_mail(["INBOX"]), _mail(["IMPORTANT", "UNREAD"])], RULES).passes is True
     assert any_mail_passes([], RULES).reason == "no_message"
     assert any_mail_passes([_mail(["INBOX"])], RULES).reason == "no_required_label"
+    # Every important message of the batch was opened already: no wake.
+    assert any_mail_passes([_mail(["IMPORTANT"])], RULES).reason == "already_read"
 
 
 def test_list_mail_rule_can_be_switched_off_and_labels_are_settings() -> None:
@@ -66,8 +78,10 @@ def test_list_mail_rule_can_be_switched_off_and_labels_are_settings() -> None:
             push_wake_mail_exclude_list_mail=False,
         )
     )
-    assert mail_passes(_mail(["STARRED"], {"List-Unsubscribe": "x"}), rules).passes is True
-    assert mail_passes(_mail(["IMPORTANT"]), rules).reason == "no_required_label"
+    assert (
+        mail_passes(_mail(["STARRED", "UNREAD"], {"List-Unsubscribe": "x"}), rules).passes is True
+    )
+    assert mail_passes(_mail(["IMPORTANT", "UNREAD"]), rules).reason == "no_required_label"
 
 
 def _event(**overrides: object) -> dict:

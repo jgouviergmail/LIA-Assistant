@@ -43,9 +43,9 @@
   "bricks": {
     "f.chat": {
       "name": "Conversation",
-      "role": "The single thread where you talk to LIA, in writing or by voice: streamed answers, attachments, visual cards and the cost shown under each answer. With unchanged content, interactive cards and widgets retain their state during automatic display updates.",
-      "goal": "Answer accurately and fast, in a single thread, showing what each answer cost.",
-      "src": "27744283b4cf"
+      "role": "Talk to LIA in Main or a named discussion, by text or voice. Each discussion keeps its history, attachments and session meter. Answers stream with visual cards and per-message cost. Interactive cards and widgets keep their state through background updates when their content stays the same.",
+      "goal": "Follow each topic in its own history while keeping the account's preferences and learning available.",
+      "src": "7291719e0f81"
     },
     "f.routing": {
       "name": "Understanding the request",

@@ -2,7 +2,7 @@
 ConversationOrchestrator: Manage conversation lifecycle and persistence.
 
 Responsibilities:
-- Setup conversation (get or create)
+- Setup an already admitted conversation
 - Setup tracking context for tokens/messages
 - Fetch user OAuth scopes and active connector types
 - Persist messages to database
@@ -21,10 +21,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from structlog import get_logger
 
+from src.core.conversation_target import ConversationRef
 from src.domains.chat.schemas import TokenSummaryDTO
 from src.domains.chat.service import TrackingContext
 from src.domains.connectors.models import Connector, ConnectorStatus
-from src.domains.conversations.service import ConversationService
 
 logger = get_logger(__name__)
 
@@ -34,7 +34,7 @@ class ConversationContext:
     Context for conversation execution.
 
     Contains all information needed for graph execution:
-    - conversation_id: UUID for thread_id
+    - target: Immutable business identity and resettable runtime
     - tracking_context: Token/message tracking
     - oauth_scopes: User's OAuth permissions
     - active_connector_types: The types of the connectors that granted them,
@@ -45,13 +45,14 @@ class ConversationContext:
 
     def __init__(
         self,
-        conversation_id: uuid.UUID,
+        target: ConversationRef,
         tracking_context: TrackingContext,
         oauth_scopes: list[str],
         previous_tokens_summary: TokenSummaryDTO | None = None,
         active_connector_types: frozenset[str] = frozenset(),
-    ):
-        self.conversation_id = conversation_id
+    ) -> None:
+        self.target = target
+        self.conversation_id = target.id
         self.tracking_context = tracking_context
         self.oauth_scopes = oauth_scopes
         self.active_connector_types = active_connector_types
@@ -77,7 +78,7 @@ class ConversationOrchestrator:
     Service for managing conversation lifecycle and persistence.
 
     Responsibilities:
-    - Get or create conversation
+    - Retain the caller's frozen conversation target
     - Setup tracking context
     - Fetch user OAuth scopes
     - Persist messages
@@ -86,38 +87,30 @@ class ConversationOrchestrator:
 
     async def setup_conversation(
         self,
-        user_id: uuid.UUID,
+        target: ConversationRef,
         session_id: str,
         run_id: str,
         db: AsyncSession,
-        language: str | None = None,
     ) -> ConversationContext:
         """
-        Setup conversation: get/create, setup tracking, fetch OAuth scopes.
+        Set up tracking and account grants for the exact admitted conversation.
 
         Args:
-            user_id: User UUID
+            target: Immutable identity resolved and admitted before graph setup.
             session_id: Session identifier
             run_id: Unique run identifier
             db: Database session
-            language: Raw locale of the user, used only when the conversation
-                has to be CREATED (its default title is user-facing). This is
-                the nominal path — every first chat message lands here — so
-                omitting it is what leaves a non-French user with a French
-                title. ``None`` keeps the historical default.
 
         Returns:
             ConversationContext with conversation_id, tracking_context, oauth_scopes
 
         Example:
-            >>> context = await orchestrator.setup_conversation(user_id, session_id, run_id, db)
+            >>> context = await orchestrator.setup_conversation(target, session_id, run_id, db)
             >>> print(context.conversation_id)
             >>> print(len(context.oauth_scopes))
         """
-        # Get or create conversation
-        conv_service = ConversationService()
-        conversation = await conv_service.get_or_create_conversation(user_id, db, language=language)
-        conversation_id = conversation.id
+        user_id = target.owner_id
+        conversation_id = target.id
 
         logger.info(
             "conversation_setup_started",
@@ -147,7 +140,7 @@ class ConversationOrchestrator:
         )
 
         return ConversationContext(
-            conversation_id=conversation_id,
+            target=target,
             tracking_context=tracking_context,
             oauth_scopes=oauth_scopes,
             previous_tokens_summary=previous_tokens_summary,

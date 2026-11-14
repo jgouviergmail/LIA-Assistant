@@ -1,4 +1,4 @@
-import type { DayPhase, WeatherFeeling } from '../environment';
+import type { DayPhase, SkyCover, WeatherFeeling } from '../environment';
 import type { ChannelKey, ChannelValues } from './channels';
 
 type WeatherChannel = Extract<ChannelKey, `weather${string}`>;
@@ -23,14 +23,35 @@ const LIGHT: Record<DayPhase, readonly [number, number]> = {
   night: [0, 1],
 };
 
-/** Independent verified conditions compose; tasks and facial acting never hide a worn prop. */
+const NO_CONDITIONS: readonly WeatherFeeling[] = [];
+
+/**
+ * The conditions a context observes: its flags, or — a context that carries
+ * none — its dominant feeling. ONE reading for the props a face wears and
+ * for what it plays: a scarf with no sneeze would be two readings.
+ */
+export function weatherConditions(
+  weather: WeatherFeeling | null,
+  weatherFlags?: readonly WeatherFeeling[]
+): readonly WeatherFeeling[] {
+  if (weatherFlags?.length) return weatherFlags;
+  return weather ? [weather] : NO_CONDITIONS;
+}
+
+/**
+ * Independent verified conditions compose; tasks and facial acting never hide a
+ * worn prop. The sky of an ordinary day is drawn by day only — a sun, and a
+ * cloud passing before it on a cloudy one — and never counts as a condition.
+ */
 export function ambientChannels(
   weather: WeatherFeeling | null,
   phase: DayPhase,
   enabled: boolean,
-  weatherFlags?: readonly WeatherFeeling[]
+  weatherFlags?: readonly WeatherFeeling[],
+  sky: SkyCover | null = null
 ) {
   const [lightWarm, lightCool] = LIGHT[phase];
+  const daySky = enabled && phase !== 'night';
   const channels = {
     weatherRain: 0,
     weatherStorm: 0,
@@ -42,15 +63,29 @@ export function ambientChannels(
     weatherFog: 0,
     weatherWind: 0,
     weatherNight: enabled && phase === 'night' ? 0.7 : 0,
+    weatherSun: daySky && sky !== null ? 1 : 0,
+    weatherCloud: daySky && sky === 'clouds' ? 1 : 0,
     lightWarm,
     lightCool,
   };
-  const conditions = weatherFlags?.length ? weatherFlags : weather ? [weather] : [];
-  if (enabled) for (const condition of conditions) Object.assign(channels, WEATHER[condition]);
+  if (enabled)
+    for (const condition of weatherConditions(weather, weatherFlags))
+      Object.assign(channels, WEATHER[condition]);
   return channels;
 }
 
-/** One rig clock, no independent CSS timer. Props retain their visible coverage. */
+/** The fall's period. A drop falls three times in it, and the slow drift
+ * — snow, clouds, a gust, the sun's rays — takes three of them. Whole ratios
+ * keep every particle seamless where its sawtooth wraps. */
+export const AMBIENT_FALL_MS = 3200;
+export const AMBIENT_DROP_MS = AMBIENT_FALL_MS / 3;
+export const AMBIENT_DRIFT_MS = AMBIENT_FALL_MS * 3;
+
+/**
+ * One rig clock, no independent CSS timer: every particle the sheet draws reads
+ * one of these phases (sawtooths in [0, 1), parked at 0.5 when nothing moves)
+ * and derives its own path from it. Props retain their visible coverage.
+ */
 export function ambientMotion(values: Readonly<ChannelValues>, now: number, reduced: boolean) {
   const weight = Math.max(
     values.weatherRain,
@@ -60,15 +95,20 @@ export function ambientMotion(values: Readonly<ChannelValues>, now: number, redu
     values.weatherHot,
     values.weatherHeat,
     values.weatherFog,
-    values.weatherWind
+    values.weatherWind,
+    values.weatherSun,
+    values.weatherCloud
   );
   const moving = !reduced && weight > 0;
   // A fixed phase survives spring crossfades without speeding up or jumping.
-  const fall = moving ? (now % 3200) / 3200 : 0.5;
+  const phase = (period: number) => (moving ? (now % period) / period : 0.5);
+  const fall = phase(AMBIENT_FALL_MS);
   return {
     ambientSway: moving ? weight * (Math.sin(now / 1700) * 0.6 + Math.sin(now / 2900) * 0.25) : 0,
     ambientFall: fall,
     ambientPulse: Math.sin(Math.PI * fall) ** 2,
+    ambientDrop: phase(AMBIENT_DROP_MS),
+    ambientDrift: phase(AMBIENT_DRIFT_MS),
   };
 }
 

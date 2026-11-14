@@ -1,0 +1,224 @@
+{
+  "doc_types": [
+    "xlsx",
+    "csv"
+  ],
+  "language": "en",
+  "content": {
+    "filename_stem": "sales-charts",
+    "title": "Sales charts",
+    "tone": "technical",
+    "inputs": [
+      {
+        "name": "Target growth",
+        "value": "8%",
+        "kind": "percent",
+        "note": "Board objective"
+      }
+    ],
+    "sheets": [
+      {
+        "name": "Regions",
+        "headers": [
+          "Region",
+          "Revenue",
+          "Cost"
+        ],
+        "rows": [
+          [
+            "North",
+            "12000",
+            "7400"
+          ],
+          [
+            "South",
+            "8500",
+            "6100"
+          ],
+          [
+            "East",
+            "6100",
+            "6300"
+          ],
+          [
+            "West",
+            "9900",
+            "5200"
+          ]
+        ],
+        "columns": [
+          {
+            "header": "Revenue",
+            "kind": "amount",
+            "unit": "USD",
+            "total": "sum"
+          },
+          {
+            "header": "Cost",
+            "kind": "amount",
+            "unit": "USD",
+            "total": "sum"
+          },
+          {
+            "header": "Margin",
+            "formula": "{Revenue} - {Cost}",
+            "kind": "amount",
+            "unit": "USD",
+            "total": "sum"
+          }
+        ],
+        "chart": {
+          "intent": "compare",
+          "values": [
+            "Revenue",
+            "Cost"
+          ],
+          "title": "Revenue and cost by region"
+        }
+      },
+      {
+        "name": "Months",
+        "headers": [
+          "Month",
+          "Revenue"
+        ],
+        "rows": [
+          [
+            "2026-01-01",
+            "100"
+          ],
+          [
+            "2026-02-01",
+            "120"
+          ],
+          [
+            "2026-03-01",
+            "130"
+          ],
+          [
+            "2026-04-01",
+            "150"
+          ],
+          [
+            "2026-05-01",
+            "141"
+          ],
+          [
+            "2026-06-01",
+            "160"
+          ]
+        ],
+        "columns": [
+          {
+            "header": "Month",
+            "kind": "date"
+          },
+          {
+            "header": "Growth",
+            "formula": "{Revenue} / PREVIOUS({Revenue}) - 1",
+            "kind": "percent",
+            "better": "higher"
+          },
+          {
+            "header": "Gap to target",
+            "formula": "{Growth} - {Target growth}",
+            "kind": "percent"
+          }
+        ],
+        "chart": {
+          "intent": "trend",
+          "values": [
+            "Growth",
+            "Gap to target"
+          ],
+          "title": "Monthly growth against the target"
+        }
+      },
+      {
+        "name": "Channels",
+        "headers": [
+          "Channel",
+          "Orders"
+        ],
+        "rows": [
+          [
+            "Web",
+            "540"
+          ],
+          [
+            "Shops",
+            "310"
+          ],
+          [
+            "Phone",
+            "90"
+          ],
+          [
+            "Partners",
+            "60"
+          ]
+        ],
+        "chart": {
+          "intent": "share",
+          "title": "Orders by channel"
+        }
+      },
+      {
+        "name": "Shops",
+        "headers": [
+          "Shop",
+          "Area",
+          "Sales"
+        ],
+        "rows": [
+          [
+            "Lyon",
+            "120",
+            "410"
+          ],
+          [
+            "Lille",
+            "95",
+            "350"
+          ],
+          [
+            "Nantes",
+            "140",
+            "480"
+          ],
+          [
+            "Nice",
+            "80",
+            "300"
+          ],
+          [
+            "Rennes",
+            "110",
+            "390"
+          ],
+          [
+            "Metz",
+            "70",
+            "240"
+          ]
+        ],
+        "columns": [
+          {
+            "header": "Area",
+            "kind": "quantity",
+            "unit": "m²"
+          },
+          {
+            "header": "Sales",
+            "kind": "amount",
+            "unit": "USD"
+          }
+        ],
+        "chart": {
+          "intent": "relation",
+          "title": "Sales against floor area"
+        }
+      }
+    ]
+  }
+}

@@ -1,6 +1,10 @@
 # ADR-307 — A connector that asks nothing of the person belongs to the instance
 
 **Status**: accepted — 2026-09-23
+**Amended**: 2026-11-13 by [ADR-382](ADR-382-The-Instance-Searches-The-Web-For-Who-Has-No-Key.md) —
+a sixth keyless connector, the instance's SearXNG, served only where the operator runs one
+(`search_not_deployed`); like Google Weather, it answers only for whoever configured no
+provider of their own
 **Amends**: ADR-126 (account provisioning — the keyless step is gone), ADR-134 (the « Reconnect » banner), ADR-184 (what the settings offer is what the API accepts), and the 2026-09-12 sign-up provisioning recorded in `docs/technical/CONNECTORS_PATTERNS.md`
 
 ## Context

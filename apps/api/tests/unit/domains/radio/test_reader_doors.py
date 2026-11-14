@@ -13,6 +13,7 @@ import pytest
 from src.domains.briefing.exceptions import ConnectorAccessError
 from src.domains.connectors.active_client import ActiveClient, ClientUnavailable
 from src.domains.connectors.calendar_access import CalendarAccess
+from src.domains.radio.personal import MAX_PER_SOURCE, PersonalSource
 from src.domains.radio.readers import agenda, sent_mail, tasks
 
 pytestmark = pytest.mark.unit
@@ -34,13 +35,21 @@ class CalendarClient:
 
 
 class TasksClient:
-    def __init__(self, items: list[dict[str, Any]]) -> None:
-        self.items = items
+    """An account whose lists hold these tasks, or fail (the radio reads every list)."""
+
+    def __init__(self, lists: dict[str, Any]) -> None:
+        self.lists = lists
         self.calls: list[dict[str, Any]] = []
 
-    async def list_tasks(self, **kwargs: Any) -> dict[str, Any]:
-        self.calls.append(kwargs)
-        return {"items": self.items}
+    async def list_task_lists(self, max_results: int) -> dict[str, Any]:
+        return {"items": [{"id": key, "title": key.title()} for key in self.lists]}
+
+    async def list_tasks(self, task_list_id: str, **kwargs: Any) -> dict[str, Any]:
+        self.calls.append({"task_list_id": task_list_id, **kwargs})
+        held = self.lists[task_list_id]
+        if isinstance(held, Exception):
+            raise held
+        return {"items": held}
 
 
 class MailClient:
@@ -113,52 +122,91 @@ class TestTasks:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         client = TasksClient(
-            [
-                {
-                    "id": "t1",
-                    "title": "Done",
-                    "status": "completed",
-                    "completed": "2026-09-26T08:00:00.000Z",
-                },
-                {
-                    "id": "t2",
-                    "title": "Old",
-                    "status": "completed",
-                    "completed": "2026-09-25T08:00:00.000Z",
-                },
-            ]
+            {
+                "home": [
+                    {
+                        "id": "t1",
+                        "title": "Done",
+                        "status": "completed",
+                        "completed": "2026-09-26T08:00:00.000Z",
+                    },
+                    {
+                        "id": "t2",
+                        "title": "Old",
+                        "status": "completed",
+                        "completed": "2026-09-25T08:00:00.000Z",
+                    },
+                ],
+                "work": [
+                    {
+                        "id": "t3",
+                        "title": "Sent",
+                        "status": "completed",
+                        "completed": "2026-09-26T09:00:00.000Z",
+                    }
+                ],
+            }
         )
         monkeypatch.setattr(tasks, "open_active_client", _door(self.active(client)))
-
-        async def resolve(**_kwargs: object) -> str:
-            return "list-1"
-
-        monkeypatch.setattr(tasks, "resolve_owner_container_id", resolve)
         drafts = await tasks.read_tasks_done(USER, now=NOW, tz=TZ)
-        [call] = client.calls
-        assert (call["task_list_id"], call["show_completed"], call["show_hidden"]) == (
-            "list-1",
-            True,
-            True,
-        )
-        assert call["completed_min"] == datetime(2026, 9, 26, 0, 0, tzinfo=TZ).isoformat()
-        assert [d.key for d in drafts] == ["done:task:t1"]
+        assert [call["task_list_id"] for call in client.calls] == ["home", "work"]
+        for call in client.calls:
+            assert (call["show_completed"], call["show_hidden"]) == (True, True)
+            assert call["completed_min"] == datetime(2026, 9, 26, 0, 0, tzinfo=TZ).isoformat()
+        assert [d.key for d in drafts] == ["done:task:t1", "done:task:t3"], "every list"
 
     async def test_ahead_asks_for_the_week_s_open_tasks(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        client = TasksClient([])
+        client = TasksClient({"home": []})
         monkeypatch.setattr(tasks, "open_active_client", _door(self.active(client)))
-
-        async def resolve(**_kwargs: object) -> str:
-            return "list-1"
-
-        monkeypatch.setattr(tasks, "resolve_owner_container_id", resolve)
         assert await tasks.read_tasks_ahead(USER, now=NOW, tz=TZ) == []
         [call] = client.calls
         assert call["show_completed"] is False
         assert call["due_min"] == datetime(2026, 9, 27, 0, 0, tzinfo=TZ).isoformat()
         assert call["due_max"] == datetime(2026, 10, 4, 0, 0, tzinfo=TZ).isoformat()
+
+    async def test_the_week_ahead_tells_the_soonest_of_every_list_first(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """One list's whole week never hides another list's tomorrow behind the bound."""
+
+        def due(task_id: str, day: int) -> dict[str, Any]:
+            return {"id": task_id, "title": task_id, "due": f"2026-09-{day}T00:00:00.000Z"}
+
+        crowd = [due(f"h{index}", 30) for index in range(MAX_PER_SOURCE[PersonalSource.TASKS])]
+        client = TasksClient({"home": crowd, "work": [due("w1", 27)]})
+        monkeypatch.setattr(tasks, "open_active_client", _door(self.active(client)))
+
+        drafts = await tasks.read_tasks_ahead(USER, now=NOW, tz=TZ)
+
+        assert len(drafts) == MAX_PER_SOURCE[PersonalSource.TASKS]
+        assert drafts[0].key == "task:w1"
+
+    async def test_a_list_that_fails_leaves_the_others_to_answer(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        done = {
+            "id": "t1",
+            "title": "Done",
+            "status": "completed",
+            "completed": "2026-09-26T08:00:00.000Z",
+        }
+        client = TasksClient({"home": TimeoutError(), "work": [done]})
+        monkeypatch.setattr(tasks, "open_active_client", _door(self.active(client)))
+
+        drafts = await tasks.read_tasks_done(USER, now=NOW, tz=TZ)
+
+        assert [d.key for d in drafts] == ["done:task:t1"]
+
+    async def test_nothing_beside_a_failed_list_is_a_failed_read_never_an_empty_day(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        client = TasksClient({"home": TimeoutError(), "work": []})
+        monkeypatch.setattr(tasks, "open_active_client", _door(self.active(client)))
+
+        with pytest.raises(TimeoutError):
+            await tasks.read_tasks_done(USER, now=NOW, tz=TZ)
 
     async def test_no_tasks_provider_is_nothing_to_read(
         self, monkeypatch: pytest.MonkeyPatch

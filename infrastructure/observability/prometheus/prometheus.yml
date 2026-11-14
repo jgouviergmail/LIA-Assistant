@@ -71,11 +71,13 @@ scrape_configs:
           service: 'cadvisor'
     # Keep-list (ADR-333 amendment 2026-10-12): the families the dashboards
     # and rules read. cAdvisor exposed 7,137 series on production and eight
-    # families were read; the rest cost head memory for nothing. A panel
+    # families were read; the rest cost head memory for nothing. The ninth,
+    # the active page cache, joined on 2026-11-10: ContainerMemoryNearLimit
+    # subtracts it from the working set. A panel
     # added on a dropped family fails test_pipeline_keep_lists_guard.
     metric_relabel_configs:
       - source_labels: [__name__]
-        regex: 'container_cpu_usage_seconds_total|container_last_seen|container_memory_usage_bytes|container_memory_working_set_bytes|container_network_receive_bytes_total|container_network_transmit_bytes_total|container_spec_memory_limit_bytes|container_start_time_seconds'
+        regex: 'container_cpu_usage_seconds_total|container_last_seen|container_memory_total_active_file_bytes|container_memory_usage_bytes|container_memory_working_set_bytes|container_network_receive_bytes_total|container_network_transmit_bytes_total|container_spec_memory_limit_bytes|container_start_time_seconds'
         action: keep
 
   # PostgreSQL, through postgres_exporter

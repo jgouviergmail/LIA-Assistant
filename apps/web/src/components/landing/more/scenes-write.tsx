@@ -1,7 +1,7 @@
 /**
  * Scenes of section 01 — "When you write": draft persistence, slash
- * commands, screenshot paste, drag-and-drop, a reply kept for later. Each
- * scene is a looped,
+ * commands, screenshot paste, drag-and-drop, a reply kept for later, words
+ * that wait for the answer in progress. Each scene is a looped,
  * timer-driven micro-demo built from the shared primitives; the last phase
  * is the designed resting frame (shown under prefers-reduced-motion).
  */
@@ -12,6 +12,7 @@ import {
   ArrowUp,
   Bookmark,
   CheckCircle2,
+  Clock,
   FileText,
   Image as ImageIcon,
   Images,
@@ -25,6 +26,7 @@ import {
   SlidersHorizontal,
   Undo2,
 } from '@/lib/icons';
+import { MonochromeIcons } from '@/lib/icon-style-context';
 
 import { cn } from '@/lib/utils';
 
@@ -237,7 +239,11 @@ function KnowledgePickScene({ active, labels }: SceneProps) {
                 i === 0 ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
               )}
             >
-              {i === 0 && <CheckCircle2 className="h-2.5 w-2.5" aria-hidden="true" />}
+              {i === 0 && (
+                <MonochromeIcons>
+                  <CheckCircle2 className="h-2.5 w-2.5" aria-hidden="true" />
+                </MonochromeIcons>
+              )}
             </span>
             <FileText className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
             <SkeletonLine w={i === 0 ? 'w-16' : 'w-12'} />
@@ -420,8 +426,57 @@ function ReplyAsDraftScene({ active, labels }: SceneProps) {
   );
 }
 
+type WaitingPhase = 'answering' | 'waiting' | 'sent';
+const WAITING_STEPS: readonly TimelineStep<WaitingPhase>[] = [
+  { at: 0, state: 'answering' },
+  { at: 1400, state: 'waiting' },
+  { at: 3200, state: 'sent' },
+];
+
+/**
+ * Words written while an answer is still coming wait under the thread, marked as
+ * waiting, and leave by themselves once the answer is done. The resting frame is
+ * the message sent, under the complete answer.
+ */
+function WaitingMessageScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(WAITING_STEPS, { active });
+  const sent = phase === 'sent';
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-1.5')}>
+      <div className="w-3/5 space-y-1.5 self-start rounded-2xl rounded-tl-[5px] border border-border bg-background px-3 py-2">
+        <SkeletonLine w="w-full" />
+        <SkeletonLine w="w-4/5" />
+        <SkeletonLine
+          w="w-2/3"
+          className={cn(
+            'transition-opacity duration-500 motion-reduce:transition-none',
+            sent ? 'opacity-100' : 'opacity-0'
+          )}
+        />
+      </div>
+      <div
+        className={cn(
+          'flex max-w-[85%] items-center gap-1.5 self-end rounded-2xl rounded-br-[5px] border px-3 py-1.5 text-px-10 transition-all duration-300 motion-reduce:transition-none',
+          phase === 'answering' && 'translate-y-1 border-transparent opacity-0',
+          phase === 'waiting' && 'border-dashed border-primary/50 bg-background',
+          sent && 'border-primary/30 bg-primary/10'
+        )}
+      >
+        <span className="truncate">{labels.typing}</span>
+        {phase === 'waiting' && (
+          <span className="flex shrink-0 items-center gap-1 text-px-9 font-medium text-primary">
+            <Clock className="h-3 w-3" aria-hidden="true" />
+            {labels.waiting}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export const WRITE_SCENES: Readonly<Record<string, SceneComponent>> = {
   draft_survives: DraftSurvivesScene,
+  waiting_message: WaitingMessageScene,
   slash_commands: SlashCommandsScene,
   paste_screenshot: PasteScreenshotScene,
   drop_zone: DropZoneScene,

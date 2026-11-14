@@ -460,3 +460,39 @@ describe('useScheduledActions — the first load is not a refresh', () => {
     expect(result.current.loading).toBe(true);
   });
 });
+
+describe('useScheduledActions — a secret shown once (ADR-386)', () => {
+  const onCalls = { title: 'Door', action_prompt: 'Who rang', trigger_kind: 'webhook' as const };
+
+  it('hands the drawn secret to the caller and keeps it out of the list', async () => {
+    const created = action({
+      id: 'a2',
+      trigger_kind: 'webhook',
+      webhook_url: 'https://lia.example/api/v1/hooks/routines/k',
+      new_webhook_secret: 's3cr3t',
+    });
+    mutate.create.mockResolvedValue(created);
+    const { result } = setup();
+
+    let answer: ScheduledAction | undefined;
+    await act(async () => {
+      answer = await result.current.createAction(onCalls);
+    });
+
+    expect(answer?.new_webhook_secret).toBe('s3cr3t');
+    const kept = applyUpdater(cache())?.scheduled_actions.find(row => row.id === 'a2');
+    expect(kept?.new_webhook_secret).toBeNull();
+    expect(kept?.webhook_url).toBe('https://lia.example/api/v1/hooks/routines/k');
+  });
+
+  it('keeps the secret of a routine moved onto calls out of the list too', async () => {
+    mutate.update.mockResolvedValue(action({ trigger_kind: 'webhook', new_webhook_secret: 's' }));
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.updateAction('a1', { trigger_kind: 'webhook' });
+    });
+
+    expect(applyUpdater(cache())?.scheduled_actions[0].new_webhook_secret).toBeNull();
+  });
+});

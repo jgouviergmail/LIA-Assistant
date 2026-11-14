@@ -8,9 +8,14 @@
  * caller composes as children — bulk destruction SOLID red at the toolbar
  * geometry (ADR-207). Strings come translated from the caller (ADR-206). The
  * row checkboxes live in the list; this bar only reads the selection.
+ *
+ * `compact` is the one line a narrow column can hold (ADR-369 amendment
+ * 2026-11-11): the clear becomes an icon beside the count, named by the same
+ * label, and the count and the actions never shrink, so a caller that hands
+ * `barRef` can measure whether its actions still fit.
  */
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode, type Ref } from 'react';
 import { X } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
@@ -36,6 +41,10 @@ export interface SelectionBarProps {
   /** Keep the page checkbox mounted while a caller hides unavailable bulk actions. */
   showActions?: boolean;
   selectAllDisabled?: boolean;
+  /** One line: the clear is an icon beside the count, nothing shrinks. */
+  compact?: boolean;
+  /** The bar's element, for a caller that measures its room. */
+  barRef?: Ref<HTMLDivElement>;
 }
 
 export function SelectionBar({
@@ -50,6 +59,8 @@ export function SelectionBar({
   className,
   showActions = true,
   selectAllDisabled = false,
+  compact = false,
+  barRef,
 }: SelectionBarProps) {
   const allRef = useRef<HTMLInputElement>(null);
 
@@ -59,16 +70,28 @@ export function SelectionBar({
     if (allRef.current) allRef.current.indeterminate = pageState === 'some';
   }, [pageState]);
 
+  const clear = () => {
+    allRef.current?.focus();
+    onClear();
+  };
+
   return (
     <div
+      ref={barRef}
       role="region"
       aria-label={regionLabel}
       className={cn(
-        'flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2',
+        'flex flex-wrap items-center rounded-lg border border-primary/30 bg-primary/5',
+        compact ? 'gap-1 px-2 py-1' : 'gap-3 px-3 py-2',
         className
       )}
     >
-      <label className="flex h-11 items-center gap-2 text-sm">
+      <label
+        className={cn(
+          'flex items-center gap-2 text-sm',
+          compact ? 'h-9 shrink-0 whitespace-nowrap' : 'h-11'
+        )}
+      >
         <Checkbox
           ref={allRef}
           checked={pageState === 'all'}
@@ -78,20 +101,32 @@ export function SelectionBar({
         />
         <span>{countLabel}</span>
       </label>
+      {compact && showActions && (
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="shrink-0"
+          aria-label={clearLabel}
+          title={clearLabel}
+          onClick={clear}
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      )}
       {showActions && (
-        <span className="ml-auto flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              allRef.current?.focus();
-              onClear();
-            }}
-          >
-            <X className="mr-1 h-4 w-4" aria-hidden="true" />
-            {clearLabel}
-          </Button>
+        <span
+          className={cn(
+            'ml-auto flex items-center',
+            compact ? 'shrink-0 gap-0.5' : 'flex-wrap gap-2'
+          )}
+        >
+          {!compact && (
+            <Button type="button" size="sm" variant="outline" onClick={clear}>
+              <X className="mr-1 h-4 w-4" aria-hidden="true" />
+              {clearLabel}
+            </Button>
+          )}
           {children}
         </span>
       )}

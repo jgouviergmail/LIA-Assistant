@@ -10,11 +10,13 @@
  * provenance note for every NON-admin skill: a skill the person wrote runs
  * with their connectors (they must trust what they imported), one written
  * elsewhere runs isolated (ADR-327) and a library skill offers its update.
+ * Its life (lot 14): how often it was used since counting began, and — when
+ * its last replacement kept the version it replaced — the way back to it.
  * Actions (download, per-user toggle, delete for user skills) live here.
  */
 
 import { useState } from 'react';
-import { AlertTriangle, Blocks, Download, Library, ShieldAlert, Trash2 } from '@/lib/icons';
+import { AlertTriangle, Blocks, Download, Library, ShieldAlert, Trash2, Undo2 } from '@/lib/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,10 +30,53 @@ import {
 } from '@/components/ui/dialog';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { isThirdPartySkill, skillPreviewUrl, type Skill } from '@/hooks/useSkills';
+import type { Language } from '@/i18n/settings';
+import { skillLifeDay, skillUsageLine, type SkillLifeTranslator } from '@/lib/skill-life';
 import { skillTraitTone } from '@/lib/status-tone';
 
-/** Translator shape shared with SkillsSettings (react-i18next `t`). */
-export type SkillsTranslator = (key: string, options?: Record<string, string>) => string;
+/** Translator shape shared with SkillsSettings (react-i18next `t`, numeric `count` included). */
+export type SkillsTranslator = SkillLifeTranslator;
+
+/**
+ * How often the skill was used, and its way back to the version its last
+ * replacement put aside — drawn only when there is something to say.
+ */
+function SkillLife({
+  skill,
+  lng,
+  t,
+  onRestore,
+}: {
+  skill: Skill;
+  lng: Language;
+  t: SkillsTranslator;
+  onRestore?: (skill: Skill) => void;
+}) {
+  const usage = skillUsageLine(skill, t, lng);
+  const previous = onRestore ? skill.previous_version_at : null;
+  if (!usage && !previous) return null;
+  return (
+    <div className="space-y-2 text-sm">
+      {usage && <p className="text-muted-foreground">{usage}</p>}
+      {previous && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">
+            {t('settings.skills.previous.replaced_on', { date: skillLifeDay(previous, lng) })}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => onRestore?.(skill)}
+          >
+            <Undo2 className="h-4 w-4" aria-hidden />
+            {t('settings.skills.previous.restore')}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Channels shown in the modal: declared list, or the undeclared default. */
 export function displayedChannels(skill: Pick<Skill, 'outputs'>): {
@@ -54,9 +99,10 @@ export function SkillDetailModal({
   downloading,
   toggling,
   onOpenLibrary,
+  onRestore,
 }: {
   skill: Skill | null;
-  lng: string;
+  lng: Language;
   t: SkillsTranslator;
   onOpenChange: (open: boolean) => void;
   onToggle: (skill: Skill) => void;
@@ -66,6 +112,8 @@ export function SkillDetailModal({
   toggling: boolean;
   /** Opens the library on its installed skills — offered for a library skill. */
   onOpenLibrary?: () => void;
+  /** Asks to restore the previous version (lot 14) — offered when one was kept. */
+  onRestore?: (skill: Skill) => void;
 }) {
   // Per-skill image failure — a name mismatch means a NEW skill was opened,
   // so the image retries naturally (no state-sync effect needed).
@@ -130,6 +178,8 @@ export function SkillDetailModal({
           )}
         </div>
 
+        <SkillLife skill={skill} lng={lng} t={t} onRestore={onRestore} />
+
         {/* Provenance — every non-admin skill says what it may do here. */}
         {!isAdmin && !isThirdPartySkill(skill) && (
           <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
@@ -188,7 +238,7 @@ export function SkillDetailModal({
             <Switch
               checked={skill.enabled_for_user}
               onCheckedChange={() => onToggle(skill)}
-              disabled={toggling}
+              busy={toggling}
               aria-label={t('settings.skills.toggle_skill', { name: skill.name })}
             />
           </div>

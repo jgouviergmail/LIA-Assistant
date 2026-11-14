@@ -1,9 +1,14 @@
 """A stale native source worker cannot write a source, create bytes or remove old bytes."""
 
+import asyncio
+from collections.abc import Callable
+from pathlib import Path
+from typing import Literal
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.domains.rag_spaces.drive_ingest import create_pending_document, discard_document
@@ -15,6 +20,8 @@ from src.domains.rag_spaces.source_worker_lease import (
     source_worker_scope,
 )
 from src.domains.rag_spaces.storage_paths import stored_file_path
+from src.domains.users.models import User
+from tests.helpers.committed_account_session import async_session as async_session
 
 pytestmark = pytest.mark.integration
 
@@ -22,8 +29,13 @@ pytestmark = pytest.mark.integration
 @pytest.mark.parametrize("kind", ["drive", "mail"])
 @pytest.mark.parametrize("effect", ["complete", "create", "delete", "expires_after_write"])
 async def test_stale_worker_cannot_apply_later_source_or_document_effect(
-    async_session, test_user, monkeypatch, tmp_path, kind, effect
-):
+    async_session: AsyncSession,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    kind: Literal["drive", "mail"],
+    effect: str,
+) -> None:
     for flag in (
         "application_tools_enabled",
         "rag_spaces_enabled",
@@ -84,9 +96,11 @@ async def test_stale_worker_cannot_apply_later_source_or_document_effect(
         await async_session.commit()
         from src.domains.rag_spaces import drive_ingest
 
-        original_io = drive_ingest.asyncio.to_thread
+        original_io = asyncio.to_thread
 
-        async def expired_after_io(function, *args, **kwargs):
+        async def expired_after_io[**P, T](
+            function: Callable[P, T], *args: P.args, **kwargs: P.kwargs
+        ) -> T:
             result = await original_io(function, *args, **kwargs)
             if function is drive_ingest._write_stored_file:
                 await async_session.execute(
@@ -97,15 +111,17 @@ async def test_stale_worker_cannot_apply_later_source_or_document_effect(
                 )
             return result
 
-        monkeypatch.setattr(drive_ingest.asyncio, "to_thread", expired_after_io)
+        monkeypatch.setattr(asyncio, "to_thread", expired_after_io)
     with source_worker_scope(scope), pytest.raises(SourceLeaseLost):
         if effect == "complete":
-            repository = (
-                RAGDriveSourceRepository(async_session)
-                if kind == "drive"
-                else RAGMailSourceRepository(async_session)
-            )
-            await repository.update(source, {"sync_status": "completed"})
+            if isinstance(source, RAGDriveSource):
+                await RAGDriveSourceRepository(async_session).update(
+                    source, {"sync_status": "completed"}
+                )
+            else:
+                await RAGMailSourceRepository(async_session).update(
+                    source, {"sync_status": "completed"}
+                )
         elif effect in {"create", "expires_after_write"}:
             await create_pending_document(
                 async_session,

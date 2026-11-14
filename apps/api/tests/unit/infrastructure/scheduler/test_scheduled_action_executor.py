@@ -26,12 +26,15 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 
 from src.core.config import settings
+from src.core.constants import ROUTINE_WEBHOOK_SERVED_RETENTION_DAYS
 from src.core.exceptions import ResourceNotFoundError
 from src.core.recurrence import DailyTimes, RecurrenceSpec, TimeOfDay
 from src.domains.scheduled_actions.models import ScheduledRunOutcome
 from src.domains.users.schemas import UserProfile
 from src.infrastructure.scheduler.out_of_turn_run import RunOutcome, RunResult
 from src.infrastructure.scheduler.scheduled_action_executor import execute_single_action
+from src.infrastructure.scheduler.scheduled_action_notices import RoutineNotice
+from tests.fixtures.instruction_runtime import instruction_runtime
 
 #: The harness routine is due at 06:00Z (08:00 Paris); the tick starts 5 s later.
 NOW = datetime(2026, 8, 3, 6, 0, 5, tzinfo=UTC)
@@ -81,6 +84,9 @@ class _Env:
     calls: list[str]
     conversation_id: uuid.UUID
     user_service: MagicMock
+    usage_blocked: AsyncMock
+    notice: AsyncMock
+    quota_claim: AsyncMock
 
 
 @contextmanager
@@ -109,6 +115,9 @@ def _executor_env(
     action.requires_approval = False
     # The model's property: None unless the routine's form ticked servers (D9).
     action.mcp_preapproval = None
+    # The column's default: a bare MagicMock would be truthy and run every
+    # test as a routine told to notify only of something new.
+    action.notify_only_when_new = False
     # A real datetime, like the non-nullable column: re-arming compares the
     # pending due time against now to tell a consumed slot from a manual "run
     # now" (which must not drop the upcoming run). A MagicMock here would only
@@ -194,6 +203,7 @@ def _executor_env(
     redis = MagicMock(publish=AsyncMock())
 
     with ExitStack() as stack:
+        stack.enter_context(instruction_runtime(user_id, conversation_id))
         for target, replacement in (
             ("src.infrastructure.database.session.get_db_context", _AsyncCM(db)),
             ("src.domains.scheduled_actions.repository.ScheduledActionRepository", repo),
@@ -206,9 +216,23 @@ def _executor_env(
         ):
             stack.enter_context(patch(target, return_value=replacement))
 
-        stack.enter_context(
+        usage_blocked = stack.enter_context(
             patch(
                 "src.domains.usage_limits.service.UsageLimitService.is_user_blocked_for_llm",
+                AsyncMock(return_value=False),
+            )
+        )
+        # What a routine tells its owner when it did not run leaves through one
+        # door; a test about a notice reads it, the others send nothing.
+        notice = stack.enter_context(
+            patch(
+                "src.infrastructure.scheduler.scheduled_action_executor.send_routine_notice",
+                AsyncMock(),
+            )
+        )
+        quota_claim = stack.enter_context(
+            patch(
+                "src.infrastructure.scheduler.scheduled_action_executor.claim_quota_notice",
                 AsyncMock(return_value=False),
             )
         )
@@ -265,6 +289,9 @@ def _executor_env(
             calls=calls,
             conversation_id=conversation_id,
             user_service=user_service,
+            usage_blocked=usage_blocked,
+            notice=notice,
+            quota_claim=quota_claim,
         )
 
 
@@ -501,6 +528,7 @@ async def test_process_scheduled_actions_uses_no_redis_lock():
         ),
         patch.object(mod, "execute_single_action", AsyncMock(return_value="ok")) as exec_mock,
         patch("src.infrastructure.cache.redis.get_redis_cache", redis_factory),
+        _served_calls_repository(),
     ):
         stats = await mod.process_scheduled_actions()
 
@@ -609,7 +637,7 @@ class TestRunHistory:
             env.action.requires_approval = True
             with patch(
                 "src.infrastructure.scheduler.scheduled_action_executor"
-                "._send_approval_notification",
+                ".send_approval_notification",
                 AsyncMock(),
             ) as notify:
                 await execute_single_action(action_id=env.action_id, user_id=env.user_id)
@@ -626,7 +654,12 @@ class TestRunHistory:
             _executor_env(chunks=[_chunk("token", "never")]) as env,
             patch(
                 "src.domains.agents.api.hitl_pending.check_pending_hitl_uncached",
-                AsyncMock(return_value={"action_requests": [{"type": "clarification"}]}),
+                AsyncMock(
+                    return_value={
+                        "run_id": "pending-run",
+                        "action_requests": [{"type": "clarification"}],
+                    }
+                ),
             ),
         ):
             await execute_single_action(action_id=env.action_id, user_id=env.user_id)
@@ -649,6 +682,18 @@ class TestRunHistory:
             assert result == "hello"
             env.repo.mark_execution_success.assert_awaited_once()
             assert "commit" in env.calls
+
+
+def _served_calls_repository(*, purged: int = 0, fails: bool = False) -> Any:
+    """Stub the served-calls purge of the executor's step zero (ADR-386)."""
+    repo = MagicMock()
+    repo.purge_served_before = AsyncMock(
+        side_effect=RuntimeError("locked") if fails else None, return_value=purged
+    )
+    return patch(
+        "src.domains.scheduled_actions.webhook_repository.RoutineWebhookRepository",
+        return_value=repo,
+    )
 
 
 class TestRetentionPurge:
@@ -678,12 +723,18 @@ class TestRetentionPurge:
                 return_value=run_repo,
             ),
             patch.object(mod, "now_utc", return_value=NOW),
+            _served_calls_repository(purged=2) as calls_repo,
         ):
             stats = await mod.process_scheduled_actions()
 
         assert stats["runs_purged"] == 3
         run_repo.purge_older_than.assert_awaited_once_with(
             NOW - timedelta(days=settings.scheduled_actions_runs_retention_days)
+        )
+        # ADR-386: the calls already served go after their own retention, in the same step.
+        assert stats["calls_purged"] == 2
+        calls_repo.return_value.purge_served_before.assert_awaited_once_with(
+            NOW - timedelta(days=ROUTINE_WEBHOOK_SERVED_RETENTION_DAYS)
         )
 
     @pytest.mark.asyncio
@@ -711,10 +762,12 @@ class TestRetentionPurge:
                 "src.domains.scheduled_actions.run_repository.ScheduledActionRunRepository",
                 return_value=run_repo,
             ),
+            _served_calls_repository(fails=True),
         ):
             stats = await mod.process_scheduled_actions()
 
         assert stats["runs_purged"] == 0
+        assert stats["calls_purged"] == 0
         assert stats["processed"] == 0
 
 
@@ -876,7 +929,12 @@ class TestAConditionRoutine:
             _executor_env(chunks=[_chunk("token", "never")]) as env,
             patch(
                 "src.domains.agents.api.hitl_pending.check_pending_hitl_uncached",
-                AsyncMock(return_value={"action_requests": [{"type": "clarification"}]}),
+                AsyncMock(
+                    return_value={
+                        "run_id": "pending-run",
+                        "action_requests": [{"type": "clarification"}],
+                    }
+                ),
             ),
         ):
             _as_watch(env)
@@ -919,7 +977,7 @@ class TestAConditionRoutine:
                 _verdict(env, ConditionVerdict(facts=(_NEW,), note_prefix="Mails: ")),
                 patch(
                     "src.infrastructure.scheduler.scheduled_action_executor"
-                    "._send_approval_notification",
+                    ".send_approval_notification",
                     AsyncMock(side_effect=_notify),
                 ),
             ):
@@ -937,7 +995,7 @@ class TestAConditionRoutine:
                 _verdict(env, ConditionVerdict(facts=(_NEW,), note_prefix="Mails: ")),
                 patch(
                     "src.infrastructure.scheduler.scheduled_action_executor"
-                    "._send_approval_notification",
+                    ".send_approval_notification",
                     AsyncMock(),
                 ),
             ):
@@ -1012,7 +1070,9 @@ class TestAQuestionNobodyCanAnswer:
             await execute_single_action(env.action_id, env.user_id)
 
         run_id = env.agent_service.stream_chat_response.call_args.kwargs["run_id"]
-        taken_back.assert_awaited_once_with(env.conversation_id, run_id)
+        admission = env.agent_service.stream_chat_response.call_args.kwargs["admission"]
+        assert admission.run_id == run_id and admission.target.id == env.conversation_id
+        taken_back.assert_awaited_once_with(admission)
         # Still a failure, as it has always been: nobody answered.
         env.repo.mark_execution_failure.assert_awaited_once()
 
@@ -1086,7 +1146,7 @@ class TestTheReservationHoldsTheRun:
             env.repo.renew_reservation = AsyncMock(side_effect=_renew)
             with patch(
                 "src.infrastructure.scheduler.scheduled_action_executor"
-                "._send_approval_notification",
+                ".send_approval_notification",
                 AsyncMock(side_effect=_notify),
             ):
                 await execute_single_action(env.action_id, env.user_id, execution_token=token)
@@ -1135,7 +1195,7 @@ class TestTheReservationHoldsTheRun:
             env.repo.renew_reservation = AsyncMock(return_value=True)
             env.repo.lock_reserved = AsyncMock(return_value=None)
             with patch(
-                "src.infrastructure.scheduler.scheduled_action_executor._send_approval_notification",
+                "src.infrastructure.scheduler.scheduled_action_executor.send_approval_notification",
                 AsyncMock(),
             ):
                 await execute_single_action(
@@ -1158,7 +1218,12 @@ class TestTheReservationHoldsTheRun:
                 _verdict(env, ConditionVerdict(facts=(_NEW,))),
                 patch(
                     "src.domains.agents.api.hitl_pending.check_pending_hitl_uncached",
-                    AsyncMock(return_value={"action_requests": [{"type": "clarification"}]}),
+                    AsyncMock(
+                        return_value={
+                            "run_id": "pending-run",
+                            "action_requests": [{"type": "clarification"}],
+                        }
+                    ),
                 ),
             ):
                 await execute_single_action(
@@ -1210,3 +1275,452 @@ async def test_a_routine_s_attempt_lasts_what_its_model_calls_may_take() -> None
 
     (request,), _ = streamed.await_args
     assert request.timeout_seconds == 4321
+
+
+# =============================================================================
+# A routine that does not run says so (ADR-265 amendment 2026-11-12)
+# =============================================================================
+
+
+def _marked(consecutive_failures: int, *, disabled: bool = False) -> SimpleNamespace:
+    """The routine as ``mark_execution_failure`` leaves it."""
+    return SimpleNamespace(
+        consecutive_failures=consecutive_failures,
+        status="error" if disabled else "active",
+    )
+
+
+async def _fail(env: _Env, *, marked: SimpleNamespace, token: uuid.UUID | None = None) -> None:
+    """Run the harness routine into a failure the repository marks as ``marked``."""
+    env.repo.mark_execution_failure = AsyncMock(return_value=marked)
+    env.agent_service.stream_chat_response = Mock(side_effect=_raising_stream(RuntimeError("boom")))
+    await execute_single_action(env.action_id, env.user_id, execution_token=token)
+
+
+class TestAFailedRoutineSaysSo:
+    """A routine used to fail five times and be switched off without a word."""
+
+    async def test_the_first_failure_of_a_series_is_announced_once_it_is_durable(self) -> None:
+        with _executor_env(chunks=[]) as env:
+            seen_at_send: list[list[str]] = []
+            env.notice.side_effect = lambda *_a, **_k: seen_at_send.append(list(env.calls))
+            await _fail(env, marked=_marked(1))
+
+        sent = env.notice.await_args.kwargs
+        assert sent["kind"] is RoutineNotice.FAILED
+        assert sent["action"] is env.action
+        assert sent["user_language"] == "fr"
+        # The marking is committed before anything leaves the process.
+        (calls,) = seen_at_send
+        assert "commit" in calls[calls.index("record") :]
+
+    @pytest.mark.parametrize("rank", [2, 4])
+    async def test_a_later_failure_of_the_same_series_stays_silent(self, rank: int) -> None:
+        with _executor_env(chunks=[]) as env:
+            await _fail(env, marked=_marked(rank))
+
+        env.notice.assert_not_awaited()
+
+    async def test_the_failure_that_pauses_the_routine_says_so(self) -> None:
+        with _executor_env(chunks=[]) as env:
+            await _fail(env, marked=_marked(5, disabled=True))
+
+        assert env.notice.await_args.kwargs["kind"] is RoutineNotice.DISABLED
+
+    async def test_a_run_the_person_started_always_says_it_failed(self) -> None:
+        with _executor_env(chunks=[]) as env:
+            # Nothing due until tomorrow: the person pressed « Run now ».
+            env.action.next_trigger_at = datetime(2026, 8, 4, 6, 0, tzinfo=UTC)
+            await _fail(env, marked=_marked(3))
+
+        assert env.notice.await_args.kwargs["kind"] is RoutineNotice.FAILED
+
+    async def test_a_run_that_answered_sends_its_result_and_no_notice(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "hello")]) as env:
+            await execute_single_action(env.action_id, env.user_id)
+
+        env.notice.assert_not_awaited()
+        env.fcm.send_to_user.assert_awaited_once()
+
+    async def test_a_tick_that_lost_the_routine_announces_nothing(self) -> None:
+        """The routine is another tick's: this one marked nothing, so it has
+        no series to speak of."""
+        with _executor_env(chunks=[]) as env:
+            env.repo.renew_reservation = AsyncMock(return_value=True)
+            env.repo.lock_reserved = AsyncMock(return_value=None)
+            await _fail(env, marked=_marked(1), token=uuid.uuid4())
+
+        env.repo.mark_execution_failure.assert_not_awaited()
+        env.notice.assert_not_awaited()
+
+
+_QUOTA_REFUSAL = RunResult(
+    outcome=RunOutcome.QUOTA_BLOCKED,
+    attempts=1,
+    error="Usage limit exceeded",
+    error_code="usage_limit_exceeded",
+)
+
+
+class TestTheUsageCeilingStandsARoutineAside:
+    """A ceiling refusal is not a failure (ADR-272): the routine re-arms, its
+    history says why, and its account is told once per window."""
+
+    async def test_a_blocked_account_s_routine_is_rearmed_and_says_why(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            env.usage_blocked.return_value = True
+            env.quota_claim.return_value = True
+            seen_at_send: list[list[str]] = []
+            env.notice.side_effect = lambda *_a, **_k: seen_at_send.append(list(env.calls))
+            result = await execute_single_action(env.action_id, env.user_id)
+
+        assert result == ""
+        env.agent_service.stream_chat_response.assert_not_called()
+        # Not a failure: nothing counts toward the pause.
+        env.repo.mark_execution_failure.assert_not_awaited()
+        env.repo.reschedule.assert_awaited_once()
+        recorded = _recorded(env)
+        assert recorded["outcome"] is ScheduledRunOutcome.SKIPPED_QUOTA
+        assert (recorded["attempts"], recorded["error"]) == (0, None)
+        env.quota_claim.assert_awaited_once_with(env.user_id)
+        assert env.notice.await_args.kwargs["kind"] is RoutineNotice.QUOTA
+        # The reason is durable before the account is told.
+        (calls,) = seen_at_send
+        assert "commit" in calls[calls.index("record") :]
+
+    async def test_the_account_is_told_once_per_window(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            env.usage_blocked.return_value = True
+            env.quota_claim.return_value = False
+            await execute_single_action(env.action_id, env.user_id)
+
+        # Every skipped slot still shows its reason on the week…
+        assert _recorded(env)["outcome"] is ScheduledRunOutcome.SKIPPED_QUOTA
+        # …but the notice was this account's already.
+        env.notice.assert_not_awaited()
+
+    async def test_a_run_the_person_started_is_always_told_what_stopped_it(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            env.usage_blocked.return_value = True
+            env.quota_claim.return_value = False
+            env.action.next_trigger_at = datetime(2026, 8, 4, 6, 0, tzinfo=UTC)
+            await execute_single_action(env.action_id, env.user_id)
+
+        assert env.notice.await_args.kwargs["kind"] is RoutineNotice.QUOTA
+
+    async def test_a_proposal_is_not_sent_past_the_ceiling(self) -> None:
+        with (
+            _executor_env(chunks=[_chunk("token", "never")]) as env,
+            patch(
+                "src.infrastructure.scheduler.scheduled_action_executor"
+                ".send_approval_notification",
+                AsyncMock(),
+            ) as propose,
+        ):
+            env.action.requires_approval = True
+            env.usage_blocked.return_value = True
+            await execute_single_action(env.action_id, env.user_id)
+
+        propose.assert_not_awaited()
+        assert _recorded(env)["outcome"] is ScheduledRunOutcome.SKIPPED_QUOTA
+
+    async def test_a_blocked_watch_asks_no_source_and_writes_its_reason_on_its_ledger(
+        self,
+    ) -> None:
+        """A check costs the platform what its source bills (a weather watch):
+        past the ceiling it is not made, and the ledger says so in place of the
+        run row a check never writes (ADR-322)."""
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            _as_watch(env, seen=("k-seen",))
+            env.usage_blocked.return_value = True
+            with _verdict(env, ConditionVerdict(facts=(_NEW,), note_prefix="Mails: ")) as check:
+                await execute_single_action(env.action_id, env.user_id)
+
+        check.assert_not_awaited()
+        env.run_repo.record.assert_not_awaited()
+        state = env.repo.reschedule.await_args.kwargs["condition_state"]
+        assert state["last_check_error"] == "quota_blocked"
+        assert state["last_checked_at"] == NOW.isoformat()
+        # Nothing was read, so nothing seen is forgotten and nothing is served.
+        assert state["seen"] == ["k-seen"]
+
+    async def test_a_ceiling_met_inside_the_turn_is_not_a_failure_either(self) -> None:
+        with (
+            _executor_env(chunks=[]) as env,
+            patch(
+                "src.infrastructure.scheduler.scheduled_action_executor.stream_instruction",
+                AsyncMock(return_value=_QUOTA_REFUSAL),
+            ),
+        ):
+            env.quota_claim.return_value = True
+            result = await execute_single_action(env.action_id, env.user_id)
+
+        assert result == ""
+        env.repo.mark_execution_failure.assert_not_awaited()
+        env.repo.reschedule.assert_awaited_once()
+        recorded = _recorded(env)
+        assert recorded["outcome"] is ScheduledRunOutcome.SKIPPED_QUOTA
+        assert recorded["attempts"] == 0
+        assert env.notice.await_args.kwargs["kind"] is RoutineNotice.QUOTA
+
+    async def test_a_watch_refused_inside_the_turn_keeps_its_fact_new_and_says_why(self) -> None:
+        with (
+            _executor_env(chunks=[]) as env,
+            patch(
+                "src.infrastructure.scheduler.scheduled_action_executor.stream_instruction",
+                AsyncMock(return_value=_QUOTA_REFUSAL),
+            ),
+        ):
+            _as_watch(env)
+            with _verdict(env, ConditionVerdict(facts=(_NEW,), note_prefix="Mails: ")):
+                await execute_single_action(env.action_id, env.user_id)
+
+        env.run_repo.record.assert_not_awaited()
+        state = env.repo.reschedule.await_args.kwargs["condition_state"]
+        # Still new: the first check past the ceiling serves it.
+        assert "k-new" not in state["seen"]
+        assert state["last_check_error"] == "quota_blocked"
+
+    async def test_a_tick_that_lost_its_reservation_writes_and_says_nothing(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            env.usage_blocked.return_value = True
+            env.quota_claim.return_value = True
+            env.repo.renew_reservation = AsyncMock(return_value=True)
+            env.repo.lock_reserved = AsyncMock(return_value=None)
+            await execute_single_action(env.action_id, env.user_id, execution_token=uuid.uuid4())
+
+        env.repo.reschedule.assert_not_awaited()
+        env.run_repo.record.assert_not_awaited()
+        env.quota_claim.assert_not_awaited()
+        env.notice.assert_not_awaited()
+
+    async def test_a_tick_that_is_not_authorized_is_refused_before_the_ceiling_is_asked(
+        self,
+    ) -> None:
+        """An unauthorized tick neither runs nor settles (ADR-335). Asked first,
+        the ceiling would re-arm a routine this tick has no right to write on
+        and leave a reason on its week."""
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            env.usage_blocked.return_value = True
+            guard = AsyncMock(return_value=False)
+            result = await execute_single_action(env.action_id, env.user_id, execution_guard=guard)
+
+        assert result == ""
+        guard.assert_awaited_once()
+        env.usage_blocked.assert_not_awaited()
+        env.repo.reschedule.assert_not_awaited()
+        env.run_repo.record.assert_not_awaited()
+        env.notice.assert_not_awaited()
+
+
+#: The occurrence the harness routine was due for, and the one before it.
+_DUE = datetime(2026, 8, 3, 6, 0, tzinfo=UTC)
+_DUE_THE_DAY_BEFORE = datetime(2026, 8, 2, 6, 0, tzinfo=UTC)
+_EXECUTOR = "src.infrastructure.scheduler.scheduled_action_executor"
+
+
+def _busy() -> Any:
+    """The engine found the account's one graph taken by another turn."""
+    return patch(
+        f"{_EXECUTOR}.stream_instruction", AsyncMock(return_value=RunResult(RunOutcome.BUSY))
+    )
+
+
+class TestAnOccurrenceIsCaughtUpInsideItsWindow:
+    """A due occurrence runs late only inside its catch-up window, and an
+    account found busy is waited for inside it (ADR-265 amendment 2026-11-12 b)."""
+
+    async def test_an_occurrence_reached_too_late_is_recorded_missed(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            env.action.next_trigger_at = _DUE_THE_DAY_BEFORE
+            result = await execute_single_action(env.action_id, env.user_id)
+
+        assert result == ""
+        env.agent_service.stream_chat_response.assert_not_called()
+        # Given up before any ceiling is asked: nothing would run anyway.
+        env.usage_blocked.assert_not_awaited()
+        recorded = _recorded(env)
+        assert recorded["outcome"] is ScheduledRunOutcome.SKIPPED_LATE
+        assert recorded["slot_at"] == _DUE_THE_DAY_BEFORE
+        assert (recorded["attempts"], recorded["manual"]) == (0, False)
+        # Not a failure, and nobody is told: the week says it.
+        env.repo.mark_execution_failure.assert_not_awaited()
+        env.notice.assert_not_awaited()
+
+    async def test_the_occurrence_that_may_still_start_is_the_one_armed(self) -> None:
+        """Today's occurrence is five seconds old: the outage serves TODAY at
+        the scheduler's next pass, not tomorrow."""
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            env.action.next_trigger_at = _DUE_THE_DAY_BEFORE
+            await execute_single_action(env.action_id, env.user_id)
+
+        env.repo.reschedule.assert_awaited_once()
+        assert env.repo.reschedule.await_args.args[1] == _DUE
+
+    async def test_an_occurrence_late_inside_its_window_still_runs(self) -> None:
+        """A daily occurrence reached ninety minutes late: inside the two hours."""
+        with (
+            _executor_env(chunks=[_chunk("token", "hello")]) as env,
+            patch(f"{_EXECUTOR}.now_utc", return_value=_DUE + timedelta(minutes=90)),
+        ):
+            await execute_single_action(env.action_id, env.user_id)
+
+        env.agent_service.stream_chat_response.assert_called_once()
+        recorded = _recorded(env)
+        assert recorded["outcome"] is ScheduledRunOutcome.SUCCESS
+        assert recorded["slot_at"] == _DUE
+
+    async def test_past_the_window_by_a_second_it_is_given_up(self) -> None:
+        with (
+            _executor_env(chunks=[_chunk("token", "never")]) as env,
+            patch(f"{_EXECUTOR}.now_utc", return_value=_DUE + timedelta(minutes=120, seconds=1)),
+        ):
+            await execute_single_action(env.action_id, env.user_id)
+
+        env.agent_service.stream_chat_response.assert_not_called()
+        assert _recorded(env)["outcome"] is ScheduledRunOutcome.SKIPPED_LATE
+        # No later occurrence has come: the next one is tomorrow's.
+        assert env.repo.reschedule.await_args.args[1] == _DUE + timedelta(days=1)
+
+    async def test_a_tick_that_lost_the_routine_gives_nothing_up(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            env.action.next_trigger_at = _DUE_THE_DAY_BEFORE
+            env.repo.renew_reservation = AsyncMock(return_value=True)
+            env.repo.lock_reserved = AsyncMock(return_value=None)
+            await execute_single_action(env.action_id, env.user_id, execution_token=uuid.uuid4())
+
+        env.repo.reschedule.assert_not_awaited()
+        env.run_repo.record.assert_not_awaited()
+
+    async def test_a_busy_account_keeps_the_occurrence_armed_for_the_next_pass(self) -> None:
+        """Re-armed on the NEXT occurrence, a daily routine was lost for a day
+        because its owner was typing at 08:00."""
+        with _executor_env(chunks=[]) as env, _busy():
+            result = await execute_single_action(env.action_id, env.user_id)
+
+        assert result == ""
+        env.repo.reschedule.assert_awaited_once()
+        assert env.repo.reschedule.await_args.args[1] == _DUE
+        # Still pending: its row will be the run's, or the reason it was given up.
+        env.run_repo.record.assert_not_awaited()
+        env.repo.mark_execution_failure.assert_not_awaited()
+
+    async def test_an_account_still_busy_at_the_end_of_the_window_is_recorded(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The next pass would start past the deadline: this attempt is the last."""
+        monkeypatch.setattr(settings, "scheduled_actions_catch_up_max_minutes", 2)
+        with (
+            _executor_env(chunks=[]) as env,
+            _busy(),
+            patch(f"{_EXECUTOR}.now_utc", return_value=_DUE + timedelta(seconds=90)),
+        ):
+            await execute_single_action(env.action_id, env.user_id)
+
+        assert _recorded(env)["outcome"] is ScheduledRunOutcome.SKIPPED_BUSY
+        env.repo.reschedule.assert_awaited_once()
+        # The NEXT occurrence, by the rule every other exit re-arms with.
+        assert env.repo.reschedule.await_args.args[1] == _DUE + timedelta(days=1)
+
+    async def test_a_run_the_person_started_is_not_waited_for(self) -> None:
+        """No occurrence was due: the pending slot stands, and the row says why
+        the test run did nothing."""
+        with _executor_env(chunks=[]) as env, _busy():
+            env.action.next_trigger_at = datetime(2026, 8, 4, 6, 0, tzinfo=UTC)
+            await execute_single_action(env.action_id, env.user_id)
+
+        assert _recorded(env)["outcome"] is ScheduledRunOutcome.SKIPPED_BUSY
+
+    async def test_a_run_the_person_started_runs_whatever_the_age_of_the_pending_slot(
+        self,
+    ) -> None:
+        """« Run now » on a routine whose slot is a day old (the scheduler was down):
+        the click is the person's act, never the slot's — it is not given up as missed."""
+        with _executor_env(chunks=[_chunk("token", "hello")]) as env:
+            env.action.next_trigger_at = _DUE_THE_DAY_BEFORE
+            result = await execute_single_action(env.action_id, env.user_id, started_by_person=True)
+
+        assert result == "hello"
+        env.agent_service.stream_chat_response.assert_called_once()
+        assert _recorded(env)["outcome"] is ScheduledRunOutcome.SUCCESS
+
+    async def test_a_due_slot_the_person_ran_is_still_kept_for_a_busy_account(self) -> None:
+        """Who started the run changes nothing to the slot: found busy, it stays armed."""
+        with _executor_env(chunks=[]) as env, _busy():
+            await execute_single_action(env.action_id, env.user_id, started_by_person=True)
+
+        env.repo.reschedule.assert_awaited_once()
+        assert env.repo.reschedule.await_args.args[1] == _DUE
+        env.run_repo.record.assert_not_awaited()
+
+    async def test_a_tick_that_lost_the_routine_while_waiting_writes_nothing(self) -> None:
+        with _executor_env(chunks=[]) as env, _busy():
+            env.repo.renew_reservation = AsyncMock(return_value=True)
+            env.repo.lock_reserved = AsyncMock(return_value=None)
+            await execute_single_action(env.action_id, env.user_id, execution_token=uuid.uuid4())
+
+        env.repo.reschedule.assert_not_awaited()
+        env.run_repo.record.assert_not_awaited()
+
+
+def _declaring_nothing_new() -> list[SimpleNamespace]:
+    """A run whose answering model declared its answer says nothing new."""
+    return [
+        _chunk("token", "Nothing new this morning."),
+        SimpleNamespace(type="done", content="", metadata={"nothing_new": True}),
+    ]
+
+
+class TestARoutineToldToNotifyOnlyOfSomethingNew:
+    """The run still happens and its answer stays in the chat; what is held
+    back is the notification (ADR-265 amendment 2026-11-12 c)."""
+
+    async def test_a_run_with_nothing_new_is_recorded_and_not_pushed(self) -> None:
+        with _executor_env(chunks=_declaring_nothing_new()) as env:
+            env.action.notify_only_when_new = True
+            result = await execute_single_action(env.action_id, env.user_id)
+
+        # The run is a run: answered, counted, on the week.
+        assert result == "Nothing new this morning."
+        env.repo.mark_execution_success.assert_awaited_once()
+        assert _recorded(env)["outcome"] is ScheduledRunOutcome.SUCCESS
+        # Its owner asked not to be told: neither push nor toast.
+        env.fcm.send_to_user.assert_not_awaited()
+        env.redis.publish.assert_not_awaited()
+        env.notice.assert_not_awaited()
+
+    async def test_the_answering_model_is_told_only_for_such_a_routine(self) -> None:
+        asked: list[bool] = []
+
+        async def _engine(request: Any, *_a: Any, **_k: Any) -> RunResult:
+            asked.append(request.quiet_when_nothing_new)
+            return RunResult(RunOutcome.SUCCESS, text="ok", attempts=1)
+
+        for option in (True, False):
+            with _executor_env(chunks=[]) as env, patch(f"{_EXECUTOR}.stream_instruction", _engine):
+                env.action.notify_only_when_new = option
+                await execute_single_action(env.action_id, env.user_id)
+
+        assert asked == [True, False]
+
+    async def test_a_run_with_something_to_say_is_pushed(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "Two invoices arrived.")]) as env:
+            env.action.notify_only_when_new = True
+            await execute_single_action(env.action_id, env.user_id)
+
+        env.fcm.send_to_user.assert_awaited_once()
+
+    async def test_a_declaration_nobody_asked_for_silences_nothing(self) -> None:
+        """The routine tells everything: a tag the model wrote unasked is not
+        this routine's owner asking for silence."""
+        with _executor_env(chunks=_declaring_nothing_new()) as env:
+            await execute_single_action(env.action_id, env.user_id)
+
+        env.fcm.send_to_user.assert_awaited_once()
+
+    async def test_a_failure_is_always_told(self) -> None:
+        with _executor_env(chunks=[]) as env:
+            env.action.notify_only_when_new = True
+            await _fail(env, marked=_marked(1))
+
+        assert env.notice.await_args.kwargs["kind"] is RoutineNotice.FAILED

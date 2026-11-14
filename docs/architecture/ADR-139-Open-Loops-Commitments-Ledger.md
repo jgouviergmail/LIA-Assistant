@@ -103,3 +103,12 @@ la personne concernée. La section est renommée « Engagements » et remonte
 dans Réglages → Fonctionnalités ; le lexique de la recherche des réglages
 conserve les deux termes, un renommage qui efface l'ancien mot rendant la
 section introuvable pour qui l'a connue sous son premier nom.
+
+## Suite (2026-11-13) : une échéance se lit dans le fuseau de la personne
+
+L'extraction des engagements lit désormais l'échange horodaté et le présent dans le fuseau
+de la personne ([ADR-381](ADR-381-A-Model-Reads-When-Each-Message-Was-Written.md),
+amendement du 13/11). Une `due_hint_iso` donnée sans décalage est donc l'heure murale de la
+personne et se lit dans son fuseau (`_parse_due_hint`), là où elle était lue en UTC et
+décalait un « 9 h » de son décalage horaire. Une échéance avec décalage explicite reste
+l'instant du modèle ; la colonne `due_hint` reste un instant UTC consultatif.

@@ -29,12 +29,16 @@ combine with a filter, to a check on each page of the newest-first results).
 
 No count is reported: a provider page cannot prove how many messages exist
 behind it, and ADR-185 forbids a count that is not exact.
+
+Each LISTED message says where it stands in its conversation (ADR-379): a mail of
+theirs the owner answered, a mail the owner sent that got a reply. One read for the
+section, through the one door, while the mailbox is open — a message alone cannot say.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 
 import httpx
 import structlog
@@ -42,6 +46,7 @@ import structlog
 from src.core.classification_projection import email_classification
 from src.core.config import settings
 from src.core.exceptions import MaxRetriesExceededError
+from src.domains.connectors.mail_reply_states import reply_states_of
 from src.domains.relations.providers.classification import capture_source, qualify_rows
 from src.domains.relations.providers.client import open_category_client
 from src.domains.relations.providers.schemas import ExchangedEmail
@@ -59,6 +64,10 @@ _DIRECTION_QUERIES: tuple[tuple[str, str], ...] = (
     ("sent", "in:sent to:{address}"),
     ("sent", "in:sent cc:{address}"),
 )
+
+#: The zone this contract speaks (``occurred_at`` is UTC): the instants a reply state
+#: carries follow it, so a record a model reads never holds two zones.
+_CONTRACT_ZONE: Final = "UTC"
 
 #: Gmail's date format, understood by all three converters.
 _AFTER_FORMAT = "%Y/%m/%d"
@@ -134,8 +143,11 @@ def to_exchanged_email(message: dict[str, Any], direction: str) -> ExchangedEmai
 
 async def _search_one(
     client: Any, query: str, direction: str, limit: int, user_id: UUID
-) -> list[ExchangedEmail]:
+) -> list[tuple[ExchangedEmail, dict[str, Any]]]:
     """Run ONE directional search; a failure yields nothing, never raises.
+
+    Each result travels with the message it was read from: the conversation of a
+    listed message is looked up by what the provider said of it.
 
     Degrading per query is deliberate: a provider that refuses ``in:sent``
     would otherwise blank an exchange whose received half is perfectly
@@ -162,7 +174,7 @@ async def _search_one(
     found = []
     for message in response.get("messages") or []:
         if isinstance(message, dict) and (email := to_exchanged_email(message, direction)):
-            found.append(email)
+            found.append((email, message))
     return found
 
 
@@ -189,23 +201,27 @@ async def fetch_exchanged_emails(
     if not addresses:
         return []
     since = (now - timedelta(days=window_days)).strftime(_AFTER_FORMAT)
-    seen: dict[str, ExchangedEmail] = {}
+    seen: dict[str, tuple[ExchangedEmail, dict[str, Any]]] = {}
     async with open_category_client("email", user_id) as opened:
         client = opened.client
         for address in addresses:
             for direction, search in exchange_queries(address):
                 query = f"{search} after:{since}"
-                for email in await _search_one(client, query, direction, limit, user_id):
+                for email, message in await _search_one(client, query, direction, limit, user_id):
                     # Two addresses of one person can surface the same thread;
                     # the first sighting wins, so a message is listed once.
-                    seen.setdefault(email.id, email)
+                    seen.setdefault(email.id, (email, message))
+        ordered = sorted(
+            seen.values(),
+            key=lambda found: found[0].occurred_at or _UNDATED_SORT_KEY,
+            reverse=True,
+        )[:limit]
+        # Only what the section lists is looked up, and while the mailbox is open.
+        states = await reply_states_of(
+            client, [message for _, message in ordered], user_timezone=_CONTRACT_ZONE
+        )
         source = capture_source(client, opened.connector_type)
-    ordered = sorted(
-        seen.values(),
-        key=lambda email: email.occurred_at or _UNDATED_SORT_KEY,
-        reverse=True,
-    )
-    selected = ordered[:limit]
+    selected = [email for email, _ in ordered]
     annotations = await qualify_rows(
         [
             {
@@ -222,7 +238,10 @@ async def fetch_exchanged_emails(
     )
     return [
         item.model_copy(
-            update={"classification": email_classification(annotations.get(str(index)))}
+            update={
+                "classification": email_classification(annotations.get(str(index))),
+                "reply_state": states.get(item.id),
+            }
         )
         for index, item in enumerate(selected)
     ]

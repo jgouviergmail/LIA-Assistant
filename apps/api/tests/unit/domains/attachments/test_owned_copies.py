@@ -28,6 +28,7 @@ from src.domains.attachments.models import (
     AttachmentOrigin,
     AttachmentStatus,
 )
+from tests.helpers.attachment_publication import stub_publication
 
 pytestmark = pytest.mark.unit
 
@@ -103,6 +104,7 @@ async def _copy_bookmark(storage: Path, bookmark: SimpleNamespace | None, **sett
         patch.object(owned_copies, "settings", _settings(storage, **settings)),
         patch.object(owned_copies, "AttachmentRepository", return_value=repo),
         patch.object(owned_copies, "BookmarkRepository") as bookmarks,
+        stub_publication(storage, repo.created),
     ):
         bookmarks.return_value.get_for_user = AsyncMock(return_value=bookmark)
         row = await owned_copies.copy_bookmark(db, user_id=uuid.uuid4(), bookmark_id=uuid.uuid4())
@@ -186,6 +188,7 @@ async def _copy_generated(
     with (
         patch.object(owned_copies, "settings", _settings(storage, **settings)),
         patch.object(owned_copies, "AttachmentRepository", return_value=repo),
+        stub_publication(storage, repo.created),
     ):
         row = await owned_copies.copy_generated(db, user_id=caller, attachment_id=source.id)
     return row, repo
@@ -302,13 +305,14 @@ async def test_a_copy_whose_row_fails_leaves_no_file(storage: Path) -> None:
     with (
         patch.object(owned_copies, "settings", _settings(storage)),
         patch.object(owned_copies, "AttachmentRepository", return_value=repo),
+        stub_publication(storage, repo.created, fail_stage=True),
         pytest.raises(RuntimeError),
     ):
         await owned_copies.copy_generated(AsyncMock(), user_id=user_id, attachment_id=source.id)
     assert [path.name for path in (storage / str(user_id)).iterdir()] == [source.stored_filename]
 
 
-async def test_a_copy_whose_text_cannot_be_read_leaves_no_file(storage: Path) -> None:
+async def test_a_copy_whose_text_cannot_be_read_retains_its_cleanup_record(storage: Path) -> None:
     # The copy is made before its text is extracted: a file the extraction
     # refuses would otherwise lie on disk with no row any sweep could find.
     user_id = uuid.uuid4()
@@ -325,11 +329,15 @@ async def test_a_copy_whose_text_cannot_be_read_leaves_no_file(storage: Path) ->
     with (
         patch.object(owned_copies, "settings", _settings(storage)),
         patch.object(owned_copies, "AttachmentRepository", return_value=repo),
+        stub_publication(storage, repo.created) as writer,
         pytest.raises(PackageNotFoundError),
     ):
         await owned_copies.copy_generated(AsyncMock(), user_id=user_id, attachment_id=source.id)
     assert repo.created == []
-    assert [path.name for path in (storage / str(user_id)).iterdir()] == [source.stored_filename]
+    (retired,) = writer.rows.values()
+    assert retired.status == AttachmentStatus.DELETING
+    assert (storage / retired.file_path).read_bytes() == b"not a word document"
+    assert (storage / source.file_path).read_bytes() == b"not a word document"
 
 
 async def test_the_reads_end_before_a_generated_file_is_copied(storage: Path) -> None:
@@ -358,10 +366,11 @@ async def test_the_reads_end_before_a_generated_file_is_copied(storage: Path) ->
         patch.object(owned_copies, "settings", _settings(storage)),
         patch.object(owned_copies, "AttachmentRepository", return_value=_Repo(source)),
         patch.object(owned_copies, "copy_and_extract", recorded_copy),
+        stub_publication(storage),
     ):
         await owned_copies.copy_generated(db, user_id=user_id, attachment_id=source.id)
 
-    assert order == ["commit", "copy", "commit"]
+    assert order == ["commit", "commit", "copy", "commit"]
 
 
 async def test_the_reads_end_before_a_kept_answer_is_written(storage: Path) -> None:
@@ -380,6 +389,7 @@ async def test_the_reads_end_before_a_kept_answer_is_written(storage: Path) -> N
         patch.object(owned_copies, "AttachmentRepository", return_value=_Repo()),
         patch.object(owned_copies, "BookmarkRepository") as bookmarks,
         patch.object(owned_copies, "write_text_copy", recorded_write),
+        stub_publication(storage),
     ):
         bookmarks.return_value.get_for_user = AsyncMock(return_value=_bookmark(uuid.uuid4()))
         await owned_copies.copy_bookmark(db, user_id=uuid.uuid4(), bookmark_id=uuid.uuid4())

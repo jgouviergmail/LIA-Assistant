@@ -6,8 +6,13 @@ from uuid import uuid4
 
 import pytest
 
-from src.domains.user_mcp.models import UserMCPAuthType, UserMCPServerStatus
-from src.domains.user_mcp.schemas import UserMCPServerCreate
+from src.domains.user_mcp.models import (
+    UserMCPAuthType,
+    UserMCPServer,
+    UserMCPServerStatus,
+    UserMCPTestErrorCode,
+)
+from src.domains.user_mcp.schemas import UserMCPServerCreate, UserMCPServerUpdate
 from src.domains.user_mcp.service import UserMCPServerService
 
 
@@ -291,191 +296,200 @@ class TestEncryptCredentials:
         assert result is None
 
 
-class TestEncryptCredentialsFromUpdate:
-    """Tests for _encrypt_credentials_from_update merge behavior."""
+class TestUpdateServerCredentials:
+    """What update_server writes: credential_transition's decision, nothing else."""
 
-    @patch("src.domains.user_mcp.service.encrypt_data")
-    @patch("src.domains.user_mcp.service.decrypt_data")
-    def test_merge_header_name_only(self, mock_decrypt, mock_encrypt) -> None:
-        """Should merge new header_name with existing api_key from encrypted blob."""
-        # Existing credentials: api_key="sk-123", header_name="X-API-Key"
-        mock_decrypt.return_value = json.dumps(
-            {
-                "header_name": "X-API-Key",
-                "api_key": "sk-123",
-            }
+    @staticmethod
+    def _row(auth_type: UserMCPAuthType, status: UserMCPServerStatus) -> UserMCPServer:
+        return UserMCPServer(
+            id=uuid4(),
+            user_id=uuid4(),
+            name="Notes",
+            url="https://notes.example/mcp",
+            auth_type=auth_type.value,
+            status=status.value,
+            credentials_encrypted="stored-ciphertext",
+            oauth_metadata=None,
+            required_header_name=None,
+            last_error="Server returned an error response",
         )
-        mock_encrypt.return_value = "re-encrypted"
 
-        server = MagicMock()
-        server.credentials_encrypted = "old_encrypted"
+    @staticmethod
+    def _wire(
+        service: UserMCPServerService, row: UserMCPServer, stored: dict[str, object]
+    ) -> AsyncMock:
+        service.repository.get_by_id = AsyncMock(return_value=row)
+        service.repository.update = AsyncMock(return_value=row)
+        service._decrypt_existing_credentials = MagicMock(return_value=stored)
+        return service.repository.update
 
-        update_data = {"header_name": "X-Hf-Token"}
+    @pytest.mark.asyncio
+    async def test_switch_to_oauth_awaits_authorization(self, service) -> None:
+        row = self._row(UserMCPAuthType.API_KEY, UserMCPServerStatus.ERROR)
+        update = self._wire(service, row, {"header_name": "X-API-Key", "api_key": "sk-123"})
+        with patch.object(UserMCPServerService, "_disconnect_from_pool", new_callable=AsyncMock):
+            await service.update_server(
+                row.id, row.user_id, UserMCPServerUpdate(auth_type=UserMCPAuthType.OAUTH2)
+            )
+        written = update.call_args[0][1]
+        assert written["auth_type"] == UserMCPAuthType.OAUTH2.value
+        assert written["credentials_encrypted"] is None
+        assert written["status"] == UserMCPServerStatus.AUTH_REQUIRED.value
+        assert written["last_error"] is None
 
-        result = UserMCPServerService._encrypt_credentials_from_update(
-            update_data, UserMCPAuthType.API_KEY.value, server
-        )
-        assert result == "re-encrypted"
-        encrypted_json = json.loads(mock_encrypt.call_args[0][0])
-        assert encrypted_json["api_key"] == "sk-123"  # preserved from existing
-        assert encrypted_json["header_name"] == "X-Hf-Token"  # updated
+    @pytest.mark.asyncio
+    async def test_switch_to_api_key_without_key_writes_nothing(self, service) -> None:
+        from src.core.exceptions import ValidationError
 
-    @patch("src.domains.user_mcp.service.encrypt_data")
-    @patch("src.domains.user_mcp.service.decrypt_data")
-    def test_merge_api_key_preserves_header(self, mock_decrypt, mock_encrypt) -> None:
-        """Should preserve existing header_name when only api_key changes."""
-        mock_decrypt.return_value = json.dumps(
-            {
-                "header_name": "X-Custom",
-                "api_key": "old-key",
-            }
-        )
-        mock_encrypt.return_value = "re-encrypted"
+        row = self._row(UserMCPAuthType.OAUTH2, UserMCPServerStatus.ACTIVE)
+        update = self._wire(service, row, {"client_id": "c", "access_token": "tok"})
+        before_write = AsyncMock()
+        with pytest.raises(ValidationError):
+            await service.update_server(
+                row.id,
+                row.user_id,
+                UserMCPServerUpdate(auth_type=UserMCPAuthType.API_KEY),
+                before_write=before_write,
+            )
+        before_write.assert_not_awaited()
+        update.assert_not_awaited()
 
-        server = MagicMock()
-        server.credentials_encrypted = "old_encrypted"
-
-        update_data = {"api_key": "new-key"}
-
-        result = UserMCPServerService._encrypt_credentials_from_update(
-            update_data, UserMCPAuthType.API_KEY.value, server
-        )
-        assert result == "re-encrypted"
-        encrypted_json = json.loads(mock_encrypt.call_args[0][0])
-        assert encrypted_json["api_key"] == "new-key"  # updated
-        assert encrypted_json["header_name"] == "X-Custom"  # preserved
-
-    @patch("src.domains.user_mcp.service.encrypt_data")
-    @patch("src.domains.user_mcp.service.decrypt_data")
-    def test_merge_both_api_key_and_header(self, mock_decrypt, mock_encrypt) -> None:
-        """Should use both new values when both are provided."""
-        mock_decrypt.return_value = json.dumps(
-            {
-                "header_name": "X-Old",
-                "api_key": "old-key",
-            }
-        )
-        mock_encrypt.return_value = "re-encrypted"
-
-        server = MagicMock()
-        server.credentials_encrypted = "old_encrypted"
-
-        update_data = {"api_key": "new-key", "header_name": "X-New"}
-
-        UserMCPServerService._encrypt_credentials_from_update(
-            update_data, UserMCPAuthType.API_KEY.value, server
-        )
-        encrypted_json = json.loads(mock_encrypt.call_args[0][0])
-        assert encrypted_json["api_key"] == "new-key"
-        assert encrypted_json["header_name"] == "X-New"
-
-    def test_no_api_key_available_returns_existing(self) -> None:
-        """Should return existing encrypted blob when no api_key in update or existing."""
-        server = MagicMock()
-        server.credentials_encrypted = None
-
-        update_data = {"header_name": "X-Custom"}
-
-        result = UserMCPServerService._encrypt_credentials_from_update(
-            update_data, UserMCPAuthType.API_KEY.value, server
-        )
-        assert result is None  # server.credentials_encrypted was None
-
-    @patch("src.domains.user_mcp.service.encrypt_data")
-    @patch("src.domains.user_mcp.service.decrypt_data")
-    def test_bearer_merge_preserves_existing_token(self, mock_decrypt, mock_encrypt) -> None:
-        """Should preserve existing bearer token when no new token provided."""
-        mock_decrypt.return_value = json.dumps({"token": "existing-token"})
-        mock_encrypt.return_value = "re-encrypted"
-
-        server = MagicMock()
-        server.credentials_encrypted = "old_encrypted"
-
-        # Update with auth_type change but no new bearer_token
-        update_data: dict = {}
-
-        result = UserMCPServerService._encrypt_credentials_from_update(
-            update_data, UserMCPAuthType.BEARER.value, server
-        )
-        assert result == "re-encrypted"
-        encrypted_json = json.loads(mock_encrypt.call_args[0][0])
-        assert encrypted_json["token"] == "existing-token"
-
-    @patch("src.domains.user_mcp.service.encrypt_data")
-    @patch("src.domains.user_mcp.service.decrypt_data")
-    def test_oauth2_merge_new_client_credentials(self, mock_decrypt, mock_encrypt) -> None:
-        """Should merge new client_id/client_secret into existing OAuth credentials."""
-        mock_decrypt.return_value = json.dumps(
-            {
-                "client_id": "old-client",
-                "client_secret": "old-secret",
-                "access_token": "tok-abc",
-                "refresh_token": "ref-xyz",
-            }
-        )
-        mock_encrypt.return_value = "re-encrypted"
-
-        server = MagicMock()
-        server.credentials_encrypted = "old_encrypted"
-
-        update_data = {
-            "oauth_client_id": "new-client",
-            "oauth_client_secret": "new-secret",
+    @pytest.mark.asyncio
+    @patch("src.domains.user_mcp.service.encrypt_data", return_value="client-only")
+    @patch(
+        "src.domains.user_mcp.service.validate_http_endpoint",
+        new_callable=AsyncMock,
+        return_value=(True, None),
+    )
+    async def test_new_address_of_an_oauth_server_drops_its_tokens(
+        self, _validate, mock_encrypt, service
+    ) -> None:
+        row = self._row(UserMCPAuthType.OAUTH2, UserMCPServerStatus.ACTIVE)
+        row.oauth_metadata = {
+            "issuer": "https://auth.example",
+            "authorization_endpoint": "https://auth.example/authorize",
+            "token_endpoint": "https://auth.example/token",
+            "requested_scopes": "read",
         }
+        stored = {"client_id": "client-1", "access_token": "tok", "refresh_token": "ref"}
+        update = self._wire(service, row, stored)
+        with patch.object(UserMCPServerService, "_disconnect_from_pool", new_callable=AsyncMock):
+            await service.update_server(
+                row.id, row.user_id, UserMCPServerUpdate(url="https://other.example/mcp")
+            )
+        assert json.loads(mock_encrypt.call_args[0][0]) == {"client_id": "client-1"}
+        written = update.call_args[0][1]
+        assert written["credentials_encrypted"] == "client-only"
+        assert written["status"] == UserMCPServerStatus.AUTH_REQUIRED.value
+        # The endpoints were found for the old address: only the person's scopes stay.
+        assert written["oauth_metadata"] == {"requested_scopes": "read"}
 
-        result = UserMCPServerService._encrypt_credentials_from_update(
-            update_data, UserMCPAuthType.OAUTH2.value, server
+    @pytest.mark.asyncio
+    @patch("src.domains.user_mcp.service.encrypt_data", return_value="client-only")
+    @patch(
+        "src.domains.user_mcp.service.validate_http_endpoint",
+        new_callable=AsyncMock,
+        return_value=(True, None),
+    )
+    async def test_new_address_and_scopes_together_keep_the_new_scopes(
+        self, _validate, _encrypt, service
+    ) -> None:
+        row = self._row(UserMCPAuthType.OAUTH2, UserMCPServerStatus.ACTIVE)
+        row.oauth_metadata = {"token_endpoint": "https://auth.example/token"}
+        update = self._wire(service, row, {"client_id": "client-1", "access_token": "tok"})
+        with patch.object(UserMCPServerService, "_disconnect_from_pool", new_callable=AsyncMock):
+            await service.update_server(
+                row.id,
+                row.user_id,
+                UserMCPServerUpdate(url="https://other.example/mcp", oauth_scopes="read write"),
+            )
+        assert update.call_args[0][1]["oauth_metadata"] == {"requested_scopes": "read write"}
+
+    @pytest.mark.asyncio
+    async def test_unrelated_update_leaves_credentials_and_status(self, service) -> None:
+        row = self._row(UserMCPAuthType.OAUTH2, UserMCPServerStatus.ERROR)
+        update = self._wire(service, row, {"client_id": "c", "access_token": "tok"})
+        await service.update_server(row.id, row.user_id, UserMCPServerUpdate(timeout_seconds=90))
+        written = update.call_args[0][1]
+        assert written == {"timeout_seconds": 90}
+
+
+class TestConnectionAwaitingAuthorization:
+    """An OAuth server awaiting its authorization is never contacted, and stays auth_required."""
+
+    @staticmethod
+    def _row(status: UserMCPServerStatus) -> UserMCPServer:
+        return UserMCPServer(
+            id=uuid4(),
+            user_id=uuid4(),
+            name="Notes",
+            url="https://notes.example/mcp",
+            auth_type=UserMCPAuthType.OAUTH2.value,
+            status=status.value,
+            timeout_seconds=30,
         )
-        assert result == "re-encrypted"
-        encrypted_json = json.loads(mock_encrypt.call_args[0][0])
-        assert encrypted_json["client_id"] == "new-client"
-        assert encrypted_json["client_secret"] == "new-secret"
-        # Existing OAuth tokens must be preserved
-        assert encrypted_json["access_token"] == "tok-abc"
-        assert encrypted_json["refresh_token"] == "ref-xyz"
 
-    @patch("src.domains.user_mcp.service.encrypt_data")
-    @patch("src.domains.user_mcp.service.decrypt_data")
-    def test_oauth2_preserves_existing_when_no_new_creds(self, mock_decrypt, mock_encrypt) -> None:
-        """Should keep existing credentials when no new client_id provided."""
-        mock_decrypt.return_value = json.dumps(
-            {"client_id": "existing-id", "client_secret": "existing-secret"}
+    @staticmethod
+    def _pool(failure: BaseException | None = None) -> MagicMock:
+        pool = MagicMock()
+        pool.get_or_connect = AsyncMock(side_effect=failure)
+        return pool
+
+    async def _test(
+        self, service: UserMCPServerService, row: UserMCPServer, stored: dict, pool: MagicMock
+    ) -> tuple[dict, dict]:
+        service.repository.get_by_id = AsyncMock(return_value=row)
+        service.repository.update = AsyncMock(return_value=row)
+        service._decrypt_existing_credentials = MagicMock(return_value=stored)
+        with (
+            patch("src.infrastructure.mcp.user_pool.get_user_mcp_pool", return_value=pool),
+            patch("src.infrastructure.mcp.auth.build_auth_for_server", return_value=object()),
+        ):
+            result = await service.test_connection(row.id, row.user_id)
+        return result, service.repository.update.call_args[0][1]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("status", "stored"),
+        [
+            (UserMCPServerStatus.ERROR, {}),
+            (UserMCPServerStatus.ACTIVE, {"client_id": "client-1"}),
+            (UserMCPServerStatus.AUTH_REQUIRED, {"client_id": "c", "access_token": "tok"}),
+        ],
+    )
+    async def test_not_contacted_before_authorization(
+        self, service, status: UserMCPServerStatus, stored: dict
+    ) -> None:
+        pool = self._pool()
+        result, written = await self._test(service, self._row(status), stored, pool)
+        pool.get_or_connect.assert_not_awaited()
+        assert result["success"] is False
+        assert result["error_code"] == UserMCPTestErrorCode.OAUTH_AUTHORIZATION_REQUIRED.value
+        assert written == {"status": UserMCPServerStatus.AUTH_REQUIRED.value, "last_error": None}
+
+    @pytest.mark.asyncio
+    async def test_token_refused_while_testing_keeps_auth_required(self, service) -> None:
+        from src.infrastructure.mcp.utils import MCPAuthRequiredError
+
+        pool = self._pool(MCPAuthRequiredError("Notes"))
+        stored = {"client_id": "c", "access_token": "tok"}
+        result, written = await self._test(
+            service, self._row(UserMCPServerStatus.ACTIVE), stored, pool
         )
-        mock_encrypt.return_value = "re-encrypted"
+        pool.get_or_connect.assert_awaited_once()
+        assert result["error_code"] == UserMCPTestErrorCode.OAUTH_AUTHORIZATION_REQUIRED.value
+        assert written["status"] == UserMCPServerStatus.AUTH_REQUIRED.value
 
-        server = MagicMock()
-        server.credentials_encrypted = "old_encrypted"
-
-        # Update with no OAuth fields (e.g. just changing name)
-        update_data: dict = {}
-
-        result = UserMCPServerService._encrypt_credentials_from_update(
-            update_data, UserMCPAuthType.OAUTH2.value, server
+    @pytest.mark.asyncio
+    async def test_any_other_failure_is_an_error(self, service) -> None:
+        pool = self._pool(RuntimeError("boom"))
+        stored = {"client_id": "c", "access_token": "tok"}
+        result, written = await self._test(
+            service, self._row(UserMCPServerStatus.ACTIVE), stored, pool
         )
-        assert result == "re-encrypted"
-        encrypted_json = json.loads(mock_encrypt.call_args[0][0])
-        assert encrypted_json["client_id"] == "existing-id"
-        assert encrypted_json["client_secret"] == "existing-secret"
-
-    def test_oauth2_no_existing_no_new_returns_existing(self) -> None:
-        """Should return existing blob when no client_id in update or existing creds."""
-        server = MagicMock()
-        server.credentials_encrypted = None
-
-        result = UserMCPServerService._encrypt_credentials_from_update(
-            {}, UserMCPAuthType.OAUTH2.value, server
-        )
-        assert result is None
-
-    def test_switch_to_none_clears_credentials(self) -> None:
-        """Should return None when switching to auth_type 'none'."""
-        server = MagicMock()
-        server.credentials_encrypted = "old_encrypted"
-
-        result = UserMCPServerService._encrypt_credentials_from_update(
-            {}, UserMCPAuthType.NONE.value, server
-        )
-        assert result is None
+        assert result["error"] == "Connection failed: RuntimeError"
+        assert "error_code" not in result
+        assert written["status"] == UserMCPServerStatus.ERROR.value
 
 
 class TestCreateServerDomainDescription:

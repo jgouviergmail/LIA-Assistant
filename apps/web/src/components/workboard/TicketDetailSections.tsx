@@ -17,6 +17,7 @@ import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
+import { CategoryBadge } from '@/components/workboard/CategoryBadge';
 import { UsageLine, meterFigures, type Figure } from '@/components/ui/usage-line';
 import { useAuth } from '@/hooks/useAuth';
 import { lifecycleTone } from '@/lib/status-tone';
@@ -221,22 +222,48 @@ export function TicketUsageBlock({ ticket }: { ticket: TicketRow }) {
 }
 
 /** The ticket's steps — child tickets, one level (D9). */
-export function StepsBlock({ steps }: { steps: readonly TicketRow[] }) {
+/**
+ * The steps of a ticket.
+ *
+ * A step is born in its ticket's lane and may be filed elsewhere afterwards.
+ * Its category is shown only when it DIFFERS from the ticket's own: the same
+ * word repeated on every line would say nothing, and the ticket's category is
+ * already stated among its settings.
+ */
+export function StepsBlock({
+  steps,
+  parentCategoryId,
+  categoryName,
+}: {
+  steps: readonly TicketRow[];
+  /** The category of the ticket these are the steps of; null for none. */
+  parentCategoryId: string | null;
+  /** The name of a category of the reader's board. */
+  categoryName?: (categoryId: string) => string | undefined;
+}) {
   const { t } = useTranslation();
+  const laneOf = (step: TicketRow) =>
+    step.category_id === null || step.category_id === parentCategoryId
+      ? undefined
+      : categoryName?.(step.category_id);
   return (
     <Panel icon={ListTree} title={t('workboard.detail.steps')}>
       {steps.length === 0 ? (
         <p className="mt-1 text-xs text-muted-foreground">{t('workboard.detail.no_step')}</p>
       ) : (
         <ul className="mt-2 space-y-1">
-          {steps.map(child => (
-            <li key={child.id} className="flex items-center gap-2 text-sm">
-              <Badge variant={lifecycleTone(child.status)}>
-                {t(`workboard.columns.${child.status}`)}
-              </Badge>
-              <span className="min-w-0 truncate">{child.title}</span>
-            </li>
-          ))}
+          {steps.map(child => {
+            const lane = laneOf(child);
+            return (
+              <li key={child.id} className="flex flex-wrap items-center gap-2 text-sm">
+                <Badge variant={lifecycleTone(child.status)}>
+                  {t(`workboard.columns.${child.status}`)}
+                </Badge>
+                <span className="min-w-0 truncate">{child.title}</span>
+                {lane !== undefined && <CategoryBadge name={lane} />}
+              </li>
+            );
+          })}
         </ul>
       )}
     </Panel>

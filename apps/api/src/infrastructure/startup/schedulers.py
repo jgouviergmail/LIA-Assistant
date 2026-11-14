@@ -70,6 +70,7 @@ from src.infrastructure.scheduler.token_refresh import refresh_expiring_tokens
 from src.infrastructure.scheduler.unverified_account_cleanup import (
     cleanup_unverified_accounts,
 )
+from src.infrastructure.startup.scheduler_conversations import register_conversation_cleanup
 from src.infrastructure.startup.scheduler_discussions import register_discussion_jobs
 from src.infrastructure.startup.scheduler_ingestion import register_ingestion_jobs
 from src.infrastructure.startup.scheduler_jitter import jitter_seconds_for
@@ -629,12 +630,11 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
             logger.info("psyche_weekly_narrative_job_scheduled", cron="sun@03:00")
 
         # Schedule attachment cleanup (evolution F4 — File Attachments).
-        # Runs every 6 hours as the TTL safety net for expired files. NOT
+        # Bounded TTL retirement and retryable file effects. NOT
         # gated on the uploads ceiling (ADR-279, amended 2026-09-12): four
         # producers write this table — uploads, generated images, generated
         # documents, browser screenshots — and an instance with uploads off
         # and generation on would otherwise never expire what it produced.
-        # A sweep that finds nothing costs one indexed query.
         from src.infrastructure.scheduler.attachment_cleanup import (
             cleanup_expired_attachments,
         )
@@ -642,15 +642,20 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
         scheduler.add_job(
             cleanup_expired_attachments,
             trigger="interval",
-            hours=6,
-            jitter=jitter_seconds_for(hours=6),
+            seconds=settings.attachments_cleanup_interval_seconds,
+            jitter=jitter_seconds_for(seconds=settings.attachments_cleanup_interval_seconds),
             id=SCHEDULER_JOB_ATTACHMENT_CLEANUP,
             name="Cleanup expired attachments",
             replace_existing=True,
             max_instances=1,
             misfire_grace_time=60,
         )
-        logger.info("attachment_cleanup_job_scheduled", interval_hours=6)
+        logger.info(
+            "attachment_cleanup_job_scheduled",
+            interval_seconds=settings.attachments_cleanup_interval_seconds,
+        )
+
+        register_conversation_cleanup(scheduler)
 
         # Schedule nightly habit-profile recompute (ADR-214). One aggregate
         # query + one upsert per enabled user; per-user sessions and error

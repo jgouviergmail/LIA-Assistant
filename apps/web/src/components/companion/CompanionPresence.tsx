@@ -32,6 +32,7 @@ import { useNotifications, type NotificationType } from '@/hooks/useNotification
 import { fetchActiveRun } from '@/lib/api/chat';
 import { getLanguageFromPath, buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { fallbackLng } from '@/i18n/settings';
+import { gazeTargetProps } from '@/components/eyes/gaze-target';
 
 /** Notification types that count toward the companion's unread badge. */
 const COUNTED_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>([
@@ -284,6 +285,8 @@ export function CompanionPresence({
         onClick={() => setDismissed(false)}
         aria-label={t('companion.restore')}
         data-companion-presence
+        // Where a notification shows outside the chat: the companion looks here.
+        {...gazeTargetProps('notification')}
         // The dot stays 12 px; the TARGET is 44. The box is anchored to the
         // same corner and grows inward, so the dot does not move a pixel.
         className="group fixed bottom-6 right-6 z-40 flex h-11 w-11 items-end justify-end"
@@ -305,6 +308,7 @@ export function CompanionPresence({
   return (
     <div
       data-companion-presence
+      {...gazeTargetProps('notification')}
       className="fixed bottom-6 right-6 z-40 flex flex-col items-center gap-1"
     >
       {/* Working: a small "thinking" bubble above the avatar */}

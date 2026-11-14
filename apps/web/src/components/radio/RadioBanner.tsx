@@ -35,7 +35,7 @@ import {
   Loader2,
   Pause,
   Play,
-  Radio,
+  RadioSet,
   RotateCcw,
   Square,
   Timer,
@@ -74,7 +74,7 @@ function StatusIcon({ view }: { view: RadioView }) {
     return <Pause className="h-4 w-4 text-primary" aria-hidden="true" />;
   }
   return (
-    <Radio
+    <RadioSet
       className={cn(
         'h-4 w-4 text-primary',
         view.status === 'playing' && 'motion-safe:animate-pulse'

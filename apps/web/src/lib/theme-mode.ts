@@ -1,5 +1,5 @@
 /**
- * The display-mode state machine: light → dark → OLED → light.
+ * The display-mode state machine: light → dark → OLED → automatic → light.
  *
  * OLED is a REFINEMENT of dark, never a fourth theme. `next-themes` keeps
  * owning `light | dark | system` and keeps setting `.dark`; OLED is a separate
@@ -64,26 +64,56 @@ export function fromPersistedTheme(value: string | null | undefined): ThemeModeS
   return { mode: value as DisplayMode, oled: false };
 }
 
+/** What the header's circular toggle reads to choose where a press goes. */
+export interface CycleState {
+  /** The chosen mode: recognises automatic, which the rendered theme cannot. */
+  mode: DisplayMode;
+  /** The theme actually rendered (`next-themes`' `resolvedTheme`). */
+  resolved: 'light' | 'dark' | undefined;
+  oled: boolean;
+}
+
 /**
- * The next state in the header's circular toggle.
+ * A stop of the header's circle. Narrower than `ThemeModeState` on purpose: the
+ * cycle never lands on `system`, and saying so lets callers index a table of
+ * its stops without an unreachable branch.
+ */
+export interface CycleStop {
+  mode: 'light' | 'dark' | 'auto';
+  oled: boolean;
+}
+
+/**
+ * The next state in the header's circular toggle: light → dark → OLED →
+ * automatic → light, the order Settings lists them in.
  *
  * Driven by the RESOLVED theme, never the stored one: every account starts at
  * `system`, and a `theme === 'dark'` test classifies that as "not dark", so a
  * user whose OS is dark used to click and see nothing change.
  *
+ * Automatic is the exception, recognised by its MODE: it renders light by day
+ * and absolute black at night, so read by what it shows it would pass for a
+ * manual stop, and at night the circle could never leave it. It always leaves
+ * for light, whatever it shows.
+ *
+ * Automatic is offered only where it can run: its hours and its zone belong to
+ * an account, so a visitor's circle keeps three stops.
+ *
  * Returning to light clears the OLED flag, otherwise the following click would
- * land straight back on dark+OLED and skip plain dark — the circle would have
- * two states instead of three.
+ * land straight back on dark+OLED and skip plain dark.
+ *
+ * Args:
+ *   state: The chosen mode, the rendered theme and the OLED flag.
+ *   automaticAvailable: Whether this display has an account's schedule to follow.
+ *
+ * Returns:
+ *   The stop a press reaches.
  */
-export function nextInCycle(
-  resolved: 'light' | 'dark' | undefined,
-  oled: boolean
-): { mode: 'light' | 'dark'; oled: boolean } {
-  // Narrower than `ThemeModeState` on purpose: the cycle never lands on
-  // `system`, and saying so lets callers index a three-entry table without a
-  // fourth, unreachable branch.
-  if (resolved !== 'dark') return { mode: 'dark', oled: false };
-  return oled ? { mode: 'light', oled: false } : { mode: 'dark', oled: true };
+export function nextInCycle(state: CycleState, automaticAvailable: boolean): CycleStop {
+  if (state.mode === 'auto') return { mode: 'light', oled: false };
+  if (state.resolved !== 'dark') return { mode: 'dark', oled: false };
+  if (!state.oled) return { mode: 'dark', oled: true };
+  return automaticAvailable ? { mode: 'auto', oled: false } : { mode: 'light', oled: false };
 }
 
 /**

@@ -13,6 +13,7 @@ from src.core.exceptions import AuthorizationError
 from src.domains.plugins.import_hooks import PluginImportHooks
 from src.domains.plugins.import_service import PluginImportService
 from src.domains.skills.repository import SkillRepository
+from tests.helpers.committed_account_session import async_session as async_session
 
 pytestmark = pytest.mark.integration
 

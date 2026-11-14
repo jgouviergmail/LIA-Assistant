@@ -300,6 +300,50 @@ def redaction_professionnelle(c: Canvas) -> None:
     c.bar(64, y + 6, 120, 7, INK)
 
 
+def revue_hebdomadaire(c: Canvas) -> None:
+    """The week ahead as a strip of days, above what is done, open and to decide."""
+    c.card((40, 28, 440, 272))
+    for i in range(7):
+        x = 60 + i * 52
+        today = i == 0
+        c.rect(
+            (x, 46, x + 40, 90),
+            fill=ACCENT if today else CARD,
+            outline=None if today else LINE,
+            width=2,
+            radius=4,
+        )
+        c.bar(x + 8, 56, 24, 6, CARD if today else MUTED)
+        c.bar(x + 8, 70, 12 + (i * 7) % 16, 5, CARD if today else LINE)
+    y = 112.0
+    for kind, widths in (("done", (210, 160)), ("open", (240, 190)), ("decide", (180,))):
+        for w in widths:
+            if kind == "done":
+                c.line([(62, y + 4), (66, y + 9), (74, y - 1)], ACCENT, 2.5)
+            elif kind == "open":
+                c.ellipse((62, y - 1, 72, y + 9), outline=INK, width=2)
+            else:
+                c.polygon([(62, y - 1), (73, y + 4), (62, y + 9)], ACCENT)
+            c.bar(86, y, w, 7, STRONG if kind == "decide" else INK)
+            y += 22
+        y += 8
+
+
+def tri_boite_reception(c: Canvas) -> None:
+    """Unread mail sorted into groups, the messages to answer first."""
+    c.card((40, 28, 440, 272))
+    y = 50.0
+    for group, (colour, rows) in enumerate(((ACCENT, 2), (INK, 2), (MUTED, 1), (LINE, 1))):
+        rail = colour if colour != LINE else MUTED
+        c.rect((60, y, 66, y + 22 * rows - 6), fill=rail, radius=2)
+        for r in range(rows):
+            ry = y + r * 22
+            c.rect((80, ry, 102, ry + 15), fill=CARD, outline=rail, width=2, radius=2)
+            c.line([(80, ry + 1), (91, ry + 8), (102, ry + 1)], rail, 1.5)
+            c.bar(114, ry + 4, 210 - r * 40 - group * 18, 7, STRONG if group == 0 else MUTED)
+        y += 22 * rows + 12
+
+
 def skill_generator(c: Canvas) -> None:
     """A skill file being assembled, with the accent marking what is added."""
     c.card((40, 28, 440, 272))
@@ -405,9 +449,11 @@ DRAWINGS: dict[str, Callable[[Canvas], None]] = {
     "preparation-reunion": preparation_reunion,
     "qr-code": qr_code,
     "redaction-professionnelle": redaction_professionnelle,
+    "revue-hebdomadaire": revue_hebdomadaire,
     "skill-generator": skill_generator,
     "synthese-recherche": synthese_recherche,
     "tic-tac-toe": tic_tac_toe,
+    "tri-boite-reception": tri_boite_reception,
     "unit-converter": unit_converter,
     "weather-dashboard": weather_dashboard,
 }

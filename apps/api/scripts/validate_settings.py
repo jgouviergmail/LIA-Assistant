@@ -44,13 +44,18 @@ def validate_current_settings() -> tuple[object | None, tuple[SettingsIssue, ...
     """
     from pydantic import ValidationError
 
-    from src.core.config import Settings
-    from src.infrastructure.database.connection_budget import (
-        ConnectionBudgetError,
-        enforce_connection_budget,
-    )
-
     try:
+        # INSIDE the try: importing the settings package builds the singleton,
+        # so in a fresh process an invalid environment fails HERE, before any
+        # `Settings()` of ours. Left outside, that failure escaped as a
+        # traceback quoting the offending value (2026-11-10: a deployment
+        # preflight must name the field and never the value).
+        from src.core.config import Settings
+        from src.infrastructure.database.connection_budget import (
+            ConnectionBudgetError,
+            enforce_connection_budget,
+        )
+
         settings = Settings()
         # Same pure arithmetic the production lifespan fail-fasts on
         # (audit F004): an overcommitted pool profile must fail HERE, in the

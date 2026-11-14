@@ -155,7 +155,18 @@ send_email_catalogue_manifest = ToolManifest(
 # ============================================================================
 _reply_desc = (
     "**Tool: reply_email_tool** - Reply to existing email. **REQUIRES HITL**.\n"
-    "Auto-fills recipient and subject. Provide only 'body'."
+    "Auto-fills recipient and subject. 'body' only for the user's own dictated words; "
+    "otherwise give 'content_instruction' and LIA writes the reply in the user's voice."
+)
+
+#: Who writes a reply's words: read by the reply tool's manifest AND its schema (ADR-383).
+REPLY_BODY_DESCRIPTION = (
+    "The reply's text ONLY when the user dictated its exact words; otherwise leave it out: "
+    "LIA writes the reply from the received e-mail, in the user's own voice"
+)
+REPLY_INSTRUCTION_DESCRIPTION = (
+    "What the reply must say when the user did not dictate its words "
+    "(e.g. 'accept Friday 10am', 'decline politely')"
 )
 
 reply_email_catalogue_manifest = ToolManifest(
@@ -180,8 +191,15 @@ reply_email_catalogue_manifest = ToolManifest(
         ParameterSchema(
             name="body",
             type="string",
-            required=True,
-            description="Reply content",
+            required=False,
+            description=REPLY_BODY_DESCRIPTION,
+            semantic_type="Text",
+        ),
+        ParameterSchema(
+            name="content_instruction",
+            type="string",
+            required=False,
+            description=REPLY_INSTRUCTION_DESCRIPTION,
             semantic_type="Text",
         ),
         ParameterSchema(

@@ -203,6 +203,46 @@ def _resolve_dns_sync(hostname: str) -> list[str]:
     return list(ordered)
 
 
+def literal_refusal(url: str) -> str | None:
+    """Why a URL is refused before its name is resolved, or ``None``.
+
+    The checks :func:`validate_url` makes before any DNS: a URL at all, an
+    HTTP(S) scheme, a hostname, a name off the blacklists, a literal address
+    off the blocked ranges. For a caller that must refuse a URL where no
+    network call may run — an API boundary (ADR-387). Passing it proves
+    nothing about where the name resolves: the fetch validates every hop.
+
+    Args:
+        url: Raw URL from a person or a model.
+
+    Returns:
+        The refusal, worded as :func:`validate_url` words it; ``None`` when
+        only resolving the name can tell.
+    """
+    if not url or not url.strip():
+        return "Empty URL"
+    try:
+        parsed = urlparse(url.strip())
+        hostname = parsed.hostname
+    except Exception:
+        return "Malformed URL"
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in _ALLOWED_SCHEMES:
+        return f"Unsupported scheme: {scheme or 'none'}. Only HTTP/HTTPS allowed"
+    if not hostname:
+        return "No hostname in URL"
+    hostname_error = _check_hostname_safety(hostname)
+    if hostname_error:
+        return hostname_error
+    try:
+        ip_addr = ipaddress.ip_address(hostname)
+    except ValueError:
+        return None  # A name: judged once resolved.
+    if not check_ip_safety(str(ip_addr)):
+        return f"Blocked IP address: {hostname}"
+    return None
+
+
 async def validate_url(
     url: str, *, dns_resolver: Callable[[str], list[str]] | None = None
 ) -> UrlValidationResult:
@@ -210,10 +250,11 @@ async def validate_url(
     Validate a URL for safety (SSRF prevention) and normalize it.
 
     Steps:
-        1. Parse URL and validate scheme (HTTP/HTTPS only)
-        2. Check hostname against blacklists
-        3. Resolve DNS (async, non-blocking) and check IPs against blocked ranges
-        4. Upgrade HTTP to HTTPS
+        1. What the URL's spelling rules out (:func:`literal_refusal`): the
+           scheme (HTTP/HTTPS only), the hostname, its blacklists, a literal
+           address in a blocked range
+        2. Resolve DNS (async, non-blocking) and check IPs against blocked ranges
+        3. Upgrade HTTP to HTTPS
 
     Args:
         url: Raw URL from user/LLM
@@ -226,41 +267,19 @@ async def validate_url(
 
     url = url.strip()
 
-    # 1. Parse URL
-    try:
-        parsed = urlparse(url)
-    except Exception:
-        return UrlValidationResult(valid=False, url=url, error="Malformed URL")
-
-    # 2. Validate scheme
-    scheme = (parsed.scheme or "").lower()
-    if scheme not in _ALLOWED_SCHEMES:
-        return UrlValidationResult(
-            valid=False,
-            url=url,
-            error=f"Unsupported scheme: {scheme or 'none'}. Only HTTP/HTTPS allowed",
-        )
-
-    # 3. Validate hostname exists
+    # 1. What the spelling alone rules out — the one implementation.
+    refusal = literal_refusal(url)
+    if refusal is not None:
+        return UrlValidationResult(valid=False, url=url, error=refusal)
+    parsed = urlparse(url)
+    scheme = parsed.scheme.lower()
     hostname = parsed.hostname
-    if not hostname:
+    if not hostname:  # pragma: no cover — literal_refusal refused it already
         return UrlValidationResult(valid=False, url=url, error="No hostname in URL")
 
-    # 4. Check hostname blacklist
-    hostname_error = _check_hostname_safety(hostname)
-    if hostname_error:
-        return UrlValidationResult(valid=False, url=url, error=hostname_error)
-
-    # 5. Check if hostname is a raw IP address
+    # A raw IP is its own (already checked) address: no DNS to ask.
     try:
         ip_addr = ipaddress.ip_address(hostname)
-        if not check_ip_safety(str(ip_addr)):
-            return UrlValidationResult(
-                valid=False,
-                url=url,
-                error=f"Blocked IP address: {hostname}",
-            )
-        # Raw IP, skip DNS resolution
         resolved_ips = [str(ip_addr)]
     except ValueError:
         # Not a raw IP — resolve DNS
@@ -273,7 +292,7 @@ async def validate_url(
                 error=f"DNS resolution failed for: {hostname}",
             )
 
-        # 6. Check resolved IPs against blocked ranges
+        # 2. Check resolved IPs against blocked ranges
         for ip_str in resolved_ips:
             if not check_ip_safety(ip_str):
                 logger.warning(
@@ -287,7 +306,7 @@ async def validate_url(
                     error=f"Hostname {hostname} resolves to blocked IP: {ip_str}",
                 )
 
-    # 7. Upgrade HTTP → HTTPS
+    # 3. Upgrade HTTP → HTTPS
     https_upgraded = False
     safe_url = url
     if scheme == "http":

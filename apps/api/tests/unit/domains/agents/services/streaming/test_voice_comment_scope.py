@@ -44,6 +44,7 @@ from src.domains.chat.service import TrackingContext
 from src.domains.personalities.constants import default_personality_prompt
 from src.domains.voice import service as voice_service_module
 from src.domains.voice.schemas import VoiceAudioChunk
+from tests.fixtures.conversation_cases import streaming_target
 
 pytestmark = pytest.mark.unit
 
@@ -199,7 +200,9 @@ async def _voiced_turn(
 
     turn = _Turn()
     tokens_seen = 0
-    async for chunk, fragment in service.stream_sse_chunks(graph(), uuid.uuid4(), "run-voice"):
+    async for chunk, fragment in service.stream_sse_chunks(
+        graph(), streaming_target(uuid.uuid4()), "run-voice"
+    ):
         turn.chunk_types.append(chunk.type)
         if chunk.type == "token":
             tokens_seen += 1

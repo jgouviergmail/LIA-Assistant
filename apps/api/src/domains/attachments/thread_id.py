@@ -1,10 +1,9 @@
 """The conversation a produced file belongs to, when there is one (ADR-279).
 
-Every producer knows its thread as a STRING — the graph's ``thread_id``, which
-is a conversation UUID on the ordinary path and the literal ``"unknown"`` on
-paths that have no conversation (a scheduled run, a ticket run, a sub-agent).
-The column is a real foreign key, so a value that is not a UUID must become
-NULL rather than blow up the write that produces the file.
+Every producer passes the BUSINESS conversation identity from its typed context,
+never LangGraph's thread_id. A rotated runtime is also a UUID but is not a valid
+foreign key. Autonomous producers may declare no conversation; a child run keeps
+its parent's business identity. This parser cannot infer identity from a UUID.
 
 One reader, because three producers ask the same question and the third copy is
 where the ``"unknown"`` case goes missing.
@@ -17,12 +16,11 @@ import uuid
 __all__ = ["conversation_uuid"]
 
 
-def conversation_uuid(thread_id: object) -> uuid.UUID | None:
+def conversation_uuid(conversation_id: object) -> uuid.UUID | None:
     """The conversation id to file a produced attachment under.
 
     Args:
-        thread_id: Whatever the producer holds — the graph's ``thread_id``, a
-            UUID, or nothing at all.
+        conversation_id: The explicitly declared business identity, or None.
 
     Returns:
         The conversation UUID, or None when there is no conversation (a
@@ -30,11 +28,11 @@ def conversation_uuid(thread_id: object) -> uuid.UUID | None:
         legitimate answer: the file is still the person's, it simply belongs to
         no conversation, and the column is nullable for exactly that.
     """
-    if isinstance(thread_id, uuid.UUID):
-        return thread_id
-    if not isinstance(thread_id, str):
+    if isinstance(conversation_id, uuid.UUID):
+        return conversation_id
+    if not isinstance(conversation_id, str):
         return None
     try:
-        return uuid.UUID(thread_id)
+        return uuid.UUID(conversation_id)
     except ValueError:
         return None

@@ -1,10 +1,11 @@
 """A connector that asks nothing of the person belongs to the INSTANCE (ADR-307).
 
-Wikipedia, the browser, Google Places, Google Weather and Google Environment
-need no OAuth consent and no personal key. Whether one of them serves an
-account is therefore decided by the instance alone — the administrator's global
-switch, the platform ``GOOGLE_API_KEY``, the browser flag — and never by a
-per-account row.
+Wikipedia, the browser, Google Places, Google Weather, Google Environment and
+the instance's own web search (SearXNG, lot 18) need no OAuth consent and no
+personal key. Whether one of them serves an account is therefore decided by the
+instance alone — the administrator's global switch, the platform
+``GOOGLE_API_KEY``, the browser flag, the address of the SearXNG the operator
+runs — and never by a per-account row.
 
 A row was the previous authority (ADR-307 records why it went): every account
 created before sign-up provisioning had none, an administrator re-enabling a
@@ -33,6 +34,7 @@ from src.domains.connectors.repository import ConnectorRepository
 REASON_DISABLED_BY_ADMIN = "disabled_by_admin"
 REASON_PLATFORM_KEY_MISSING = "platform_key_missing"
 REASON_BROWSER_DISABLED = "browser_disabled"
+REASON_SEARCH_NOT_DEPLOYED = "search_not_deployed"
 
 
 async def keyless_unavailable_reason(
@@ -64,7 +66,8 @@ def keyless_ceiling_reason(connector_type: ConnectorType) -> str | None:
     """Why the DEPLOYMENT withholds this keyless type, or ``None`` — no database read.
 
     The half of :func:`keyless_unavailable_reason` that its settings decide
-    (the platform key, the browser flag): what ``/config`` publishes as a
+    (the platform key, the browser flag, the address of the instance's own
+    search): what ``/config`` publishes as a
     deployment ceiling, beside the other ceilings it publishes. The
     administrator's switch is the other half, enforced where the service is used.
 
@@ -72,7 +75,8 @@ def keyless_ceiling_reason(connector_type: ConnectorType) -> str | None:
         connector_type: A keyless connector type.
 
     Returns:
-        ``REASON_PLATFORM_KEY_MISSING``, ``REASON_BROWSER_DISABLED`` or ``None``.
+        ``REASON_PLATFORM_KEY_MISSING``, ``REASON_BROWSER_DISABLED``,
+        ``REASON_SEARCH_NOT_DEPLOYED`` or ``None``.
 
     Raises:
         ValueError: If ``connector_type`` is not keyless.
@@ -83,6 +87,8 @@ def keyless_ceiling_reason(connector_type: ConnectorType) -> str | None:
         return REASON_PLATFORM_KEY_MISSING
     if connector_type is ConnectorType.BROWSER and not settings.browser_enabled:
         return REASON_BROWSER_DISABLED
+    if connector_type is ConnectorType.SEARXNG and not settings.searxng_url.strip():
+        return REASON_SEARCH_NOT_DEPLOYED
     return None
 
 

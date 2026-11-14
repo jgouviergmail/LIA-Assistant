@@ -1940,8 +1940,8 @@
     },
     "370": {
       "title": "A page the model writes runs in the chat, in the strictest frame",
-      "summary": "Asking for a game or a small tool gives a page that runs in the conversation, with its file; asking for the code gives the code, and what a person types stays text. The page runs isolated, with no access to the account or to any site of its choosing, under a policy that names no host. Read back from history it waits for a click, because an endless loop would freeze the tab, and the model only ever reads its title.",
-      "src": "ab92ef5e6f98"
+      "summary": "Asking for a game or a small tool gives a page that runs in the conversation, with its file; asking for the code gives the code, and what a person types stays text. The page runs isolated, with no access to the account or to any site of its choosing, under a policy that names no host but the map sources the operator allows. Read back from history it waits for a click, because an endless loop would freeze the tab, and the model only ever reads its title.",
+      "src": "3bcfc0530f76"
     },
     "371": {
       "title": "The domain agents' slots leave with their nodes",
@@ -1977,6 +1977,61 @@
       "title": "The account chooses how the interface is drawn",
       "summary": "Every icon goes through one door that draws the account's chosen style, Lucide, Fluent Color or Streamline Flex, without changing what any symbol means, and the system's high contrast keeps its colours. The theme can also turn from light to absolute black by itself at the chosen hours, on the account's clock, without a timer ever writing the profile.",
       "src": "961a36d2c764"
+    },
+    "378": {
+      "title": "Main stays permanent and each discussion gets its own runtime",
+      "summary": "A badge opens Main and named discussions with independent histories and usage figures. Automatic messages keep arriving in Main, and account preferences and learning are shared. Reset and deletion retire the exact runtime and leave a receipt for its cleanup.",
+      "src": "3d0c881877ab"
+    },
+    "379": {
+      "title": "A listed e-mail says whether it was answered",
+      "summary": "Read alone, a message cannot say whether it was answered: the reply is another message of the same conversation. LIA now reads that conversation whenever it lists mail, and tells the same fact everywhere: already answered, a reply left as a draft, a reply received. So it no longer offers to answer an e-mail the person already answered, in the chat as in notifications, the home page, relationships and the Tools.",
+      "src": "8d6baa43fbc1"
+    },
+    "380": {
+      "title": "A time you say travels with its zone",
+      "summary": "“Half past nine” names a precise instant only with the zone you say it in, and every hour LIA lost was lost when one travelled without the other: an appointment moved to 9:30 turned up at 10:30. The time and its zone are now a single object, which LIA hands as it is to Google, Microsoft and iCloud with nothing converted on the way, and one rule covers the two nights the clocks change. And every journey of a time, from the screen to the calendar and back, is replayed on calendars simulated from their documentation, in zones far from universal time.",
+      "src": "501ba1659f0b"
+    },
+    "381": {
+      "title": "A model knows when each message was written",
+      "summary": "A model knew the present time, never when the earlier messages were written: resumed days later, a conversation read as if everything had just been said, and « the dentist tomorrow », written on a Tuesday, was still ahead on the Friday. Each of your messages now carries the moment you wrote it, in your time zone, and every model that reads the conversation again reads it: the answer, the ReAct loop, the analysis of your request, the compaction summary, the phone call, and what LIA retains about you (memories, interests, commitments, journal), whose deadlines now read in your time zone. Measured on three model families before the code was written, the questions that depend on it got between 3 and 7 right answers out of 21; they now get 14, 16 and 20.",
+      "src": "b3cd55107c2c"
+    },
+    "382": {
+      "title": "The instance searches the web for whoever has no key",
+      "summary": "With no search key of their own, a person was searched on Wikipedia alone. LIA now runs SearXNG, a keyless metasearch engine, beside it, on by default (the operator can refuse it): the chat's search, the enrichment of answers, the watch over your interests and the Tools then find their web links there, unfiltered as with Brave, your own Brave key keeping priority. Measured before the code was written: 58 useful searches out of 60 in the six languages, half of them in under 0.7 seconds. And a watch source that would ask nothing is no longer counted as consulted.",
+      "src": "8de9f8a9e3b4"
+    },
+    "383": {
+      "title": "A draft speaks in the person's voice",
+      "summary": "Two people answering the same e-mail used to get the same reply from LIA. The first time LIA writes an e-mail for you, it now learns how you write from your latest sent e-mails — greeting, sign-off, signature, tone, never what you wrote about — and follows it in every reply and new message, including the reply you confirm, which LIA now writes itself when you did not dictate its words. You read, switch off or forget it in the settings. Measured on fictional people before the code was written: replies went from about 42 to 63 marks of their author's style out of 66, without a single fact copied from past mail.",
+      "src": "34665c9462e6"
+    },
+    "384": {
+      "title": "A message written while LIA works waits its turn",
+      "summary": "A message sent while LIA was answering — or while a routine ran on your account — was refused and lost. The server now keeps it with its discussion, below the conversation, where you can edit or withdraw it; words written next join it. It leaves by itself, as your message, as soon as LIA has finished normally; if the answer was stopped or failed, it waits for your decision. It is never taken as the answer to a question LIA asks you, and « Send now » stops the answer in progress, then sends it. Every run now says how it ended, and that end, written when the account is released, decides.",
+      "src": "9d72507d739c"
+    },
+    "385": {
+      "title": "A note joins the answer being written",
+      "summary": "What you write while LIA works is often a detail of your request (« only the ones open on Sunday »), and sending it after the answer redid the work. In ReAct mode, your waiting message can now join the answer in progress: LIA reads it at its next step, as your own words, and takes it into account from there, without rewriting anything before it. Until it has read it, you can edit or withdraw it; if it finishes first, it is sent right after, as usual. Your note stays in the conversation, in its place, and the request that the answer, the memory and the next turns keep includes it.",
+      "src": "05e3ac16b232"
+    },
+    "386": {
+      "title": "Another system starts a routine",
+      "summary": "A routine can now run when another system calls it: a home automation box, a code forge, a form service. LIA gives the routine its own address and a secret, shown once; the other system signs each call with it, and LIA serves the call within a minute, reading what it sent as data, never as instructions. A call without a valid signature is refused, a burst is bounded, a retried delivery counts once, and a lost secret is replaced by a new one that retires the old at once. An administrator can switch the capability off; the demonstrator keeps it off.",
+      "src": "19b21b3a019c"
+    },
+    "387": {
+      "title": "A routine watches a web page",
+      "summary": "A routine can now wait for a web page to change: a price, an “in stock” that comes back, an announcement added. LIA reads the public page itself, with no model, and runs the routine only for the lines that appear on it, read as data, never as instructions. A line that leaves and comes back is announced again.",
+      "src": "7cd2979deda5"
+    },
+    "388": {
+      "title": "Documents use what their formats can do",
+      "summary": "A document LIA generates now uses its format's own mechanisms: a spreadsheet computes with real formulas, a chart can be edited in Excel or PowerPoint, a deck you will present moves soberly, a report opens on a cover page with its key figures, its figures and its clickable sources. The model says what things are and the renderer draws them, in a palette checked for contrast that follows the document's tone. Illustrations are generated images: they come only if you allow them in Settings › Documents, within a budget, and each one is counted in your costs.",
+      "src": "825ef1252ca8"
     }
   }
 }

@@ -73,6 +73,14 @@ sse_time_to_first_token_seconds = Histogram(
     ],
 )
 
+sse_token_gap_seconds = Histogram(
+    "sse_token_gap_seconds",
+    "Gap between two consecutive answer tokens of a stream a person waits for",
+    # A model streams a token every few tens of milliseconds; a stall is a gap of
+    # seconds that no timeout ends (lot 26, docs/technical/MODEL_OUTPUT_HEALTH.md).
+    buckets=[0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 60.0, 120.0],
+)
+
 sse_tokens_generated_total = Counter(
     "sse_tokens_generated_total",
     "Total tokens generated in SSE streaming",
@@ -98,6 +106,16 @@ chat_background_runs_total = Counter(
     "chat_background_runs_total",
     "Detached chat runs by terminal status",
     ["status"],  # completed | error | killed
+)
+
+# What happens to a message written while LIA works (ADR-384), and to one added
+# to the answer being written (ADR-385).
+chat_waiting_messages_total = Counter(
+    "chat_waiting_messages_total",
+    "Messages written while the account was busy, by what happened to them",
+    # kept | added | departed | held | sent_now | edited | withdrawn
+    # | joined | note_read | note_returned
+    ["event"],
 )
 
 # ============================================================================

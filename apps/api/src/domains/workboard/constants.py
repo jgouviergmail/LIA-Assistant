@@ -186,3 +186,12 @@ class WorkboardError(str, Enum):
     PRIORITY_INVALID = "workboard_priority_invalid"
     DATES_INVERTED = "workboard_dates_inverted"
     AMBIGUOUS_REFERENCE = "workboard_ambiguous_reference"
+    # Categories (2026-11-11): the account's own lanes. A name is an identity
+    # (folded), so « taken » is about what it FOLDS to, never its spelling.
+    CATEGORY_NAME_REQUIRED = "workboard_category_name_required"
+    CATEGORY_NAME_TOO_LONG = "workboard_category_name_too_long"
+    CATEGORY_NAME_TAKEN = "workboard_category_name_taken"
+    TOO_MANY_CATEGORIES = "workboard_too_many_categories"
+    # Filing a ticket under a category that is not the owner's own — deleted
+    # a moment ago, somebody else's, or a name the chat made up.
+    CATEGORY_UNKNOWN = "workboard_category_unknown"

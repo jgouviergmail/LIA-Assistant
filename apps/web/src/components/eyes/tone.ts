@@ -22,7 +22,11 @@
  * the resting behaviour, not on a per-turn reaction.
  */
 
-import type { EyeExpression, IdleGesture } from '@/components/eyes/expression-engine';
+import type {
+  EyeExpression,
+  IdleGesture,
+  PresentationGesture,
+} from '@/components/eyes/expression-engine';
 
 // =============================================================================
 // The wire vocabulary (mirrors the backend's, and is validated against it)
@@ -208,6 +212,49 @@ export function accentGesture(accent: ToneAccent): IdleGesture | null {
 /** Whether an accent should summon the delight accessory. */
 export function accentSparkles(accent: ToneAccent): boolean {
   return accent === 'sparkle';
+}
+
+// =============================================================================
+// The delivery — how an answer is handed over
+// =============================================================================
+
+/**
+ * The way each register hands its answer over, when its model declared no
+ * accent — 94 % of the answers measured (30 days of production, 288 answers),
+ * which used to land on a face that did nothing at all. Five families of
+ * « voilà », each a look at the answer and an open hand presenting it, then
+ * the register's own manner (`rig/delivery.ts`).
+ */
+const REGISTER_PRESENTATIONS: Record<ToneRegister, PresentationGesture> = {
+  celebratory: 'present-warm',
+  playful: 'present-warm',
+  warm: 'present-warm',
+  curious: 'present-factual',
+  assured: 'present-assured',
+  factual: 'present-factual',
+  careful: 'present-careful',
+  questioning: 'present-careful',
+  surprised: 'present-assured',
+  concerned: 'present-soft',
+  apologetic: 'present-soft',
+  weary: 'present-soft',
+};
+
+/** The register a reaction's face was earned by: twelve registers, twelve
+ * distinct faces (`REGISTER_EXPRESSIONS`), so the face names its register. */
+const REGISTER_OF_FACE: ReadonlyMap<EyeExpression, ToneRegister> = new Map(
+  TONE_REGISTERS.map(register => [REGISTER_EXPRESSIONS[register], register])
+);
+
+/**
+ * The beat a delivered answer earns: the accent its model declared when it
+ * declared a movement, the register's presentation when it declared none. A
+ * `sparkle` is an accessory, not a movement — it plays no beat, as before.
+ */
+export function deliveryGesture(expression: EyeExpression, accent: ToneAccent): IdleGesture | null {
+  if (accent !== 'none') return accentGesture(accent);
+  const register = REGISTER_OF_FACE.get(expression);
+  return register ? REGISTER_PRESENTATIONS[register] : null;
 }
 
 // =============================================================================

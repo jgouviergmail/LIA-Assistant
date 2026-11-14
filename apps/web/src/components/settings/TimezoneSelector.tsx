@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { Check, Globe, Info } from '@/lib/icons';
+import { MonochromeIcons } from '@/lib/icon-style-context';
 import { InfoBox } from '@/components/ui/info-box';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -278,7 +279,11 @@ export function TimezoneSelector({ lng }: BaseSettingsProps) {
                               }
                             `}
                           >
-                            {isSelected && <Check className="h-3 w-3" strokeWidth={3} />}
+                            {isSelected && (
+                              <MonochromeIcons>
+                                <Check className="h-3 w-3" strokeWidth={3} />
+                              </MonochromeIcons>
+                            )}
                           </div>
 
                           {/* Timezone details */}

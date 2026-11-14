@@ -1,10 +1,13 @@
 """All-day events written on the three calendar providers, and windows drained (ADR-369, D2).
 
 All three READ an all-day event (Google's ``start.date`` / exclusive ``end.date``);
-none could WRITE one — Google's update only kept an existing shape. ``all_day``
-now writes it the way each provider stores it, in the convention the clients
-read, so an event read and written back keeps its days. A calendar window is
-read whole up to a published bound, and a cut says so.
+none could WRITE one — Google's update only kept an existing shape. Day bounds
+(``event_bounds.DayBounds``) now write it the way each provider stores it, in the
+convention the clients read, so an event read and written back keeps its days. A
+calendar window is read whole up to a published bound, and a cut says so.
+
+The clients are handed BOUNDS, never text (ADR-380): a wall time travels with
+its zone to the provider, and nothing on the way stamps another one on it.
 """
 
 from __future__ import annotations
@@ -15,12 +18,14 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
 import vobject
 
 from src.domains.connectors.clients.apple_calendar_client import AppleCalendarClient
+from src.domains.connectors.clients.event_bounds import bounds_of, change_of
 from src.domains.connectors.clients.google_calendar_client import GoogleCalendarClient
 from src.domains.connectors.clients.microsoft_calendar_client import MicrosoftCalendarClient
 from src.domains.connectors.clients.normalizers.all_day import (
@@ -35,6 +40,7 @@ pytestmark = pytest.mark.unit
 
 USER = UUID("00000000-0000-4000-8000-000000000002")
 _KEY = "draft:all-day"
+_UTC = ZoneInfo("UTC")
 
 
 def _credentials() -> ConnectorCredentials:
@@ -108,10 +114,7 @@ class TestGoogle:
             recorder,
             lambda: client.create_event(
                 "Congress",
-                "2026-11-03",
-                "2026-11-06",
-                timezone="UTC",
-                all_day=True,
+                bounds_of("2026-11-03", "2026-11-06", _UTC, all_day=True),
                 idempotency_key=_KEY,
             ),
         )
@@ -138,7 +141,7 @@ class TestGoogle:
             client,
             recorder,
             lambda: client.update_event(
-                "e1", start_datetime="2026-11-03", end_datetime="2026-11-04", all_day=True
+                "e1", bounds=bounds_of("2026-11-03", "2026-11-04", _UTC, all_day=True)
             ),
         )
         patched = recorder.calls[-1][2]
@@ -150,25 +153,42 @@ class TestGoogle:
             recorder,
             lambda: client.update_event(
                 "e1",
-                start_datetime="2026-11-03T14:00:00",
-                end_datetime="2026-11-03T15:00:00",
-                timezone="UTC",
-                all_day=False,
+                bounds=bounds_of("2026-11-03T14:00:00", "2026-11-03T15:00:00", _UTC, all_day=False),
             ),
         )
         patched = recorder.calls[-1][2]
-        assert patched["start"]["date"] is None
-        assert patched["start"]["dateTime"].startswith("2026-11-03T14:00:00")
+        assert patched["start"] == {
+            "date": None,
+            "dateTime": "2026-11-03T14:00:00",
+            "timeZone": "UTC",
+        }
 
-    async def test_switching_shape_without_both_bounds_is_refused(self) -> None:
+    async def test_sides_given_to_an_all_day_event_name_their_days(self) -> None:
+        # Sides keep the shape the event HAS: an all-day event's dates stay dates.
         client = GoogleCalendarClient(USER, _credentials(), MagicMock())
-        recorder = _Recorder(lambda request: httpx.Response(200, json={"id": "e1", "start": {}}))
-        with pytest.raises(ValueError):
-            await _drive(
-                client,
-                recorder,
-                lambda: client.update_event("e1", start_datetime="2026-11-03", all_day=True),
+        recorder = _Recorder(
+            lambda request: httpx.Response(
+                200,
+                json={"id": "e1", "start": {"date": "2026-11-03"}, "end": {"date": "2026-11-04"}},
             )
+        )
+
+        await _drive(
+            client,
+            recorder,
+            lambda: client.update_event(
+                "e1",
+                bounds=change_of(
+                    "2026-11-05T09:30:00", "2026-11-06T09:30:00", _PARIS_ZONE, all_day=None
+                ),
+            ),
+        )
+
+        patched = recorder.calls[-1][2]
+        assert (patched["start"], patched["end"]) == (
+            {"date": "2026-11-05"},
+            {"date": "2026-11-06"},
+        )
 
 
 class TestGraph:
@@ -181,10 +201,7 @@ class TestGraph:
             recorder,
             lambda: client.create_event(
                 "Congress",
-                "2026-03-29",
-                "2026-03-30",
-                timezone="Europe/Berlin",
-                all_day=True,
+                bounds_of("2026-03-29", "2026-03-30", ZoneInfo("Europe/Berlin"), all_day=True),
                 idempotency_key=_KEY,
             ),
         )
@@ -204,16 +221,343 @@ class TestGraph:
             recorder,
             lambda: client.update_event(
                 "g1",
-                start_datetime="2026-11-03T09:00:00",
-                end_datetime="2026-11-03T10:00:00",
-                timezone="UTC",
-                all_day=False,
+                bounds=bounds_of("2026-11-03T09:00:00", "2026-11-03T10:00:00", _UTC, all_day=False),
             ),
         )
 
         body = recorder.calls[0][2]
         assert body["isAllDay"] is False
         assert body["start"] == {"dateTime": "2026-11-03T09:00:00", "timeZone": "UTC"}
+
+
+_PARIS = "Europe/Paris"
+_PARIS_ZONE = ZoneInfo(_PARIS)
+#: Nine thirty on a Paris wall in winter: 08:30 UTC, never 09:30 UTC.
+_WALL_START, _WALL_END = "2026-11-27T09:30:00", "2026-11-27T10:30:00"
+
+
+class TestWallTimesKeepTheirZone:
+    """What the calendar screen sends is a wall time and its zone (ADR-369, spec §14).
+
+    A provider reads an offset before it reads a zone: a wall time stamped ``Z``
+    on the way is that hour in UTC, and the event lands an hour late in Paris
+    (two in summer) — seen in production on every event moved or edited by hand.
+    """
+
+    @staticmethod
+    def _timed(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "id": "e1",
+                "start": {"dateTime": "2026-11-27T14:00:00+01:00", "timeZone": _PARIS},
+                "end": {"dateTime": "2026-11-27T15:00:00+01:00", "timeZone": _PARIS},
+            },
+        )
+
+    async def test_google_creates_an_event_at_its_wall_time(self) -> None:
+        client = GoogleCalendarClient(USER, _credentials(), MagicMock())
+        recorder = _Recorder(lambda request: httpx.Response(200, json={"id": "e1"}))
+
+        await _drive(
+            client,
+            recorder,
+            lambda: client.create_event(
+                "Visit",
+                bounds_of(_WALL_START, _WALL_END, _PARIS_ZONE, all_day=False),
+                idempotency_key=_KEY,
+            ),
+        )
+
+        body = recorder.calls[0][2]
+        assert body["start"] == {"dateTime": _WALL_START, "timeZone": _PARIS}
+        assert body["end"] == {"dateTime": _WALL_END, "timeZone": _PARIS}
+
+    async def test_google_moves_an_event_to_the_wall_time_it_is_given(self) -> None:
+        client = GoogleCalendarClient(USER, _credentials(), MagicMock())
+        recorder = _Recorder(self._timed)
+
+        await _drive(
+            client,
+            recorder,
+            lambda: client.update_event(
+                "e1", bounds=change_of(_WALL_START, _WALL_END, _PARIS_ZONE, all_day=None)
+            ),
+        )
+
+        method, _path, patched, _params = recorder.calls[-1]
+        assert method == "PATCH"
+        assert patched["start"] == {"dateTime": _WALL_START, "timeZone": _PARIS}
+        assert patched["end"] == {"dateTime": _WALL_END, "timeZone": _PARIS}
+
+    async def test_google_turns_a_day_into_the_wall_times_it_is_given(self) -> None:
+        client = GoogleCalendarClient(USER, _credentials(), MagicMock())
+        recorder = _Recorder(
+            lambda request: httpx.Response(
+                200,
+                json={"id": "e1", "start": {"date": "2026-11-27"}, "end": {"date": "2026-11-28"}},
+            )
+        )
+
+        await _drive(
+            client,
+            recorder,
+            lambda: client.update_event(
+                "e1", bounds=bounds_of(_WALL_START, _WALL_END, _PARIS_ZONE, all_day=False)
+            ),
+        )
+
+        patched = recorder.calls[-1][2]
+        assert patched["start"] == {"date": None, "dateTime": _WALL_START, "timeZone": _PARIS}
+        assert patched["end"] == {"date": None, "dateTime": _WALL_END, "timeZone": _PARIS}
+
+    @pytest.mark.parametrize(
+        "written",
+        ["2026-11-27T09:30:00+01:00", "2026-11-27T08:30:00Z", "2026-11-27T03:30:00-05:00"],
+    )
+    async def test_google_is_told_an_instant_as_the_wall_time_of_its_zone(
+        self, written: str
+    ) -> None:
+        # The assistant's path may hand a time WITH an offset: it names an instant,
+        # and whatever offset spelt it, the person's wall shows 09:30 at that instant.
+        client = GoogleCalendarClient(USER, _credentials(), MagicMock())
+        recorder = _Recorder(self._timed)
+
+        await _drive(
+            client,
+            recorder,
+            lambda: client.update_event(
+                "e1", bounds=change_of(written, None, _PARIS_ZONE, all_day=None)
+            ),
+        )
+
+        patched = recorder.calls[-1][2]
+        assert patched["start"] == {"dateTime": _WALL_START, "timeZone": _PARIS}
+
+    async def test_graph_moves_an_event_to_the_wall_time_it_is_given(self) -> None:
+        client = MicrosoftCalendarClient(USER, _credentials(), MagicMock())
+        recorder = _Recorder(lambda request: httpx.Response(200, json={"id": "g1"}))
+
+        await _drive(
+            client,
+            recorder,
+            lambda: client.update_event(
+                "g1", bounds=change_of(_WALL_START, _WALL_END, _PARIS_ZONE, all_day=None)
+            ),
+        )
+
+        body = recorder.calls[-1][2]
+        assert body["start"] == {"dateTime": _WALL_START, "timeZone": _PARIS}
+        assert body["end"] == {"dateTime": _WALL_END, "timeZone": _PARIS}
+
+    async def test_caldav_moves_an_event_to_the_wall_time_it_is_given(self) -> None:
+        calendar = _CalDav()
+        client, patches = _apple(calendar)
+        with (
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patch(
+                "src.domains.connectors.clients.apple_calendar_client.normalize_vevent",
+                return_value={"id": "apple-1"},
+            ),
+        ):
+            await client.update_event(
+                "apple-1", bounds=change_of(_WALL_START, _WALL_END, _PARIS_ZONE, all_day=None)
+            )
+
+        ics = vobject.readOne(calendar.saves[-1]["ics"])
+        start, end = ics.vevent.dtstart.value, ics.vevent.dtend.value
+        # Read back as the instant it names: 09:30 on the Paris wall is 08:30 UTC.
+        assert start.astimezone(UTC) == datetime(2026, 11, 27, 8, 30, tzinfo=UTC)
+        assert end.astimezone(UTC) == datetime(2026, 11, 27, 9, 30, tzinfo=UTC)
+        assert (start.hour, start.minute) == (9, 30)
+
+
+#: The two nights of 2026 in Paris, as (written, its end, what names the instant).
+_NIGHTS = [
+    # 29 March, 02:00 -> 03:00: skipped, read with the offset before the change.
+    ("2026-03-29T02:30:00", "2026-03-29T05:30:00", "2026-03-29T02:30:00+01:00"),
+    # 25 October, 03:00 -> 02:00: shown twice, its first passage...
+    ("2026-10-25T02:30:00", "2026-10-25T05:30:00", "2026-10-25T02:30:00+02:00"),
+    # ... and its second, which only an instant can say.
+    ("2026-10-25T02:30:00+01:00", "2026-10-25T05:30:00", "2026-10-25T02:30:00+01:00"),
+]
+#: An event as an iCloud calendar hands it over: its zone named, and defined beside it.
+_FROM_THE_SERVER = "\r\n".join(
+    [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//lia//test//EN",
+        "BEGIN:VTIMEZONE",
+        "TZID:America/New_York",
+        "BEGIN:STANDARD",
+        "DTSTART:20071104T020000",
+        "RRULE:FREQ=YEARLY;BYDAY=1SU;BYMONTH=11",
+        "TZOFFSETFROM:-0400",
+        "TZOFFSETTO:-0500",
+        "END:STANDARD",
+        "BEGIN:DAYLIGHT",
+        "DTSTART:20070311T020000",
+        "RRULE:FREQ=YEARLY;BYDAY=2SU;BYMONTH=3",
+        "TZOFFSETFROM:-0500",
+        "TZOFFSETTO:-0400",
+        "END:DAYLIGHT",
+        "END:VTIMEZONE",
+        "BEGIN:VEVENT",
+        "UID:apple-1",
+        "SUMMARY:Old",
+        "DTSTART;TZID=America/New_York:20270601T150000",
+        "DTEND;TZID=America/New_York:20270601T160000",
+        "END:VEVENT",
+        "END:VCALENDAR",
+        "",
+    ]
+)
+
+
+def _event_lines(ics: str, name: str) -> list[str]:
+    """The lines ``name`` of the VEVENT (a VTIMEZONE has a DTSTART of its own)."""
+    lines = ics.replace("\r\n", "\n").split("\n")
+    return [line for line in lines[lines.index("BEGIN:VEVENT") :] if line.startswith(name)]
+
+
+class TestWhereTheZoneAloneIsNotEnough:
+    """An hour the clocks skip or show twice: each provider is told the INSTANT, in its words.
+
+    How a provider places such a wall time is written in none of their references:
+    told « 02:30, Europe/Paris », it would follow a rule of its own.
+    """
+
+    @pytest.mark.parametrize(("written", "ends", "told"), _NIGHTS)
+    async def test_google_is_told_the_offset(self, written: str, ends: str, told: str) -> None:
+        client = GoogleCalendarClient(USER, _credentials(), MagicMock())
+        recorder = _Recorder(lambda request: httpx.Response(200, json={"id": "e1"}))
+
+        await _drive(
+            client,
+            recorder,
+            lambda: client.create_event(
+                "Night", bounds_of(written, ends, _PARIS_ZONE, all_day=False), idempotency_key=_KEY
+            ),
+        )
+
+        body = recorder.calls[0][2]
+        # Google reads an offset before the zone: here that is the very point.
+        assert body["start"] == {"dateTime": told, "timeZone": _PARIS}
+        # An ordinary hour stays a wall time beside its zone.
+        assert body["end"] == {"dateTime": ends, "timeZone": _PARIS}
+
+    @pytest.mark.parametrize(("written", "ends", "told"), _NIGHTS)
+    async def test_graph_is_told_the_time_on_the_wall_of_utc(
+        self, written: str, ends: str, told: str
+    ) -> None:
+        client = MicrosoftCalendarClient(USER, _credentials(), MagicMock())
+        recorder = _Recorder(lambda request: httpx.Response(201, json={"id": "g1"}))
+
+        await _drive(
+            client,
+            recorder,
+            lambda: client.create_event(
+                "Night", bounds_of(written, ends, _PARIS_ZONE, all_day=False), idempotency_key=_KEY
+            ),
+        )
+
+        body = recorder.calls[0][2]
+        in_utc = datetime.fromisoformat(told).astimezone(UTC).replace(tzinfo=None)
+        # ``dateTimeTimeZone`` has no offset to say it with.
+        assert body["start"] == {"dateTime": in_utc.isoformat(), "timeZone": "UTC"}
+        assert body["end"] == {"dateTime": ends, "timeZone": _PARIS}
+
+    @pytest.mark.parametrize(("written", "ends", "told"), _NIGHTS)
+    async def test_caldav_is_told_the_time_in_utc(self, written: str, ends: str, told: str) -> None:
+        calendar = _CalDav()
+        calendar.event.vobject_instance = vobject.readOne(_FROM_THE_SERVER)
+        client, patches = _apple(calendar)
+        with (
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patch(
+                "src.domains.connectors.clients.apple_calendar_client.normalize_vevent",
+                return_value={"id": "apple-1"},
+            ),
+        ):
+            await client.update_event(
+                "apple-1", bounds=change_of(written, None, _PARIS_ZONE, all_day=None)
+            )
+
+        in_utc = datetime.fromisoformat(told).astimezone(UTC)
+        # The zone the old start carried is gone with it: a TZID on a time in UTC is invalid.
+        assert _event_lines(calendar.saves[-1]["ics"], "DTSTART") == [
+            f"DTSTART:{in_utc:%Y%m%dT%H%M%S}Z"
+        ]
+
+
+class TestCalDavNamesAZoneByItsOwnName:
+    """vobject writes every update, and names a zone by its winter abbreviation unless told.
+
+    « EST » is the name of ANOTHER zone, five hours behind all year: a server that
+    knows it places a New York summer morning an hour late.
+    """
+
+    async def test_an_update_names_the_zone_as_a_create_does(self) -> None:
+        calendar = _CalDav()
+        calendar.event.vobject_instance = vobject.readOne(_FROM_THE_SERVER)
+        client, patches = _apple(calendar)
+        with (
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patch(
+                "src.domains.connectors.clients.apple_calendar_client.normalize_vevent",
+                return_value={"id": "apple-1"},
+            ),
+        ):
+            await client.update_event(
+                "apple-1",
+                bounds=change_of(
+                    "2026-07-14T09:30:00",
+                    "2026-07-14T10:30:00",
+                    ZoneInfo("America/New_York"),
+                    all_day=None,
+                ),
+            )
+
+        ics = calendar.saves[-1]["ics"]
+        assert _event_lines(ics, "DTSTART") == ["DTSTART;TZID=America/New_York:20260714T093000"]
+        assert _event_lines(ics, "DTEND") == ["DTEND;TZID=America/New_York:20260714T103000"]
+        assert "TZID:EST" not in ics and "TZID=EST" not in ics
+
+    async def test_a_create_hands_caldav_the_zone_under_its_name(self) -> None:
+        calendar = _CalDav()
+        client, patches = _apple(calendar)
+        with (
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patch(
+                "src.domains.connectors.clients.apple_calendar_client.normalize_vevent",
+                return_value={"id": "apple-1"},
+            ),
+        ):
+            await client.create_event(
+                "Visit",
+                bounds_of(
+                    "2026-07-14T09:30:00",
+                    "2026-07-14T10:30:00",
+                    ZoneInfo("America/New_York"),
+                    all_day=False,
+                ),
+            )
+
+        start = calendar.saves[0]["dtstart"]
+        assert (str(start.tzinfo), start.tzinfo.tzid) == ("America/New_York", "America/New_York")
+        assert start.astimezone(UTC) == datetime(2026, 7, 14, 13, 30, tzinfo=UTC)
 
 
 class _CalDavEvent:
@@ -274,7 +618,9 @@ class TestCalDav:
                 return_value={"id": "apple-1"},
             ),
         ):
-            await client.create_event("Congress", "2026-11-03", "2026-11-04", all_day=True)
+            await client.create_event(
+                "Congress", bounds_of("2026-11-03", "2026-11-04", _UTC, all_day=True)
+            )
         assert calendar.saves[0]["dtstart"] == date(2026, 11, 3)
         assert calendar.saves[0]["dtend"] == date(2026, 11, 4)
         assert not isinstance(calendar.saves[0]["dtstart"], datetime)
@@ -293,7 +639,7 @@ class TestCalDav:
             ),
         ):
             await client.update_event(
-                "apple-1", start_datetime="2026-11-03", end_datetime="2026-11-04", all_day=True
+                "apple-1", bounds=bounds_of("2026-11-03", "2026-11-04", _UTC, all_day=True)
             )
         assert "DTSTART;VALUE=DATE:20261103" in calendar.saves[-1]["ics"]
         assert "DTEND;VALUE=DATE:20261104" in calendar.saves[-1]["ics"]
@@ -510,7 +856,7 @@ class TestWindowsAreBoundedAndOwnTheirRequests:
             ),
         ):
             await client.update_event(
-                "apple-1", start_datetime="2026-11-03", end_datetime="2026-11-04", all_day=True
+                "apple-1", bounds=bounds_of("2026-11-03", "2026-11-04", _UTC, all_day=True)
             )
         ics = calendar.saves[-1]["ics"]
         assert "DTEND;VALUE=DATE:20261104" in ics

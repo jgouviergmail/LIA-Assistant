@@ -22,11 +22,21 @@ each attempt gets a fresh awaitable.
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from google.genai.errors import ClientError, ServerError
+from langchain_google_genai._common import GoogleGenerativeAIError
 
+from src.core.config import settings
+from src.core.constants import (
+    EMBEDDING_PROVIDER_DELAY_JITTER_SECONDS,
+    EMBEDDING_PROVIDER_DELAY_MARGIN_SECONDS,
+)
 from src.core.exceptions import MaxRetriesExceededError
+from src.infrastructure.llm.embedding_errors import embedding_retry_reason
+from src.infrastructure.llm.embedding_patience import embeddings_may_wait, patient_embeddings
 from src.infrastructure.llm.gemini_embeddings import (
     GeminiRetrievalEmbeddings,
     is_transient_embedding_error,
@@ -487,3 +497,282 @@ class TestTheShaperIsObservable:
                 await embeddings.aembed_query("bonjour")
 
         assert self._count(embeddings.model_name, "acquired") == before + 2
+
+
+# ---------------------------------------------------------------------------
+# The provider's own delay
+# ---------------------------------------------------------------------------
+
+_JITTER = "src.infrastructure.llm.gemini_embeddings._jitter_seconds"
+
+
+def _as_langchain_raises_it(provider_error: Exception) -> Exception:
+    try:
+        raise GoogleGenerativeAIError(f"Error embedding content: {provider_error}") from (
+            provider_error
+        )
+    except GoogleGenerativeAIError as wrapped:
+        return wrapped
+
+
+def _refusal(retry_delay: str) -> Exception:
+    """A per-minute quota refusal: the SDK error carrying the delay is the cause."""
+    return _as_langchain_raises_it(
+        ClientError(
+            429,
+            {
+                "error": {
+                    "code": 429,
+                    "status": "RESOURCE_EXHAUSTED",
+                    "message": "Embed content requests per minute limit exceeded",
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.RetryInfo",
+                            "retryDelay": retry_delay,
+                        }
+                    ],
+                }
+            },
+        )
+    )
+
+
+def _internal_error() -> Exception:
+    """A transient failure that names no delay."""
+    return _as_langchain_raises_it(
+        ServerError(500, {"error": {"code": 500, "status": "INTERNAL", "message": "internal"}})
+    )
+
+
+async def _embed_through(failures: list[Exception]) -> tuple[object, list[float], int]:
+    """Embed once, the provider failing in turn with ``failures`` then answering.
+
+    Returns:
+        What the caller got (the vector, or the exception raised), every wait
+        served between attempts, and how many times the provider was called.
+    """
+    embeddings = _embeddings()
+    pending = list(failures)
+    calls = 0
+
+    async def provider(*_args: object, **_kwargs: object) -> list[float]:
+        nonlocal calls
+        calls += 1
+        if pending:
+            raise pending.pop(0)
+        return [0.1, 0.2]
+
+    embeddings._client.aembed_query = provider
+    sleep = AsyncMock()
+    outcome: object
+    with patch(_SLOT, AsyncMock(return_value=SlotOutcome.ACQUIRED)), patch("asyncio.sleep", sleep):
+        try:
+            outcome = await embeddings.aembed_query("bonjour")
+        except Exception as error:  # noqa: BLE001 — the error IS what the test reads
+            outcome = error
+    return outcome, [call.args[0] for call in sleep.await_args_list], calls
+
+
+def _backoff_wait() -> float:
+    """What the client waits before its first retry when nobody names a delay."""
+    return float(settings.embedding_retry_backoff_factor**0)
+
+
+class TestIndexingWaitsWhatTheProviderAsks:
+    """Measured on 2026-11-09: 581 quota refusals, every one naming a delay of
+    20 to 49 seconds, every one retried after ONE second — 302 retries that
+    could not succeed, and 253 documents failed for it."""
+
+    async def test_it_waits_the_named_delay_and_the_retry_succeeds(self) -> None:
+        with patient_embeddings(), patch(_JITTER, return_value=0.0):
+            outcome, waits, calls = await _embed_through([_refusal("40s")])
+
+        assert outcome == [0.1, 0.2]
+        assert calls == 2
+        # The structured delay is rounded DOWN (40s for 40.38 s): the margin is
+        # what keeps the retry from arriving a fraction of a second early.
+        assert waits == [40.0 + EMBEDDING_PROVIDER_DELAY_MARGIN_SECONDS]
+
+    async def test_the_wait_is_spread_so_the_batch_does_not_come_back_as_one(self) -> None:
+        with patient_embeddings():
+            _outcome, waits, _calls = await _embed_through([_refusal("40s")])
+
+        floor = 40.0 + EMBEDDING_PROVIDER_DELAY_MARGIN_SECONDS
+        assert floor <= waits[0] <= floor + EMBEDDING_PROVIDER_DELAY_JITTER_SECONDS
+
+    async def test_a_delay_beyond_its_patience_is_not_waited_at_all(self) -> None:
+        """An exhausted daily quota says « come back in an hour »: waiting a
+        minute before failing anyway would only hold the batch."""
+        beyond = int(settings.embedding_patient_retry_max_wait_seconds) + 1
+        with patient_embeddings():
+            outcome, waits, calls = await _embed_through([_refusal(f"{beyond}s")])
+
+        assert isinstance(outcome, MaxRetriesExceededError)
+        assert (waits, calls) == ([], 1)
+
+    async def test_a_delay_exactly_at_its_patience_is_still_waited(self) -> None:
+        at_most = int(settings.embedding_patient_retry_max_wait_seconds)
+        with patient_embeddings(), patch(_JITTER, return_value=0.0):
+            outcome, waits, calls = await _embed_through([_refusal(f"{at_most}s")])
+
+        assert outcome == [0.1, 0.2]
+        assert waits == [at_most + EMBEDDING_PROVIDER_DELAY_MARGIN_SECONDS]
+        assert calls == 2
+
+    async def test_a_second_refusal_ends_the_operation_as_an_exhausted_retry(self) -> None:
+        with patient_embeddings(), patch(_JITTER, return_value=0.0):
+            outcome, _waits, calls = await _embed_through(
+                [_refusal("40s")] * settings.embedding_retry_max_attempts
+            )
+
+        assert isinstance(outcome, MaxRetriesExceededError)
+        assert calls == settings.embedding_retry_max_attempts
+
+    @pytest.mark.parametrize("patience", [0.0, 0.5])
+    async def test_declared_work_is_never_stricter_than_undeclared_work(
+        self, monkeypatch: pytest.MonkeyPatch, patience: float
+    ) -> None:
+        """A patience switched off (0), or set below the ordinary wait, must
+        leave declared work at least what every caller has: a refusal naming a
+        delay within the ordinary one-second wait is still retried."""
+        monkeypatch.setattr(settings, "embedding_patient_retry_max_wait_seconds", patience)
+        within = f"{_backoff_wait():g}s"
+        with patient_embeddings(), patch(_JITTER, return_value=0.0):
+            outcome, waits, calls = await _embed_through([_refusal(within)])
+
+        assert outcome == [0.1, 0.2]
+        assert calls == 2
+        assert waits == [_backoff_wait() + EMBEDDING_PROVIDER_DELAY_MARGIN_SECONDS]
+
+    async def test_a_patience_of_zero_waits_for_no_long_delay(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(settings, "embedding_patient_retry_max_wait_seconds", 0.0)
+        with patient_embeddings():
+            outcome, waits, calls = await _embed_through([_refusal("40s")])
+
+        assert isinstance(outcome, MaxRetriesExceededError)
+        assert (waits, calls) == ([], 1)
+
+    async def test_a_failure_that_names_no_delay_keeps_the_ordinary_backoff(self) -> None:
+        with patient_embeddings():
+            outcome, waits, calls = await _embed_through([_internal_error()])
+
+        assert outcome == [0.1, 0.2]
+        assert (waits, calls) == ([_backoff_wait()], 2)
+
+
+class TestAChatTurnDoesNotWaitForAQuota:
+    """Nothing declared: an embedding is on somebody's turn. The provider said
+    « in 40 seconds »; the retry one second later was a second refusal bought
+    with a second of the answer's time."""
+
+    async def test_a_refusal_naming_a_long_delay_is_not_retried(self) -> None:
+        outcome, waits, calls = await _embed_through([_refusal("40s")])
+
+        assert isinstance(outcome, MaxRetriesExceededError)
+        assert (waits, calls) == ([], 1)
+
+    async def test_the_failure_reads_like_an_exhausted_retry_to_its_callers(self) -> None:
+        """Same type, same cause chain: whoever classified the old failure
+        (the system indexer walks the chain for the status code) reads this one
+        the same way — it only arrives sooner."""
+        outcome, _waits, _calls = await _embed_through([_refusal("40s")])
+
+        assert isinstance(outcome, MaxRetriesExceededError)
+        assert outcome.max_retries == 1, "one attempt was made, and the error says so"
+        assert embedding_retry_reason(outcome) == "http_429"
+
+    async def test_a_delay_within_its_own_wait_is_retried_exactly_as_before(self) -> None:
+        within = f"{_backoff_wait():g}s"
+        outcome, waits, calls = await _embed_through([_refusal(within)])
+
+        assert outcome == [0.1, 0.2]
+        assert (waits, calls) == ([_backoff_wait()], 2)
+
+    async def test_a_failure_that_names_no_delay_is_retried_exactly_as_before(self) -> None:
+        outcome, waits, calls = await _embed_through([_internal_error()])
+
+        assert outcome == [0.1, 0.2]
+        assert (waits, calls) == ([_backoff_wait()], 2)
+
+    async def test_the_old_wording_only_quota_error_is_retried_exactly_as_before(self) -> None:
+        """No structure, no delay: the 2026-09-01 payload keeps its retry."""
+        outcome, waits, calls = await _embed_through([_quota_error()])
+
+        assert outcome == [0.1, 0.2]
+        assert (waits, calls) == ([_backoff_wait()], 2)
+
+
+class TestGivingUpEarlyIsCountedLikeAnyFailure:
+    async def test_one_refused_attempt_and_one_failed_operation(self) -> None:
+        from src.infrastructure.llm.tracked_embeddings import (
+            embedding_api_calls_total,
+            embedding_call_outcomes_total,
+        )
+
+        read = TestAgainstTheRealCountersAndSettings._value
+        model = "gemini-embedding-001"
+        refused = read(embedding_api_calls_total, model=model, status="error")
+        failed = read(embedding_call_outcomes_total, model=model, outcome="failed")
+
+        outcome, _waits, _calls = await _embed_through([_refusal("40s")])
+
+        assert isinstance(outcome, MaxRetriesExceededError)
+        assert read(embedding_api_calls_total, model=model, status="error") == refused + 1
+        assert read(embedding_call_outcomes_total, model=model, outcome="failed") == failed + 1
+
+
+class TestPatienceIsDeclaredNeverInherited:
+    def test_nothing_is_patient_unless_it_says_so(self) -> None:
+        """The safe side of forgetting: an undeclared call site costs nobody a
+        second — which is what the single tight profile was protecting."""
+        assert embeddings_may_wait() is False
+
+    def test_the_scope_ends_where_it_was_opened_even_on_an_error(self) -> None:
+        with pytest.raises(RuntimeError):
+            with patient_embeddings():
+                assert embeddings_may_wait() is True
+                raise RuntimeError("the batch failed")
+
+        assert embeddings_may_wait() is False
+
+    def test_scopes_nest_and_unwind_in_order(self) -> None:
+        with patient_embeddings():
+            with patient_embeddings():
+                assert embeddings_may_wait() is True
+            assert embeddings_may_wait() is True
+        assert embeddings_may_wait() is False
+
+    async def test_a_batch_being_patient_does_not_make_a_concurrent_turn_wait(self) -> None:
+        """The same singleton serves a user's turn and a background batch."""
+        started = asyncio.Event()
+        release = asyncio.Event()
+        seen: dict[str, bool] = {}
+
+        async def batch() -> None:
+            with patient_embeddings():
+                started.set()
+                await release.wait()
+                seen["batch"] = embeddings_may_wait()
+
+        async def turn() -> None:
+            await started.wait()
+            seen["turn"] = embeddings_may_wait()
+            release.set()
+
+        await asyncio.gather(batch(), turn())
+
+        assert seen == {"batch": True, "turn": False}
+
+    async def test_work_started_inside_the_scope_stays_patient(self) -> None:
+        """A document embeds in tasks of its own (bounded concurrency, native
+        renewal brackets): the declaration must travel with them."""
+        with patient_embeddings():
+            inherited = await asyncio.create_task(_read_patience())
+
+        assert inherited is True
+
+
+async def _read_patience() -> bool:
+    return embeddings_may_wait()

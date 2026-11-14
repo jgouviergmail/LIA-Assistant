@@ -12,10 +12,12 @@
  * the row it hides, and whichever way the detail closes (its button, « back »)
  * the task's row gets it back — the quick-add field when the task is gone. What
  * another tool hands over opens in a form, reviewed whole before it exists. A view
- * (`?view=`) stands in the place of a list and gathers what every list holds for
- * one stretch of the account's days.
+ * (`?view=`) stands in the place of a list and gathers what every list holds: for
+ * one stretch of the account's days, the three together, or all of it (« All
+ * tasks », drawn among the lists). A task opened from a view opens BESIDE it —
+ * the address keeps the view and names the task's own list —, closing it comes
+ * back to the view, and what its detail changes of a row is read again in the view.
  */
-import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckSquare, ListChecks, ListX, MoreVertical, Pencil, Plus, Trash2 } from '@/lib/icons';
 import {
   useCallback,
@@ -44,31 +46,28 @@ import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/hooks/useAuth';
 import { useDrillDownFocus } from '@/hooks/useDrillDownFocus';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { useWorkbenchItem, type WorkbenchItemState } from '@/hooks/useWorkbenchItem';
+import type { WorkbenchItemState } from '@/hooks/useWorkbenchItem';
 import { useWorkbenchTaskActs, type WorkbenchTaskActs } from '@/hooks/useWorkbenchTaskActs';
-import { useWorkbenchTasks, type WorkbenchTasksState } from '@/hooks/useWorkbenchTasks';
+import {
+  useWorkbenchTaskView,
+  useWorkbenchTasks,
+  type TaskChangeBody,
+  type WorkbenchTasksState,
+} from '@/hooks/useWorkbenchTasks';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { cn } from '@/lib/utils';
 import { workbenchRefusal } from '@/lib/workbench/errors';
-import {
-  dayIn,
-  openCount,
-  placementOf,
-  siblingsOf,
-  taskTree,
-  taskView,
-} from '@/lib/workbench/tasks';
-import { WORKBENCH_DESKTOP, WORKBENCH_PANE_HEIGHT, toolPath } from '@/lib/workbench/tools';
+import { dayIn, openCount, placementOf, siblingsOf, taskTree } from '@/lib/workbench/tasks';
+import { WORKBENCH_DESKTOP, WORKBENCH_PANE_HEIGHT } from '@/lib/workbench/tools';
 import { pageSelectionState } from '@/lib/selection';
 import type {
-  DueTask,
-  DueTasks,
+  ViewTask,
+  ViewTasks,
   WorkbenchTask,
   WorkbenchTaskView,
   WorkbenchToolAvailability,
 } from '@/lib/workbench/types';
-import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 
 import { useWorkbench } from '../WorkbenchShell';
 import { WorkbenchToolHeader } from '../WorkbenchToolHeader';
@@ -90,12 +89,16 @@ import { TaskSelectionBar } from './TaskSelectionBar';
 import { TaskViewPane } from './TaskViewPane';
 import { useKeptTask } from './useKeptTask';
 import { useTaskDoors, type TaskDoors } from './useTaskDoors';
+import { useTaskPlaces } from './useTaskPlaces';
 import { useTaskSelection, type TaskSelection } from './useTaskSelection';
 import { useToolConfirm } from '../ToolForm';
 
-const VIEW_PATH = '/workbench/tasks/view';
-
 type PaneSeparatorProps = ComponentProps<typeof PaneSeparator>;
+
+/** A change a view's row shows: its title, its day, or a completion that takes it away. */
+function showsInViews(change: TaskChangeBody): boolean {
+  return change.title !== undefined || change.due !== undefined || change.completed !== undefined;
+}
 
 export function TasksTool({ lng }: { lng: Language }) {
   const { availability } = useWorkbench();
@@ -114,22 +117,21 @@ export function TasksTool({ lng }: { lng: Language }) {
 function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailability }) {
   const { t } = useTranslation(lng);
   const { user } = useAuth();
-  const router = useRouter();
-  const params = useSearchParams();
+  const places = useTaskPlaces(lng);
+  const { view, openTaskId, hrefOf, go } = places;
   const { confirm, confirmDialog } = useToolConfirm();
   const [showCompleted, setShowCompleted] = useState(false);
   const [newListOpen, setNewListOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const quickAdd = useRef<HTMLInputElement>(null);
+  const viewHeading = useRef<HTMLHeadingElement>(null);
   const desktop = useMediaQuery(WORKBENCH_DESKTOP);
-  const view = taskView(params.get('view'));
-  const state = useWorkbenchTasks(params.get('list'), showCompleted, view === null);
+  // A view reads what it gathers itself; a list is read under it for the task open beside it.
+  const state = useWorkbenchTasks(places.requestedList, showCompleted, places.readsList);
   const { listId, lists, tasks } = state;
-  const viewRead = useWorkbenchItem<DueTasks>(view ? VIEW_PATH : null, {
-    view: view ?? undefined,
-  });
+  const viewRead = useWorkbenchTaskView(view);
+  const { refresh: rereadView } = viewRead;
   const acts = useWorkbenchTaskActs(listId, lists, tasks);
-  const openTaskId = params.get('task');
   const openTask = tasks.items.find(item => item.id === openTaskId) ?? null;
   // On a large screen the person sizes the lists and the task's detail.
   const listsPane = useWorkbenchPane(lng, 'tasks.lists');
@@ -142,16 +144,10 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
   const managesLists = tool.features.includes('list_management');
   const { ask } = useToolBridges(lng);
 
-  // Whichever way the detail closed, its task's row gets the focus back.
-  const linkRef = useDrillDownFocus(openTaskId, { fallback: quickAdd });
+  // Whichever way the detail closed, its task's row gets the focus back; a task that left the
+  // view it was opened from gives it to the view's title.
+  const linkRef = useDrillDownFocus(openTaskId, { fallback: view ? viewHeading : quickAdd });
 
-  const hrefOf = useCallback(
-    (query: Record<string, string>) => {
-      const search = new URLSearchParams(query).toString();
-      return `${buildLocalizedPath(toolPath('tasks'), lng)}${search ? `?${search}` : ''}`;
-    },
-    [lng]
-  );
   const listHref = useCallback((list: { id: string }) => hrefOf({ list: list.id }), [hrefOf]);
   const taskHref = useCallback(
     (task: WorkbenchTask) => hrefOf({ ...(listId ? { list: listId } : {}), task: task.id }),
@@ -180,10 +176,13 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
   // A task the address names past the pages read (the home's): read alone, kept in the list.
   useKeptTask(openTaskId, listId, tasks, tell);
 
+  // Closing comes back to where the task was opened from: the view, else its list.
   const closeTask = useCallback(
-    () => router.replace(hrefOf(listId ? { list: listId } : {}), { scroll: false }),
-    [router, hrefOf, listId]
+    () => go(view ? { view } : listId ? { list: listId } : {}),
+    [go, listId, view]
   );
+  // What the open task's detail changed of a row: the view beside it is read again.
+  const viewChanged = useCallback(() => void rereadView(), [rereadView]);
 
   const doors = useTaskDoors({
     lng,
@@ -195,20 +194,24 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
     confirm,
     tell,
     act,
-    onListGone: () => router.replace(hrefOf({}), { scroll: false }),
-    onTaskGone: closeTask,
+    onListGone: () => go({}),
+    onTaskGone: () => {
+      closeTask();
+      viewChanged();
+    },
   });
 
+  // Under a view no list is on screen: every list's tasks are.
+  const shownListId = view ? null : listId;
   const listPane = {
     lng,
     lists,
-    openId: view ? null : listId,
+    openId: shownListId,
     view,
     hrefOf: listHref,
     viewHrefOf: (item: WorkbenchTaskView) => hrefOf({ view: item }),
-    onPick: (id: string) => router.replace(hrefOf({ list: id }), { scroll: false }),
-    onPickView: (item: WorkbenchTaskView) =>
-      router.replace(hrefOf({ view: item }), { scroll: false }),
+    onPick: (id: string) => go({ list: id }),
+    onPickView: (item: WorkbenchTaskView) => go({ view: item }),
     onNewList: managesLists ? () => setNewListOpen(true) : undefined,
   };
 
@@ -250,14 +253,19 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
           <TaskListsSelect {...listPane} />
           <TasksMain
             lng={lng}
-            tool={tool}
             view={view}
             viewRead={viewRead}
             state={state}
             managesLists={managesLists}
-            viewHrefOf={task => hrefOf({ list: task.list_id, task: task.id })}
+            today={today}
+            openTaskId={openTaskId}
+            viewHrefOf={task =>
+              hrefOf({ ...(view ? { view } : {}), list: task.list_id, task: task.id })
+            }
             onCompleteDue={doors.completeDue}
             onNewList={() => setNewListOpen(true)}
+            linkRef={linkRef}
+            viewHeading={viewHeading}
           >
             <OpenList
               lng={lng}
@@ -295,6 +303,7 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
             today={today}
             timezone={timezone}
             onClose={closeTask}
+            onChanged={viewChanged}
             onAsk={task => ask(t('workbench.ask.task', { title: task.title }))}
             onMove={destination => void doors.moveOpen(openTask, destination)}
           />
@@ -308,7 +317,7 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
         onCreate={async (title, key) => {
           await act(async () => {
             const created = await state.addList(title, key);
-            if (created) router.replace(hrefOf({ list: created.id }), { scroll: false });
+            if (created) go({ list: created.id });
           });
         }}
       />
@@ -326,9 +335,10 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
         tool={tool}
         lists={lists.items}
         listId={listId}
+        onScreen={shownListId}
         today={today}
         timezone={timezone}
-        addTask={body => act(() => state.addTask(body))}
+        addTask={body => act(() => state.addTask(body).then(viewChanged))}
       />
       {confirmDialog}
     </>
@@ -337,14 +347,19 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
 
 interface TasksMainProps {
   lng: Language;
-  tool: WorkbenchToolAvailability;
   view: WorkbenchTaskView | null;
-  viewRead: WorkbenchItemState<DueTasks>;
+  viewRead: WorkbenchItemState<ViewTasks>;
   state: WorkbenchTasksState;
   managesLists: boolean;
-  viewHrefOf: (task: DueTask) => string;
-  onCompleteDue: (task: DueTask) => void;
+  /** Today in the account's zone. */
+  today: string;
+  /** The task the address names, open beside a view when one is on screen. */
+  openTaskId: string | null;
+  viewHrefOf: (task: ViewTask) => string;
+  onCompleteDue: (task: ViewTask) => void;
   onNewList: () => void;
+  linkRef: (taskId: string, link: HTMLAnchorElement | null) => void;
+  viewHeading: RefObject<HTMLHeadingElement | null>;
   /** The open list. */
   children: ReactNode;
 }
@@ -356,13 +371,17 @@ function TasksMain({
   viewRead,
   state,
   managesLists,
+  today,
+  openTaskId,
   viewHrefOf,
   onCompleteDue,
   onNewList,
+  linkRef,
+  viewHeading,
   children,
 }: TasksMainProps) {
   const { t } = useTranslation(lng);
-  const { lists } = state;
+  const { lists, listId } = state;
   if (view) {
     return (
       <TaskViewPane
@@ -370,8 +389,12 @@ function TasksMain({
         view={view}
         read={viewRead}
         lists={lists.items}
+        today={today}
+        open={openTaskId ? { listId, taskId: openTaskId } : null}
         hrefOf={viewHrefOf}
         onComplete={onCompleteDue}
+        linkRef={linkRef}
+        headingRef={viewHeading}
       />
     );
   }
@@ -525,6 +548,8 @@ interface OpenTaskPaneProps {
   /** The account's zone, when it has one. */
   timezone: string | undefined;
   onClose: () => void;
+  /** The detail changed what a row of a view shows: the view beside it reads again. */
+  onChanged: () => void;
   onAsk: (task: WorkbenchTask) => void;
   onMove: (destination: string) => void;
 }
@@ -560,6 +585,7 @@ function OpenTaskPane({
   today,
   timezone,
   onClose,
+  onChanged,
   onAsk,
   onMove,
 }: OpenTaskPaneProps) {
@@ -567,6 +593,8 @@ function OpenTaskPane({
   const addStep = stepAdder(tool, openTask, state, acts, act);
   const { panel: assistPanel, ...assist } = useTaskAssist(lng, openTask, addStep, timezone);
   const quiet = (run: () => Promise<unknown>) => void act(run).catch(() => undefined);
+  /** An act a view's row shows: the view reads again once it is done, never when refused. */
+  const shown = (run: () => Promise<unknown>) => act(run).then(onChanged);
   /** One place up or down among its siblings; nothing where it has nowhere to go. */
   const stepping = (by: -1 | 1) => {
     const placement = placementOf(siblingsOf(tasks.items, openTask), openTask.id, by);
@@ -583,18 +611,23 @@ function OpenTaskPane({
         subtasks={tasks.items.filter(item => item.parent === openTask.id)}
         tool={tool}
         pending={state.pending}
-        onSave={(task, change) => act(() => state.saveTask(task, change))}
-        onToggle={(task, completed) => quiet(() => state.setCompleted(task, completed))}
+        onSave={(task, change) => {
+          const save = () => state.saveTask(task, change);
+          return showsInViews(change) ? shown(save) : act(save);
+        }}
+        onToggle={(task, completed) =>
+          void shown(() => state.setCompleted(task, completed)).catch(() => undefined)
+        }
         onDelete={async task => {
           try {
-            await act(() => state.removeTask(task));
+            await shown(() => state.removeTask(task));
             onClose();
           } catch {
             // Said by `act`; the detail stays open.
           }
         }}
         onAddSubtask={(parent, title, key) =>
-          act(() => state.addTask({ title, parent: parent.id, idempotency_key: key }))
+          shown(() => state.addTask({ title, parent: parent.id, idempotency_key: key }))
         }
         onClose={onClose}
         focusOnOpen={!desktop}

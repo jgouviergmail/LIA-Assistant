@@ -7,7 +7,8 @@ provable hermetically.
 
 Exact fresh-install order (B08/B12):
 
-    resolve mode -> bundle-tree gate -> preflight -> questions -> generate
+    resolve mode -> bundle-tree gate -> preflight -> questions -> advisory
+    key check -> generate
     -> [--dry-run stops here] -> capture rollback -> acquire -> validate
     Settings -> start (seeds armed) -> /ready -> disarm seeds -> stdin
     bootstrap -> recreate API --no-build -> second /ready -> verifier
@@ -107,6 +108,7 @@ from scripts.install.state import (
     save_state,
     with_step_completed,
 )
+from scripts.install.verify import advise_on_provider_keys
 
 INSTALLER_VERSION = "1"
 
@@ -254,6 +256,21 @@ def _collect(
         mode=mode,
         manifest_path=manifest,
     )
+
+
+def _check_provider_keys(
+    deps: Deps, log: InstallLog, secrets: SecretAnswers, language: str
+) -> None:
+    """Tell the operator what each required provider answered to its key.
+
+    Advisory (B10): nothing here stops a run. The log keeps the fact — the
+    provider and what it answered — never the key.
+    """
+    outcomes = advise_on_provider_keys(
+        secrets.provider_keys, deps.opener, print_fn=deps.io.print_fn, language=language
+    )
+    for provider, outcome in outcomes.items():
+        log.write("provider_key_checked", provider=provider, outcome=outcome.value)
 
 
 def _deploy_sequence(
@@ -421,6 +438,7 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
                     log.add_secret(value)
                 for value in secrets.turnstile_settings.values():
                     log.add_secret(value)
+                _check_provider_keys(deps, log, secrets, public.language)
                 previous_state = _deploy_sequence(
                     deps, log, public, secrets, previous_state, seed_digest, sandbox_image
                 )
@@ -451,6 +469,7 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
             log.add_secret(value)
         for value in secrets.turnstile_settings.values():
             log.add_secret(value)
+        _check_provider_keys(deps, log, secrets, public.language)
 
         generated = _load_or_generate_secrets(deps)
         image_lock, sandbox_image = prebuilt_pins(public)

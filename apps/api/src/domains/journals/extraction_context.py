@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import tzinfo
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -10,6 +11,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from src.core.config import settings
 from src.domains.journals.constants import JOURNAL_EXTRACTION_MESSAGE_MAX_CHARS
 from src.domains.shared.extraction_targets import find_last_user_message, is_synthetic_message
+from src.infrastructure.llm.message_view import written_prefix
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -254,7 +256,7 @@ async def _maybe_build_health_context(user_id: str) -> str:
         return ""
 
 
-def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
+def _format_messages_for_extraction(messages: list[BaseMessage], *, zone: tzinfo) -> str:
     """Format messages for the extraction prompt context.
 
     Converts LangChain messages to readable conversation format.
@@ -263,6 +265,8 @@ def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
 
     Args:
         messages: List of conversation messages
+        zone: The person's display zone: a message carrying the instant it was
+            written starts with it, in that zone (ADR-381 amendment).
 
     Returns:
         Formatted conversation string
@@ -289,7 +293,7 @@ def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
         if index != last_user_index and len(content) > max_chars:
             content = content[:max_chars] + "..."
 
-        lines.append(f"{prefix}: {content}")
+        lines.append(f"{prefix}: {written_prefix(msg, zone)}{content}")
 
     return "\n".join(lines)
 

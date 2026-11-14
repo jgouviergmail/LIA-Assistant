@@ -10,12 +10,19 @@
  * only for an active authenticated user. The server banks at most one activity hour
  * per local hour, so a lost or duplicated ping costs nothing. Silent on any
  * failure: presence is learning material, never a user-facing feature.
+ *
+ * Sent only where the instance learns habits NOW: the route refuses under the
+ * operator's switch (ADR-280), and a refusal swallowed on every page of every
+ * signed-in person is a request nobody needed. The configuration is asked for
+ * a signed-in person alone.
  */
 
 import { useEffect, useRef } from 'react';
 
+import { useAppConfig } from '@/hooks/useAppConfig';
 import { useAuth } from '@/hooks/useAuth';
 import apiClient from '@/lib/api-client';
+import { capabilityAvailable } from '@/lib/capability-availability';
 
 const DEFAULT_THROTTLE_MINUTES = 15;
 
@@ -29,9 +36,11 @@ export function PresencePing(): null {
   const { user, isLoading } = useAuth();
   const lastSentAt = useRef(0);
   const authenticated = !isLoading && user?.is_active === true;
+  const { config } = useAppConfig(authenticated);
+  const learning = authenticated && capabilityAvailable(config, 'habits');
 
   useEffect(() => {
-    if (!authenticated) return undefined;
+    if (!learning) return undefined;
 
     const send = () => {
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
@@ -48,7 +57,7 @@ export function PresencePing(): null {
       document.removeEventListener('visibilitychange', send);
       window.removeEventListener('focus', send);
     };
-  }, [authenticated]);
+  }, [learning]);
 
   return null;
 }

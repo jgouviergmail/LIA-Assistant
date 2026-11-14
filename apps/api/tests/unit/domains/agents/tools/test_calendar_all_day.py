@@ -11,6 +11,7 @@ timezone moved to the previous day.
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import date
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -132,9 +133,9 @@ class TestTheExecutorPassesIt:
             ),
         ):
             await execute_event_draft(dict(_ALL_DAY), uuid4(), MagicMock())
-        kwargs = client.create_event.call_args.kwargs
-        assert kwargs["all_day"] is True
-        assert (kwargs["start_datetime"], kwargs["end_datetime"]) == ("2026-11-03", "2026-11-06")
+        bounds = client.create_event.call_args.kwargs["bounds"]
+        # Days, the end exclusive: no time of day, so no zone can move them.
+        assert (bounds.first, bounds.after_last) == (date(2026, 11, 3), date(2026, 11, 6))
 
     async def test_update_without_a_switch_keeps_the_shape(self) -> None:
         client = await self._client("update_event")
@@ -151,7 +152,7 @@ class TestTheExecutorPassesIt:
             await execute_event_update_draft(
                 {"event_id": "e1", "summary": "x", "timezone": "UTC"}, uuid4(), MagicMock()
             )
-        assert client.update_event.call_args.kwargs["all_day"] is None
+        assert client.update_event.call_args.kwargs["bounds"] is None
 
     async def test_a_confirmed_update_tells_the_attendees_as_a_deletion_does(self) -> None:
         """Parity (ADR-369, D2): Graph tells attendees of every change; Google told

@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { Check, Languages, Info } from '@/lib/icons';
+import { MonochromeIcons } from '@/lib/icon-style-context';
 import { InfoBox } from '@/components/ui/info-box';
 import { Label } from '@/components/ui/label';
 import { LanguageFlag } from '@/components/icons/LanguageFlag';
@@ -246,7 +247,11 @@ export function LanguageSettings({ lng }: BaseSettingsProps) {
                         }
                       `}
                     >
-                      {isSelected && <Check className="h-3 w-3" strokeWidth={3} />}
+                      {isSelected && (
+                        <MonochromeIcons>
+                          <Check className="h-3 w-3" strokeWidth={3} />
+                        </MonochromeIcons>
+                      )}
                     </div>
 
                     {/* Language details */}

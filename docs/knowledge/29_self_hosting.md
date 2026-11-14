@@ -24,7 +24,7 @@ It asks its questions — in English or French — then does the whole job in on
 • creates your administrator account and stores your provider keys encrypted
 • restarts the server so every process uses them, runs a verifier, and prints a report containing no secret
 
-**❓ What it asks:** how LIA will be reached, your administrator e-mail and name, the application's default language, a DeepSeek and an OpenAI key (the shipped configuration uses both; every model can be changed afterwards), an optional Google Gemini key (memory recall, searches by meaning and image analysis run on it; the final report says what stays degraded without it), and whether to enable a few optional features — the monitoring stack, self-diagnostics, the script sandbox, the Live voice mode, the personal radio and the speaking avatar. Each stays off unless you answer yes. It also offers two optional pairs of keys, each given whole or left empty: a Google Maps browser key with its Cloud map ID, for interactive place maps, and — when LIA is reached on a public domain — a Cloudflare Turnstile site key and secret key, for an anti-robot check on sign-up, sign-in and password reset.
+**❓ What it asks:** how LIA will be reached, your administrator e-mail and name, the application's default language, an Anthropic and a DeepSeek key (the shipped configuration uses both; every model can be changed afterwards), an optional Google Gemini key (memory recall and searches by meaning run on it; the final report says what stays degraded without it), and whether to enable a few optional features — the monitoring stack, self-diagnostics, the script sandbox, the Live voice mode, the personal radio and the speaking avatar. Each stays off unless you answer yes. It also offers two optional pairs of keys, each given whole or left empty: a Google Maps browser key with its Cloud map ID, for interactive place maps, and — when LIA is reached on a public domain — a Cloudflare Turnstile site key and secret key, for an anti-robot check on sign-up, sign-in and password reset.
 
 For an unattended install, the same answers can come from a file: `./install.sh --non-interactive --answers answers.env`. To change these choices later — how LIA is reached, the optional features — run `./install.sh --reconfigure`: each question shows the answer in force, which Enter keeps, and your data, keys, administrator and secrets stay as they are. Before anything changes, the settings your new answers would rewrite are listed with their current and new values, and nothing is applied unless you confirm; if the new configuration does not come back — or you interrupt it — the previous one is put back.
 
@@ -54,6 +54,7 @@ Only then does the installer print its report: the address to open, your adminis
 
 Yes, by construction.
 • **Your password and provider keys** are typed at a hidden prompt, handed to the server on its standard input and stored encrypted in the database — never written to the configuration file, the installer's state or its log, and never on a command line
+• **Each required provider key** is then sent once to its own provider, in a request header, to check it: a rejected key or an unreachable provider is reported at once and never stops the installation
 • **The server's own secrets** — the encryption key, the session key, the database and cache passwords — are generated at random into a configuration file only your account can read
 • **The resume state** keeps only non-secret facts and fingerprints
 • **An answers file** for an unattended install is read once, never copied, and refused if other users can read it
@@ -115,7 +116,7 @@ Partly. Here is exactly where the line is.
 **✅ On your own hardware:** every model role — routing, planning, answering, agents — can run on a model served by your own Ollama server, set role by role in **Settings › Administration › LLM Configuration**. Dictation is transcribed on the server itself.
 
 **☁️ Still online:**
-• the guided installer asks for a DeepSeek and an OpenAI key, because the shipped configuration uses them; you can move every role to Ollama afterwards
+• the guided installer asks for an Anthropic and a DeepSeek key, because the shipped configuration uses them; you can move every role to Ollama afterwards
 • searches by meaning — memory recall, knowledge spaces, the journal — use Google's embedding service
 • spoken answers come from online voice services, the default one free and without a key
 • web search, weather, maps and the connectors you link are online services by nature
@@ -138,3 +139,15 @@ If Docker refuses to start the sandbox, the operation is reported as unavailable
 ## How do I make interactive Position maps available?
 
 The operator configures an explicit **Google Maps browser key** and a valid **Cloud map ID**. Restrict the browser key to the intended sites and Maps APIs in Google Cloud. The server key is never exposed as a fallback. The card can appear without interactive configuration, with its place list; paid activation remains a user click with cost disclosure and quota checks. A development demonstration ID is not valid production configuration.
+
+## How do I give web search to accounts with no search key?
+The guided installer does it by default: its **web_search** question is
+answered **yes** unless you refuse it, and it starts the **searxng** service
+that ships with LIA, with a generated secret. By hand: add `searxng` to
+`COMPOSE_PROFILES` (comma-separated), set `SEARXNG_SECRET` (for example
+`openssl rand -hex 32`) and `SEARXNG_URL=http://searxng:8080`, then restart.
+It asks public search engines (Google, Brave's site, DuckDuckGo, Bing News…)
+from your server's address, unfiltered, and serves every account that has no
+Brave key of its own — in the chat, the enrichment of answers, the interests
+and the Tools. It is never exposed to the Internet; allow about 150 MB of
+memory.

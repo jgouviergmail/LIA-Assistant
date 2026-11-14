@@ -58,7 +58,8 @@ export function CallModeField({ lng, id, identity, busy, onChange }: CallModeFie
         label={t('settings.telephony.identity.call_mode.label')}
         value={identity.call_mode}
         items={items}
-        disabled={busy || unavailable}
+        disabled={unavailable}
+        busy={busy}
         className="h-10 px-3 text-sm"
         onChange={chosen => {
           // The list only ever offers the two modes; narrowing by lookup keeps

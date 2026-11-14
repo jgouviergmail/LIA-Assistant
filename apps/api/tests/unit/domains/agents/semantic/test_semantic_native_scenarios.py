@@ -236,7 +236,11 @@ async def test_file_owner_address_becomes_an_event_attendee(
 async def test_explicit_mail_subject_and_body_survive_task_draft_preparation(
     contracts: dict[str, ToolManifest], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(tasks_tools, "_resolve_default_task_list", AsyncMock(return_value="list-a"))
+    monkeypatch.setattr(
+        tasks_tools,
+        "new_task_list",
+        AsyncMock(return_value={"id": "list-a", "title": "List A"}),
+    )
     mail = ToolOutputMixin().build_emails_output(
         [
             {

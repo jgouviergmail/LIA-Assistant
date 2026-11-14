@@ -6,8 +6,10 @@
  *
  * Who, when, what and a line of it; unread in bold with a dot before the sender
  * (the dot is never the only carrier: the link names the state); the person's own
- * Gmail labels as chips; a paperclip when it carries files, a star when starred and
- * its acts folded: laid out, the act's own star says it. The row's link opens the
+ * Gmail labels as chips; where it stands in its conversation when something happened —
+ * answered, an answer drafted, a reply received (ADR-379); a paperclip when it carries
+ * files, a star when starred and its acts folded: laid out, the act's own star says it.
+ * The row's link opens the
  * message on
  * the address (`?id=`) — a plain click is taken by the screen so the reader
  * opens without a scroll, a click with a modifier opens a tab as any link. The
@@ -50,7 +52,9 @@ import {
   type MailMoves,
   type MailSendAct,
 } from '@/lib/workbench/mail';
-import type { MailSummary } from '@/lib/workbench/types';
+import type { MailReplyMark, MailSummary } from '@/lib/workbench/types';
+
+import { ReplyMarkIcon } from './ReplyMarkIcon';
 
 export interface MessageRowProps {
   lng: Language;
@@ -84,6 +88,8 @@ export interface MessageRowProps {
   draggable?: boolean;
   /** The row stands for several messages of a conversation. */
   conversation?: boolean;
+  /** Where it stands in its conversation, when something happened (ADR-379). */
+  replyMark?: MailReplyMark;
   linkRef: (messageId: string, link: HTMLAnchorElement | null) => void;
 }
 
@@ -126,6 +132,7 @@ export function MessageRow({
   onForever,
   draggable = false,
   conversation = false,
+  replyMark,
   linkRef,
 }: MessageRowProps) {
   const { t } = useTranslation(lng);
@@ -186,7 +193,7 @@ export function MessageRow({
               ...chipsOf(message, labelName),
             ]}
             narrow={narrow}
-            marks={markCount(message, conversation)}
+            marks={markCount(message, conversation, replyMark)}
           />
         )}
       </Link>
@@ -198,6 +205,7 @@ export function MessageRow({
           roomy={roomy}
           stacked={stacked}
           conversation={conversation}
+          replyMark={replyMark}
         />
         <RowActions
           actions={actions}
@@ -228,11 +236,16 @@ function actsPlace(compact: boolean, narrow: boolean, roomy: boolean, stacked: b
 }
 
 /** How many marks the row carries (`RowMarks`). */
-function markCount(message: MailSummary, conversation: boolean): number {
-  return [conversation, message.has_attachments, message.is_starred].filter(Boolean).length;
+function markCount(
+  message: MailSummary,
+  conversation: boolean,
+  replyMark: MailReplyMark | undefined
+): number {
+  return [replyMark, conversation, message.has_attachments, message.is_starred].filter(Boolean)
+    .length;
 }
 
-/** What the row says of itself: its conversation, the files it carries, its star. */
+/** What the row says of itself: where it stands, its conversation, its files, its star. */
 function RowMarks({
   lng,
   message,
@@ -240,9 +253,11 @@ function RowMarks({
   roomy,
   stacked,
   conversation,
+  replyMark,
 }: {
   lng: Language;
   message: MailSummary;
+  replyMark: MailReplyMark | undefined;
   compact: boolean;
   /** Laid out at its width: its acts are drawn, the star among them. */
   roomy: boolean;
@@ -261,6 +276,7 @@ function RowMarks({
         stacked && 'sm:order-1'
       )}
     >
+      {replyMark && <ReplyMarkIcon lng={lng} mark={replyMark} className={place} />}
       {conversation && (
         <MessagesSquare
           className={cn('h-4 w-4 shrink-0 text-muted-foreground', place)}

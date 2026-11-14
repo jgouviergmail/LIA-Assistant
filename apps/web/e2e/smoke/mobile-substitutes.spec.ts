@@ -80,7 +80,7 @@ test.describe('mobile substitutes', () => {
       // Located BY ITS NAME: if the label were the only source of that name,
       // this query would fail below 640 px.
       await expect(
-        page.getByRole('button', { name: 'Supprimer' }),
+        page.getByRole('button', { name: 'Réinitialiser' }),
         `reset must stay named at ${width}px`
       ).toBeVisible();
     }

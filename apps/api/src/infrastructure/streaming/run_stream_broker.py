@@ -20,25 +20,21 @@ and yields a keepalive event on every empty window so SSE consumers can
 emit heartbeats.
 """
 
-import asyncio
-import json
-from collections.abc import AsyncGenerator, AsyncIterator, Callable
-from contextlib import asynccontextmanager, suppress
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass, replace
 from typing import Any, Literal, cast
 
+import structlog
 from redis.asyncio import Redis
 
 from src.core.config import settings
 from src.core.constants import (
-    REDIS_KEY_ACTIVE_RUN_PREFIX,
     REDIS_KEY_RUN_CANCEL_PREFIX,
     REDIS_KEY_RUN_LISTENERS_PREFIX,
     REDIS_KEY_RUN_STREAM_PREFIX,
 )
-from src.infrastructure.observability.logging import get_logger
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Envelope field names (broker-level protocol, invisible to the SSE contract)
 _FIELD_CHUNK = "d"
@@ -51,30 +47,6 @@ _FIELD_STATUS = "status"
 TERMINAL_STATUSES = ("completed", "error", "killed", "cancelled")
 
 _XREAD_COUNT = 64
-
-# Conditional refresh/release of the active-run lock (Lot 2, POC-L2-1):
-# both compare the stream_id INSIDE the stored JSON value so a zombie
-# producer (older stream_id) can never touch a newer run's lock.
-_REFRESH_ACTIVE_RUN_LUA = """
-local raw = redis.call('GET', KEYS[1])
-if not raw then return 0 end
-local ok, data = pcall(cjson.decode, raw)
-if ok and data['stream_id'] == ARGV[1] then
-    redis.call('EXPIRE', KEYS[1], ARGV[2])
-    return 1
-end
-return 0
-"""
-
-_RELEASE_ACTIVE_RUN_LUA = """
-local raw = redis.call('GET', KEYS[1])
-if not raw then return 0 end
-local ok, data = pcall(cjson.decode, raw)
-if ok and data['stream_id'] == ARGV[1] then
-    return redis.call('DEL', KEYS[1])
-end
-return 0
-"""
 
 # Floor-guarded decrement of the listener counter (never below 0)
 _LISTENER_DECR_LUA = """
@@ -292,280 +264,13 @@ def _stream_entry_id_tuple(entry_id: str) -> tuple[int, int]:
 
 
 # =============================================================================
-# Active-run registry (Lot 2): one lock per conversation, heartbeat-kept
+# Subscriber presence (Lot 2): voice synthesis is skipped with no listeners
 # =============================================================================
-
-
-def active_run_key(conversation_id: str) -> str:
-    """Redis key of the per-conversation active-run lock."""
-    return f"{REDIS_KEY_ACTIVE_RUN_PREFIX}{conversation_id}"
 
 
 def listeners_key(stream_id: str) -> str:
     """Redis key of the per-stream subscriber-presence counter."""
     return f"{REDIS_KEY_RUN_LISTENERS_PREFIX}{stream_id}"
-
-
-async def register_active_run(
-    redis: Redis,
-    conversation_id: str,
-    *,
-    run_id: str,
-    stream_id: str,
-    relayed: bool = True,
-) -> bool:
-    """Acquire the conversation's active-run lock (SET NX EX).
-
-    Args:
-        redis: Redis client.
-        conversation_id: Conversation UUID string (lock scope).
-        run_id: Billing/correlation id of the run.
-        stream_id: Transport id (stream key suffix) — the lock owner token.
-        relayed: Whether the run publishes its chunks to the run stream. A
-            lease (a ticket, a voice relay) publishes nothing a client could
-            follow, and :func:`public_active_run` withholds its stream.
-
-    Returns:
-        True if acquired; False when another run is already active (the
-        caller answers HTTP 409 with the current run info).
-    """
-    payload = json.dumps({"run_id": run_id, "stream_id": stream_id, "relayed": relayed})
-    acquired = await redis.set(
-        active_run_key(conversation_id),
-        payload,
-        nx=True,
-        ex=settings.background_runs_active_ttl_seconds,
-    )
-    return bool(acquired)
-
-
-async def refresh_active_run(redis: Redis, conversation_id: str, stream_id: str) -> bool:
-    """Heartbeat: re-arm the lock TTL if this stream still owns it.
-
-    Returns:
-        True when refreshed; False when the lock is gone or owned by a
-        newer run (the producer should stop heartbeating).
-    """
-    result = await redis.eval(
-        _REFRESH_ACTIVE_RUN_LUA,
-        1,
-        active_run_key(conversation_id),
-        stream_id,
-        str(settings.background_runs_active_ttl_seconds),
-    )
-    return bool(result == 1)
-
-
-async def release_active_run(redis: Redis, conversation_id: str, stream_id: str) -> None:
-    """Release the lock — only if this stream still owns it (zombie-safe)."""
-    await redis.eval(
-        _RELEASE_ACTIVE_RUN_LUA,
-        1,
-        active_run_key(conversation_id),
-        stream_id,
-    )
-
-
-class ActiveRunLockLost(RuntimeError):
-    """Another producer holds the conversation this block was writing to.
-
-    A normal exception on purpose, never a bare ``CancelledError``: the only
-    caller is a scheduler tick whose docstring says it never raises, and its
-    ``except Exception`` has to be able to see this.
-    """
-
-
-async def heartbeat_active_run(
-    redis: Redis,
-    conversation_id: str,
-    stream_id: str,
-    *,
-    run_id: str | None = None,
-    on_lost: Callable[[], None] | None = None,
-    relayed: bool = True,
-) -> None:
-    """Periodically re-arm the active-run lock TTL while the run is alive.
-
-    A refusal is not one situation but two, and telling them apart is the whole
-    job:
-
-    - the lock simply EXPIRED and nobody took it. On the shipped defaults that
-      needs a Redis blip of thirty seconds while a run lasts minutes, so it is
-      the likely case — and it is nobody's lock. The run RE-TAKES it and
-      carries on; aborting a healthy run over a hiccup would be a cure worse
-      than the illness. Re-taking needs ``run_id``, because that is what the
-      lock's payload carries.
-    - somebody else HOLDS it. That is the state the lock exists to prevent, and
-      it is reached: the key expires, the person sends a chat message, its
-      router acquires the free key, and two producers write to one conversation
-      and one LangGraph thread. Until 2026-09-10 this loop logged it and
-      returned, leaving the block it was guarding running — which is the one
-      thing CLAUDE.md forbids outright: « A failed heartbeat immediately aborts
-      all later effects. » ``on_lost`` is how it now does.
-
-    Args:
-        redis: Redis client.
-        conversation_id: Conversation the lock scopes.
-        stream_id: The owner token this producer holds.
-        run_id: Billing/correlation id, needed to re-take an expired lock.
-            Without it the loop cannot re-take and treats any refusal as a loss.
-        on_lost: Called once when the lock is genuinely somebody else's. Must
-            not raise — it runs inside the heartbeat task.
-        relayed: What the re-taken lock says of the run's chunks — the same as
-            when it was first taken, or a lease would hand out its stream.
-    """
-    period = settings.background_runs_heartbeat_seconds
-    while True:
-        await asyncio.sleep(period)
-        try:
-            still_owner = await refresh_active_run(redis, conversation_id, stream_id)
-            if not still_owner and run_id is not None:
-                still_owner = await register_active_run(
-                    redis, conversation_id, run_id=run_id, stream_id=stream_id, relayed=relayed
-                )
-                if still_owner:
-                    logger.info(
-                        "active_run_lock_retaken",
-                        conversation_id=conversation_id,
-                        stream_id=stream_id,
-                    )
-        except Exception as exc:  # noqa: BLE001 — transient Redis hiccup: keep trying
-            logger.warning(
-                "active_run_heartbeat_failed",
-                conversation_id=conversation_id,
-                stream_id=stream_id,
-                error=str(exc),
-            )
-            continue
-        if not still_owner:
-            logger.warning(
-                "active_run_lock_lost",
-                conversation_id=conversation_id,
-                stream_id=stream_id,
-            )
-            if on_lost is not None:
-                on_lost()
-            return
-
-
-@asynccontextmanager
-async def active_run_lease(
-    redis: Redis, conversation_id: str, *, run_id: str, stream_id: str
-) -> AsyncIterator[bool]:
-    """Hold the conversation's lock for the length of a block, or say it could not.
-
-    The three moves a durable claim owes — acquire, heartbeat, release by OWNER
-    token — belong together: a caller that writes them itself eventually writes
-    two of the three. The chat producer acquires in its router and releases in
-    its own ``finally`` (the two halves live in different modules, so it cannot
-    use this), which is exactly why the SECOND caller must not copy the shape.
-
-    Yields False rather than raising when the lock is taken: a run that steps
-    aside for a live conversation did nothing wrong. A lease publishes nothing
-    to the run stream, so its lock says so (``relayed`` false).
-
-    Args:
-        redis: Redis client.
-        conversation_id: Conversation the lock scopes.
-        run_id: Billing/correlation id of the run.
-        stream_id: The owner token; the release is conditional on it, so a
-            zombie can never free a newer run's lock.
-
-    Yields:
-        Whether the lock was acquired. Nothing is released when it was not.
-    """
-    acquired = await register_active_run(
-        redis, conversation_id, run_id=run_id, stream_id=stream_id, relayed=False
-    )
-    if not acquired:
-        yield False
-        return
-    # The block runs in OUR task, so cancelling it is how the heartbeat stops
-    # effects it can no longer protect. The flag is what tells our own
-    # cancellation from anybody else's — the same shape the chat producer's
-    # cancel watcher already uses, and the reason a `CancelledError` is not
-    # simply swallowed here.
-    body = asyncio.current_task()
-    taken_over = False
-
-    def _lock_taken() -> None:
-        nonlocal taken_over
-        taken_over = True
-        if body is not None:
-            body.cancel()
-
-    heartbeat = asyncio.create_task(
-        heartbeat_active_run(
-            redis, conversation_id, stream_id, run_id=run_id, on_lost=_lock_taken, relayed=False
-        )
-    )
-    try:
-        yield True
-    except asyncio.CancelledError:
-        if not taken_over:
-            raise
-        # Ours, and already delivered: clear it, or every await in the unwind
-        # below would raise again.
-        if body is not None:
-            body.uncancel()
-        raise ActiveRunLockLost(
-            f"conversation {conversation_id} was taken over while {stream_id} was running"
-        ) from None
-    finally:
-        heartbeat.cancel()
-        with suppress(asyncio.CancelledError):
-            await heartbeat
-        # Shielded: a cancellation propagating through this block must not stop
-        # the conversation from being unlocked.
-        with suppress(Exception):
-            await asyncio.shield(release_active_run(redis, conversation_id, stream_id))
-
-
-async def get_active_run(redis: Redis, conversation_id: str) -> dict[str, Any] | None:
-    """Read the active run of a conversation.
-
-    Returns:
-        ``{"run_id": ..., "stream_id": ..., "relayed": ...}`` or None when no
-        run is active (``relayed`` is absent from a lock taken before it existed).
-    """
-    raw = await redis.get(active_run_key(conversation_id))
-    if not raw:
-        return None
-    try:
-        data = json.loads(raw)
-    except TypeError, ValueError:
-        return None
-    return data if isinstance(data, dict) else None
-
-
-def public_active_run(active: dict[str, Any] | None) -> dict[str, Any] | None:
-    """What a client may know of a conversation's active run (point 25b).
-
-    The ONE view every client-facing read takes — the status poll, the 409,
-    Stop and the reattach. A run that relays its chunks names its stream, so
-    the client can follow or stop it; a lease names none: the client learns
-    that LIA is busy, never a stream nobody writes. A lock written before the
-    field existed reads as relayed — the behaviour it always had: a lease in
-    flight at the deploy keeps it until it ends, minutes later.
-
-    Args:
-        active: The lock as :func:`get_active_run` read it, or None.
-
-    Returns:
-        ``{"run_id": ..., "stream_id": ... or None}``, or None when no run is active.
-    """
-    if not active:
-        return None
-    relayed = active.get("relayed", True) is not False
-    return {
-        "run_id": active.get("run_id"),
-        "stream_id": active.get("stream_id") if relayed else None,
-    }
-
-
-# =============================================================================
-# Subscriber presence (Lot 2): voice synthesis is skipped with no listeners
-# =============================================================================
 
 
 async def listener_incr(redis: Redis, stream_id: str) -> int:

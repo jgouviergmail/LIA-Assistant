@@ -11,7 +11,7 @@ import { renderHook, act } from '@testing-library/react';
 import { useInputDraft, clearInputDraft } from '../useInputDraft';
 import { CHAT_DRAFT_STORAGE_KEY_PREFIX, CHAT_INPUT_MAX_LENGTH } from '@/lib/constants';
 
-const KEY = `${CHAT_DRAFT_STORAGE_KEY_PREFIX}u-1`;
+const KEY = `${CHAT_DRAFT_STORAGE_KEY_PREFIX}u-1.main`;
 
 describe('useInputDraft', () => {
   beforeEach(() => {

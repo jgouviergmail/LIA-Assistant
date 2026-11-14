@@ -413,6 +413,7 @@ def get_response_prompt(
     psyche_context: str = "",
     peer_context: str = "",
     recent_entities: str = "",
+    answered_mail: str = "",
 ) -> str:
     """Get the formatted system prompt for the response node.
 
@@ -469,6 +470,9 @@ def get_response_prompt(
             only when the current turn produced no structured data of its own
             (built by context/recent_entities.py). Non-authoritative by contract:
             current turn data always wins.
+        answered_mail: The turn's mails the person already answered, one line each
+            (``emails/answered_mail.py``); stated LAST, after the person's question —
+            the sections file holds its place, which is measured (ADR-379).
 
     Returns:
         Formatted system prompt string ready for ChatPromptTemplate construction.
@@ -516,6 +520,7 @@ def get_response_prompt(
             "user_query": user_query,
             "enriched_query": enriched_query or "",
             "data_for_filtering": data_for_filtering,
+            "answered_mail": answered_mail,
             "psychological_profile": psychological_profile or "",
             "journal_context": journal_context,
             "psyche_context": psyche_context,

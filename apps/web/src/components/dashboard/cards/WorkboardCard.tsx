@@ -1,10 +1,11 @@
 'use client';
 
 import { DashboardLink as Link } from '../DashboardNavigation';
-import { CalendarClock, CircleHelp, LayoutGrid } from '@/lib/icons';
+import { CalendarClock, CircleHelp, SquareKanban } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
+import { CategoryBadge } from '@/components/workboard/CategoryBadge';
 import { fallbackLng, getIntlLocale, isLanguage, type Language } from '@/i18n/settings';
 import { formatNumber } from '@/lib/format';
 import { lifecycleTone } from '@/lib/status-tone';
@@ -58,7 +59,7 @@ export function WorkboardCard({
   return (
     <BriefingCard<WorkboardData>
       titleKey="dashboard.briefing.cards.workboard.title"
-      icon={<LayoutGrid className="h-5 w-5" />}
+      icon={<SquareKanban className="h-5 w-5" />}
       tone="orange"
       section={section}
       isRefreshing={isRefreshing}
@@ -85,13 +86,13 @@ function WorkboardContent({ data, lng }: { data: WorkboardData; lng: string }) {
   const figures: Figure[] = [
     {
       key: 'held_by_lia',
-      label: t('settings.workboard.tile_lia'),
+      label: t('workboard.summary.tile_lia'),
       value: data.held_by_lia,
       href: boardHref(lng, { assignee: 'lia', status: OPEN_STATUSES }),
     },
     {
       key: 'overdue',
-      label: t('settings.workboard.tile_overdue'),
+      label: t('workboard.summary.tile_overdue'),
       value: data.overdue,
       href: boardHref(lng, { overdue: true }),
       tone: 'text-destructive',
@@ -117,7 +118,7 @@ function WorkboardContent({ data, lng }: { data: WorkboardData; lng: string }) {
   if (data.held_by_me != null) {
     figures.unshift({
       key: 'held_by_me',
-      label: t('settings.workboard.tile_mine'),
+      label: t('workboard.summary.tile_mine'),
       value: data.held_by_me,
       href: boardHref(lng, { assignee: 'me', status: OPEN_STATUSES }),
       tone: 'text-primary',
@@ -127,7 +128,7 @@ function WorkboardContent({ data, lng }: { data: WorkboardData; lng: string }) {
   return (
     <div className="@container flex flex-col gap-3">
       <ul
-        aria-label={t('settings.workboard.glance')}
+        aria-label={t('workboard.summary.title')}
         className={cn(
           'grid grid-cols-2 gap-1.5',
           figures.length === 5 ? '@min-[19rem]:grid-cols-5' : '@min-[19rem]:grid-cols-4'
@@ -161,7 +162,7 @@ function WorkboardContent({ data, lng }: { data: WorkboardData; lng: string }) {
       {data.previews && <GroupedTickets figures={figures} groups={data.previews} lng={lng} />}
       {data.needs_me === 0 && (
         <p className="text-sm text-muted-foreground italic">
-          {t('settings.workboard.nothing_waiting')}
+          {t('workboard.summary.nothing_waiting')}
         </p>
       )}
     </div>
@@ -187,7 +188,7 @@ function GroupedTickets({
         return (
           <section key={figure.key} className="space-y-1">
             <h4 className="flex items-center gap-2 text-xs font-medium text-foreground/90">
-              <LayoutGrid className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+              <SquareKanban className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
               {figure.label}
             </h4>
             <TicketList label={figure.label} tickets={tickets} lng={lng} />
@@ -243,6 +244,9 @@ function TicketList({
                   </time>
                 </span>
               )}
+              {/* Off the board there is no lane to say it: the category is a
+                  badge, named by the server beside the ticket. */}
+              {ticket.category && <CategoryBadge name={ticket.category} />}
             </span>
           </Link>
         </li>

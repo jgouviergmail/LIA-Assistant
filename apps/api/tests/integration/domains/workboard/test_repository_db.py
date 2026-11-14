@@ -492,7 +492,10 @@ class TestAttention:
         for group in figures.previews.values():
             assert len(group) <= 2
             for row in group:
-                projected = _workboard_item(row, now)
+                # No category on this board: nothing to name, and reading
+                # `category_id` on a preview row must not need a second load.
+                projected = _workboard_item(row, now, {})
+                assert projected.category is None
                 assert projected.id == str(row.id)
                 assert projected.title == row.title
                 assert projected.status == row.status

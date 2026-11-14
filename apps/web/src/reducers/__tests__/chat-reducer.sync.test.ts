@@ -49,6 +49,31 @@ describe('chatReducer — MERGE_SERVER_PAGE', () => {
   });
 });
 
+describe('chatReducer — MERGE_SERVER_PAGE while an answer streams (ADR-385)', () => {
+  it('keeps the bubble being streamed after a row archived meanwhile', () => {
+    const question: Message = {
+      id: 'client-u',
+      role: 'user',
+      content: 'Restaurants?',
+      timestamp: AT,
+      metadata: { message_db_id: 'u1' },
+    };
+    const streaming: Message = { id: 'client-a', role: 'assistant', content: 'Look', timestamp: AT };
+    const state = frozenState({
+      status: 'streaming',
+      streaming: { ...initialChatState.streaming, currentMessageId: 'client-a' },
+      messages: [question, streaming],
+    });
+
+    const next = chatReducer(state, {
+      type: 'MERGE_SERVER_PAGE',
+      payload: { messages: [{ ...historyRow('u1', 'user'), content: 'Restaurants?' }, historyRow('note', 'user')] },
+    });
+
+    expect(next.messages.map(m => m.id)).toEqual(['client-u', 'note', 'client-a']);
+  });
+});
+
 describe('chatReducer — STREAM_DONE names the archived question', () => {
   const question: Message = { id: 'client-u', role: 'user', content: 'Hi', timestamp: AT };
   const answer: Message = { id: 'client-a', role: 'assistant', content: 'Hello', timestamp: AT };

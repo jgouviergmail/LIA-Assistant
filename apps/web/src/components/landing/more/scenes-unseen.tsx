@@ -1722,7 +1722,57 @@ function ValueWithSourceScene({ active, labels }: SceneProps) {
   );
 }
 
+type SkillsUsagePhase = 'rows' | 'asked' | 'kept';
+const SKILLS_USAGE_STEPS: readonly TimelineStep<SkillsUsagePhase>[] = [
+  { at: 0, state: 'rows' },
+  { at: 1200, state: 'asked' },
+  { at: 2600, state: 'kept' },
+];
+
+/**
+ * Two skills: one says it was used, the other that it was not, and is offered to
+ * be switched off or kept. Keeping it is the resting frame: nothing was removed.
+ */
+function SkillsUsageScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(SKILLS_USAGE_STEPS, { active });
+  return (
+    <div className={cn(STAGE, 'gap-1.5')}>
+      <div className="flex w-full max-w-[230px] flex-col gap-1">
+        <div className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1">
+          <Blocks className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+          <SkeletonLine w="w-10" />
+          <span className="ml-auto shrink-0 truncate text-px-9 font-medium text-primary">
+            {labels.used}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1">
+          <Blocks className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <SkeletonLine w="w-8" />
+          <span
+            className={cn(
+              'ml-auto shrink-0 truncate text-px-9 font-medium transition-colors duration-300 motion-reduce:transition-none',
+              phase === 'kept' ? 'text-muted-foreground' : 'text-warning'
+            )}
+          >
+            {labels.unused}
+          </span>
+        </div>
+      </div>
+      <div
+        className={cn(
+          'flex gap-1.5 transition-opacity duration-300 motion-reduce:transition-none',
+          phase === 'rows' ? 'opacity-0' : 'opacity-100'
+        )}
+      >
+        <MiniChip>{labels.off}</MiniChip>
+        <MiniChip pressed={phase === 'kept'}>{labels.keep}</MiniChip>
+      </div>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
+  skills_usage: SkillsUsageScene,
   one_line: OneLineScene,
   activity_timeline: ActivityTimelineScene,
   own_initiative: OwnInitiativeScene,

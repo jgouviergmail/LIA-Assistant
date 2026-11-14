@@ -1,6 +1,6 @@
 'use client';
 
-import { Eclipse, Moon, Sun } from '@/lib/icons';
+import { Clock, Eclipse, Moon, Sun } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useThemeMode } from '@/hooks/useThemeMode';
@@ -8,22 +8,28 @@ import { nextInCycle } from '@/lib/theme-mode';
 import { cn } from '@/lib/utils';
 
 /**
- * The circular display-mode control: light → dark → OLED → light.
+ * The circular display-mode control: light → dark → OLED → automatic → light.
  *
  * Icon and accessible name describe the DESTINATION, not the current state —
- * the convention this control already used (dark mode showed a sun). With three
- * stops the name has to say where the press goes, because that is a different
- * place each time.
+ * the convention this control already used (dark mode showed a sun). With
+ * several stops the name has to say where the press goes, because that is a
+ * different place each time.
  *
- * `system` is deliberately NOT in the cycle: three stops a user can predict
- * beat four they cannot, and a circular control that sometimes lands on "follow
- * the OS" reads as broken when the OS is already on the mode you just left.
- * Settings › Theme keeps the full four-way choice, `system` included, so the
+ * Automatic is drawn with the icon Settings gives it, the clock, and like every
+ * glyph of the facade it follows the account's icon style. It is offered to an
+ * account only: a visitor has no hours and no zone for it to follow, so their
+ * circle keeps three stops (`nextInCycle`). Entering it at night, or leaving it
+ * by day, changes nothing on screen: the icon and the name are what move.
+ *
+ * `system` is deliberately NOT in the cycle: a circular control that sometimes
+ * lands on "follow the OS" reads as broken when the OS is already on the mode
+ * you just left. Settings › Theme keeps every choice, `system` included, so the
  * column's default stays reachable.
  */
 const STEPS = {
   dark: { Icon: Moon, key: 'theme.to_dark' },
   oled: { Icon: Eclipse, key: 'theme.to_oled' },
+  auto: { Icon: Clock, key: 'theme.to_auto' },
   light: { Icon: Sun, key: 'theme.to_light' },
 } as const;
 
@@ -38,12 +44,12 @@ const BOX = 'w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9';
  */
 export function ThemeToggle({ className }: { className?: string } = {}) {
   const { t } = useTranslation();
-  const { mounted, resolved, oled, apply } = useThemeMode();
+  const { mounted, mode, resolved, oled, automaticAvailable, apply } = useThemeMode();
 
   // Computed once and shared by the icon, the accessible name and the handler,
   // so the label can never describe a different step from the one the click
   // performs.
-  const next = nextInCycle(resolved, oled);
+  const next = nextInCycle({ mode, resolved, oled }, automaticAvailable);
 
   // Before mount neither the resolved theme nor the stored flag is known, so
   // render the shell without a state-dependent icon rather than guess and flip.

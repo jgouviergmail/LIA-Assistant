@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.reservation_work import require_reserved_work
 from src.domains.live.schemas import LiveEndRequest, LiveEndResponse
 from src.domains.live.vendor_bill import fetch_vendor_bill
 from src.domains.voice_sessions.session import VoiceSession, as_voice_session_mode
@@ -57,7 +58,8 @@ async def end_session(
         run_id=record.run_id,
         mode=as_voice_session_mode(record.mode),
         user_id=user.id,
-        conversation_id=await service._conversation_id(user.id, language=language),
+        conversation_id=require_reserved_work().admission.target.id,
+        reservation=require_reserved_work(),
         language=language,
         timezone=str(user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE),
     )
@@ -69,11 +71,12 @@ async def end_session(
         outcome=payload.outcome,
         duration_seconds=duration,
         extensions=record.extensions,
-        transcript=VoiceTranscript.from_rows(await store.turns(user.id)) if direct else None,
+        transcript=VoiceTranscript.from_rows(await store.turns(record)) if direct else None,
         standbys=record.standbys,
-        standby_relays=await store.relays(user.id) if direct else None,
+        standby_relays=await store.relays(record) if direct else None,
     )
-    await store.release(user.id, record.token)
+    # The SQL contribution's finalizer releases Redis only after every actual
+    # relay has joined, including work running on another API worker.
     await store.unregister_active(session_id)
     await store.unregister_standby(session_id)
     live_sessions_active.set(await store.count_active(now))

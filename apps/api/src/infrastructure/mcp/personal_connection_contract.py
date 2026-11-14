@@ -17,7 +17,9 @@ class PersonalMCPConnectionResult(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     success: StrictBool
     server: PersonalMCPReadItem
-    error: Literal["connection_failed"] | None
+    # ``authorization_required``: an OAuth server holds no usable token, so the remedy the
+    # assistant offers is the authorization card, not another probe.
+    error: Literal["connection_failed", "authorization_required"] | None
 
 
 class PersonalMCPConnectionWriter(Protocol):

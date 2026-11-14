@@ -33,6 +33,7 @@ from src.core.constants import (
     COMPACTION_UI_ESTIMATE_TOKENS_PER_CHUNK,
 )
 from src.core.i18n import resolve_language
+from src.core.time_utils import resolve_zone
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.models import MessagesState
 from src.domains.agents.services.compaction_service import CompactionService
@@ -209,6 +210,7 @@ async def compaction_node(state: MessagesState, config: RunnableConfig) -> dict[
         preserve_recent_n=preserve_n,
         language=language,
         config=config,
+        zone=resolve_zone(state.get("user_timezone")),
     )
 
     if result.strategy == "noop" or not result.summary:

@@ -81,7 +81,10 @@ describe('useApiMutation — method routing', () => {
     await act(async () => {
       await result.current.mutate('/e/1', { reason: 'x' });
     });
-    expect(mockApi.delete).toHaveBeenCalledWith('/e/1', { body: JSON.stringify({ reason: 'x' }) });
+    expect(mockApi.delete).toHaveBeenCalledWith('/e/1', {
+      body: JSON.stringify({ reason: 'x' }),
+      headers: { 'content-type': 'application/json' },
+    });
 
     await act(async () => {
       await result.current.mutate('/e/2');

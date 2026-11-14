@@ -177,6 +177,8 @@ from src.core.constants import (
     MEMORY_EXTRACTION_MESSAGE_MAX_CHARS_DEFAULT,
     MEMORY_EXTRACTION_PRESENCE_PENALTY_DEFAULT,
     MEMORY_EXTRACTION_TOP_P_DEFAULT,
+    MEMORY_IMPORT_MAX_FILE_KB_DEFAULT,
+    MEMORY_IMPORT_MAX_MEMORIES_DEFAULT,
     MEMORY_INVALIDATED_RETENTION_DAYS_DEFAULT,
     MEMORY_MAX_RESULTS_DEFAULT,
     MEMORY_MIN_AGE_FOR_CLEANUP_DAYS_DEFAULT,
@@ -282,7 +284,6 @@ from src.core.constants import (
     SUBAGENT_TOOL_MAX_TIMEOUT_SECONDS_DEFAULT,
     SUBAGENT_TOOL_TIMEOUT_SECONDS_DEFAULT,
     SUMMARIZATION_KEEP_MESSAGES_DEFAULT,
-    SUMMARIZATION_MODEL_DEFAULT,
     SUMMARIZATION_TRIGGER_FRACTION_DEFAULT,
     TASK_ORCHESTRATOR_EXECUTION_TIMEOUT_SECONDS_DEFAULT,
     TEXT_COMPACTION_MAX_FIELD_LENGTH_DEFAULT,
@@ -1020,17 +1021,10 @@ class AgentsSettings(BaseSettings):
         description="Add random jitter to retry delays to avoid thundering herd (default: True)",
     )
 
-    # NOTE: SummarizationMiddleware is always enabled (context compression when approaching limits)
+    # NOTE: SummarizationMiddleware is always enabled (context compression when approaching
+    # limits). Its model is the ``compaction`` slot's, chosen in the administration screen:
+    # no setting names one (infrastructure/llm/slot_summarization.py).
 
-    summarization_model: str = Field(
-        default=SUMMARIZATION_MODEL_DEFAULT,
-        description=(
-            "LLM model for context summarization (fast, cheap model recommended). "
-            "Defaults to SUMMARIZATION_MODEL_DEFAULT -- naming the model here "
-            "would be one more surface to retarget, and it went stale exactly "
-            "that way."
-        ),
-    )
     summarization_trigger_fraction: float = Field(
         default=SUMMARIZATION_TRIGGER_FRACTION_DEFAULT,
         ge=0.3,
@@ -1842,6 +1836,25 @@ class AgentsSettings(BaseSettings):
             "(settings form, assistant, extraction) and published to the form and to the "
             "extraction prompt. Read at startup. Lowering it leaves longer memories "
             "readable; they must be shortened the next time they are edited."
+        ),
+    )
+    memory_import_max_memories: int = Field(
+        default=MEMORY_IMPORT_MAX_MEMORIES_DEFAULT,
+        ge=1,
+        le=5000,
+        description=(
+            "Most memories one import of an export may hold. A file holding more is "
+            "refused whole, the limit named. Each imported memory is embedded on the "
+            "platform's key, under the account's usage limits. Published to the screen."
+        ),
+    )
+    memory_import_max_file_kb: int = Field(
+        default=MEMORY_IMPORT_MAX_FILE_KB_DEFAULT,
+        ge=16,
+        le=20480,
+        description=(
+            "Largest memories export one import reads, in kilobytes. Read in chunks: a "
+            "larger file is refused before it is held in memory. Published to the screen."
         ),
     )
     memory_min_search_score: float = Field(

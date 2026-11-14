@@ -105,6 +105,8 @@ class ContentSourceStrategy(Protocol):
 
     - BraveSearchContentSource: Web search with citations (primary)
     - PerplexityContentSource: AI-synthesized web search (primary)
+    - SearXNGContentSource: the instance's web search, for a person with no
+      Brave key (primary, lot 18)
     - LLMReflectionContentSource: AI-generated insights (fallback)
 
     Example:
@@ -121,8 +123,8 @@ class ContentSourceStrategy(Protocol):
         ...         # Implementation
         ...         pass
         ...
-        ...     def is_available(self, user_id: str | None = None) -> bool:
-        ...         return user_id is not None  # Brave needs per-user API key
+        ...     async def applies(self, user_id: str | None) -> bool:
+        ...         return await has_brave_key(user_id)  # asks nothing without one
     """
 
     source_name: str
@@ -148,25 +150,27 @@ class ContentSourceStrategy(Protocol):
 
         Note:
             Implementations should:
-            - Return None on failure (not raise exceptions)
+            - Return None when nothing was found; a failure may raise — the
+              generator files it failed and moves on (ADR-303)
             - Check for content similarity against existing_embeddings if provided
             - Log warnings/errors appropriately
             - Include citations when available
         """
         ...
 
-    def is_available(self, user_id: str | None = None) -> bool:
+    async def applies(self, user_id: str | None) -> bool:
         """
-        Check if this source is available for use.
+        Whether this source would ask its service for this person at all.
 
-        Some sources (like Perplexity) require user-specific API keys.
-        Others (like Wikipedia) are always available.
+        Asked BEFORE the source runs: one that would ask nothing (no key of the
+        person's, or another source answers for them) is skipped and files no
+        consultation — the register never shows a read that did not happen.
 
         Args:
-            user_id: Optional user ID for sources requiring per-user auth
+            user_id: Whose interest.
 
         Returns:
-            True if the source can be used, False otherwise
+            True when running it would ask its service.
         """
         ...
 

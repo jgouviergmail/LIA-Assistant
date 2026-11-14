@@ -36,6 +36,7 @@ from src.core.config import settings
 from src.core.i18n import get_language_name
 from src.core.i18n_treatments import render_treatment_domain
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
+from src.core.reservation_work import current_reserved_work
 from src.core.time_utils import format_datetime_for_display
 from src.domains.agents.telephony.live_tools import (
     LIVE_SESSION_SURFACE,
@@ -183,6 +184,9 @@ async def direct_context(user_id: UUID, *, language: str, timezone: str) -> str:
             timezone=timezone,
             memory_fetcher=memory_fetcher_for(user_id, objective="live session"),
             flatten=spoken_text,
+            conversation_id=(
+                work.admission.target.id if (work := current_reserved_work()) is not None else None
+            ),
         ),
         surface=LIVE_SESSION_SURFACE,
     )

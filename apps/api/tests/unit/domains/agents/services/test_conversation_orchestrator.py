@@ -18,6 +18,7 @@ from src.domains.agents.services.conversation_orchestrator import (
     ConversationSummary,
 )
 from src.domains.chat.schemas import TokenSummaryDTO
+from tests.fixtures.conversation_cases import conversation_target
 
 
 class TestConversationContext:
@@ -30,7 +31,7 @@ class TestConversationContext:
         oauth_scopes = ["https://www.googleapis.com/auth/contacts"]
 
         context = ConversationContext(
-            conversation_id=conversation_id,
+            target=conversation_target(uuid.uuid4(), conversation_id),
             tracking_context=tracking_context,
             oauth_scopes=oauth_scopes,
         )
@@ -42,7 +43,7 @@ class TestConversationContext:
     def test_conversation_context_with_empty_scopes(self):
         """Test ConversationContext can be initialized with empty OAuth scopes."""
         context = ConversationContext(
-            conversation_id=uuid.uuid4(),
+            target=conversation_target(uuid.uuid4(), uuid.uuid4()),
             tracking_context=MagicMock(),
             oauth_scopes=[],
         )
@@ -58,7 +59,7 @@ class TestConversationContext:
         ]
 
         context = ConversationContext(
-            conversation_id=uuid.uuid4(),
+            target=conversation_target(uuid.uuid4(), uuid.uuid4()),
             tracking_context=MagicMock(),
             oauth_scopes=scopes,
         )
@@ -138,146 +139,6 @@ class TestConversationOrchestrator:
     def sample_conversation_id(self):
         """Create sample conversation UUID."""
         return uuid.uuid4()
-
-    @pytest.mark.asyncio
-    async def test_setup_conversation_creates_context(
-        self, orchestrator, mock_db, sample_user_id, sample_conversation_id
-    ):
-        """Test setup_conversation creates ConversationContext."""
-        # Arrange: Mock conversation service
-        mock_conversation = MagicMock()
-        mock_conversation.id = sample_conversation_id
-
-        with patch(
-            "src.domains.agents.services.conversation_orchestrator.ConversationService"
-        ) as mock_conv_svc:
-            mock_conv_svc.return_value.get_or_create_conversation = AsyncMock(
-                return_value=mock_conversation
-            )
-
-            # Mock OAuth scopes fetching
-            with patch.object(
-                orchestrator,
-                "_get_user_connector_grants",
-                new=AsyncMock(return_value=(["scope1"], frozenset())),
-            ):
-                # Act
-                context = await orchestrator.setup_conversation(
-                    user_id=sample_user_id,
-                    session_id="test-session",
-                    run_id="test-run",
-                    db=mock_db,
-                )
-
-                # Assert
-                assert isinstance(context, ConversationContext)
-                assert context.conversation_id == sample_conversation_id
-                assert context.oauth_scopes == ["scope1"]
-                assert context.tracking_context is not None
-
-    @pytest.mark.asyncio
-    async def test_setup_conversation_calls_get_or_create(
-        self, orchestrator, mock_db, sample_user_id, sample_conversation_id
-    ):
-        """Test setup_conversation calls ConversationService.get_or_create_conversation."""
-        # Arrange
-        mock_conversation = MagicMock()
-        mock_conversation.id = sample_conversation_id
-
-        with patch(
-            "src.domains.agents.services.conversation_orchestrator.ConversationService"
-        ) as mock_conv_svc:
-            mock_get_or_create = AsyncMock(return_value=mock_conversation)
-            mock_conv_svc.return_value.get_or_create_conversation = mock_get_or_create
-
-            with patch.object(
-                orchestrator,
-                "_get_user_connector_grants",
-                new=AsyncMock(return_value=([], frozenset())),
-            ):
-                # Act
-                await orchestrator.setup_conversation(
-                    user_id=sample_user_id,
-                    session_id="test-session",
-                    run_id="test-run",
-                    db=mock_db,
-                )
-
-                # Assert: Service was called with correct params
-                mock_get_or_create.assert_called_once_with(sample_user_id, mock_db, language=None)
-
-    @pytest.mark.asyncio
-    async def test_setup_conversation_forwards_the_user_language(
-        self, orchestrator, mock_db, sample_user_id, sample_conversation_id
-    ):
-        """The user's locale reaches the conversation factory.
-
-        This is the NOMINAL path: every first chat message creates the
-        conversation here, and its default title is user-facing. Dropping the
-        language on this call is what left every non-French account with a
-        French title while the localized table looked correctly wired.
-        """
-        mock_conversation = MagicMock()
-        mock_conversation.id = sample_conversation_id
-
-        with patch(
-            "src.domains.agents.services.conversation_orchestrator.ConversationService"
-        ) as mock_conv_svc:
-            mock_get_or_create = AsyncMock(return_value=mock_conversation)
-            mock_conv_svc.return_value.get_or_create_conversation = mock_get_or_create
-
-            with patch.object(
-                orchestrator,
-                "_get_user_connector_grants",
-                new=AsyncMock(return_value=([], frozenset())),
-            ):
-                await orchestrator.setup_conversation(
-                    user_id=sample_user_id,
-                    session_id="test-session",
-                    run_id="test-run",
-                    db=mock_db,
-                    language="de",
-                )
-
-                mock_get_or_create.assert_called_once_with(sample_user_id, mock_db, language="de")
-
-    @pytest.mark.asyncio
-    async def test_setup_conversation_fetches_oauth_scopes(
-        self, orchestrator, mock_db, sample_user_id, sample_conversation_id
-    ):
-        """Test setup_conversation fetches user OAuth scopes."""
-        # Arrange
-        mock_conversation = MagicMock()
-        mock_conversation.id = sample_conversation_id
-
-        expected_scopes = [
-            "https://www.googleapis.com/auth/contacts",
-            "https://www.googleapis.com/auth/gmail.readonly",
-        ]
-
-        with patch(
-            "src.domains.agents.services.conversation_orchestrator.ConversationService"
-        ) as mock_conv_svc:
-            mock_conv_svc.return_value.get_or_create_conversation = AsyncMock(
-                return_value=mock_conversation
-            )
-
-            with patch.object(
-                orchestrator,
-                "_get_user_connector_grants",
-                new=AsyncMock(return_value=(expected_scopes, frozenset())),
-            ) as mock_get_scopes:
-                # Act
-                context = await orchestrator.setup_conversation(
-                    user_id=sample_user_id,
-                    session_id="test-session",
-                    run_id="test-run",
-                    db=mock_db,
-                )
-
-                # Assert: Scopes fetched and stored
-                mock_get_scopes.assert_called_once_with(sample_user_id, mock_db)
-                assert context.oauth_scopes == expected_scopes
 
     @pytest.mark.asyncio
     async def test_finalize_conversation_returns_summary(

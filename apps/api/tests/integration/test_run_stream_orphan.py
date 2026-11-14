@@ -1,198 +1,132 @@
-"""Integration tests: subscriber orphan exit on hard-killed producers.
-
-2026-07 hard-kill audit (ADR-117 hardening). A producer dying WITHOUT its
-terminal marker (kill -9, OOM, power loss) used to leave subscribers looping
-on keepalives forever. The SSE relay now exits with a synthetic error +
-done chunk pair (standard types) once the conversation's active-run lock has
-been observed missing (or foreign) for a full grace period AND no chunk
-arrived over the same window.
-
-The heartbeated lock is the liveness truth, NOT chunk silence: a live-but-
-silent run (long LLM call) must never be declared orphaned.
-"""
-
-from __future__ import annotations
+"""SQL liveness survives missing Redis leases; transport loss never transfers admission."""
 
 import asyncio
 import json
-import uuid
+from collections.abc import AsyncGenerator
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from redis.asyncio import Redis
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from src.core.config import settings
-from src.domains.agents.api.router import stream_run_as_sse
-from src.infrastructure.streaming.run_stream_broker import (
-    active_run_key,
-    has_listeners,
-    listeners_key,
-    publish_chunk,
-    publish_end,
-    register_active_run,
-    run_stream_key,
-)
+from src.core.conversation_execution import ExecutionPhase, RunAdmission, RunEnd
+from src.domains.agents.api.stream_relay import stream_run_as_sse, transport_state
+from src.domains.conversations.execution_models import ConversationExecution
+from src.domains.conversations.execution_repository import ConversationExecutionRepository
+from src.infrastructure.database import session
+from src.infrastructure.streaming.run_stream_broker import has_listeners, publish_chunk, publish_end
+from tests.fixtures.conversation_executions import redis_client as redis_client
+from tests.fixtures.conversation_executions import reserved as reserved
 
 pytestmark = pytest.mark.integration
 
 
-@pytest.fixture
-async def redis_client(monkeypatch):
-    """Real Redis client (same decode mode as get_redis_cache). Skips if down.
-
-    Patches the cache module's get_redis_cache: stream_run_as_sse resolves it
-    lazily at call time, and the production singleton is bound to the FIRST
-    event loop that creates it while pytest-asyncio gives each test its own.
-    """
-    try:
-        redis = Redis.from_url(str(settings.redis_url), decode_responses=True)
-        await redis.ping()
-    except Exception as e:  # noqa: BLE001 — environment guard, not logic
-        pytest.skip(f"Redis not available: {e}")
-
-    async def _get_test_redis() -> Redis:
-        return redis
-
-    monkeypatch.setattr("src.infrastructure.cache.redis.get_redis_cache", _get_test_redis)
-    yield redis
-    await redis.aclose()
+@pytest.fixture(autouse=True)
+def real_sql_and_short_windows(async_engine: AsyncEngine, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only timings and the SQL connection factory differ from the production subscriber."""
+    monkeypatch.setattr(
+        session, "AsyncSessionLocal", async_sessionmaker(async_engine, expire_on_commit=False)
+    )
+    monkeypatch.setattr(settings, "background_runs_orphan_grace_seconds", 0.05)
+    monkeypatch.setattr(settings, "background_runs_xread_block_ms", 100)
 
 
-@pytest.fixture
-def fast_orphan_settings(monkeypatch):
-    """Shrink the grace and the XREAD window so tests run in seconds."""
-    monkeypatch.setattr(settings, "background_runs_orphan_grace_seconds", 1)
-    monkeypatch.setattr(settings, "background_runs_xread_block_ms", 250)
+def relay(admission: RunAdmission) -> AsyncGenerator[str]:
+    return stream_run_as_sse(
+        admission.stream_id, target=admission.target, run_id=admission.run_id, user_language="en"
+    )
 
 
-def _token(content: str) -> str:
-    return json.dumps({"type": "token", "content": content, "metadata": None})
+async def test_missing_redis_lease_does_not_end_a_silent_supervised_run(
+    reserved: RunAdmission,
+    redis_client: Redis,
+) -> None:
+    assert await transport_state(reserved.target, reserved.stream_id) == "running"
+    async with asyncio.timeout(3):
+        heartbeats = 0
+        async for frame in relay(reserved):
+            assert not frame.startswith("data:")
+            heartbeats += frame == ": heartbeat\n\n"
+            if heartbeats == 3:
+                await publish_end(redis_client, reserved.stream_id, "completed")
+    assert heartbeats == 3
+    assert not await has_listeners(redis_client, reserved.stream_id)
 
 
-def _data_frames(lines: list[str]) -> list[dict]:
-    return [
-        json.loads(line.removeprefix("data: ").strip())
-        for line in lines
-        if line.startswith("data: ")
-    ]
-
-
-async def _consume(lines: list[str], stream_id: str, conversation_id: str | None) -> None:
-    async for line in stream_run_as_sse(
-        stream_id, conversation_id=conversation_id, user_language="en"
-    ):
-        lines.append(line)
-
-
-async def test_orphan_stream_exits_with_synthetic_error(redis_client, fast_orphan_settings) -> None:
-    """Producer hard-killed (chunks, no end marker, lock gone): the relay
-    replays the backlog, then exits with error + done within the grace."""
-    conv = f"conv_{uuid.uuid4().hex[:8]}"
-    stream_id = f"s_{uuid.uuid4().hex[:8]}"
-    try:
-        # Simulated hard kill: chunks were published, then the producer died
-        # without a terminal marker and its lock expired (never registered).
-        await publish_chunk(redis_client, stream_id, _token("partial "))
-        await publish_chunk(redis_client, stream_id, _token("answer"))
-
-        lines: list[str] = []
-        await asyncio.wait_for(_consume(lines, stream_id, conv), timeout=10)
-
-        frames = _data_frames(lines)
-        # Backlog relayed first, replay boundary emitted at the first keepalive
-        assert [f["content"] for f in frames[:2]] == ["partial ", "answer"]
-        assert ": replay-end\n\n" in lines
-        # Synthetic terminal sequence: error chunk then done chunk
-        error_frames = [f for f in frames if f["type"] == "error"]
-        assert len(error_frames) == 1
-        assert error_frames[0]["metadata"]["error_type"] == "orphaned_run"
-        assert error_frames[0]["content"]  # i18n message, never empty
-        done_frames = [f for f in frames if f["type"] == "done"]
-        assert len(done_frames) == 1
-        assert done_frames[0]["metadata"]["error"] is True
-        assert done_frames[0]["metadata"]["orphaned"] is True
-        # Presence decayed on exit (finally-path decrement)
-        assert await has_listeners(redis_client, stream_id) is False
-    finally:
-        await redis_client.delete(run_stream_key(stream_id))
-        await redis_client.delete(listeners_key(stream_id))
-
-
-async def test_silent_live_run_is_not_orphaned(redis_client, fast_orphan_settings) -> None:
-    """The heartbeated lock is the truth: a silent run whose lock is alive
-    and owned by this stream must keep the subscriber attached."""
-    conv = f"conv_{uuid.uuid4().hex[:8]}"
-    stream_id = f"s_{uuid.uuid4().hex[:8]}"
-    task: asyncio.Task | None = None
-    try:
-        assert await register_active_run(redis_client, conv, run_id="R", stream_id=stream_id)
-        await publish_chunk(redis_client, stream_id, _token("start"))
-
-        lines: list[str] = []
-        task = asyncio.create_task(_consume(lines, stream_id, conv))
-        # Well beyond the 1s grace: probes run and see OUR live lock
-        await asyncio.sleep(3)
-        assert not task.done()
-        assert not any(f["type"] == "error" for f in _data_frames(lines))
-
-        await publish_end(redis_client, stream_id, "completed")
-        await asyncio.wait_for(task, timeout=5)
-        # Clean termination through the end marker — no synthetic chunks
-        frames = _data_frames(lines)
-        assert not any(f["type"] == "error" for f in frames)
-        assert not any(f["type"] == "done" for f in frames)
-    finally:
-        if task is not None and not task.done():
-            task.cancel()
-            with pytest.raises(asyncio.CancelledError):
-                await task
-        await redis_client.delete(active_run_key(conv))
-        await redis_client.delete(run_stream_key(stream_id))
-        await redis_client.delete(listeners_key(stream_id))
-
-
-async def test_foreign_lock_is_orphaned(redis_client, fast_orphan_settings) -> None:
-    """A lock owned by a NEWER stream means this subscriber's run is dead
-    (its producer can no longer heartbeat that lock): orphan exit."""
-    conv = f"conv_{uuid.uuid4().hex[:8]}"
-    stream_id = f"s_{uuid.uuid4().hex[:8]}"
-    try:
-        assert await register_active_run(
-            redis_client, conv, run_id="R2", stream_id="a_newer_stream"
+async def test_stale_heartbeat_closes_transport_but_keeps_sql_occupied(
+    reserved: RunAdmission,
+    redis_client: Redis,
+    async_engine: AsyncEngine,
+) -> None:
+    async with AsyncSession(async_engine) as db:
+        await db.execute(
+            update(ConversationExecution)
+            .where(ConversationExecution.id == reserved.activity_id)
+            .values(
+                heartbeat_at=datetime.now(UTC)
+                - timedelta(seconds=settings.background_runs_active_ttl_seconds + 1),
+            )
         )
-        await publish_chunk(redis_client, stream_id, _token("stale"))
+        await db.commit()
+    await publish_chunk(
+        redis_client,
+        reserved.stream_id,
+        json.dumps({"type": "token", "content": "partial", "metadata": None}),
+    )
+    async with asyncio.timeout(3):
+        frames = [frame async for frame in relay(reserved)]
+    chunks = [json.loads(frame[6:]) for frame in frames if frame.startswith("data:")]
+    assert [chunk["type"] for chunk in chunks] == ["token", "error", "done"]
+    assert chunks[-1]["metadata"]["conversation_id"] == str(reserved.target.id)
+    assert chunks[-1]["metadata"]["orphaned"] is True
+    async with AsyncSession(async_engine) as db:
+        busy = await ConversationExecutionRepository(db).active_for_owner(reserved.target.owner_id)
+        assert busy is not None and busy.phase == ExecutionPhase.RUNNING
+    assert not await has_listeners(redis_client, reserved.stream_id)
 
-        lines: list[str] = []
-        await asyncio.wait_for(_consume(lines, stream_id, conv), timeout=10)
-        frames = _data_frames(lines)
-        assert any(
-            f["type"] == "error" and f["metadata"]["error_type"] == "orphaned_run" for f in frames
+
+async def test_lost_end_marker_after_delivered_done_needs_no_invented_error(
+    reserved: RunAdmission,
+    redis_client: Redis,
+    async_engine: AsyncEngine,
+) -> None:
+    await publish_chunk(
+        redis_client,
+        reserved.stream_id,
+        json.dumps({"type": "done", "content": "", "metadata": None}),
+    )
+    async with AsyncSession(async_engine) as db:
+        await ConversationExecutionRepository(db).close_owned(reserved, end=RunEnd.NORMAL)
+        await db.commit()
+    async with asyncio.timeout(3):
+        frames = [frame async for frame in relay(reserved)]
+    chunks = [json.loads(frame[6:]) for frame in frames if frame.startswith("data:")]
+    assert [chunk["type"] for chunk in chunks] == ["done"]
+
+
+async def test_a_foreign_generation_is_never_read_as_a_live_target(reserved: RunAdmission) -> None:
+    wrong = replace(reserved.target, revision=reserved.target.revision + 1)
+    assert await transport_state(wrong, reserved.stream_id) == "unknown"
+
+
+async def test_sql_probe_failure_is_unknown_and_does_not_release_any_claim(
+    reserved: RunAdmission,
+    async_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def unavailable(
+        self: ConversationExecutionRepository, *_args: object, **_kwargs: object
+    ) -> None:
+        raise ConnectionError("Test SQL read unavailable")
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(ConversationExecutionRepository, "snapshot_for_owner", unavailable)
+        assert await transport_state(reserved.target, reserved.stream_id) == "unknown"
+    async with AsyncSession(async_engine) as db:
+        assert (
+            await ConversationExecutionRepository(db).active_for_owner(reserved.target.owner_id)
+            is not None
         )
-    finally:
-        await redis_client.delete(active_run_key(conv))
-        await redis_client.delete(run_stream_key(stream_id))
-        await redis_client.delete(listeners_key(stream_id))
-
-
-async def test_no_conversation_disables_detection(redis_client, fast_orphan_settings) -> None:
-    """conversation_id=None (no lock ever acquired — e.g. a brand-new user's
-    first message): lock absence is the NORMAL state, detection stays off."""
-    stream_id = f"s_{uuid.uuid4().hex[:8]}"
-    task: asyncio.Task | None = None
-    try:
-        await publish_chunk(redis_client, stream_id, _token("x"))
-
-        lines: list[str] = []
-        task = asyncio.create_task(_consume(lines, stream_id, None))
-        await asyncio.sleep(3)  # far beyond the grace: still attached
-        assert not task.done()
-        assert not any(f["type"] == "error" for f in _data_frames(lines))
-
-        await publish_end(redis_client, stream_id, "completed")
-        await asyncio.wait_for(task, timeout=5)
-    finally:
-        if task is not None and not task.done():
-            task.cancel()
-            with pytest.raises(asyncio.CancelledError):
-                await task
-        await redis_client.delete(run_stream_key(stream_id))
-        await redis_client.delete(listeners_key(stream_id))

@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { acceptedFiles, pickerAccept, type AttachmentFormats } from '@/lib/attachment-formats';
 import { haptic } from '@/lib/haptics';
 import { Send, Mic, Square, ImageUp } from '@/lib/icons';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -32,6 +33,7 @@ import { SlashCommandMenu, useSlashMenu } from '@/components/chat/SlashCommandMe
 import type { SlashCommand } from '@/lib/slash-commands';
 import { MessageAttachmentMeta } from '@/types/chat';
 import { useMeetingRecorderContext } from '@/components/meetings/MeetingRecorderProvider';
+import { gazeTargetProps } from '@/components/eyes/gaze-target';
 
 /** Attachment metadata passed alongside IDs for immediate local display. */
 export type SendAttachmentMeta = MessageAttachmentMeta;
@@ -49,6 +51,9 @@ export interface SendSttMeta {
 }
 
 export interface ChatInputProps {
+  /** The discussion owns uploads even while its composer is out of view. */
+  uploadDraft?: ReturnType<typeof useFileUpload>;
+  observeAttachmentLink?: boolean;
   onSendMessage: (
     content: string,
     attachmentIds?: string[],
@@ -68,6 +73,12 @@ export interface ChatInputProps {
   onMessageChange?: (message: string) => void;
   /** Whether attachments feature is enabled */
   attachmentsEnabled?: boolean;
+  /**
+   * What an upload takes, as the instance publishes it. Absent, the helpers
+   * keep the historical images and PDFs (no default here: this component is
+   * frozen at its complexity).
+   */
+  attachmentFormats?: AttachmentFormats;
   /**
    * Whether the « + » also offers the person's knowledge-space documents
    * (the spaces capability is on). Off, the browser keeps its one-click picker.
@@ -170,16 +181,6 @@ function useVoiceSpotlight(
 const EMPTY_SENT_HISTORY: readonly string[] = [];
 
 /**
- * The composer accepts what the upload pipeline accepts: images and PDFs.
- * Single filter for the two OS entry points (drop and clipboard paste).
- */
-function acceptedFiles(list: ArrayLike<File>): File[] {
-  return Array.from(list).filter(
-    file => file.type.startsWith('image/') || file.type === 'application/pdf'
-  );
-}
-
-/**
  * Pure (CC discipline): could a press START push-to-talk right now? Mirrors
  * the `handlePressStart` guard — the button must LOOK like what a press
  * would DO (UX P2), so offering and starting share one predicate shape.
@@ -236,18 +237,76 @@ function ComposerButtonIcon({
   animating: boolean;
   onTakeoffEnd: () => void;
 }) {
-  const iconSize = 'size-4 [&.app-icon]:size-6';
+  // The button is solid, so its glyph is drawn in the label colour (`Button`).
+  const iconSize = 'size-4';
   if (showMic) return <Mic className={iconSize} />;
   return (
     <Send
       onAnimationEnd={onTakeoffEnd}
       className={cn(
         iconSize,
-        'chat-send-icon transition-opacity',
+        'transition-opacity',
         dimmed && 'opacity-30',
         animating && 'animate-send-takeoff'
       )}
     />
+  );
+}
+
+/**
+ * Whether words typed while LIA answers can be sent now to wait for their turn
+ * (ADR-384): plain text only — pending attachments or a dictation leave with
+ * the next message once the answer has ended.
+ */
+export function queueAllowed(args: {
+  hasMessage: boolean;
+  attachmentCount: number;
+  dictated: boolean;
+}): boolean {
+  return args.hasMessage && args.attachmentCount === 0 && !args.dictated;
+}
+
+/**
+ * The buttons while LIA answers (ADR-117 Lot 3, ADR-384): « Stop », and
+ * « Send next » when the typed words can wait for their turn. Cancellation is
+ * not a rollback — tools that already ran have acted; it stops what remains.
+ */
+function GeneratingActions({
+  canQueue,
+  onStop,
+  queueLabel,
+  stopLabel,
+}: {
+  canQueue: boolean;
+  onStop: () => void;
+  queueLabel: string;
+  stopLabel: string;
+}) {
+  return (
+    <>
+      {canQueue && (
+        <Button
+          type="submit"
+          size="lg"
+          className="gap-2 h-12 w-12 shrink-0 self-end px-0 transition-all duration-200 sm:w-auto sm:px-5"
+          aria-label={queueLabel}
+        >
+          <Send className="h-4 w-4" aria-hidden="true" />
+          <span className="hidden sm:inline">{queueLabel}</span>
+        </Button>
+      )}
+      <Button
+        type="button"
+        size="lg"
+        variant="destructive"
+        className="gap-2 h-12 w-12 shrink-0 self-end px-0 transition-all duration-200 sm:w-auto sm:px-8"
+        onClick={onStop}
+        aria-label={stopLabel}
+      >
+        <Square className="h-4 w-4" />
+        <span className="hidden sm:inline">{stopLabel}</span>
+      </Button>
+    </>
   );
 }
 
@@ -375,7 +434,21 @@ function useComposerRecorder(
   return { meetingRecording, pttBlocked: voiceModeEnabled || meetingRecording };
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({
+export function ChatInput({ uploadDraft, ...props }: ChatInputProps) {
+  if (uploadDraft) return <ChatInputBody {...props} uploadDraft={uploadDraft} />;
+  return <LocalChatInput {...props} />;
+}
+
+function LocalChatInput(props: ChatInputProps) {
+  const uploadDraft = useFileUpload();
+  return <ChatInputBody {...props} uploadDraft={uploadDraft} />;
+}
+
+const ChatInputBody: React.FC<
+  ChatInputProps & { uploadDraft: ReturnType<typeof useFileUpload> }
+> = ({
+  uploadDraft,
+  observeAttachmentLink,
   onSendMessage,
   disabled = false,
   disabledReasonKey,
@@ -384,6 +457,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   className,
   onMessageChange,
   attachmentsEnabled = false,
+  attachmentFormats,
   knowledgeDocumentsEnabled,
   bookmarksEnabled,
   generatedFilesEnabled,
@@ -430,9 +504,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     getReadyAttachmentIds,
     isUploading,
     maxAttachments,
-  } = useFileUpload();
+  } = uploadDraft;
   // A page's « Use in the discussion » link (`?attach=`): a copy joins the strip.
-  useAttachDeepLink(attachmentsEnabled, addServerAttachment);
+  useAttachDeepLink(attachmentsEnabled, addServerAttachment, observeAttachmentLink);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Check if voice mode (active listening) is enabled - disable push-to-talk when active
@@ -572,6 +646,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const handleSend = () => {
     const trimmedMessage = message.trim();
+    const queueable = queueAllowed({
+      hasMessage: trimmedMessage !== '',
+      attachmentCount: attachments.length,
+      dictated: pendingSttMeta !== null,
+    });
+    // ADR-384: while LIA answers, only plain words can leave to wait their turn.
+    if (isGenerating && !queueable) return;
     if (trimmedMessage && !disabled && apiAvailable) {
       const readyIds = getReadyAttachmentIds();
       // Build attachment metadata for immediate thumbnail display in user message.
@@ -618,7 +699,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const processFiles = useCallback(
     async (files: File[]) => {
       for (const file of files) {
-        const result = await uploadFile(file);
+        const result = await uploadFile(file, attachmentFormats);
         if (result && 'error' in result) {
           switch (result.error) {
             case 'file_too_large':
@@ -637,7 +718,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         }
       }
     },
-    [uploadFile, t]
+    [uploadFile, attachmentFormats, t]
   );
 
   // UX P1: a screenshot (or copied file) in the clipboard goes through the
@@ -647,14 +728,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const handlePaste = useCallback(
     (e: ClipboardEvent<HTMLTextAreaElement>) => {
       if (!attachmentsEnabled || disabled || !apiAvailable) return;
-      const files = acceptedFiles(e.clipboardData?.files ?? []);
+      const files = acceptedFiles(e.clipboardData?.files ?? [], attachmentFormats);
       if (files.length === 0) return;
       if (e.clipboardData.getData('text/plain').length === 0) {
         e.preventDefault();
       }
       void processFiles(files);
     },
-    [attachmentsEnabled, disabled, apiAvailable, processFiles]
+    [attachmentsEnabled, attachmentFormats, disabled, apiAvailable, processFiles]
   );
 
   // File selection handler (input[type=file])
@@ -703,12 +784,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       dragCounterRef.current = 0;
       if (!attachmentsEnabled || disabled || !apiAvailable) return;
 
-      const files = acceptedFiles(e.dataTransfer.files);
+      const files = acceptedFiles(e.dataTransfer.files, attachmentFormats);
       if (files.length > 0) {
         await processFiles(files);
       }
     },
-    [attachmentsEnabled, disabled, apiAvailable, processFiles]
+    [attachmentsEnabled, attachmentFormats, disabled, apiAvailable, processFiles]
   );
 
   // Determine the placeholder message based on status
@@ -720,6 +801,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       // ADR-299: a live session closes the composer and says why.
       return t(disabledReasonKey ?? 'chat.input.placeholder_disabled');
     }
+    if (isGenerating) return t('chat.input.placeholder_waiting');
     return t('chat.input.placeholder');
   };
 
@@ -876,7 +958,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,application/pdf"
+            accept={pickerAccept(attachmentFormats)}
             multiple
             className="hidden"
             onChange={handleFileSelect}
@@ -916,6 +998,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               ref={textareaRef}
               // Where a surface that leaves the band hands the focus back.
               data-chat-composer
+              // ...and where the companion looks while the person types.
+              {...gazeTargetProps('input')}
               value={message}
               onChange={e => {
                 const newValue = e.target.value;
@@ -948,21 +1032,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               enterKeyHint="send"
             />
           </div>
-          {/* Stop button (ADR-117 Lot 3): replaces send while a response is
-              streaming. Cancellation is not a rollback — tools that already
-              ran have acted; it stops what remains. */}
+          {/* While a response streams: Stop, and Send next for words that can
+              wait their turn (ADR-117 Lot 3, ADR-384). */}
           {isGenerating && onStopGeneration ? (
-            <Button
-              type="button"
-              size="lg"
-              variant="destructive"
-              className="gap-2 h-12 w-12 shrink-0 self-end px-0 transition-all duration-200 sm:w-auto sm:px-8"
-              onClick={onStopGeneration}
-              aria-label={t('chat.input.stop')}
-            >
-              <Square className="h-4 w-4" />
-              <span className="hidden sm:inline">{t('chat.input.stop')}</span>
-            </Button>
+            <GeneratingActions
+              canQueue={queueAllowed({
+                hasMessage,
+                attachmentCount: attachments.length,
+                dictated: pendingSttMeta !== null,
+              })}
+              onStop={onStopGeneration}
+              queueLabel={t('chat.input.queue')}
+              stopLabel={t('chat.input.stop')}
+            />
           ) : (
             <>
               {/* Send / Push-to-talk button */}

@@ -10,6 +10,9 @@ assistant's tools through the same clients (D2):
 - a due date can be REMOVED (``clear_due``), not only replaced;
 - editing a completed Google task keeps its completion date (the update is a
   full PUT: a field left out is a field rewritten).
+
+And one the readers need (2026-11-10): the instant a listing is filtered on is the
+same for both providers, each client sending it the way its provider accepts it.
 """
 
 from __future__ import annotations
@@ -225,6 +228,83 @@ class TestADueDateCanBeRemoved:
                 ),
             )
         assert recorder.requests == []
+
+
+class TestAFilterInstantIsTheSameForBothProviders:
+    """Measured on Graph (2026-11-10): a To Do ``$filter`` refuses a numeric offset (HTTP 400)
+    and accepts the same instant in UTC. The radio's journal sent local midnight with its
+    offset: its two tasks readers had never read a To Do account."""
+
+    _PARIS_MIDNIGHT = "2026-11-10T00:00:00+01:00"
+    _A_WEEK_ON = "2026-11-17T00:00:00+01:00"
+
+    @staticmethod
+    def _filter(recorder: _Recorder) -> str:
+        return str(recorder.requests[-1].url.params["$filter"])
+
+    async def test_to_do_is_asked_in_utc_whatever_offset_the_caller_gave(self) -> None:
+        client, recorder = _microsoft(), _Recorder(_ok({"value": []}))
+
+        await _drive(
+            client,
+            recorder,
+            lambda: client.list_tasks(
+                "l1",
+                show_completed=True,
+                due_min=self._PARIS_MIDNIGHT,
+                due_max=self._A_WEEK_ON,
+                completed_min=self._PARIS_MIDNIGHT,
+            ),
+        )
+
+        asked = self._filter(recorder)
+        assert asked == (
+            "dueDateTime/dateTime ge '2026-11-09T23:00:00Z'"
+            " and dueDateTime/dateTime le '2026-11-16T23:00:00Z'"
+            " and completedDateTime/dateTime ge '2026-11-09T23:00:00Z'"
+        )
+
+    @pytest.mark.parametrize(
+        ("given", "sent"),
+        [
+            ("2026-11-09T23:00:00Z", "2026-11-09T23:00:00Z"),
+            ("2026-11-09T23:00:00+00:00", "2026-11-09T23:00:00Z"),
+            ("2026-11-09T18:00:00.250-05:00", "2026-11-09T23:00:00Z"),
+            # No offset named, or no instant at all: sent as given, Graph answers for it.
+            ("2026-11-09T23:00:00", "2026-11-09T23:00:00"),
+            ("2026-11-09", "2026-11-09"),
+            ("someday", "someday"),
+        ],
+    )
+    async def test_to_do_reads_every_spelling_of_an_instant(self, given: str, sent: str) -> None:
+        client, recorder = _microsoft(), _Recorder(_ok({"value": []}))
+
+        await _drive(client, recorder, lambda: client.list_tasks("l1", due_max=given))
+
+        assert f"dueDateTime/dateTime le '{sent}'" in self._filter(recorder)
+
+    async def test_google_is_handed_the_instant_as_given(self) -> None:
+        """RFC 3339 with its offset is Google's own shape: nothing to absorb there."""
+        client, recorder = _google(), _Recorder(_ok({"items": []}))
+
+        await _drive(
+            client,
+            recorder,
+            lambda: client.list_tasks(
+                "l1",
+                show_completed=True,
+                due_min=self._PARIS_MIDNIGHT,
+                due_max=self._A_WEEK_ON,
+                completed_min=self._PARIS_MIDNIGHT,
+            ),
+        )
+
+        params = recorder.requests[-1].url.params
+        assert (params["dueMin"], params["dueMax"], params["completedMin"]) == (
+            self._PARIS_MIDNIGHT,
+            self._A_WEEK_ON,
+            self._PARIS_MIDNIGHT,
+        )
 
 
 class TestAToDoDueNamesItsZone:

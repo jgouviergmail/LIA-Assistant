@@ -50,6 +50,13 @@ def _load_migration() -> ModuleType:
 
 MIGRATION = _load_migration()
 KEYLESS = ConnectorType.get_keyless_types()
+#: Keyless types declared AFTER the revision, each with the decision that added it.
+#: Born keyless, such a type never had a per-account row to delete, so it needs no
+#: migration of its own; the revision's frozen list rightly does not know it.
+KEYLESS_AFTER_THE_REVISION: frozenset[ConnectorType] = frozenset(
+    {ConnectorType.SEARXNG}  # ADR-382, 2026-11-13
+)
+KEYLESS_AT_THE_REVISION = KEYLESS - KEYLESS_AFTER_THE_REVISION
 
 
 async def _account(session: AsyncSession, *, deleted: bool = False) -> UUID:
@@ -98,12 +105,15 @@ async def _disable_globally(session: AsyncSession, connector_type: ConnectorType
     await session.flush()
 
 
-def test_the_frozen_list_is_the_keyless_declaration_of_today() -> None:
+def test_the_frozen_list_is_the_keyless_declaration_of_its_day() -> None:
     # The revision freezes the stored names; at the time it was written they
-    # were exactly the keyless types, platform-key ones flagged as such.
-    assert set(MIGRATION.KEYLESS_STORED_TYPES) == {t.name for t in KEYLESS}
+    # were exactly the keyless types, platform-key ones flagged as such. A type
+    # declared keyless since is named, with its decision, never silently absorbed.
+    assert KEYLESS_AFTER_THE_REVISION <= KEYLESS, "a later keyless type is no longer keyless"
+    assert not {t.name for t in KEYLESS_AFTER_THE_REVISION} & set(MIGRATION.KEYLESS_STORED_TYPES)
+    assert set(MIGRATION.KEYLESS_STORED_TYPES) == {t.name for t in KEYLESS_AT_THE_REVISION}
     assert set(MIGRATION.PLATFORM_KEY_STORED_TYPES) == {
-        t.name for t in KEYLESS if t.uses_global_api_key
+        t.name for t in KEYLESS_AT_THE_REVISION if t.uses_global_api_key
     }
 
 
@@ -147,9 +157,12 @@ async def test_downgrade_recreates_active_rows_the_previous_code_can_read(
     async_session.expire_all()
 
     rows = await _rows(async_session, live)
-    assert set(rows) == KEYLESS - {ConnectorType.BROWSER}
+    assert set(rows) == KEYLESS_AT_THE_REVISION - {ConnectorType.BROWSER}
     assert rows[ConnectorType.WIKIPEDIA].status is ConnectorStatus.INACTIVE
-    for connector_type in KEYLESS - {ConnectorType.BROWSER, ConnectorType.WIKIPEDIA}:
+    for connector_type in KEYLESS_AT_THE_REVISION - {
+        ConnectorType.BROWSER,
+        ConnectorType.WIKIPEDIA,
+    }:
         row = rows[connector_type]
         assert row.status is ConnectorStatus.ACTIVE
         expected_auth = "global_api_key" if connector_type.uses_global_api_key else "none"

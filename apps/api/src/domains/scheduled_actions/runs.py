@@ -41,6 +41,23 @@ from src.infrastructure.database.errors import database_error_fields
 logger = structlog.get_logger(__name__)
 
 
+def is_manual_run(due_at: datetime | None, started_at: datetime) -> bool:
+    """Whether the person started this run, rather than a due slot.
+
+    Read by the run row (``manual``) and by the failure notice: a run the
+    person asked for is waited for, so it always says how it ended.
+
+    Args:
+        due_at: ``action.next_trigger_at`` captured BEFORE any re-arm, or
+            ``None`` when nothing was pending.
+        started_at: When the tick started (UTC).
+
+    Returns:
+        True when no slot was due: none pending at all, or one still ahead.
+    """
+    return due_at is None or due_at > started_at
+
+
 async def record_run(
     db: AsyncSession,
     action: ScheduledAction,
@@ -90,8 +107,7 @@ async def record_run(
                 ended_at=now_utc(),
                 outcome=outcome,
                 attempts=attempts,
-                # No pending slot at all means the reader started this run.
-                manual=due_at is None or due_at > started_at,
+                manual=is_manual_run(due_at, started_at),
                 error=error,
                 run_id=run_id,
             )

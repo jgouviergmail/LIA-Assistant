@@ -2,7 +2,11 @@ import type { SettingsSectionToken } from '@/lib/settings-sections';
 import type { GeneratedAssetTab } from '@/types/generated-assets';
 import type { SceneActivity, WorldWorkspace } from './activity-catalogue';
 import type { AppConfig } from '@/hooks/useAppConfig';
+import { bookmarksReadable } from '@/lib/bookmarks/availability';
+import { meetingsAvailable } from '@/lib/meetings/availability';
 import { SETTINGS_SEARCH_META } from '@/lib/settings-search';
+import { smsAvailable } from '@/lib/sms/availability';
+import { workboardAvailable } from '@/lib/workboard/availability';
 import { worldActions } from './functions';
 import type { BoardFilters } from '@/types/workboard';
 import type { DashboardDestination } from '@/components/dashboard/DashboardNavigation';
@@ -127,11 +131,18 @@ export function activityTitle(activity: SceneActivity, t: Translate): string {
       return worldActions(t).find(item => item.id === activity.id)?.label ?? '';
   }
 }
+/**
+ * Whether a workspace may open: what the instance offers NOW.
+ *
+ * The deployment ceiling mounts a workspace's routes and the operator's switch
+ * can still close them (ADR-280); read from the ceiling alone, a workspace
+ * stayed offered after the switch and opened on a refusal.
+ */
 export function workspaceAvailable(id: WorldWorkspace, config: AppConfig | null): boolean {
-  const gates: Partial<Record<WorldWorkspace, boolean | undefined>> = {
-    meetings: config?.features.meetings_enabled,
-    workboard: config?.features.workboard_enabled,
-    sms: config?.features.sms_enabled,
+  const gates: Partial<Record<WorldWorkspace, boolean>> = {
+    meetings: meetingsAvailable(config),
+    workboard: workboardAvailable(config),
+    sms: smsAvailable(config),
   };
   return Object.hasOwn(gates, id) ? gates[id] === true : true;
 }
@@ -156,7 +167,7 @@ export function activityAvailable(
     case 'gallery':
       return (
         policy.native.has('generated-assets') &&
-        (activity.tab !== 'bookmarks' || policy.config?.features.bookmarks_enabled === true)
+        (activity.tab !== 'bookmarks' || bookmarksReadable(policy.config))
       );
     case 'workspace':
       return workspaceAvailable(activity.id, policy.config);
@@ -172,9 +183,10 @@ export function activityAvailable(
 /** Activity discovery opens the real workspace; the separate settings menu keeps native configuration. */
 export function catalogueSelection(selection: WorldSelection, settings: boolean): WorldSelection {
   if (settings) return selection;
+  // The workboard is no settings section any more (owner, 2026-11-11): its
+  // workspace is reached from the desk, never from a function of this list.
   const workspace = {
     meetings: 'world-meetings',
-    workboard: 'world-workboard',
     sms: 'world-sms',
   } as const;
   return Object.hasOwn(workspace, selection)

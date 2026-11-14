@@ -16,6 +16,7 @@ import pytest
 from langchain_core.messages import AIMessage
 
 from src.domains.agents.services.streaming.service import StreamingService
+from tests.fixtures.conversation_cases import streaming_target
 
 
 @pytest.fixture
@@ -48,7 +49,7 @@ async def test_confirmed_answer_stream_is_not_duplicated_by_message_reemission(
         )
 
     chunks = await _collect(
-        service.stream_sse_chunks(graph_stream(), uuid.uuid4(), "run-confirmed")
+        service.stream_sse_chunks(graph_stream(), streaming_target(uuid.uuid4()), "run-confirmed")
     )
     assert [chunk.content for chunk, _ in chunks if chunk.type == "token"] == [
         answer
@@ -68,7 +69,9 @@ async def test_char_content_final_replacement_chunk_emitted():
         )
         yield ("messages", (AIMessage(content="stream"), {"langgraph_node": "response"}))
 
-    chunks = await _collect(service.stream_sse_chunks(graph_stream(), uuid.uuid4(), "run-x"))
+    chunks = await _collect(
+        service.stream_sse_chunks(graph_stream(), streaming_target(uuid.uuid4()), "run-x")
+    )
 
     replacements = [c for c, _ in chunks if c.type == "content_replacement"]
     assert len(replacements) == 1
@@ -91,7 +94,9 @@ async def test_char_debug_metrics_chunk_emitted_when_panel_enabled():
         "src.infrastructure.async_utils.await_run_id_tasks",
         AsyncMock(return_value=[]),
     ):
-        chunks = await _collect(service.stream_sse_chunks(graph_stream(), uuid.uuid4(), "run-y"))
+        chunks = await _collect(
+            service.stream_sse_chunks(graph_stream(), streaming_target(uuid.uuid4()), "run-y")
+        )
 
     debug_chunks = [c for c, _ in chunks if c.type == "debug_metrics"]
     assert len(debug_chunks) == 1
@@ -111,7 +116,9 @@ async def test_char_debug_metrics_not_emitted_when_panel_disabled():
         yield ("values", {"routing_history": []})
         yield ("messages", (AIMessage(content="hi"), {"langgraph_node": "response"}))
 
-    chunks = await _collect(service.stream_sse_chunks(graph_stream(), uuid.uuid4(), "run-z"))
+    chunks = await _collect(
+        service.stream_sse_chunks(graph_stream(), streaming_target(uuid.uuid4()), "run-z")
+    )
 
     assert not [c for c, _ in chunks if c.type == "debug_metrics"]
 
@@ -154,7 +161,9 @@ async def test_card_projection_is_captured_from_final_stream_state(source_run):
             },
         )
 
-    await _collect(service.stream_sse_chunks(graph_stream(), uuid.uuid4(), "current"))
+    await _collect(
+        service.stream_sse_chunks(graph_stream(), streaming_target(uuid.uuid4()), "current")
+    )
     expected = (
         {"run_id": "current", "lia_card_actions": answer.additional_kwargs["lia_card_actions"]}
         if source_run == "current"

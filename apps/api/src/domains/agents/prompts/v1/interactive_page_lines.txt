@@ -1,0 +1,8 @@
+# One-line scaffolds of the interactive page prompt (ADR-370), as `key|template`.
+# Read by `interactive_pages/prompts.py` through `parse_prompt_sections`.
+#
+# map_source: one line per map tile source the deployment allows, the cells in the
+# order the prompt's MAPS section announces them.
+# map_no_source: the whole list when the deployment allows none.
+map_source|- {label} | {url_template} | zoom {min_zoom} to {max_zoom} | {credit}
+map_no_source|- none: no map tile can load on this deployment.

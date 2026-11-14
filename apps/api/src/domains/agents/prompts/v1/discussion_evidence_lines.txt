@@ -25,3 +25,5 @@ sms_content|SMS content: {body}
 sms_nuance|Sender identity is unresolved; captured/unknown dates do not prove receipt time.
 
 task_nuance|A task's reported completion is its stored status, not proof of a performed human action.
+
+email_answered_nuance|The mailbox marks this message as answered: the person has already replied to it, so it no longer awaits a reply from them. A message with no such mark says nothing either way.

@@ -6,11 +6,12 @@ Manages conversation containers, messages, and audit trail for LangGraph persist
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -19,11 +20,21 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    and_,
+    column,
+    false,
+    func,
+    or_,
     text,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.core.constants import CONVERSATION_TITLE_MAX_LENGTH, CONVERSATION_TITLE_WHITESPACE
+from src.core.conversation_target import ConversationKind
 from src.infrastructure.database.models import BaseModel, UUIDMixin
 from src.infrastructure.database.session import Base
 
@@ -35,13 +46,14 @@ class Conversation(BaseModel):
     """
     User conversation container for LangGraph checkpoints.
 
-    One conversation per user (1:1 mapping via unique user_id).
-    Stores conversation metadata and links to checkpoints via thread_id.
+    One permanent main conversation and independently titled secondary ones.
+    Business identity survives a reset; runtime_id names its current checkpoints.
 
     Attributes:
         id: Conversation UUID (primary key)
-        user_id: User UUID (unique, foreign key)
+        user_id: Owning user UUID (foreign key)
         title: Conversation title (auto-generated or user-defined)
+        title_auto: True while an annex waits for its first message to name it
         message_count: Number of messages in conversation
         total_tokens: Total tokens consumed in conversation
         deleted_at: Soft delete timestamp (nullable)
@@ -54,7 +66,7 @@ class Conversation(BaseModel):
 
     Notes:
         - LangGraph checkpoints are stored separately in checkpoints table
-        - thread_id in LangGraph = conversation.id for checkpoint retrieval
+        - LangGraph thread_id names runtime_id, not a historical business FK
         - Soft delete pattern: deleted_at IS NULL = active conversation
     """
 
@@ -64,7 +76,33 @@ class Conversation(BaseModel):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    title: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    title: Mapped[str | None] = mapped_column(String(CONVERSATION_TITLE_MAX_LENGTH), nullable=True)
+    # ADR-378 amendment 2026-11-12: an annex created without a title waits for
+    # its first message under a placeholder. A flag rather than a title compared
+    # to that placeholder: the person may type the very same words, and a title
+    # they typed is never replaced. SQL `comment=` mirrors the migration EXACTLY.
+    title_auto: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default=false(),
+        nullable=False,
+        comment="True while an annex waits for its first message to give it its title.",
+    )
+    kind: Mapped[ConversationKind] = mapped_column(
+        SAEnum(
+            ConversationKind,
+            name="conversation_kind",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=lambda kinds: [kind.value for kind in kinds],
+            validate_strings=True,
+        ),
+        default=ConversationKind.MAIN,
+        server_default="main",
+        nullable=False,
+    )
+    revision: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0", nullable=False)
+    runtime_id: Mapped[UUID] = mapped_column(default=uuid4, nullable=False)
     message_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_tokens: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(
@@ -80,9 +118,25 @@ class Conversation(BaseModel):
     )
 
     __table_args__ = (
-        # One conversation per user (business rule); the constraint's backing
-        # unique index also serves user_id lookups, so no separate index.
-        UniqueConstraint("user_id", name="uq_conversations_user_id"),
+        UniqueConstraint("runtime_id", name="uq_conversations_runtime_id"),
+        # A soft-deleted legacy main is reactivated, never replaced.
+        Index(
+            "uq_conversations_primary_user",
+            "user_id",
+            unique=True,
+            postgresql_where=text("kind = 'main'"),
+        ),
+        CheckConstraint("revision >= 0", name="ck_conversations_revision"),
+        CheckConstraint(
+            or_(
+                column("kind") != ConversationKind.SECONDARY.value,
+                and_(
+                    column("title").is_not(None),
+                    func.length(func.btrim(column("title"), CONVERSATION_TITLE_WHITESPACE)) > 0,
+                ),
+            ),
+            name="ck_conversations_secondary_title",
+        ),
         Index("ix_conversations_user_created", "user_id", "created_at"),
         # DAU/WAU observability range scans (group-by-user after a date filter).
         Index("ix_conversations_created_at", "created_at"),
@@ -93,6 +147,27 @@ class Conversation(BaseModel):
         return (
             f"<Conversation(id={self.id}, user_id={self.user_id}, messages={self.message_count})>"
         )
+
+
+class ConversationCreationReceipt(BaseModel):
+    """A content-free creation receipt retained until account removal.
+
+    The result UUID deliberately has no conversation FK: a late retry of an
+    already deleted annex must report retirement rather than create a new one.
+    """
+
+    __tablename__ = "conversation_creation_receipts"
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    request_id: Mapped[UUID] = mapped_column(nullable=False)
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    conversation_id: Mapped[UUID] = mapped_column(nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "request_id", name="uq_conversation_creation_attempt"),
+    )
 
 
 class ConversationMessage(BaseModel):
@@ -116,7 +191,7 @@ class ConversationMessage(BaseModel):
 
     Notes:
         - Separate from LangGraph state for performance
-        - Indexed by (conversation_id, created_at DESC) for pagination
+        - Indexed by (conversation_id, created_at, id) for deterministic pagination
         - Cascade delete: deleted when conversation is deleted
     """
 
@@ -168,10 +243,17 @@ class ConversationMessage(BaseModel):
 
     __table_args__ = (
         Index(
-            "ix_conversation_messages_conv_created",
+            "ix_conversation_messages_history_position",
             "conversation_id",
             "created_at",
-            postgresql_ops={"created_at": "DESC"},
+            "id",
+        ),
+        Index(
+            "ix_conversation_messages_run_position",
+            "conversation_id",
+            text("(message_metadata ->> 'run_id')"),
+            "created_at",
+            "id",
         ),
         Index(
             "ix_conversation_messages_stt_provider",
@@ -202,14 +284,15 @@ class ConversationAuditLog(Base, UUIDMixin):
     """
     Immutable audit log for conversation lifecycle events.
 
-    Tracks conversation creation, reset, and deletion for compliance
+    Tracks conversation creation, renaming, reset, and deletion for compliance
     and debugging. Follows AdminAuditLog pattern (no TimestampMixin).
 
     Attributes:
         id: Audit log UUID (primary key)
         user_id: User UUID (foreign key)
         conversation_id: Conversation UUID (nullable)
-        action: Action type ('created', 'reset', 'deleted')
+        action: Action type ('created', 'renamed', 'titled', 'reset', 'deleted');
+            'titled' is the automatic title an annex took from its first message
         message_count_at_action: Message count at action time (nullable)
         metadata: Optional JSONB metadata (total_tokens, reason, etc.)
         created_at: Action timestamp (immutable, no updated_at)

@@ -5,7 +5,8 @@ Each assertion is a measured 400 avoided (ADR-306, Claude API, 2026-09-23):
 * a non-default ``temperature`` is refused from Opus 4.7 on — so a slot's
   temperature must never reach those generations, thinking on or off;
 * a thinking block is bound to the conversation that produced it on Fable 5.1,
-  Opus 5.5 and Sonnet 5.5, and an account created from 2026-08-31 gets a 400
+  Fable 5.2, Opus 5.5 and Sonnet 5.5, and an account created from 2026-08-31
+  (every account on Fable 5.2 — measured on it, 2026-11-11) gets a 400
   once the history before the block changed — LIA rebuilds the system prompt
   every turn, so those generations are sent the vendor's own
   degrade-instead-of-fail control, with the beta header it requires (the
@@ -35,6 +36,7 @@ _NO_SAMPLING = (
     "claude-opus-5",
     "claude-fable-5",
     "claude-fable-5-1",
+    "claude-fable-5-2",
     "claude-opus-5-5",
     "claude-sonnet-5-5",
 )
@@ -91,7 +93,9 @@ def test_thinking_set_through_provider_config_also_omits_the_temperature() -> No
     assert kwargs["thinking"] == {"type": "enabled", "budget_tokens": 5000}
 
 
-@pytest.mark.parametrize("model", ("claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5"))
+@pytest.mark.parametrize(
+    "model", ("claude-fable-5-1", "claude-fable-5-2", "claude-opus-5-5", "claude-sonnet-5-5")
+)
 def test_a_binding_generation_asks_the_api_to_drop_rather_than_refuse(model: str) -> None:
     unasked = _init_kwargs(model)
     assert unasked["thinking"] == {"type": "adaptive", "block_binding": _DROP}
@@ -174,3 +178,17 @@ def test_the_binding_beta_joins_the_betas_an_operator_configured() -> None:
         provider_config=json.dumps({"betas": ["operator-beta-2026-01-01"]}),
     )
     assert kwargs["betas"] == ["operator-beta-2026-01-01", ANTHROPIC_THINKING_BINDING_BETA]
+
+
+def test_the_client_is_handed_the_vendor_address_unless_the_deployment_names_another(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The installer's disposable qualification answers a fresh install's core
+    slots from one hermetic fake provider (ADR-215): the address is the
+    adapter's to give, by the same ``{PROVIDER}_BASE_URL`` rule as its
+    OpenAI-compatible branches. The default equals the SDK's own."""
+    monkeypatch.delenv("ANTHROPIC_BASE_URL", raising=False)
+    assert _init_kwargs("claude-opus-5")["base_url"] == "https://api.anthropic.com"
+
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "http://fake-provider:18080")
+    assert _init_kwargs("claude-opus-5")["base_url"] == "http://fake-provider:18080"

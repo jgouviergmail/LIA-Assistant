@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.constants import SKILL_PROPOSAL_CLAIM_KEY_PREFIX, SKILL_PROPOSAL_CLAIM_TTL_SECONDS
 from src.core.exceptions import AuthorizationError, BaseAPIException
+from src.core.run_authority import require_runtime_authority
 from src.domains.agents.application.skill_read import require_skill_access
 from src.domains.shared.action_sink import SKILL_PROPOSAL_INSTALL_CAPABILITY, recorded_action
 from src.domains.skills.exceptions import ImportRefusalKind, import_refusal_kind
@@ -90,7 +91,7 @@ async def propose(
     files: dict[str, str],
     *,
     owner_id: UUID,
-    conversation_id: str,
+    runtime_id: UUID,
     now: datetime | None = None,
     redis: Any = None,
 ) -> tuple[SkillProposal, int]:
@@ -102,7 +103,7 @@ async def propose(
     Args:
         files: Relative path → text content, as the model sent them.
         owner_id: The account the skill is for.
-        conversation_id: The conversation the card shows in.
+        runtime_id: The admitted root runtime the card shows in.
         now: The current instant (a test's clock).
         redis: The cache client (a test's double); the application's by default.
 
@@ -115,6 +116,7 @@ async def propose(
         Exception: The proposal could not be kept (the cache failed): nothing
             was offered.
     """
+    require_runtime_authority(owner_id, runtime_id)
     now = now or datetime.now(UTC)
     async with get_db_context() as db:
         await require_skill_access(db, owner_id)
@@ -133,6 +135,7 @@ async def propose(
         expires_at=(now + timedelta(seconds=ttl)).isoformat(),
         replaces=None if current is None else package_fingerprint(current),
         changes=None if current is None else describe_changes(current, files),
+        runtime_id=str(runtime_id),
     )
     store = ProposalStore(redis if redis is not None else await get_redis_cache())
     evicted = await store.save(
@@ -141,11 +144,11 @@ async def propose(
         max_per_owner=settings.skill_proposals_max_per_user,
         now=now.timestamp(),
     )
-    queue_proposal_card(conversation_id, proposal)
+    queue_proposal_card(str(runtime_id), proposal)
     logger.info(
         "skill_proposed",
         proposal_id=proposal.id,
-        skill_name=name,
+        skill_name_length=len(name),
         replaces=proposal.replaces is not None,
         files=len(files),
         evicted=evicted,
@@ -310,7 +313,7 @@ async def _install_claimed(
     logger.info(
         "skill_proposal_installed",
         proposal_id=proposal.id,
-        skill_name=proposal.name,
+        skill_name_length=len(proposal.name),
         replaced=proposal.replaces is not None,
         duration_ms=round((time.perf_counter() - started) * 1000),
     )

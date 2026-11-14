@@ -10,15 +10,18 @@ so its longest one still bounds the stall). All three go through
 ``asyncio.to_thread``.
 """
 
+import io
 import threading
 import uuid
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi import UploadFile
 
 from src.domains.attachments.models import AttachmentContentType
 from src.domains.attachments.service import AttachmentService
+from tests.helpers.attachment_publication import stub_publication
 
 
 @pytest.mark.unit
@@ -30,8 +33,6 @@ class TestAttachmentUploadOffEventLoop:
         db = AsyncMock()
         service = AttachmentService(db)
         service.repo = AsyncMock()
-        mock_attachment = MagicMock(id=uuid.uuid4())
-        service.repo.create = AsyncMock(return_value=mock_attachment)
 
         # Stub the in-memory processing so the flow reaches the disk write with a
         # plain PNG and no HEIC/PDF branches.
@@ -44,9 +45,7 @@ class TestAttachmentUploadOffEventLoop:
         service._mime_to_extension = MagicMock(return_value="png")
 
         png_bytes = b"\x89PNG\r\n\x1a\n" + b"0" * 64
-        mock_file = MagicMock()
-        mock_file.filename = "photo.png"
-        mock_file.read = AsyncMock(return_value=png_bytes)
+        mock_file = _upload_file(png_bytes, "photo.png")
 
         main_tid = threading.get_ident()
         write_tid: dict[str, int] = {}
@@ -56,10 +55,12 @@ class TestAttachmentUploadOffEventLoop:
             write_tid["tid"] = threading.get_ident()
             return real_write(self_path, data)
 
-        with patch("pathlib.Path.write_bytes", spy_write):
+        with patch("pathlib.Path.write_bytes", spy_write), stub_publication(tmp_path):
             result = await service.upload(uuid.uuid4(), mock_file)
+        await mock_file.close()
 
-        assert result is mock_attachment
+        assert result.file_size == len(png_bytes)
+        assert result.mime_type == "image/png"
         # Ran in a worker thread, not the event-loop thread.
         assert write_tid["tid"] != main_tid
         # Behavior preserved: the file is physically written to disk.
@@ -76,12 +77,17 @@ class TestAttachmentUploadOffEventLoop:
             threads.append(threading.get_ident())
             return real_convert(file_bytes)
 
-        with patch.object(AttachmentService, "_convert_heic_to_jpeg", staticmethod(spy_convert)):
-            await service.upload(uuid.uuid4(), _upload_file(_heic_bytes(), "photo.heic"))
+        file = _upload_file(_heic_bytes(), "photo.heic")
+        with (
+            patch.object(AttachmentService, "_convert_heic_to_jpeg", staticmethod(spy_convert)),
+            stub_publication(tmp_path),
+        ):
+            result = await service.upload(uuid.uuid4(), file)
+        await file.close()
 
         assert threads and threads[0] != threading.get_ident()
         # Behavior preserved: the JPEG is what is stored and recorded.
-        assert service.repo.create.await_args.args[0]["mime_type"] == "image/jpeg"
+        assert result.mime_type == "image/jpeg"
         assert list(tmp_path.rglob("*.jpg"))
 
     @pytest.mark.asyncio
@@ -94,12 +100,17 @@ class TestAttachmentUploadOffEventLoop:
             threads.append(threading.get_ident())
             return real_extract(file_bytes, max_chars)
 
-        with patch.object(AttachmentService, "_extract_pdf_text", staticmethod(spy_extract)):
-            await service.upload(uuid.uuid4(), _upload_file(_pdf_bytes("a page"), "notes.pdf"))
+        file = _upload_file(_pdf_bytes("a page"), "notes.pdf")
+        with (
+            patch.object(AttachmentService, "_extract_pdf_text", staticmethod(spy_extract)),
+            stub_publication(tmp_path),
+        ):
+            result = await service.upload(uuid.uuid4(), file)
+        await file.close()
 
         assert threads and threads[0] != threading.get_ident()
         # Behavior preserved: the text reaches the record, within its budget.
-        assert "a page" in service.repo.create.await_args.args[0]["extracted_text"]
+        assert result.extracted_text is not None and "a page" in result.extracted_text
 
 
 def _upload_service(
@@ -120,11 +131,8 @@ def _upload_service(
     return service
 
 
-def _upload_file(body: bytes, filename: str) -> MagicMock:
-    file = MagicMock()
-    file.filename = filename
-    file.read = AsyncMock(return_value=body)
-    return file
+def _upload_file(body: bytes, filename: str) -> UploadFile:
+    return UploadFile(file=io.BytesIO(body), filename=filename)
 
 
 def _heic_bytes() -> bytes:

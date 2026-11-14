@@ -1,10 +1,10 @@
 """Accept one confirmed manual trigger; the source worker decides its outcome."""
 
+import asyncio
 from functools import partial
 from uuid import UUID
 
 import structlog
-from redis.exceptions import RedisError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,8 +38,7 @@ from src.domains.scheduled_actions.models import ScheduledActionStatus
 from src.domains.scheduled_actions.schemas import ScheduledActionCreate
 from src.domains.scheduled_actions.service import ScheduledActionService
 from src.domains.users.preference_cas import PreferenceWriteReceipt
-from src.infrastructure.async_utils import safe_fire_and_forget
-from src.infrastructure.cache.redis import get_redis_cache
+from src.infrastructure.async_utils import finish_owned_task, safe_fire_and_forget
 
 logger = structlog.get_logger(__name__)
 
@@ -100,34 +99,41 @@ async def execute_routine_launch(
     reservation = RoutineExecutionReservation(
         actor_id, selected.expected, draft.command_id, draft.expires_at
     )
-    _start_reserved_run(reservation, context.conversation_id)
+    _start_reserved_run(reservation)
 
 
-def _start_reserved_run(reservation: RoutineExecutionReservation, conversation_id: str) -> None:
-    task = _run_reserved(reservation, conversation_id)
+def _start_reserved_run(reservation: RoutineExecutionReservation) -> None:
+    task = _run_reserved(reservation)
     try:
-        safe_fire_and_forget(task, name=f"lia-routine-{reservation.token}")
+        safe_fire_and_forget(
+            task, name=f"lia-routine-{reservation.token}", independent_of_graph=True
+        )
     except Exception:
         task.close()
         raise
 
 
-async def _run_reserved(reservation: RoutineExecutionReservation, conversation_id: str) -> None:
+async def _run_reserved(reservation: RoutineExecutionReservation) -> None:
     from src.infrastructure.scheduler.scheduled_action_executor import execute_single_action
 
     try:
-        ready = await wait_for_routine_turn(
-            await get_redis_cache(), conversation_id, reservation.expires_at
-        )
-    except RedisError:
-        ready = False
-    if ready:
-        await execute_single_action(
-            action_id=reservation.expected.id,
-            user_id=reservation.actor_id,
-            execution_guard=partial(authorize_reserved_routine, reservation),
-            execution_token=reservation.token,
-        )
+        if await wait_for_routine_turn(reservation.actor_id, reservation.expires_at):
+            await execute_single_action(
+                action_id=reservation.expected.id,
+                user_id=reservation.actor_id,
+                execution_guard=partial(authorize_reserved_routine, reservation),
+                execution_token=reservation.token,
+                # Asked in the chat and confirmed: the person's run.
+                started_by_person=True,
+            )
+    except SQLAlchemyError:
+        logger.warning("routine_readiness_unavailable", action_id=str(reservation.expected.id))
+    finally:
+        await finish_owned_task(asyncio.create_task(_release_reservation(reservation)))
+
+
+async def _release_reservation(reservation: RoutineExecutionReservation) -> None:
+    """A cancelled or refused launcher owns its conditional cleanup through shutdown."""
     try:
         await cancel_routine_reservation(reservation)
     except SQLAlchemyError:

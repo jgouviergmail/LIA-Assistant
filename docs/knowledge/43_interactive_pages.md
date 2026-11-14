@@ -26,9 +26,17 @@ Its file is a generated document like the others, under the same rules: download
 
 What a page saves stays in memory: it lasts until the page restarts, and nothing is kept once you leave.
 
+## Can a page show a map?
+
+Yes. Name the places and LIA draws the map in the page, with a marker on each place it could locate; you can drag it and zoom. The map background comes from the sources your administrator allows (OpenStreetMap maps by default): these map tiles are the only thing a page loads from the internet.
+
+A page cannot embed another site, so a Google Maps frame would stay empty in it. LIA refuses to show a page that embeds one, and a line under an older page says that part of it was blocked. For Google's own map, ask LIA for a map rather than a page.
+
+The administrator chooses the map sources with `INTERACTIVE_PAGE_MAP_PROVIDERS` in the instance's environment file; an empty value allows none, and a page then reaches nothing at all.
+
 ## Why can't a page load an image, a font or a library from the web?
 
-For the reason above: a page reaches nothing outside itself. LIA writes everything into the page, and refuses to show one that depends on an external script, because it would load and do nothing. For the same reason a page has no access to your calendar, your mail or anything else: to put your data in a page, ask for it in the same request and LIA writes it in.
+For the reason above: map tiles apart, a page reaches nothing outside itself. LIA writes everything into the page, and refuses to show one that depends on an external script or embeds another document, because it would load and do nothing. For the same reason a page has no access to your calendar, your mail or anything else: to put your data in a page, ask for it in the same request and LIA writes it in.
 
 ## What does it cost, and who can turn it off?
 

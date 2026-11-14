@@ -294,3 +294,37 @@ only LIA's own counters read high. Over the last 30 days that is 14 turns on 2 a
 counters, on turns whose summaries are doubled, single or absent. The price is stated: those
 messages keep a cost that reads too high, often double, and the doubles go on in production until
 this fix is deployed. A doubled row carries the same `created_at` as its twin, to the millisecond.
+
+
+## Amendment — 2026-11-10: durable account admission and explicit recovery
+
+The secondary-discussion work separates business discussion identity, its runtime
+and a graph invocation. PostgreSQL now owns account-wide graph occupancy through
+`conversation_executions`; Redis carries transport, presence and cancellation.
+The old `active_run_lease`/registration/heartbeat/read helpers are removed: no
+production caller remains, and keeping a TTL admission alternative would permit
+unsafe reuse. Their former tests are superseded by the real SQL execution,
+supervision, HTTP and recovery contracts under
+`apps/api/tests/integration/domains/conversations/`. Redis subscriber/replay/TTL
+contracts remain tested in `apps/api/tests/integration/test_active_run_registry.py`.
+
+An unknown stop remains occupied. An operator may quarantine it, establish the
+exact worker boot's process and children exited, then close that one fenced
+activity. The command is deliberately neither a scheduler nor a provider replay;
+its stop attestation is explicit, not inferred from age. See
+[the recovery runbook](../runbooks/CONVERSATION_EXECUTION_RECOVERY.md).
+
+A manually launched routine waits for this account authority, including work in
+another discussion, and starts independently of the graph which confirmed it.
+The actual scheduler still acquires admission; a readiness read grants no lease.
+
+## Amendment 2026-11-13 — a close says how the run ended
+
+Every driver of a run now declares how it ended on its authority (`RunAuthority.end`:
+the producer from its status and whether it published an error, the out-of-turn runner
+from its outcome, the channel gateway from the stream it relayed), and the close writes it
+(`conversation_executions.end_state`: `normal`, `interrupted`, `unstarted`; an undeclared end
+is interrupted) under the owner lock, in the transaction that frees the account. The same
+transaction settles the messages that waited for the account, and the committed release is
+announced to their departure. See
+[ADR-384](ADR-384-A-Message-Written-While-LIA-Works-Waits-Its-Turn.md).

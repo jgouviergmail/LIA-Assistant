@@ -115,12 +115,25 @@ const GLOBAL_SPECS = {
   weatherFog: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
   weatherWind: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
   weatherNight: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  /** The sky of an ordinary day: a sun by day, a cloud that passes before it. */
+  weatherSun: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  weatherCloud: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  /** What a weather scene carries, as a PATH rather than a weight: 0 where it
+   * appears, 1 where it lands (the head for the first drop of a rain, the nose
+   * for a caught flake), beyond 1 its splash. A step channel: the scene's own
+   * trajectory places it on the beat the face meets it (`weather-scenes.ts`). */
+  weatherDrop: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: true },
+  weatherFlake: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: true },
   lightWarm: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
   lightCool: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
   ambientSway: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false, derived: true },
   scarfTrail: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false, derived: true },
   ambientFall: { rest: 0.5, unit: 'num', group: 'aura', precision: 3, snap: false, derived: true },
   ambientPulse: { rest: 1, unit: 'num', group: 'aura', precision: 3, snap: false, derived: true },
+  /** A drop's fall, three to the fall's one (`ambientMotion`). */
+  ambientDrop: { rest: 0.5, unit: 'num', group: 'aura', precision: 3, snap: false, derived: true },
+  /** The slow drift of snow, clouds, a gust and the sun's rays. */
+  ambientDrift: { rest: 0.5, unit: 'num', group: 'aura', precision: 3, snap: false, derived: true },
   /** Head tilt of the whole pair. */
   tilt: { rest: 0, unit: 'deg', group: 'mass', precision: 2, snap: false },
   /** Breathing / pop / perk scale of the whole pair. */

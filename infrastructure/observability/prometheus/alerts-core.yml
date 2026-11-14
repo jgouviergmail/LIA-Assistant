@@ -67,10 +67,15 @@ groups:
     interval: 30s
     rules:
       - alert: DiskSpaceCritical
+        # A read-only filesystem is full by construction (WSL's read-only system
+        # image reads 100%): nothing can fill it, so it is not watched.
         expr: |
           (
-            1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})
-          ) * 100 > 90
+            (
+              1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})
+            ) * 100 > 90
+          )
+          unless node_filesystem_readonly == 1
         for: 5m
         labels:
           severity: critical
@@ -96,10 +101,27 @@ groups:
       # fired this alert permanently for every unlimited container (measured
       # 2026-08-16: the 7 demo-instance services without `mem_limit`).
       # `(limit > 0)` drops the zero-limit series before the division instead.
+      #
+      # MINUS the ACTIVE page cache (2026-11-10). The working set still counts
+      # file pages the kernel holds as active, and a large binary is mapped
+      # active for as long as nothing ages it: Alloy (507 MB on disk) showed
+      # 98% of its 256 MB for an hour with 122 MB of anonymous memory, then
+      # fell to 46% in one minute while its usage stayed at 251 MB — the pages
+      # had only moved to the inactive list. cgroup v2 counts shmem and tmpfs
+      # on the anonymous lists, so what remains is exactly what a reclaim
+      # cannot drop. The `or ... * 0` fallback subtracts nothing for a
+      # container whose active-file series is missing: the alert then judges
+      # the working set, as before, rather than going silent.
       - alert: ContainerMemoryNearLimit
         expr: |
           (
-            container_memory_working_set_bytes{name=~"lia.*"}
+            (
+              container_memory_working_set_bytes{name=~"lia.*"}
+              - (
+                container_memory_total_active_file_bytes{name=~"lia.*"}
+                or container_memory_working_set_bytes{name=~"lia.*"} * 0
+              )
+            )
             / (container_spec_memory_limit_bytes{name=~"lia.*"} > 0)
           ) * 100 > 95
         for: 10m
@@ -109,7 +131,7 @@ groups:
           tier: core
         annotations:
           summary: "Container {{ $labels.name }} near its memory limit"
-          description: "{{ $labels.name }} holds {{ $value | humanize }}% of its compose memory limit as working set for 10 minutes (threshold: 95%). Working set is usage minus INACTIVE page cache — the cache the kernel drops first; it still counts active file pages, so it is the closest cAdvisor figure to what the kernel cannot reclaim before an OOM kill, not that figure itself."
+          description: "{{ $labels.name }} holds {{ $value | humanize }}% of its compose memory limit in memory the kernel cannot drop for 10 minutes (threshold: 95%). The figure is the working set minus the ACTIVE page cache: anonymous memory, shared memory and kernel memory — what stands between the container and an OOM kill once every file page has been reclaimed."
           runbook: "docs/runbooks/alerts/ContainerMemoryNearLimit.md"
 
       - alert: ContainerRestartLoop
@@ -124,6 +146,27 @@ groups:
           summary: "Container {{ $labels.name }} is restart-looping"
           description: "{{ $labels.name }} restarted {{ $value | humanize }} times in 30 minutes (threshold: 3). Likely crash loop or OOM kill cycle."
           runbook: "docs/runbooks/alerts/ContainerDown.md"
+
+      # The kernel's own count, NOT cAdvisor's `container_oom_events_total`:
+      # that counter lives with the container's cgroup, and a kill of the main
+      # process ends the cgroup before the next scrape reads it. Measured
+      # 2026-11-10 on a 32 MB container killed on purpose: node_vmstat_oom_kill
+      # went 0 -> 1, cAdvisor no longer knew the container. One kill restarts
+      # one container once, which ContainerRestartLoop (three starts) never
+      # sees. The counter names no victim: the runbook reads it in the kernel
+      # log.
+      - alert: OOMKillDetected
+        expr: |
+          increase(node_vmstat_oom_kill[15m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+          component: host
+          tier: core
+        annotations:
+          summary: "The kernel OOM-killed a process"
+          description: "The kernel killed {{ $value | printf \"%.0f\" }} process(es) for lack of memory in the last 15 minutes, in a container that reached its limit or on the host itself. The counter names no victim: the kernel log does."
+          runbook: "docs/runbooks/alerts/OOMKillDetected.md"
 
       # The HEAP of one worker, by pid. cAdvisor sees the container; four
       # uvicorn workers live inside it and prometheus_client's multiprocess
@@ -368,6 +411,31 @@ groups:
           description: "{{ $value | humanize }} embedding operations gave up in the last 30 minutes. Each one silently costs a turn its RAG context, its journal context, its memory extraction or its message indexing — answers keep flowing, degraded. Check the provider quota first, then whether the scheduler is bursting."
           runbook: "docs/runbooks/alerts/EmbeddingOperationsFailing.md"
 
+      # A source sync the reaper keeps "recovering" is not a crash, it is a
+      # lease nobody returns. From 2026-09-04 to 2026-11-10 every Gmail push
+      # left its label sources SYNCING (the release was computed from a row
+      # loaded before the lease), the reaper replayed a full label sync five
+      # minutes later, and nothing said so: 236 recoveries and 127,585 thread
+      # reads in 24 hours, each logged as a recovered worker crash. A real
+      # crash recovers a source once; a deployment interrupts at most the sync
+      # running at that instant. Documents are left out: their retries are
+      # bounded by `rag_job_max_attempts` and a failed burst requeues many at
+      # once, legitimately.
+      - alert: RagSourceRecoveryLoop
+        expr: |
+          sum by (job_type) (
+            increase(rag_jobs_recovered_total{job_type=~"sync|mail_sync", outcome="requeued"}[6h])
+          ) >= 5
+        for: 30m
+        labels:
+          severity: warning
+          component: rag
+          tier: core
+        annotations:
+          summary: "RAG source syncs are recovered over and over ({{ $labels.job_type }})"
+          description: "The reaper re-drove {{ $value | printf \"%.0f\" }} stuck {{ $labels.job_type }} source syncs in the last 6 hours (threshold: 5). Each recovery replays a full sync against the provider. A lease that is never returned looks exactly like this."
+          runbook: "docs/runbooks/alerts/RagSourceRecoveryLoop.md"
+
   # ===== BACKUP & PUBLIC PATH — blackbox probes =====
   - name: core_backup_tunnel
     interval: 60s
@@ -424,6 +492,29 @@ groups:
           summary: "Alertmanager is down — notifications are NOT being delivered"
           description: "Prometheus cannot scrape Alertmanager for 5 minutes. Alerts still evaluate but no email leaves the box. Visible in Prometheus UI and the logwatch daily digest only."
           runbook: "docs/runbooks/alerts/AlertmanagerDown.md"
+
+      # Alertmanager up and refusing to deliver. The self-diagnostics webhook
+      # is left out on purpose: its target is the API, so it fails whenever
+      # the API is the thing that is down (2026-11-09: 22 failures, all
+      # `no such host` or `connection refused`, during the 53 minutes of
+      # ServiceDown) and says nothing about a human channel. This alert cannot
+      # travel on the channel it reports as broken: it reaches a second
+      # channel when one is configured, the in-app incident, and the daily
+      # report.
+      - alert: AlertNotificationsFailing
+        expr: |
+          sum by (integration) (
+            increase(alertmanager_notifications_failed_total{integration=~"email|slack|pagerduty"}[15m])
+          ) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: observability
+          tier: core
+        annotations:
+          summary: "Alert notifications by {{ $labels.integration }} are failing"
+          description: "Alertmanager failed to deliver {{ $value | printf \"%.0f\" }} notification(s) by {{ $labels.integration }} in the last 15 minutes. Alerts still evaluate; whoever relies on that channel is not told."
+          runbook: "docs/runbooks/alerts/AlertNotificationsFailing.md"
 
       # The pipeline components joined on 2026-10-03: nothing told that Alloy,
       # Loki, Tempo or Grafana had stopped — and the self-diagnosis reads Loki.
@@ -670,6 +761,53 @@ groups:
           summary: "Push wakes are queued and none is served"
           description: "{{ $value | humanize }} wake(s) were queued over 30m and the heartbeat wake sweep served none. The sweep is not running — blocked on a call that does not return, skipped by APScheduler (max_instances), or with no scheduler leader. Queued wakes expire with their payload; mail watches and push-driven indexing wait for the next pass."
           runbook: "docs/runbooks/alerts/PushWakeSweepStalled.md"
+
+  # ===== DISCUSSIONS — durable cleanup and recovery =====
+  - name: core_conversation_lifecycle
+    interval: 1m
+    rules:
+      - alert: ConversationCleanupDelayed
+        expr: |
+          (max(conversation_cleanup_operations{state="needs_attention"}) > 0)
+          or
+          (max((time() - conversation_cleanup_oldest_timestamp_seconds)
+            and (conversation_cleanup_operations > 0)) > 900)
+        for: 5m
+        labels:
+          severity: warning
+          component: conversations
+          tier: core
+        annotations:
+          summary: "A retired discussion runtime still needs cleanup"
+          description: "An operation needs operator attention or its cleanup has been pending for over 900 seconds. Inspect the durable operation and its current phase."
+          runbook: "docs/runbooks/alerts/ConversationLifecycle.md"
+
+      - alert: ConversationExecutionRecoveryRequired
+        expr: max(conversation_executions_recovering) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: conversations
+          tier: core
+        annotations:
+          summary: "A discussion execution remains in recovery"
+          description: "An unresolved graph or Live worker still occupies an account slot. Establish that its exact worker boots have stopped before closing the reservation."
+          runbook: "docs/runbooks/alerts/ConversationLifecycle.md"
+
+      - alert: ConversationCleanupSnapshotStale
+        expr: |
+          ((time() - (max(conversation_cleanup_snapshot_timestamp_seconds) or vector(0)))
+            > 900)
+          and on() (max(up{job="lia-api"}) == 1)
+        for: 5m
+        labels:
+          severity: warning
+          component: conversations
+          tier: core
+        annotations:
+          summary: "The discussion cleanup snapshot is stale"
+          description: "A reachable API has not published a fresh cleanup snapshot for over 900 seconds. Inspect the scheduler leader and failed cleanup sweeps."
+          runbook: "docs/runbooks/alerts/ConversationLifecycle.md"
 
   # ===== RADIO — a newsroom that stops filing stories (ADR-324) =====
   - name: core_radio

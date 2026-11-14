@@ -3,20 +3,23 @@ import Link from 'next/link';
 import { LoginForm } from '@/components/auth/login-form';
 import { OAuthButtons } from '@/components/auth/oauth-buttons';
 import { PasskeyLoginButton } from '@/components/auth/passkey-login-button';
-import { initI18next } from '@/i18n';
+import { initI18next, validateLanguage } from '@/i18n';
+import { publicPageMetadata } from '@/lib/public-page-metadata';
 
 interface LoginPageProps {
   params: Promise<{ lng: string }>;
 }
 
 export async function generateMetadata({ params }: LoginPageProps): Promise<Metadata> {
-  const { lng } = await params;
+  const lng = validateLanguage((await params).lng);
   const { t } = await initI18next(lng);
 
-  return {
-    title: t('auth.metadata.login_title'),
-    description: t('auth.metadata.login_description'),
-  };
+  return publicPageMetadata(
+    lng,
+    '/login',
+    t('auth.metadata.login_title'),
+    t('auth.metadata.login_description')
+  );
 }
 
 export default async function LoginPage({ params }: LoginPageProps) {

@@ -190,6 +190,7 @@ EXTERNAL_PRODUCERS: dict[str, str] = {
     "redis_": "job:redis",
     "probe_": "job:blackbox",
     "prometheus_": "job:prometheus",
+    "alertmanager_": "job:alertmanager",
     "loki_": "job:loki",
     "tempo_": "job:tempo",
     "traces_spanmetrics_": "remote_write:infrastructure/observability/tempo/tempo.yml",

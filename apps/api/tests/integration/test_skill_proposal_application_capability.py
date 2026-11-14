@@ -7,11 +7,12 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.conversation_target import ConversationRef
 from src.core.exceptions import AuthorizationError
 from src.domains.skills import proposal_service
 from tests.integration.domains.skills.test_proposal_install_db import (
     _manifest,
-    _user,
+    _propose,
 )
 from tests.integration.domains.skills.test_proposal_install_db import (
     one_session as one_session,
@@ -25,6 +26,9 @@ from tests.integration.domains.skills.test_proposal_install_db import (
 from tests.integration.domains.skills.test_proposal_install_db import (
     skill_dirs as skill_dirs,
 )
+from tests.integration.domains.skills.test_proposal_install_db import (
+    target as target,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -37,21 +41,18 @@ async def test_operator_disables_generation_or_pending_card_before_any_saved_eff
     recorder,
     monkeypatch: pytest.MonkeyPatch,
     boundary: str,
+    target: ConversationRef,
 ) -> None:
     monkeypatch.setattr(settings, "application_tools_enabled", True)
     monkeypatch.setattr(settings, "skills_enabled", True)
-    actor = await _user(one_session)
+    actor = target.owner_id
     files = {"SKILL.md": _manifest("Controlled instructions.")}
     if boundary == "prepare":
         monkeypatch.setattr(settings, "application_tools_enabled", False)
         with pytest.raises(AuthorizationError):
-            await proposal_service.propose(
-                files, owner_id=actor, conversation_id="controlled", redis=redis_client
-            )
+            await _propose(target, files, redis=redis_client)
     else:
-        proposal, _ = await proposal_service.propose(
-            files, owner_id=actor, conversation_id="controlled", redis=redis_client
-        )
+        proposal, _ = await _propose(target, files, redis=redis_client)
         if boundary == "click":
             monkeypatch.setattr(settings, "application_tools_enabled", False)
         else:
@@ -77,14 +78,14 @@ async def test_proposal_redis_reads_never_hold_the_request_sql_transaction(
     redis_client: Redis,
     recorder,
     monkeypatch: pytest.MonkeyPatch,
+    target: ConversationRef,
 ) -> None:
     monkeypatch.setattr(settings, "application_tools_enabled", True)
     monkeypatch.setattr(settings, "skills_enabled", True)
-    actor = await _user(one_session)
-    proposal, _ = await proposal_service.propose(
+    actor = target.owner_id
+    proposal, _ = await _propose(
+        target,
         {"SKILL.md": _manifest("Controlled instructions.")},
-        owner_id=actor,
-        conversation_id="controlled",
         redis=redis_client,
     )
     original_get = redis_client.get

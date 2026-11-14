@@ -35,8 +35,8 @@
   "bricks": {
     "f.chat": {
       "name": "Conversation",
-      "role": "Le fil unique où tu parles à LIA, par écrit ou à la voix : réponses en streaming, pièces jointes, cartes visuelles et coût affiché sous chaque réponse. À contenu inchangé, les fiches interactives et les widgets conservent leur état pendant les mises à jour automatiques de l’affichage.",
-      "goal": "Répondre juste et vite, dans un seul fil, en montrant ce que chaque réponse a coûté."
+      "role": "Tu parles à LIA dans Principale ou dans une annexe nommée, par écrit ou à la voix. Chaque discussion garde son historique, ses pièces jointes et son compteur de session. Les réponses arrivent en streaming avec des cartes visuelles et le coût par message. Les fiches interactives et les widgets conservent leur état lors des mises à jour en arrière-plan tant que leur contenu reste identique.",
+      "goal": "Suivre chaque sujet dans son propre historique en retrouvant les préférences et les apprentissages du compte."
     },
     "f.routing": {
       "name": "Compréhension de la demande",

@@ -40,7 +40,7 @@ def test_provider_key_questions_match_the_required_and_optional_tuples_exactly()
         if key.startswith("provider_key_")
     }
     assert provider_questions == set(REQUIRED_PROVIDER_IDS) | set(OPTIONAL_PROVIDER_IDS)
-    assert REQUIRED_PROVIDER_IDS == ("deepseek", "openai")
+    assert REQUIRED_PROVIDER_IDS == ("anthropic", "deepseek")
     for provider in (*REQUIRED_PROVIDER_IDS, *OPTIONAL_PROVIDER_IDS):
         question = questions[f"provider_key_{provider}"]
         assert question.secret, f"{provider} key must be a secret question"

@@ -1,6 +1,6 @@
 """Static Compose matrix proof (B04/B05) — renders EVERY scenario.
 
-For each (exposure x mode x observability x skill-sandbox) combination this
+For each (exposure x mode x observability x skill-sandbox x web-search) combination this
 script generates the full artifact set into a temporary directory — private
 ``.env`` (rendered from ``.env.min.prod.example``), ``docker-compose.install.yml``,
 the Caddyfile when applicable, and a fixture digest lock for prebuilt — and
@@ -57,6 +57,7 @@ def _public(
     mode: InstallMode,
     observability: bool,
     skill_sandbox: bool,
+    web_search: bool,
 ) -> PublicAnswers:
     return PublicAnswers(
         language="en",
@@ -67,6 +68,7 @@ def _public(
         default_language="fr",
         observability=observability,
         skill_sandbox=skill_sandbox,
+        web_search=web_search,
         server_host="192.168.1.50" if exposure is Exposure.LAN else None,
         web_domain=None if exposure is Exposure.LAN else "lia.example.org",
         api_domain=None if exposure is Exposure.LAN else "api.example.org",
@@ -145,14 +147,19 @@ def _render_scenario(root: Path, public: PublicAnswers) -> list[str]:
 def main() -> int:
     failures: list[str] = []
     scenarios = list(
-        itertools.product(Exposure, InstallMode, (False, True), (False, True))
+        itertools.product(
+            Exposure, InstallMode, (False, True), (False, True), (False, True)
+        )
     )
-    for exposure, mode, observability, sandbox in scenarios:
-        label = f"{exposure.value}/{mode.value}/obs={observability}/sandbox={sandbox}"
+    for exposure, mode, observability, sandbox, web_search in scenarios:
+        label = (
+            f"{exposure.value}/{mode.value}/obs={observability}"
+            f"/sandbox={sandbox}/web_search={web_search}"
+        )
         with tempfile.TemporaryDirectory(prefix="lia-matrix-") as tmp:
             root = Path(tmp)
             argv = _render_scenario(
-                root, _public(exposure, mode, observability, sandbox)
+                root, _public(exposure, mode, observability, sandbox, web_search)
             )
             result = subprocess.run(
                 argv, cwd=root, capture_output=True, text=True

@@ -19,6 +19,9 @@ to an article's text.
 The crawler says who it is: a newsroom that identifies itself can be opted out
 of with one robots.txt line, the courtesy tokenFM extends and the owner asked
 for (robots.txt itself is honoured by :mod:`~src.domains.radio.newsroom.robots`).
+
+It is LIA's one door to a public page: the page watch of a routine (ADR-387)
+reads through it too, under its own name, and learns the body's media type.
 """
 
 from __future__ import annotations
@@ -65,6 +68,8 @@ class FetchResult:
         etag: The validator to send next time, when the server gave one.
         last_modified: The other validator, when the server gave one.
         charset: The body's charset as the ``Content-Type`` header declares it.
+        media_type: The body's media type as that header declares it, lowercase,
+            parameters dropped; ``None`` when it declares none.
     """
 
     outcome: FetchOutcome
@@ -74,6 +79,7 @@ class FetchResult:
     etag: str | None = None
     last_modified: str | None = None
     charset: str | None = None
+    media_type: str | None = None
 
 
 def _validator(value: str | None, max_chars: int) -> str | None:
@@ -109,6 +115,12 @@ async def public_url(url: str) -> str | None:
     return verdict.url if verdict.valid else None
 
 
+def _media_type(content_type: str | None) -> str | None:
+    """A ``Content-Type`` header's media type, lowercase, parameters dropped."""
+    media_type = (content_type or "").split(";", 1)[0].strip().lower()
+    return media_type or None
+
+
 async def fetch_public(
     client: httpx.AsyncClient,
     url: str,
@@ -116,6 +128,7 @@ async def fetch_public(
     max_bytes: int,
     etag: str | None = None,
     last_modified: str | None = None,
+    user_agent: str = NEWSROOM_USER_AGENT,
 ) -> FetchResult:
     """GET a public URL with SSRF checks at every hop and a byte ceiling.
 
@@ -125,12 +138,14 @@ async def fetch_public(
         max_bytes: The largest decoded body accepted.
         etag: The previous ``ETag``, for a conditional request.
         last_modified: The previous ``Last-Modified``, for a conditional request.
+        user_agent: How the reader introduces itself — the newsroom's, unless
+            another reader of public pages names itself (ADR-387).
 
     Returns:
         The outcome, never an exception for a network or HTTP failure.
     """
     current = url
-    headers = {"User-Agent": NEWSROOM_USER_AGENT, **_conditional_headers(etag, last_modified)}
+    headers = {"User-Agent": user_agent, **_conditional_headers(etag, last_modified)}
     for _ in range(_MAX_REDIRECTS + 1):
         verdict = await validate_url(current)
         if not verdict.valid:
@@ -169,6 +184,7 @@ async def fetch_public(
                         response.headers.get("Last-Modified"), LAST_MODIFIED_MAX_CHARS
                     ),
                     charset=response.charset_encoding,
+                    media_type=_media_type(response.headers.get("Content-Type")),
                 )
         except httpx.InvalidURL:
             # A URL the validator accepted but no request can carry (a control

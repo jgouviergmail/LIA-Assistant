@@ -3,6 +3,8 @@ import { test, expect } from '../fixtures';
 import { installInertWorldAdmission } from '../fixtures/world-session';
 import { enterWorld } from '../fixtures/world-admission';
 import { baseRoutes, PENDING_TOOL_CONFIRMATION, sseDone } from '../fixtures/chat-approval';
+import { ANNEX_DISCUSSION_ID, discussionFixture } from '../fixtures/discussions';
+import { appConfig } from '../fixtures/dashboard-shell';
 
 for (const theme of ['light', 'dark'] as const)
   test(
@@ -104,4 +106,52 @@ test('world LIA: preserves an unsent draft and keyboard focus through same-owner
   await expect(composer).toHaveValue('BROUILLON PRIVÉ NON ENVOYÉ');
   await expect(composer).toBeFocused();
   expect(submissions).toEqual([]);
+});
+
+test('world LIA: switches discussions without leaving the world or sharing drafts', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  const user = await authenticate({ language: 'fr' });
+  const fixture = discussionFixture(user.id, { annexTitle: 'Voyage' });
+  await mockApi(fixture.routes);
+  await installInertWorldAdmission(page, user.id);
+  await mockApi([
+    {
+      url: '**/api/v1/config',
+      json: {
+        ...appConfig,
+        conversations: fixture.rules,
+        features: { ...appConfig.features, world_enabled: true },
+      },
+    },
+  ]);
+  await page.goto('/fr/dashboard/world');
+  await enterWorld(page);
+  await page.getByRole('button', { name: 'Parler à LIA', exact: true }).click();
+  const composer = page.locator('textarea');
+  await expect(composer).toBeEnabled();
+  await composer.fill('Brouillon du monde');
+  const main = page.getByRole('button', { name: 'Discussions — Principale', exact: true });
+  const list = page.getByRole('dialog', { name: 'Discussions', exact: true });
+  await main.click();
+  await list.getByRole('button', { name: 'Voyage', exact: true }).click();
+  await expect(page.getByText('Historique annexe')).toBeVisible();
+  await expect(page).toHaveURL(/\/dashboard\/world$/);
+  await expect(composer).toHaveValue('');
+  await composer.fill('Depuis le monde');
+  await composer.press('Enter');
+  await expect(page.getByText('Réponse dans la bonne discussion')).toBeVisible();
+  expect(fixture.turns).toMatchObject([
+    {
+      message: 'Depuis le monde',
+      conversation_id: ANNEX_DISCUSSION_ID,
+      conversation_revision: 0,
+    },
+  ]);
+  await page.getByRole('button', { name: 'Discussions — Voyage', exact: true }).click();
+  await list.getByRole('button', { name: 'Principale', exact: true }).click();
+  await expect(composer).toHaveValue('Brouillon du monde');
+  await expect(page.getByText('Depuis le monde', { exact: true })).toHaveCount(0);
 });

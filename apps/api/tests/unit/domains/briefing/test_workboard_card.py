@@ -31,6 +31,7 @@ from src.domains.briefing.service import _has_content
 from src.domains.briefing.workboard_card import fetch_workboard
 
 NOW = datetime.now(UTC)
+USER = uuid4()
 
 
 def _db_ctx() -> Callable[[], AbstractAsyncContextManager[MagicMock]]:
@@ -47,6 +48,7 @@ def _ticket(**over: object) -> SimpleNamespace:
         "title": "Book the venue",
         "status": "waiting",
         "due_at": None,
+        "category_id": None,
     }
     values.update(over)
     return SimpleNamespace(**values)
@@ -326,7 +328,11 @@ def test_grouped_ticket_titles_never_enter_the_greeting_or_synthesis_prompt(verb
     from src.domains.briefing.schemas import CardsBundle
 
     ticket = WorkboardTicketItem(
-        id="private", title="Private Workboard title", status="todo", overdue=False
+        id="private",
+        title="Private Workboard title",
+        status="todo",
+        overdue=False,
+        category="Private category name",
     )
     groups = {
         key: [ticket]
@@ -350,4 +356,63 @@ def test_grouped_ticket_titles_never_enter_the_greeting_or_synthesis_prompt(verb
     )
     prompt = _summarize_cards_for_llm(cards, verbose=verbose)
     assert "Private Workboard title" not in prompt
+    # A category is a word its owner wrote about their own work: it stays on
+    # the card and never reaches a model either.
+    assert "Private category name" not in prompt
     assert '"workboard"' not in prompt
+
+
+@pytest.mark.unit
+class TestTheCardNamesATicketsCategory:
+    """Off the board the lane is a badge: the card carries the category's name."""
+
+    async def _fetch(self, figures: SimpleNamespace, names: AsyncMock) -> WorkboardData:
+        with (
+            patch(
+                "src.domains.briefing.workboard_card.is_capability_enabled",
+                AsyncMock(return_value=True),
+            ),
+            patch(
+                "src.domains.briefing.workboard_card.read_attention",
+                AsyncMock(return_value=figures),
+            ),
+            patch("src.domains.briefing.workboard_card.get_db_context", new=_db_ctx()),
+            patch("src.domains.briefing.workboard_card.WorkboardCategoryService") as categories_cls,
+        ):
+            categories_cls.return_value.names_for = names
+            return await fetch_workboard(user_id=USER)
+
+    async def test_every_ticket_of_the_card_is_named_from_one_read(self) -> None:
+        home = uuid4()
+        filed = _ticket(title="Paint the hall", category_id=home)
+        loose = _ticket(title="Sort the mail")
+        figures = _figures(needs_me=2, open_total=2, first=[filed, loose])
+        figures.previews["open_total"] = [filed, loose]
+        names = AsyncMock(return_value={home: "Home"})
+
+        data = await self._fetch(figures, names)
+
+        # ONE question for the whole card, about every ticket it shows.
+        names.assert_awaited_once()
+        reader, asked = names.await_args.args
+        assert reader == USER
+        assert {ticket.title for ticket in asked} == {"Paint the hall", "Sort the mail"}
+        assert [(item.title, item.category) for item in data.items] == [
+            ("Paint the hall", "Home"),
+            ("Sort the mail", None),
+        ]
+        assert data.previews is not None
+        assert [item.category for item in data.previews.open_total] == ["Home", None]
+
+    async def test_a_category_that_is_gone_shows_no_badge(self) -> None:
+        """Deleted between the two reads: nothing is named, and nothing is invented."""
+        names = AsyncMock(return_value={})
+        data = await self._fetch(_figures(needs_me=1, first=[_ticket(category_id=uuid4())]), names)
+
+        assert data.items[0].category is None
+
+    def test_a_cache_predating_categories_reads_no_category(self) -> None:
+        item = WorkboardTicketItem.model_validate(
+            {"id": "1", "title": "Ticket", "status": "waiting", "overdue": False}
+        )
+        assert item.category is None

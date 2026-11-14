@@ -18,6 +18,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { capabilityAvailable } from '@/lib/capability-availability';
 import { useJournalPortrait } from '@/hooks/useJournalPortrait';
 import { PORTRAIT_HINT_RECENT_DAYS, PORTRAIT_HINT_STORAGE_KEY } from '@/lib/constants';
 
@@ -55,7 +56,9 @@ export function PortraitHint() {
   const { t, i18n } = useTranslation();
   const lng = (i18n.language || 'fr').split('-')[0];
   const { config } = useAppConfig(true);
-  const journalsEnabled = config?.features?.journals_enabled ?? false;
+  // The portrait is read from the journals' router, which refuses once the
+  // operator switched them off.
+  const journalsEnabled = capabilityAvailable(config, 'journals');
   const { portrait } = useJournalPortrait(journalsEnabled);
   const [dismissed, setDismissed] = useState(false);
 

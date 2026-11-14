@@ -28,9 +28,10 @@ ANSWERS = {
     "personal_radio": "no",
     "speaking_avatar": "no",
     "world": "no",
+    "web_search": "no",
     "admin_password": PASSWORD,
     "provider_key_deepseek": "dk-CANARY-11",
-    "provider_key_openai": "sk-CANARY-22",
+    "provider_key_anthropic": "sk-CANARY-22",
 }
 
 

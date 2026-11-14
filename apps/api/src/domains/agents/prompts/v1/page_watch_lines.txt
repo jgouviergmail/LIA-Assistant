@@ -1,0 +1,12 @@
+# What a run of a routine watching a web page is shown of that page (ADR-387).
+# The routine's own instruction comes first; this block follows it: a header, then
+# the lines the check found new on the page, wrapped by the code as external
+# content, then the count of new lines not shown, then — for a page longer than
+# what a check keeps — how many of its lines are watched. One `key|template` per line,
+# rendered by infrastructure/scheduler/page_reading.py. Blank lines and
+# #-comments are ignored.
+
+first|Nothing from this routine's watched page has been reported yet. What it shows now, {count} line(s):
+changed|{count} line(s) appeared on this routine's watched page since it was last reported:
+cut|{more} more line(s) are not shown.
+unwatched|Only the first {watched} line(s) of this page are watched; it holds {unwatched} more, where a change is not seen.

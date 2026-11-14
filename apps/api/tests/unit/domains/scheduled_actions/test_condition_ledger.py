@@ -24,6 +24,7 @@ import pytest
 from src.domains.scheduled_actions.condition_ledger import (
     CONDITION_LEDGER_MAX_KEYS,
     ConditionLedger,
+    with_check_error,
 )
 
 pytestmark = pytest.mark.unit
@@ -46,6 +47,22 @@ class TestReading:
         ledger = ConditionLedger.read({"last_fingerprint": "ab12", "last_fired_at": "x"})
 
         assert ledger.seen == ()
+
+    def test_a_check_the_usage_ceiling_refused_reads_back_as_such(self) -> None:
+        # Written by the executor when the account's ceiling stood the check
+        # aside: the routine's card says why nothing was checked.
+        state = ConditionLedger.read({"seen": ["a"]}).after_check(
+            at=AT, present=(), fired=False, error="quota_blocked"
+        )
+
+        ledger = ConditionLedger.read(state)
+
+        assert ledger.last_check_error == "quota_blocked"
+        # Nothing was read, so nothing the routine had seen is forgotten.
+        assert ledger.seen == ("a",)
+
+    def test_an_error_code_nobody_produces_reads_as_none(self) -> None:
+        assert ConditionLedger.read({"last_check_error": "made_up"}).last_check_error is None
 
     def test_a_malformed_value_reads_as_empty_rather_than_crashing_a_tick(self) -> None:
         ledger = ConditionLedger.read({"seen": "not-a-list", "last_checked_at": 12})
@@ -147,3 +164,74 @@ class TestTheBound:
         )
 
         assert still_there in stored["seen"]
+
+
+class TestRestatingWhyACheckServedNothing:
+    def test_the_reason_is_written_on_a_new_dict_and_nothing_else_moves(self) -> None:
+        unserved = ConditionLedger.read({"seen": ["a"]}).after_check(
+            at=AT, present=("a", "b"), fired=False
+        )
+
+        restated = with_check_error(unserved, "quota_blocked")
+
+        assert restated is not unserved
+        assert unserved["last_check_error"] is None
+        assert restated == {**unserved, "last_check_error": "quota_blocked"}
+
+
+class TestASnapshotOfOnePage:
+    """ADR-387: a page's lines are ONE thing seen at once, not a stream of facts.
+
+    What left the page is forgotten, so a line that comes back is news again
+    (« in stock », sold out, then « in stock » once more); an unserved new line
+    stays new; a check that could not read the page forgets nothing.
+    """
+
+    def _snapshot(self, seen: list[str]) -> ConditionLedger:
+        return ConditionLedger.read({"seen": seen}, condition_type="page_change")
+
+    def test_only_a_page_is_read_as_a_snapshot(self) -> None:
+        assert self._snapshot([]).snapshot is True
+        assert ConditionLedger.read({"seen": []}, condition_type="mail_match").snapshot is False
+        assert ConditionLedger.read({"seen": []}).snapshot is False
+
+    def test_a_served_reading_remembers_exactly_what_the_page_shows(self) -> None:
+        stored = self._snapshot(["in stock", "price"]).after_check(
+            at=AT, present=["sold out", "price"], fired=True
+        )
+
+        assert stored["seen"] == ["sold out", "price"]
+
+    def test_a_line_that_comes_back_is_new_again(self) -> None:
+        served = self._snapshot(["in stock"]).after_check(at=AT, present=["sold out"], fired=True)
+
+        again = ConditionLedger.read(served, condition_type="page_change")
+
+        assert again.new_keys(["in stock"]) == ["in stock"]
+
+    def test_a_line_that_left_without_news_is_forgotten_too(self) -> None:
+        # Nothing new arrived, so nothing ran: the line that left is still
+        # forgotten, and its return will be told.
+        quiet = self._snapshot(["banner", "price"]).after_check(
+            at=AT, present=["price"], fired=False
+        )
+
+        assert quiet["seen"] == ["price"]
+
+    def test_an_unserved_new_line_stays_new_and_what_stayed_is_kept(self) -> None:
+        capped = self._snapshot(["price"]).after_check(at=AT, present=["price", "new"], fired=False)
+
+        assert capped["seen"] == ["price"]
+        assert ConditionLedger.read(capped, condition_type="page_change").new_keys(
+            ["price", "new"]
+        ) == ["new"]
+
+    def test_a_reading_that_failed_forgets_nothing_whatever_its_size(self) -> None:
+        seen = [f"line-{index}" for index in range(CONDITION_LEDGER_MAX_KEYS + 50)]
+
+        failed = self._snapshot(seen).after_check(
+            at=AT, present=(), fired=False, error="unavailable"
+        )
+
+        assert failed["seen"] == seen
+        assert failed["last_check_error"] == "unavailable"

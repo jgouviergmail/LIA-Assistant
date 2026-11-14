@@ -7,9 +7,11 @@ the authority for expiry across workers; a PID is never an ownership token.
 
 import asyncio
 from typing import Literal
+from uuid import UUID
 
 from redis.exceptions import RedisError
 
+from src.core.browser_scope import BrowserScope
 from src.core.config import settings
 from src.core.constants import BROWSER_COORDINATION_TIMEOUT_SECONDS, REDIS_KEY_BROWSER_POOL_REGISTRY
 from src.infrastructure.browser.errors import BrowserRefusal, BrowserRefusalReason
@@ -56,11 +58,19 @@ end
 -- fields have their own deadline. Other users cannot extend that deadline.
 redis.call('PERSIST', KEYS[1])
 if op == 'claim' then
+    local info = cjson.decode(ARGV[5])
     local previous = decode(redis.call('HGET', KEYS[1], user))
+    if not previous and ARGV[7] ~= '' then
+        local legacy = decode(redis.call('HGET', KEYS[1], ARGV[7]))
+        if legacy and legacy.info.user_id == info.user_id
+           and (not legacy.info.runtime_id or legacy.info.runtime_id == cjson.null) then
+            previous = legacy
+            redis.call('HDEL', KEYS[1], ARGV[7])
+        end
+    end
     if not previous and redis.call('HLEN', KEYS[1]) >= tonumber(ARGV[6]) then
         return {'full', ''}
     end
-    local info = cjson.decode(ARGV[5])
     if previous then
         info.current_url = previous.info.current_url
         info.page_title = previous.info.page_title
@@ -89,7 +99,7 @@ return {'ok', ''}
 
 async def _change(
     operation: Literal["claim", "renew", "update", "release"],
-    user_id: str,
+    scope: BrowserScope,
     token: str,
     info: BrowserSessionInfo | None = None,
 ) -> tuple[bool, BrowserSessionInfo | None]:
@@ -101,11 +111,12 @@ async def _change(
                 1,
                 REDIS_KEY_BROWSER_POOL_REGISTRY,
                 operation,
-                user_id,
+                scope.key,
                 token,
                 settings.browser_session_timeout_seconds * 1000,
                 info.model_dump_json() if info else "",
                 settings.browser_max_concurrent_sessions,
+                scope.legacy_key or "",
             )
     except (RedisError, OSError) as exc:
         raise BrowserCoordinationUnavailable("browser coordination unavailable") from exc
@@ -123,24 +134,68 @@ async def _change(
     return verdict == "ok", previous
 
 
-async def reserve(user_id: str, info: BrowserSessionInfo) -> BrowserSessionInfo | None:
-    """Reserve before context allocation; same-user recovery transfers logical ownership."""
-    _, previous = await _change("claim", user_id, info.session_id, info)
+async def reserve(scope: BrowserScope, info: BrowserSessionInfo) -> BrowserSessionInfo | None:
+    """Reserve before allocation; recovery transfers ownership of this runtime only."""
+    _require_scope(scope, info)
+    _, previous = await _change("claim", scope, info.session_id, info)
     return previous
 
 
-async def renew(user_id: str, token: str) -> bool:
+async def renew(scope: BrowserScope, token: str) -> bool:
     """An old owner cannot revive an expired record or overwrite its replacement."""
-    owned, _ = await _change("renew", user_id, token)
+    owned, _ = await _change("renew", scope, token)
     return owned
 
 
-async def update(user_id: str, info: BrowserSessionInfo) -> bool:
+async def update(scope: BrowserScope, info: BrowserSessionInfo) -> bool:
     """Publish navigation only if this context still owns the logical session."""
-    owned, _ = await _change("update", user_id, info.session_id, info)
+    _require_scope(scope, info)
+    owned, _ = await _change("update", scope, info.session_id, info)
     return owned
 
 
-async def release(user_id: str, token: str) -> None:
+async def release(scope: BrowserScope, token: str) -> None:
     """Remove our record only; a later takeover keeps all its metadata."""
-    await _change("release", user_id, token)
+    await _change("release", scope, token)
+
+
+def _require_scope(scope: BrowserScope, info: BrowserSessionInfo) -> None:
+    """A writer cannot attribute another runtime's metadata to this field."""
+    if info.user_id != str(scope.owner_id) or info.runtime_id != scope.runtime_id:
+        raise BrowserRefusal(BrowserRefusalReason.SCOPE_UNAVAILABLE)
+
+
+_FORGET = """
+local fields = redis.call('HKEYS', KEYS[1])
+local removed = 0
+for _, field in ipairs(fields) do
+    if field == ARGV[1] or string.sub(field, 1, #ARGV[1]+1) == ARGV[1] .. ':' then
+        if ARGV[2] == '' or field == ARGV[1] .. ':' .. ARGV[2]
+           or (field == ARGV[1] and ARGV[2] == ARGV[1]) then
+            removed = removed + redis.call('HDEL', KEYS[1], field)
+        end
+    end
+end
+return removed
+"""
+
+
+async def forget(owner_id: UUID, runtime_id: UUID | None = None) -> int:
+    """Retire exact runtime fields, or every owned field on account erasure.
+
+    The lifecycle caller has already fenced new admissions. Superseded workers
+    retire their local context on renewal; updates cannot recreate a lost field.
+    A Redis failure propagates so durable cleanup can retry it.
+    """
+    async with asyncio.timeout(BROWSER_COORDINATION_TIMEOUT_SECONDS):
+        redis = await redis_cache.get_redis_cache()
+        removed = int(
+            await redis.eval(
+                _FORGET,
+                1,
+                REDIS_KEY_BROWSER_POOL_REGISTRY,
+                str(owner_id),
+                str(runtime_id) if runtime_id is not None else "",
+            )
+        )
+    return removed

@@ -36,7 +36,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException
 from src.core.i18n_generated_assets import keep_limit_reached
-from src.domains.attachments.models import Attachment
+from src.domains.attachments.models import Attachment, AttachmentStatus
 from src.domains.attachments.origin import GENERATED_ORIGINS
 from src.infrastructure.database.owner_lock import hold_owner_lock
 from src.infrastructure.observability.logging import get_logger
@@ -122,6 +122,7 @@ async def keep_usage(db: AsyncSession, user_id: uuid.UUID) -> KeepUsage:
             select(func.count(Attachment.id), func.coalesce(func.sum(Attachment.file_size), 0))
             .where(Attachment.user_id == user_id)
             .where(Attachment.expires_at.is_(None))
+            .where(Attachment.status == AttachmentStatus.READY)
         )
     ).one()
     max_files, max_bytes = _ceilings()
@@ -174,11 +175,15 @@ async def keep_generated(
     await lock_generated_keep_owner(db, user_id)
     rows = (
         await db.execute(
-            select(Attachment.id, Attachment.file_size, Attachment.expires_at).where(
+            select(Attachment.id, Attachment.file_size, Attachment.expires_at)
+            .where(
                 Attachment.id.in_(wanted),
                 Attachment.user_id == user_id,
                 Attachment.origin.in_(_GENERATED_VALUES),
+                Attachment.status == AttachmentStatus.READY,
             )
+            .order_by(Attachment.id)
+            .with_for_update()
         )
     ).all()
     already = {row.id for row in rows if row.expires_at is None}
@@ -205,6 +210,7 @@ async def keep_generated(
                 # Re-checked in the statement: a row the sweep deleted between
                 # the read and here is simply not updated, and stays skipped.
                 Attachment.expires_at.is_not(None),
+                Attachment.status == AttachmentStatus.READY,
             )
             .values(expires_at=None, updated_at=func.now())
             .returning(Attachment.id)
@@ -242,6 +248,7 @@ async def release_generated(
             Attachment.id.in_(wanted),
             Attachment.user_id == user_id,
             Attachment.expires_at.is_(None),
+            Attachment.status == AttachmentStatus.READY,
         )
         .values(expires_at=deadline, updated_at=func.now())
         .returning(Attachment.id)

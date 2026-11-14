@@ -34,6 +34,8 @@ _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _DATETIME = re.compile(r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?$")
 _EXCEL_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*$")
 _CELL_REFERENCE = re.compile(r"^([A-Za-z]{1,3}\d{1,7}|[Rr]\d+[Cc]\d+)$")
+_TABLE_NAME_STEM = "Table"
+_TABLE_NAME = re.compile(rf"^{_TABLE_NAME_STEM}\d+$", re.IGNORECASE | re.ASCII)
 
 #: Excel's own header limit; beyond it the workbook is rejected.
 MAX_HEADER_LENGTH = 255
@@ -246,7 +248,16 @@ def normalize_sheet(sheet: TableSheet, language: str) -> TableSheet | None:
 
 def excel_table_name(index: int) -> str:
     """A workbook-unique, Excel-legal Table name — never the model's words."""
-    return f"Table{index}"
+    return f"{_TABLE_NAME_STEM}{index}"
+
+
+def is_table_name(name: str) -> bool:
+    """Whether ``excel_table_name`` may give ``name``, as Excel compares names (caseless).
+
+    A workbook's tables and defined names share ONE namespace: a defined name a
+    table also carries is a conflict Excel repairs on opening, dropping the name.
+    """
+    return bool(_TABLE_NAME.match(name))
 
 
 def is_excel_legal_name(name: str) -> bool:

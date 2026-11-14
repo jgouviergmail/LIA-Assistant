@@ -30,8 +30,6 @@ import {
   INACTIVITY_SLEEPY_MS,
   MASK_APPLY_DELAY_MS,
   MIN_EXPRESSION_HOLD_MS,
-  READING_MOVE_MS,
-  READING_STEP_MS,
   SHORT_NAP_MS,
   WAKE_SHORT_PERFORMANCE,
   SACCADE_HOLD_MIN_MS,
@@ -40,6 +38,9 @@ import {
   RETURN_PERK_MIN_AWAY_MS,
   WINK_DURATION_MS,
 } from '../expression-engine';
+import { HAND_OVER_AFTER_MS } from '../exchange-beats';
+import { GAZE_TARGET_REFRESH_MS, gazeTargetProps } from '../gaze-target';
+import type { Activity } from '../activity';
 import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
 import { useEyesWidgetStore } from '@/stores/eyesWidgetStore';
 import { usePsycheStore } from '@/stores/psycheStore';
@@ -111,6 +112,22 @@ function fallAsleep(): void {
   }
 }
 
+/** What `matchMedia` answers a person who asked for less motion: a whole
+ * `MediaQueryList`, built rather than asserted into shape. */
+function reducedMotionQuery(query: string): MediaQueryList {
+  const events = new EventTarget();
+  return {
+    matches: query.includes('prefers-reduced-motion'),
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: events.addEventListener.bind(events),
+    removeEventListener: events.removeEventListener.bind(events),
+    dispatchEvent: events.dispatchEvent.bind(events),
+  };
+}
+
 function eyesRoot(): HTMLElement {
   const root = document.querySelector('.lia-eyes');
   if (!(root instanceof HTMLElement)) throw new Error('eyes not rendered');
@@ -139,6 +156,10 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  // `matchMedia` is a mock the setup file installs, not a spy: restoring the
+  // spies leaves a preference a test overrode (reduced motion) in force for
+  // every test after it — which then passes or fails by its place in the file.
+  vi.mocked(window.matchMedia).mockReset();
 });
 
 describe('EyesWidget — chrome & preferences', () => {
@@ -653,24 +674,69 @@ describe('EyesWidget — idle life (deterministic via mocked RNG)', () => {
     expect(eyesRoot().dataset.gesture).toBeUndefined();
   });
 
-  it('actual audio drives speech and a reading glance without idle gestures', () => {
+  it('while LIA speaks aloud the gaze holds on the person: no reading walk, no idle gesture', () => {
+    // Owner rule 2026-11-14: LIA speaks TO the person. Eyes walking a line
+    // from left to right read a text; they do not address anybody.
     useEyesSignalsStore.getState().setAudioPlaying(true);
     vi.spyOn(Math, 'random').mockReturnValue(0.9);
     renderWidget({ chatStatus: 'idle' });
     settleMask();
     expect(eyesRoot().dataset.expression).toBe('speaking');
-    // First reading beat: small left-to-right step, quick move, slightly up.
+    for (let beat = 0; beat < 12; beat += 1) {
+      act(() => {
+        vi.advanceTimersByTime(350);
+      });
+      expect(eyesRoot().dataset.gazeX, `${beat} beats into the speech`).toBe('0');
+      expect(eyesRoot().dataset.gazeY).toBe('0');
+      expect(eyesRoot().dataset.gesture).toBeUndefined();
+    }
+  });
+
+  it('no glance leaves the person while LIA speaks', () => {
+    // The draws that open the idle life with a saccade (the wander test's own).
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.9) // blink delay (far away)
+      .mockReturnValueOnce(0) // idle delay → MIN
+      .mockReturnValueOnce(0) // pick → saccade
+      .mockReturnValueOnce(0.9) // pre-gaze blink roll → no
+      .mockReturnValueOnce(0) // target x → -0.35
+      .mockReturnValueOnce(0) // target y → -0.22
+      .mockReturnValue(0.9);
+    useEyesSignalsStore.getState().setAudioPlaying(true);
+    renderWidget({ chatStatus: 'idle' });
+    settleMask();
     act(() => {
-      vi.advanceTimersByTime(READING_STEP_MS + 10);
+      vi.advanceTimersByTime(IDLE_GESTURE_MIN_DELAY_MS + 10);
     });
-    expect(eyesRoot().dataset.gazeX).toBe('-0.18');
-    expect(eyesRoot().dataset.gazeMs).toBe(String(READING_MOVE_MS));
+    expect(eyesRoot().dataset.expression).toBe('speaking');
+    expect(eyesRoot().dataset.gazeX).toBe('0');
     expect(eyesRoot().dataset.gesture).toBeUndefined();
-    // Second beat walks further right along the same line.
+  });
+
+  it('a glance under way when the voice starts comes back to the person', () => {
+    // Mount order: blink delay, idle delay; tick order: pick, pre-gaze blink
+    // roll, target x, target y, hold (a glance holds far longer than this test).
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.9) // blink delay (far away)
+      .mockReturnValueOnce(0) // idle delay → MIN
+      .mockReturnValueOnce(0) // pick → saccade
+      .mockReturnValueOnce(0.9) // pre-gaze blink roll → no
+      .mockReturnValueOnce(0) // target x → -0.35
+      .mockReturnValueOnce(0) // target y → -0.22
+      .mockReturnValue(0.9); // hold → long
+    renderWidget();
     act(() => {
-      vi.advanceTimersByTime(READING_STEP_MS);
+      vi.advanceTimersByTime(IDLE_GESTURE_MIN_DELAY_MS + 10);
     });
-    expect(eyesRoot().dataset.gazeX).toBe('0.2');
+    expect(eyesRoot().dataset.gazeX).toBe('-0.35');
+
+    act(() => {
+      useEyesSignalsStore.getState().setAudioPlaying(true);
+    });
+    settleMask();
+
+    expect(eyesRoot().dataset.expression).toBe('speaking');
+    expect(eyesRoot().dataset.gazeX).toBe('0');
   });
 
   it('changes attention without forcing a masking blink', () => {
@@ -757,6 +823,419 @@ describe('EyesWidget — touch toolbar (tap to summon)', () => {
     renderWidget();
     fireEvent.click(screen.getByRole('group', { name: 'eyes.widget_label' }));
     expect(toolbarOf().className).toContain('opacity-0');
+  });
+});
+
+describe('EyesWidget — text being written has the face', () => {
+  /** Declare on the page where the answer is being written. */
+  function writeAnswerAt(rect: DOMRect): HTMLElement {
+    const block = document.createElement('div');
+    for (const [name, value] of Object.entries(gazeTargetProps('answer')))
+      block.setAttribute(name, value);
+    block.getBoundingClientRect = () => rect;
+    document.body.append(block);
+    return block;
+  }
+
+  function parkFaceAt(rect: DOMRect): void {
+    const group = screen.getByRole('group', { name: 'eyes.widget_label' });
+    vi.spyOn(group, 'getBoundingClientRect').mockReturnValue(rect);
+  }
+
+  function nextLook(): void {
+    act(() => {
+      vi.advanceTimersByTime(GAZE_TARGET_REFRESH_MS + 20);
+    });
+  }
+
+  afterEach(() => {
+    document.querySelectorAll('[data-eyes-target]').forEach(block => block.remove());
+  });
+
+  it('looks at the answer where the screen says it is written, wherever the face is parked', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.9);
+    // The end of the block is at (512, 700) in a 1024 x 768 window.
+    writeAnswerAt(new DOMRect(212, 500, 600, 200));
+    renderWidget({ chatStatus: 'streaming', streamPhase: 'answer' });
+    // Docked above the thread: the text is straight below.
+    parkFaceAt(new DOMRect(462, 0, 100, 100));
+    nextLook();
+    expect(eyesRoot().dataset.expression).toBe('attentive');
+    expect(eyesRoot().dataset.gazeX).toBe('0');
+    expect(eyesRoot().dataset.gazeY).toBe('1');
+    // Parked beside the text: the same text is to its left, at its own height.
+    parkFaceAt(new DOMRect(900, 650, 100, 100));
+    nextLook();
+    expect(Number(eyesRoot().dataset.gazeX)).toBeCloseTo((512 - 950) / 512, 3);
+    expect(eyesRoot().dataset.gazeY).toBe('0');
+  });
+
+  it('lets go of the text when the answer is delivered', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.9);
+    writeAnswerAt(new DOMRect(212, 500, 600, 200));
+    const { rerender } = renderWidget({ chatStatus: 'streaming', streamPhase: 'answer' });
+    parkFaceAt(new DOMRect(462, 0, 100, 100));
+    nextLook();
+    expect(eyesRoot().dataset.gazeY).toBe('1');
+    rerender(<EyesWidget chatStatus="idle" streamPhase="answer" hitlAwaiting={false} />);
+    act(() => {
+      vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS + 20);
+    });
+    expect(eyesRoot().dataset.gazeY).toBe('0');
+  });
+
+  it('lets go of the text when the delivered answer leaves the same attentive face', () => {
+    // A curious mood rests on the attentive face: delivering the answer
+    // changes nothing but what the face looks at.
+    usePsycheStore.setState({ enabled: true, moodLabel: 'curious' });
+    vi.spyOn(Math, 'random').mockReturnValue(0.9);
+    writeAnswerAt(new DOMRect(212, 500, 600, 200));
+    const { rerender } = renderWidget({ chatStatus: 'streaming', streamPhase: 'answer' });
+    parkFaceAt(new DOMRect(462, 0, 100, 100));
+    nextLook();
+    expect(eyesRoot().dataset.expression).toBe('attentive');
+    expect(eyesRoot().dataset.gazeY).toBe('1');
+    rerender(<EyesWidget chatStatus="idle" streamPhase="answer" hitlAwaiting={false} />);
+    act(() => {
+      vi.advanceTimersByTime(20);
+    });
+    expect(eyesRoot().dataset.expression).toBe('attentive');
+    expect(eyesRoot().dataset.gazeY).toBe('0');
+  });
+
+  it('plays no gesture of its own and wanders nowhere while the answer is written', () => {
+    // 0.6 lands on the squint gesture of a calm face at rest (see above).
+    vi.spyOn(Math, 'random').mockReturnValue(0.6);
+    useEyesSignalsStore.getState().beginTurn('answer');
+    renderWidget({ chatStatus: 'streaming', streamPhase: 'answer' });
+    // No declared place on this page: the look stays centred, and still.
+    for (let elapsed = 0; elapsed < 4 * IDLE_GESTURE_MAX_DELAY_MS; elapsed += 250) {
+      act(() => {
+        vi.advanceTimersByTime(250);
+      });
+      expect(eyesRoot().dataset.gesture).toBeUndefined();
+      expect(eyesRoot().dataset.gazeX).toBe('0');
+      expect(eyesRoot().dataset.gazeY).toBe('0');
+    }
+  });
+
+  it('keeps the look on the text when the cursor moves', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.9);
+    const media = window.matchMedia('');
+    vi.spyOn(window, 'matchMedia').mockImplementation(query => ({
+      ...media,
+      media: query,
+      matches: query === '(hover: hover) and (pointer: fine)',
+    }));
+    // No declared place yet (the first words are not on screen): the look
+    // waits at the centre, it does not go to the cursor meanwhile.
+    renderWidget({ chatStatus: 'streaming', streamPhase: 'answer' });
+    parkFaceAt(new DOMRect(462, 300, 100, 100));
+    const moveCursor = () =>
+      act(() => {
+        window.dispatchEvent(new MouseEvent('pointermove', { clientX: 10, clientY: 10 }));
+        vi.advanceTimersByTime(50);
+      });
+    moveCursor();
+    expect(eyesRoot().dataset.gazeX).toBe('0');
+    expect(eyesRoot().dataset.gazeY).toBe('0');
+    // The words arrive: the look goes to them, and stays there.
+    writeAnswerAt(new DOMRect(212, 500, 600, 200));
+    nextLook();
+    moveCursor();
+    expect(eyesRoot().dataset.gazeX).toBe('0');
+    expect(Number(eyesRoot().dataset.gazeY)).toBeCloseTo((700 - 350) / 384, 3);
+  });
+});
+
+describe('EyesWidget — what is typed and what arrives have the face', () => {
+  function declare(target: string, rect: DOMRect): HTMLElement {
+    const element = document.createElement('div');
+    for (const [name, value] of Object.entries(gazeTargetProps(target as 'input')))
+      element.setAttribute(name, value);
+    element.getBoundingClientRect = () => rect;
+    document.body.append(element);
+    return element;
+  }
+
+  function frontToast(rect: DOMRect): HTMLElement {
+    const element = document.createElement('li');
+    element.setAttribute('data-sonner-toast', '');
+    element.setAttribute('data-front', 'true');
+    element.getBoundingClientRect = () => rect;
+    document.body.append(element);
+    return element;
+  }
+
+  function parkFaceAt(rect: DOMRect): void {
+    const group = screen.getByRole('group', { name: 'eyes.widget_label' });
+    vi.spyOn(group, 'getBoundingClientRect').mockReturnValue(rect);
+  }
+
+  function nextLook(): void {
+    act(() => {
+      vi.advanceTimersByTime(GAZE_TARGET_REFRESH_MS + 20);
+    });
+  }
+
+  afterEach(() => {
+    document.querySelectorAll('[data-eyes-target], [data-sonner-toast]').forEach(e => e.remove());
+  });
+
+  beforeEach(() => {
+    // A quiet idle draw: what these scenarios see is the look, not a gesture.
+    vi.spyOn(Math, 'random').mockReturnValue(0.9);
+  });
+
+  it('looks at the field being typed in where it is, not below the face', () => {
+    // Parked beside the thread, low on the right: the field is to its left.
+    declare('input', new DOMRect(212, 650, 600, 80));
+    renderWidget({ chatStatus: 'idle' });
+    parkFaceAt(new DOMRect(900, 600, 100, 100));
+    act(() => {
+      useEyesSignalsStore.getState().recordTyping();
+      vi.advanceTimersByTime(1);
+    });
+    nextLook();
+    expect(eyesRoot().dataset.expression).toBe('attentive');
+    expect(Number(eyesRoot().dataset.gazeX)).toBeCloseTo((512 - 950) / 512, 3);
+    expect(Number(eyesRoot().dataset.gazeY)).toBeCloseTo((690 - 650) / 384, 3);
+  });
+
+  it('looks down at the field when the screen declares none', () => {
+    renderWidget({ chatStatus: 'idle' });
+    parkFaceAt(new DOMRect(900, 600, 100, 100));
+    act(() => {
+      useEyesSignalsStore.getState().recordTyping();
+      vi.advanceTimersByTime(1);
+    });
+    nextLook();
+    expect(eyesRoot().dataset.gazeX).toBe('0');
+    expect(eyesRoot().dataset.gazeY).toBe('1');
+  });
+
+  it('looks at the toast that has just appeared, at the top of the page', () => {
+    frontToast(new DOMRect(362, 32, 300, 60));
+    renderWidget({ chatStatus: 'idle' });
+    parkFaceAt(new DOMRect(900, 600, 100, 100));
+    act(() => {
+      useEyesSignalsStore.getState().recordNotification();
+      vi.advanceTimersByTime(1);
+    });
+    settleMask();
+    nextLook();
+    expect(eyesRoot().dataset.expression).toBe('surprise');
+    expect(Number(eyesRoot().dataset.gazeX)).toBeCloseTo((512 - 950) / 512, 3);
+    expect(eyesRoot().dataset.gazeY).toBe('-1');
+  });
+
+  it('looks at the place a page with no toast shows its notifications', () => {
+    declare('notification', new DOMRect(920, 700, 44, 44));
+    renderWidget({ chatStatus: 'idle' });
+    parkFaceAt(new DOMRect(462, 300, 100, 100));
+    act(() => {
+      useEyesSignalsStore.getState().recordNotification();
+      vi.advanceTimersByTime(1);
+    });
+    settleMask();
+    nextLook();
+    expect(Number(eyesRoot().dataset.gazeX)).toBeCloseTo((942 - 512) / 512, 3);
+    expect(Number(eyesRoot().dataset.gazeY)).toBeCloseTo((722 - 350) / 384, 3);
+  });
+
+  it('looks up, where the toaster is, when nothing on the page shows the notification', () => {
+    renderWidget({ chatStatus: 'idle' });
+    parkFaceAt(new DOMRect(462, 300, 100, 100));
+    act(() => {
+      useEyesSignalsStore.getState().recordNotification();
+      vi.advanceTimersByTime(1);
+    });
+    settleMask();
+    nextLook();
+    expect(eyesRoot().dataset.gazeX).toBe('0');
+    expect(eyesRoot().dataset.gazeY).toBe('-1');
+  });
+});
+
+describe('EyesWidget — the wait', () => {
+  const ANSWER = 'answer-1';
+
+  /** One execution event of the turn in flight, as the stream delivers it. */
+  function tool(
+    invocation: string,
+    phase: Activity['phase'],
+    outcome: Activity['outcome'] = null
+  ): Activity {
+    return {
+      version: 1,
+      run_id: 'run-1',
+      invocation_id: invocation,
+      family: 'reading',
+      intent: 'read',
+      phase,
+      outcome,
+    };
+  }
+
+  function deliver(event: Activity): void {
+    act(() => {
+      useEyesSignalsStore.getState().recordActivity(event, ANSWER, false);
+      vi.advanceTimersByTime(1);
+    });
+  }
+
+  function elapse(ms: number): void {
+    act(() => {
+      vi.advanceTimersByTime(ms);
+    });
+  }
+
+  /** The face of a turn that is working: sent, begun, no answer yet. */
+  function renderWorking(): ReturnType<typeof render> {
+    const result = renderWidget({ chatStatus: 'streaming', streamPhase: 'progress' });
+    act(() => {
+      useEyesSignalsStore.getState().beginTurn(ANSWER);
+      vi.advanceTimersByTime(1);
+    });
+    return result;
+  }
+
+  beforeEach(() => {
+    // A quiet idle draw (a flicker), and no spontaneous blink for 4.5 s: what
+    // these scenarios see is the exchange, not the face's own life.
+    vi.spyOn(Math, 'random').mockReturnValue(0.9);
+  });
+
+  it('acknowledges a message the moment it is sent, and once', () => {
+    const { rerender } = renderWidget({ chatStatus: 'idle' });
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+    rerender(<EyesWidget chatStatus="sending" streamPhase="answer" hitlAwaiting={false} />);
+    elapse(1);
+    expect(eyesRoot().dataset.gesture).toBe('perk');
+    elapse(GESTURE_DURATION_MS.perk + 10);
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+    // Still the same turn: there is nothing more to acknowledge.
+    rerender(<EyesWidget chatStatus="streaming" streamPhase="progress" hitlAwaiting={false} />);
+    elapse(1500);
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+    // The next message is another one.
+    rerender(<EyesWidget chatStatus="idle" streamPhase="answer" hitlAwaiting={false} />);
+    elapse(1500);
+    rerender(<EyesWidget chatStatus="sending" streamPhase="answer" hitlAwaiting={false} />);
+    elapse(1);
+    expect(eyesRoot().dataset.gesture).toBe('perk');
+  });
+
+  it('lets the acknowledgement land before the thought arrives', () => {
+    // The person was typing: the face is already attentive, and has been for
+    // longer than any hold. Without the beat's own hold the thought would
+    // replace it in the frame that follows the send, and cut the beat.
+    useEyesSignalsStore.getState().recordTyping();
+    const { rerender } = renderWidget({ chatStatus: 'idle' });
+    expect(eyesRoot().dataset.expression).toBe('attentive');
+    elapse(MIN_EXPRESSION_HOLD_MS + 300);
+    rerender(<EyesWidget chatStatus="sending" streamPhase="answer" hitlAwaiting={false} />);
+    elapse(1);
+    expect(eyesRoot().dataset.gesture).toBe('perk');
+    elapse(80);
+    rerender(<EyesWidget chatStatus="streaming" streamPhase="progress" hitlAwaiting={false} />);
+    elapse(1);
+    expect(eyesRoot().dataset.expression).toBe('attentive');
+    expect(eyesRoot().dataset.gesture).toBe('perk');
+    elapse(MIN_EXPRESSION_HOLD_MS);
+    expect(eyesRoot().dataset.expression).toBe('thinking');
+  });
+
+  it('acknowledges nothing when it is mounted on a turn already under way', () => {
+    renderWidget({ chatStatus: 'sending' });
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+    elapse(300);
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+  });
+
+  it('marks a tool that finished with a blink and a lift of the brows', () => {
+    renderWorking();
+    deliver(tool('first', 'started'));
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+    expect(eyesRoot().dataset.blinking).toBeUndefined();
+    deliver(tool('first', 'finished', 'succeeded'));
+    expect(eyesRoot().dataset.gesture).toBe('brow-twitch');
+    expect(eyesRoot().dataset.blinking).toBe('true');
+    elapse(GESTURE_DURATION_MS['brow-twitch'] + 10);
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+  });
+
+  it('marks a draft that was prepared like a result that was found', () => {
+    renderWorking();
+    deliver(tool('draft', 'started'));
+    deliver(tool('draft', 'finished', 'prepared'));
+    expect(eyesRoot().dataset.gesture).toBe('brow-twitch');
+  });
+
+  it.each(['failed', 'cancelled', 'waiting', 'unknown'] as const)(
+    'marks nothing for a tool that ended %s',
+    outcome => {
+      renderWorking();
+      deliver(tool('first', 'started'));
+      deliver(tool('first', 'finished', outcome));
+      expect(eyesRoot().dataset.gesture).toBeUndefined();
+      expect(eyesRoot().dataset.blinking).toBeUndefined();
+      elapse(600);
+      expect(eyesRoot().dataset.gesture).toBeUndefined();
+    }
+  );
+
+  it('marks each tool, and each one once', () => {
+    renderWorking();
+    deliver(tool('first', 'started'));
+    deliver(tool('first', 'finished', 'succeeded'));
+    expect(eyesRoot().dataset.gesture).toBe('brow-twitch');
+    elapse(GESTURE_DURATION_MS['brow-twitch'] + 10);
+    // The stream delivers the same event again: duplicates are absorbed.
+    deliver(tool('first', 'finished', 'succeeded'));
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+    deliver(tool('second', 'started'));
+    deliver(tool('second', 'finished', 'succeeded'));
+    expect(eyesRoot().dataset.gesture).toBe('brow-twitch');
+    elapse(GESTURE_DURATION_MS['brow-twitch'] + 10);
+    // The delivered answer recalls the same evidence (its time is stamped
+    // again): a recall is not another tool.
+    act(() => {
+      useEyesSignalsStore.getState().completeTurn(ANSWER);
+      vi.advanceTimersByTime(1);
+    });
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+  });
+
+  it('marks nothing it did not see: a face mounted after the tool finished', () => {
+    act(() => {
+      useEyesSignalsStore.getState().beginTurn(ANSWER);
+      useEyesSignalsStore.getState().recordActivity(tool('first', 'started'), ANSWER, false);
+      useEyesSignalsStore
+        .getState()
+        .recordActivity(tool('first', 'finished', 'succeeded'), ANSWER, false);
+    });
+    renderWidget({ chatStatus: 'streaming', streamPhase: 'progress' });
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+    elapse(600);
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+  });
+
+  it('plays neither beat under reduced motion', () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation(reducedMotionQuery);
+    const { rerender } = renderWidget({ chatStatus: 'idle' });
+    rerender(<EyesWidget chatStatus="sending" streamPhase="answer" hitlAwaiting={false} />);
+    elapse(1);
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+    rerender(<EyesWidget chatStatus="streaming" streamPhase="progress" hitlAwaiting={false} />);
+    act(() => {
+      useEyesSignalsStore.getState().beginTurn(ANSWER);
+      vi.advanceTimersByTime(1);
+    });
+    deliver(tool('first', 'started'));
+    deliver(tool('first', 'finished', 'succeeded'));
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+    expect(eyesRoot().dataset.blinking).toBeUndefined();
   });
 });
 
@@ -990,25 +1469,6 @@ describe('EyesWidget — liveliness beats (2026-08-21 batch)', () => {
     expect(eyesRoot().dataset.gesture).toBeUndefined();
   });
 
-  it('a reading line torn down by minimizing STILL comes home (no gaze drift, ever)', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.9);
-    useEyesSignalsStore.getState().setAudioPlaying(true);
-    renderWidget({ chatStatus: 'idle' });
-    settleMask();
-    act(() => {
-      vi.advanceTimersByTime(READING_STEP_MS + 10);
-    });
-    expect(eyesRoot().dataset.gazeX).toBe('-0.18');
-    // Minimize MID-LINE: the reading loop is torn down...
-    fireEvent.click(screen.getByRole('button', { name: 'eyes.minimize' }));
-    fireEvent.click(screen.getByRole('button', { name: 'eyes.restore' }));
-    act(() => {
-      vi.advanceTimersByTime(10);
-    });
-    // ...but the teardown sent the gaze home: restored eyes sit at center.
-    expect(eyesRoot().dataset.gazeX).toBe('0');
-  });
-
   it('overlapping blink pulses never cut the lid mid-cycle (last pulse wins)', () => {
     // Force the pre-gaze blink (rng 0 < probability) on an immediate wander.
     vi.spyOn(Math, 'random')
@@ -1124,19 +1584,7 @@ describe('EyesWidget — cartoon accessories (RNG-pinned)', () => {
   });
 
   it('never plays an accent beat under reduced motion', () => {
-    vi.spyOn(window, 'matchMedia').mockImplementation(
-      (query: string) =>
-        ({
-          matches: query.includes('prefers-reduced-motion'),
-          media: query,
-          onchange: null,
-          addListener: vi.fn(),
-          removeListener: vi.fn(),
-          addEventListener: vi.fn(),
-          removeEventListener: vi.fn(),
-          dispatchEvent: vi.fn(),
-        }) as unknown as MediaQueryList
-    );
+    vi.spyOn(window, 'matchMedia').mockImplementation(reducedMotionQuery);
     useEyesSignalsStore.getState().setReaction('excited', 1.4, 'sparkle');
     renderWidget({ chatStatus: 'idle' });
     settleMask();
@@ -1186,19 +1634,7 @@ describe('EyesWidget — cartoon accessories (RNG-pinned)', () => {
 
   it('never plays one under reduced motion — a flourish is the first thing spared', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.02);
-    vi.spyOn(window, 'matchMedia').mockImplementation(
-      (query: string) =>
-        ({
-          matches: query.includes('prefers-reduced-motion'),
-          media: query,
-          onchange: null,
-          addListener: vi.fn(),
-          removeListener: vi.fn(),
-          addEventListener: vi.fn(),
-          removeEventListener: vi.fn(),
-          dispatchEvent: vi.fn(),
-        }) as unknown as MediaQueryList
-    );
+    vi.spyOn(window, 'matchMedia').mockImplementation(reducedMotionQuery);
     renderWidget({ chatStatus: 'error' });
     settleMask();
     expect(document.querySelector('.lia-accessory')).toBeNull();
@@ -1236,5 +1672,171 @@ describe('EyesWidget — the restore dot moves too (2026-09-10)', () => {
     fireEvent.click(dot);
 
     expect(document.querySelector('.lia-eyes')).not.toBeNull();
+  });
+});
+
+describe('EyesWidget — an answer delivered', () => {
+  function elapse(ms: number): void {
+    act(() => {
+      vi.advanceTimersByTime(ms);
+    });
+  }
+
+  /** The answer of a turn that just completed, as the chat wiring stores it. */
+  function deliver(expression: 'neutral' | 'thinking', accent: 'none' | 'nod' = 'none'): void {
+    act(() => {
+      useEyesSignalsStore.getState().setReaction(expression, 1, accent);
+      vi.advanceTimersByTime(1);
+    });
+  }
+
+  beforeEach(() => {
+    // A quiet idle draw and no spontaneous blink in the window: what these
+    // scenarios see is the delivery, not the face's own life.
+    vi.spyOn(Math, 'random').mockReturnValue(0.9);
+  });
+
+  it('presents a delivered answer, then hands it over three seconds later', () => {
+    renderWidget({ chatStatus: 'idle' });
+    deliver('neutral');
+    expect(eyesRoot().dataset.gesture).toBe('present-factual');
+    elapse(HAND_OVER_AFTER_MS - 20);
+    expect(eyesRoot().dataset.gesture).toBe('present-factual');
+    elapse(40);
+    expect(eyesRoot().dataset.gesture).toBe('listen');
+    elapse(GESTURE_DURATION_MS.listen + 10);
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+  });
+
+  it('presents the answer once its own face has landed, never under the face it replaces', () => {
+    // The store learns of the answer while the page still says « streaming »:
+    // a beat started then was wiped a commit later by the arrival of the
+    // answer's face (the rig interrupts every beat on a new expression).
+    const { rerender } = renderWidget({ chatStatus: 'streaming', streamPhase: 'answer' });
+    settleMask();
+    expect(eyesRoot().dataset.expression).not.toBe('neutral');
+    deliver('neutral');
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+    rerender(<EyesWidget chatStatus="idle" streamPhase="answer" hitlAwaiting={false} />);
+    elapse(MIN_EXPRESSION_HOLD_MS + 20);
+    expect(eyesRoot().dataset.expression).toBe('neutral');
+    expect(eyesRoot().dataset.gesture).toBe('present-factual');
+  });
+
+  it('a voice that starts speaking takes the face from the presentation', () => {
+    // Owner report 2026-11-14: with a spoken comment or a Live voice, the answer's
+    // presentation played on over the first words and the lips followed nothing.
+    renderWidget({ chatStatus: 'idle' });
+    deliver('neutral');
+    expect(eyesRoot().dataset.gesture).toBe('present-factual');
+    elapse(800);
+    act(() => {
+      useEyesSignalsStore.getState().setAudioPlaying(true);
+    });
+    elapse(20);
+    expect(eyesRoot().dataset.expression).toBe('speaking');
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+  });
+
+  it('hands nothing over while the voice is still speaking', () => {
+    renderWidget({ chatStatus: 'idle' });
+    deliver('neutral');
+    elapse(800);
+    act(() => {
+      useEyesSignalsStore.getState().setAudioPlaying(true);
+    });
+    // « À toi » would fall due here, in the middle of a sentence.
+    elapse(HAND_OVER_AFTER_MS);
+    expect(eyesRoot().dataset.expression).toBe('speaking');
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+    elapse(GESTURE_DURATION_MS.listen);
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+  });
+
+  it('presents nothing over a voice already speaking when the answer lands', () => {
+    useEyesSignalsStore.getState().setAudioPlaying(true);
+    renderWidget({ chatStatus: 'idle' });
+    settleMask();
+    deliver('neutral');
+    expect(eyesRoot().dataset.expression).toBe('speaking');
+    for (let beat = 0; beat < 8; beat += 1) {
+      elapse(500);
+      expect(eyesRoot().dataset.gesture, `${beat} beats into the speech`).toBeUndefined();
+    }
+  });
+
+  it('presents nothing once the voice that spoke the answer stops or pauses', () => {
+    // Between two phrases the voice is silent for a moment: a presentation starting
+    // there would be cut by the next phrase, a twitch under the answer being spoken.
+    useEyesSignalsStore.getState().setAudioPlaying(true);
+    renderWidget({ chatStatus: 'idle' });
+    settleMask();
+    deliver('neutral');
+    elapse(1200);
+    act(() => {
+      useEyesSignalsStore.getState().setAudioPlaying(false);
+    });
+    elapse(MIN_EXPRESSION_HOLD_MS + 20);
+    expect(eyesRoot().dataset.expression).toBe('neutral');
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+    elapse(HAND_OVER_AFTER_MS);
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+  });
+
+  it('hands nothing over to someone who started writing meanwhile', () => {
+    renderWidget({ chatStatus: 'idle' });
+    deliver('neutral');
+    elapse(1500);
+    act(() => {
+      useEyesSignalsStore.getState().recordTyping();
+    });
+    elapse(HAND_OVER_AFTER_MS);
+    expect(eyesRoot().dataset.gesture).not.toBe('listen');
+  });
+
+  it('plays the accent the model declared instead, and hands nothing over after it', () => {
+    renderWidget({ chatStatus: 'idle' });
+    deliver('neutral', 'nod');
+    expect(eyesRoot().dataset.gesture).toBe('nod');
+    elapse(HAND_OVER_AFTER_MS + 100);
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+  });
+
+  it('leaves no hand-over pending once it is gone, even one a newer answer replaced', () => {
+    const { unmount } = renderWidget({ chatStatus: 'idle' });
+    deliver('neutral');
+    elapse(500);
+    deliver('neutral');
+    elapse(500);
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('wears the thought bubble while it works, and not over a careful answer it delivered', () => {
+    const working = renderWidget({ chatStatus: 'streaming', streamPhase: 'progress' });
+    settleMask();
+    expect(eyesRoot().dataset.expression).toBe('thinking');
+    expect(document.querySelector('.lia-emote')?.getAttribute('data-emote')).toBe('…');
+    working.unmount();
+    useEyesSignalsStore.getState().reset();
+
+    renderWidget({ chatStatus: 'idle' });
+    deliver('thinking');
+    settleMask();
+    expect(eyesRoot().dataset.expression).toBe('thinking');
+    expect(document.querySelector('.lia-emote')).toBeNull();
+  });
+
+  it('gives the face back to its own life once the hand-over has played, not before', () => {
+    // Every draw at 0: the idle life ticks every 1.9 s and opens with a saccade.
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    renderWidget({ chatStatus: 'idle' });
+    deliver('neutral');
+    // 5.7 s: the answer no longer holds the face, but « à toi » is still playing.
+    elapse(3 * IDLE_GESTURE_MIN_DELAY_MS + 400 - 1);
+    expect(eyesRoot().dataset.gazeX).toBe('0');
+    // 7.6 s: the hand-over is over, and the next tick of its life is its own.
+    elapse(IDLE_GESTURE_MIN_DELAY_MS);
+    expect(eyesRoot().dataset.gazeX).not.toBe('0');
   });
 });

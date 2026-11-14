@@ -19,6 +19,7 @@ import apiClient from './api-client';
 import { turnstileHeaders } from './turnstile';
 import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
 import { resetMcpPreparationNotices } from '@/lib/sse-handlers/mcp-preparation';
+import type { DocumentAnimations, DocumentIllustrations } from '@/lib/document-preferences';
 import type { ExchangeRhythm } from '@/lib/exchange-rhythm';
 import type { IconStyle, IconStyleUpdate } from '@/lib/icon-style';
 
@@ -59,6 +60,10 @@ export interface User {
   image_generation_output_format?: string;
   /** Rewrite generation prompts with recognised techniques first (ADR-315). */
   image_generation_prompt_enhancement?: boolean;
+  /** Whether LIA illustrates the documents it generates. */
+  document_illustrations?: DocumentIllustrations;
+  /** Whether LIA animates the decks it generates. */
+  document_animations?: DocumentAnimations;
   document_generation_enabled?: boolean;
   use_last_known_location?: boolean;
   health_metrics_agents_enabled?: boolean;

@@ -1,151 +1,275 @@
-"""xlsx: typed columns, a named Table, a frozen header, a filter (ADR-226, ADR-274).
+"""xlsx: typed cells, live formulas, a named Table, totals, a summary, a chart (ADR-226, ADR-274).
 
 A spreadsheet whose numbers are strings is a picture of data, not data: it
 cannot be summed, sorted or filtered. Columns are therefore TYPED (by unanimity
-— see ``tables.py``) and carry their display format, the header row is frozen
-and the rows sit in a named Table so Excel offers its filter.
+— see ``tables.py`` — or by the kind the writer declared) and carry their
+display format; the header row is frozen and the rows sit in a named Table, so
+Excel offers its filter and its sort.
 
-Two rules Excel enforces and we must satisfy before writing: a Table's headers
-are unique and non-empty, and its name is an identifier — both measured
-2026-09-08, both handled upstream in ``tables.py``.
+A computed column is a LIVE formula: the reader changes a value and the sheet
+follows. Each formula is written with the value ``computation.py`` computed,
+because many readers never recalculate — a preview pane, a phone, the chat's
+own excerpt — and openpyxl, the previous writer, could cache none (measured
+2026-11-13: a reader saw ``None``). The totals row is the Table's own, its
+cached totals given explicitly: XlsxWriter caches 0 otherwise (measured).
+
+Two rules Excel enforces and we satisfy before writing: a Table's headers are
+unique and non-empty, and its name is an identifier — both measured 2026-09-08,
+both handled upstream in ``tables.py``.
 """
 
 from __future__ import annotations
 
 import io
-import re
 from datetime import UTC
+from typing import Any
 
-from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font
-from openpyxl.utils import get_column_letter
-from openpyxl.worksheet.table import Table, TableStyleInfo
-from openpyxl.worksheet.worksheet import Worksheet
-
+from src.core.i18n_documents import document_label
 from src.domains.document_generation import typography
-from src.domains.document_generation.context import RenderContext
-from src.domains.document_generation.fit import display_columns
-from src.domains.document_generation.sanitize import neutralize_formula
-from src.domains.document_generation.schemas import DocumentContent, TableSheet, TabularContent
-from src.domains.document_generation.tables import (
-    ColumnKind,
-    ColumnType,
-    excel_table_name,
-    infer_column_types,
-    typed_value,
+from src.domains.document_generation.computation import (
+    Column,
+    ComputedTable,
+    compute_table,
+    input_values,
 )
+from src.domains.document_generation.context import RenderContext
+from src.domains.document_generation.formulas import to_excel
+from src.domains.document_generation.renderers.xlsx_charts import ChartSources, insert_chart
+from src.domains.document_generation.renderers.xlsx_figures import (
+    reserve_figures_sheet,
+    write_figures,
+)
+from src.domains.document_generation.renderers.xlsx_parts import (
+    Formats,
+    Lists,
+    SheetNames,
+    TableNames,
+    cached,
+    column_width,
+    print_setup,
+    shown_texts,
+    utility,
+    write_inputs,
+    write_summary,
+    write_value,
+    xlsxwriter,
+)
+from src.domains.document_generation.schemas import DocumentContent, TabularContent
 
-_XLSX_TITLE_FORBIDDEN = re.compile(r"[\[\]:*?/\\]")  # openpyxl rejects these
-_XLSX_TITLE_MAX = 31  # Excel's hard sheet-title limit
-#: Padding added to the longest cell when sizing a column.
-_WIDTH_PADDING = 2
-
-
-def _xlsx_sheet_title(name: str, index: int, used: set[str]) -> str:
-    """Sanitize an LLM-suggested worksheet title for openpyxl.
-
-    Args:
-        name: Suggested sheet name.
-        index: Zero-based sheet position (for the fallback name).
-        used: Titles already taken in this workbook (mutated in place).
-
-    Returns:
-        A unique, openpyxl-legal worksheet title.
-    """
-    cleaned = _XLSX_TITLE_FORBIDDEN.sub("_", name).strip()[:_XLSX_TITLE_MAX]
-    cleaned = cleaned or f"Sheet{index + 1}"
-    candidate = cleaned
-    suffix = 2
-    while candidate in used:
-        tail = f" {suffix}"
-        candidate = f"{cleaned[: _XLSX_TITLE_MAX - len(tail)]}{tail}"
-        suffix += 1
-    used.add(candidate)
-    return candidate
-
-
-def _alignment_for(column: ColumnType, width: int) -> Alignment | None:
-    """How a column's cells sit: numbers right, dates centred, long text wrapped."""
-    if column.numeric:
-        return Alignment(horizontal="right")
-    if column.kind in (ColumnKind.DATE, ColumnKind.DATETIME):
-        return Alignment(horizontal="center")
-    if width >= typography.XLSX_COLUMN_WIDTH_MAX:
-        return Alignment(wrap_text=True, vertical="top")
-    return None
+#: The totals a column declares, as the Table's totals row names them.
+_TOTAL_FUNCTIONS: dict[str, str] = {
+    "sum": "sum",
+    "average": "average",
+    "min": "min",
+    "max": "max",
+    "count": "count",
+}
 
 
-def _column_width(header: str, rows: list[list[str]], index: int) -> int:
-    """Width in Excel's own unit: the average Latin character, not the code point."""
-    longest = max(
-        [display_columns(header), *(display_columns(row[index]) for row in rows)],
-        default=display_columns(header),
-    )
-    return min(
-        max(int(longest) + _WIDTH_PADDING, typography.XLSX_COLUMN_WIDTH_MIN),
-        typography.XLSX_COLUMN_WIDTH_MAX,
-    )
+class _Cells:
+    """Where a formula's names live, for one data row of one sheet."""
+
+    def __init__(
+        self, letters: dict[str, str], excel_row: int, last_row: int, inputs: dict[str, str]
+    ) -> None:
+        self._letters = letters
+        self._row = excel_row
+        self._last = last_row
+        self._inputs = inputs
+
+    def cell(self, column: str) -> str:
+        return f"{self._letters[column]}{self._row}"
+
+    def previous_cell(self, column: str) -> str:
+        return f"{self._letters[column]}{self._row - 1}"
+
+    def column_range(self, column: str) -> str:
+        letter = self._letters[column]
+        return f"{letter}$2:{letter}${self._last}"
+
+    def running_range(self, column: str) -> str:
+        letter = self._letters[column]
+        return f"{letter}$2:{letter}{self._row}"
+
+    def sheet_range(self, sheet: str, column: str) -> str:
+        # A row formula never names another sheet: the grammar refuses it.
+        raise ValueError("a row formula reads no other sheet")
+
+    def input_name(self, name: str) -> str:
+        return self._inputs[name]
 
 
-def _write_header(worksheet: Worksheet, headers: list[str]) -> None:
-    worksheet.append([neutralize_formula(header) for header in headers])
-    for cell in worksheet[1]:
-        cell.font = Font(bold=True)
-        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+def _table_column(column: Column, total: Any, formats: Formats, first: bool) -> dict[str, Any]:
+    """One column of the Table: its header, and its totals-row cell."""
+    spec: dict[str, Any] = {"header": column.header, "header_format": formats.header()}
+    if column.total:
+        spec["total_function"] = _TOTAL_FUNCTIONS[column.total]
+        spec["total_value"] = cached(total)
+        spec["format"] = formats.cell(column)
+    elif first:
+        spec["total_string"] = document_label(formats.language, "documents.total_label")
+    return spec
 
 
-def _add_table(worksheet: Worksheet, sheet: TableSheet, table_index: int) -> None:
-    """The named Table that gives Excel its filter and its banding."""
-    reference = f"A1:{get_column_letter(len(sheet.headers))}{len(sheet.rows) + 1}"
-    table = Table(displayName=excel_table_name(table_index), ref=reference)
-    table.tableStyleInfo = TableStyleInfo(
-        name=typography.XLSX_TABLE_STYLE,
-        showFirstColumn=False,
-        showLastColumn=False,
-        showRowStripes=True,
-        showColumnStripes=False,
-    )
-    worksheet.add_table(table)
+def _write_rows(
+    worksheet: Any,
+    table: ComputedTable,
+    formats: Formats,
+    inputs: dict[str, str],
+    wide: list[bool],
+) -> None:
+    """Every data cell: a typed value, or a live formula with its value cached."""
+    last_row = len(table.cells) + 1
+    cell_formats = [
+        formats.cell(column, wide=wide[position]) for position, column in enumerate(table.columns)
+    ]
+    letters = {
+        column.header: utility().xl_col_to_name(index) for index, column in enumerate(table.columns)
+    }
+    for row, cells in enumerate(table.cells):
+        excel_row = row + 2
+        for position, column in enumerate(table.columns):
+            cell_format = cell_formats[position]
+            if column.formula is None:
+                write_value(worksheet, row + 1, position, cells[position], cell_format)
+                continue
+            text = to_excel(column.formula, _Cells(letters, excel_row, last_row, inputs))
+            if column.may_blank:
+                text = f'IFERROR({text},"")'
+            worksheet.write_formula(
+                row + 1, position, f"={text}", cell_format, cached(cells[position])
+            )
 
 
-def _fill_sheet(worksheet: Worksheet, sheet: TableSheet, table_index: int) -> None:
-    """One worksheet: typed cells, sized columns, frozen header, Table."""
-    types = infer_column_types(sheet.headers, sheet.rows)
-    _write_header(worksheet, sheet.headers)
-    for row in sheet.rows:
-        worksheet.append(
-            [typed_value(value, column) for value, column in zip(row, types, strict=True)]
+def _rules(worksheet: Any, table: ComputedTable, lists: Lists) -> None:
+    """Drop-downs for closed lists, a colour scale for a measure with a good direction."""
+    last = len(table.cells)
+    for position, column in enumerate(table.columns):
+        if column.choices and not column.computed:
+            worksheet.data_validation(
+                1,
+                position,
+                last,
+                position,
+                {"validate": "list", "source": lists.source(column.choices)},
+            )
+        if column.better:
+            low, high = (
+                (typography.XLSX_SCALE_NEUTRAL, typography.XLSX_SCALE_GOOD)
+                if column.better == "higher"
+                else (typography.XLSX_SCALE_GOOD, typography.XLSX_SCALE_NEUTRAL)
+            )
+            worksheet.conditional_format(
+                1,
+                position,
+                last,
+                position,
+                {"type": "2_color_scale", "min_color": low, "max_color": high},
+            )
+
+
+def _write_sheet(book: _Book, table: ComputedTable, title: str, inputs: dict[str, str]) -> None:
+    """One data sheet: Table, cells, widths, frozen header, rules, print setup."""
+    worksheet = book.workbook.add_worksheet(title)
+    columns = len(table.columns)
+    widths = [
+        column_width(column.header, shown_texts(table, position, book.formats.language))
+        for position, column in enumerate(table.columns)
+    ]
+    if table.cells:
+        totals = table.has_totals
+        worksheet.add_table(
+            0,
+            0,
+            len(table.cells) + (1 if totals else 0),
+            columns - 1,
+            {
+                "name": book.tables.next(),
+                "style": typography.XLSX_TABLE_STYLE,
+                "total_row": totals,
+                "columns": [
+                    _table_column(column, total, book.formats, index == 0)
+                    for index, (column, total) in enumerate(
+                        zip(table.columns, table.totals, strict=True)
+                    )
+                ],
+            },
         )
-    for index, (header, column) in enumerate(zip(sheet.headers, types, strict=True), start=1):
-        letter = get_column_letter(index)
-        width = _column_width(header, sheet.rows, index - 1)
-        worksheet.column_dimensions[letter].width = width
-        alignment = _alignment_for(column, width)
-        for row_index in range(2, len(sheet.rows) + 2):
-            cell = worksheet.cell(row=row_index, column=index)
-            cell.number_format = column.number_format
-            if alignment is not None:
-                cell.alignment = alignment
-    worksheet.freeze_panes = "A2"
-    if sheet.rows:
+        wide = [width >= typography.XLSX_COLUMN_WIDTH_MAX for width in widths]
+        _write_rows(worksheet, table, book.formats, inputs, wide)
+        _rules(worksheet, table, book.lists)
+        insert_chart(
+            book.workbook,
+            worksheet,
+            table,
+            title,
+            book.charts,
+            book.formats.language,
+            book.palette.series,
+        )
+    else:
         # A Table over a header-only range is what Excel refuses to open.
-        _add_table(worksheet, sheet, table_index)
+        worksheet.write_row(
+            0, 0, [column.header for column in table.columns], book.formats.header()
+        )
+    for position, width in enumerate(widths):
+        worksheet.set_column(position, position, width)
+    worksheet.freeze_panes(1, 0)
+    print_setup(worksheet, columns, book.page_size, book.formats.language)
+
+
+class _Book:
+    """Per-workbook state: the writer, its formats, names, hidden lists and chart sources."""
+
+    def __init__(self, workbook: Any, context: RenderContext, tone: str) -> None:
+        self.workbook = workbook
+        self.palette = typography.palette_for(tone)
+        self.formats = Formats(workbook, context.language, self.palette)
+        self.sheets = SheetNames()
+        self.tables = TableNames()
+        self.lists = Lists(workbook, self.sheets)
+        self.charts = ChartSources(workbook, self.sheets)
+        self.page_size = context.page_size
 
 
 def render_xlsx(content: DocumentContent, context: RenderContext) -> bytes:
-    """A workbook whose columns are data, not a picture of data."""
+    """A workbook whose columns are data, whose computations stay alive."""
     if not isinstance(content, TabularContent):
         raise ValueError("xlsx rendering requires TabularContent")
-    workbook = Workbook()
-    workbook.properties.title = content.title
-    if context.generated_at is not None:
-        workbook.properties.created = context.generated_at.astimezone(UTC).replace(tzinfo=None)
-    default_sheet = workbook.active
-    used_titles: set[str] = set()
+    buffer = io.BytesIO()
+    workbook = xlsxwriter().Workbook(
+        buffer,
+        {
+            "in_memory": True,
+            "strings_to_formulas": False,
+            "strings_to_urls": False,
+            "strings_to_numbers": False,
+        },
+    )
+    book = _Book(workbook, context, content.tone)
+    names = (
+        write_inputs(workbook, book.formats, book.sheets, book.tables, content.inputs)
+        if content.inputs
+        else {}
+    )
+    figures = reserve_figures_sheet(workbook, book.sheets, book.formats.language, content.figures)
+    values = input_values(content.inputs)
+    written: dict[str, tuple[str, ComputedTable]] = {}
     for index, sheet in enumerate(content.sheets):
-        worksheet = default_sheet if index == 0 else workbook.create_sheet()
-        worksheet.title = _xlsx_sheet_title(sheet.name, index, used_titles)
-        _fill_sheet(worksheet, sheet, index + 1)
-    buf = io.BytesIO()
-    workbook.save(buf)
-    return buf.getvalue()
+        table = compute_table(sheet, values)
+        title = book.sheets.take(sheet.name, f"Sheet{index + 1}")
+        _write_sheet(book, table, title, names)
+        write_summary(workbook, book.formats, book.sheets, book.tables, table, title)
+        written[sheet.name] = (title, table)
+    if figures is not None:
+        write_figures(
+            figures, workbook, book.formats, book.tables, content.figures, values, names, written
+        )
+    book.lists.hide()
+    book.charts.hide()
+    properties: dict[str, Any] = {"title": content.title}
+    if context.generated_at is not None:
+        properties["created"] = context.generated_at.astimezone(UTC).replace(tzinfo=None)
+    workbook.set_properties(properties)
+    workbook.close()
+    return buffer.getvalue()

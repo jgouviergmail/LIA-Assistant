@@ -34,6 +34,7 @@ import {
 import { flipTapes, warpTapes } from '@/components/eyes/rig/choreo';
 import { createLifeRandom } from '@/components/eyes/rig/life';
 import { createSketchClock } from '@/components/eyes/rig/sketches';
+import { voiceLevel } from '@/lib/audio/voice-envelope';
 import { createRigWriter } from '@/components/eyes/rig/apply';
 import { bindBodyMotion } from './rig/body-motion-binding';
 import { bindStaticPortrait } from './rig/static-portrait';
@@ -42,6 +43,7 @@ import type { RigCharacterId } from './rig/acting-profile';
 import {
   releaseFrames,
   requestFrames,
+  stepInSlices,
   type FrameSubscriber,
 } from '@/components/eyes/rig/scheduler';
 import { createEyeRig, type EyeRig } from '@/components/eyes/rig/runtime';
@@ -219,6 +221,8 @@ export function useEyesRig(options: UseEyesRigOptions) {
       random: Math.random,
       lifeRandom: lifeRandomRef.current ?? undefined,
       sketchClock: lifeRandomRef.current ? sketchClock : undefined,
+      // A living face opens its mouth on the voice it hears (ADR-294, 2026-11-13).
+      voiceLevel: initialRef.current.life ? voiceLevel : undefined,
     });
     let contextTimer: ReturnType<typeof setTimeout> | null = null;
     let visible = !document.hidden;
@@ -250,13 +254,17 @@ export function useEyesRig(options: UseEyesRigOptions) {
     // One shared clock for every rig on the page (see `rig/scheduler.ts`):
     // the widget and the visible style previews step from a single frame.
     let contextElapsed = 0;
+    // Bound once: the loop below runs every frame for the whole session.
+    const integrate = (sliceMs: number) => rig.step(sliceMs);
     const step: FrameSubscriber = delta => {
       contextElapsed += delta;
       if (contextElapsed >= 100) {
         contextElapsed = 0;
         syncContext();
       }
-      const awake = rig.step(delta);
+      // A long frame is integrated whole, in slices the beats survive, and
+      // drawn ONCE: the write is what costs, never the integration.
+      const awake = stepInSlices(delta, integrate);
       writer.write(rig.values());
       const scene = rig.sketchClock().scene ?? '';
       if (element.dataset.scene !== scene) element.dataset.scene = scene;

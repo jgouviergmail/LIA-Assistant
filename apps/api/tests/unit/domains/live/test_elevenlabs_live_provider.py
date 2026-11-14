@@ -43,6 +43,7 @@ from src.domains.live.providers.elevenlabs_live import (
     ElevenLabsLiveRefused,
     client_tool_body,
     output_rate_of,
+    set_bodies,
     tools_fingerprint,
 )
 from src.domains.live.providers.protocol import LiveSetupInputs
@@ -121,6 +122,22 @@ def _carried(agent: dict[str, Any]) -> list[str]:
     return list(agent["conversation_config"]["agent"]["prompt"].get("tool_ids") or [])
 
 
+def _fp(**overrides: object) -> str:
+    """The key a setup's set is recorded under: the digest of the bodies LIA sends."""
+    return tools_fingerprint(set_bodies(_inputs(**overrides)))
+
+
+#: What the workspace adds to every tool it is sent (measured 2026-11-11): its own
+#: defaults, never LIA's to compare.
+VENDOR_DEFAULTS: dict[str, Any] = {
+    "assignments": [],
+    "disable_interruptions": False,
+    "execution_mode": "immediate",
+    "pre_tool_speech": "auto",
+    "tool_error_handling_mode": "auto",
+}
+
+
 class _Vendor:
     """The agents API as a MockTransport handler, recording every call."""
 
@@ -190,8 +207,9 @@ class _Vendor:
                 "prompt"
             ) or {}
             if any(tool_id not in self.tools for tool_id in prompt.get("tool_ids") or []):
-                # The vendor refuses to attach a tool its workspace no longer holds.
-                return httpx.Response(422, json={"detail": "Tool not found"})
+                # The vendor refuses to attach a tool its workspace no longer holds
+                # (measured 2026-11-11: 404 « Documents with ids {...} not found »).
+                return httpx.Response(404, json={"detail": {"type": "not_found"}})
             tts = ((body or {}).get("conversation_config") or {}).get("tts")
             if self.replace_tts and isinstance(tts, dict):
                 self.agent["conversation_config"]["tts"] = json.loads(json.dumps(tts))
@@ -200,7 +218,15 @@ class _Vendor:
         if request.method == "POST" and request.url.path == "/v1/convai/tools":
             self.created += 1
             tool_id = f"tool_lia_{self.created}"
-            self.tools[tool_id] = dict((body or {}).get("tool_config") or {})
+            # Served back as sent, plus the vendor's own defaults (measured 2026-11-11).
+            self.tools[tool_id] = {**VENDOR_DEFAULTS, **((body or {}).get("tool_config") or {})}
+            return httpx.Response(200, json={"id": tool_id})
+        if request.method == "PATCH" and request.url.path.startswith("/v1/convai/tools/"):
+            # Measured 2026-11-11: a REPLACE of the tool's config, under the same id.
+            tool_id = request.url.path.rsplit("/", 1)[1]
+            if tool_id not in self.tools:
+                return httpx.Response(404, json={"detail": {"type": "not_found"}})
+            self.tools[tool_id] = {**VENDOR_DEFAULTS, **((body or {}).get("tool_config") or {})}
             return httpx.Response(200, json={"id": tool_id})
         if request.method == "GET" and request.url.path == "/v1/convai/tools":
             listed = [
@@ -438,7 +464,7 @@ async def test_the_sync_grants_the_prompt_override_merged_and_attaches_the_tools
     # The permission is read on the agent itself, never remembered: a marker
     # the portal could contradict is dropped from the connector.
     assert ELEVENLABS_LIVE_OVERRIDE_METADATA_KEY not in synced
-    fingerprint = tools_fingerprint([DELEGATION])
+    fingerprint = _fp()
     assert synced[ELEVENLABS_LIVE_TOOLS_METADATA_KEY] == {fingerprint: ["tool_lia_1"]}
     patches = [body for method, path, body in vendor.calls if method == "PATCH"]
     # The permission PATCH keeps the person's own permissions and sets the two
@@ -486,16 +512,21 @@ async def test_the_sync_is_idempotent_and_swaps_the_set_on_a_new_fingerprint() -
     before = len(vendor.calls)
     again = await provider.sync_agent("k", first, _inputs())
     assert again == first
-    # One GET of the agent, nothing granted, created, patched or listed again.
-    assert [c[0] for c in vendor.calls[before:]] == ["GET"]
+    # One read of the agent and one of the workspace (the set is held against what
+    # it serves): nothing granted, created, rewritten, attached or deleted.
+    assert [(c[0], c[1]) for c in vendor.calls[before:]] == [
+        ("GET", f"/v1/convai/agents/{AGENT}"),
+        ("GET", "/v1/convai/tools"),
+    ]
 
     # A DIRECT session: another fingerprint, its own tools, the delegation one detached.
     direct = await provider.sync_agent(
         "k", again, _inputs(tool_declaration=None, direct_tools=(EVENTS,))
     )
     held = direct[ELEVENLABS_LIVE_TOOLS_METADATA_KEY]
-    assert set(held) == {tools_fingerprint([DELEGATION]), tools_fingerprint([EVENTS])}
-    assert held[tools_fingerprint([EVENTS])] == ["tool_lia_2"]
+    direct_fp = _fp(tool_declaration=None, direct_tools=(EVENTS,))
+    assert set(held) == {_fp(), direct_fp}
+    assert held[direct_fp] == ["tool_lia_2"]
     last_patch = [body for method, _p, body in vendor.calls if method == "PATCH"][-1]
     assert last_patch == {
         "conversation_config": {"agent": {"prompt": {"tool_ids": ["tool_lia_2"]}}}
@@ -524,8 +555,9 @@ async def test_a_set_superseded_by_a_new_fingerprint_of_its_kind_is_removed() ->
     renewed = await provider.sync_agent("k", direct, _inputs(tool_declaration=renamed))
     held = renewed[ELEVENLABS_LIVE_TOOLS_METADATA_KEY]
     # The renamed delegation set replaced the old one; the direct set stays.
-    assert set(held) == {tools_fingerprint([renamed]), tools_fingerprint([EVENTS])}
-    assert held[tools_fingerprint([renamed])] == ["tool_lia_3"]
+    direct_fp = _fp(tool_declaration=None, direct_tools=(EVENTS,))
+    assert set(held) == {_fp(tool_declaration=renamed), direct_fp}
+    assert held[_fp(tool_declaration=renamed)] == ["tool_lia_3"]
     assert vendor.deleted() == ["tool_lia_1"]
     # Released WITHOUT force: a tool another agent still used would be kept.
     assert vendor.forced == [] and "tool_lia_1" not in vendor.tools
@@ -539,14 +571,14 @@ async def test_a_set_superseded_by_a_new_fingerprint_of_its_kind_is_removed() ->
     assert patch_at < delete_at
     # A set the metadata holds under a bare fingerprint (the shape before the
     # kinds were recorded) is reused when it matches, never re-created.
-    legacy = {ELEVENLABS_LIVE_TOOLS_METADATA_KEY: {tools_fingerprint([EVENTS]): ["tool_old"]}}
+    legacy = {ELEVENLABS_LIVE_TOOLS_METADATA_KEY: {direct_fp: ["tool_old"]}}
     vendor.tools["tool_old"] = {"type": "client", "name": "get_events_tool"}
     before = vendor.created
     kept = await provider.sync_agent(
         "k", legacy, _inputs(tool_declaration=None, direct_tools=(EVENTS,))
     )
     assert vendor.created == before
-    assert kept[ELEVENLABS_LIVE_TOOLS_METADATA_KEY][tools_fingerprint([EVENTS])] == ["tool_old"]
+    assert kept[ELEVENLABS_LIVE_TOOLS_METADATA_KEY][direct_fp] == ["tool_old"]
 
 
 async def test_a_partial_tool_creation_is_rolled_back_and_the_start_refused() -> None:
@@ -616,86 +648,43 @@ async def test_a_refused_agent_patch_deletes_the_set_it_just_created() -> None:
     # workspace, so no dead id caused it — deletes and re-creates nothing.
     deleted.clear()
     vendor.tools["tool_old"] = {"type": "client", "name": "send_to_lia"}
-    known = {ELEVENLABS_LIVE_TOOLS_METADATA_KEY: {tools_fingerprint([DELEGATION]): ["tool_old"]}}
+    known = {ELEVENLABS_LIVE_TOOLS_METADATA_KEY: {_fp(): ["tool_old"]}}
     with pytest.raises(ElevenLabsAgentsError):
         await provider.sync_agent("k", known, _inputs())
     assert vendor.created == 1
     assert deleted == []
 
 
-async def test_a_refusal_cancels_the_creations_still_running_before_the_rollback() -> None:
-    """Measured 2026-09-19 on dev: `gather` raised on the third refusal while fifty
-    creations went on; the rollback iterated a dict they kept filling and every
-    tool created after it was an orphan. With a TaskGroup the siblings are
-    cancelled first: nothing is created after the rollback ran.
-
-    Sequenced by events, never by the clock: the refusal lands once "a" was
-    created and "b" to "d" are mid-flight, and their creations can only finish
-    if nobody cancels them. Timed with sleeps, a starved event loop woke the
-    refusal and the siblings in the same iteration, and they landed anyway.
-    """
-    import asyncio
-
-    from src.domains.agents.telephony.live_tools import LIVE_TOOL_PROVISIONING_CONCURRENCY
-    from src.domains.live.providers.elevenlabs_live import _create_client_tools
-    from src.domains.telephony.client import ElevenLabsAgentsClient, ElevenLabsAgentsError
-
-    siblings = ("b", "c", "d")
-    bodies = [{"tool_config": {"name": n}} for n in ("a", "refused", *siblings)]
-    # Every creation must be in flight at once for "mid-flight" to mean anything.
-    assert len(bodies) <= LIVE_TOOL_PROVISIONING_CONCURRENCY
-    events: list[str] = []
-    a_created = asyncio.Event()
-    in_flight: set[str] = set()
-    siblings_in_flight = asyncio.Event()
-    released = asyncio.Event()  # set only after the call returned: a late creation shows
-
-    class _SequencedClient(ElevenLabsAgentsClient):
-        async def create_tool(self, body: dict[str, Any]) -> str:
-            name = body["tool_config"]["name"]
-            if name == "a":
-                events.append("created:a")
-                a_created.set()
-                return "id_a"
-            if name == "refused":
-                await a_created.wait()
-                await siblings_in_flight.wait()
-                raise ElevenLabsAgentsError(422, "no")
-            in_flight.add(name)
-            if in_flight == set(siblings):
-                siblings_in_flight.set()
-            try:
-                await released.wait()
-            except asyncio.CancelledError:
-                events.append(f"cancelled:{name}")
-                raise
-            events.append(f"created:{name}")
-            return f"id_{name}"
-
-        async def delete_tool(self, tool_id: str) -> None:
-            events.append(f"deleted:{tool_id}")
-
-    async with asyncio.timeout(10):  # a hang guard, never an oracle
-        with pytest.raises(ElevenLabsAgentsError):
-            await _create_client_tools(_SequencedClient("test-key"), bodies)
-        released.set()
-        for _ in range(10):  # let any sibling still running land, if one survived
-            await asyncio.sleep(0)
-
-    # "a" was created before the refusal and rolled back; the siblings were
-    # cancelled before the rollback, and none was created after it.
-    assert events[0] == "created:a"
-    assert sorted(events[1:-1]) == [f"cancelled:{name}" for name in siblings]
-    assert events[-1] == "deleted:id_a"
-
-
-def test_the_fingerprint_reads_the_declaration_and_ignores_the_wire_behaviour() -> None:
-    without = {k: v for k, v in DELEGATION.items() if k != "behavior"}
-    assert tools_fingerprint([DELEGATION]) == tools_fingerprint([without])
-    assert tools_fingerprint([DELEGATION]) != tools_fingerprint(
-        [{**DELEGATION, "description": "changed"}]
+def test_the_fingerprint_reads_every_byte_lia_sends_the_workspace() -> None:
+    """The phone fingerprints its whole bodies; the live set does too. Read on the
+    declarations alone, a timeout an operator raised never reached the tools
+    already created: the vendor gave up while LIA's bridge still waited."""
+    body = client_tool_body(DELEGATION, timeout_seconds=60)
+    assert tools_fingerprint([body]) == tools_fingerprint(
+        [client_tool_body(DELEGATION, timeout_seconds=60)]
     )
-    assert tools_fingerprint([EVENTS, DELEGATION]) != tools_fingerprint([DELEGATION, EVENTS])
+    assert tools_fingerprint([body]) != tools_fingerprint(
+        [client_tool_body(DELEGATION, timeout_seconds=90)]
+    )
+    assert tools_fingerprint([body]) != tools_fingerprint(
+        [client_tool_body({**DELEGATION, "description": "changed"}, timeout_seconds=60)]
+    )
+    events = client_tool_body(EVENTS, timeout_seconds=60)
+    assert tools_fingerprint([events, body]) != tools_fingerprint([body, events])
+    # The wire's behaviour is the browser's: it never reaches the workspace body.
+    assert "behavior" not in json.dumps(body)
+
+
+def test_a_set_body_carries_the_timeout_of_its_wire() -> None:
+    """The delegation waits for a whole chat turn, a lookup for one tool."""
+    delegated = set_bodies(_inputs())
+    direct = set_bodies(_inputs(tool_declaration=None, direct_tools=(EVENTS,)))
+    assert [b["tool_config"]["response_timeout_secs"] for b in delegated] == [
+        min(settings.live_delegation_timeout_seconds, ELEVENLABS_LIVE_TOOL_TIMEOUT_MAX_SECONDS)
+    ]
+    assert [b["tool_config"]["response_timeout_secs"] for b in direct] == [
+        min(settings.telephony_live_tool_timeout_seconds, ELEVENLABS_LIVE_TOOL_TIMEOUT_MAX_SECONDS)
+    ]
 
 
 # -- the probe --------------------------------------------------------------------------------
@@ -963,7 +952,11 @@ async def test_a_settled_agent_is_patched_for_nothing_but_what_drifted() -> None
     before = len(vendor.calls)
     again = await provider.sync_agent("k", first, cues)
     assert again == first
-    assert [method for method, *_ in vendor.calls[before:]] == ["GET"]
+    # The agent and the workspace are read; nothing is written.
+    assert [(method, path) for method, path, _b in vendor.calls[before:]] == [
+        ("GET", f"/v1/convai/agents/{AGENT}"),
+        ("GET", "/v1/convai/tools"),
+    ]
     # The person rewrites the palette on the portal: the next start writes it back,
     # and nothing else.
     vendor.agent["conversation_config"]["tts"]["suggested_audio_tags"] = [
@@ -1078,8 +1071,12 @@ async def test_what_lia_left_on_the_agent_is_released_and_nothing_else() -> None
     vendor.agent["conversation_config"]["agent"]["prompt"]["tool_ids"] = list(carried)
     # The direct kind's current set is LIA's, recorded: detached, never deleted.
     metadata = {
-        ELEVENLABS_LIVE_TOOLS_METADATA_KEY: {tools_fingerprint([EVENTS]): ["tool_direct"]},
-        ELEVENLABS_LIVE_TOOL_KINDS_METADATA_KEY: {"direct": tools_fingerprint([EVENTS])},
+        ELEVENLABS_LIVE_TOOLS_METADATA_KEY: {
+            _fp(tool_declaration=None, direct_tools=(EVENTS,)): ["tool_direct"]
+        },
+        ELEVENLABS_LIVE_TOOL_KINDS_METADATA_KEY: {
+            "direct": _fp(tool_declaration=None, direct_tools=(EVENTS,))
+        },
     }
     freed, in_use = _swept("freed"), _swept("in_use")
 
@@ -1113,29 +1110,72 @@ async def test_a_listing_the_vendor_refuses_skips_the_sweep_never_the_session() 
         api_key, transport=httpx.MockTransport(_handler)
     )
     synced = await provider.sync_agent("k", {}, _inputs())
-    assert synced[ELEVENLABS_LIVE_TOOLS_METADATA_KEY] == {
-        tools_fingerprint([DELEGATION]): ["tool_lia_1"]
-    }
+    assert synced[ELEVENLABS_LIVE_TOOLS_METADATA_KEY] == {_fp(): ["tool_lia_1"]}
     assert _carried(vendor.agent) == ["tool_lia_1"]
     assert vendor.deleted() == [] and "orphan" in vendor.tools
 
 
-async def test_a_set_the_workspace_lost_is_healed_and_the_attach_retried_once() -> None:
-    """Today a dead id is a session refused for ever: a portal deletion, a sibling
-    instance's cleanup or a hand cleanup leaves the metadata naming a tool the
-    vendor no longer holds. Only the lost tools are re-created, in their place."""
+def _repaired(reason: str) -> float:
+    from prometheus_client import REGISTRY
+
+    labels = {"surface": "live", "reason": reason}
+    return REGISTRY.get_sample_value("live_agent_tools_repaired_total", labels) or 0.0
+
+
+def _rewrites(vendor: _Vendor) -> list[tuple[str, Any]]:
+    """The workspace tools the sync rewrote in place, in order."""
+    return [
+        (path.rsplit("/", 1)[1], body)
+        for method, path, body in vendor.calls
+        if method == "PATCH" and path.startswith("/v1/convai/tools/")
+    ]
+
+
+async def test_a_tool_edited_on_the_portal_is_rewritten_before_the_session_opens() -> None:
+    """Owner decision 2026-11-11: never an agent with tools out of date. A tool LIA
+    created and someone edited on the portal is rewritten in place, under its id —
+    the vendor replaces the whole config (measured), so a setting changed by hand
+    falls back to its default too."""
+    vendor = _Vendor()
+    provider = _provider(vendor)
+    first = await provider.sync_agent("k", {}, _inputs())
+    vendor.tools["tool_lia_1"]["description"] = "Edited by hand on the portal."
+    vendor.tools["tool_lia_1"]["disable_interruptions"] = True
+    drifted = _repaired("drifted")
+
+    again = await provider.sync_agent("k", first, _inputs())
+
+    assert again == first
+    assert _rewrites(vendor) == [
+        (
+            "tool_lia_1",
+            client_tool_body(DELEGATION, timeout_seconds=settings.live_delegation_timeout_seconds),
+        )
+    ]
+    assert vendor.tools["tool_lia_1"]["description"] == DELEGATION["description"]
+    assert vendor.tools["tool_lia_1"]["disable_interruptions"] is False
+    assert vendor.created == 1 and _carried(vendor.agent) == ["tool_lia_1"]
+    assert _repaired("drifted") - drifted == 1.0
+
+
+async def test_a_tool_the_workspace_lost_is_re_created_before_the_attach() -> None:
+    """A portal deletion, a sibling instance's cleanup or a hand cleanup leaves the
+    metadata naming a tool the vendor no longer holds — a forced delete even takes
+    it off the agent (measured 2026-11-11). It is found BEFORE the attach and
+    re-created in its place: one attach, never a refused one."""
     vendor = _Vendor()
     lookup = {**EVENTS, "name": "get_weather_tool", "description": "Reads the weather."}
-    fingerprint = tools_fingerprint([EVENTS, lookup])
-    vendor.tools["tool_events"] = {"type": "client", "name": "get_events_tool"}
+    direct: dict[str, object] = {"tool_declaration": None, "direct_tools": (EVENTS, lookup)}
+    bodies = set_bodies(_inputs(**direct))
+    fingerprint = tools_fingerprint(bodies)
+    vendor.tools["tool_events"] = {**VENDOR_DEFAULTS, **bodies[0]["tool_config"]}
     metadata = {
         ELEVENLABS_LIVE_TOOLS_METADATA_KEY: {fingerprint: ["tool_events", "tool_lost"]},
         ELEVENLABS_LIVE_TOOL_KINDS_METADATA_KEY: {"direct": fingerprint},
     }
+    lost = _repaired("lost")
 
-    synced = await _provider(vendor).sync_agent(
-        "k", metadata, _inputs(tool_declaration=None, direct_tools=(EVENTS, lookup))
-    )
+    synced = await _provider(vendor).sync_agent("k", metadata, _inputs(**direct))
 
     assert synced[ELEVENLABS_LIVE_TOOLS_METADATA_KEY] == {
         fingerprint: ["tool_events", "tool_lia_1"]
@@ -1146,13 +1186,78 @@ async def test_a_set_the_workspace_lost_is_healed_and_the_attach_retried_once() 
     attaches = [
         body for method, _p, body in vendor.calls if method == "PATCH" and "tool_ids" in str(body)
     ]
-    assert len(attaches) == 2  # the refused one, then the retry
+    assert len(attaches) == 1
+    assert _repaired("lost") - lost == 1.0
 
 
-async def test_a_refused_attach_no_dead_id_explains_is_raised_and_nothing_re_created() -> None:
+async def test_a_timeout_the_operator_raised_reaches_the_workspace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     vendor = _Vendor()
-    vendor.tools["tool_old"] = {"type": "client", "name": LIVE_DELEGATION_TOOL_NAME}
-    known = {ELEVENLABS_LIVE_TOOLS_METADATA_KEY: {tools_fingerprint([DELEGATION]): ["tool_old"]}}
+    provider = _provider(vendor)
+    monkeypatch.setattr(settings, "live_delegation_timeout_seconds", 60)
+    first = await provider.sync_agent("k", {}, _inputs())
+    monkeypatch.setattr(settings, "live_delegation_timeout_seconds", 90)
+
+    await provider.sync_agent("k", first, _inputs())
+
+    created = [body for _m, path, body in vendor.calls if path == "/v1/convai/tools" and body]
+    assert [body["tool_config"]["response_timeout_secs"] for body in created] == [60, 90]
+    assert _carried(vendor.agent) == ["tool_lia_2"]
+    # The set the new one replaced is released, without force.
+    assert vendor.deleted() == ["tool_lia_1"] and vendor.forced == []
+
+
+async def test_a_workspace_that_cannot_be_read_refuses_a_recorded_set() -> None:
+    """A set that cannot be verified is not handed to the agent: the start is refused
+    (the session's door turns it into a provider refusal), nothing is attached."""
+    vendor = _Vendor()
+    known = {ELEVENLABS_LIVE_TOOLS_METADATA_KEY: {_fp(): ["tool_old"]}}
+    vendor.tools["tool_old"] = {**VENDOR_DEFAULTS, **set_bodies(_inputs())[0]["tool_config"]}
+
+    def _handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET" and request.url.path == "/v1/convai/tools":
+            return httpx.Response(500, json={"detail": "boom"})
+        return vendor(request)
+
+    provider = ElevenLabsLiveProvider()
+    provider._client = lambda api_key: ElevenLabsAgentsClient(  # type: ignore[method-assign]
+        api_key, transport=httpx.MockTransport(_handler)
+    )
+    from src.domains.telephony.client import ElevenLabsAgentsError
+
+    with pytest.raises(ElevenLabsAgentsError):
+        await provider.sync_agent("k", known, _inputs())
+    patches = [str(body) for method, _p, body in vendor.calls if method == "PATCH"]
+    assert not any("tool_ids" in body for body in patches)
+    assert _carried(vendor.agent) == ["tool_theirs"]
+
+
+async def test_a_recorded_set_is_verified_and_swept_on_one_listing() -> None:
+    """The listing read to verify the set serves the sweep too: one read of the workspace."""
+    vendor = _Vendor()
+    holding = {**VENDOR_DEFAULTS, **set_bodies(_inputs())[0]["tool_config"]}
+    vendor.tools.update(
+        {
+            "tool_known": holding,
+            "orphan": {"type": "client", "name": LIVE_DELEGATION_TOOL_NAME},
+        }
+    )
+    vendor.agent["conversation_config"]["agent"]["prompt"]["tool_ids"] = ["orphan"]
+    known = {ELEVENLABS_LIVE_TOOLS_METADATA_KEY: {_fp(): ["tool_known"]}}
+
+    await _provider(vendor).sync_agent("k", known, _inputs())
+
+    assert _carried(vendor.agent) == ["tool_known"]
+    assert vendor.deleted() == ["orphan"]
+    listings = [c for c in vendor.calls if c[0] == "GET" and c[1] == "/v1/convai/tools"]
+    assert len(listings) == 1
+
+
+async def test_a_refused_attach_of_a_verified_set_is_raised_and_nothing_re_created() -> None:
+    vendor = _Vendor()
+    vendor.tools["tool_old"] = {**VENDOR_DEFAULTS, **set_bodies(_inputs())[0]["tool_config"]}
+    known = {ELEVENLABS_LIVE_TOOLS_METADATA_KEY: {_fp(): ["tool_old"]}}
 
     def _handler(request: httpx.Request) -> httpx.Response:
         if request.method == "PATCH" and b"tool_ids" in request.content:
@@ -1167,12 +1272,12 @@ async def test_a_refused_attach_no_dead_id_explains_is_raised_and_nothing_re_cre
 
     with pytest.raises(ElevenLabsAgentsError):
         await provider.sync_agent("k", known, _inputs())
-    assert vendor.created == 0 and vendor.deleted() == []
+    assert vendor.created == 0 and vendor.deleted() == [] and _rewrites(vendor) == []
 
 
-async def test_a_retry_refused_after_a_heal_removes_what_the_heal_created() -> None:
+async def test_an_attach_refused_after_a_repair_removes_what_the_repair_created() -> None:
     vendor = _Vendor()
-    known = {ELEVENLABS_LIVE_TOOLS_METADATA_KEY: {tools_fingerprint([DELEGATION]): ["tool_lost"]}}
+    known = {ELEVENLABS_LIVE_TOOLS_METADATA_KEY: {_fp(): ["tool_lost"]}}
 
     def _handler(request: httpx.Request) -> httpx.Response:
         if request.method == "PATCH" and b"tool_ids" in request.content:
@@ -1188,6 +1293,6 @@ async def test_a_retry_refused_after_a_heal_removes_what_the_heal_created() -> N
 
     with pytest.raises(ElevenLabsAgentsError):
         await provider.sync_agent("k", known, _inputs())
-    # The one tool the heal created is removed: nothing would name it.
+    # The one tool the repair created is removed: nothing would name it.
     assert vendor.created == 1 and vendor.forced == ["tool_lia_1"]
     assert "tool_lia_1" not in vendor.tools

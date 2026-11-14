@@ -14,6 +14,7 @@ class BrowserRefusalReason(Enum):
     NAVIGATION_LIMIT = ("RATE_LIMIT_EXCEEDED", "Max navigations per session reached")
     BLOCKED_URL = ("INVALID_INPUT", "URL blocked by the browser security policy")
     NO_PAGE = ("DEPENDENCY_ERROR", "No page is currently open")
+    SCOPE_UNAVAILABLE = ("CONFIGURATION_ERROR", "Browser requires an owned conversation runtime")
     MISSING_ELEMENT = ("NOT_FOUND", "The referenced element was not found on the page")
     BLOCKED_KEY = ("INVALID_INPUT", "This keyboard key is not allowed")
 

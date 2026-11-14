@@ -45,6 +45,7 @@ import {
   CalendarDays,
   FileText,
 } from '@/lib/icons';
+import { MonochromeIcons } from '@/lib/icon-style-context';
 
 import { Badge } from '@/components/ui/badge';
 import { SETTINGS_GROUP_TONES } from '@/lib/settings-group-tones';
@@ -712,8 +713,10 @@ function GroupedActionsScene({ active, labels }: SceneProps) {
               index === 0 && phase !== 'bar' && 'ring-2 ring-primary/30'
             )}
           >
-            <Icon className="h-3 w-3" aria-hidden="true" />
-            {index === 0 && <ChevronDown className="h-2.5 w-2.5" aria-hidden="true" />}
+            <MonochromeIcons>
+              <Icon className="h-3 w-3" aria-hidden="true" />
+              {index === 0 && <ChevronDown className="h-2.5 w-2.5" aria-hidden="true" />}
+            </MonochromeIcons>
           </span>
         ))}
         <div
@@ -1351,7 +1354,69 @@ function SpaceFavoritesScene({ active, labels }: SceneProps) {
   );
 }
 
+type KnownServersPhase = 'gallery' | 'picked' | 'installed';
+const KNOWN_SERVERS_STEPS: readonly TimelineStep<KnownServersPhase>[] = [
+  { at: 0, state: 'gallery' },
+  { at: 1200, state: 'picked' },
+  { at: 2100, state: 'installed' },
+];
+const KNOWN_SERVER_TILES = [0, 1, 2, 3] as const;
+/** The tile the pointer picks. */
+const KNOWN_SERVER_PICK = 1;
+
+/**
+ * The gallery of known servers: four tiles, one picked, then marked as installed.
+ * A tile carries no vendor name: the scene shows the gesture, not a list.
+ */
+function KnownServersScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(KNOWN_SERVERS_STEPS, { active });
+  const installed = phase === 'installed';
+  return (
+    <div className={cn(STAGE, 'gap-1.5')}>
+      <span className="w-full max-w-[220px] text-px-10 font-semibold text-primary">
+        {labels.title}
+      </span>
+      <div className="relative grid w-full max-w-[220px] grid-cols-2 gap-1.5">
+        {KNOWN_SERVER_TILES.map(tile => {
+          const picked = tile === KNOWN_SERVER_PICK;
+          return (
+            <div
+              key={tile}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md border bg-background px-2 py-1.5 transition-colors duration-300 motion-reduce:transition-none',
+                picked && phase !== 'gallery' ? 'border-primary/50' : 'border-border'
+              )}
+            >
+              <Plug className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+              {picked ? (
+                <span
+                  className={cn(
+                    'truncate text-px-9 font-medium',
+                    installed ? 'text-primary' : 'text-muted-foreground'
+                  )}
+                >
+                  {installed ? labels.installed : labels.add}
+                </span>
+              ) : (
+                <SkeletonLine w="w-10" />
+              )}
+            </div>
+          );
+        })}
+        <Cursor
+          className={cn(
+            'transition-opacity',
+            phase === 'gallery' ? 'left-[30%] top-[85%]' : 'left-[78%] top-[22%]',
+            installed ? 'opacity-0' : 'opacity-100'
+          )}
+        />
+      </div>
+    </div>
+  );
+}
+
 export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
+  known_servers: KnownServersScene,
   place_numbers: PlaceNumbersScene,
   dated_rows: DatedRowsScene,
   settings_shell: SettingsShellScene,

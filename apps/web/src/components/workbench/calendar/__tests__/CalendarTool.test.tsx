@@ -911,7 +911,8 @@ describe('CalendarTool — an invitation', () => {
     unmount();
 
     invited(null);
-    await screen.findByRole('article');
+    // By its event's name: the pane exists from the first render, empty while the event is read.
+    await screen.findByRole('article', { name: 'Budget review' });
 
     expect(screen.queryByRole('button', { name: 'workbench.calendar.answer_accept' })).toBeNull();
   });

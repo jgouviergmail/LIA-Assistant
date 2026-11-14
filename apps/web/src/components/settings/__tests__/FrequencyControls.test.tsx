@@ -7,6 +7,7 @@
  * `ui/__tests__/select.test.tsx`), and the offered range follows `limit`.
  */
 
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
@@ -37,12 +38,6 @@ describe('MinMaxPerDay', () => {
     expect(screen.getByRole('combobox', { name: 'Maximum per day' })).toHaveTextContent('3');
     expect(screen.getByText('per day')).toBeInTheDocument();
   });
-
-  it('disables both selects together', () => {
-    setup({ disabled: true });
-    expect(screen.getByRole('combobox', { name: 'Minimum per day' })).toBeDisabled();
-    expect(screen.getByRole('combobox', { name: 'Maximum per day' })).toBeDisabled();
-  });
 });
 
 describe('HourWindow', () => {
@@ -59,5 +54,32 @@ describe('HourWindow', () => {
     );
     expect(screen.getByRole('combobox', { name: 'Start hour' })).toHaveTextContent('08:00');
     expect(screen.getByRole('combobox', { name: 'End hour' })).toHaveTextContent('21:00');
+  });
+
+  it('while its choice is saved, both lists stay focusable and refuse to open', async () => {
+    // `disabled` on the list that holds the focus hands the focus to the page.
+    renderWithProviders(
+      <HourWindow
+        label="Notification hours"
+        startAriaLabel="Start hour"
+        endAriaLabel="End hour"
+        startHour={8}
+        endHour={21}
+        busy
+        onChange={vi.fn()}
+      />
+    );
+    const start = screen.getByRole('combobox', { name: 'Start hour' });
+    const end = screen.getByRole('combobox', { name: 'End hour' });
+    for (const list of [start, end]) {
+      expect(list).toHaveAttribute('aria-busy', 'true');
+      expect(list).not.toBeDisabled();
+    }
+
+    start.focus();
+    await userEvent.click(start);
+
+    expect(start).toHaveFocus();
+    expect(screen.queryByRole('listbox')).toBeNull();
   });
 });

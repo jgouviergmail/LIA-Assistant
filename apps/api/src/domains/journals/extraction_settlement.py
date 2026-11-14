@@ -24,6 +24,7 @@ class ExtractionSettlement:
 
     user_id: str
     session_id: str
+    conversation_id: str | None
     personality_code: str | None
     max_entry_chars: int
     event_key: str
@@ -86,7 +87,7 @@ async def _create(
     await record_origin(
         db,
         user_id=UUID(context.user_id),
-        source=context.session_id,
+        source=context.conversation_id,
         journal_entry_id=created.id,
     )
     return 1
@@ -144,7 +145,7 @@ async def _update(
         confidence=action.confidence.value if action.confidence else None,
         evidence_outcome=action.evidence_outcome,
         event_key=context.event_key,
-        evidence_source=context.session_id,
+        evidence_source=context.conversation_id,
         expected_revision=_expected_revision(action, context),
         level=action.level.value if action.level else None,
         theme=action.theme.value if action.theme else None,

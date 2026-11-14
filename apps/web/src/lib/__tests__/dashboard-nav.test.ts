@@ -18,6 +18,7 @@ describe('DASHBOARD_DESTINATIONS', () => {
       'relations',
       'sms',
       'meetings',
+      'workboard',
       'spaces',
       'notifications',
       'settings',
@@ -32,6 +33,7 @@ describe('DASHBOARD_DESTINATIONS', () => {
       ['tools', 'workbench_enabled'],
       ['sms', 'sms_enabled'],
       ['meetings', 'meetings_enabled'],
+      ['workboard', 'workboard_enabled'],
       ['spaces', 'rag_spaces_enabled'],
     ]);
   });
@@ -46,7 +48,8 @@ describe('visibleDestinations', () => {
       expect(segments).not.toContain('tools');
       expect(segments).not.toContain('sms');
       expect(segments).not.toContain('spaces');
-      expect(segments).toHaveLength(DASHBOARD_DESTINATIONS.length - 5);
+      expect(segments).not.toContain('workboard');
+      expect(segments).toHaveLength(DASHBOARD_DESTINATIONS.length - 6);
     }
   });
 
@@ -57,6 +60,7 @@ describe('visibleDestinations', () => {
       workbench_enabled: true,
       sms_enabled: true,
       rag_spaces_enabled: true,
+      workboard_enabled: true,
     }).map(d => d.segment);
     expect(segments).toEqual(DASHBOARD_DESTINATIONS.map(d => d.segment));
     // The owner's order (2026-10-31): the tools right after the world, the
@@ -64,11 +68,23 @@ describe('visibleDestinations', () => {
     expect(segments.indexOf('tools')).toBe(segments.indexOf('world') + 1);
     expect(segments.indexOf('sms')).toBe(segments.indexOf('relations') + 1);
     expect(segments.indexOf('meetings')).toBe(segments.indexOf('sms') + 1);
-    expect(segments.indexOf('spaces')).toBe(segments.indexOf('meetings') + 1);
+    // The owner (2026-11-11): the workboard right after the meetings — it had
+    // no door in the header since ADR-276 (D16), only a settings section.
+    expect(segments.indexOf('workboard')).toBe(segments.indexOf('meetings') + 1);
+    expect(segments.indexOf('spaces')).toBe(segments.indexOf('workboard') + 1);
+  });
+
+  it('offers the workboard only where the instance offers it', () => {
+    const offered = visibleDestinations({ workboard_enabled: true }).map(d => d.segment);
+    expect(offered).toContain('workboard');
+    expect(visibleDestinations({ workboard_enabled: false }).map(d => d.segment)).not.toContain(
+      'workboard'
+    );
   });
 
   it('routes the new destination like every other one', () => {
     expect(destinationPath('meetings')).toBe('/dashboard/meetings');
     expect(destinationPath('sms')).toBe('/dashboard/sms');
+    expect(destinationPath('workboard')).toBe('/dashboard/workboard');
   });
 });

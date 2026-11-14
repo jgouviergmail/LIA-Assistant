@@ -10,7 +10,7 @@ the package's heavy ``__init__`` forced every caller into a hidden local import.
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import String, case, delete, func, select, update
+from sqlalchemy import String, case, cast, delete, func, literal, select, update
 from sqlalchemy.dialects.postgresql import array
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,7 +19,11 @@ from src.infrastructure.database.models import Base
 
 
 async def invalidate_discussion_sources(
-    db: AsyncSession, owner: UUID, sources: tuple[SourceKey, ...]
+    db: AsyncSession,
+    owner: UUID,
+    sources: tuple[SourceKey, ...],
+    *,
+    conversation_id: UUID | None = None,
 ) -> None:
     """Forget everything derived from sources that ended, and fence every run.
 
@@ -33,6 +37,7 @@ async def invalidate_discussion_sources(
         db: The caller's session, committed by the caller.
         owner: The account.
         sources: The sources that ended.
+        conversation_id: Restrict conversation evidence to this discussion's messages.
     """
     tables = Base.metadata.tables
     if not sources or "discussion_preferences" not in tables:
@@ -52,23 +57,32 @@ async def invalidate_discussion_sources(
     now = datetime.now(UTC)
     observations = tables["discussion_context_observations"]
     items = tables["discussion_context_items"]
+    scope = [
+        observations.c.user_id == owner,
+        observations.c.source.in_([source.value for source in sources]),
+    ]
+    if conversation_id is not None:
+        messages = tables["conversation_messages"]
+        conversations = tables["conversations"]
+        references = (
+            select(literal("conversations:") + cast(messages.c.id, String))
+            .join_from(
+                messages,
+                conversations,
+                messages.c.conversation_id == conversations.c.id,
+            )
+            .where(conversations.c.user_id == owner, conversations.c.id == conversation_id)
+        )
+        scope.append(observations.c.data["reference"].as_string().in_(references))
     roots = (
         select(func.coalesce(func.array_agg(observations.c.root), array([], type_=String(64))))
-        .where(
-            observations.c.user_id == owner,
-            observations.c.source.in_([source.value for source in sources]),
-        )
+        .where(*scope)
         .scalar_subquery()
     )
     await db.execute(
         delete(items).where(items.c.user_id == owner, items.c.root_keys.overlap(roots))
     )
-    await db.execute(
-        delete(observations).where(
-            observations.c.user_id == owner,
-            observations.c.source.in_([source.value for source in sources]),
-        )
-    )
+    await db.execute(delete(observations).where(*scope))
     await db.execute(
         update(pref)
         .where(pref.c.user_id == owner)
@@ -108,11 +122,29 @@ async def invalidate_discussion_sources(
     await db.flush()
 
 
-async def invalidate_conversation_discussions(db: AsyncSession, owner: UUID) -> None:
+async def invalidate_conversation_discussions(
+    db: AsyncSession,
+    owner: UUID,
+    *,
+    conversation_id: UUID | None = None,
+) -> None:
     """Forget what was derived from the conversation, after a conversation reset.
 
     Args:
         db: The caller's session, committed by the caller.
         owner: The account.
+        conversation_id: Exact discussion being removed; None is the account-wide purge.
     """
-    await invalidate_discussion_sources(db, owner, (SourceKey.CONVERSATIONS,))
+    # Reset retains the business discussion row, so ON DELETE SET NULL alone
+    # cannot withdraw its old provenance. Preserve the learned subject and
+    # its date, but detach both source pointers in the reset transaction.
+    if conversation_id is not None:
+        references = Base.metadata.tables["provenance_references"]
+        await db.execute(
+            update(references)
+            .where(references.c.user_id == owner, references.c.conversation_id == conversation_id)
+            .values(conversation_id=None, message_id=None)
+        )
+    await invalidate_discussion_sources(
+        db, owner, (SourceKey.CONVERSATIONS,), conversation_id=conversation_id
+    )

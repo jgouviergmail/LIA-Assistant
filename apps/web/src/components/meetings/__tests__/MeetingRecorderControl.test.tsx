@@ -89,11 +89,12 @@ describe('MeetingRecorderControl', () => {
     const ring = dot.querySelector('circle[cx="12"][cy="12"][r="10"]');
     expect(ring).not.toBeNull();
     // Lucide inherits its root stroke; colored artwork gives the same caller-
-    // controlled recording signal to the outer ring, keeping its own center.
+    // controlled recording signal to the outer ring, keeping its own red dot.
     expect(ring?.getAttribute('stroke') ?? dot.getAttribute('stroke')).toBe('currentColor');
     if (style !== 'lucide') {
       expect(ring).toHaveAttribute('fill', 'none');
-      expect(dot.querySelector('circle[r="2"]')).toHaveAttribute('fill', '#F8C86A');
+      const centre = dot.querySelector('circle[cx="12"][cy="12"]:not([r="10"])');
+      expect(centre?.getAttribute('fill')).toMatch(/^(?:#E5383B|url\(#.+\))$/);
     }
     expect(screen.getByText('2:05')).toBeInTheDocument();
     await user.click(button);

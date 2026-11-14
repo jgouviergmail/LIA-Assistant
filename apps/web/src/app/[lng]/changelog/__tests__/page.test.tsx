@@ -7,9 +7,10 @@
  * hreflang alternates and an x-default are therefore load-bearing, not
  * decoration — and none of them shows up in a render test.
  *
- * Translations are the REAL ones: the page deliberately introduces no i18n key
- * of its own and reuses `faq.changelog.*`, so a test against a stubbed
- * translator would pass even if that reuse silently broke.
+ * Translations are the REAL ones: what a visitor reads reuses `faq.changelog.*`
+ * (one history, one wording), and the document title and description are the
+ * page's own `meta_title` / `meta_description` beside them, so a test against a
+ * stubbed translator would pass even if either silently broke.
  */
 
 import { screen } from '@testing-library/react';
@@ -85,12 +86,17 @@ describe('/changelog metadata', () => {
     expect(metadata.openGraph?.url).toBe(`${ORIGIN}/en/changelog`);
   });
 
-  it('titles and describes the page with the changelog wording already translated', async () => {
+  it('titles and describes the page with words a results page can show', async () => {
     const metadata = await generateMetadata(paramsFor('fr'));
 
-    // The reuse under test: no `changelog.meta.*` key was invented.
-    expect(metadata.title).toContain('Historique des versions');
-    expect(metadata.description).toBe('Évolutions fonctionnelles de LIA version par version');
+    // The heading and subtitle a visitor reads stay the changelog's own
+    // (`faq.changelog.title` / `.description`). The document title and
+    // description are the page's (`meta_title`, `meta_description`): the title
+    // names the page within a results line, the description says what it holds.
+    expect(metadata.title).toBe('Historique des versions — LIA, assistant IA open source');
+    expect(String(metadata.title).length).toBeLessThanOrEqual(65);
+    expect(metadata.description).toContain('Chaque version de LIA');
+    expect(metadata.description).not.toBe('Évolutions fonctionnelles de LIA version par version');
   });
 
   it('announces the sibling locales to social crawlers', async () => {

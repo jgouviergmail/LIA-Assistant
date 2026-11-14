@@ -24,6 +24,7 @@ import {
   TONE_REGISTERS,
   accentGesture,
   accentSparkles,
+  deliveryGesture,
   inferToneFromContent,
   parseToneAnnotation,
   toneAmplitude,
@@ -154,6 +155,39 @@ describe('accents', () => {
     expect(accentSparkles('sparkle')).toBe(true);
     expect(accentGesture('sparkle')).toBeNull();
     expect(accentSparkles('nod')).toBe(false);
+  });
+});
+
+describe('the delivery — how an answer is handed over', () => {
+  it('PRESENTS an answer whose model declared no accent, in its register family', () => {
+    // 94 % of the answers measured carry no accent: they used to land on a
+    // face that did nothing at all.
+    expect(deliveryGesture(REGISTER_EXPRESSIONS.factual, 'none')).toBe('present-factual');
+    expect(deliveryGesture(REGISTER_EXPRESSIONS.curious, 'none')).toBe('present-factual');
+    expect(deliveryGesture(REGISTER_EXPRESSIONS.assured, 'none')).toBe('present-assured');
+    expect(deliveryGesture(REGISTER_EXPRESSIONS.surprised, 'none')).toBe('present-assured');
+    expect(deliveryGesture(REGISTER_EXPRESSIONS.careful, 'none')).toBe('present-careful');
+    expect(deliveryGesture(REGISTER_EXPRESSIONS.questioning, 'none')).toBe('present-careful');
+    expect(deliveryGesture(REGISTER_EXPRESSIONS.warm, 'none')).toBe('present-warm');
+    expect(deliveryGesture(REGISTER_EXPRESSIONS.celebratory, 'none')).toBe('present-warm');
+    expect(deliveryGesture(REGISTER_EXPRESSIONS.apologetic, 'none')).toBe('present-soft');
+    expect(deliveryGesture(REGISTER_EXPRESSIONS.weary, 'none')).toBe('present-soft');
+  });
+
+  it('presents EVERY register, so no answer is ever handed over by a face that does nothing', () => {
+    for (const register of TONE_REGISTERS)
+      expect(deliveryGesture(REGISTER_EXPRESSIONS[register], 'none')).toMatch(/^present-/);
+  });
+
+  it('plays the accent the model DECLARED instead, and a sparkle stays an accessory', () => {
+    expect(deliveryGesture(REGISTER_EXPRESSIONS.factual, 'nod')).toBe('nod');
+    expect(deliveryGesture(REGISTER_EXPRESSIONS.careful, 'tilt')).toBe('consider');
+    expect(deliveryGesture(REGISTER_EXPRESSIONS.celebratory, 'sparkle')).toBeNull();
+  });
+
+  it('presents nothing for a face no register earns', () => {
+    expect(deliveryGesture('sleep', 'none')).toBeNull();
+    expect(deliveryGesture('speaking', 'none')).toBeNull();
   });
 });
 

@@ -16,14 +16,20 @@ import structlog
 
 from src.core.exceptions import ConnectorAPIError, ExternalServiceError
 from src.core.i18n_api_messages import APIMessages
-from src.core.time_utils import normalize_to_rfc3339
+from src.core.wall_time import WallTime
 from src.domains.connectors.clients.base_google_client import (
     BaseGoogleClient,
     apply_max_items_limit,
 )
 from src.domains.connectors.clients.calendar_answers import EventAnswer, NotInvitedError
 from src.domains.connectors.clients.calendar_options import EventOptions, google_options
-from src.domains.connectors.clients.normalizers.all_day import all_day_dates, is_all_day
+from src.domains.connectors.clients.event_bounds import (
+    BoundsChange,
+    DayBounds,
+    EventBounds,
+    TimedSides,
+)
+from src.domains.connectors.clients.normalizers.all_day import is_all_day
 from src.domains.connectors.clients.path_segments import path_segment
 from src.domains.connectors.clients.retry_policy import (
     CREATE_SETTLE_READS,
@@ -71,11 +77,10 @@ class GoogleCalendarClient(BaseGoogleClient):
 
     Example:
         >>> client = GoogleCalendarClient(user_id, credentials, connector_service)
+        >>> paris = ZoneInfo("Europe/Paris")
         >>> result = await client.create_event(
         ...     summary="Team Meeting",
-        ...     start_datetime="2025-01-15T10:00:00",
-        ...     end_datetime="2025-01-15T11:00:00",
-        ...     timezone="Europe/Paris",
+        ...     bounds=bounds_of("2025-01-15T10:00", "2025-01-15T11:00", paris, all_day=False),
         ... )
     """
 
@@ -107,16 +112,13 @@ class GoogleCalendarClient(BaseGoogleClient):
     async def create_event(
         self,
         summary: str,
-        start_datetime: str,
-        end_datetime: str,
-        timezone: str | None = None,
+        bounds: EventBounds,
         description: str | None = None,
         location: str | None = None,
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
         add_conference: bool = False,
         idempotency_key: str | None = None,
-        all_day: bool = False,
         options: EventOptions | None = None,
     ) -> dict[str, Any]:
         """
@@ -127,9 +129,8 @@ class GoogleCalendarClient(BaseGoogleClient):
 
         Args:
             summary: Event title/summary (required)
-            start_datetime: Start datetime in ISO format (required)
-            end_datetime: End datetime in ISO format (required)
-            timezone: IANA timezone (default: from settings or DEFAULT_TIMEZONE)
+            bounds: When it takes place: wall times in their zone, or days whose
+                end is exclusive (``event_bounds``, ADR-380)
             description: Event description (optional)
             location: Event location (optional)
             attendees: List of attendee email addresses (optional)
@@ -141,8 +142,6 @@ class GoogleCalendarClient(BaseGoogleClient):
             idempotency_key: The effect's key (ADR-263); the event's id is derived
                 from it, so a create whose answer was lost is found again by that id
                 rather than sent twice (S1). None: a key minted for this call.
-            all_day: The bounds are DATES, the end exclusive (``normalizers.all_day``):
-                an all-day event, the way the client reads one back (ADR-369).
 
         Returns:
             Created event data with event ID
@@ -150,26 +149,20 @@ class GoogleCalendarClient(BaseGoogleClient):
         Example:
             >>> result = await client.create_event(
             ...     summary="Team Meeting",
-            ...     start_datetime="2025-01-15T10:00:00",
-            ...     end_datetime="2025-01-15T11:00:00",
+            ...     bounds=bounds_of("2025-01-15T10:00", "2025-01-15T11:00", paris, all_day=False),
             ...     description="Weekly sync",
             ...     attendees=["alice@example.com", "bob@example.com"],
             ...     calendar_id="family_calendar_id",
             ... )
             >>> print(result["id"])  # "event_123..."
         """
-        # Use default timezone if not provided
-        from src.core.constants import DEFAULT_TIMEZONE
-
-        effective_timezone = timezone or DEFAULT_TIMEZONE
-
         # Build event body per Google Calendar API spec
         # https://developers.google.com/calendar/api/v3/reference/events/insert
         event_id = provider_idempotency_id(idempotency_key or uuid4().hex, "google")
         event_body: dict[str, Any] = {
             "id": event_id,
             "summary": summary,
-            **_event_bounds(start_datetime, end_datetime, effective_timezone, all_day=all_day),
+            **_event_bounds(bounds),
         }
 
         if description:
@@ -523,14 +516,11 @@ class GoogleCalendarClient(BaseGoogleClient):
         self,
         event_id: str,
         summary: str | None = None,
-        start_datetime: str | None = None,
-        end_datetime: str | None = None,
-        timezone: str | None = None,
+        bounds: BoundsChange | None = None,
         description: str | None = None,
         location: str | None = None,
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
-        all_day: bool | None = None,
         send_updates: str | None = None,
         add_conference: bool = False,
         options: EventOptions | None = None,
@@ -546,9 +536,9 @@ class GoogleCalendarClient(BaseGoogleClient):
         Args:
             event_id: Event ID to update
             summary: New event title/summary (optional)
-            start_datetime: New start datetime in ISO format (optional)
-            end_datetime: New end datetime in ISO format (optional)
-            timezone: IANA timezone for datetime fields (default: from settings or DEFAULT_TIMEZONE)
+            bounds: What changes of its bounds (``event_bounds``, ADR-380): a whole
+                new pair gives the event its shape, sides alone keep the shape it
+                has, None leaves its bounds as they are
             description: New event description (optional)
             location: New event location (optional)
             attendees: New list of attendee email addresses (optional)
@@ -567,19 +557,14 @@ class GoogleCalendarClient(BaseGoogleClient):
             ... )
             >>> print(result["summary"])
         """
-        # Use default timezone if not provided
-        from src.core.constants import DEFAULT_TIMEZONE
-
-        effective_timezone = timezone or DEFAULT_TIMEZONE
-
         # First, get the existing event to preserve unchanged fields
         existing_event = await self.get_event(event_id, calendar_id)
 
         # Build the update body: each value given replaces, an absent one is kept.
-        # An explicit ``all_day`` (ADR-369) switches the shape — both bounds given,
-        # the other half of each provider object CLEARED (a PATCH merges objects:
-        # a « date » left beside a new « dateTime » is refused). Otherwise the
-        # EXISTING shape is kept whatever format the caller produced.
+        # A whole pair of bounds gives the event its shape (ADR-369), the other
+        # half of each provider object CLEARED (a PATCH merges objects: a « date »
+        # left beside a new « dateTime » is refused). Sides alone keep the
+        # EXISTING shape.
         event_body: dict[str, Any] = {
             **_kept_fields(
                 existing_event,
@@ -589,9 +574,9 @@ class GoogleCalendarClient(BaseGoogleClient):
                 attendees=None if attendees is None else [{"email": e} for e in attendees],
             ),
             **(
-                _switched_bounds(start_datetime, end_datetime, effective_timezone, all_day)
-                if all_day is not None
-                else _kept_bounds(existing_event, start_datetime, end_datetime, effective_timezone)
+                _kept_bounds(existing_event, bounds or TimedSides())
+                if bounds is None or isinstance(bounds, TimedSides)
+                else _switched_bounds(bounds)
             ),
         }
 
@@ -841,17 +826,32 @@ _WINDOW_PAGE_SIZE = 250
 _WINDOW_MAX_PAGES = 40
 
 
-def _event_bounds(
-    start: str, end: str, timezone: str, *, all_day: bool
-) -> dict[str, dict[str, Any]]:
+def _zoned(moment: WallTime) -> dict[str, str]:
+    """A timed bound as Google reads it: the time on the wall, beside its zone.
+
+    Google's own contract: « a time zone offset is required unless a time zone is
+    explicitly specified in ``timeZone`` ». The wall time is sent WITHOUT one —
+    Google reads an offset before it reads the zone, so a wall time given a ``Z``
+    on the way is that hour in UTC, an hour late in Paris (production, 2026-11-12).
+
+    One exception, and it uses that very rule: an hour the zone's clocks skip or
+    show twice is not placed by the zone, so its offset is written and Google
+    reads the instant that is meant.
+    """
+    written = (
+        moment.iso() if moment.zone_suffices else moment.in_its_zone().isoformat(timespec="seconds")
+    )
+    return {"dateTime": written, "timeZone": moment.zone.key}
+
+
+def _event_bounds(bounds: EventBounds) -> dict[str, dict[str, Any]]:
     """A new event's ``start``/``end`` objects: dates (end exclusive) or zoned times."""
-    if all_day:
-        first, after_last = all_day_dates(start, end)
-        return {"start": {"date": first.isoformat()}, "end": {"date": after_last.isoformat()}}
-    return {
-        "start": {"dateTime": start, "timeZone": timezone},
-        "end": {"dateTime": end, "timeZone": timezone},
-    }
+    if isinstance(bounds, DayBounds):
+        return {
+            "start": {"date": bounds.first.isoformat()},
+            "end": {"date": bounds.after_last.isoformat()},
+        }
+    return {"start": _zoned(bounds.start), "end": _zoned(bounds.end)}
 
 
 def _conference_request() -> dict[str, Any]:
@@ -875,44 +875,32 @@ def _kept_fields(existing: dict[str, Any], **given: Any) -> dict[str, Any]:
     }
 
 
-def _kept_bounds(
-    existing: dict[str, Any], start: str | None, end: str | None, timezone: str
-) -> dict[str, Any]:
-    """An update's bounds in the EXISTING shape: an all-day event keeps dates."""
+def _kept_bounds(existing: dict[str, Any], sides: TimedSides) -> dict[str, Any]:
+    """An update's bounds in the EXISTING shape: a side left out is sent as it was read.
+
+    An all-day event keeps days: a side it is given names its day.
+    """
     keeps_dates = is_all_day(existing)
     bounds: dict[str, Any] = {}
-    for name, value in (("start", start), ("end", end)):
-        if value is None:
+    for name, side in (("start", sides.start), ("end", sides.end)):
+        if side is None:
             if name in existing:
                 bounds[name] = existing[name]
         elif keeps_dates:
-            bounds[name] = {"date": str(value).split("T")[0]}
+            bounds[name] = {"date": side.local.date().isoformat()}
         else:
-            bounds[name] = {"dateTime": normalize_to_rfc3339(value) or value, "timeZone": timezone}
+            bounds[name] = _zoned(side)
     return bounds
 
 
-def _switched_bounds(
-    start: str | None, end: str | None, timezone: str, all_day: bool
-) -> dict[str, dict[str, Any]]:
-    """The PATCH that turns an event all-day or timed, the other half cleared.
-
-    Raises:
-        ValueError: A bound is missing — a shape cannot change on one side only.
-    """
-    if start is None or end is None:
-        raise ValueError("Turning an event all-day or timed needs its new start and end.")
-    if all_day:
-        first, after_last = all_day_dates(start, end)
+def _switched_bounds(bounds: EventBounds) -> dict[str, dict[str, Any]]:
+    """The PATCH that gives an event its shape, the other half of each object cleared."""
+    if isinstance(bounds, DayBounds):
         return {
-            "start": {"date": first.isoformat(), "dateTime": None, "timeZone": None},
-            "end": {"date": after_last.isoformat(), "dateTime": None, "timeZone": None},
+            "start": {"date": bounds.first.isoformat(), "dateTime": None, "timeZone": None},
+            "end": {"date": bounds.after_last.isoformat(), "dateTime": None, "timeZone": None},
         }
     return {
-        "start": {
-            "date": None,
-            "dateTime": normalize_to_rfc3339(start) or start,
-            "timeZone": timezone,
-        },
-        "end": {"date": None, "dateTime": normalize_to_rfc3339(end) or end, "timeZone": timezone},
+        "start": {"date": None, **_zoned(bounds.start)},
+        "end": {"date": None, **_zoned(bounds.end)},
     }

@@ -1,0 +1,68 @@
+{
+  "doc_types": [
+    "pptx"
+  ],
+  "language": "en",
+  "pictures": "synthetic",
+  "content": {
+    "filename_stem": "harbour-renewal",
+    "title": "Renewing the old harbour",
+    "subtitle": "Town council, spring session",
+    "tone": "sober",
+    "delivery": "presented",
+    "illustration": {
+      "subject": "an old harbour at dawn with fishing boats",
+      "alt": "The old harbour at dawn"
+    },
+    "image_style": "soft watercolour, muted blues and ochres",
+    "slides": [
+      {
+        "title": "Where we stand",
+        "kind": "section",
+        "subtitle": "The harbour today",
+        "illustration": {
+          "subject": "a weathered quay with stacked crates",
+          "alt": "A weathered quay"
+        }
+      },
+      {
+        "title": "Three problems hold the harbour back",
+        "bullets": [
+          "Quays crumbling after forty winters",
+          "No shelter for visitors arriving by sea",
+          "Fishing and leisure boats sharing one basin"
+        ],
+        "illustration": {
+          "subject": "a cracked stone quay wall lapped by waves",
+          "alt": "A cracked quay wall"
+        },
+        "notes": "Each problem has a cost we measured last year."
+      },
+      {
+        "title": "What residents asked for",
+        "bullets": [
+          "A promenade along the north quay that stays open all year round, with benches and lighting",
+          "A covered market hall for the morning fish auction and the weekend producers",
+          "Separate moorings for fishing boats and for leisure sailing, with a clear channel",
+          "Safe walking routes between the old town and the waterfront, day and night",
+          "A small museum telling the story of the harbour and its families",
+          "Public toilets and drinking water near the ferry landing",
+          "Bicycle parking and a shuttle stop at the harbour entrance",
+          "Trees and shade on the south quay for the summer months",
+          "A calendar of events shared by every association on the waterfront"
+        ],
+        "illustration": {
+          "subject": "townspeople walking along a harbour promenade",
+          "alt": "People on a promenade"
+        }
+      },
+      {
+        "title": "A picture says it",
+        "illustration": {
+          "subject": "a harbour market hall with a glass roof",
+          "alt": "A market hall"
+        }
+      }
+    ]
+  }
+}

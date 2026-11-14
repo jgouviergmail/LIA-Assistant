@@ -174,6 +174,29 @@ describe('MCPServersSettings — connection test', () => {
     await user.click(screen.getByRole('button', { name: TEST }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('settings.mcp.test_failed'));
   });
+
+  it('points at the authorization when an OAuth server awaits it, not at the technical text', async () => {
+    const testConnection = vi.fn().mockResolvedValue({
+      success: false,
+      tool_count: 0,
+      tools: [],
+      error: 'OAuth authorization required',
+      error_code: 'oauth_authorization_required',
+      domain_description: null,
+    });
+    useUserMCPServers.mockReturnValue(
+      hook({ servers: [server({ auth_type: 'oauth2', status: 'error' })], testConnection })
+    );
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: TEST }));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('settings.mcp.test_oauth_required')
+    );
+    // The result the test opens says the same, never the server's technical English.
+    const results = await screen.findByRole('dialog');
+    expect(results).toHaveTextContent('settings.mcp.test_oauth_required');
+    expect(results).not.toHaveTextContent('OAuth authorization required');
+  });
 });
 
 describe('MCPServersSettings — deletion', () => {
@@ -358,6 +381,29 @@ describe('MCPServersSettings — the server cards', () => {
     await user.click(screen.getByRole('button', { name: 'settings.mcp.connect_oauth' }));
 
     expect(initiateOAuth).toHaveBeenCalledWith('s1');
+  });
+
+  it('offers the authorization to an OAuth server left in error, its one way back', async () => {
+    // 2026-11-13: a server switched to OAuth by an edit went to `error` on its first
+    // test, and with no connect action its owner could only delete it.
+    const initiateOAuth = vi.fn().mockResolvedValue(undefined);
+    useUserMCPServers.mockReturnValue(
+      hook({ servers: [server({ auth_type: 'oauth2', status: 'error' })], initiateOAuth })
+    );
+    const { user } = render();
+
+    await user.click(screen.getByRole('button', { name: 'settings.mcp.connect_oauth' }));
+
+    expect(initiateOAuth).toHaveBeenCalledWith('s1');
+    expect(screen.queryByRole('button', { name: 'settings.mcp.disconnect_oauth' })).toBeNull();
+  });
+
+  it('offers no authorization to a server that does not use OAuth, even in error', () => {
+    useUserMCPServers.mockReturnValue(
+      hook({ servers: [server({ auth_type: 'api_key', status: 'error' })] })
+    );
+    render();
+    expect(screen.queryByRole('button', { name: 'settings.mcp.connect_oauth' })).toBeNull();
   });
 
   describe('a description longer than its clamp', () => {

@@ -21,6 +21,7 @@ import pytest
 from langchain.tools import ToolRuntime
 
 from src.core.exceptions import AuthorizationError, ValidationError
+from src.domains.skills.proposal_errors import ProposalCapacityReached
 from src.domains.skills.proposals import SkillProposal
 from src.domains.skills.tools import _coerce_files, import_user_skill
 from tests.helpers.runtime_context import make_tool_runtime
@@ -28,6 +29,7 @@ from tests.helpers.runtime_context import make_tool_runtime
 pytestmark = pytest.mark.unit
 
 _USER = uuid4()
+_RUNTIME = uuid4()
 
 
 class TestCoerceFiles:
@@ -86,6 +88,8 @@ def _runtime(conversation_id: str = "thread-123") -> ToolRuntime:
         user_id=_USER if isinstance(_USER, UUID) else UUID(str(_USER)),
         thread_id="thread-123",
         conversation_id=conversation_id,
+        runtime_id=_RUNTIME if conversation_id else None,
+        conversation_revision=3 if conversation_id else None,
         store=MagicMock(),
     )
 
@@ -106,6 +110,24 @@ def _proposal() -> SkillProposal:
 
 
 class TestImportUserSkillTool:
+    async def test_protected_proposal_capacity_is_not_an_installed_skill_quota(self) -> None:
+        with (
+            patch(
+                "src.core.config.get_settings",
+                return_value=MagicMock(skills_chat_import_enabled=True),
+            ),
+            patch(
+                "src.domains.skills.proposal_service.propose",
+                AsyncMock(side_effect=ProposalCapacityReached()),
+            ),
+        ):
+            result = await import_user_skill.coroutine(
+                files={"SKILL.md": _VALID_SKILL_MD}, runtime=_runtime()
+            )
+        assert not result.success and result.error_code == "RATE_LIMIT_EXCEEDED"
+        assert "Nothing was proposed" in result.message
+        assert "installations" in result.message
+
     @pytest.mark.parametrize("code", ["CAPABILITY_DISABLED", "FORBIDDEN"])
     async def test_current_authority_refusal_is_finite_and_never_leaks_diagnostics(self, code):
         settings = MagicMock(skills_chat_import_enabled=True)
@@ -150,7 +172,7 @@ class TestImportUserSkillTool:
         assert "NOTHING is installed" in result.message
         assert "never say the skill is installed" in result.message
         propose.assert_awaited_once_with(
-            {"SKILL.md": _VALID_SKILL_MD}, owner_id=_USER, conversation_id="thread-123"
+            {"SKILL.md": _VALID_SKILL_MD}, owner_id=_USER, runtime_id=_RUNTIME
         )
 
     @pytest.mark.asyncio

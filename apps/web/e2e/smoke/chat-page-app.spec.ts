@@ -12,8 +12,9 @@
  *    time the conversation opens.
  * 2. The click hands it the keyboard, and the code is a second view of one running
  *    page, whose Copy gives the page as written.
- * 3. Nothing leaves: no request, no parent, no WebRTC, no popup, no navigation. What
- *    the runtime gives works, and a failure is told as text.
+ * 3. Nothing leaves but the request for a map tile of an allowed source: no other
+ *    request, no parent, no WebRTC, no popup, no navigation. What the runtime gives
+ *    works, a failure is told as text, and what the policy left out is said in words.
  * 4. The frame follows its page, within the bound, from a phone to a desktop.
  * 5. The answer around it: a code block keeps every line, and a person's words stay
  *    words (the two defects that opened this work, 2026-11-04).
@@ -81,20 +82,48 @@ const PROBES = pageOf(
     'document.getElementById("verdict").textContent=JSON.stringify(out)})();</script>'
 );
 
+/** A map tile source the default deployment allows: the prefix names its origin. */
+const TILE_ORIGIN = 'https://a.tile.openstreetmap.fr';
+/** An image the application serves itself, and its width. */
+const STAND_IN_IMAGE = { path: '/icon-192.png', width: 192 };
+
+/** An embedded map, as a page written before the check refused them holds one. */
+const EMBEDDING = pageOf(
+  '',
+  '<p id="words">Places</p><iframe title="Map" src="https://maps.exfil.example/embed?q=x"></iframe>'
+);
+
+/** One image of a source the policy names, one of a host nobody allowed, then the verdict. */
+const tilesPage = (namedOrigin: string): string =>
+  pageOf(
+    '',
+    `<img id="tile" alt="" src="${namedOrigin}${STAND_IN_IMAGE.path}">` +
+      '<img id="other" alt="" src="https://tiles.exfil.example/3/4/2.png"><pre id="verdict"></pre>' +
+      '<script>(function(){var out={},left=2;' +
+      'function done(){left-=1;if(left===0)document.getElementById("verdict").textContent=JSON.stringify(out)}' +
+      '["tile","other"].forEach(function(id){var i=document.getElementById(id);' +
+      'function end(){out[id]=i.naturalWidth;done()}' +
+      'if(i.complete){end()}else{i.addEventListener("load",end);i.addEventListener("error",end)}})})();</script>'
+  );
+
 const LEAVING = pageOf('', '<script>location.href="https://exfil.example/navigation";</script>');
 const FAILING = pageOf('', '<p>x</p><script>throw new Error("boom in the page");</script>');
 const tall = (height: number): string =>
   pageOf(`<style>body{margin:0}main{height:${height}px}</style>`, '<main>Tall</main>');
 
-function pageItem(source: string, view: 'page' | 'code' = 'page'): Record<string, unknown> {
+function pageItem(
+  source: string,
+  view: 'page' | 'code' = 'page',
+  prefix: string = PREFIX
+): Record<string, unknown> {
   return {
     id: PAGE_ID,
     type: 'PAGE_APP',
     payload: {
       _registry_id: PAGE_ID,
       title: 'Counter',
-      html_content: PREFIX + source,
-      source_offset: PREFIX.length,
+      html_content: prefix + source,
+      source_offset: prefix.length,
       initial_view: view,
     },
     meta: { source: 'interactive_page', timestamp: '2026-11-05T09:00:00Z' },
@@ -128,12 +157,16 @@ function historyPage(messages: Record<string, unknown>[]): Record<string, unknow
 }
 
 /** A conversation holding one answer, as `GET /conversations/me/messages` serves it. */
-function historyRoutes(source: string, view: 'page' | 'code' = 'page'): MockRoute[] {
+function historyRoutes(
+  source: string,
+  view: 'page' | 'code' = 'page',
+  prefix: string = PREFIX
+): MockRoute[] {
   return [
     ...chatRoutes([]),
     {
       url: '**/api/v1/conversations/me/messages*',
-      json: historyPage([row(ANSWER, { [PAGE_ID]: pageItem(source, view) })]),
+      json: historyPage([row(ANSWER, { [PAGE_ID]: pageItem(source, view, prefix) })]),
     },
   ];
 }
@@ -470,6 +503,82 @@ test.describe('an interactive page in the chat (ADR-370)', () => {
     await expect(notice).toContainText(en.page_apps.failed);
     // WebKit withholds what a sandboxed script threw: « Script error. ».
     if (browserName !== 'webkit') await expect(notice).toContainText('boom in the page');
+  });
+
+  test('says in words what its policy left out of the page', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    const refusals: string[] = [];
+    page.on('console', line => {
+      if (line.text().includes('maps.exfil.example')) refusals.push(line.text());
+    });
+    await authenticate();
+    await mockApi(historyRoutes(EMBEDDING));
+    await openChat(page);
+    await page.getByRole('button', { name: en.page_apps.start }).click();
+
+    // The page runs, with a blank where its map was meant: the widget says why.
+    await expect(page.frameLocator(FRAME).locator('#words')).toHaveText('Places');
+    await expect(page.locator('.lia-page-app-widget__notice')).toHaveText(
+      en.page_apps.blocked_frame
+    );
+    // The engine's own refusal is the proof that the notice tells a real one.
+    expect(refusals.some(line => line.includes('frame-src'))).toBe(true);
+  });
+
+  test('loads the images of a map source its policy names, and no other', async ({
+    page,
+    authenticate,
+    mockApi,
+    baseURL,
+    apiNetworkGuard,
+  }) => {
+    // The prefix a default deployment composes names real tile hosts, which a hermetic
+    // journey cannot reach. The same policy runs here with this server standing in for
+    // the first of them: what an engine does with a named origin is what is proved.
+    expect(PREFIX).toContain(`img-src data: blob: ${TILE_ORIGIN}`);
+    const standIn = new URL(baseURL ?? '').origin;
+    const prefix = PREFIX.replace(TILE_ORIGIN, standIn);
+    expect(prefix).toContain(`img-src data: blob: ${standIn}`);
+
+    await authenticate();
+    await mockApi(historyRoutes(tilesPage(standIn), 'page', prefix));
+    await openChat(page);
+    await page.getByRole('button', { name: en.page_apps.start }).click();
+
+    const verdict = page.frameLocator(FRAME).locator('#verdict');
+    await expect(verdict).not.toHaveText('');
+    expect(JSON.parse((await verdict.textContent()) ?? '{}')).toEqual({
+      tile: STAND_IN_IMAGE.width,
+      other: 0,
+    });
+    await expect(page.locator('.lia-page-app-widget__notice')).toHaveText(
+      en.page_apps.blocked_image
+    );
+    expect(apiNetworkGuard.blockedRequests.filter(line => line.includes('exfil.example'))).toEqual(
+      []
+    );
+  });
+
+  test('loads no image of that source under a policy that does not name it', async ({
+    page,
+    authenticate,
+    mockApi,
+    baseURL,
+  }) => {
+    // The control of the journey above: the same page, the default prefix. Without it,
+    // an engine that loaded every image would pass.
+    const standIn = new URL(baseURL ?? '').origin;
+    await authenticate();
+    await mockApi(historyRoutes(tilesPage(standIn)));
+    await openChat(page);
+    await page.getByRole('button', { name: en.page_apps.start }).click();
+
+    const verdict = page.frameLocator(FRAME).locator('#verdict');
+    await expect(verdict).not.toHaveText('');
+    expect(JSON.parse((await verdict.textContent()) ?? '{}')).toEqual({ tile: 0, other: 0 });
   });
 
   for (const sample of [

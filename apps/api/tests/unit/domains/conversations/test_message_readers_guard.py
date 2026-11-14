@@ -91,14 +91,14 @@ class TestEveryReaderIsDeclared:
         assert not stale, f"declared readers that read nothing: {sorted(stale)}"
 
     def test_every_declaration_carries_a_reason(self) -> None:
-        for module, (_scope, reason) in MESSAGE_READERS.items():
-            assert reason.strip(), module
+        for module, declaration in MESSAGE_READERS.items():
+            assert declaration.reason.strip(), module
 
 
 class TestVisibleOnlyMeansVisibleOnly:
     @pytest.mark.parametrize(
         "module",
-        [m for m, (scope, _) in MESSAGE_READERS.items() if scope is ReadScope.VISIBLE_ONLY],
+        [m for m, spec in MESSAGE_READERS.items() if spec.visibility is ReadScope.VISIBLE_ONLY],
     )
     def test_the_statement_excludes_a_runs_rows(self, module: str) -> None:
         """The declaration is a claim; the source is where it is checked."""

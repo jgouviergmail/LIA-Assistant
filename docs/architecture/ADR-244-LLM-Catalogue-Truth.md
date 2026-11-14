@@ -439,3 +439,49 @@ every slot of a fresh install runs on a model with an active tariff:
 `test_the_configuration_seed_names_only_slots_that_exist` and
 `test_every_slot_of_a_fresh_install_runs_on_a_priced_model` refuse the orphan row and the model
 counted at zero.
+
+## Amendment 2026-11-11 — a row that existed before its declaration kept what it had
+
+Every door that writes a catalogue row — the seed bundle and the migrations that carry it — inserts
+the row only where the model is unknown. Reading production against the bundle found the two rows
+that rule left behind, on every instance or on production alone:
+
+- `gemini-2.5-flash-native-audio-preview-09-2025`, a speech-to-speech model, kept the `audio` kind of
+  its first row. The transcription slot requires that kind, so the slot offered a model that cannot
+  transcribe; the `realtime` kind [ADR-300](ADR-300-A-Second-Live-Provider-One-Seam-Two-Wires.md)
+  declared, required by no slot, never reached it.
+- `deepseek-flash` declared neither its ladder nor its documentation key where an administrator had
+  created the row by hand before its migration. An undeclared ladder already resolved to the
+  family's, so the row said nothing wrong — and nothing at all.
+
+Migration `43891b5db14c` moves the kind where the row still carries `audio` and fills each empty
+field (SQL NULL, or the JSON null a hand-made row holds): a kind, a ladder or a key an administrator
+chose stands, and nothing is undone on downgrade — the previous state was a defect, not a version of
+the data. `test_two_catalogue_rows_alignment_migration_guard.py` holds the values to the seed and the
+reason to the slot registry; the statements run on a real PostgreSQL in
+`tests/integration/test_two_catalogue_rows_alignment_migration.py`.
+
+## Amendment 2026-11-11 (b) — the summarizer names no model, and three rows leave
+
+**The history summarizer writes with the `compaction` slot.** `SUMMARIZATION_MODEL` was the last
+model a turn could call that no administration screen showed: a setting, built outside the factory
+with the OpenAI key. This ADR had already retargeted its default once, weeks before the model it
+named retired; the installer moving to another pair of required providers showed the rest — an
+installation holding no OpenAI key could not summarize an agent's history. « Context Compaction » is
+the slot where the model that compresses a history is chosen (owner decision).
+`SlotSummarizationMiddleware` (`infrastructure/llm/slot_summarization.py`) asks the factory for it at
+EACH summary: the generic agents are built once per process, so a model held from their construction
+would keep answering after an administrator moved the slot. The library wraps its model in a retry
+that relaunches on any failure — three attempts measured on one timeout; the slot's client carries
+the one policy of [ADR-221](ADR-221-Timeout-Par-Emplacement-Applique.md), and that wrapper is not
+kept. The setting, its default and its template lines are gone; `b1c2d3e4f5a6`, which read the
+constant to list the models a deployment references, reads the slots alone.
+`test_summarization_follows_the_compaction_slot.py` holds the slot, the call-time resolution and the
+single attempt.
+
+**Three rows leave with the slots this ADR removed.** `router`, `context_resolver` and
+`mcp_excalidraw` left the reference seed here and no migration followed: an instance seeded earlier
+kept them, production and the development instance among them. Migration `27fc835b8d44` removes them
+by name; `test_orphan_slot_rows_migration_guard.py` holds each name absent from the registry, the
+code defaults, the factory's vocabulary and the seed, and the statement runs on a real PostgreSQL in
+`tests/integration/domains/llm_config/test_retire_orphan_slot_rows_migration_pg.py`.

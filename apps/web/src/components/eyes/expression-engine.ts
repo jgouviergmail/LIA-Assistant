@@ -16,6 +16,7 @@
 import type { ActivityFamily } from './activity';
 import type { MoodLabel } from '@/types/psyche';
 import type { VoiceModeState } from '@/stores/voiceModeStore';
+import type { GazeTarget } from './gaze-target';
 
 // =============================================================================
 // Vocabulary
@@ -70,6 +71,14 @@ export interface ExpressionFrame {
   expression: EyeExpression;
   /** Directed gaze, or null to leave the gaze to the idle drift/parallax. */
   gaze: Gaze | null;
+  /**
+   * The THING the face looks at, when it looks at one. The engine names it
+   * and never says where it is: that depends on where the person parked the
+   * face, and only the screen knows (`gaze-target.ts`). A frame that names a
+   * target is held on it — no wander, no cursor — and its `gaze`, when it
+   * has one, is the direction it looks in while the screen declares none.
+   */
+  target?: GazeTarget;
 }
 const SLEEP_EXPRESSIONS: ReadonlySet<EyeExpression> = new Set(['tired', 'sleepy', 'sleep']);
 /** Shared sleep policy for native DOM and Canvas hosts. */
@@ -141,12 +150,14 @@ export const NOTIFICATION_PING_MS = 2500;
 export const TYPING_ACTIVE_MS = 1800;
 
 // =============================================================================
-// Directed gazes (scene geography: input below, toasts top-right)
+// Directed gazes: where a target is looked for when the screen declares none
+// (the field below the thread, the toaster at the top centre), and the look
+// of a thought, which has no target.
 // =============================================================================
 
 const GAZE_INPUT: Gaze = { x: 0, y: 1 };
 const GAZE_THINKING: Gaze = { x: -0.25, y: -0.3 };
-const GAZE_TOAST: Gaze = { x: 1, y: -1 };
+const GAZE_TOAST: Gaze = { x: 0, y: -1 };
 
 // =============================================================================
 // Main derivation
@@ -161,7 +172,8 @@ function streamingExpression(inputs: ExpressionInputs): ExpressionFrame {
     }
     return { expression: 'thinking', gaze: GAZE_THINKING };
   }
-  return { expression: 'attentive', gaze: null };
+  // The answer is being written: the face follows it.
+  return { expression: 'attentive', gaze: null, target: 'answer' };
 }
 
 const ACTIVITY_EXPRESSIONS: Record<ActivityFamily, EyeExpression> = {
@@ -213,7 +225,7 @@ export function deriveExpression(inputs: ExpressionInputs): ExpressionFrame {
     return { expression: 'speaking', gaze: null };
   }
   if (inputs.chatStatus === 'sending') {
-    return { expression: 'attentive', gaze: GAZE_INPUT };
+    return { expression: 'attentive', gaze: GAZE_INPUT, target: 'input' };
   }
   if (inputs.chatStatus === 'compacting') {
     return { expression: 'focused', gaze: null };
@@ -225,10 +237,10 @@ export function deriveExpression(inputs: ExpressionInputs): ExpressionFrame {
     return { expression: inputs.reaction, gaze: null };
   }
   if (inputs.notificationPing) {
-    return { expression: 'surprise', gaze: GAZE_TOAST };
+    return { expression: 'surprise', gaze: GAZE_TOAST, target: 'notification' };
   }
   if (inputs.userTyping) {
-    return { expression: 'attentive', gaze: GAZE_INPUT };
+    return { expression: 'attentive', gaze: GAZE_INPUT, target: 'input' };
   }
   if (inputs.inactivityStage === 3) {
     return { expression: 'sleep', gaze: null };
@@ -433,6 +445,17 @@ export function isDoubleBlink(rng: Rng): boolean {
 export const IDLE_GESTURE_MIN_DELAY_MS = 1900;
 export const IDLE_GESTURE_MAX_DELAY_MS = 5600;
 
+/** How a delivered answer is handed over, one family per kind of « voilà »
+ * (`tone.ts` maps every register to one; `rig/delivery.ts` plays them). */
+export const PRESENTATION_GESTURES = [
+  'present-factual',
+  'present-assured',
+  'present-careful',
+  'present-warm',
+  'present-soft',
+] as const;
+export type PresentationGesture = (typeof PRESENTATION_GESTURES)[number];
+
 /** Quiet spontaneous beats plus host-only conversational accents. */
 export type IdleGesture =
   | 'saccade'
@@ -447,7 +470,17 @@ export type IdleGesture =
   | 'brow-twitch'
   | 'flicker'
   | 'nod' // explicit acknowledgement; never selected by idle life
-  | 'consider'; // explicit thoughtful inclination; never selected by idle life
+  | 'consider' // explicit thoughtful inclination; never selected by idle life
+  | PresentationGesture // an answer handed over; never selected by idle life
+  | 'listen'; // « à toi », after a presentation; never selected by idle life
+
+const PRESENTATIONS: ReadonlySet<IdleGesture | null> = new Set(PRESENTATION_GESTURES);
+
+/** Whether a gesture is the presentation of an answer: the one door the rig
+ * (which plays it) and the host (which hands the answer over after it) ask. */
+export function isPresentationGesture(gesture: IdleGesture | null): gesture is PresentationGesture {
+  return PRESENTATIONS.has(gesture);
+}
 
 /** Expressions that run the idle-life loop at all. */
 export const IDLE_LIFE_EXPRESSIONS: ReadonlySet<EyeExpression> = new Set([
@@ -558,6 +591,14 @@ export const GESTURE_DURATION_MS: Record<
   'lip-press': 420,
   'corner-tug': 640,
   'brow-twitch': 560,
+  // An answer is handed over in one performance: a look at it, an open hand,
+  // then the register's own « voilà » (`rig/delivery.ts`).
+  'present-factual': 3400,
+  'present-assured': 3400,
+  'present-careful': 3400,
+  'present-warm': 3400,
+  'present-soft': 3400,
+  listen: 4000,
 };
 
 /** Gaze travel times: a saccade is quick (but readable), a glance sweeps. */
@@ -619,6 +660,21 @@ const EXPRESSION_EMOTES: Partial<Record<EyeExpression, string>> = {
 /** Floating glyph for an expression, or null when the eyes speak alone. */
 export function emoteForExpression(expression: EyeExpression): string | null {
   return EXPRESSION_EMOTES[expression] ?? null;
+}
+
+/**
+ * The glyph a frame wears, knowing the answer the face is holding, if any.
+ *
+ * The thought bubble says « I am working on it ». Floated over a careful
+ * answer already delivered, it said the opposite of the truth: the work is
+ * done, the face is only careful about what it handed over.
+ */
+export function frameEmote(
+  expression: EyeExpression,
+  delivered: EyeExpression | null
+): string | null {
+  if (expression === 'thinking' && delivered === 'thinking') return null;
+  return emoteForExpression(expression);
 }
 
 /**
@@ -852,36 +908,6 @@ export function moodShiftPerformance(
   if (delta > 0) return MOOD_SHIFT_RISE_PERFORMANCE;
   if (delta < 0) return MOOD_SHIFT_FALL_PERFORMANCE;
   return null;
-}
-
-// =============================================================================
-// Reading pattern — the eyes "write" their streaming answer
-// =============================================================================
-
-/**
- * While the answer streams, the gaze walks a reading line (left to right in
- * small steps, quick carriage return) instead of random saccades — the most
- * watched moment of the widget gets its own choreography. The line sits
- * slightly UP: new text lands above the input-docked widget.
- */
-const READING_LINE: readonly Gaze[] = [
-  { x: -0.55, y: -0.35 },
-  { x: -0.18, y: -0.35 },
-  { x: 0.2, y: -0.35 },
-  { x: 0.58, y: -0.35 },
-];
-export const READING_STEP_MS = 340;
-export const READING_MOVE_MS = 120;
-export const READING_RETURN_MS = 180;
-
-/** Gaze move for reading beat `step` (cycles the line; step 0 is the quick
- * carriage return to line start). */
-export function readingGazeAt(step: number): { gaze: Gaze; ms: number } {
-  const index = ((step % READING_LINE.length) + READING_LINE.length) % READING_LINE.length;
-  return {
-    gaze: READING_LINE[index],
-    ms: index === 0 ? READING_RETURN_MS : READING_MOVE_MS,
-  };
 }
 
 // =============================================================================

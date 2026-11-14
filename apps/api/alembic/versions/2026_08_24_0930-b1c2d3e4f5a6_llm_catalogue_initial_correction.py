@@ -71,7 +71,7 @@ _MISSING_ROW = sa.text(
 
 def _referenced_models(bind: sa.engine.Connection) -> frozenset[str]:
     """Every model name something in this deployment points at."""
-    from src.core.constants import FALLBACK_MODELS_DEFAULT, SUMMARIZATION_MODEL_DEFAULT
+    from src.core.constants import FALLBACK_MODELS_DEFAULT
     from src.domains.llm_config.constants import LLM_DEFAULTS
 
     rows = bind.execute(
@@ -79,7 +79,8 @@ def _referenced_models(bind: sa.engine.Connection) -> frozenset[str]:
     ).fetchall()
     names = {row[0] for row in rows}
     names.update(config.model for config in LLM_DEFAULTS.values() if config.model)
-    names.add(SUMMARIZATION_MODEL_DEFAULT)
+    # The summarizer's own model constant was added here until 2026-11-11: it
+    # now writes with the ``compaction`` slot, which the two sources above cover.
     names.update(part.strip() for part in FALLBACK_MODELS_DEFAULT.split(",") if part.strip())
     return frozenset(names)
 

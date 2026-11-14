@@ -32,6 +32,15 @@ test.describe('public SEO and translated reading journeys', () => {
       await awaitStyledPage(page, `${language} public introduction`);
       await expect(page.locator('html')).toHaveAttribute('lang', language);
       await expect(page).toHaveTitle(catalogue.landing.home_meta.title);
+      // The canonical URL and the alternates name addresses that answer: a
+      // prefixed home carries no trailing slash, the form the server redirects.
+      // The unprefixed home is the bare origin, which a browser writes with or
+      // without its slash; a prefixed one ends on its language, nothing after.
+      await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+        'href',
+        prefix ? new RegExp(`${prefix}$`) : /^(https?:\/\/[^/]+)?\/?$/
+      );
+      await expect(page.locator('link[rel="alternate"][hreflang]')).toHaveCount(7);
       await expect(page.locator('main h1')).toHaveCount(1);
       await expect(
         page.getByText(catalogue.landing.hero.subtitle_top, { exact: true })

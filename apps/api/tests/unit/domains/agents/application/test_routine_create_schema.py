@@ -94,3 +94,47 @@ def test_creation_preview_keeps_all_configuration_and_editor_cannot_choose_ident
     prompt = build_application_edit_prompt(content, "Change title")
     assert str(identity) not in str(prompt)
     assert "user_timezone" not in str(prompt)
+
+
+def _creation_lines(language: str, configuration: dict[str, object]) -> str:
+    identity = uuid4()
+    patch = RoutineCreatePatch(
+        routine_to_create=RoutineCreationValues(
+            id=identity,
+            user_timezone="Europe/Paris",
+            configuration=RoutineCreateRequest.model_validate(configuration),
+        )
+    )
+    content = build_action_content(
+        uuid4(),
+        ROUTINE_CREATE_OPERATION,
+        patch,
+        {"routine_to_create": None},
+        patch.model_dump(mode="json", exclude_unset=True),
+        command_id=identity,
+    ).model_dump(mode="json")
+    return str(
+        render_application_preview(content, DRAFT_PREVIEW_LABELS[language], lambda v: v or "")
+    )
+
+
+@pytest.mark.parametrize("language", ["fr", "en", "es", "de", "it", "zh-CN"])
+def test_a_routine_on_calls_says_where_its_secret_is_drawn(language: str) -> None:
+    """ADR-386: the secret never reaches the chat, so the card says where to draw it."""
+    note = DRAFT_PREVIEW_LABELS[language]["application_routine_webhook_note"]
+
+    on_calls = _creation_lines(
+        language, {"title": "Door", "action_prompt": "Who rang", "trigger_kind": "webhook"}
+    )
+    on_condition = _creation_lines(
+        language,
+        {
+            "title": "Inbox",
+            "action_prompt": "Summarize receipts",
+            "trigger_kind": "condition",
+            "condition_config": {"type": "mail_match", "query": "receipt"},
+        },
+    )
+
+    assert note and note in on_calls
+    assert note not in on_condition

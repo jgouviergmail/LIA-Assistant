@@ -31,6 +31,8 @@ from scripts.data.verify_installation import (
     render_json,
     verify_installation,
 )
+from src.domains.llm_config.constants import LLM_DEFAULTS
+from src.domains.llm_config.install_contract import CURRENT_CORE_PROVIDER_IDS
 
 pytestmark = pytest.mark.unit
 
@@ -41,16 +43,17 @@ KEY_CANARY = "sk-DECRYPTED-CANARY-77aa"
 #: The thresholds mirror ``verify_reference_seeds.sql`` and are pinned to it
 #: by ``test_reference_counts_mirror_guard`` — this fixture follows them.
 GREEN_COUNTS = (14, 84, 18, 27, 139, 39, 124)
-# What a really-seeded database contains for the core (B10-bis): every
-# qwen CODE default is overridden to deepseek; router is seeded NULL.
+# What a really-seeded database contains for the core (B10-bis): the seed names
+# the provider of every core slot; image_generation is seeded with none.
 GREEN_OVERRIDES = [
-    ("planner", "deepseek"),
-    ("query_analyzer", "deepseek"),
-    ("query_agent", "deepseek"),
-    ("semantic_validator", "deepseek"),
+    ("planner", "anthropic"),
+    ("query_analyzer", "anthropic"),
+    ("query_agent", "anthropic"),
+    ("semantic_validator", "anthropic"),
+    ("hitl_classifier", "anthropic"),
     ("response", "deepseek"),
     ("react_agent", "deepseek"),
-    ("router", None),
+    ("image_generation", None),
 ]
 
 
@@ -99,7 +102,9 @@ def _db(
             "AS personalities": _rows([counts]),
             "FROM users": _rows(admin_rows if admin_rows is not None else [(True, True, True)]),
             "FROM provider_api_keys": _rows(
-                key_rows if key_rows is not None else [("openai", "enc-a"), ("deepseek", "enc-b")]
+                key_rows
+                if key_rows is not None
+                else [("anthropic", "enc-a"), ("deepseek", "enc-b")]
             ),
             "SELECT llm_type, provider FROM llm_config_overrides": _rows(
                 override_rows if override_rows is not None else GREEN_OVERRIDES
@@ -255,7 +260,7 @@ async def test_admin_flag_failure_names_the_missing_flags() -> None:
 
 
 async def test_missing_provider_row_is_reported_without_values() -> None:
-    result = _by_name(await _run(_db(key_rows=[("openai", "enc-a")])), CheckName.PROVIDER_KEYS)
+    result = _by_name(await _run(_db(key_rows=[("anthropic", "enc-a")])), CheckName.PROVIDER_KEYS)
     assert not result.passed
     assert result.code == "provider_keys_missing"
     assert "deepseek" in result.detail
@@ -290,11 +295,11 @@ async def test_empty_decrypted_key_counts_as_undecryptable() -> None:
 
 
 async def test_out_of_set_core_slot_fails_coverage() -> None:
-    rows = [("planner", "anthropic"), *GREEN_OVERRIDES[1:]]
+    rows = [("planner", "openai"), *GREEN_OVERRIDES[1:]]
     result = _by_name(await _run(_db(override_rows=rows)), CheckName.PROVIDER_COVERAGE)
     assert not result.passed
     assert result.code == "provider_coverage"
-    assert result.detail == "planner=anthropic"
+    assert result.detail == "planner=openai"
 
 
 async def test_qwen_code_default_without_its_seed_override_fails_coverage() -> None:
@@ -305,8 +310,23 @@ async def test_qwen_code_default_without_its_seed_override_fails_coverage() -> N
     assert "=qwen" in result.detail
 
 
-async def test_null_override_falls_back_to_the_code_default() -> None:
-    # router seeded NULL → code default (openai) → inside the derived set.
+async def test_a_core_slot_seeded_without_a_provider_answers_on_its_code_default() -> None:
+    """A NULL provider is not « any provider »: the slot resolves on the code
+    default, and that default is judged like a named one."""
+    default = LLM_DEFAULTS["hitl_classifier"].provider
+    assert default not in CURRENT_CORE_PROVIDER_IDS, "pick a core slot whose default is out of set"
+    rows = [
+        (slot, None if slot == "hitl_classifier" else provider)
+        for slot, provider in GREEN_OVERRIDES
+    ]
+    result = _by_name(await _run(_db(override_rows=rows)), CheckName.PROVIDER_COVERAGE)
+    assert not result.passed
+    assert result.detail == f"hitl_classifier={default}"
+
+
+async def test_a_row_outside_the_core_decides_no_required_key() -> None:
+    # image_generation is seeded with no provider and answers on its code
+    # default: it is not a core slot, so the coverage check ignores it.
     result = _by_name(await _run(_db()), CheckName.PROVIDER_COVERAGE)
     assert result.passed
 

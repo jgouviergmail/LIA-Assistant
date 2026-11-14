@@ -24,6 +24,7 @@ export function ActivityListToolbar({
         value: key,
         label: t(`activity.filter.${key}`),
       }))}
+      active={value.kind ? [t(`activity.rows.${value.kind}`)] : []}
     >
       <ListChoice<ActivityQuery['kind']>
         label={t('activity.filter.category')}

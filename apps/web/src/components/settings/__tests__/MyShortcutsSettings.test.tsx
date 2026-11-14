@@ -18,9 +18,24 @@ const AVAILABILITY: SettingsSearchAvailability = {
   sandboxEgressEnabled: true,
   liveEnabled: true,
   radioEnabled: true,
+  channelsEnabled: true,
+  psycheEnabled: true,
+  journalsEnabled: true,
+  skillsEnabled: true,
+  mcpEnabled: true,
+  ragSpacesEnabled: true,
+  imageGenerationEnabled: true,
+  telephonyEnabled: true,
+  hapticsSupported: true,
   debugUserAccess: true,
 };
 
+/**
+ * What the operator closed, as each reading knows it: the page's own read of
+ * `/config` (what the picker LISTS) and the layout's (what the dock draws, and
+ * what the picker COUNTS). They agree, except between a switch and a reload.
+ */
+const closed = vi.hoisted(() => ({ page: [] as string[], layout: [] as string[] }));
 const state = vi.hoisted(() => ({ shortcuts: [] as string[], maxCount: 5 }));
 const save = vi.hoisted(() => vi.fn(async (_next: string[]) => true));
 const toastError = vi.hoisted(() => vi.fn());
@@ -40,8 +55,23 @@ vi.mock('@/hooks/useSettingsShortcuts', async importOriginal => {
     }),
   };
 });
-vi.mock('@/hooks/useSettingsAvailability', () => ({
-  useSettingsAvailability: () => AVAILABILITY,
+vi.mock('@/hooks/useSettingsAvailability', () => {
+  const without = (flags: string[]) => ({
+    ...AVAILABILITY,
+    ...Object.fromEntries(flags.map(flag => [flag, false])),
+  });
+  return {
+    useSettingsAvailability: () => without(closed.page),
+    usePassiveSettingsAvailability: () => without(closed.layout),
+  };
+});
+// The counter is the one text that carries numbers: show them.
+vi.mock('@/i18n/client', () => ({
+  useTranslation: () => ({
+    t: (key: string, values?: Record<string, unknown>) =>
+      values ? `${key} ${JSON.stringify(values)}` : key,
+    i18n: { language: 'fr', changeLanguage: vi.fn() },
+  }),
 }));
 
 import { MyShortcutsSettings } from '@/components/settings/MyShortcutsSettings';
@@ -58,8 +88,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   state.shortcuts = [];
   state.maxCount = 5;
+  closed.page = [];
+  closed.layout = [];
   save.mockResolvedValue(true);
 });
+
+const COUNT = (current: number, max: number) =>
+  `settings.my_shortcuts.count ${JSON.stringify({ current, max })}`;
 
 describe('MyShortcutsSettings', () => {
   it('offers every section this account can open, except itself', () => {
@@ -137,5 +172,82 @@ describe('MyShortcutsSettings', () => {
 
     expect(screen.getByText('settings.my_shortcuts.empty')).toBeInTheDocument();
     expect(screen.getByText(/settings\.my_shortcuts\.count/)).toBeInTheDocument();
+  });
+});
+
+describe('MyShortcutsSettings — a pinned section the account cannot open now', () => {
+  /** The journals, pinned, then switched off by the operator. */
+  const closeJournals = () => {
+    closed.page = ['journalsEnabled'];
+    closed.layout = ['journalsEnabled'];
+  };
+  const journalsBox = () =>
+    screen.queryByRole('checkbox', { name: SETTINGS_SEARCH_META.journals.titleKey });
+
+  it('lists no box for it and counts what the dock draws', () => {
+    state.shortcuts = ['theme', 'journals', 'font'];
+    closeJournals();
+    render(<MyShortcutsSettings lng="fr" />);
+
+    expect(journalsBox()).toBeNull();
+    expect(screen.getAllByRole('checkbox', { checked: true })).toHaveLength(2);
+    expect(screen.getByText(COUNT(2, 5))).toBeInTheDocument();
+  });
+
+  it('counts by the layout, like the dock, where the page has a fresher answer', () => {
+    // The operator switched the journals back on since this page loaded its
+    // layout: the list already offers the box, the dock draws nothing yet —
+    // and the counter says what the dock shows until the next load.
+    state.shortcuts = ['theme', 'journals', 'font'];
+    closed.layout = ['journalsEnabled'];
+    render(<MyShortcutsSettings lng="fr" />);
+
+    expect(journalsBox()).toBeChecked();
+    expect(screen.getByText(COUNT(2, 5))).toBeInTheDocument();
+  });
+
+  it('is not at the cap for a pin nobody can see: the next box is takeable', async () => {
+    state.shortcuts = ['theme', 'journals', 'font'];
+    state.maxCount = 3;
+    closeJournals();
+    render(<MyShortcutsSettings lng="fr" />);
+
+    const next = box('language');
+    expect(next).not.toHaveAttribute('aria-disabled');
+    expect(screen.queryByText('settings.my_shortcuts.limit_reached')).toBeNull();
+    fireEvent.click(next);
+
+    // The hidden pin gives its place: the list the API accepts holds the choice.
+    await waitFor(() => expect(save).toHaveBeenCalledWith(['theme', 'font', 'language']));
+  });
+
+  it('keeps the hidden pin while there is room, so that it comes back with its capability', async () => {
+    state.shortcuts = ['theme', 'journals'];
+    closeJournals();
+    render(<MyShortcutsSettings lng="fr" />);
+
+    fireEvent.click(box('font'));
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith(['theme', 'journals', 'font']));
+  });
+
+  it('is at the cap once what the dock draws fills it', () => {
+    state.shortcuts = ['theme', 'journals', 'font'];
+    state.maxCount = 2;
+    closeJournals();
+    render(<MyShortcutsSettings lng="fr" />);
+
+    expect(box('language')).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByText('settings.my_shortcuts.limit_reached')).toBeInTheDocument();
+    expect(screen.getByText(COUNT(2, 2))).toBeInTheDocument();
+  });
+
+  it('says nothing is pinned when the only pin cannot be opened', () => {
+    state.shortcuts = ['journals'];
+    closeJournals();
+    render(<MyShortcutsSettings lng="fr" />);
+
+    expect(screen.getByText('settings.my_shortcuts.empty')).toBeInTheDocument();
+    expect(screen.getByText(COUNT(0, 5))).toBeInTheDocument();
   });
 });

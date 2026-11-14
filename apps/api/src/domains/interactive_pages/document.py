@@ -3,10 +3,18 @@
 A model's HTML is not a skill's: nobody reviewed it, and it may have been written
 after reading a third party's mail. So it runs under the strictest posture the
 chat has, and each line below answers something measured on Chromium, Firefox and
-WebKit against the application's real headers (2026-11-04):
+WebKit against the application's real headers (2026-11-04; the map tiles and the
+word on a hole, 2026-11-12):
 
-- **Nothing leaves.** The policy names no host. The skills' policy allows
+- **Nothing leaves but the request for a map tile.** The skills' policy allows
   ``https:`` images, and an image URL is a way out for whatever the page holds.
+  This one names the origins of the map tile sources the deployment allows
+  (:mod:`src.core.map_tile_providers`), for images and for nothing else; with no
+  source allowed it names no host at all.
+- **A hole is said.** The policy blocks in silence: a frame, an image or a
+  stylesheet it refuses leaves a blank where the page meant something. The
+  runtime tells the host which directive refused, never the address: that is a
+  word the page chose.
 - **The policy comes first.** See :mod:`src.domains.shared.frame_policy`.
 - **WebRTC is closed by hand.** A STUN packet left Chromium under this policy,
   ``webrtc 'block'`` included. The runtime runs before the page and takes the
@@ -23,37 +31,53 @@ reaches every page already archived (``message_widgets``).
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
+from functools import lru_cache
 from html.parser import HTMLParser
 from typing import Final
 
+from src.core.config import settings
+from src.core.map_tile_providers import map_tile_providers
 from src.domains.shared.frame_policy import with_leading_policy
 
-#: What a page may reach: itself. ``'unsafe-inline'`` is the page's own code,
-#: which is the point; the frame's sandbox gives it an opaque origin.
-PAGE_CONTENT_POLICY: Final = (
-    "default-src 'none'; "
-    "script-src 'unsafe-inline'; "
-    "style-src 'unsafe-inline'; "
-    "img-src data: blob:; "
-    "font-src data:; "
-    "media-src data: blob:; "
-    "connect-src 'none'; "
-    "frame-src 'none'; "
-    "child-src 'none'; "
-    "worker-src 'none'; "
-    "object-src 'none'; "
-    "base-uri 'none'; "
-    "form-action 'none'; "
-    "manifest-src 'none'"
-)
 
-_POLICY_META: Final = f'<meta http-equiv="Content-Security-Policy" content="{PAGE_CONTENT_POLICY}">'
+def page_content_policy(tile_origins: Sequence[str] = ()) -> str:
+    """What a page may reach: itself, and the tiles of a map.
 
-#: Runs before the page. It speaks to the host twice, a height and a failure, and
-#: asks it for nothing: the skills' ``ui/open-link`` makes the HOST open a URL,
-#: which is exactly the exit the sandbox closes.
+    ``'unsafe-inline'`` is the page's own code, which is the point; the frame's
+    sandbox gives it an opaque origin. A tile is an image, so ``img-src`` is the
+    one directive that ever names a host.
+
+    Args:
+        tile_origins: Origins of the map tile sources allowed, empty for none.
+
+    Returns:
+        The policy, as the content of its ``<meta>``.
+    """
+    images = " ".join(("img-src data: blob:", *tile_origins))
+    return (
+        "default-src 'none'; "
+        "script-src 'unsafe-inline'; "
+        "style-src 'unsafe-inline'; "
+        f"{images}; "
+        "font-src data:; "
+        "media-src data: blob:; "
+        "connect-src 'none'; "
+        "frame-src 'none'; "
+        "child-src 'none'; "
+        "worker-src 'none'; "
+        "object-src 'none'; "
+        "base-uri 'none'; "
+        "form-action 'none'; "
+        "manifest-src 'none'"
+    )
+
+
+#: Runs before the page. It tells the host three things, a height, a failure and
+#: what the policy refused, and asks it for nothing: the skills' ``ui/open-link``
+#: makes the HOST open a URL, which is exactly the exit the sandbox closes.
 _FRAME_RUNTIME: Final = (
     "<script>(function(){"
     "['RTCPeerConnection','webkitRTCPeerConnection','RTCDataChannel',"
@@ -86,14 +110,42 @@ _FRAME_RUNTIME: Final = (
     "{message:String(message).slice(0,300)})}"
     "addEventListener('error',function(e){fault(e.message)});"
     "addEventListener('unhandledrejection',function(e){fault(e.reason)});"
+    "var told={};"
+    "document.addEventListener('securitypolicyviolation',function(e){"
+    "var d=String(e.effectiveDirective||'').slice(0,40);"
+    "if(d&&!told[d]){told[d]=1;post('ui/notifications/blocked',{directive:d})}});"
     "})();</script>"
 )
 
 #: A whole answer wrapped in one Markdown fence, its language optional.
 _WRAPPING_FENCE: Final = re.compile(r"\A\s*```[a-zA-Z]*[ \t]*\n(.*?)\n?```\s*\Z", re.DOTALL)
 
-_FILE_PREFIX: Final = with_leading_policy(_POLICY_META, "")
-_FRAME_PREFIX: Final = _FILE_PREFIX + _FRAME_RUNTIME
+#: Elements that hold another document. The policy shows none of them.
+_EMBEDDING_TAGS: Final = frozenset({"iframe", "frame", "frameset", "object", "embed"})
+
+
+def _allowed_tile_origins() -> tuple[str, ...]:
+    """Origins of the map tile sources this deployment allows, each once."""
+    providers = map_tile_providers(settings.interactive_page_map_providers)
+    return tuple(dict.fromkeys(provider.origin for provider in providers))
+
+
+@lru_cache(maxsize=8)
+def _prefixes(tile_origins: tuple[str, ...]) -> tuple[str, str]:
+    """What opens a file and what opens a frame, under one policy.
+
+    Args:
+        tile_origins: Origins the policy names for images.
+
+    Returns:
+        The file's prefix, then the frame's (the same policy, plus the runtime).
+    """
+    meta = (
+        '<meta http-equiv="Content-Security-Policy" '
+        f'content="{page_content_policy(tile_origins)}">'
+    )
+    file_prefix = with_leading_policy(meta, "")
+    return file_prefix, file_prefix + _FRAME_RUNTIME
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,7 +190,8 @@ def page_frame(source: str) -> PageFrame:
     Returns:
         The frame document and where the page starts in it.
     """
-    return PageFrame(document=_FRAME_PREFIX + source, source_offset=len(_FRAME_PREFIX))
+    _, frame_prefix = _prefixes(_allowed_tile_origins())
+    return PageFrame(document=frame_prefix + source, source_offset=len(frame_prefix))
 
 
 def page_file(source: str) -> bytes:
@@ -154,7 +207,8 @@ def page_file(source: str) -> bytes:
     Returns:
         The file's bytes.
     """
-    return (_FILE_PREFIX + source).encode("utf-8")
+    file_prefix, _ = _prefixes(_allowed_tile_origins())
+    return (file_prefix + source).encode("utf-8")
 
 
 def source_of(document: str, source_offset: int) -> str:
@@ -182,6 +236,8 @@ class PageRefusal(str, Enum):
     UNCLOSED_SCRIPT = "unclosed_script"
     #: The policy blocks it, so the page would load and do nothing.
     EXTERNAL_SCRIPT = "external_script"
+    #: The policy shows no other document, so the page would load with a hole.
+    EMBEDDED_DOCUMENT = "embedded_document"
 
 
 class _PageReader(HTMLParser):
@@ -192,9 +248,11 @@ class _PageReader(HTMLParser):
         self.saw_element = False
         self.open_script = False
         self.external_script = False
+        self.embedded_document = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         self.saw_element = True
+        self.embedded_document = self.embedded_document or tag in _EMBEDDING_TAGS
         if tag == "script":
             self.open_script = True
             self.external_script = self.external_script or any(name == "src" for name, _ in attrs)
@@ -226,4 +284,6 @@ def refusal_of(source: str, *, max_bytes: int) -> PageRefusal | None:
         return PageRefusal.EMPTY
     if reader.open_script:
         return PageRefusal.UNCLOSED_SCRIPT
-    return PageRefusal.EXTERNAL_SCRIPT if reader.external_script else None
+    if reader.external_script:
+        return PageRefusal.EXTERNAL_SCRIPT
+    return PageRefusal.EMBEDDED_DOCUMENT if reader.embedded_document else None

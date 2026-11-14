@@ -3,8 +3,9 @@
 One module per format; every renderer is a pure function of the NORMALIZED
 content and a ``RenderContext``, so it is unit-tested without I/O and the
 CPU-bound work is offloaded with ``asyncio.to_thread`` by the CALLER (service
-layer). Heavy libraries (openpyxl, python-docx, python-pptx, PyMuPDF) are
-imported lazily inside their renderer so importing this package stays cheap.
+layer). The libraries whose import was measured heavy — PyMuPDF, XlsxWriter —
+are imported on first use (``tests/unit/test_lazy_heavy_imports_guard.py``);
+python-docx and python-pptx load with this package.
 The registry is completeness-asserted at import (ADR-085).
 
 Renderers never see raw model output: ``render_document`` puts the content in
@@ -58,6 +59,13 @@ RENDERERS: dict[DocumentType, Renderer] = {
     DocumentType.PPTX: render_pptx,
     DocumentType.PDF: render_pdf,
 }
+
+#: The formats whose renderer places pictures. Any other is written with none:
+#: its writer is asked for none and its budget is zero (``service``), so a text
+#: file never bills an image it cannot hold (ADR-274).
+PICTURE_FORMATS: frozenset[DocumentType] = frozenset(
+    {DocumentType.DOCX, DocumentType.PDF, DocumentType.PPTX}
+)
 
 # Boot-time completeness (ADR-085): a partial map refuses to import.
 assert set(RENDERERS) == set(DocumentType), "RENDERERS must cover every DocumentType"

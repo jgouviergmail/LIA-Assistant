@@ -163,3 +163,33 @@ async def test_a_whole_degree_is_a_new_version(weather):
     weather(StampingWeather([12.0, 13.0]))
     first, second = (await read()).items[0], (await read()).items[0]
     assert first.version != second.version
+
+
+async def test_the_present_read_for_a_discussion_feeds_the_companion(weather, monkeypatch):
+    # ADR-294 (2026-11-13): every read of the present at the person's place is
+    # offered to the companion, through its one door.
+    from unittest.mock import AsyncMock
+
+    offer = AsyncMock(return_value=True)
+    monkeypatch.setattr(discussion_weather, "publish_companion_weather", offer)
+    client = StampingWeather([12.0])
+    weather(client)
+
+    await read()
+
+    offer.assert_awaited_once()
+    owner, current = offer.await_args.args
+    assert owner == OWNER
+    assert current["main"]["temp"] == 12.0
+
+
+async def test_a_forecast_is_not_the_present_and_feeds_nothing(weather, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    offer = AsyncMock(return_value=True)
+    monkeypatch.setattr(discussion_weather, "publish_companion_weather", offer)
+    weather(StampingWeather([]))
+
+    await read("future")
+
+    offer.assert_not_awaited()

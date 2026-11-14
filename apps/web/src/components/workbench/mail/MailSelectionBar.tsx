@@ -9,29 +9,32 @@
  * bulk bound is stated and refused before anything is sent (`limits.bulk_max_items`,
  * ADR-184). Sending to the trash needs no dialog: a trashed message can be restored;
  * deleting for good asks first.
+ *
+ * It only declares what it offers: `ToolSelectionBar` draws it on one line (amendment
+ * 2026-11-11). Marking read and the folder's own way out are what a sorting uses most;
+ * each act says itself in the words and under the icon of the reader and of the rows.
  */
 import {
   Archive,
   ArchiveRestore,
   FolderInput,
   Inbox,
-  MailCheck,
+  Mail,
   MailOpen,
   OctagonAlert,
   Star,
+  Tag,
   Trash2,
-  type LucideIcon,
 } from '@/lib/icons';
 
-import { Button } from '@/components/ui/button';
-import { SelectionBar } from '@/components/ui/selection-bar';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { PageSelectionState } from '@/lib/selection';
 import type { MailMoves, MailSendAct } from '@/lib/workbench/mail';
 import type { MailFolder, MailSummary } from '@/lib/workbench/types';
 
-import { LabelMenu } from './LabelMenu';
+import { ToolSelectionBar, type SelectionAct } from '../ToolSelectionBar';
+import { LabelLines } from './LabelMenu';
 
 /** Which act is on its way, if any. */
 export type MailBulkAct = 'read' | 'unread' | 'star' | 'labels' | 'forever' | 'empty' | MailSendAct;
@@ -57,6 +60,13 @@ export interface MailSelectionBarProps {
   onForever: () => void;
 }
 
+/** One act the bar may offer: its word, and whether this folder and this mailbox have it. */
+interface Offered extends Omit<SelectionAct, 'id' | 'label' | 'busy'> {
+  id: MailBulkAct;
+  key: string;
+  on: boolean;
+}
+
 export function MailSelectionBar({
   lng,
   selected,
@@ -77,152 +87,111 @@ export function MailSelectionBar({
   const { t } = useTranslation(lng);
   const over = selected.length > bulkMax;
   const held = over || busy !== null;
-  // A guard, not the attribute: `aria-disabled` keeps the focus where it is.
-  const guarded = (act: () => void) => () => {
-    if (!held) act();
-  };
   const allStarred = selected.length > 0 && selected.every(row => row.is_starred);
-  const offered: {
-    act: MailBulkAct;
-    key: string;
-    icon: LucideIcon;
-    run: () => void;
-    on: boolean;
-  }[] = [
+  const send = (act: MailSendAct) => () => onSend(act);
+  const offered: Offered[] = [
     {
-      act: 'star',
-      key: allStarred ? 'workbench.mail.bar_unstar' : 'workbench.mail.bar_star',
-      icon: Star,
-      run: () => onStar(!allStarred),
+      id: 'read',
+      key: 'workbench.mail.mark_read',
+      icon: MailOpen,
+      onSelect: () => onRead(true),
+      quick: true,
       on: true,
     },
     {
-      act: 'archive',
+      id: 'unread',
+      key: 'workbench.mail.mark_unread',
+      icon: Mail,
+      onSelect: () => onRead(false),
+      on: true,
+    },
+    {
+      id: 'star',
+      key: allStarred ? 'workbench.mail.unstar' : 'workbench.mail.star',
+      icon: Star,
+      onSelect: () => onStar(!allStarred),
+      on: true,
+    },
+    {
+      id: 'archive',
       key: 'workbench.mail.archive',
       icon: Archive,
-      run: () => onSend('archive'),
+      onSelect: send('archive'),
+      quick: true,
       on: moves.archive,
     },
     {
-      act: 'restore',
+      id: 'restore',
       key: 'workbench.mail.restore',
       icon: ArchiveRestore,
-      run: () => onSend('restore'),
+      onSelect: send('restore'),
+      quick: true,
       on: moves.restore,
     },
     {
-      act: 'not_spam',
+      id: 'not_spam',
       key: 'workbench.mail.not_spam',
       icon: Inbox,
-      run: () => onSend('not_spam'),
+      onSelect: send('not_spam'),
+      quick: true,
       on: moves.notSpam,
     },
     {
-      act: 'move',
+      id: 'move',
       key: 'workbench.mail.move_to',
       icon: FolderInput,
-      run: onMove,
+      onSelect: onMove,
       on: moves.move,
     },
     {
-      act: 'spam',
-      key: 'workbench.mail.bar_spam',
+      id: 'spam',
+      key: 'workbench.mail.report_spam',
       icon: OctagonAlert,
-      run: () => onSend('spam'),
+      onSelect: send('spam'),
       on: moves.spam,
+    },
+    {
+      id: 'labels',
+      key: 'workbench.mail.labels_title',
+      icon: Tag,
+      lines: labels && (
+        <LabelLines lng={lng} labels={labels} messages={selected} busy={held} onApply={onLabels} />
+      ),
+      on: labels !== undefined,
+    },
+    {
+      id: 'forever',
+      key: 'workbench.mail.delete_forever',
+      icon: Trash2,
+      onSelect: onForever,
+      danger: true,
+      on: moves.forever,
+    },
+    {
+      // What is in the trash already leaves it for good, or not from here.
+      id: 'trash',
+      key: 'workbench.mail.trash',
+      icon: Trash2,
+      onSelect: send('trash'),
+      danger: true,
+      on: !moves.forever && !moves.restore,
     },
   ];
   return (
-    <div className="border-b px-4 py-2">
-      <SelectionBar
-        regionLabel={t('workbench.mail.selection_region')}
-        countLabel={t('workbench.mail.selected', { count: selected.length })}
-        selectAllLabel={t('workbench.mail.select_page')}
-        clearLabel={t('workbench.mail.clear_selection')}
-        pageState={pageState}
-        onSelectAll={onSelectAll}
-        onClear={onClear}
-      >
-        <Button
-          size="sm"
-          variant="outline"
-          aria-disabled={held || undefined}
-          isLoading={busy === 'read'}
-          onClick={guarded(() => onRead(true))}
-          className="gap-1.5"
-        >
-          <MailCheck className="h-4 w-4" aria-hidden="true" />
-          {t('workbench.mail.bar_read')}
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          aria-disabled={held || undefined}
-          isLoading={busy === 'unread'}
-          onClick={guarded(() => onRead(false))}
-          className="gap-1.5"
-        >
-          <MailOpen className="h-4 w-4" aria-hidden="true" />
-          {t('workbench.mail.bar_unread')}
-        </Button>
-        {offered
-          .filter(item => item.on)
-          .map(({ act, key, icon: Icon, run }) => (
-            <Button
-              key={act}
-              size="sm"
-              variant="outline"
-              aria-disabled={held || undefined}
-              isLoading={busy === act}
-              onClick={guarded(run)}
-              className="gap-1.5"
-            >
-              <Icon className="h-4 w-4" aria-hidden="true" />
-              {t(key)}
-            </Button>
-          ))}
-        {labels && (
-          <LabelMenu
-            lng={lng}
-            labels={labels}
-            messages={selected}
-            busy={held}
-            onApply={(add, remove) => onLabels(add, remove)}
-          />
-        )}
-        {moves.forever ? (
-          <Button
-            size="sm"
-            variant="destructive"
-            aria-disabled={held || undefined}
-            isLoading={busy === 'forever'}
-            onClick={guarded(onForever)}
-            className="gap-1.5"
-          >
-            <Trash2 className="h-4 w-4" aria-hidden="true" />
-            {t('workbench.mail.delete_forever')}
-          </Button>
-        ) : (
-          !moves.restore && (
-            <Button
-              size="sm"
-              variant="destructive"
-              aria-disabled={held || undefined}
-              isLoading={busy === 'trash'}
-              onClick={guarded(() => onSend('trash'))}
-              className="gap-1.5"
-            >
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
-              {t('workbench.mail.trash')}
-            </Button>
-          )
-        )}
-      </SelectionBar>
-      {over && (
-        <p role="status" className="px-1 pt-2 text-sm text-destructive">
-          {t('workbench.mail.over_bulk', { count: bulkMax })}
-        </p>
-      )}
-    </div>
+    <ToolSelectionBar
+      lng={lng}
+      regionLabel={t('workbench.mail.selection_region')}
+      countLabel={t('workbench.mail.selected', { count: selected.length })}
+      selectAllLabel={t('workbench.mail.select_page')}
+      clearLabel={t('workbench.mail.clear_selection')}
+      pageState={pageState}
+      onSelectAll={onSelectAll}
+      onClear={onClear}
+      acts={offered
+        .filter(item => item.on)
+        .map(({ key, on: _on, ...act }) => ({ ...act, label: t(key), busy: busy === act.id }))}
+      held={held}
+      note={over ? t('workbench.mail.over_bulk', { count: bulkMax }) : undefined}
+    />
   );
 }

@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 128 cards in
+ * Single source of truth for the "/more" small-attentions page: 134 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (128 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (134 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -27,9 +27,11 @@ import {
   AudioLines,
   BadgeCheck,
   BadgeEuro,
+  BarChart3,
   BellRing,
   Bookmark,
   CalendarRange,
+  CalendarX,
   ChevronsDownUp,
   CirclePause,
   ClipboardPaste,
@@ -51,6 +53,7 @@ import {
   Handshake,
   History,
   Hourglass,
+  Inbox,
   KeyRound,
   LayoutGrid,
   LayoutTemplate,
@@ -66,6 +69,7 @@ import {
   Menu,
   MessageSquareCheck,
   MessageSquarePlus,
+  MessageSquareText,
   Mic,
   Metronome,
   Moon,
@@ -73,6 +77,7 @@ import {
   Music,
   PackageCheck,
   PhoneIncoming,
+  PlugZap,
   NotebookPen,
   Orbit,
   Palette,
@@ -84,6 +89,7 @@ import {
   PenLine,
   Puzzle,
   Radio,
+  RadioSet,
   RefreshCw,
   Ruler,
   Reply,
@@ -98,6 +104,7 @@ import {
   Presentation,
   Sliders,
   Sparkles,
+  SquareKanban,
   Star,
   StretchHorizontal,
   Sunrise,
@@ -150,6 +157,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
     tinted: false,
     cards: [
       'draft_survives',
+      'waiting_message',
       'slash_commands',
       'paste_screenshot',
       'drop_zone',
@@ -171,6 +179,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'card_details',
       'card_compose',
       'card_opens_tool',
+      'mail_standing',
       'code_scroll',
       'full_width_phone',
       'followup_chips',
@@ -211,6 +220,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'image_expiry',
       'attachment_limits',
       'fix_commitment',
+      'routine_says_why',
       'meeting_banner',
       'diagnosis_evidence',
       'page_waits',
@@ -244,6 +254,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'pinned_dock',
       'network_grants',
       'skill_library',
+      'known_servers',
     ],
   },
   {
@@ -261,6 +272,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'week_grid',
       'day_timeline',
       'handover_trail',
+      'ticket_lanes',
       'folded_settings',
       'document_first_page',
       'exchange_rhythm',
@@ -298,6 +310,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'finished_answer',
       'air_quality_honesty',
       'plugin_report',
+      'skills_usage',
       'widgets_travel',
       'cost_transparency',
       'pricing_workbook',
@@ -336,6 +349,12 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   document_first_page: FileText,
   button_stays_itself: MousePointerClick,
   draft_survives: PenLine,
+  waiting_message: MessageSquareText,
+  mail_standing: Inbox,
+  routine_says_why: CalendarX,
+  known_servers: PlugZap,
+  ticket_lanes: SquareKanban,
+  skills_usage: BarChart3,
   slash_commands: SlashSquare,
   paste_screenshot: ClipboardPaste,
   drop_zone: FileUp,
@@ -398,7 +417,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   wake_phrase: Mic,
   live_band: AudioLines,
   live_standby: Moon,
-  radio_companion: Radio,
+  radio_companion: RadioSet,
   music_makes_way: Music,
   voices_react: Laugh,
   server_escape_hatch: LifeBuoy,
@@ -465,6 +484,12 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   error_not_empty: ['error', 'retry'],
   back_where_you_were: ['query', 'filter', 'back'],
   space_favorites: ['favorites', 'others', 'space'],
+  waiting_message: ['typing', 'waiting'],
+  mail_standing: ['answered', 'drafted', 'received'],
+  routine_says_why: ['ran', 'skipped', 'missed'],
+  known_servers: ['title', 'add', 'installed'],
+  ticket_lanes: ['lane', 'unfiled', 'ticket'],
+  skills_usage: ['used', 'unused', 'off', 'keep'],
   day_timeline: ['morning', 'afternoon', 'live'],
   handover_trail: ['held_by', 'me', 'lia'],
   voices_in_language: ['only_mine', 'female', 'male'],

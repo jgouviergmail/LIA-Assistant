@@ -201,7 +201,7 @@ export default function SpaceDetailPage({ params }: SpaceDetailPageProps) {
               <SpaceActivationToggle
                 isActive={space.is_active}
                 onToggle={handleToggle}
-                disabled={toggleMutation.loading}
+                busy={toggleMutation.loading}
               />
               <Button
                 variant="ghost"

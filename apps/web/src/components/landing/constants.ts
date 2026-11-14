@@ -9,6 +9,9 @@
  *   Re-measured 2026-11-06: 38 manifests (`agent_count` of `catalogue_initialized`
  *   on dev).
  * - tools: tool manifests the running catalogue actually EXPOSES, not the count
+ *   Re-measured 2026-11-14 (v5.0.0): 340 native manifests, the `tool_count` of
+ *   `catalogue_initialized` on dev: the search across every discussion and
+ *   the list of ticket categories joined.
  *   Re-measured 2026-11-06 (v4.4.0): 338 native manifests from
  *   initialize_catalogue in a cold interpreter with every optional native
  *   family enabled, the same figure as `tool_count` of `catalogue_initialized`
@@ -116,6 +119,9 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Measured for v5.0.0: backend 65,430 collected in 4,246 files (pytest tests
+ *   --collect-only -q --no-cov, 2026-11-14); frontend 22,063 tests in 1,586 files
+ *   (vitest list, 2026-11-14). Combined inventory: 87,493.
  *   Measured for v4.6.0: backend 60,666 collected in 3,983 files (pytest tests
  *   --collect-only -q --no-cov, 2026-11-10); frontend 20,587 tests in 1,494 files
  *   (vitest list, 2026-11-10). Combined inventory: 81,253.
@@ -458,14 +464,14 @@
 
 export const LANDING_STATS = {
   agents: 21,
-  tools: 338,
+  tools: 340,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 666,
+  metrics: 677,
   uiLanguages: 6,
-  tests: 81253,
-  adrs: 375,
-  releases: 296,
+  tests: 87493,
+  adrs: 386,
+  releases: 297,
   auditScore: '7.9/10',
   auditAreas: 24,
 } as const;

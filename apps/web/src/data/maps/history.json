@@ -4778,6 +4778,83 @@
         "t.postgres",
         "t.i18n"
       ]
+    },
+    {
+      "adr": 378,
+      "date": "2026-11-11",
+      "theme": "experience",
+      "functional": ["f.chat", "f.memory", "f.journals", "f.live"],
+      "technical": ["t.web", "t.sse", "t.langgraph", "t.postgres"]
+    },
+    {
+      "adr": 379,
+      "date": "2026-11-11",
+      "theme": "connectors",
+      "functional": ["f.mail", "f.chat", "f.heartbeat", "f.briefing", "f.relations"],
+      "technical": ["t.connclients", "t.promptsys", "t.proactive", "t.web"]
+    },
+    {
+      "adr": 380,
+      "date": "2026-11-12",
+      "theme": "reliability",
+      "functional": ["f.calendar", "f.connectors"],
+      "technical": ["t.connclients", "t.toolsys"]
+    },
+    {
+      "adr": 381,
+      "date": "2026-11-13",
+      "theme": "orchestration",
+      "functional": ["f.chat", "f.react", "f.routing", "f.context", "f.telephony", "f.live"],
+      "technical": ["t.response", "t.react", "t.router", "t.promptsys", "t.phone"]
+    },
+    {
+      "adr": 382,
+      "date": "2026-11-13",
+      "theme": "connectors",
+      "functional": ["f.web", "f.connectors", "f.interests", "f.chat"],
+      "technical": ["t.connclients", "t.toolsys", "t.docker"]
+    },
+    {
+      "adr": 383,
+      "date": "2026-11-13",
+      "theme": "connectors",
+      "functional": ["f.mail", "f.hitl", "f.memory"],
+      "technical": ["t.toolsys", "t.promptsys", "t.connclients"]
+    },
+    {
+      "adr": 384,
+      "date": "2026-11-13",
+      "theme": "experience",
+      "functional": ["f.chat", "f.discussions", "f.hitl", "f.routines"],
+      "technical": ["t.sse", "t.web", "t.postgres", "t.startup", "t.dashboards"]
+    },
+    {
+      "adr": 385,
+      "date": "2026-11-13",
+      "theme": "experience",
+      "functional": ["f.chat", "f.react", "f.discussions"],
+      "technical": ["t.react", "t.web", "t.postgres"]
+    },
+    {
+      "adr": 386,
+      "date": "2026-11-13",
+      "theme": "proactive",
+      "functional": ["f.routines", "f.security", "f.admin"],
+      "technical": ["t.scheduler", "t.fastapi", "t.postgres", "t.redis", "t.dashboards", "t.web"]
+    },
+    {
+      "adr": 387,
+      "date": "2026-11-13",
+      "theme": "proactive",
+      "functional": ["f.routines", "f.web", "f.security"],
+      "technical": ["t.scheduler", "t.radio", "t.postgres", "t.web"]
+    },
+    {
+      "adr": 388,
+      "date": "2026-11-13",
+      "theme": "knowledge",
+      "functional": ["f.documents", "f.images", "f.costs"],
+      "technical": ["t.structured", "t.storage", "t.pricing", "t.web"]
     }
   ]
 }

@@ -60,6 +60,22 @@ model call, write nothing on their own, and keep the accessibility the interface
 - Automatic appearance never writes the profile from a timer, so two devices of one account
   cannot fight over the theme, and a failed choice stays local and says so.
 
+## Amendment 2026-11-11 — an object no collection draws
+
+In the colour styles the radio drew Lucide's broadcast, the glyph the live voice and the signal
+controls also carry, and the recorder a disc nobody read as recording. Owner decision: the radio
+shows a radio set wherever it is named, the recorder the red recording dot.
+
+- A **LIA concept** (`LIA_CONCEPTS` in `scripts/icons/catalogue.mjs`) is a facade name of its own
+  for an object none of the three collections draws. LIA draws it outright in both colour styles,
+  the line style keeps the Lucide glyph the declaration names, and the manifest files it as
+  `lia-concept`. `RadioSet` is the first; `Radio` stays the broadcast.
+- In the line style the two names draw one glyph, so the wrong one is invisible there: a module
+  showing the broadcast declares what it means by it (`radio-glyph.guard.test.ts`), and every
+  other surface that names the radio imports the set.
+- `Disc` is the recording dot: red at rest as well as live, its ring's colour and pulse still the
+  caller's.
+
 ## References
 
 - [ICON_STYLES.md](../technical/ICON_STYLES.md), [DISPLAY_PREFERENCES.md](../technical/DISPLAY_PREFERENCES.md),

@@ -11,6 +11,7 @@ delta-based: Prometheus counters are process-global, so an absolute value would
 couple this module to test ordering.
 """
 
+from collections.abc import Coroutine
 from contextlib import nullcontext
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -137,8 +138,15 @@ def _run(state, context, settings_ns, *, trivial: bool = False) -> None:
     """
     config = {"configurable": {"thread_id": "thread-1"}}
 
-    def _fake_fire_and_forget(coro, *, name="", run_id=None):
+    def _fake_fire_and_forget(
+        coro: Coroutine[object, object, object],
+        *,
+        name: str = "",
+        run_id: str | None = None,
+        independent_of_graph: bool = False,
+    ) -> None:
         coro.close()  # prevent un-awaited coroutine warnings
+        assert independent_of_graph is (not name.startswith("recurrence_record_"))
 
     installed = installed_runtime_context(context) if context is not None else nullcontext()
     with (

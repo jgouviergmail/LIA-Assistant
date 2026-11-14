@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import type { MCPServerFormSource, MCPServerFormState } from '@/lib/mcp-server-form';
 import { MCPAuthenticationFields } from './MCPAuthenticationFields';
+import { MCPKnownServerNotice } from './MCPKnownServerNotice';
 
 interface Props {
   form: MCPServerFormState;
@@ -35,6 +36,10 @@ export function MCPServerFormFields({
   const id = useId();
   return (
     <div className="space-y-4">
+      {/* A known server filled the fields below (the settings' gallery, or the chat by
+          its key): what it is and what to do next. An existing server is no new pick. */}
+      {editingServer === null && <MCPKnownServerNotice form={form} t={t} />}
+
       {/* Name */}
       <div className="space-y-3">
         <Label htmlFor={`${id}-mcp-name`}>{t('settings.mcp.field_name')}</Label>

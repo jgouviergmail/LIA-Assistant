@@ -17,6 +17,7 @@ from PIL import Image
 
 from src.core.constants import BROWSER_SCREENSHOT_THUMBNAIL_WIDTH
 from src.infrastructure.browser.session import BrowserSession
+from tests.fixtures.browser_scope import browser_scope
 
 # ============================================================================
 # FIXTURES
@@ -45,7 +46,9 @@ def mock_session() -> BrowserSession:
     """
     context = MagicMock()
     security = MagicMock()
-    session = BrowserSession(user_id="test-user-1234", context=context, security=security)
+    session = BrowserSession(
+        scope=browser_scope("test-user-1234"), context=context, security=security
+    )
     return session
 
 

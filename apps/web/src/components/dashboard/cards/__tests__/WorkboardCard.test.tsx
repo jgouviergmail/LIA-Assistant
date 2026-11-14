@@ -56,14 +56,14 @@ function data(over: Partial<WorkboardData> = {}): WorkboardData {
 
 /** The figure link whose visible label is `label`. */
 function figure(label: string): HTMLElement {
-  const glance = screen.getByRole('list', { name: 'settings.workboard.glance' });
+  const glance = screen.getByRole('list', { name: 'workboard.summary.title' });
   return within(glance).getByRole('link', { name: new RegExp(label) });
 }
 
 const OPEN =
   'status=idea&status=todo&status=in_progress&status=waiting&status=confirming&status=validating';
 
-const MINE = 'settings.workboard.tile_mine';
+const MINE = 'workboard.summary.tile_mine';
 
 describe('WorkboardCard', () => {
   it('shows five independent exact counts, each linking to the board narrowed to its set', () => {
@@ -83,15 +83,15 @@ describe('WorkboardCard', () => {
       />
     );
 
-    const glance = screen.getByRole('list', { name: 'settings.workboard.glance' });
+    const glance = screen.getByRole('list', { name: 'workboard.summary.title' });
     expect(glance.children).toHaveLength(5);
     // « My tickets » leads, and counts what the person holds — never the
     // « needs me » set (5), which also holds late tickets LIA or a peer holds.
     expect(within(glance).getAllByRole('link')[0]).toBe(figure(MINE));
     expect(figure(MINE)).toHaveTextContent('4');
     expect(figure(MINE)).toHaveAttribute('href', `/fr/dashboard/workboard?${OPEN}&assignee=me`);
-    expect(figure('settings.workboard.tile_lia')).toHaveTextContent('2');
-    expect(figure('settings.workboard.tile_lia')).toHaveAttribute(
+    expect(figure('workboard.summary.tile_lia')).toHaveTextContent('2');
+    expect(figure('workboard.summary.tile_lia')).toHaveAttribute(
       'href',
       `/fr/dashboard/workboard?${OPEN}&assignee=lia`
     );
@@ -100,8 +100,8 @@ describe('WorkboardCard', () => {
       'href',
       `/fr/dashboard/workboard?${OPEN}&assignee=peer`
     );
-    expect(figure('settings.workboard.tile_overdue')).toHaveTextContent('3');
-    expect(figure('settings.workboard.tile_overdue')).toHaveAttribute(
+    expect(figure('workboard.summary.tile_overdue')).toHaveTextContent('3');
+    expect(figure('workboard.summary.tile_overdue')).toHaveAttribute(
       'href',
       '/fr/dashboard/workboard?overdue=1'
     );
@@ -135,7 +135,7 @@ describe('WorkboardCard', () => {
       />
     );
 
-    const glance = screen.getByRole('list', { name: 'settings.workboard.glance' });
+    const glance = screen.getByRole('list', { name: 'workboard.summary.title' });
     expect(within(glance).queryByRole('link', { name: /held_by_peers/ })).not.toBeInTheDocument();
     expect(within(glance).getAllByRole('link')).toHaveLength(4);
     expect(figure('dashboard.briefing.cards.workboard.tile_open')).toHaveTextContent('12');
@@ -159,7 +159,7 @@ describe('WorkboardCard', () => {
         />
       );
 
-      const glance = screen.getByRole('list', { name: 'settings.workboard.glance' });
+      const glance = screen.getByRole('list', { name: 'workboard.summary.title' });
       expect(within(glance).queryByRole('link', { name: new RegExp(MINE) })).toBeNull();
       expect(within(glance).getAllByRole('link')).toHaveLength(4);
     }
@@ -202,7 +202,7 @@ describe('WorkboardCard', () => {
       <WorkboardCard {...props} section={section(data({ held_by_lia: 3, open_total: 3 }))} />
     );
 
-    expect(screen.getByText('settings.workboard.nothing_waiting')).toBeInTheDocument();
+    expect(screen.getByText('workboard.summary.nothing_waiting')).toBeInTheDocument();
     expect(screen.queryByRole('list', { name: MINE })).not.toBeInTheDocument();
   });
 
@@ -225,9 +225,9 @@ describe('WorkboardCard', () => {
 describe('WorkboardCard grouped ticket previews', () => {
   const labels = {
     held_by_me: MINE,
-    held_by_lia: 'settings.workboard.tile_lia',
+    held_by_lia: 'workboard.summary.tile_lia',
     held_by_peers: 'dashboard.briefing.cards.workboard.held_by_peers',
-    overdue: 'settings.workboard.tile_overdue',
+    overdue: 'workboard.summary.tile_overdue',
     open_total: 'dashboard.briefing.cards.workboard.tile_open',
   };
 
@@ -346,5 +346,51 @@ describe('WorkboardCard « my tickets » migration', () => {
     expect(after).toBe(before);
     expect(after).toHaveFocus();
     expect(after).toHaveAttribute('href', '/fr/dashboard/workboard/retained');
+  });
+});
+
+describe('the category of a ticket on the card', () => {
+  // « Open » is a set the card always lists; the tickets go there.
+  const previews = (tickets: WorkboardTicketItem[]) => ({
+    needs_me: [],
+    held_by_me: [],
+    held_by_lia: [],
+    held_by_peers: [],
+    overdue: [],
+    open_total: tickets,
+  });
+
+  it('shows the lane as a badge beside the column', () => {
+    renderWithProviders(
+      <WorkboardCard
+        {...props}
+        section={section(
+          data({
+            needs_me: 1,
+            open_total: 1,
+            previews: previews([ticket({ category: 'Maison' })]),
+          })
+        )}
+      />
+    );
+
+    expect(screen.getByTestId('category-badge')).toHaveTextContent('Maison');
+  });
+
+  it('shows none for an unfiled ticket, nor for a cache that predates categories', () => {
+    renderWithProviders(
+      <WorkboardCard
+        {...props}
+        section={section(
+          data({
+            needs_me: 2,
+            open_total: 2,
+            previews: previews([ticket({ category: null }), ticket({ id: 't-2' })]),
+          })
+        )}
+      />
+    );
+
+    expect(screen.queryByTestId('category-badge')).toBeNull();
   });
 });

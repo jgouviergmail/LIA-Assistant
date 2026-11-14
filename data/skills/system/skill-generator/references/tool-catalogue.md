@@ -66,7 +66,7 @@ Search, list, or fetch emails.
 - `to` (string, required) — Recipient email address
 - `subject` (string) — Email subject
 - `body` (string) — Email body text
-- `content_instruction` (string) — Instruction for LLM to compose the body
+- `content_instruction` (string) — What the e-mail must say: LIA writes subject and body, in the user's own voice; `body` is then for exact dictated words only
 - `cc` (string) — CC recipients
 - `bcc` (string) — BCC recipients
 - `is_html` (bool, default: false) — Send as HTML
@@ -82,7 +82,8 @@ or without one the account's verified address through LIA's mail relay.
 
 ### reply_email_tool
 - `message_id` (string, required) — Email to reply to
-- `body` (string, required) — Reply body text
+- `content_instruction` (string) — What the reply must say: LIA writes it from the received e-mail, in the user's own voice
+- `body` (string) — Only the user's exact dictated words; leave it out otherwise
 - `reply_all` (bool, default: false) — Reply to all recipients
 
 ### forward_email_tool

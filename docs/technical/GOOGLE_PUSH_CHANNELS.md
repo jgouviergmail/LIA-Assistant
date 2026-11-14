@@ -115,7 +115,9 @@ A processed notification has three consumers, in this order:
    cooldown, the user's source preference, the fresh delta (Gmail
    `history.list` previewed from the heartbeat's own anchor — never consumed
    unless the wake is served), the deterministic pre-filter
-   (`wake_filter.py`, rules published as `PUSH_WAKE_*`), then the heartbeat
+   (`wake_filter.py`, rules published as `PUSH_WAKE_*`; a message the person
+   already opened is refused as `already_read`, by definition and not by a
+   setting — ADR-261 amendment 2026-11-11), then the heartbeat
    task for that user only. The audit row carries `trigger = push`.
 3. **Drive targeted reindex** (`rag_spaces/drive_ingest.py`) — the sweep
    drains `changes.list` from the channel's `page_token`, keeps the files

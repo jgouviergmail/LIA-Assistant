@@ -169,6 +169,26 @@ describe('CapabilityMapView', () => {
     );
   });
 
+  it('sends a capability that lives on a page to that page, not to the settings root', () => {
+    answer([...NODES, { key: 'workboard', active: true, detail: 4 }]);
+    renderWithProviders(<CapabilityMapView lng="fr" />);
+
+    expect(screen.getByRole('link', { name: /nodes\.workboard/ })).toHaveAttribute(
+      'href',
+      '/fr/dashboard/workboard'
+    );
+  });
+
+  it('sends the relations star to the relations page as well', () => {
+    answer([...NODES, { key: 'relations', active: false, detail: 0 }]);
+    renderWithProviders(<CapabilityMapView lng="fr" />);
+
+    expect(screen.getByRole('link', { name: /nodes\.relations/ })).toHaveAttribute(
+      'href',
+      '/fr/dashboard/relations'
+    );
+  });
+
   it('counts this account only — never a percentage of completion', () => {
     renderWithProviders(<CapabilityMapView lng="fr" />);
 

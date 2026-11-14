@@ -255,6 +255,48 @@ it('preserves native playback for opt-out and hot opt-in waits for a new request
   f.player.dispose();
   f.engine.dispose();
 });
+it('lends the voice its own sink plays to the face, for as long as that sink plays it', async () => {
+  const f = fixture();
+  const untaps = [vi.fn(), vi.fn()];
+  const tapStream = vi.fn((_stream: MediaStream) => untaps[tapStream.mock.calls.length - 1]);
+  f.local.tapStream = tapStream;
+  await f.player.warmup();
+  const first = new MediaStream();
+  f.player.attachRemoteStream(first);
+  expect(tapStream.mock.calls).toEqual([[first]]);
+  // A new track replaces the sink, and the face's tap with it.
+  const second = new MediaStream();
+  const release = f.player.attachRemoteStream(second);
+  expect(untaps[0]).toHaveBeenCalledTimes(1);
+  expect(tapStream.mock.calls).toEqual([[first], [second]]);
+  release();
+  expect(untaps[1]).toHaveBeenCalledTimes(1);
+  f.player.dispose();
+  expect(untaps[1]).toHaveBeenCalledTimes(1);
+  f.engine.dispose();
+});
+it('lets the tap go when the avatar takes the voice over, and lends none to a capture', async () => {
+  const f = fixture();
+  const untap = vi.fn();
+  const tapStream = vi.fn(() => untap);
+  f.local.tapStream = tapStream;
+  await f.player.warmup();
+  const release = f.player.attachRemoteStream(new MediaStream());
+  f.player.nativeSpeaking(true);
+  f.engine.setPermission(true);
+  f.player.prepareNativeResponse();
+  f.player.nativeSpeaking(false);
+  await settle();
+  // The capture feeds the avatar or the local player's own tapped node.
+  expect(CaptureNode.instances).toHaveLength(1);
+  expect(untap).toHaveBeenCalledTimes(1);
+  release();
+  f.player.attachRemoteStream(new MediaStream());
+  expect(tapStream).toHaveBeenCalledTimes(1);
+  f.player.dispose();
+  expect(untap).toHaveBeenCalledTimes(1);
+  f.engine.dispose();
+});
 it('captures weak native speech before the SDK threshold and keeps every interior silence block', async () => {
   const f = fixture();
   f.engine.setPermission(true);

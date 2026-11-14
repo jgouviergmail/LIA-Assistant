@@ -15,7 +15,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
 from src.core.time_utils import now_utc
-from src.domains.scheduled_actions.models import ScheduledAction, ScheduledActionStatus
+from src.domains.scheduled_actions.models import (
+    ScheduledAction,
+    ScheduledActionStatus,
+    TriggerKind,
+)
 from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
@@ -161,6 +165,9 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
         posted. Idempotent by construction — the statement only matches rows
         still enabled and active, so the next tick finds nothing.
 
+        A webhook routine is never closed here: its NULL trigger means « asleep
+        until a call », not « nothing follows » (ADR-386).
+
         Returns:
             How many routines were closed.
         """
@@ -170,6 +177,7 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
                 ScheduledAction.is_enabled.is_(True),
                 ScheduledAction.status == ScheduledActionStatus.ACTIVE.value,
                 ScheduledAction.next_trigger_at.is_(None),
+                ScheduledAction.trigger_kind != TriggerKind.WEBHOOK.value,
             )
             .values(
                 is_enabled=False,

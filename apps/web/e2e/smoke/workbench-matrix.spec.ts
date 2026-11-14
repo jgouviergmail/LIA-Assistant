@@ -93,6 +93,15 @@ const ANSWERS: Array<[RegExp, unknown]> = [
     },
   ],
   [/\/tasks\/due$/, { tasks: [], truncated: false, failed: [] }],
+  // The tasks tool opens on « All tasks »: what every list holds, read by a view.
+  [
+    /\/tasks\/view$/,
+    {
+      tasks: [{ id: 't1', list_id: 'l1', title: 'Call the plumber', due: TODAY }],
+      truncated: false,
+      failed: [],
+    },
+  ],
   [
     /\/mail\/folders$/,
     {

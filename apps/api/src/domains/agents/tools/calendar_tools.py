@@ -34,8 +34,6 @@ Migration (2025-12-30):
     - Draft functions delegated to drafts module (to be migrated separately)
 """
 
-import time
-from contextlib import suppress
 from datetime import timedelta
 from typing import Annotated, Any
 from uuid import UUID
@@ -80,7 +78,6 @@ from src.domains.agents.constants import (
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.context.runtime_context import (
     LiaRuntimeContext,
-    tool_user_id_str,
 )
 from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.registry.recurrence_parameters import RECURRENCE_DOCS
@@ -100,10 +97,9 @@ from src.domains.agents.tools.calendar_list_tools import ListCalendarsTool, list
 from src.domains.agents.tools.calendar_series import read_recurrence
 from src.domains.agents.tools.decorators import connector_tool
 from src.domains.agents.tools.mixins import ToolOutputMixin
-from src.domains.agents.tools.output import StandardToolOutput, UnifiedToolOutput
+from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
     get_user_preferences,
-    parse_user_id,
     resolve_recipients_to_emails,
     validate_runtime_config,
 )
@@ -829,48 +825,6 @@ async def get_event_details_tool(
         event_ids=event_ids,
         fields=fields,
     )
-
-    # Save to context
-    # MULTI-ORDINAL FIX (2026-01-01): Support batch mode context saving
-    if runtime and runtime.store:
-        # Context save is non-critical
-        with suppress(RuntimeError, ValueError, OSError):
-            user_id_raw = tool_user_id_str(runtime)
-            thread_id = runtime.config.get("configurable", {}).get("thread_id")
-
-            if user_id_raw and thread_id:
-                user_id = parse_user_id(user_id_raw)
-                thread_id_str = str(thread_id)
-
-                # Determine mode and extract events
-                is_batch_mode = event_ids is not None and len(event_ids) > 0
-                events_to_save: list[tuple[str, dict]] = []  # List of (evt_id, event_data)
-
-                if isinstance(result, StandardToolOutput | UnifiedToolOutput):
-                    for item in result.registry_updates.values():
-                        event_data = item.payload
-                        evt_id = event_data.get("id", "")
-                        if evt_id:
-                            events_to_save.append((evt_id, event_data))
-                        if not is_batch_mode:
-                            break  # Single mode: only one event
-
-                # Save each event to context
-                for evt_id, event_data in events_to_save:
-                    await runtime.store.aput(
-                        (str(user_id), thread_id_str, "context", "events"),
-                        f"item_{evt_id}",
-                        {
-                            "id": evt_id,
-                            # Keep lightweight fields for quick lookups
-                            "summary": event_data.get("summary", ""),
-                            "start": event_data.get("start", {}),
-                            "end": event_data.get("end", {}),
-                            # Store full payload to align with contacts-style context (redis + pg sync)
-                            "event": event_data,
-                            "timestamp": time.time(),
-                        },
-                    )
 
     return result
 

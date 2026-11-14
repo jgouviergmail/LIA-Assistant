@@ -10,6 +10,7 @@ from src.domains.skill_library import service
 from src.domains.skill_library.errors import LibraryRefusal
 from src.domains.skill_library.schemas import LibraryInstallRequest
 from src.domains.skills.cache import SkillsCache
+from tests.helpers.committed_account_session import async_session as async_session
 from tests.integration.domains.skill_library.test_library_install import (
     REPO,
     _user,

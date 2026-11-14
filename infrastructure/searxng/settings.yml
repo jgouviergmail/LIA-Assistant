@@ -1,0 +1,32 @@
+# SearXNG, the instance's keyless web search (lot 18, ADR-382; see
+# docs/technical/WEB_SEARCH.md). Read by the `searxng` service of the compose
+# files, mounted read-only at /etc/searxng/settings.yml.
+#
+# Only LIA's API asks this service, on the internal network: it is never
+# published, so the bot limiter and the image proxy have nobody to protect.
+# The secret comes from the environment (SEARXNG_SECRET), never from this file.
+use_default_settings: true
+
+general:
+  instance_name: "LIA search"
+  enable_metrics: false
+
+search:
+  # Unfiltered, the owner's decision (ADR-382); LIA also says so on every request.
+  safe_search: 0
+  # LIA reads JSON; the HTML page is kept for an operator's own check.
+  formats:
+    - html
+    - json
+
+server:
+  limiter: false
+  public_instance: false
+  image_proxy: false
+  method: "GET"
+
+outgoing:
+  # One slow engine never holds a whole search: LIA's own client waits a bounded
+  # time above these (HTTP_TIMEOUT_SEARXNG).
+  request_timeout: 3.0
+  max_request_timeout: 6.0

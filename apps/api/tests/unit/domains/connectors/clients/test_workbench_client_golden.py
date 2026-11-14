@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
@@ -26,6 +27,7 @@ import vobject
 
 from src.domains.connectors.clients.apple_calendar_client import AppleCalendarClient
 from src.domains.connectors.clients.apple_contacts_client import AppleContactsClient
+from src.domains.connectors.clients.event_bounds import bounds_of, change_of
 from src.domains.connectors.clients.google_calendar_client import GoogleCalendarClient
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 from src.domains.connectors.clients.google_people_client import GooglePeopleClient
@@ -40,12 +42,12 @@ pytestmark = pytest.mark.unit
 _GOLDEN = Path(__file__).parent / "golden" / "workbench_client_requests.json"
 _GENERATION_REDIS = "src.domains.connectors.clients.google_gmail_client.get_redis_cache"
 _USER = UUID("00000000-0000-4000-8000-000000000001")
-_TIMED = {
-    "summary": "Dentist",
-    "start_datetime": "2026-11-02T10:00:00",
-    "end_datetime": "2026-11-02T11:00:00",
-    "timezone": "UTC",
-}
+_SUMMARY = "Dentist"
+#: Never UTC: a wall time stamped « Z » on its way looked right there (2026-11-12).
+_START, _END, _ZONE = "2026-11-02T10:00:00", "2026-11-02T11:00:00", ZoneInfo("Europe/Paris")
+#: A new event's bounds, and the same two times as a change that keeps the event's shape.
+_BOUNDS = bounds_of(_START, _END, _ZONE, all_day=False)
+_SIDES = change_of(_START, _END, _ZONE, all_day=None)
 #: The identity a confirmed draft carries; without one the provider id is random.
 _KEY = "draft:golden"
 _CONTACT_FIELDS = {"name": "Ada Lovelace", "organization": "Analytical", "notes": "Met at a talk"}
@@ -134,8 +136,8 @@ async def _google_calendar() -> list[dict[str, Any]]:
     recorder = _Recorder(_google_event)
 
     async def run() -> None:
-        await client.create_event(**_TIMED, idempotency_key=_KEY)
-        await client.update_event("evt-1", **_TIMED)
+        await client.create_event(_SUMMARY, _BOUNDS, idempotency_key=_KEY)
+        await client.update_event("evt-1", summary=_SUMMARY, bounds=_SIDES)
 
     return await _drive(client, recorder, run)
 
@@ -145,8 +147,8 @@ async def _microsoft_calendar() -> list[dict[str, Any]]:
     recorder = _Recorder(_graph_event)
 
     async def run() -> None:
-        await client.create_event(**_TIMED, idempotency_key=_KEY)
-        await client.update_event("graph-evt-1", **_TIMED)
+        await client.create_event(_SUMMARY, _BOUNDS, idempotency_key=_KEY)
+        await client.update_event("graph-evt-1", summary=_SUMMARY, bounds=_SIDES)
 
     return await _drive(client, recorder, run)
 
@@ -210,8 +212,8 @@ async def _apple_calendar() -> list[dict[str, Any]]:
         ),
         patch("asyncio.sleep", AsyncMock()),
     ):
-        await client.create_event(**_TIMED)
-        await client.update_event("apple-evt-1", **_TIMED)
+        await client.create_event(_SUMMARY, _BOUNDS)
+        await client.update_event("apple-evt-1", summary=_SUMMARY, bounds=_SIDES)
     return calendar.saves
 
 

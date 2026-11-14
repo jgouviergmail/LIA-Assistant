@@ -30,6 +30,7 @@ from src.core.constants import (
 )
 from src.core.exceptions import ConnectorAPIError
 from src.domains.connectors.active_client import ActiveClient
+from src.domains.connectors.clients.mail_conversation import Conversation
 from src.domains.connectors.models import ConnectorType
 from src.domains.relations.providers import classification
 from src.domains.telephony.models import PhoneCallOutcome, PhoneCallStatus
@@ -136,6 +137,52 @@ def _default_calendar() -> Any:
 async def _history(mail: Any, calendar: Any, query: ContactHistoryQuery = QUERY) -> Any:
     with _door(mail, calendar):
         return await contacts_history.contact_history(USER, ZONE, query, NOW)
+
+
+def _exchanged(message_id: str, hours: int, *, mine: bool) -> dict[str, Any]:
+    """A message of the exchange as its conversation holds it."""
+    return {
+        **_message(message_id, hours),
+        "threadId": f"t-{message_id}",
+        "labelIds": ["SENT"] if mine else ["INBOX"],
+        "from": "Me <me@x.org>" if mine else f"Ana <{ANA}>",
+        "to": f"Ana <{ANA}>" if mine else "Me <me@x.org>",
+    }
+
+
+class TestWhereAMailStands:
+    """Unread or not, a mail read alone cannot say whether it was answered (ADR-379)."""
+
+    async def test_the_latest_mail_each_way_says_what_happened_next(self) -> None:
+        theirs = _exchanged("r1", 5, mine=False)
+        ours = _exchanged("s1", 4, mine=True)
+        waiting = _exchanged("r2", 3, mine=False)
+        mail = _mail({f"from:{ANA}": [theirs, waiting], f"in:sent to:{ANA}": [ours]})
+        mail.conversations_of = AsyncMock(
+            return_value={
+                "t-r1": Conversation(
+                    messages=(theirs, {**_exchanged("a1", 2, mine=True), "threadId": "t-r1"})
+                ),
+                "t-s1": Conversation(
+                    messages=(ours, {**_exchanged("a2", 1, mine=False), "threadId": "t-s1"})
+                ),
+                "t-r2": Conversation(messages=(waiting,)),
+            }
+        )
+
+        history = await _history(mail, _calendar())
+
+        assert {row.id: row.reply for row in history.received} == {"r1": "answered", "r2": None}
+        assert {row.id: row.reply for row in history.sent} == {"s1": "reply_received"}
+
+    async def test_a_mailbox_that_cannot_tell_still_lists_the_exchange(self) -> None:
+        mail = _mail({f"from:{ANA}": [_exchanged("r1", 5, mine=False)]})
+        mail.conversations_of = AsyncMock(side_effect=RuntimeError("away"))
+
+        history = await _history(mail, _calendar())
+
+        assert [(row.id, row.reply) for row in history.received] == [("r1", None)]
+        assert history.mail == "used"
 
 
 class TestTheMail:

@@ -135,6 +135,8 @@ export interface AgendaData {
 
 export interface MailItem {
   classification?: import('@/lib/content-classification').ContentClassification | null;
+  /** Where the mail stands in its conversation, when the mailbox could tell (ADR-379). */
+  reply_state?: import('@/lib/mail-reply-state').ReplyState | null;
   sender_name: string | null;
   sender_email: string | null;
   subject: string;
@@ -254,11 +256,15 @@ export interface TaskItem {
   id?: string | null;
   /** Its list, by its real id (never an alias); null when it could not be read. */
   list_id?: string | null;
+  /** Its list's name (the card gathers every list); absent on payloads cached before it was sent. */
+  list_name?: string | null;
 }
 
 export interface TasksData {
   items: TaskItem[];
   overdue_count: number;
+  /** A list could not be read, or was read in part: the card may hold more. */
+  partial?: boolean;
 }
 
 export interface DocumentItem {
@@ -289,6 +295,11 @@ export interface WorkboardTicketItem {
   due_at: string | null;
   /** Past its due instant and still open (computed server-side). */
   overdue: boolean;
+  /**
+   * Name of the category the ticket is filed under; null for none, absent in
+   * a cached bundle that predates categories.
+   */
+  category?: string | null;
 }
 
 /**

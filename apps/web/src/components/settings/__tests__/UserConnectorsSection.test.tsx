@@ -16,6 +16,7 @@ import { within } from '@testing-library/react';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import { makeConnector } from '@/__tests__/factories';
+import { appConfigFixture } from '@/__tests__/fixtures/app-config';
 import { INITIAL_REVISIONS, useRevisionStore } from '@/stores/revisionStore';
 import {
   queryResult,
@@ -89,6 +90,25 @@ function render() {
   return renderWithProviders(<UserConnectorsSection lng="en" />);
 }
 
+/**
+ * The connector list, on an instance that mounts telephony and whose `/config`
+ * carries the operator's verdict on it: the group of ONE capability decides
+ * its own presence from both.
+ */
+function stubWithTelephony(enabled: boolean, connectors: Connector[]) {
+  setData = setDataSpy<ConnectorsResponse>();
+  useApiQuery.mockImplementation((endpoint: string) =>
+    endpoint === '/config'
+      ? queryResult({
+          data: appConfigFixture({
+            features: { telephony_enabled: true },
+            capabilities: { telephony: { enabled, family: 'media' } },
+          }),
+        })
+      : queryResult<ConnectorsResponse>({ data: { connectors }, setData })
+  );
+}
+
 /** Expands the "connected Google" family so its cards mount. */
 async function openGoogleFamily(user: ReturnType<typeof render>['user']) {
   await user.click(await screen.findByRole('button', { name: GOOGLE_SECTION }));
@@ -125,6 +145,7 @@ describe('UserConnectorsSection — shell', () => {
   });
 
   it('names every group trigger by its label, count and state — never by its icon', async () => {
+    stubWithTelephony(true, [makeConnector({ id: 'c1', connector_type: 'google_calendar' })]);
     render();
     const connected = await screen.findByRole('button', { name: GOOGLE_SECTION });
     expect(connected).toHaveAccessibleName(
@@ -139,6 +160,46 @@ describe('UserConnectorsSection — shell', () => {
     for (const glyph of ['💡', '📞', '🎙️']) {
       expect(screen.queryByText(glyph)).not.toBeInTheDocument();
     }
+  });
+
+  it('offers no telephony connection where the operator switched telephony off', async () => {
+    // Connecting a key creates an agent at the vendor: an act the switch closed (ADR-280).
+    stubWithTelephony(false, [makeConnector({ id: 'c1', connector_type: 'google_calendar' })]);
+
+    render();
+
+    expect(await screen.findByRole('button', { name: GOOGLE_SECTION })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /telephony/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps a stored telephony key in the list under the switch', async () => {
+    // The key is the person's record: the switch closes calling, never its removal.
+    stubWithTelephony(false, [
+      makeConnector({ id: 'c1', connector_type: 'google_calendar' }),
+      makeConnector({ id: 'c2', connector_type: 'elevenlabs_telephony' }),
+    ]);
+
+    render();
+
+    expect(
+      await screen.findByRole('button', { name: /settings\.connectors\.connected_telephony/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /settings\.connectors\.available_telephony/ })
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the connected telephony connector where telephony is offered', async () => {
+    stubWithTelephony(true, [makeConnector({ id: 'c2', connector_type: 'elevenlabs_telephony' })]);
+
+    render();
+
+    expect(
+      await screen.findByRole('button', { name: /settings\.connectors\.connected_telephony/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /settings\.connectors\.available_telephony/ })
+    ).not.toBeInTheDocument();
   });
 });
 

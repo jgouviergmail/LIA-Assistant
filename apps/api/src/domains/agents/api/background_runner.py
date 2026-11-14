@@ -1,329 +1,397 @@
-"""
-Detached chat-run producer (ADR-117, Lot 1).
+"""One supervised chat producer for inline SSE and reconnectable Redis streams.
 
-Consumes an AgentService chat-chunk generator INDEPENDENTLY of any HTTP
-connection and publishes every chunk to the run's Redis Stream. The SSE
-endpoint (and, in Lot 2, reattaching clients) merely subscribe.
-
-Invariants:
-  - The stream ALWAYS ends with a terminal marker, whatever the exit path
-    (completed / error / killed) — subscribers can never hang forever.
-  - The generator's own finalization (archiving, token tracking, HITL
-    cleanup) runs inside the generator itself; this module only adds the
-    transport-level guarantees plus a best-effort partial-content
-    finalizer for the hard-kill path.
-  - Producers register in a module-level set drained by the lifespan
-    shutdown (see main.py) — proven necessary by the 2026-07 de-risking
-    POC: without the drain, uvicorn worker recycling kills in-flight runs.
+The producer owns the generator, its finalization and durable admission. A
+subscriber owns only its transport. Inline disconnection cancels the producer;
+a detached run continues archiving to the immutable target it admitted.
 """
 
 import asyncio
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
-from contextlib import aclosing, suppress
+from contextlib import aclosing
+from dataclasses import dataclass, field
+from functools import partial
 
+import structlog
 from redis.asyncio import Redis
 
 from src.core.config import settings
+from src.core.constants import STREAM_TEARDOWN_WAIT_SECONDS
+from src.core.conversation_execution import ExecutionRevoked, RunAdmission, RunEnd
+from src.core.i18n import resolve_language
+from src.core.run_authority import current_run_authority, run_authority_scope
+from src.domains.agents.api.error_messages import SSEErrorMessages
+from src.domains.agents.api.run_output import (
+    InlineRunOutput,
+    RedisRunOutput,
+    RunEndStatus,
+    RunOutput,
+)
 from src.domains.agents.api.schemas import ChatStreamChunk
+from src.domains.agents.api.stream_identity import with_invocation_identity
 from src.domains.agents.utils.hitl_store import HITLStore
+from src.infrastructure.async_utils import cancel_and_join, finish_owned_task, safe_fire_and_forget
 from src.infrastructure.cache.redis import get_redis_cache
-from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
     chat_background_producers_active,
     chat_background_runs_total,
     e2e_request_duration_with_agents,
 )
-from src.infrastructure.streaming.run_stream_broker import (
-    clear_cancel,
-    heartbeat_active_run,
-    is_cancel_requested,
-    publish_chunk,
-    publish_end,
-    release_active_run,
-)
+from src.infrastructure.streaming.run_admission import owned_execution, release_unstarted_execution
+from src.infrastructure.streaming.run_stream_broker import clear_cancel, is_cancel_requested
 
-logger = get_logger(__name__)
-
+logger = structlog.get_logger(__name__)
 PartialFinalizer = Callable[[str, str], Awaitable[None]]
+_producers: dict[asyncio.Task[None], bool] = {}
 
-_producers: set[asyncio.Task] = set()
+
+@dataclass(slots=True)
+class _Progress:
+    """One invocation's observed output; no user content appears in operational logs."""
+
+    pieces: list[str] = field(default_factory=list)
+    chunks: int = 0
+    intention: str = "unknown"
+    done: bool = False
+    error: bool = False
+    cancel_requested: bool = False
+
+    def observe(self, chunk: ChatStreamChunk) -> None:
+        """Match the archive's replacement semantics without quadratic concatenation."""
+        self.chunks += 1
+        if chunk.type == "token" and isinstance(chunk.content, str):
+            self.pieces.append(chunk.content)
+        elif chunk.type == "content_replacement" and isinstance(chunk.content, str):
+            self.pieces = [chunk.content]
+        if chunk.type == "router_decision" and chunk.metadata:
+            intention = chunk.metadata.get("intention")
+            if isinstance(intention, str):
+                self.intention = intention
 
 
 def get_active_chat_producer_count() -> int:
-    """Number of detached chat producers currently running in this worker."""
+    """Count actual producer tasks, including inline runs that are being drained."""
     return len(_producers)
 
 
 def spawn_chat_run_producer(
     *,
     chat_stream: AsyncGenerator[ChatStreamChunk],
-    run_id: str,
-    stream_id: str,
-    user_id: str,
+    admission: RunAdmission,
     session_id: str,
     finalize_partial: PartialFinalizer | None = None,
-    conversation_id: str | None = None,
-) -> asyncio.Task:
-    """Start the detached producer task for one chat run.
+    output: RunOutput | None = None,
+) -> asyncio.Task[None]:
+    """Transfer a committed admission to an immediately owned producer task.
 
     Args:
-        chat_stream: The AgentService chunk generator (not yet consumed).
-        run_id: BILLING/correlation identifier (reused across HITL
-            interrupt + resumption for token aggregation).
-        stream_id: TRANSPORT identifier — the Redis stream key suffix.
-            MUST be fresh per invocation: a HITL resumption reuses run_id,
-            and publishing to the same stream would append after the
-            interrupt phase's terminal marker, so a replay-from-0
-            subscriber would stop at the stale marker and never see the
-            resumption content.
-        user_id: User id (logging only; no PII beyond the id).
-        session_id: Session id (logging only).
-        finalize_partial: Optional async callback invoked with
-            (accumulated_content, reason) when the producer is killed
-            before the generator could finish (best-effort, shielded).
-        conversation_id: When provided (Lot 2), the caller has ALREADY
-            acquired the conversation's active-run lock; the producer
-            keeps it alive (heartbeat) and releases it on every exit
-            path. None = no lock bookkeeping (tests, legacy callers).
+        chat_stream: Unconsumed engine stream; its contexts close in this task.
+        admission: Private SQL authority already committed by the request.
+        session_id: Correlation identifier, never the bearer session cookie.
+        finalize_partial: Pinned archive callback for interrupted output.
+        output: Inline queue owned by the request, or the default Redis relay.
 
     Returns:
-        The producer task (registered for lifespan drain).
+        The registered task. Cancelling it before it starts still releases its
+        unused admission through an owned callback, never a timer.
     """
-    task = asyncio.create_task(
-        _produce(
-            chat_stream, run_id, stream_id, user_id, session_id, finalize_partial, conversation_id
-        ),
-        name=f"chat-run-producer-{stream_id}",
+    sink = output or (
+        RedisRunOutput(admission.stream_id) if admission.relayed else InlineRunOutput()
     )
-    _producers.add(task)
-    chat_background_producers_active.set(len(_producers))
+    started = False
 
-    def _on_done(t: asyncio.Task) -> None:
-        _producers.discard(t)
-        chat_background_producers_active.set(len(_producers))
+    async def produce_owned() -> None:
+        nonlocal started
+        started = True
+        entered = False
+        startup_status: RunEndStatus = "killed"
+        try:
+            async with owned_execution(admission):
+                entered = True
+                await _produce(chat_stream, admission, session_id, sink, finalize_partial)
+        except Exception as failure:
+            if not entered:
+                startup_status = "error"
+                await finish_owned_task(
+                    asyncio.create_task(_report_startup_failure(sink, admission, failure))
+                )
+            raise
+        finally:
+            if not entered:
+                await finish_owned_task(
+                    asyncio.create_task(_unstarted_output(chat_stream, sink, startup_status))
+                )
 
-    task.add_done_callback(_on_done)
-    logger.info(
-        "chat_run_producer_started",
-        run_id=run_id,
-        stream_id=stream_id,
-        user_id=user_id,
-        session_id=session_id,
-        active_producers=len(_producers),
-    )
+    # A new producer owns, never borrows, even if a composition caller happened
+    # to have another graph context. Keep all other accounting/language scopes.
+    with run_authority_scope(None):
+        task = asyncio.create_task(produce_owned(), name=f"chat-run-producer-{admission.stream_id}")
+    _producers[task] = admission.relayed
+    _update_active_gauge()
+
+    def finished(done: asyncio.Task[None]) -> None:
+        _producers.pop(done, None)
+        _update_active_gauge()
+        if not started:
+            safe_fire_and_forget(
+                _release_unstarted(chat_stream, admission, sink),
+                name="chat_run_unstarted_cleanup",
+                independent_of_graph=True,
+            )
+        if not done.cancelled() and (failure := done.exception()) is not None:
+            logger.error(
+                "chat_run_owner_failed",
+                activity_id=str(admission.activity_id),
+                error_type=type(failure).__name__,
+            )
+
+    task.add_done_callback(finished)
     return task
+
+
+def _update_active_gauge() -> None:
+    """The existing background metric counts only reconnectable runs."""
+    chat_background_producers_active.set(sum(_producers.values()))
+
+
+async def _unstarted_output(
+    stream: AsyncGenerator[ChatStreamChunk],
+    output: RunOutput,
+    status: RunEndStatus = "killed",
+) -> None:
+    """A refused startup cannot leave a reader waiting for a first chunk forever."""
+    await stream.aclose()
+    await _best_effort(lambda: output.finish(status), "chat_run_unstarted_end_failed")
+
+
+async def _report_startup_failure(
+    output: RunOutput,
+    admission: RunAdmission,
+    failure: Exception,
+) -> None:
+    """Refused authority is an explicit failed request, never an empty successful answer."""
+    for chunk in (
+        ChatStreamChunk(
+            type="error",
+            content=SSEErrorMessages.stream_error(failure, language=resolve_language()),
+            metadata={"error_type": "stream_error"},
+        ),
+        ChatStreamChunk(type="done", content="", metadata={"error": True}),
+    ):
+        scoped = with_invocation_identity(chunk, admission)
+        await _best_effort(partial(output.publish, scoped), "chat_run_startup_error_publish_failed")
+
+
+async def _release_unstarted(
+    stream: AsyncGenerator[ChatStreamChunk],
+    admission: RunAdmission,
+    output: RunOutput,
+) -> None:
+    """The task's first instruction never ran: there can be no graph or Redis writer."""
+
+    async def close() -> None:
+        await release_unstarted_execution(admission)
+        await _unstarted_output(stream, output)
+
+    await finish_owned_task(asyncio.create_task(close()))
+
+
+def link_inline_request_lifetime(producer: asyncio.Task[None], output: InlineRunOutput) -> None:
+    """A request ending before response iteration still abandons its inline producer."""
+    request = asyncio.current_task()
+    assert request is not None
+
+    def abandon(_request: asyncio.Task[object]) -> None:
+        output.abandon()
+        if not producer.done() and not producer.cancelling():
+            producer.cancel()
+
+    request.add_done_callback(abandon)
+
+
+async def stop_inline_producer(producer: asyncio.Task[None], output: InlineRunOutput) -> None:
+    """Release transport backpressure before asking the owner to stop and drain."""
+    output.abandon()
+    if not producer.done() and not producer.cancelling():
+        producer.cancel()
+    # Its owner and SQL admission stay indexed if physical teardown takes longer.
+    await asyncio.wait({producer}, timeout=STREAM_TEARDOWN_WAIT_SECONDS)
 
 
 async def _produce(
     chat_stream: AsyncGenerator[ChatStreamChunk],
-    run_id: str,
-    stream_id: str,
-    user_id: str,
+    admission: RunAdmission,
     session_id: str,
+    output: RunOutput,
     finalize_partial: PartialFinalizer | None,
-    conversation_id: str | None = None,
 ) -> None:
-    """Consume the generator and publish chunks; always publish an end marker."""
+    """Drive both transports through the same generator and owned finalization."""
     redis = await get_redis_cache()
-    start_time = time.time()
-    intention_label = "unknown"
-    response_content = ""
-    chunk_count = 0
-    # Lot 2: keep the caller-acquired active-run lock alive for the whole run
-    heartbeat_task: asyncio.Task | None = None
-    if conversation_id is not None:
-        heartbeat_task = asyncio.create_task(
-            # `run_id` lets the heartbeat RE-TAKE a lock that merely expired —
-            # a Redis blip longer than the 30 s TTL, which a long turn easily
-            # outlives. Without it the producer would stream on with the
-            # conversation left unlocked behind it.
-            heartbeat_active_run(redis, conversation_id, stream_id, run_id=run_id),
-            name=f"chat-run-heartbeat-{stream_id}",
-        )
-    # Lot 3: watch for a user cancellation signal (possibly set from another
-    # worker) and cancel THIS task cooperatively. The flag distinguishes a
-    # user cancel from a hard kill (shutdown drain) in the terminal status.
-    cancel_state = {"requested": False}
-    producer_task = asyncio.current_task()
-    cancel_watch_task: asyncio.Task | None = None
-    if producer_task is not None:
-        cancel_watch_task = asyncio.create_task(
-            _watch_cancel(redis, stream_id, cancel_state, producer_task),
-            name=f"chat-run-cancel-watch-{stream_id}",
-        )
+    producer = asyncio.current_task()
+    assert producer is not None
+    progress = _Progress()
+    status: RunEndStatus = "completed"
+    failure: Exception | None = None
+    started_at = time.monotonic()
+    watcher = asyncio.create_task(_watch_cancel(redis, admission.stream_id, progress, producer))
     try:
-        # A stop that lands on a publication, outside the generator, still closes it
-        # here, in this task: its exits must run in the context the turn set.
         async with aclosing(chat_stream):
             async for chunk in chat_stream:
-                if chunk.type == "router_decision" and chunk.metadata:
-                    intention_label = chunk.metadata.get("intention", "unknown")
-                # Mirror the archive accumulation rule of the service layer:
-                # tokens append, content_replacement REPLACES (photo injection).
-                if chunk.type == "token" and isinstance(chunk.content, str):
-                    response_content += chunk.content
-                elif chunk.type == "content_replacement" and isinstance(chunk.content, str):
-                    response_content = chunk.content
-                await publish_chunk(redis, stream_id, chunk.model_dump_json())
-                chunk_count += 1
+                progress.observe(chunk)
+                await output.publish(with_invocation_identity(chunk, admission))
+                progress.done |= chunk.type == "done"
+                progress.error |= chunk.type == "error"
     except asyncio.CancelledError:
-        # User cancellation (Lot 3, cooperative via the cancel watcher) or
-        # hard kill (drain timeout / loop teardown). Either way the
-        # generator's async-with blocks have run their __aexit__ (tracking
-        # persisted). Best-effort: mark the stream, archive the partial.
-        status = "cancelled" if cancel_state["requested"] else "killed"
-        with suppress(Exception):
-            await asyncio.shield(
-                _finalize_abnormal(
-                    redis, stream_id, status, response_content, finalize_partial, conversation_id
-                )
-            )
+        authority = current_run_authority()
+        if authority is not None and authority.supervision_lost and not progress.cancel_requested:
+            status = "error"
+            failure = ExecutionRevoked()
+        else:
+            status = "cancelled" if progress.cancel_requested else "killed"
         raise
-    except Exception as exc:  # noqa: BLE001 — top-level task boundary
-        # The generator already emitted its own error + done chunks before
-        # raising (service.py contract) — they were published above.
+    except Exception as exc:
+        status, failure = "error", exc
         logger.error(
             "chat_run_producer_error",
-            run_id=run_id,
-            stream_id=stream_id,
-            error=str(exc),
+            activity_id=str(admission.activity_id),
             error_type=type(exc).__name__,
-            chunks_published=chunk_count,
+            chunks_observed=progress.chunks,
         )
-        # Best-effort: if Redis itself is the failure cause, publish_end
-        # cannot succeed either — subscribers will then error out on their
-        # own XREAD, so nothing is left hanging.
-        with suppress(Exception):
-            await publish_end(redis, stream_id, "error")
-        chat_background_runs_total.labels(status="error").inc()
-        return
     finally:
-        # Lock/watcher bookkeeping runs on EVERY exit path: stop the
-        # heartbeat and the cancel watcher, release the lock (zombie-safe by
-        # value), and consume any pending cancel signal — all shielded so a
-        # propagating cancellation cannot abort them.
-        if heartbeat_task is not None:
-            heartbeat_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await heartbeat_task
-        if cancel_watch_task is not None and not cancel_watch_task.done():
-            cancel_watch_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await cancel_watch_task
-        if cancel_state["requested"]:
-            with suppress(Exception):
-                await asyncio.shield(clear_cancel(redis, stream_id))
-        if conversation_id is not None:
-            with suppress(Exception):
-                await asyncio.shield(release_active_run(redis, conversation_id, stream_id))
-    # Normal completion
-    await publish_end(redis, stream_id, "completed")
-    chat_background_runs_total.labels(status="completed").inc()
-    e2e_request_duration_with_agents.labels(
-        intention=intention_label, agents_bucket="single"
-    ).observe(time.time() - start_time)
-    logger.info(
-        "chat_run_producer_completed",
-        run_id=run_id,
-        stream_id=stream_id,
-        user_id=user_id,
-        session_id=session_id,
-        chunks_published=chunk_count,
-        duration_seconds=round(time.time() - start_time, 2),
-        intention=intention_label,
-    )
+        authority = current_run_authority()
+        if authority is not None:
+            # Its close settles what waited by this declaration (ADR-384): an
+            # answer that published an error did not end normally.
+            normal = status == "completed" and not progress.error
+            authority.end = RunEnd.NORMAL if normal else RunEnd.INTERRUPTED
+            authority.revoked = True
+        # Revocation stops graph children now. The owner still holds its SQL
+        # activity while the explicitly pinned finalizer files prior output.
+        await finish_owned_task(
+            asyncio.create_task(
+                _close_producer(
+                    redis,
+                    admission,
+                    output,
+                    watcher,
+                    progress,
+                    status,
+                    failure,
+                    finalize_partial,
+                )
+            )
+        )
+        duration = time.monotonic() - started_at
+        e2e_request_duration_with_agents.labels(
+            intention=progress.intention,
+            agents_bucket="single",
+        ).observe(duration)
+        if admission.relayed:
+            chat_background_runs_total.labels(status=status).inc()
+        logger.info(
+            "chat_run_producer_finished",
+            activity_id=str(admission.activity_id),
+            session_id=session_id,
+            status=status,
+            chunks_observed=progress.chunks,
+            duration_seconds=round(duration, 2),
+        )
 
 
 async def _watch_cancel(
     redis: Redis,
     stream_id: str,
-    cancel_state: dict[str, bool],
-    producer_task: asyncio.Task,
+    progress: _Progress,
+    producer: asyncio.Task[object],
 ) -> None:
-    """Poll the cancel signal and cooperatively cancel the producer (Lot 3).
-
-    The signal may be set from ANY worker (the stop button's POST can land
-    anywhere); the watcher runs next to the producer, so the asyncio
-    cancellation itself stays worker-local. Marks ``cancel_state`` BEFORE
-    cancelling so the terminal status reads "cancelled", not "killed".
-    """
-    period = settings.background_runs_cancel_poll_seconds
+    """The signal may come from any worker; cancellation stays with this actual owner."""
     while True:
-        await asyncio.sleep(period)
+        await asyncio.sleep(settings.background_runs_cancel_poll_seconds)
         try:
             requested = await is_cancel_requested(redis, stream_id)
-        except Exception as exc:  # noqa: BLE001 — transient Redis hiccup: keep polling
-            logger.warning("cancel_watch_poll_failed", stream_id=stream_id, error=str(exc))
+        except Exception as exc:
+            logger.warning(
+                "cancel_watch_poll_failed", stream_id=stream_id, error_type=type(exc).__name__
+            )
             continue
         if requested:
-            cancel_state["requested"] = True
-            logger.info("chat_run_cancelling", stream_id=stream_id)
-            producer_task.cancel()
+            progress.cancel_requested = True
+            if not producer.cancelling():
+                producer.cancel()
             return
 
 
-async def _finalize_abnormal(
+async def _close_producer(
     redis: Redis,
-    stream_id: str,
-    status: str,
-    response_content: str,
+    admission: RunAdmission,
+    output: RunOutput,
+    watcher: asyncio.Task[None],
+    progress: _Progress,
+    status: RunEndStatus,
+    failure: Exception | None,
     finalize_partial: PartialFinalizer | None,
-    conversation_id: str | None = None,
 ) -> None:
-    """Terminal marker + optional partial-content archive on abnormal end."""
+    """Archive independently of transport availability; a second stop cannot detach it."""
+    await cancel_and_join(watcher)
+    if status != "completed":
+        content = "".join(progress.pieces)
+        if finalize_partial is not None and content.strip():
+            await _best_effort(
+                lambda: finalize_partial(content, status), "chat_run_partial_archive_failed"
+            )
     if status == "cancelled":
-        # User cancellation (Lot 3): the generator died before emitting its
-        # own done chunk — synthesize one so subscribers finish their normal
-        # SSE lifecycle and can badge the partial bubble. Standard chunk
-        # type, no contract change; token totals are archived in DB (the
-        # tracker committed on exit) and reconcile on the next reload.
-        done_chunk = ChatStreamChunk(
-            type="done",
-            content="",
-            metadata={"cancelled": True},
+        store = HITLStore(redis, settings.hitl_pending_data_ttl_seconds)
+        await _best_effort(
+            lambda: store.clear_interrupt_for_run(
+                str(admission.target.runtime_id),
+                admission.run_id,
+                activity_id=admission.activity_id,
+            ),
+            "chat_run_question_cleanup_failed",
         )
-        await publish_chunk(redis, stream_id, done_chunk.model_dump_json())
-        if conversation_id is not None:
-            # Lot 1 Phase 0: a user cancel landing after save_interrupt would
-            # otherwise leave an orphan pending_hitl — the next message would
-            # be misrouted into HITL resumption for a question the user
-            # deliberately killed. A hard kill ("killed") deliberately does
-            # NOT clear: the delivered question stays answerable after a
-            # restart. Best-effort (caller shields + suppresses).
-            store = HITLStore(
-                redis_client=redis, ttl_seconds=settings.hitl_pending_data_ttl_seconds
+        await _best_effort(
+            lambda: clear_cancel(redis, admission.stream_id), "chat_run_cancel_cleanup_failed"
+        )
+    for chunk in _terminal_chunks(progress, status, failure):
+        await _best_effort(
+            partial(output.publish, with_invocation_identity(chunk, admission)),
+            "chat_run_terminal_publish_failed",
+        )
+    await _best_effort(lambda: output.finish(status), "chat_run_end_publish_failed")
+
+
+def _terminal_chunks(
+    progress: _Progress,
+    status: RunEndStatus,
+    failure: Exception | None,
+) -> list[ChatStreamChunk]:
+    """Missing terminal events are derived from acknowledged delivery, never attempted output."""
+    chunks: list[ChatStreamChunk] = []
+    if failure is not None and not progress.error:
+        chunks.append(
+            ChatStreamChunk(
+                type="error",
+                content=SSEErrorMessages.stream_error(failure, language=resolve_language()),
+                metadata={"error_type": "stream_error"},
             )
-            await store.delete_interrupt(conversation_id)
-            logger.info(
-                "pending_hitl_cleared_on_cancel",
-                stream_id=stream_id,
-                conversation_id=conversation_id,
-            )
-    await publish_end(redis, stream_id, status)
-    chat_background_runs_total.labels(status=status).inc()
-    if finalize_partial is not None and response_content.strip():
-        await finalize_partial(response_content, status)
-    logger.warning(
-        "chat_run_producer_aborted",
-        stream_id=stream_id,
-        status=status,
-        partial_content_length=len(response_content),
-    )
+        )
+    if status in ("cancelled", "error") and not progress.done:
+        chunks.append(ChatStreamChunk(type="done", content="", metadata={status: True}))
+    return chunks
+
+
+async def _best_effort[T](action: Callable[[], Awaitable[T]], event: str) -> None:
+    """A transport failure never suppresses independent archive or cleanup attempts."""
+    try:
+        await action()
+    except Exception as exc:
+        logger.warning(event, error_type=type(exc).__name__)
 
 
 async def drain_chat_producers(timeout: float) -> tuple[int, int]:
-    """Wait for in-flight producers at shutdown (POC-4b mitigation).
-
-    Args:
-        timeout: Max seconds to wait.
-
-    Returns:
-        (completed, still_pending) task counts.
-    """
+    """Wait for actual producers at shutdown; unknown stops retain their SQL admission."""
     if not _producers:
-        return (0, 0)
-    logger.info("chat_producers_drain_started", count=len(_producers), timeout=timeout)
+        return 0, 0
     done, pending = await asyncio.wait(set(_producers), timeout=timeout)
     logger.info("chat_producers_drain_finished", done=len(done), pending=len(pending))
-    return (len(done), len(pending))
+    return len(done), len(pending)

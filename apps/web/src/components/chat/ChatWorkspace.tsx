@@ -3,8 +3,8 @@
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 import { useAuth } from '@/hooks/useAuth';
-import { useChat } from '@/hooks/useChat';
-import { useConversation, type ConversationTotals } from '@/hooks/useConversation';
+import { useConversation } from '@/hooks/useConversation';
+import { useDiscussionUsage } from '@/hooks/useDiscussionUsage';
 import { useChatServerSync } from '@/hooks/useChatServerSync';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
@@ -16,15 +16,13 @@ import { ChatMessageList } from '@/components/chat/ChatMessageList';
 import { PsycheMilestoneWatcher } from '@/components/psyche/PsycheMilestoneWatcher';
 import { useLiveTabTitle } from '@/hooks/useLiveTabTitle';
 import { ChatInput } from '@/components/chat/ChatInput';
-import { ChatContextUsage } from '@/components/chat/ChatContextUsage';
 import { ChatSearchBar } from '@/components/chat/search/ChatSearchBar';
 import { useChatHistorySearch } from '@/hooks/useChatHistorySearch';
 import { DebugPanel } from '@/components/debug/DebugPanel';
 import { ResizableDebugPanel } from '@/components/debug/ResizableDebugPanel';
 import { useDebugMetrics } from '@/components/debug/hooks/useDebugMetrics';
-import { WifiOff, Trash2, Search, X } from '@/lib/icons';
-import { VoiceModeBadge } from '@/components/voice/VoiceModeBadge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { discussionReach } from '@/lib/discussion-leave';
 import { logger } from '@/lib/logger';
 import { sentHistoryOf } from '@/lib/sent-history';
 import {
@@ -38,7 +36,14 @@ import { useChatProposal } from '@/hooks/useChatProposal';
 import { ChatConditionalSurfaces } from '@/components/chat/ChatConditionalSurfaces';
 import { useAuthenticatedEyesChatState } from '@/components/eyes/useEyesChatState';
 import { useEyesChatWiring } from '@/components/eyes/useEyesChatWiring';
-import { ResetConversationConfirm } from '@/components/chat/ResetConversationConfirm';
+import {
+  ChatDiscussionHost,
+  type ChatDiscussionViewProps,
+} from '@/components/chat/ChatDiscussionHost';
+import { ChatWorkspaceToolbar } from '@/components/chat/ChatWorkspaceToolbar';
+import { DiscussionReset } from '@/components/chat/DiscussionReset';
+import { Button } from '@/components/ui/button';
+import { getApiErrorStatus } from '@/lib/api-error';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { FeatureErrorBoundary } from '@/components/errors';
@@ -46,6 +51,7 @@ import { stopAvatarCommentsForChatFailure } from '@/lib/avatars/runtime';
 
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { capabilityAvailable } from '@/lib/capability-availability';
 import { composerFeatureFlags } from '@/lib/chat-composer-capabilities';
 import { BookmarkStateProvider } from '@/lib/bookmark-state-context';
 import { bookmarkKeepingAvailable, bookmarksReadable } from '@/lib/bookmarks/availability';
@@ -71,13 +77,18 @@ import { resolveInitialComposition, resolveInitialMessage } from '@/lib/chat-ini
 import type { CapabilityDirectiveWire } from '@/types/directive';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UsageBanners } from '@/components/usage/UsageBanners';
+import { WaitingMessageSlot } from '@/components/chat/WaitingMessageBubble';
+import { useWaitingComposer } from '@/hooks/useWaitingComposer';
+import type { SendExtras } from '@/lib/waiting-message';
+import type { UseChatReturn } from '@/hooks/useChat';
 import { ActiveCallBanner } from '@/components/telephony/ActiveCallBanner';
 import { LiveBanner } from '@/components/live/LiveBanner';
-import { useLiveChatBindings } from '@/components/live/useLiveChatBindings';
-import { useLiveSession } from '@/hooks/useLiveSession';
 import { useLiveHoldsMicrophone } from '@/stores/liveStore';
-import { ActiveSpacesIndicator } from '@/components/spaces/ActiveSpacesIndicator';
 import { isLanguage, fallbackLng, type Language } from '@/i18n/settings';
+
+function resetAvailable(apiAvailable: boolean, isTyping: boolean): boolean {
+  return apiAvailable && !isTyping;
+}
 
 /** Short locale of an i18n language tag ("fr-FR" → "fr"; default "fr"). */
 function shortLang(language: string | undefined): Language {
@@ -87,22 +98,52 @@ function shortLang(language: string | undefined): Language {
 
 /**
  * What locks the composer and the voice badge (module-level — CC discipline):
- * a running turn, the quota wall, and — ADR-299 — a live session, which owns
- * the microphone and the turn (the person speaks; the composer says why it is
- * closed). `apiUsable` is what the composer's own availability line reads.
+ * the quota wall and — ADR-299 — a live session, which owns the microphone and
+ * the turn (the person speaks; the composer says why it is closed). A running
+ * turn no longer closes the text: words typed meanwhile wait for their turn
+ * (ADR-384); it still closes the voice and a card composition, which only a
+ * live request can carry. `apiUsable` is what the composer's own availability
+ * line reads.
  */
-function composerLocks(flags: {
+export function composerLocks(flags: {
   apiAvailable: boolean;
   isTyping: boolean;
   isUsageBlocked: boolean;
   liveOpen: boolean;
-}): { input: boolean; voice: boolean; apiUsable: boolean; reasonKey: string | null } {
-  const { apiAvailable, isTyping, isUsageBlocked, liveOpen } = flags;
+  waitingForHistory: boolean;
+}): {
+  input: boolean;
+  voice: boolean;
+  composition: boolean;
+  apiUsable: boolean;
+  reasonKey: string | null;
+} {
+  const { apiAvailable, isTyping, isUsageBlocked, liveOpen, waitingForHistory } = flags;
+  const input = isUsageBlocked || liveOpen || waitingForHistory;
   return {
-    input: isTyping || isUsageBlocked || liveOpen,
-    voice: !apiAvailable || isTyping || isUsageBlocked || liveOpen,
+    input,
+    composition: input || isTyping,
+    voice: !apiAvailable || isTyping || isUsageBlocked || liveOpen || waitingForHistory,
     apiUsable: apiAvailable && !isUsageBlocked,
     reasonKey: liveOpen ? 'live.composer_locked' : null,
+  };
+}
+
+/**
+ * What a composer send carries beyond its words (module-level — CC
+ * discipline): anything here keeps the live request (ADR-384).
+ */
+function sendExtrasOf(
+  args: Parameters<UseChatReturn['sendMessage']>,
+  composition: unknown
+): SendExtras {
+  return {
+    attachmentIds: args[1],
+    sttProvider: args[3]?.stt_provider,
+    hitlDecision: args[4],
+    directive: args[5],
+    live: args[6],
+    composition,
   };
 }
 
@@ -122,23 +163,62 @@ function canShowGroundedRail(args: {
   return args.authReady && args.historySettled && args.messageCount === 0;
 }
 
-export function ChatWorkspace({
+export function ChatWorkspace(props: { embedded?: boolean; openingDraft?: string }) {
+  const { user, isLoading } = useAuth();
+  const { t } = useTranslation();
+  const router = useLocalizedRouter();
+  const { isEnabled: debugPanelEnabled } = useDebugPanelEnabled();
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  const { config: appConfig, loading: configLoading } = useAppConfig(
+    Boolean(user?.is_active) && !isLoading
+  );
+  useEffect(() => {
+    if (!isLoading && user && !user.is_active) router.push('/dashboard');
+  }, [user, isLoading, router]);
+
+  if (isLoading || (configLoading && !appConfig)) {
+    return (
+      <p role="status" className="flex items-center justify-center gap-2 p-4 text-sm">
+        <LoadingSpinner aria-hidden="true" />
+        {t('chat.loading_conversation')}
+      </p>
+    );
+  }
+  if (!user?.is_active) return null;
+  return (
+    <ChatDiscussionHost
+      key={user.id}
+      ownerId={user.id}
+      {...props}
+      appConfig={appConfig}
+      showDebugPanel={debugPanelEnabled && isDesktop}
+      View={ChatWorkspaceView}
+    />
+  );
+}
+
+function ChatWorkspaceView({
   embedded,
   openingDraft,
-}: {
-  embedded?: boolean;
-  openingDraft?: string;
-}) {
+  appConfig,
+  showDebugPanel,
+  chat,
+  target,
+  selection,
+  uploads,
+  switcher,
+  live,
+  cleanup,
+  refreshTarget,
+  refreshCatalogue,
+  openDiscussion,
+  reset,
+  consumeOpeningDraft,
+  recoverOnDraftRelease,
+}: ChatDiscussionViewProps) {
   const { user, isLoading } = useAuth();
   const searchParams = useSearchParams();
-  // Debug Panel: Check if enabled (runtime admin setting only)
-  // Must be before useChat so we can pass visibility for viewport_width calculation
-  const { isEnabled: debugPanelEnabled } = useDebugPanelEnabled();
-  // Auth resolved AND a user present — the single readiness signal reused by
-  // the app-config fetch and the QW-24 intent auto-send (one `&&`, not two).
-  const authReady = !!user && !isLoading;
-  // App config: feature flags from backend /api/v1/config
-  const { config: appConfig } = useAppConfig(authReady);
+  const authReady = Boolean(user) && !isLoading;
 
   // Usage limits (per-user quotas)
   const {
@@ -147,9 +227,17 @@ export function ChatWorkspace({
     limits: usageLimits,
   } = useUsageLimits();
 
-  // UXR Lot 2 (A7): per-user persisted input draft. The layout mounts this
-  // page only once the user is resolved, so the one-shot read is reliable.
-  const { initialDraft, initialComposition, saveDraft } = useInputDraft(user);
+  const { initialDraft, initialComposition, saveDraft } = useInputDraft(
+    user,
+    true,
+    target ?? undefined,
+    recoverOnDraftRelease
+  );
+  useEffect(() => {
+    if (openingDraft === undefined) return;
+    saveDraft(openingDraft);
+    consumeOpeningDraft();
+  }, [openingDraft, saveDraft, consumeOpeningDraft]);
 
   // QW-9 / UXR Lot 2 (A7) / N-13 / QW-24 (ADR-173) / ADR-210: the one-shot
   // deep links, read live and cleared through the History API. The four rules
@@ -157,20 +245,10 @@ export function ChatWorkspace({
   const { spotlightVoice, pendingIntent, pendingDirective, replayedIntent, clearIntent } =
     useDeepLinkParams(saveDraft, !embedded);
 
-  // True once the mount history load has SETTLED (loaded, empty, or failed).
-  //
-  // Production, 2026-08-01: a second chained 360° showed its answer without the
-  // question. `?intent=` was auto-sent as soon as auth and the API were ready —
-  // which can be BEFORE the history GET returns — and the reply below then did
-  // `setMessages(page.messages)` with a server list that predated the send,
-  // wiping the optimistic bubble. The message was persisted all along (it came
-  // back on refresh); only the browser's list lost it. Gating the send on this
-  // flag removes the race instead of merging lists afterwards.
-  const [historySettled, setHistorySettled] = useState(false);
-
-  // Debug panel requires desktop viewport (≥1024px) - not suitable for mobile
-  const isDesktop = useMediaQuery('(min-width: 1024px)');
-  const showDebugPanel = debugPanelEnabled && isDesktop;
+  // One-shot requests wait until this exact generation has loaded.
+  const [historyState, setHistoryState] = useState<'loading' | 'ready' | 'failed'>('loading');
+  const [historyAttempt, setHistoryAttempt] = useState(0);
+  const historySettled = historyState === 'ready';
 
   const {
     messages,
@@ -180,11 +258,9 @@ export function ChatWorkspace({
     streamPhase, // 'progress' (execution steps) vs 'answer' (real tokens)
     isConnected,
     apiAvailable,
-    conversationTotals: sessionTotals, // Totals accumulated during the current session (SSE done chunks)
     registry, // LARS: registry items for rich rendering (MCP Apps, etc.)
     sendMessage,
     setMessages,
-    appendMessage,
     mergeServerPage,
     clearMessages,
     currentDebugMetrics, // Debug Panel: Scoring metrics for current request
@@ -193,6 +269,9 @@ export function ChatWorkspace({
     contextUsage, // Context-usage pill: tokens vs compaction threshold
     hydrateContextUsage, // Seeds the pill from /me/totals on page load
     checkAndResumeActiveRun, // ADR-117 Lot 2: silent reattach to an in-flight run
+    resumeActiveRun, // ADR-384: join the run that sends a waiting message
+    runStreamId, // ADR-384: the run words typed meanwhile wait behind
+    registerBusyRefusal, // ADR-384: a send refused by a busy account waits
     stopGeneration, // ADR-117 Lot 3: stop button (cancels the in-flight run)
     stopVoice, // ADR-329: her phrase or the stop word cuts LIA's voice
     hitl, // HITL approval card state (Lot 1 P1-V1)
@@ -200,33 +279,32 @@ export function ChatWorkspace({
     hydratePendingHitl, // Card rehydration after reload (GET /agents/hitl/pending)
     connectorNotices, // Connector error banners (Lot 3 P3, ADR-134)
     dismissConnectorNotice,
-  } = useChat({ debugPanelVisible: showDebugPanel });
+  } = chat;
 
   // Blink the tab title while LIA works and the tab is in the background (I5)
   useLiveTabTitle(isTyping);
 
   // Live mode (ADR-299): the session speaks to the chat through its own
   // doors, and locks the composer while it holds the microphone.
-  const liveBindings = useLiveChatBindings({
-    messages,
-    hitl,
-    sendMessage,
-    appendMessage,
-    stopGeneration,
-  });
-  const liveSession = useLiveSession(liveBindings, user?.id);
   const liveOpen = useLiveHoldsMicrophone();
-  const locks = composerLocks({ apiAvailable, isTyping, isUsageBlocked, liveOpen });
+  const locks = composerLocks({
+    apiAvailable,
+    isTyping,
+    isUsageBlocked,
+    liveOpen,
+    waitingForHistory: Boolean(selection) && !historySettled,
+  });
+  const resumeAlreadyRunning = useRef(isTyping);
 
   const {
     loadConversationPage,
     loadOlderMessages,
     readNewestPage,
-    searchMessages,
+    searchDiscussions,
     isLoadingOlder,
     loadConversationTotals,
     resetConversation,
-  } = useConversation();
+  } = useConversation(selection);
 
   // Scroll-up pagination state.
   // ``oldestCursor`` is the ``created_at`` of the oldest message currently
@@ -239,8 +317,6 @@ export function ChatWorkspace({
   const router = useLocalizedRouter();
   const { t, i18n } = useTranslation();
   const lng = shortLang(i18n.language);
-  const [isResetting, setIsResetting] = useState(false);
-  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const initialComposerMessage = resolveInitialMessage(
     searchParams,
     initialDraft,
@@ -252,8 +328,27 @@ export function ChatWorkspace({
     initialMessage: initialComposerMessage,
     initialComposition: resolveInitialComposition(initialComposition, embedded, openingDraft),
     saveDraft,
-    disabled: cardCompositionDisabled(locks, hitlAwaitsUser(hitl.status)),
+    disabled: cardCompositionDisabled(
+      { input: locks.composition, apiUsable: locks.apiUsable },
+      hitlAwaitsUser(hitl.status)
+    ),
   });
+  // ADR-384: words written while LIA answers wait for their turn, kept by the server.
+  const waitingComposer = useWaitingComposer({
+    selection,
+    enabled: apiAvailable,
+    busy: isTyping,
+    questionPending: hitlAwaitsUser(hitl.status),
+    runStreamId,
+    joinRun: resumeActiveRun,
+    joinRunningAnswer: checkAndResumeActiveRun,
+    restoreText: cardComposition.prefillText,
+  });
+  const { onBusyRefusal, takes: waitingTakes } = waitingComposer;
+  useEffect(() => {
+    registerBusyRefusal(onBusyRefusal);
+    return () => registerBusyRefusal(undefined);
+  }, [registerBusyRefusal, onBusyRefusal]);
   const { onTextChange } = cardComposition;
   const [currentMessage, setCurrentMessage] = useState(() => initialComposerMessage ?? '');
 
@@ -298,47 +393,26 @@ export function ChatWorkspace({
 
   // Totals from API (loaded at startup from message_token_summary)
   // These totals are the source of truth for persisted history
-  const [apiTotals, setApiTotals] = useState<ConversationTotals | null>(null);
+  const {
+    totals: badgeTotals,
+    replace: replaceBadgeTotals,
+    refresh: refreshUsage,
+  } = useDiscussionUsage(loadConversationTotals, isTyping, hydrateContextUsage);
 
   // The node, just above the sticky composer, where the list draws its floating
   // return button: sticky at the list's own bottom it sat UNDER the composer.
   const [scrollUiSlot, setScrollUiSlot] = useState<HTMLDivElement | null>(null);
 
-  // Combined totals: API (history) + Current session (new messages not yet persisted)
-  // On refresh, apiTotals contains the full history, sessionTotals is at 0
-  // During the session, sessionTotals accumulates new tokens in real time
-  const combinedTotals = useMemo(() => {
-    // If no API totals loaded, use only session totals
-    const apiIn = apiTotals?.total_tokens_in ?? 0;
-    const apiOut = apiTotals?.total_tokens_out ?? 0;
-    const apiCache = apiTotals?.total_tokens_cache ?? 0;
-    const apiCost = apiTotals?.total_cost_eur ?? 0;
-    const apiGoogleApi = apiTotals?.total_google_api_requests ?? 0;
-
-    // Session totals are already accumulated by the reducer (STREAM_DONE)
-    const sessionIn = sessionTotals.totalTokensIn;
-    const sessionOut = sessionTotals.totalTokensOut;
-    const sessionCache = sessionTotals.totalTokensCache;
-    const sessionCost = sessionTotals.totalCostEur;
-    const sessionGoogleApi = sessionTotals.totalGoogleApiRequests;
-
-    return {
-      tokensIn: apiIn + sessionIn,
-      tokensOut: apiOut + sessionOut,
-      tokensCache: apiCache + sessionCache,
-      costEur: apiCost + sessionCost,
-      googleApiRequests: apiGoogleApi + sessionGoogleApi,
-    };
-  }, [apiTotals, sessionTotals]);
-
-  // Count all user messages (no HITL filtering - all messages are displayed and counted)
-  const userMessageCount = useMemo(() => {
-    return messages.filter(msg => msg.role === 'user').length;
-  }, [messages]);
-
   // Chat history search (QW-2): instant accent-insensitive client filter,
-  // in-bubble highlight, whole-history server search with jump-to-result and
-  // the "history view" state. All feature logic lives in the hook.
+  // in-bubble highlight, server search across every discussion of the account
+  // (lot 12) with jump-to-result, and the "history view" state. All feature
+  // logic lives in the hook; how far it reaches, in `discussionReach`.
+  const reach = discussionReach({
+    switcher,
+    current: target,
+    typing: isTyping,
+    open: openDiscussion,
+  });
   const {
     searchQuery,
     setSearchQuery,
@@ -362,7 +436,11 @@ export function ChatWorkspace({
     messages,
     isTyping,
     hasMoreOlder,
-    searchMessages,
+    hasOtherDiscussions: reach.hasOtherDiscussions,
+    currentDiscussionId: reach.currentId,
+    openDiscussion: reach.openResult,
+    historyReady: historySettled,
+    searchDiscussions,
     loadOlderMessages,
     loadConversationPage,
     setMessages,
@@ -373,7 +451,17 @@ export function ChatWorkspace({
   // ADR-320: the thread follows the server without ever being reloaded —
   // notifications keep their toast, and every message that lands elsewhere
   // is MERGED into the thread once it is free (hooks/useChatServerSync).
+  const refreshFirstMain = useCallback(() => {
+    if (switcher && !selection) refreshTarget();
+  }, [switcher, selection, refreshTarget]);
   useChatServerSync({
+    selection,
+    conversationId: target?.id,
+    isMain: target?.kind !== 'secondary',
+    onSelectedReset: refreshTarget,
+    onCatalogueChange: refreshFirstMain,
+    onMetadataChange: refreshCatalogue,
+    refreshUsage,
     owner: user,
     signedIn: !!user,
     authLoading: isLoading,
@@ -386,10 +474,11 @@ export function ChatWorkspace({
     hydratePendingHitl,
     mergeServerPage,
     clearMessages,
-    setApiTotals,
+    setApiTotals: replaceBadgeTotals,
     setHasMoreOlder,
     setOldestCursor,
     onNotification: eyesWiring.onNotification,
+    onThreadSignal: waitingComposer.onThreadSignal,
   });
   // Mobile (< 880px): the header shows a 🔍 toggle; the input row unfolds in
   // the ChatSearchBar. Desktop keeps the inline header field.
@@ -412,8 +501,10 @@ export function ChatWorkspace({
   );
 
   const sendComposerMessage = useCallback(
-    (...args: Parameters<typeof sendMessage>) =>
-      sendMessageFromPresent(
+    async (...args: Parameters<typeof sendMessage>) => {
+      const composition = cardComposition.composition?.selection;
+      if (waitingTakes(args[0], sendExtrasOf(args, composition))) return;
+      return sendMessageFromPresent(
         args[0],
         args[1],
         args[2],
@@ -421,9 +512,10 @@ export function ChatWorkspace({
         args[4],
         args[5],
         args[6],
-        cardComposition.composition?.selection
-      ),
-    [sendMessageFromPresent, cardComposition.composition]
+        composition
+      );
+    },
+    [sendMessageFromPresent, cardComposition.composition, waitingTakes]
   );
 
   // Widgets persisted on their message (ADR-137) are merged UNDER the live
@@ -485,7 +577,7 @@ export function ChatWorkspace({
     // overwrite the very message the user just asked for.
     ready: historySettled,
     apiAvailable,
-    isTyping,
+    isTyping: isTyping || liveOpen,
     isUsageBlocked,
     send: sendIntent,
     fallbackToDraft: intentFallbackToDraft,
@@ -507,7 +599,9 @@ export function ChatWorkspace({
   const { suggestions: groundedSuggestions } = useChatSuggestions(
     canShowGroundedRail({ authReady, historySettled, messageCount: messages.length })
   );
-  const { skills } = useSkills();
+  // Asked only where the instance offers the skills: their router refuses
+  // every route under the operator's switch (ADR-280).
+  const { skills } = useSkills(false, capabilityAvailable(appConfig, 'skills'));
   const { shortcuts: userShortcuts } = useChatShortcuts();
   const slashCommands = useMemo<SlashCommand[]>(() => {
     const statics = buildStaticSlashCommands(t);
@@ -635,64 +729,42 @@ export function ChatWorkspace({
     setOldestCursor,
   ]);
 
-  // Verify that the user is active
+  // Parallel history and totals, then reattach only through the selected target.
   useEffect(() => {
-    if (!isLoading && user && !user.is_active) {
-      router.push('/dashboard');
-    }
-  }, [user, isLoading, router]);
-
-  // Load conversation history AND totals on mount
-  // PERF 2026-01-13: Parallelize API calls for faster page load
-  useEffect(() => {
+    if (!authReady || !apiAvailable) return;
+    const lifetime = new AbortController();
+    void refreshUsage();
     const loadData = async () => {
-      if (!user || !apiAvailable) return;
-      // `finally`, always: the auto-send waits for this flag, so a history load
-      // that FAILS must still release it — a deep-linked request that never
-      // leaves is a worse failure than a list that is momentarily stale.
       try {
-        // Load first page (with pagination metadata) and totals in parallel
-        const [page, totals] = await Promise.all([
-          loadConversationPage(),
-          loadConversationTotals(),
-        ]);
-
-        if (page.messages.length > 0) {
-          setMessages(page.messages);
-        }
+        const page = await loadConversationPage();
+        if (lifetime.signal.aborted) return;
+        mergeServerPage(page.messages);
         setHasMoreOlder(page.hasMore);
         setOldestCursor(page.nextCursor);
-
-        // Totals from API (source of truth for full history)
-        // These totals include ALL tokens, including those from HITL messages
-        if (totals) {
-          setApiTotals(totals);
-          // Context-usage pill (2026-05): hydrate from the same payload so the
-          // pill is visible immediately on page refresh, not only after the
-          // first new SSE `done` event.
-          hydrateContextUsage(totals.context_tokens, totals.context_threshold);
-        }
-
-        // ADR-117 Lot 2: a generation may still be running in the background
-        // (the user navigated away mid-run). Silently reattach AFTER the
-        // history is rendered so the in-progress bubble lands below its
-        // already-persisted user message (product decision: auto-resume).
-        const resumed = await checkAndResumeActiveRun();
-
-        // HITL approval card (Lot 1 P1-V1): rebuild the card after a reload —
-        // the interrupt metadata chunk is not part of archived history. When a
-        // live run was reattached, its replay re-arms the card itself.
-        if (!resumed) {
-          await hydratePendingHitl();
-        }
-      } finally {
-        setHistorySettled(true);
+        const resumed = resumeAlreadyRunning.current || (await checkAndResumeActiveRun());
+        if (!resumed && !lifetime.signal.aborted) await hydratePendingHitl();
+        if (!lifetime.signal.aborted) setHistoryState('ready');
+      } catch (error) {
+        if (lifetime.signal.aborted) return;
+        const status = getApiErrorStatus(error);
+        if (status === 404 || status === 409) refreshTarget();
+        setHistoryState(selection ? 'failed' : 'ready');
       }
     };
-
     void loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, apiAvailable]);
+    return () => lifetime.abort();
+  }, [
+    apiAvailable,
+    authReady,
+    checkAndResumeActiveRun,
+    historyAttempt,
+    hydratePendingHitl,
+    loadConversationPage,
+    mergeServerPage,
+    refreshTarget,
+    refreshUsage,
+    selection,
+  ]);
 
   // Foreground return (ADR-117 Lot 2): the OS may have dropped the run's
   // stream while backgrounded — if the run is still going, silently
@@ -749,41 +821,13 @@ export function ChatWorkspace({
     };
   }, [user, apiAvailable, isTyping, readNewestPage, setMessages, checkAndResumeActiveRun]);
 
-  // W4a: the confirmation is an in-app AlertDialog, not `window.confirm` — an
-  // OS dialog ignores the theme, the chosen typography and the app's language
-  // (its buttons come from the operating system), and it blocks the thread.
-  // This runs AFTER the user confirmed; the dialog owns that decision.
-  const handleResetConversation = async () => {
-    if (isResetting) return;
-    setResetConfirmOpen(false);
-    setIsResetting(true);
-    try {
-      await resetConversation();
-      clearMessages();
-      // Reset API totals (conversation was deleted)
-      setApiTotals(null);
-      // Pagination state must follow the now-empty conversation.
-      setHasMoreOlder(false);
-      setOldestCursor(null);
-      toast.success(t('chat.conversation_reset_success'));
-    } catch {
-      toast.error(t('chat.conversation_reset_error'));
-    } finally {
-      setIsResetting(false);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="flex flex-col items-center gap-3">
-          <LoadingSpinner size="xl" />
-          <p className="text-px-13 mobile:text-sm text-muted-foreground">
-            {t('chat.loading_conversation')}
-          </p>
-        </div>
-      </div>
-    );
+  async function resetLegacy() {
+    await resetConversation();
+    clearMessages();
+    saveDraft('');
+    replaceBadgeTotals(null);
+    setHasMoreOlder(false);
+    setOldestCursor(null);
   }
 
   if (!user?.is_active) {
@@ -837,147 +881,37 @@ export function ChatWorkspace({
               growing middle fills the gap instead. */}
           <div className="flex flex-1 flex-col overflow-y-auto chat-scrollbar">
             <div className="sticky top-0 z-20">
-              {/* Frosted-glass header: translucent card + strong blur, no gradient. */}
-              <div className="relative border-b border-border/30 bg-card/60 backdrop-blur-xl px-4 py-4 sm:px-6 shadow-sm">
-                {/* Three IN-FLOW columns with equal-weight (`flex-1`) sides and a
-                `shrink-0` middle: the middle (hands-free, context, spaces) is CENTRED when
-                the sides are balanced, and SHIFTS by itself — never overlaps —
-                when a side grows (the processing / listening status pill, the
-                search field). The former `absolute left-1/2` centring reserved
-                no width and overlapped the left group; equal flex sides give
-                the same visual centring while reflowing automatically. */}
-                <div className="flex items-center gap-2">
-                  {/* Left side: status pill + search, in that order. The status
-                  only renders when it carries information (QW-12) — the
-                  nominal "online" state is silent; offline and processing are
-                  the exceptional states worth a pill, shown LEFT of the
-                  search field. `min-w-0 flex-1` lets this side truncate first
-                  so the centred group keeps its place. */}
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    {!apiAvailable ? (
-                      <div className="flex items-center gap-2 rounded-full bg-rose-100 dark:bg-rose-900 px-3 py-1.5 shadow-sm border border-rose-200 dark:border-rose-800 shrink-0">
-                        <WifiOff className="h-3.5 w-3.5 text-rose-700 dark:text-rose-300" />
-                        <span className="text-px-11 mobile:text-xs font-semibold text-rose-700 dark:text-rose-300">
-                          {t('chat.input.status.offline')}
-                        </span>
-                      </div>
-                    ) : null}
-                    {/* The amber "processing…" pill used to sit here — removed
-                    2026-08-20: the expressive eyes carry that state now, and
-                    richer (thinking vs searching vs answering). Offline stays:
-                    it is actionable information the eyes do not carry. */}
-                    {/* Mobile search toggle (< 880px) — unfolds the input row in
-                    the ChatSearchBar below the header (QW-2). */}
-                    {/* data-eyes-anchor-start sits on BOTH search forms — the
-                    eyes widget docks from the first VISIBLE one, so the
-                    default spot follows the responsive breakpoint. */}
-                    <button
-                      type="button"
-                      onClick={() => setMobileSearchOpen(open => !open)}
-                      aria-expanded={mobileSearchOpen}
-                      aria-label={t('chat.search.open_mobile')}
-                      data-eyes-anchor-start
-                      className="mobile:hidden p-2 rounded-full hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <Search className="h-4 w-4 text-muted-foreground" aria-hidden />
-                    </button>
-                    {/* Search input (≥ 880px) — filters currently loaded messages
-                    by content; left-aligned in the header. 12rem when the side
-                    has it, narrower when it does not: a fixed-width field in a
-                    shrinking side overflowed onto the centre group at 880 px
-                    with an enlarged text size (font-size-extremes.spec.ts). */}
-                    <div
-                      className="relative hidden min-w-0 mobile:flex items-center"
-                      data-eyes-anchor-start
-                    >
-                      <Search className="absolute left-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                      <input
-                        type="search"
-                        data-chat-search
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        placeholder={t('conversations.search_placeholder')}
-                        aria-label={t('conversations.search_placeholder')}
-                        className="h-8 w-48 max-w-full pl-7 pr-7 text-xs rounded-full bg-background border border-border focus:outline-none focus:ring-1 focus:ring-ring"
-                      />
-                      {searchQuery && (
-                        <button
-                          type="button"
-                          onClick={() => setSearchQuery('')}
-                          aria-label={t('conversations.search_clear')}
-                          className="absolute right-1 p-0.5 rounded-full hover:bg-muted"
-                        >
-                          <X className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Centre (in flow, shrink-0), in the owner's order
-                  (2026-10-01): the hands-free badge — single instance, always
-                  mounted AND always shown (greyed while off, a tap turns it
-                  on) to preserve KWS state —, the context-usage pill, then the
-                  active-spaces pill. The context pill (owner arbitration
-                  2026-08-05: observation it may be, it earns its place at
-                  EVERY width — it was `hidden` below `mobile` on the right
-                  side and users missed it; its ~52 px fit a 360 px row, and
-                  tap toggles the tooltip touch-side) stays hidden until the
-                  first turn completes (no data yet); conversation totals ride
-                  its tooltip (QW-12). `shrink-0` keeps the group intact while
-                  the flex-1 sides absorb the width; equal sides keep it
-                  visually centred and let it SHIFT rather than overlap when a
-                  side grows. data-eyes-anchor-end sits on the GROUP: the eyes
-                  dock between the search field and its first control, which
-                  they must never cover, whatever the group holds. Below `sm`
-                  the three pills and their gap tighten (px-2, gap-1.5): with
-                  the hands-free badge always shown, a 320 px row needs those
-                  pixels or the last pill slides under « Delete » (measured). */}
-                  <div className="flex shrink-0 items-center gap-1.5 sm:gap-2" data-eyes-anchor-end>
-                    <VoiceModeBadge
-                      onTranscription={(text, meta) =>
-                        sendMessageFromPresent(text, undefined, undefined, meta)
-                      }
-                      onInterrupt={stopVoice}
-                      disabled={locks.voice}
-                    />
-                    {/* ADR-299 (wave 2, A1): the entry into the live mode is the
-                        header's voice menu; the session it opens lives HERE, with
-                        the chat's doors (`useLiveSession` consumes the start). */}
-                    <ChatContextUsage
-                      usage={contextUsage}
-                      enabled={user.tokens_display_enabled}
-                      totals={{ ...combinedTotals, userMessageCount }}
-                    />
-                    <ActiveSpacesIndicator />
-                  </div>
-
-                  {/* Right side: Delete/New chat, in flow. `min-w-0 flex-1`
-                  mirrors the left side so the centre stays centred;
-                  `justify-end` keeps it pinned to the right edge. */}
-                  <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-                    {/* Delete/New chat button. Below `sm` the label steps aside —
-                    the row cannot carry it next to the centre group — so
-                    the accessible name is carried explicitly: a bare trash
-                    icon names nothing. The ACTION itself never disappears; it
-                    is destructive and the only way to start over. */}
-                    <button
-                      onClick={() => setResetConfirmOpen(true)}
-                      disabled={isResetting || !apiAvailable}
-                      aria-label={t('chat.new_chat')}
-                      className="flex shrink-0 items-center gap-2 rounded-full bg-rose-100 dark:bg-rose-900 px-3 py-1.5 shadow-sm border border-rose-200 dark:border-rose-800 cursor-pointer transition-colors hover:bg-rose-200 dark:hover:bg-rose-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isResetting ? (
-                        <LoadingSpinner className="h-3.5 w-3.5 text-rose-700 dark:text-rose-300" />
-                      ) : (
-                        <Trash2 className="h-3.5 w-3.5 text-rose-700 dark:text-rose-300" />
-                      )}
-                      <span className="hidden sm:inline text-px-11 mobile:text-xs font-semibold text-rose-700 dark:text-rose-300">
-                        {t('chat.new_chat')}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <ChatWorkspaceToolbar
+                apiAvailable={apiAvailable}
+                search={{
+                  value: searchQuery,
+                  onChange: setSearchQuery,
+                  mobileOpen: mobileSearchOpen,
+                  toggleMobile: () => setMobileSearchOpen(open => !open),
+                }}
+                switcher={switcher}
+                typing={isTyping}
+                voice={{
+                  onTranscription: (text, meta) =>
+                    sendMessageFromPresent(text, undefined, undefined, meta),
+                  onInterrupt: stopVoice,
+                  disabled: locks.voice,
+                }}
+                context={{
+                  usage: contextUsage,
+                  enabled: user.tokens_display_enabled,
+                  totals: badgeTotals,
+                }}
+                resetControl={
+                  <DiscussionReset
+                    target={target}
+                    catalogueAvailable={Boolean(switcher)}
+                    available={resetAvailable(apiAvailable, isTyping)}
+                    reset={reset}
+                    legacyReset={resetLegacy}
+                  />
+                }
+              />
 
               {/* History search surface (QW-2): mobile input row, match counter,
               whole-history results panel, history-view banner. */}
@@ -994,6 +928,8 @@ export function ChatWorkspace({
                 excerptTerm={highlightTerm || searchQuery}
                 historyView={historyView}
                 jumpDisabled={isTyping}
+                currentDiscussionId={reach.currentId}
+                canOpenOtherDiscussions={reach.openResult !== undefined}
                 mobileOpen={mobileSearchOpen}
                 onCloseMobile={() => setMobileSearchOpen(false)}
                 onRunServerSearch={runServerSearch}
@@ -1007,16 +943,34 @@ export function ChatWorkspace({
               never both (UsageBanners owns that rule). */}
               {/* A6: while LIA is on the phone, say so — the chat used to go
               completely silent between the confirmation and the recap. */}
-              <ActiveCallBanner lng={lng} conversationTick={messages.length} />
+              <ActiveCallBanner
+                lng={lng}
+                conversationTick={messages.length}
+                offered={capabilityAvailable(appConfig, 'telephony')}
+              />
               {/* ADR-299: « you are talking with LIA » — Stop cancels LIA's
                   turn AND ends the session, the one door that kills a turn. */}
-              <LiveBanner
-                session={liveSession}
-                onStopAll={() => {
-                  void stopGeneration();
-                  void liveSession.end('ended');
-                }}
-              />
+              <LiveBanner {...live} />
+              {cleanup}
+              {historyState === 'failed' && (
+                <div
+                  role="alert"
+                  className="flex flex-wrap items-center justify-center gap-2 border-b bg-card p-2 text-sm"
+                >
+                  <span>{t('chat.discussions.history_error')}</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setHistoryState('loading');
+                      setHistoryAttempt(attempt => attempt + 1);
+                    }}
+                  >
+                    {t('common.retry')}
+                  </Button>
+                </div>
+              )}
               <UsageBanners
                 limits={usageLimits}
                 isBlocked={isUsageBlocked}
@@ -1040,6 +994,7 @@ export function ChatWorkspace({
                     <EmailShareAvailabilityProvider available={emailShareAvailable(appConfig)}>
                       <ChatMessageList
                         messages={displayedMessages}
+                        psycheOffered={capabilityAvailable(appConfig, 'psyche')}
                         {...chatListActivity(searchQuery, {
                           isTyping,
                           activeStreamId,
@@ -1092,6 +1047,7 @@ export function ChatWorkspace({
                   the S1 arbiter. Extracted as one element on purpose: four inline
                   branches here would grow this render hotspot past its complexity
                   cap, and the band is a subject of its own. */}
+              <WaitingMessageSlot bubble={waitingComposer.bubble} />
               <ChatConditionalSurfaces
                 surfaces={chatSurfaces}
                 followupSuggestions={followupSuggestions}
@@ -1111,6 +1067,8 @@ export function ChatWorkspace({
                   at this level). This wrapper is positioning only. */}
               <div className="shadow-sm">
                 <ChatInput
+                  uploadDraft={uploads}
+                  observeAttachmentLink={!embedded}
                   initialMessage={initialComposerMessage}
                   compositionContext={
                     <CardCompositionChip
@@ -1129,7 +1087,7 @@ export function ChatWorkspace({
                   isConnected={isConnected}
                   apiAvailable={locks.apiUsable}
                   onMessageChange={handleMessageChange}
-                  {...composerFeatureFlags(appConfig)}
+                  {...composerFeatureFlags(appConfig, { textOnly: isTyping })}
                   isGenerating={isTyping}
                   onStopGeneration={stopGeneration}
                 />
@@ -1138,11 +1096,6 @@ export function ChatWorkspace({
           </div>
         </div>
 
-        <ResetConversationConfirm
-          open={resetConfirmOpen}
-          onOpenChange={setResetConfirmOpen}
-          onConfirm={handleResetConversation}
-        />
         {cardComposition.confirmDialog}
 
         {/* Debug Panel - Right side (only when enabled + desktop viewport ≥1024px),

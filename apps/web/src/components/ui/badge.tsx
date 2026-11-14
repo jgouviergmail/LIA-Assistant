@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
+import { MonochromeIcons } from '@/lib/icon-style-context';
 
 const badgeVariants = cva(
   'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold transition-all duration-200',
@@ -51,7 +52,7 @@ export interface BadgeProps
 }
 
 function Badge({ className, variant, size, icon, pulse, children, ...props }: BadgeProps) {
-  return (
+  const badge = (
     <span className={cn(badgeVariants({ variant, size }), className)} {...props}>
       {pulse && (
         <span className="relative flex h-2 w-2">
@@ -63,6 +64,8 @@ function Badge({ className, variant, size, icon, pulse, children, ...props }: Ba
       {children}
     </span>
   );
+  // The one solid ground draws its glyphs in its label colour, as a solid `Button` does.
+  return variant === 'alert' ? <MonochromeIcons>{badge}</MonochromeIcons> : badge;
 }
 
 export { Badge, badgeVariants };

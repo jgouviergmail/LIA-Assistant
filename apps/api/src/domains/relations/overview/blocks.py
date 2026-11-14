@@ -21,6 +21,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from src.core.classification_projection import classification_fields
+from src.core.mail_reply_state import reply_state_fields
 from src.domains.relations.overview_scope import (
     OverviewDirection,
     OverviewSection,
@@ -208,6 +209,7 @@ def _mail_block(context: RelationContext, scope: RelationOverviewScope) -> dict[
                     ),
                     ("excerpt", email.excerpt),
                     *classification_fields(email.classification).items(),
+                    *reply_state_fields(email.reply_state).items(),
                 )
                 if value is not None
             }

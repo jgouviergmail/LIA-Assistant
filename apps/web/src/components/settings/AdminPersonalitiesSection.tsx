@@ -453,7 +453,7 @@ export default function AdminPersonalitiesSection({ lng }: BaseSettingsProps) {
                         <Switch
                           checked={personality.is_active}
                           onCheckedChange={() => handleToggleActive(personality)}
-                          disabled={isPending}
+                          busy={isPending}
                           aria-label={
                             personality.is_active
                               ? t('settings.admin.personalities.tooltips.deactivate')

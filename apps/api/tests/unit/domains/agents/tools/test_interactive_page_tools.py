@@ -14,7 +14,10 @@ import pytest
 
 from src.core.field_names import FIELD_REGISTRY_ID
 from src.domains.agents.data_registry.models import RegistryItemType
-from src.domains.agents.interactive_page.catalogue_manifests import PAGE_TOOL_DESCRIPTION
+from src.domains.agents.interactive_page.catalogue_manifests import (
+    PAGE_SOURCE_DATA_DESCRIPTION,
+    PAGE_TOOL_DESCRIPTION,
+)
 from src.domains.agents.tools import interactive_page_tools as mod
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.utils.rate_limiting import _rate_limit_tracker
@@ -223,3 +226,22 @@ class TestHonestFailures:
 
 def test_the_schema_the_loop_binds_says_what_the_manifest_says() -> None:
     assert mod.generate_interactive_page.description == PAGE_TOOL_DESCRIPTION
+
+
+class TestWhatTheLoopIsTold:
+    """A limit the frame enforces is published to whoever asks for the page (ADR-184)."""
+
+    def test_the_tool_says_a_page_has_no_network(self) -> None:
+        """Told nothing, the loop asked for an embedded map, and the page showed a hole."""
+        assert "no network" in PAGE_TOOL_DESCRIPTION
+        assert "iframe" in PAGE_TOOL_DESCRIPTION
+
+    def test_the_tool_says_what_a_map_needs(self) -> None:
+        """A page cannot look a place up: its coordinates travel with the request."""
+        assert "latitude" in PAGE_TOOL_DESCRIPTION
+        assert "latitude" in PAGE_SOURCE_DATA_DESCRIPTION
+
+    def test_the_refusal_of_an_embedded_document_says_what_to_ask_instead(self) -> None:
+        message = mod._REFUSAL_MESSAGES[PageRefusal.EMBEDDED_DOCUMENT]
+        assert "No page was produced" in message
+        assert "iframe" in message

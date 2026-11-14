@@ -49,6 +49,7 @@ def register_program_manifests(registry: AgentRegistry) -> None:
     )
     from src.domains.agents.memory.catalogue_manifests import (
         MEMORY_AGENT_MANIFEST,
+        search_conversations_catalogue_manifest,
         search_memories_catalogue_manifest,
     )
 
@@ -62,6 +63,9 @@ def register_program_manifests(registry: AgentRegistry) -> None:
     # injection it complements — the MEMORY capability governs the extraction.
     registry.register_agent_manifest(MEMORY_AGENT_MANIFEST)
     registry.register_tool_manifest(search_memories_catalogue_manifest)
+    # What was SAID, word for word, in every discussion (ADR-378 amendment
+    # 2026-11-13): the same agent, the person's own words, nothing distilled.
+    registry.register_tool_manifest(search_conversations_catalogue_manifest)
     # An e-mail to the user themselves (ADR-314): the email agent ships always.
     registry.register_tool_manifest(send_email_to_me_catalogue_manifest)
     # LIA's own registers and gallery as lookups (ADR-318): both exist on every

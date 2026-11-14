@@ -356,7 +356,7 @@ export function AdminSkillsSection({ lng }: AdminSkillsSectionProps) {
                   <Switch
                     checked={skill.admin_enabled ?? true}
                     onCheckedChange={() => handleToggle(skill)}
-                    disabled={togglingSystem}
+                    busy={togglingSystem}
                     aria-label={t('settings.skills.toggle_skill', { name: skill.name })}
                   />
                 </div>

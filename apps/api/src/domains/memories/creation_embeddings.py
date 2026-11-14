@@ -1,12 +1,17 @@
 """Explicit memory writes share one bounded, owned embedding preparation."""
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
+from itertools import batched
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.constants import MEMORY_IMPORT_EMBEDDING_BATCH_SIZE
 from src.domains.memories.prepared_embeddings import PreparedMemoryEmbeddings
-from src.domains.memories.service import _generate_document_embedding
+from src.domains.memories.service import (
+    _generate_document_embedding,
+    generate_document_embeddings,
+)
 from src.infrastructure.llm.embedding_context import (
     clear_embedding_context,
     get_embedding_context,
@@ -64,3 +69,52 @@ async def prepare_memory_creation_embeddings(
             set_embedding_context(
                 previous.user_id, previous.session_id, previous.conversation_id, previous.run_id
             )
+
+
+async def prepare_memory_import_embeddings(
+    user_id: UUID,
+    command_id: UUID,
+    pairs: Sequence[tuple[str, str]],
+    guard: Callable[[], Awaitable[None]],
+) -> PreparedMemoryEmbeddings:
+    """The vectors of an import, asked by batches: the fence and both ceilings before each.
+
+    Each distinct text is embedded once (a trigger topic several memories share is paid
+    for once), ``MEMORY_IMPORT_EMBEDDING_BATCH_SIZE`` texts per provider call. The spend
+    is attributed to the account for the whole import, and a failed call is raised: the
+    caller then writes nothing.
+
+    Args:
+        user_id: The account the memories are imported into, and billed.
+        command_id: The identity of this import, under which its spend is filed.
+        pairs: The ``(content, trigger_topic)`` of each memory to create.
+        guard: The fence asked before every paid call; it leaves no transaction open.
+
+    Returns:
+        The closed set of vectors the write resolves from.
+    """
+    texts = list(dict.fromkeys(text for pair in pairs for text in pair if text.strip()))
+    vectors: dict[str, list[float]] = {}
+    previous = get_embedding_context()
+    set_embedding_context(str(user_id), f"application-memory:{command_id}", run_id=str(command_id))
+    try:
+        for batch in batched(texts, MEMORY_IMPORT_EMBEDDING_BATCH_SIZE, strict=False):
+            await guard()
+            await enforce_usage_limit(user_id, layer="application_memory")
+            answered = await generate_document_embeddings(list(batch))
+            vectors.update(zip(batch, answered, strict=True))
+    finally:
+        clear_embedding_context()
+        if previous is not None:
+            set_embedding_context(
+                previous.user_id, previous.session_id, previous.conversation_id, previous.run_id
+            )
+    return PreparedMemoryEmbeddings(
+        {
+            (content, trigger_topic): (
+                vectors[content],
+                vectors[trigger_topic] if trigger_topic.strip() else None,
+            )
+            for content, trigger_topic in pairs
+        }
+    )

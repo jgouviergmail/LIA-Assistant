@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 7.0
-**Date** : 2026-11-10
-**Application** : LIA v4.6.0
+**Date** : 2026-11-14
+**Application** : LIA v5.0.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -35,15 +35,15 @@ La mécanique est expliquée dans [le guide technique](/how). La façon dont le 
 
 Ouvre **Outils** lorsque tu veux faire toi-même : mails, agenda, tâches, contacts, fichiers et lumières Hue passent par les services que tu as connectés. Tu cliques, modifies et envoies directement, sans appel à une IA, et les étoiles jaunes demandent à LIA de résumer ou de rédiger quand tu le veux, coût affiché ; partout dans LIA, des mots sélectionnés s'expliquent, se traduisent ou deviennent une tâche ou un événement. Chaque écran propose seulement ce que son fournisseur sait faire ; tes gestes t’appartiennent et ne sont pas inscrits dans les registres de LIA.
 
-Tu lui parles normalement, à l'écrit ou à la voix. L'interface existe en six langues (français, anglais, allemand, espagnol, italien, chinois) et ta dictée est transcrite dans la langue de ton compte. Une vingtaine d'agents spécialisés se partagent le travail : tes données personnelles, le web, la création, la maison connectée, la navigation sur des sites et l'anticipation.
+Tu lui parles normalement, à l'écrit ou à la voix, une discussion par sujet, même pendant qu'elle répond. L'interface existe en six langues (français, anglais, allemand, espagnol, italien, chinois) et ta dictée est transcrite dans la langue de ton compte. Une vingtaine d'agents spécialisés se partagent le travail : tes données personnelles, le web, la création, la maison connectée, la navigation sur des sites et l'anticipation.
 
 Un interrupteur dans le chat choisit sa façon de raisonner. Le mode **Pipeline**, par défaut, prépare toutes les étapes, les vérifie puis les exécute en parallèle : il est prévisible et consomme 4 à 8 fois moins de tokens. Le mode **ReAct** avance pas à pas, plus autonome et plus coûteux, pour une recherche ouverte ; quand une étape demande un vrai calcul, il écrit quelques lignes de Python et les lance dans un bac à sable verrouillé, qui ne sort sur le web que par un seul proxy et sans tes clés ([vie privée](/faq#faq-privacy), [le parcours d'un message](/how#pipeline)).
 
-Si tu choisis l'affichage en **cartes** (les deux autres modes sont le HTML simple et le Markdown), les réponses qui portent des données arrivent ainsi : photos d'un lieu, météo créneau par créneau, itinéraire, aperçu d'un document. Une carte montre ce que la source a fourni, sans rien inventer, et répondre à un e-mail depuis sa carte prépare la demande sans rien envoyer.
+Si tu choisis l'affichage en **cartes**, les réponses qui portent des données arrivent ainsi : photos d'un lieu, météo créneau par créneau, itinéraire, aperçu d'un document. Une carte montre ce que la source a fourni, sans rien inventer, et répondre à un e-mail depuis sa carte prépare la demande sans rien envoyer.
 
 ### Tes services
 
-Tu demandes à LIA de décaler ton rendez-vous de jeudi : elle prépare la modification et te la montre avant de l'envoyer. Elle lit, cherche, résume, rédige, envoie et transfère tes e-mails (Gmail, Outlook, Apple Mail), lit leurs pièces jointes, y compris une photo ou un scan, et gère les brouillons de ta boîte, qu'elle n'envoie qu'après ta confirmation. Elle tient ton agenda et tes contacts chez Google, Microsoft ou Apple, tes tâches chez Google ou Microsoft, lit et range tes fichiers sur Google Drive ou OneDrive, n'y écrit qu'avec ton accord, allume tes lampes Philips Hue.
+Tu demandes à LIA de décaler ton rendez-vous de jeudi : elle prépare la modification et te la montre avant de l'envoyer. Elle lit, cherche, résume, envoie et transfère tes e-mails (Gmail, Outlook, Apple Mail), sait auxquels tu as répondu, les rédige à ta façon, lit leurs pièces jointes, y compris une photo ou un scan, et gère les brouillons de ta boîte, qu'elle n'envoie qu'après ta confirmation. Elle tient ton agenda et tes contacts chez Google, Microsoft ou Apple, tes tâches chez Google ou Microsoft, lit et range tes fichiers sur Google Drive ou OneDrive, n'y écrit qu'avec ton accord, allume tes lampes Philips Hue.
 
 Sans rien configurer, tu as Wikipédia, la lecture de pages web, les lieux proches avec horaires et avis, la météo à cinq jours avec la qualité de l'air et les pollens, et les itinéraires à pied, à vélo, en voiture ou en transports ([connecteurs](/faq#faq-connectors)). Avec tes propres clés, la recherche web croise aussi Brave Search et Perplexity, et cite ses sources. LIA sait aussi parcourir un site pour toi, cliquer, remplir un formulaire.
 
@@ -55,15 +55,15 @@ Le **mode Live** ouvre une conversation vocale en temps réel avec ta propre cl�
 
 ### Créer et garder
 
-LIA crée et retouche des images avec le modèle choisi par l'administrateur, sans passer à une option plus chère que tes préférences. Sur option, elle enrichit ta description, et une image se retrouve en la lui demandant ([images](/faq#faq-image_generation)). Elle produit de vrais fichiers (CSV, Excel, Word, PowerPoint, PDF) qu'un moteur local construit et qui arrivent avec leur date d'expiration, des schémas Excalidraw, et lit les photos et les PDF que tu joins. Les applications MCP affichent leurs formulaires directement dans le chat, et un jeu, un quiz ou une calculatrice demandés y tournent aussi, dans un cadre scellé.
+LIA crée et retouche des images avec le modèle choisi par l'administrateur, sans passer à une option plus chère que tes préférences. Sur option, elle enrichit ta description, et une image se retrouve en la lui demandant ([images](/faq#faq-image_generation)). Elle produit de vrais fichiers (CSV, Excel, Word, PowerPoint, PDF) — formules vivantes, graphiques modifiables et, si tu les autorises, illustrations — qu'un moteur local construit et qui arrivent avec leur date d'expiration, des schémas Excalidraw, et lit les photos et les documents que tu joins. Les applications MCP affichent leurs formulaires directement dans le chat, et un jeu, un quiz ou une calculatrice demandés y tournent aussi, dans un cadre scellé.
 
 Ce qu'elle produit, tu le gardes, tu l'envoies par e-mail en un clic, tu partages une image avec une personne connectée à ton instance, ou tu le laisses expirer. Une réponse gardée quitte la conversation avec ta demande et sa date, et rejoint un espace de connaissances où LIA la retrouvera des semaines plus tard.
 
 ### Prendre l'initiative
 
-Si tu l'y autorises, LIA ne se contente pas d'attendre. Elle t'écrit quand ton agenda, la météo, tes tâches, tes e-mails ou tes centres d'intérêt le justifient, et peut engager d'elle-même une conversation personnelle. À la fin d'une réunion, elle te demande comment ça s'est passé. Quand ta boîte ou ton agenda bouge, elle peut réagir en quelques minutes, et « Surveiller » guette un courrier attendu jusqu'à son arrivée. Si la pluie est annoncée samedi, elle regarde tes activités en extérieur. Elle retient ce à quoi tu tiens vraiment, un sujet que tu refuses ne revient pas, et ce que tu demandes beaucoup de jours devient une proposition que tu acceptes d'un clic, comme une routine prête avant que tu demandes.
+Si tu l'y autorises, LIA ne se contente pas d'attendre. Elle t'écrit quand ton agenda, la météo, tes tâches, tes e-mails ou tes centres d'intérêt le justifient, et peut engager d'elle-même une conversation personnelle. À la fin d'une réunion, elle te demande comment ça s'est passé. Quand ta boîte ou ton agenda bouge, elle peut réagir en quelques minutes, et « Surveiller » guette un courrier attendu jusqu'à son arrivée. Si la pluie est annoncée samedi, elle regarde tes activités en extérieur. Elle retient ce à quoi tu tiens vraiment, un sujet que tu refuses ne revient pas, et ce que tu demandes beaucoup de jours devient une proposition que tu acceptes d'un clic.
 
-Tu lui confies un ticket : elle le prend à son rythme et te rend un résultat à accepter. Pour une tâche complexe, elle délègue à des sous-agents qui travaillent en parallèle. Routines et rappels suivent des rythmes riches (un mardi sur deux, le deuxième mardi du mois, jusqu'à une date), et une vue de la semaine montre ce qui s'est réellement passé ([l'initiative](/how#proactivity)).
+Tu lui confies un ticket : elle le prend à son rythme et te rend un résultat à accepter. Pour une tâche complexe, elle délègue à des sous-agents qui travaillent en parallèle. Routines et rappels suivent des rythmes riches (un mardi sur deux, jusqu'à une date), une routine guette une page web ou attend l'appel d'un autre système, et une vue de la semaine montre ce qui s'est réellement passé ([l'initiative](/how#proactivity)).
 
 ### Les autres
 

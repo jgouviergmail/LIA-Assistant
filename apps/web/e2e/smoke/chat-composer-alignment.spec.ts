@@ -146,9 +146,14 @@ test.describe('composer alignment', () => {
     const overlap = await page.evaluate(() => {
       const link = document.querySelector('[data-testid="active-spaces-indicator"]');
       // The control right before the indicator in the group: the context
-      // pill once a turn has totals, else the hands-free badge.
-      const badge = link?.previousElementSibling;
-      if (!link || !badge || badge === link) return 0;
+      // pill once a turn has totals, else the hands-free badge. The badge's
+      // own live region stands between them in the markup: one pixel read by
+      // screen readers alone, which a centred row places wherever its middle
+      // falls — under the indicator as soon as that one is the wider of the
+      // two. It is not a neighbour anybody sees.
+      let badge = link?.previousElementSibling ?? null;
+      while (badge?.classList.contains('sr-only')) badge = badge.previousElementSibling;
+      if (!link || !badge || badge === link) return -1;
       const a = link.getBoundingClientRect();
       const b = badge.getBoundingClientRect();
       const horizontal = Math.min(a.right, b.right) - Math.max(a.left, b.left);

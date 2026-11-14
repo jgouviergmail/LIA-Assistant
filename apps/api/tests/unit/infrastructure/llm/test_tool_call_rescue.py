@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from src.infrastructure.llm.tool_call_rescue import (
     AbsentValues,
+    CallRepair,
     drop_absent_values,
     invalid_call_arguments,
     quote_bare_values,
@@ -365,23 +366,26 @@ def test_valid_json_comes_back_untouched() -> None:
 
 def test_rescue_invalid_tool_call_repairs_the_measured_payload() -> None:
     instance, repairs = rescue_invalid_tool_call(_invalid(_MEASURED_ARGS), _Analysis)
-    assert instance is not None and repairs == 1
+    assert instance is not None and repairs == CallRepair(quoted=1)
     assert instance.primary_domain == "mcp" and instance.skill_name == "tic-tac-toe"
 
 
 def test_rescue_invalid_tool_call_gives_up_when_the_repair_makes_no_json() -> None:
     assert rescue_invalid_tool_call(_invalid('{"intent": "action", "x": }'), _Analysis) == (
         None,
-        0,
+        CallRepair(),
     )
-    assert rescue_invalid_tool_call(_invalid(None), _Analysis) == (None, 0)
-    assert rescue_invalid_tool_call(_message(None), _Analysis) == (None, 0)
-    assert rescue_invalid_tool_call(None, _Analysis) == (None, 0)
+    assert rescue_invalid_tool_call(_invalid(None), _Analysis) == (None, CallRepair())
+    assert rescue_invalid_tool_call(_message(None), _Analysis) == (None, CallRepair())
+    assert rescue_invalid_tool_call(None, _Analysis) == (None, CallRepair())
 
 
 def test_rescue_invalid_tool_call_gives_up_when_the_schema_still_refuses() -> None:
     # The word is quoted, the JSON parses, but the required field is missing.
-    assert rescue_invalid_tool_call(_invalid('{"intent": action}'), _Analysis) == (None, 0)
+    assert rescue_invalid_tool_call(_invalid('{"intent": action}'), _Analysis) == (
+        None,
+        CallRepair(),
+    )
 
 
 def test_refusal_verdict_names_a_call_whose_arguments_were_not_json() -> None:

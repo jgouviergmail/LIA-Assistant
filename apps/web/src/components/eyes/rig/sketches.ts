@@ -34,6 +34,7 @@ import {
 import type { SpringConfig } from '@/components/eyes/rig/spring';
 import type { Tape } from '@/components/eyes/rig/tape';
 import type { EyeExpression } from '@/components/eyes/expression-engine';
+import type { WeatherFeeling } from '@/components/eyes/environment';
 import type { BodyMotionSpace } from '@/components/eyes/body-motion-geometry';
 import {
   BODY_SKETCHES,
@@ -41,6 +42,11 @@ import {
   isBodySketchName,
   type BodySketchName,
 } from '@/components/eyes/rig/body-sketches';
+import {
+  isWeatherSceneName,
+  weatherSceneTapes,
+  type WeatherSceneName,
+} from '@/components/eyes/rig/weather-scenes';
 
 /** The resting expressions a sketch may interrupt — the ones that breathe,
  * minus a thought in progress (a face working a problem is not idle). */
@@ -102,7 +108,21 @@ export interface SketchClock {
   scene: SketchName | null;
   /** The last few scenes, never drawn again right away. */
   recent: SketchName[];
+  /** The falling weather the face has already looked up at, or null. On
+   * the clock because the clock outlives a mount: rain that has not stopped
+   * is no news to a companion mounted again on the next page. */
+  sky: WeatherFeeling | null;
+  /** Resting time spent with no falling weather since that look, in ms. */
+  skyGoneMs: number;
 }
+
+/**
+ * How long a sky stays empty before the weather is forgotten. A face that
+ * knows no weather is, most of the time, a face whose reading has not come
+ * back yet — the companion was just mounted, the snapshot is being
+ * refreshed — and forgetting at once made every page a new rain.
+ */
+export const SKY_FORGOTTEN_MS = 5 * 60_000;
 
 export function createSketchClock(): SketchClock {
   return {
@@ -113,6 +133,8 @@ export function createSketchClock(): SketchClock {
     interrupted: 0,
     scene: null,
     recent: [],
+    sky: null,
+    skyGoneMs: 0,
   };
 }
 
@@ -196,7 +218,8 @@ type FacialSketchName =
   | 'doze-and-snap'
   | 'suspicious';
 
-export type SketchName = FacialSketchName | BodySketchName;
+/** Every named scene; the weather's are played only when their weather is there. */
+export type SketchName = FacialSketchName | BodySketchName | WeatherSceneName;
 
 export const SKETCHES: readonly SketchName[] = [
   'fly',
@@ -211,7 +234,7 @@ export const SKETCHES: readonly SketchName[] = [
 ];
 
 export function isSketchName(name: string): name is SketchName {
-  return SKETCHES.some(candidate => candidate === name);
+  return SKETCHES.some(candidate => candidate === name) || isWeatherSceneName(name);
 }
 
 /**
@@ -224,6 +247,7 @@ export function sketchTapes(
   space?: BodyMotionSpace,
   random?: () => number
 ): Tape[] {
+  if (isWeatherSceneName(name)) return weatherSceneTapes(name);
   return isBodySketchName(name) ? bodySketchTapes(name, space, random) : facialSketchTapes(name);
 }
 

@@ -5,16 +5,17 @@ import { useLiveStore } from '@/stores/liveStore';
 import { recentActivity } from '../activity';
 import { NEUTRAL_CONTEXT, type ActingContext } from './direction';
 import { useCompanionEnvironmentStore } from '@/stores/companionEnvironmentStore';
-import { dayPhaseAt, weatherAt, weatherFlagsAt } from '../environment';
+import { dayPhaseAt, skyAt, weatherAt, weatherFlagsAt } from '../environment';
 
 /** Environmental evidence has its own freshness, independent of activity and Psyche. */
 function environmentContext(
   now: number
-): Pick<ActingContext, 'weather' | 'weatherFlags' | 'dayPhase'> {
+): Pick<ActingContext, 'weather' | 'weatherFlags' | 'sky' | 'dayPhase'> {
   const environment = useCompanionEnvironmentStore.getState().environment;
   return {
     weather: weatherAt(environment, now),
     weatherFlags: weatherFlagsAt(environment, now),
+    sky: skyAt(environment, now),
     dayPhase: environment ? dayPhaseAt(now, environment.timezone) : NEUTRAL_CONTEXT.dayPhase,
   };
 }
@@ -29,7 +30,9 @@ export function liveActingContext(now: number): ActingContext {
   const task = {
     ...environmentContext(now),
     activity,
-    responding: signals.liveReaction(now) !== null,
+    // The answer takes the face for its hold; the life resumes as it fades.
+    responding: signals.isReactionHeld(now),
+    attending: signals.isAttending(now),
     recentFamily: recent?.family ?? null,
     recentWeight: recent?.weight ?? 0,
     accomplished: recent?.accomplished ?? false,

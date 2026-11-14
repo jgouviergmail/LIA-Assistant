@@ -1,5 +1,6 @@
 """Private-form growth requires explicit source coverage; tool schemas never take secrets."""
 
+import json
 from uuid import uuid4
 
 import pytest
@@ -80,3 +81,58 @@ def test_configuration_requires_original_browser_continuation_and_one_hitl():
     assert not manifest.permissions.hitl_required and not manifest.initiative_eligible
     assert set(configure_lia_personal_mcp_server_tool.tool_call_schema.model_fields) == {"request"}
     assert set(PERSONAL_MCP_CONFIGURATION_COPY) == {"fr", "en", "es", "de", "it", "zh-CN"}
+
+
+class TestTheChatAddsAKnownServerByItsKey:
+    """A known server is a public fact: its KEY may travel in the tool call, its address
+    is read by the browser form from the published catalogue, never typed in the chat."""
+
+    def test_a_published_key_selects_a_new_server_to_prefill(self):
+        from src.infrastructure.mcp.known_servers import KNOWN_MCP_SERVER_KEYS
+
+        for key in KNOWN_MCP_SERVER_KEYS:
+            assert PersonalMCPConfigurationInput(known_server=key).known_server == key
+
+    @pytest.mark.parametrize("key", ["", "not_in_the_catalogue", "https://mcp.example.com/mcp"])
+    def test_a_key_the_catalogue_does_not_publish_is_refused(self, key):
+        with pytest.raises(ValidationError):
+            PersonalMCPConfigurationInput(known_server=key)
+
+    def test_a_known_server_is_added_never_laid_over_an_existing_one(self):
+        from src.infrastructure.mcp.known_servers import KNOWN_MCP_SERVER_KEYS
+
+        with pytest.raises(ValidationError):
+            PersonalMCPConfigurationInput(server_id=uuid4(), known_server=KNOWN_MCP_SERVER_KEYS[0])
+
+    def test_the_tool_schema_publishes_the_keys_it_accepts(self):
+        """What the validator refuses, the model can read (ADR-184)."""
+        from src.infrastructure.mcp.known_servers import KNOWN_MCP_SERVER_KEYS
+
+        schema = PersonalMCPConfigurationInput.model_json_schema()
+        published = json.dumps(schema["properties"]["known_server"])
+
+        assert all(f'"{key}"' in published for key in KNOWN_MCP_SERVER_KEYS)
+
+    def test_the_draft_names_the_known_server_only_when_one_was_chosen(self):
+        from src.domains.agents.application.personal_mcp_configuration_schemas import (
+            PersonalMCPConfigurationObservation,
+            configuration_after,
+        )
+        from src.infrastructure.mcp.known_servers import KNOWN_MCP_SERVER_KEYS
+
+        key = KNOWN_MCP_SERVER_KEYS[0]
+        chosen = PersonalMCPConfigurationObservation(
+            request=PersonalMCPConfigurationInput(known_server=key), expected=None
+        )
+        typed = PersonalMCPConfigurationObservation(
+            request=PersonalMCPConfigurationInput(), expected=None
+        )
+
+        assert configuration_after(chosen)["known_server"] == key
+        # A browser bundle older than this lot parses the selection strictly: a
+        # plain creation keeps the exact shape it always had.
+        assert configuration_after(typed) == {
+            "server_id": None,
+            "creating": True,
+            "requires_private_browser_form": True,
+        }

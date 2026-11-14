@@ -15,22 +15,27 @@
  * ## What it can and cannot promise
  *
  * Most sections always render. The administration entries are decidable up
- * front (`superuser` gate); of the user-facing ones that can be absent, only
- * two are decidable before the section mounts:
+ * front (`superuser` gate); of the user-facing ones that can be absent, some
+ * are decidable before the section mounts:
  *
- *   - `open-loops` reads an instance flag from `/config`;
+ *   - a section of ONE capability reads that capability's verdict from
+ *     `/config` (`instanceFlag`: the journals, the skills, image generation,
+ *     the person's phone number…);
  *   - `debug-panel` reads an admin-granted per-user flag, and only a
  *     NON-superuser gets it (a superuser has the admin debug section);
- *   - the six others (`telephony-calls`, `security-auth`, `security-export`,
- *     `admin-mcp-servers`, `briefing-grid`, `heartbeat`) return null from their
- *     own data — a 404, an empty list, an instance without MFA, or simply a
- *     request still in flight.
+ *   - `haptics` reads the DEVICE: iOS WebKit does not implement the Vibration
+ *     API, so an iPhone has no such section where an Android phone has it.
  *
- * The six stay in the index on purpose: nothing here can observe what an
- * unmounted section would render, and guessing would trade a visible dead end
- * for an invisible one. They are marked `runtime`; the pane tells the reader
- * plainly when the destination turns out not to exist (inline empty state,
- * observation-worded).
+ * The others (`security-auth`, `security-export`, `admin-mcp-servers`,
+ * `briefing-grid`, `heartbeat`, `telephony-calls`…) return null from their own
+ * data — a 404, an empty list, an instance without MFA, or simply a request
+ * still in flight. They stay in the index on purpose: nothing here can observe
+ * what an unmounted section would render, and guessing would trade a visible
+ * dead end for an invisible one. They are marked `runtime`; the pane tells the
+ * reader plainly when the destination turns out not to exist (inline empty
+ * state, observation-worded). A `runtime` section of one capability still
+ * names it (`flag`): « empty today » is undecidable, « closed by the
+ * operator » is not.
  *
  * ## Matching
  *
@@ -62,32 +67,48 @@ export type SettingsGroupKey =
   | 'content_extensions'
   | 'system';
 
+/** A resolved `/config` verdict a gate can name. */
+export type SettingsInstanceFlag =
+  | 'openLoopsEnabled'
+  | 'peersEnabled'
+  | 'habitsEnabled'
+  | 'sandboxEgressEnabled'
+  | 'liveEnabled'
+  | 'avatarEnabled'
+  | 'radioEnabled'
+  | 'channelsEnabled'
+  | 'psycheEnabled'
+  | 'journalsEnabled'
+  | 'skillsEnabled'
+  | 'mcpEnabled'
+  | 'ragSpacesEnabled'
+  | 'imageGenerationEnabled'
+  | 'telephonyEnabled';
+
 /**
  * Why a section might not be on the page.
  *
- * A gate must mirror the guard the COMPONENT actually applies, never a flag it
- * ignores. `/config` also exposes `skills_enabled`, `channels_enabled`,
- * `journals_enabled`, `rag_spaces_enabled` and `heartbeat_enabled`, but
- * `SkillsSettings`, `ChannelSettings`, `JournalsSettings` and
- * `SpacesSettingsSection` never read them and render regardless — filtering on
- * those would hide sections that are right there on the page.
+ * A decidable gate is the section's DOOR: the pane mounts nothing it rules
+ * out (`SettingsPaneFrame`), so the section is listed nowhere and its module
+ * is not even loaded. A section whose router refuses every route under the
+ * operator's switch names its capability's verdict here — it could show
+ * nothing but that refusal. A section that stays readable under the switch
+ * (a record, a preference) does not: filtering it would hide what the page
+ * can show.
  */
 export type SettingsSectionGate =
   | { kind: 'always' }
-  | {
-      kind: 'instanceFlag';
-      flag:
-        | 'openLoopsEnabled'
-        | 'peersEnabled'
-        | 'habitsEnabled'
-        | 'sandboxEgressEnabled'
-        | 'liveEnabled'
-        | 'avatarEnabled'
-        | 'radioEnabled';
-    }
+  | { kind: 'instanceFlag'; flag: SettingsInstanceFlag }
   | { kind: 'userDebugPanel' }
-  | { kind: 'superuser' }
-  | { kind: 'runtime'; reason: string };
+  // A fact of the DEVICE, not of the account or the instance: the same person
+  // has the section on their Android phone and not on their iPhone.
+  | { kind: 'deviceHaptics' }
+  // `flag`: an administration section of ONE capability needs the instance to
+  // offer it as well.
+  | { kind: 'superuser'; flag?: SettingsInstanceFlag }
+  // `flag`: what the section renders is its own data's to say, but its router
+  // refuses under the switch — that half of its absence is decidable.
+  | { kind: 'runtime'; reason: string; flag?: SettingsInstanceFlag };
 
 export interface SettingsSearchMeta {
   /** i18n key of the section title — the same one the section header renders. */
@@ -172,7 +193,7 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     descriptionKey: 'settings.haptics.description',
     keywordsKey: `${KEYWORDS_PREFIX}.haptics`,
     group: 'personalization',
-    gate: { kind: 'always' },
+    gate: { kind: 'deviceHaptics' },
   },
   'briefing-grid': {
     titleKey: 'settings.briefing_grid.title',
@@ -235,7 +256,7 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     descriptionKey: 'settings.channels.description',
     keywordsKey: `${KEYWORDS_PREFIX}.channels`,
     group: 'notifications_communication',
-    gate: { kind: 'always' },
+    gate: { kind: 'instanceFlag', flag: 'channelsEnabled' },
   },
 
   // ---- Preferences / Security
@@ -269,8 +290,8 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'voice_media',
     gate: { kind: 'always' },
   },
-  // ADR-299: the component reads `features.live_enabled` and renders nothing
-  // when the capability is off — the flag IS the gate.
+  // ADR-299: the component asks whether the instance offers the live mode
+  // now (`capabilityAvailable`) and renders nothing when it does not.
   'live-mode': {
     titleKey: 'settings.live_mode.title',
     descriptionKey: 'settings.live_mode.description',
@@ -297,6 +318,16 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     descriptionKey: 'settings.image_generation.description',
     keywordsKey: `${KEYWORDS_PREFIX}.image-generation`,
     group: 'voice_media',
+    // The options the section is built from are refused under the switch, and
+    // its opt-in would offer a generator the instance has closed.
+    gate: { kind: 'instanceFlag', flag: 'imageGenerationEnabled' },
+  },
+  // A preference, readable whatever the operator's switches say.
+  documents: {
+    titleKey: 'settings.documents.title',
+    descriptionKey: 'settings.documents.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.documents`,
+    group: 'voice_media',
     gate: { kind: 'always' },
   },
   'generated-assets': {
@@ -322,7 +353,8 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'connections_integrations',
     gate: {
       kind: 'runtime',
-      reason: 'renders nothing when telephony is off or no call was placed',
+      reason: 'renders nothing when no call was placed',
+      flag: 'telephonyEnabled',
     },
   },
   'telephony-identity': {
@@ -330,9 +362,12 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     descriptionKey: 'settings.telephony.identity.description',
     keywordsKey: `${KEYWORDS_PREFIX}.telephony-identity`,
     group: 'connections_integrations',
+    // The stored number is a record the API serves under the switch (ADR-280).
+    // There, the section shows that number alone — and nothing without one.
     gate: {
       kind: 'runtime',
-      reason: 'renders nothing when telephony is off (the identity endpoint answers 404)',
+      reason: 'under the operator switch, renders nothing when no number is stored',
+      flag: 'telephonyEnabled',
     },
   },
   // Sits in the "connections" group because that is where the page puts it —
@@ -365,12 +400,20 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     descriptionKey: 'psyche.description',
     keywordsKey: `${KEYWORDS_PREFIX}.psyche`,
     group: 'identity_memory',
-    gate: { kind: 'always' },
+    gate: { kind: 'instanceFlag', flag: 'psycheEnabled' },
   },
   memories: {
     titleKey: 'memories.settings.title',
     descriptionKey: 'memories.settings.description',
     keywordsKey: `${KEYWORDS_PREFIX}.memories`,
+    group: 'identity_memory',
+    gate: { kind: 'always' },
+  },
+  // ADR-383: rendered right after the memories, indexed in the same group.
+  'writing-style': {
+    titleKey: 'settings.writing_style.title',
+    descriptionKey: 'settings.writing_style.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.writing-style`,
     group: 'identity_memory',
     gate: { kind: 'always' },
   },
@@ -423,7 +466,7 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     descriptionKey: 'journals.description',
     keywordsKey: `${KEYWORDS_PREFIX}.journals`,
     group: 'automation_tracking',
-    gate: { kind: 'always' },
+    gate: { kind: 'instanceFlag', flag: 'journalsEnabled' },
   },
   'health-metrics': {
     titleKey: 'healthMetrics.title',
@@ -439,7 +482,7 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     descriptionKey: 'settings.skills.description',
     keywordsKey: `${KEYWORDS_PREFIX}.skills`,
     group: 'extensions_data',
-    gate: { kind: 'always' },
+    gate: { kind: 'instanceFlag', flag: 'skillsEnabled' },
   },
   plugins: {
     titleKey: 'settings.plugins.title',
@@ -463,10 +506,12 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     descriptionKey: 'settings.mcp.description',
     keywordsKey: `${KEYWORDS_PREFIX}.mcp-servers`,
     group: 'extensions_data',
-    gate: { kind: 'always' },
+    // The personal servers' router refuses under the switch; the instance
+    // servers' one (`admin-mcp-servers`, above) carries no such guard.
+    gate: { kind: 'instanceFlag', flag: 'mcpEnabled' },
   },
-  // ADR-298: the component reads `features.python_sandbox_egress_enabled` and
-  // renders nothing when it is off — the flag IS the gate.
+  // ADR-298: the component shows the grants, a record, under the deployment
+  // flag (`capabilityMounted`) and renders nothing where it is off.
   'sandbox-egress': {
     titleKey: 'settings.sandbox_egress.title',
     descriptionKey: 'settings.sandbox_egress.description',
@@ -479,7 +524,7 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     descriptionKey: 'settings.rag_spaces.description',
     keywordsKey: `${KEYWORDS_PREFIX}.rag-spaces`,
     group: 'extensions_data',
-    gate: { kind: 'always' },
+    gate: { kind: 'instanceFlag', flag: 'ragSpacesEnabled' },
   },
   meetings: {
     titleKey: 'settings.meetings.title',
@@ -488,7 +533,7 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'extensions_data',
     gate: {
       kind: 'runtime',
-      reason: 'renders nothing when the instance flag meetings_enabled is off',
+      reason: 'renders nothing where the instance does not offer the meetings',
     },
   },
   sms: {
@@ -497,16 +542,6 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     keywordsKey: `${KEYWORDS_PREFIX}.sms`,
     group: 'extensions_data',
     gate: { kind: 'runtime', reason: 'renders nothing when the SMS capability is disabled' },
-  },
-  workboard: {
-    titleKey: 'settings.workboard.title',
-    descriptionKey: 'settings.workboard.description',
-    keywordsKey: `${KEYWORDS_PREFIX}.workboard`,
-    group: 'extensions_data',
-    gate: {
-      kind: 'runtime',
-      reason: 'renders nothing when the instance flag workboard_enabled is off',
-    },
   },
   'user-consumption-export': {
     titleKey: 'settings.user.export.title',
@@ -613,14 +648,14 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     descriptionKey: 'settings.skills.admin_description',
     keywordsKey: `${KEYWORDS_PREFIX}.admin-skills`,
     group: 'content_extensions',
-    gate: { kind: 'superuser' },
+    gate: { kind: 'superuser', flag: 'skillsEnabled' },
   },
   'rag-spaces-admin': {
     titleKey: 'settings.admin.ragSpaces.title',
     descriptionKey: 'settings.admin.ragSpaces.subtitle',
     keywordsKey: `${KEYWORDS_PREFIX}.rag-spaces-admin`,
     group: 'content_extensions',
-    gate: { kind: 'superuser' },
+    gate: { kind: 'superuser', flag: 'ragSpacesEnabled' },
   },
 
   // ---- Administration / System
@@ -672,19 +707,38 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
  */
 export interface SettingsSearchAvailability {
   isSuperuser: boolean;
-  /** `/config` → `features.open_loops_enabled`. */
+  /** `/config` → the open loops' EFFECTIVE state (the operator's switch included). */
   openLoopsEnabled: boolean;
-  /** `/config` → `features.habits_enabled` (habits program, ADR-214). */
+  /** `/config` → the habits' deployment flag: what was learned is a record (ADR-214). */
   habitsEnabled: boolean;
-  /** `/config` → `features.peers_enabled` (peers program). */
+  /** `/config` → the connections' EFFECTIVE state (peers program). */
   peersEnabled: boolean;
-  /** `/config` → `features.python_sandbox_egress_enabled` (ADR-298). */
+  /** `/config` → the sandbox egress deployment flag: the grants are a record (ADR-298). */
   sandboxEgressEnabled: boolean;
-  /** `/config` → `features.live_enabled` (live voice mode, ADR-299). */
+  /** `/config` → the live mode's EFFECTIVE state (ADR-299). */
   liveEnabled: boolean;
+  /** `/config` → the avatar's EFFECTIVE state. */
   avatarEnabled?: boolean;
   /** `/config` → the radio capability's EFFECTIVE state (ADR-324). */
   radioEnabled: boolean;
+  /** `/config` → the channels' EFFECTIVE state: their router refuses under the switch. */
+  channelsEnabled: boolean;
+  /** `/config` → the psyche's EFFECTIVE state, from the capability map alone. */
+  psycheEnabled: boolean;
+  /** `/config` → the journals' EFFECTIVE state. */
+  journalsEnabled: boolean;
+  /** `/config` → the skills' EFFECTIVE state: the account's section and the system one. */
+  skillsEnabled: boolean;
+  /** `/config` → the personal MCP servers' EFFECTIVE state, from the capability map alone. */
+  mcpEnabled: boolean;
+  /** `/config` → the knowledge spaces' EFFECTIVE state: the account's section and the system one. */
+  ragSpacesEnabled: boolean;
+  /** `/config` → image generation's EFFECTIVE state, from the capability map alone. */
+  imageGenerationEnabled: boolean;
+  /** `/config` → telephony's EFFECTIVE state, from the capability map alone. */
+  telephonyEnabled: boolean;
+  /** `useHapticsSupported()` → whether this DEVICE can vibrate at all. */
+  hapticsSupported: boolean;
   /** `useDebugPanelEnabled()` → `userAccessAvailable`. */
   debugUserAccess: boolean;
 }
@@ -741,7 +795,8 @@ export type SettingsTranslate = (key: string) => string;
  *
  * `runtime` gates answer true: they are undecidable from here, and dropping
  * them would turn "the section is empty today" into "the setting does not
- * exist", which is the worse of the two lies.
+ * exist", which is the worse of the two lies. One that names a capability
+ * follows it: a router closed by the operator is no guess.
  *
  * @param gate - The section's declared gate.
  * @param availability - Resolved flags for this user and instance.
@@ -758,10 +813,16 @@ export function isSectionAvailable(
       // The page renders `UserDebugSettings` in the non-superuser layout only;
       // a superuser gets the richer admin debug section in another tab.
       return availability.debugUserAccess && !availability.isSuperuser;
+    case 'deviceHaptics':
+      return availability.hapticsSupported;
     case 'superuser':
-      // The whole administration tab exists for superusers only.
-      return availability.isSuperuser;
+      // The whole administration tab exists for superusers only; a section of
+      // one capability also needs the instance to offer it.
+      return (
+        availability.isSuperuser && (gate.flag === undefined || (availability[gate.flag] ?? false))
+      );
     case 'runtime':
+      return gate.flag === undefined || (availability[gate.flag] ?? false);
     case 'always':
       return true;
   }

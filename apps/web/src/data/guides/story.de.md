@@ -3,8 +3,8 @@
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
 **Version**: 3.0
-**Datum**: 2026-11-10
-**Anwendung**: LIA v4.6.0
+**Datum**: 2026-11-14
+**Anwendung**: LIA v5.0.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Fast der gesamte Code wurde von einer KI geschrieben. Meine Arbeit bestand darin
 | Indikator | Wert |
 | --- | --- |
 | Code, geschrieben von einer KI, die geführt, in einen Rahmen eingebunden und kontrolliert wurde | **≈ 100 %** |
-| Quellcodezeilen (ohne Tests), verteilt auf rund sechzig Backend-Domänenpakete | **1.165.741** |
-| Inventarisierte automatisierte Tests, in Suiten passend zu Commit und Release | **81.253** |
-| Dokumentierte Architekturentscheidungen (ADR) | **375** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **296** |
+| Quellcodezeilen (ohne Tests), verteilt auf rund sechzig Backend-Domänenpakete | **1.219.345** |
+| Inventarisierte automatisierte Tests, in Suiten passend zu Commit und Release | **87.493** |
+| Dokumentierte Architekturentscheidungen (ADR) | **386** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **297** |
 | Sprachen, mit automatisch geprüfter Parität | **6** |
 | Technisches Audit über 24 Bereiche | **7,9/10** |
 
@@ -64,7 +64,7 @@ Die gemeinsame Welt gibt der Assistentin Orte: eine Bibliothek für das Wissen, 
 
 Ein Assistent sollte auch Raum lassen, Dinge selbst zu erledigen. Werkzeuge nutzt dieselben verbundenen Dienste, doch was man dort von Hand tut, ruft kein Modell auf und zählt nicht als LIAs Handlung; worum ein Klick sie bittet, bleibt ein Vorschlag, nachverfolgt und dem berechnet, der darum gebeten hat. Delegation und direkte Kontrolle können eine Oberfläche teilen, solange erkennbar bleibt, wer entschieden, wer gehandelt und was genehmigt wurde.
 
-Hier sind drei strukturelle Entscheidungen, unter den 375 dokumentierten.
+Hier sind drei strukturelle Entscheidungen, unter den 386 dokumentierten.
 
 Die erste betrifft die **Souveränität**: Ich wollte keine irreversible Abhängigkeit von einem Anbieter. Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity und lokale Modelle über Ollama) laufen alle über dieselbe Abstraktion, sodass sich für jeden Einsatzzweck der Anbieter per einfacher Konfiguration wechseln lässt, mit Kostenvergleich. Bei den Diensten sind Google, Apple und Microsoft in jeder Kategorie austauschbar, ob E-Mail, Kalender oder Kontakte. Selbsthosting gibt die Kontrolle über den Server: Die Kontodaten liegen auf der Instanz, und die Zugangsdaten der Konnektoren sind verschlüsselt. Die externen Dienste, die die Person wählt, erhalten trotzdem die Daten, die sie für ihren Teil der Anfrage brauchen.
 

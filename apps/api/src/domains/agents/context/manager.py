@@ -82,9 +82,14 @@ from src.core.field_names import (
     FIELD_TOOL_NAME,
     FIELD_TURN_ID,
 )
+from src.core.tool_context_scope import ToolContextScope, tool_context_namespace
 from src.domains.agents.context.read_policy import context_read_allowed
 from src.domains.agents.context.registry import ContextTypeRegistry
-from src.domains.agents.context.runtime_context import runtime_user_id_str
+from src.domains.agents.context.runtime_context import (
+    runtime_context_if_running,
+    runtime_tool_context_scope,
+    runtime_user_id_str,
+)
 from src.domains.agents.context.schemas import (
     ContextMetadata,
     ContextSaveMode,
@@ -121,7 +126,9 @@ class ToolContextManager:
     """
 
     @staticmethod
-    def _build_namespace(user_id: str, session_id: str, domain: str) -> tuple[str, ...]:
+    def _build_namespace(
+        user_id: str, session_id: ToolContextScope, domain: str
+    ) -> tuple[str, ...]:
         """
         Build hierarchical namespace for Store isolation.
 
@@ -147,7 +154,7 @@ class ToolContextManager:
         Returns:
             Tuple namespace for BaseStore.aput/aget operations.
         """
-        return (str(user_id), str(session_id), "context", domain)
+        return tool_context_namespace(str(user_id), session_id, domain)
 
     @staticmethod
     def _as_shown(items: list[dict[str, Any]], domain: str) -> list[dict[str, Any]]:
@@ -185,7 +192,7 @@ class ToolContextManager:
     async def save_list(
         self,
         user_id: str | UUID,
-        session_id: str,
+        session_id: ToolContextScope,
         domain: str,
         items: list[dict[str, Any]],
         metadata: dict[str, Any],
@@ -273,7 +280,7 @@ class ToolContextManager:
         )
 
         # Save list to Store
-        await store.aput(namespace, "list", context_list.model_dump())
+        await store.aput(namespace, "list", context_list.model_dump(), index=False)
 
         logger.info(
             "list_saved",
@@ -310,7 +317,7 @@ class ToolContextManager:
     async def get_list(
         self,
         user_id: str | UUID,
-        session_id: str,
+        session_id: ToolContextScope,
         domain: str,
         store: BaseStore,
     ) -> ToolContextList | None:
@@ -367,7 +374,7 @@ class ToolContextManager:
     async def set_current_item(
         self,
         user_id: str | UUID,
-        session_id: str,
+        session_id: ToolContextScope,
         domain: str,
         item: dict[str, Any],
         set_by: Literal["auto", "explicit"],
@@ -407,7 +414,7 @@ class ToolContextManager:
             turn_id=turn_id,
         )
 
-        await store.aput(namespace, "current", current_item.model_dump())
+        await store.aput(namespace, "current", current_item.model_dump(), index=False)
 
         logger.info(
             "current_item_set",
@@ -421,7 +428,7 @@ class ToolContextManager:
     async def get_current_item(
         self,
         user_id: str | UUID,
-        session_id: str,
+        session_id: ToolContextScope,
         domain: str,
         store: BaseStore,
     ) -> dict[str, Any] | None:
@@ -474,7 +481,7 @@ class ToolContextManager:
     async def remove_item_from_list(
         self,
         user_id: str | UUID,
-        session_id: str,
+        session_id: ToolContextScope,
         domain: str,
         item_id: str,
         store: BaseStore,
@@ -532,7 +539,7 @@ class ToolContextManager:
             # Update and save
             context_list.items = reindexed
             context_list.metadata.total_count = len(reindexed)
-            await store.aput(namespace, "list", context_list.model_dump())
+            await store.aput(namespace, "list", context_list.model_dump(), index=False)
 
             # Clear current_item if it was the deleted item
             current = await store.aget(namespace, "current")
@@ -561,7 +568,7 @@ class ToolContextManager:
     async def update_item_in_list(
         self,
         user_id: str | UUID,
-        session_id: str,
+        session_id: ToolContextScope,
         domain: str,
         item_id: str,
         updated_item: dict[str, Any],
@@ -627,7 +634,7 @@ class ToolContextManager:
                 return False
 
             context_list.items = new_items
-            await store.aput(namespace, "list", context_list.model_dump())
+            await store.aput(namespace, "list", context_list.model_dump(), index=False)
 
             logger.info(
                 "item_updated_in_list",
@@ -649,7 +656,7 @@ class ToolContextManager:
     async def clear_current_item(
         self,
         user_id: str | UUID,
-        session_id: str,
+        session_id: ToolContextScope,
         domain: str,
         store: BaseStore,
     ) -> None:
@@ -686,7 +693,7 @@ class ToolContextManager:
     # ==========================================
 
     async def list_active_domains(
-        self, user_id: str | UUID, session_id: str, store: BaseStore
+        self, user_id: str | UUID, session_id: ToolContextScope, store: BaseStore
     ) -> list[dict[str, Any]]:
         """
         List all active domains for a user in the current session.
@@ -823,7 +830,9 @@ class ToolContextManager:
             )
             return
 
-        session_id = config.get("configurable", {}).get("thread_id")
+        configurable = config.get("configurable", {})
+        context = runtime_context_if_running()
+        session_id = runtime_tool_context_scope(configurable.get("thread_id"), context)
         if not session_id:
             # FAIL-FAST: session_id is MANDATORY for namespace isolation
             logger.error(

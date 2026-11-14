@@ -31,6 +31,7 @@ import {
   CircleDashed,
   Flag,
   History,
+  Inbox,
   Lightbulb,
   ListOrdered,
   LoaderCircle,
@@ -38,6 +39,8 @@ import {
   PauseCircle,
   Search,
   Sparkles,
+  Tag,
+  Tags,
   User,
   Users,
   Workflow,
@@ -200,7 +203,7 @@ export function anyIcon(className: string): React.ReactNode {
  * The mark of a filter field.
  *
  * Args:
- *   field: `search`, `side`, `priority` or `sort`.
+ *   field: `search`, `side`, `priority`, `category` or `sort`.
  *   className: Sizing and colour, decided by the caller.
  *
  * Returns:
@@ -213,9 +216,36 @@ export function filterIcon(field: string, className: string): React.ReactNode {
       return <User {...shared} />;
     case 'priority':
       return <Flag {...shared} />;
+    case 'category':
+      return <Tags {...shared} />;
     case 'sort':
       return <ArrowUpDown {...shared} />;
     default:
       return <Search {...shared} />;
   }
+}
+
+/**
+ * The mark of a lane — a category, or the lane of tickets filed under nothing.
+ *
+ * ONE mark for every category, on purpose: the owner asked for lanes that are
+ * told apart by their NAME and by alternating grounds, never by a colour per
+ * category (2026-11-11 — « ne ressemblera pas à un arc-en-ciel »). The tag
+ * says « this is a category »; the in-tray says « this is what waits to be
+ * filed ». The same two marks sit on a lane's header, on the items of the
+ * category list and on the badge other screens show.
+ *
+ * Args:
+ *   filed: True for a category, false for the lane of what is filed under nothing.
+ *   className: Sizing and colour, decided by the caller.
+ *
+ * Returns:
+ *   Its glyph.
+ */
+export function laneIcon(filed: boolean, className: string): React.ReactNode {
+  return filed ? (
+    <Tag className={className} aria-hidden="true" />
+  ) : (
+    <Inbox className={className} aria-hidden="true" />
+  );
 }

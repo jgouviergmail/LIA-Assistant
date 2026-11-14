@@ -15,6 +15,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
+from src.domains.users.account_erasure import erase_purged_account
+from src.domains.users.activation_policy import assert_activation_allowed
 from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
@@ -101,7 +103,7 @@ class AuthRepository(BaseRepository[User]):
         Args:
             user: User object to delete
         """
-        await BaseRepository.delete(self, user)
+        await erase_purged_account(self.db, user.id)
         logger.info("user_hard_deleted", user_id=str(user.id))
 
     async def activate_user(self, user: User) -> User:
@@ -114,6 +116,8 @@ class AuthRepository(BaseRepository[User]):
         Returns:
             Activated User object
         """
+        await self.db.refresh(user, with_for_update=True)
+        assert_activation_allowed(user)
         user.is_active = True
         user.is_verified = True
         await self.db.flush()

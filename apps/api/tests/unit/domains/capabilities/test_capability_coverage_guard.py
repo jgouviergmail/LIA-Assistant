@@ -42,19 +42,31 @@ pytestmark = pytest.mark.unit
 _WEB = Path(__file__).resolve().parents[5] / "web"
 _LOCALES = _WEB / "locales"
 
-#: Nodes with no settings section of their own, each for a stated reason.
-#: Shrink-only: a node lands here because the product has nowhere to send the
-#: reader, never because wiring the link was skipped.
-NODES_WITHOUT_A_SETTINGS_DESTINATION = {
-    # Document generation is an instance-level capability with no per-account
-    # setting — there is no switch for a reader to find.
-    "documents",
-    # The Relations page IS the destination (ADR-269 puts the debrief switch
-    # there, where the result is shown), and it is not a settings section. The
-    # node used to point at « open loops », which is what it counted — the same
-    # mislabelling, seen from the other end.
-    "relations",
+#: Nodes whose own PAGE is the destination: no settings section, and the star
+#: leads to the page (`CAPABILITY_PAGE` in `capability-sections.ts`), never to
+#: the settings root. The route is declared here so that « the page IS the
+#: destination » is a fact a test holds, not a comment.
+NODES_LIVING_ON_A_PAGE = {
+    # ADR-269 puts the debrief switch on the Relations page, where the result
+    # is shown. The node used to point at « open loops », which is what it
+    # counted — the same mislabelling, seen from the other end — and then at
+    # nothing: its star fell back to the settings root until 2026-11-11.
+    "relations": "/dashboard/relations",
+    # The Workboard had a settings section, the board's only door besides a
+    # notification (ADR-276, D16); the owner gave the board a header
+    # destination and removed that section on 2026-11-11.
+    "workboard": "/dashboard/workboard",
 }
+
+#: Nodes the product has nowhere to send the reader for. Empty since
+#: 2026-11-13: document generation, the last one, gained the « Documents »
+#: section (how a document is illustrated, how a deck is animated).
+NODES_WITH_NO_DESTINATION: set[str] = set()
+
+#: Nodes with no settings section of their own, each for a stated reason.
+#: Shrink-only: a node lands here because it lives on a page or has nowhere to
+#: send the reader, never because wiring the link was skipped.
+NODES_WITHOUT_A_SETTINGS_DESTINATION = set(NODES_LIVING_ON_A_PAGE) | NODES_WITH_NO_DESTINATION
 
 
 class TestEveryCapabilityHasBeenDecided:
@@ -166,6 +178,15 @@ class TestTheChartCanDrawEveryNode:
             "a capability node gained or lost its settings destination: "
             f"unrouted={sorted(MAP_NODE_KEYS - routed)}"
         )
+
+    def test_a_node_whose_page_is_its_destination_is_routed_to_that_page(self) -> None:
+        """Without this, « the page IS the destination » was only a sentence: the
+        Relations star led to the settings root for as long as nobody looked."""
+        source = (_WEB / "src/lib/capability-sections.ts").read_text(encoding="utf-8")
+        block = source.split("export const CAPABILITY_PAGE", 1)[1].split("};", 1)[0]
+        routed = dict(re.findall(r"^\s{2}([a-z_]+): '([^']+)',$", block, re.M))
+
+        assert routed == NODES_LIVING_ON_A_PAGE
 
 
 class TestTheClientCanNameEveryNode:

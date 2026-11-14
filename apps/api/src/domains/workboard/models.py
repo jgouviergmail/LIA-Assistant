@@ -2,7 +2,8 @@
 
 One row per ticket, shared by its owner and its assignee (D7/D8): the board of
 user U is « owner = U or assignee = U ». Comments and an append-only event log
-hang off a ticket and die with it.
+hang off a ticket and die with it. A category — one lane of the board — hangs
+off its OWNER, and a ticket outlives the category it was filed under.
 
 Three shapes are load-bearing and are asserted by ``test_models.py``:
 
@@ -50,6 +51,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -300,6 +302,15 @@ class WorkboardTicket(BaseModel):
             "draft_type, draft_content, tool_name, question, approved."
         ),
     )
+    category_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("workboard_categories.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment=(
+            "The OWNER's category — the board lane it is filed under. NULL means "
+            "not filed; SET NULL when the category goes, never the ticket."
+        ),
+    )
 
     # NOTE: no ORM relationship to User — the two FKs + the purge handle
     # deletion, and an unused relationship creates mapper import-order
@@ -338,6 +349,57 @@ class WorkboardTicket(BaseModel):
             f"<WorkboardTicket(id={self.id}, status={self.status}, "
             f"assignee_kind={self.assignee_kind})>"
         )
+
+
+class WorkboardCategory(BaseModel):
+    """A name the owner of a board files tickets under — one lane per name.
+
+    Two shapes are load-bearing:
+
+    - **the category is the OWNER's.** A ticket carries ONE ``category_id`` and
+      it names a category of the ticket's owner; a peer who holds the ticket
+      reads the lane and cannot refile it (owner arbitration, 2026-11-11). The
+      service holds that invariant — the database cannot tie a ticket's owner
+      to its category's without a composite key nothing else here needs.
+    - **uniqueness is held on the FOLDED name.** ``name_key`` is
+      ``fold_name(name)``, computed in Python by the one folding authority
+      (ADR-185) and stored, so the constraint and the service agree on what
+      « the same name » means: re-expressing the fold in SQL would make the
+      database a second authority on it.
+    """
+
+    __tablename__ = "workboard_categories"
+
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="Whose category. Dies with the account.",
+    )
+    name: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        comment="What the person called it, trimmed, single-spaced.",
+    )
+    name_key: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        comment="fold_name(name): the identity uniqueness is held on.",
+    )
+    position: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="Order of the lane on the owner's board, dense from 0.",
+    )
+
+    __table_args__ = (
+        # Leads with the owner, so it also serves every « my categories » read:
+        # a separate index on the owner alone would be a second copy of it.
+        UniqueConstraint("owner_user_id", "name_key", name="uq_workboard_categories_owner_name"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<WorkboardCategory(id={self.id}, position={self.position})>"
 
 
 class WorkboardComment(BaseModel):

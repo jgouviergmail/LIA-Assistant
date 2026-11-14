@@ -19,6 +19,7 @@ from src.domains.connectors.keyless import (
     REASON_BROWSER_DISABLED,
     REASON_DISABLED_BY_ADMIN,
     REASON_PLATFORM_KEY_MISSING,
+    REASON_SEARCH_NOT_DEPLOYED,
     is_keyless_available,
     keyless_ceiling_reason,
     keyless_unavailable_reason,
@@ -46,6 +47,7 @@ def _repository(*, enabled: bool | None = None) -> MagicMock:
 def instance_provides_everything(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "google_api_key", "platform-key")
     monkeypatch.setattr(settings, "browser_enabled", True)
+    monkeypatch.setattr(settings, "searxng_url", "http://searxng:8080")
 
 
 @pytest.mark.usefixtures("instance_provides_everything")
@@ -106,12 +108,24 @@ class TestKeylessCeilingReason:
         monkeypatch.setattr(settings, "browser_enabled", False)
         assert keyless_ceiling_reason(ConnectorType.BROWSER) == REASON_BROWSER_DISABLED
 
+    def test_the_web_search_serves_only_where_the_operator_runs_one(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Lot 18: the instance's SearXNG is a service the operator RUNS — no address, no search."""
+        assert ConnectorType.SEARXNG.is_keyless and not ConnectorType.SEARXNG.uses_global_api_key
+        monkeypatch.setattr(settings, "searxng_url", "")
+        assert keyless_ceiling_reason(ConnectorType.SEARXNG) == REASON_SEARCH_NOT_DEPLOYED
+        monkeypatch.setattr(settings, "google_api_key", "")
+        monkeypatch.setattr(settings, "searxng_url", "http://searxng:8080")
+        assert keyless_ceiling_reason(ConnectorType.SEARXNG) is None  # no platform key needed
+
     @pytest.mark.parametrize("connector_type", KEYLESS)
     async def test_the_full_answer_is_the_switch_then_the_ceiling(
         self, connector_type: ConnectorType, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(settings, "google_api_key", "")
         monkeypatch.setattr(settings, "browser_enabled", False)
+        monkeypatch.setattr(settings, "searxng_url", "")
         ceiling = keyless_ceiling_reason(connector_type)
         assert await keyless_unavailable_reason(_repository(), connector_type) == ceiling
         # The administrator's switch still speaks first.

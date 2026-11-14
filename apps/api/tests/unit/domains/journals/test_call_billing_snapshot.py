@@ -193,7 +193,10 @@ async def test_completed_call_ignores_later_hot_switch(
         monkeypatch.setattr(module, "build_introspection_prompt", lambda **_: "synthetic prompt")
         monkeypatch.setattr(module, "start_extraction_observation", MagicMock())
         operation = module.extract_journal_entry_background.__wrapped__(
-            str(USER), [HumanMessage(content="A synthetic message")], "synthetic-session"
+            str(USER),
+            [HumanMessage(content="A synthetic message")],
+            "synthetic-session",
+            user_timezone=None,
         )
     else:
         from src.domains.journals.consolidation_lifecycle import ConsolidationSnapshot

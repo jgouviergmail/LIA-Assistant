@@ -27,6 +27,7 @@ from scripts.install import envgen
 from scripts.install.envgen import (
     ANSWER_DERIVED_KEYS,
     GENERATED_SECRET_KEYS,
+    SECRET_ANSWER_DERIVED_KEYS,
     EnvChange,
     EnvGenError,
     derive_environment,
@@ -138,7 +139,7 @@ def test_domain_environments_are_https_and_secure(exposure: Exposure) -> None:
 def test_no_provider_key_reaches_the_environment() -> None:
     env = derive_environment(_public(), generate_secrets())
     rendered = render_env("", env)
-    for needle in ("OPENAI_API_KEY", "DEEPSEEK_API_KEY", SECRET_CANARY):
+    for needle in ("ANTHROPIC_API_KEY", "DEEPSEEK_API_KEY", "OPENAI_API_KEY", SECRET_CANARY):
         assert needle not in rendered
         assert needle not in env
 
@@ -276,6 +277,7 @@ def _answer_variants() -> list[PublicAnswers]:
         replace(lan, personal_radio=True),
         replace(lan, speaking_avatar=True),
         replace(lan, world=True),
+        replace(lan, web_search=True),
     ]
 
 
@@ -350,6 +352,54 @@ def test_the_diagnostics_webhook_secret_in_force_is_kept_until_turned_off() -> N
     )
     assert _values(off)["DIAGNOSTICS_WEBHOOK_SECRET"] == ""
     assert _values(off)["ALERTMANAGER_LIA_WEBHOOK_URL"] == ""
+
+
+def test_the_instance_web_search_runs_on_a_secret_of_its_own() -> None:
+    # ADR-382: the answer points the API at the service and gives the service the
+    # secret it refuses to start without — never one of the core secrets.
+    generated = generate_secrets()
+    off = derive_environment(_public(), generated)
+    on = derive_environment(replace(_public(), web_search=True), generated)
+    assert off["SEARXNG_URL"] == "" and off["SEARXNG_SECRET"] == ""
+    assert on["SEARXNG_URL"] == "http://searxng:8080"
+    assert re.fullmatch(r"[0-9a-f]{64}", on["SEARXNG_SECRET"])
+    assert on["SEARXNG_SECRET"] not in generated.values()
+    assert "SEARXNG_SECRET" in SECRET_ANSWER_DERIVED_KEYS
+
+
+def test_the_web_search_secret_in_force_is_kept_and_never_shown() -> None:
+    public = replace(_public(), web_search=True)
+    generated = generate_secrets()
+    current = render_env("", derive_environment(public, generated))
+    in_force = _values(current)["SEARXNG_SECRET"]
+
+    moved = render_reconfigured_env(
+        current,
+        derive_environment(replace(public, server_host="10.0.0.9"), generated, current_env=current),
+    )
+    assert _values(moved)["SEARXNG_SECRET"] == in_force
+
+    # Turned off, the API stops asking; the secret waits for a later re-enable.
+    off = render_reconfigured_env(
+        current,
+        derive_environment(replace(public, web_search=False), generated, current_env=current),
+    )
+    assert _values(off)["SEARXNG_URL"] == ""
+    assert _values(off)["SEARXNG_SECRET"] == in_force
+    assert in_force not in describe_change(EnvChange("SEARXNG_SECRET", None, in_force))
+
+
+@pytest.mark.parametrize("unset", ["", '""', "CHANGE_ME_SECRET_MIN_32_CHARS"])
+def test_a_template_web_search_secret_is_no_secret(unset: str) -> None:
+    # An empty or placeholder line (the templates') is filled on activation.
+    current = f"SEARXNG_URL=\nSEARXNG_SECRET={unset}\n"
+    candidate = render_reconfigured_env(
+        current,
+        derive_environment(
+            replace(_public(), web_search=True), generate_secrets(), current_env=current
+        ),
+    )
+    assert re.fullmatch(r"[0-9a-f]{64}", _values(candidate)["SEARXNG_SECRET"])
 
 
 def test_a_write_that_fails_halfway_leaves_no_partial_copy(

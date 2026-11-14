@@ -22,9 +22,11 @@ This module holds everything that side needs and that ``agents`` must not own
   detachment after it. Measured on a real owner call 2026-09-16: the vendor
   refuses tool ids inside a per-call override (« Tool IDs not attached to
   this agent ») and the call dies at pickup, so the ids are PATCHed on the
-  agent before the owner is dialled and removed once the call is over — the
-  connector remembers which state the agent is in, so a stranger is never
-  phoned by an agent still carrying the owner's tools.
+  agent before the owner is dialled and removed once the call is over. The
+  connector keeps a note of that state, but a dial READS the agent
+  (``TelephonyService._arm_agent_tools``, owner decision 2026-11-11): the same
+  agent may serve a live session, or be edited on the portal, and a stranger
+  is never phoned by an agent still carrying the owner's tools.
 
 The agents half (``domains/agents/telephony/live_tools.py``) composes these
 into provisioning and execution.
@@ -52,6 +54,7 @@ from src.domains.telephony.client import ElevenLabsAgentsClient, ElevenLabsAgent
 from src.domains.telephony.connector import TelephonyConnectorService
 from src.domains.telephony.models import CallKind, PhoneCall, PhoneCallStatus
 from src.domains.telephony.repository import TelephonyRepository
+from src.domains.telephony.workspace_tools import VENDOR_FAILURES
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
@@ -343,11 +346,11 @@ async def attach_live_tools(
 ) -> bool:
     """Make the agent carry exactly ``tool_ids`` (an empty sequence detaches).
 
-    One PATCH of the agent's ``tool_ids``, then the connector remembers the
-    state as a NEW metadata dict (the JSONB rule); the caller commits. On a
-    vendor refusal nothing is recorded, so the record stays honest: a failed
-    attach leaves the agent tool-less and unmarked, a failed detach leaves
-    it marked attached and the next dial retries.
+    One PATCH of the agent's ``tool_ids``, then the connector notes the state
+    as a NEW metadata dict (the JSONB rule); the caller commits. On a vendor
+    refusal — or a request that got no answer — nothing is noted and False is
+    answered: the dial then refuses its call, and the after-call detach leaves
+    the note as it was for the next dial, which reads the agent anyway.
 
     Args:
         client: The vendor client on the connector's key.
@@ -363,12 +366,13 @@ async def attach_live_tools(
     ids = list(tool_ids)
     try:
         await client.set_agent_tool_ids(agent_id, ids)
-    except ElevenLabsAgentsError as exc:
+    except VENDOR_FAILURES as exc:
         logger.warning(
             "telephony_live_tools_attach_failed",
             agent_id=agent_id,
             tool_count=len(ids),
-            status_code=exc.status_code,
+            error_type=type(exc).__name__,
+            status_code=exc.status_code if isinstance(exc, ElevenLabsAgentsError) else None,
         )
         return False
     connector.connector_metadata = {**metadata, LIVE_TOOLS_ATTACHED_KEY: bool(ids)}

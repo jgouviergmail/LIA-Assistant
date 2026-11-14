@@ -48,7 +48,7 @@ class TestGetCheckpointerPoolFactory:
         installed by the DB redirection: it wins over ``settings`` by design, so
         without it this assertion is intermittently handed the Testcontainers URL.
         """
-        reset_checkpointer()
+        await cleanup_checkpointer()
 
         with (
             patch("src.domains.conversations.checkpointer.AsyncConnectionPool") as mock_pool_cls,
@@ -102,12 +102,12 @@ class TestGetCheckpointerPoolFactory:
             mock_saver.setup.assert_awaited_once()
             assert saver is mock_saver
 
-        reset_checkpointer()
+        await cleanup_checkpointer()
 
     @pytest.mark.asyncio
     async def test_singleton_returns_same_instance(self):
         """Repeated calls return the same saver without rebuilding the pool."""
-        reset_checkpointer()
+        await cleanup_checkpointer()
 
         with (
             patch("src.domains.conversations.checkpointer.AsyncConnectionPool") as mock_pool_cls,
@@ -130,12 +130,12 @@ class TestGetCheckpointerPoolFactory:
             assert mock_pool_cls.call_count == 1
             assert mock_saver_cls.return_value.setup.await_count == 1
 
-        reset_checkpointer()
+        await cleanup_checkpointer()
 
     @pytest.mark.asyncio
     async def test_cleanup_closes_pool_and_allows_recreation(self):
         """cleanup_checkpointer() closes the pool; next call rebuilds everything."""
-        reset_checkpointer()
+        await cleanup_checkpointer()
 
         with (
             patch("src.domains.conversations.checkpointer.AsyncConnectionPool") as mock_pool_cls,
@@ -160,12 +160,12 @@ class TestGetCheckpointerPoolFactory:
             await get_checkpointer()
             assert mock_pool_cls.call_count == 2
 
-        reset_checkpointer()
+        await cleanup_checkpointer()
 
     @pytest.mark.asyncio
     async def test_setup_failure_closes_pool_and_allows_retry(self):
         """A setup() failure must not leak the opened pool nor poison the singleton."""
-        reset_checkpointer()
+        await cleanup_checkpointer()
 
         with (
             patch("src.domains.conversations.checkpointer.AsyncConnectionPool") as mock_pool_cls,
@@ -195,12 +195,12 @@ class TestGetCheckpointerPoolFactory:
             saver = await get_checkpointer()
             assert saver is healthy_saver
 
-        reset_checkpointer()
+        await cleanup_checkpointer()
 
     @pytest.mark.asyncio
-    async def test_reset_schedules_pool_close(self):
-        """reset_checkpointer() closes the previous pool best-effort via a task."""
-        reset_checkpointer()
+    async def test_reset_refuses_to_abandon_owned_pool(self):
+        """A synchronous reset must never abandon the pool on its owning loop."""
+        await cleanup_checkpointer()
 
         with (
             patch("src.domains.conversations.checkpointer.AsyncConnectionPool") as mock_pool_cls,
@@ -218,10 +218,11 @@ class TestGetCheckpointerPoolFactory:
             mock_saver_cls.return_value = AsyncMock()
 
             await get_checkpointer()
-            reset_checkpointer()
-            # Yield to the loop so the scheduled close task runs
-            await asyncio.sleep(0)
-
+            try:
+                with pytest.raises(RuntimeError, match="cleanup_checkpointer"):
+                    reset_checkpointer()
+            finally:
+                await cleanup_checkpointer()
             mock_pool.close.assert_awaited_once()
 
 

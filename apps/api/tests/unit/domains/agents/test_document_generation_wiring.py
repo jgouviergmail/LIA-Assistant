@@ -71,9 +71,20 @@ class TestTimeoutFamily:
         assert resolved >= settings.document_generation_tool_timeout_seconds
 
     def test_ceiling_caps_the_planner(self) -> None:
+        """The family's ceiling, lifted by the calls the tool makes (ADR-221 amendment
+        2026-11-05): the writer, then the pictures it asked for, the work around them on top."""
+        from src.core.constants import LLM_RUN_BOUND_MARGIN_SECONDS
+        from src.core.llm_config_helper import llm_call_timeout_seconds
         from src.domains.agents.orchestration.step_timeouts import (
             compute_step_timeout,
         )
 
+        calls = llm_call_timeout_seconds("document_generation") + llm_call_timeout_seconds(
+            "image_generation"
+        )
         resolved = compute_step_timeout("generate_document", 100000.0)
-        assert resolved == settings.max_document_generation_tool_timeout_seconds
+        assert resolved == max(
+            settings.max_document_generation_tool_timeout_seconds,
+            calls + LLM_RUN_BOUND_MARGIN_SECONDS,
+        )
+        assert resolved < 100000.0

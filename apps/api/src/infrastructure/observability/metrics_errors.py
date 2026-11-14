@@ -88,9 +88,10 @@ llm_structured_output_outcomes_total = Counter(
     "Native structured-output calls by schema and how the door settled them",
     ["provider", "schema", "outcome"],
     # outcome: parsed (the provider's own parse), absent_values_dropped,
-    #          invalid_call_repaired, text_rescued (the three mechanical rescues
-    #          of a COMPLETE answer the parser refused, ADR-184 — one chain,
-    #          tool_call_rescue.RepairOutcome), truncated (a refusal, ADR-275),
+    #          structures_decoded, invalid_call_repaired, text_rescued (the four
+    #          mechanical rescues of a COMPLETE answer the parser refused,
+    #          ADR-184, ADR-388 — one chain, tool_call_rescue.RepairOutcome),
+    #          truncated (a refusal, ADR-275),
     #          rejected (an answer came back, nothing usable in it), call_failed
     #          (the call itself raised: a provider or transport failure, never
     #          the model's answer — ADR-100, 2026-10-23). Both native doors count:

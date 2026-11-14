@@ -158,3 +158,31 @@ mot-clé allemand plutôt qu'en moteur.
 - **Placer le champ hors de la barre collante** : aucun impact sur
   `scroll-margin`, mais le champ redevient inatteignable dès que la page défile,
   ce que la barre collante venait précisément de corriger.
+
+## Amendement 2026-11-11 — la porte d'une section est son entrée dans l'index
+
+La règle « une porte ne reflète que la garde que le composant applique vraiment »
+date de la page en accordéons, où chaque section se rendait elle-même. Dans la
+coquille maître-détail (ADR-227), le volet ne charge RIEN qu'une porte décidable
+écarte (`SettingsPaneFrame`) : la porte de l'index n'est plus un reflet, c'est la
+garde. Les quatre sections nommées plus haut comme rendues sans lire leur
+drapeau — skills, canaux, journaux, espaces — portent désormais le verdict de
+leur capacité, avec la psyché, les serveurs MCP personnels et les deux sections
+d'administration des skills et des espaces : leurs routeurs refusent toute
+route sous l'interrupteur de l'opérateur, lectures comprises. La raison et les
+preuves sont dans ADR-280 (amendement 2026-11-11). Ce qui reste vrai de la
+règle : une section encore lisible sous l'interrupteur (une archive, une
+préférence) n'est pas filtrée.
+
+**Deux formes de porte de plus (2026-11-12).** `deviceHaptics` est un fait de
+l'APPAREIL, ni du compte ni de l'instance : la section « Retour haptique » ne
+rendait rien là où `navigator.vibrate` n'existe pas (WebKit d'iOS) tout en
+restant listée dans le rail, la vue d'ensemble, la recherche et le sélecteur de
+raccourcis. La section et sa porte lisent désormais UN fait
+(`useHapticsSupported`). Et une porte `runtime` peut nommer une capacité
+(`flag`) : « Appels récents » reste indécidable quant à son contenu — vide tant
+qu'aucun appel n'a été passé — mais son routeur refuse sous l'interrupteur, et
+cette moitié-là de son absence se décide. « Mon téléphone » et « Génération
+d'images » deviennent décidables (ADR-280, amendement du 2026-11-12). Le message
+d'arrivée nomme les trois causes possibles d'une absence : le compte,
+l'instance, l'appareil.

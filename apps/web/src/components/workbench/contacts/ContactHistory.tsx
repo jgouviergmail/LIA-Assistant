@@ -343,6 +343,8 @@ export function ContactHistory({ lng, name, addresses, phones }: ContactHistoryP
       rows.map(row => ({
         key: row.id,
         label: row.subject || t('workbench.mail.no_subject'),
+        // What happened next in its conversation (ADR-379), in the mail tool's own words.
+        note: row.reply ? t(`workbench.mail.${row.reply}`) : undefined,
         when: historyDay(row, new Date(), zone, lng),
         href: historyMailHref(row.id, sent, lng),
       })),

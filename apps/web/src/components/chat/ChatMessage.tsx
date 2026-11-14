@@ -20,6 +20,7 @@ import {
   User,
   X,
 } from '@/lib/icons';
+import { MonochromeIcons } from '@/lib/icon-style-context';
 import { formatNumber, formatEuro } from '@/lib/format';
 import { voiceProviderBrand } from '@/lib/voice-provider-brand';
 import { cn } from '@/lib/utils';
@@ -61,6 +62,7 @@ import {
   type ResponseFeedbackButtonsProps,
 } from './ResponseFeedbackButtons';
 import { BookmarkButton } from './BookmarkButton';
+import { TurnNoteMark } from './TurnNoteMark';
 import { ActionChipButton } from './ActionChipButton';
 import { ShareResponseActions } from './ShareResponseActions';
 import { toast } from 'sonner';
@@ -1325,7 +1327,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
           />
         ) : (
           <div className="w-9 h-9 rounded-full flex items-center justify-center shadow-sm bg-gradient-to-br from-primary to-primary/80 text-primary-foreground ring-2 ring-primary/20">
-            <User className="h-4 w-4" />
+            <MonochromeIcons>
+              <User className="h-4 w-4" />
+            </MonochromeIcons>
           </div>
         )}
       </div>
@@ -1348,6 +1352,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
           {formatTime(message.timestamp)}
           <PhoneOriginMark metadata={message.metadata} />
           <LiveOriginMark metadata={message.metadata} />
+          <TurnNoteMark metadata={message.metadata} />
           {/* Voice source indicator (only for voice messages) */}
           {message.source === 'voice' && (
             <span className="hidden mobile:inline">

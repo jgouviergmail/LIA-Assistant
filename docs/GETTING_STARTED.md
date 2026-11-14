@@ -6,7 +6,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-11-01
-**Compatibility**: LIA v4.6.0
+**Compatibility**: LIA v5.0.0
 
 ## Table of Contents
 
@@ -76,9 +76,9 @@ For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISH
 | Voice providers | ElevenLabs (STT/TTS), Fish Audio (STT/TTS), Edge TTS (free), OpenAI (STT/TTS), Gemini TTS + local Whisper STT |
 | Configurable model and decision slots | 80, including 23 native JEV usages (admin registry, measured 2026-11-06) |
 | UI languages | 6 — fr, en, es, de, it, zh |
-| Prometheus metrics | 666 |
+| Prometheus metrics | 677 |
 | Grafana dashboards | 33 |
-| Built-in FAQ knowledge base | 553 questions in six languages; the English help corpus is indexed at startup |
+| Built-in FAQ knowledge base | 566 questions in six languages; the English help corpus is indexed at startup |
 
 ### Technical Architecture
 
@@ -106,6 +106,7 @@ For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISH
 | **Wikipedia** | Encyclopedia search | Wikipedia API |
 | **Perplexity** | AI-powered web search | Perplexity API |
 | **Brave Search** | Web search | Per-user API key connector |
+| **Instance web search** | Web links for accounts with no search key | SearXNG, a bundled service the operator runs (ADR-382) |
 | **Web Fetch** | Web page extraction | Built-in |
 | **Browser Control** | Autonomous interactive browsing | Playwright + ReAct agent |
 | **Smart Home** | Philips Hue lights | Local press-link or remote OAuth2 |
@@ -162,7 +163,7 @@ Production reference platform: Raspberry Pi 5 (linux/arm64) — all images are m
 |---------|-------|---------|
 | **At least one LLM provider** | Configured via Admin UI after first login (keys encrypted in DB) | OpenAI / Anthropic / DeepSeek / Gemini / Qwen — see [LLM Configuration](#llm-configuration) |
 
-> The guided installer asks for **DeepSeek and OpenAI** keys because both are required by the current reference core configuration, then for an optional **Google Gemini** key — memory recall, searches by meaning and image analysis run on it, and the final report names what stays degraded without it. The manual setup can use another provider once every required slot is repointed in the Admin UI. Premium voice providers remain optional.
+> The guided installer asks for **Anthropic and DeepSeek** keys because both are required by the current reference core configuration, then for an optional **Google Gemini** key — memory recall and searches by meaning run on it, and the final report names what stays degraded without it. The manual setup can use another provider once every required slot is repointed in the Admin UI. Image generation waits for an OpenAI key and premium voices for their provider's; both remain optional.
 
 #### Optional (Depending on Features)
 
@@ -252,7 +253,7 @@ Then edit `.env` — see [Environment Configuration](#environment-configuration)
 ### Step 4: Start the Docker Infrastructure
 
 ```bash
-# Start the dev environment — 17 services (foreground: task dev)
+# Start the dev environment — 20 services (foreground: task dev)
 task dev:detach
 # equivalent: docker compose -f docker-compose.dev.yml up -d --build
 
@@ -565,7 +566,7 @@ Or use the shortcuts `task dev:api` / `task dev:web` (require PostgreSQL + Redis
 
 ### Launched Docker Services
 
-Dev environment (`docker-compose.dev.yml`): 17 services by default, plus 6 opt-in Langfuse services (compose profile `langfuse`, started via `task dev:langfuse`):
+Dev environment (`docker-compose.dev.yml`): 20 services by default, plus 6 opt-in Langfuse services (compose profile `langfuse`, started via `task dev:langfuse`):
 
 | Service | Port(s) | Description | URL |
 |---------|---------|-------------|-----|
@@ -587,6 +588,8 @@ Dev environment (`docker-compose.dev.yml`): 17 services by default, plus 6 opt-i
 | **postgres-exporter** | 9187 | PostgreSQL metrics | — |
 | **redis-exporter** | 9121 | Redis metrics | — |
 | **node-exporter** | 9100 | System metrics | — |
+| **egress** | — | Sandbox egress proxy: the only way out of a skill or script run (ADR-298) | — |
+| **searxng** | — | The instance's own web search, for accounts with no search key (ADR-382) | — |
 | **minio** * | 9092, 9093 | S3 storage for Langfuse | http://localhost:9093 |
 | **langfuse-db** * | — | Langfuse PostgreSQL | — |
 | **langfuse-clickhouse** * | — | ClickHouse analytics | — |
@@ -596,7 +599,7 @@ Dev environment (`docker-compose.dev.yml`): 17 services by default, plus 6 opt-i
 
 \* Opt-in `langfuse` compose profile — started only by `task dev:langfuse`.
 
-The production compose (`docker-compose.prod.yml`) runs a leaner 17-service stack: postgres, postgres-backup, redis, api, web, prometheus, alertmanager, blackbox-exporter, grafana, loki, promtail, tempo, node-exporter, cadvisor, postgres-exporter, redis-exporter, portainer — no pgAdmin, no Langfuse stack. Alertmanager delivers the 14-alert core by email (ADR-119, see [ALERTING.md](./technical/ALERTING.md)).
+The production compose (`docker-compose.prod.yml`) runs a leaner stack: five core services (postgres, postgres-backup, redis, api, web), twelve more behind the `observability` profile (prometheus, alertmanager, blackbox-exporter, grafana, loki, promtail, tempo, node-exporter, cadvisor, postgres-exporter, redis-exporter, portainer) and the optional `searxng` profile, the instance's own web search (ADR-382) — no pgAdmin, no Langfuse stack. Alertmanager delivers the core alerts by email (ADR-119, see [ALERTING.md](./technical/ALERTING.md)).
 
 ### Service Verification
 
@@ -646,6 +649,8 @@ curl -k -X POST https://localhost:8000/api/v1/auth/register \
 Supported languages: `fr`, `en`, `es`, `de`, `it`, `zh-CN`.
 
 ### 3. First Conversation
+
+The discussion badge in the chat header opens **Main** and any named annexes. Use **New discussion** when creation is available. Automatic messages arrive in Main, and the meter shows the discussion you are reading. See the [discussion guide](technical/SECONDARY_CONVERSATIONS.md).
 
 Open https://localhost:3000/chat and try:
 
@@ -871,6 +876,8 @@ See [CONNECTOR_PHILIPS_HUE.md](./technical/CONNECTOR_PHILIPS_HUE.md).
 ### 6. OpenWeatherMap & Brave Search (Per-User Connectors)
 
 Weather and Brave Search are **per-user API-key connectors**: each user enters their own key in **Settings > Connectors** (keys encrypted in DB). Get free keys at [openweathermap.org/api](https://openweathermap.org/api) and [brave.com/search/api](https://brave.com/search/api/).
+
+A person with no Brave key is not left without web links where the instance runs its own search: the `searxng` service is part of the dev stack and an optional profile in production, pointed at by `SEARXNG_URL`. A person's own Brave key keeps priority ([WEB_SEARCH.md](./technical/WEB_SEARCH.md), [ADR-382](./architecture/ADR-382-The-Instance-Searches-The-Web-For-Who-Has-No-Key.md)).
 
 ---
 
@@ -1278,84 +1285,116 @@ UI), applied to subsequent operations without restarting workers.
 - **Providers**: OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama (text) + ElevenLabs, Fish Audio and Edge (voice; OpenAI and Gemini speak too). Ollama needs only `OLLAMA_BASE_URL` (the server root; the context window LIA requests and accounts with is set per LLM slot in the admin, ADR-278); Perplexity/Qwen base URLs are parameterizable.
 - Model catalogue and pricing are database-driven: adding a model is an admin operation, no deploy needed.
 
-The tables below show the **effective production configuration** (code defaults merged with the production database overrides) — a battle-tested quality/cost balance you can reproduce as-is. A fresh install starts from the reference seed instead (`infrastructure/database/seeds/llm_config_seed.sql`). *Reasoning* is the per-slot reasoning-effort setting (`off` = thinking disabled, `—` = non-reasoning model). `deepseek-v4-flash` in these tables is the **retired alias** of what the DeepSeek API now calls `deepseek-flash` (DeepSeek-V4.1-Flash, carried by the catalogue since v1.44.6): pick the current name when you reproduce them, and keep reasoning `off` on the slots the tables show `off` — on this family thinking is on by default and billed inside `max_tokens`.
+The tables below show the **reference configuration a fresh install starts from**: the rows of `infrastructure/database/seeds/llm_config_seed.sql` — the maintainer's production configuration as extracted on 2026-11-11 — merged with the code defaults (`LLM_DEFAULTS`) for whatever a row leaves unset. *Reasoning* is the level the slot asks for (`none` = thinking off, `—` = nothing asked). Native decision usages (JEV, ADR-325) carry no model parameter and are not listed; each stays off until an administrator switches it on.
 
 #### Pipeline (Orchestration & Routing)
 
 | Slot | Provider | Model | Temp | Max Tokens | Reasoning |
 |------|----------|-------|------|------------|-----------|
-| `semantic_pivot` | DeepSeek | `deepseek-v4-flash` | 0.2 | 5 000 | off |
-| `query_analyzer` | DeepSeek | `deepseek-v4-flash` | 0.2 | 10 000 | off |
-| `planner` | DeepSeek | `deepseek-v4-flash` | 0.2 | 10 000 | off |
-| `semantic_validator` | DeepSeek | `deepseek-v4-flash` | 0.2 | 5 000 | off |
-| `compaction` | DeepSeek | `deepseek-v4-flash` | 0.5 | 50 000 | high |
-| `initiative` | DeepSeek | `deepseek-v4-flash` | 0.2 | 10 000 | off |
+| `semantic_pivot` | Anthropic | `claude-sonnet-5-5` | 0.0 | 5 000 | none |
+| `query_analyzer` | Anthropic | `claude-haiku-5-5` | 0.0 | 10 000 | none |
+| `planner` | Anthropic | `claude-haiku-5-5` | 0.0 | 100 000 | none |
+| `semantic_validator` | Anthropic | `claude-haiku-5-5` | 0.2 | 5 000 | none |
+| `compaction` | Anthropic | `claude-sonnet-5-5` | 0.5 | 100 000 | low |
+| `initiative` | Anthropic | `claude-sonnet-5-5` | 0.2 | 50 000 | medium |
+| `react_agent` | DeepSeek | `deepseek-flash` | 0.5 | 100 000 | low |
 
 #### Agents
 
 | Slot | Provider | Model | Temp | Max Tokens | Reasoning |
 |------|----------|-------|------|------------|-----------|
-| `emails_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
-| `browser_agent` | DeepSeek | `deepseek-v4-flash` | 0.5 | 20 000 | off |
-| `react_agent` | DeepSeek | `deepseek-v4-flash` | 0.2 | 20 000 | off |
-| `mcp_react_agent` | DeepSeek | `deepseek-v4-flash` | 0.5 | 30 000 | off |
-| `subagent` | DeepSeek | `deepseek-v4-flash` | 1.0 | 10 000 | off |
+| `emails_agent` | Anthropic | `claude-sonnet-5-5` | 0.0 | 2 000 | low |
+| `browser_agent` | Anthropic | `claude-sonnet-5-5` | 0.2 | 100 000 | medium |
+| `mcp_app_react_agent` | Anthropic | `claude-sonnet-5-5` | 1.0 | 30 000 | medium |
+| `subagent` | Anthropic | `claude-sonnet-5-5` | 0.2 | 100 000 | medium |
+| `mcp_react_agent` | Anthropic | `claude-sonnet-5-5` | 0.2 | 100 000 | medium |
 
 #### Query & Response
 
 | Slot | Provider | Model | Temp | Max Tokens | Reasoning |
 |------|----------|-------|------|------------|-----------|
-| `query_agent` | DeepSeek | `deepseek-v4-flash` | 0.2 | 10 000 | off |
-| `response` | DeepSeek | `deepseek-v4-flash` | 1.0 | 10 000 | off |
+| `query_agent` | Anthropic | `claude-haiku-5-5` | 0.2 | 10 000 | none |
+| `response` | DeepSeek | `deepseek-flash` | 1.0 | 50 000 | none |
 
 #### HITL (Human-in-the-Loop)
 
 | Slot | Provider | Model | Temp | Max Tokens | Reasoning |
 |------|----------|-------|------|------------|-----------|
-| `hitl_classifier` | DeepSeek | `deepseek-v4-flash` | 0.2 | 5 000 | off |
-| `hitl_question_generator` | DeepSeek | `deepseek-v4-flash` | 1.0 | 5 000 | off |
-| `hitl_plan_approval_question_generator` | DeepSeek | `deepseek-v4-flash` | 1.0 | 5 000 | off |
+| `hitl_classifier` | Anthropic | `claude-haiku-5-5` | 0.0 | 5 000 | low |
+| `hitl_question_generator` | Anthropic | `claude-sonnet-5-5` | 1.0 | 5 000 | low |
+| `hitl_plan_approval_question_generator` | Anthropic | `claude-sonnet-5-5` | 1.0 | 5 000 | low |
 
-#### Memory & Background
+#### Memory
 
 | Slot | Provider | Model | Temp | Max Tokens | Reasoning |
 |------|----------|-------|------|------------|-----------|
-| `memory_extraction` | OpenAI | `gpt-5.2` | 0.2 | 10 000 | none |
-| `memory_reference_extraction` | DeepSeek | `deepseek-v4-flash` | 0.2 | 5 000 | off |
-| `memory_reference_resolution` | DeepSeek | `deepseek-v4-flash` | 0.2 | 5 000 | off |
-| `interest_extraction` | OpenAI | `gpt-5.2` | 0.2 | 10 000 | none |
-| `interest_content` | DeepSeek | `deepseek-v4-flash` | 1.0 | 10 000 | high |
-| `journal_extraction` | OpenAI | `gpt-5.2` | 0.2 | 10 000 | none |
-| `journal_consolidation` | DeepSeek | `deepseek-v4-flash` | 0.5 | 50 000 | high |
-| `heartbeat_decision` | DeepSeek | `deepseek-v4-flash` | 0.5 | 10 000 | high |
-| `heartbeat_message` | DeepSeek | `deepseek-v4-flash` | 1.0 | 10 000 | high |
-| `psyche_summary` | DeepSeek | `deepseek-v4-flash` | 1.0 | 5 000 | off |
-| `briefing` | OpenAI | `gpt-5.4-mini` | 1.0 | 5 000 | none |
-| `broadcast_translator` | DeepSeek | `deepseek-v4-flash` | 0.5 | 5 000 | off |
+| `memory_extraction` | Anthropic | `claude-haiku-5-5` | 0.5 | 10 000 | medium |
+| `memory_reference_extraction` | Anthropic | `claude-haiku-5-5` | 0.0 | 10 000 | medium |
+| `open_loop_extraction` | Anthropic | `claude-haiku-5-5` | 0.2 | 10 000 | medium |
+| `memory_reference_resolution` | Anthropic | `claude-haiku-5-5` | 0.2 | 10 000 | medium |
+
+#### Background
+
+| Slot | Provider | Model | Temp | Max Tokens | Reasoning |
+|------|----------|-------|------|------------|-----------|
+| `interest_extraction` | Anthropic | `claude-haiku-5-5` | 0.5 | 10 000 | medium |
+| `interest_content` | Anthropic | `claude-sonnet-5-5` | 1.0 | 50 000 | medium |
+| `heartbeat_decision` | Anthropic | `claude-haiku-5-5` | 0.5 | 10 000 | medium |
+| `heartbeat_message` | Anthropic | `claude-sonnet-5-5` | 1.0 | 50 000 | medium |
+| `broadcast_translator` | Anthropic | `claude-haiku-5-5` | 0.3 | 5 000 | low |
 | `personality_translation` | Anthropic | `claude-haiku-5-5` | 0.3 | 500 | low |
+| `journal_extraction` | Anthropic | `claude-haiku-5-5` | 0.5 | 50 000 | medium |
+| `journal_consolidation` | Anthropic | `claude-sonnet-5-5` | 0.5 | 100 000 | medium |
+| `psyche_summary` | Anthropic | `claude-haiku-5-5` | 0.7 | 5 000 | low |
+| `discussion_context` | Anthropic | `claude-sonnet-5-5` | 0.3 | 100 000 | medium |
+| `discussion_decision` | Anthropic | `claude-haiku-5-5` | 0.3 | 50 000 | medium |
+| `discussion_message` | Anthropic | `claude-sonnet-5-5` | 0.7 | 50 000 | medium |
+
+#### Briefing
+
+| Slot | Provider | Model | Temp | Max Tokens | Reasoning |
+|------|----------|-------|------|------------|-----------|
+| `briefing` | Anthropic | `claude-sonnet-5-5` | 0.7 | 5 000 | none |
+
+#### Personal radio
+
+| Slot | Provider | Model | Temp | Max Tokens | Reasoning |
+|------|----------|-------|------|------------|-----------|
+| `radio_writer` | Anthropic | `claude-sonnet-5-5` | 0.6 | 50 000 | medium |
+| `radio_analyst` | Anthropic | `claude-sonnet-5-5` | 0.3 | 50 000 | medium |
+| `radio_verifier` | Anthropic | `claude-sonnet-5-5` | 0.0 | 50 000 | low |
+| `radio_translator` | Anthropic | `claude-sonnet-5-5` | 0.2 | 50 000 | none |
+| `radio_voice` | Fish Audio | `s2.1-pro-free` | — | — | — |
 
 #### Specialized
 
 | Slot | Provider | Model | Temp | Max Tokens | Reasoning |
 |------|----------|-------|------|------------|-----------|
-| `vision_analysis` | Gemini | `gemini-3.8-flash` | 0.5 | 5 000 | low |
-| `image_generation` | OpenAI | `gpt-image-2` | — | — | — |
-| `interactive_page` (code default, as a document's) | OpenAI | `gpt-4.1` | 0.2 | 16 000 | — |
-| `tool_assist` | DeepSeek | `deepseek-flash` | 0.2 | 4 000 | off |
-| `voice_comment` | OpenAI | `gpt-5.4-mini` | 1.0 | 5 000 | none |
-| `voice_transcription` | ElevenLabs | `scribe_v2` | — | — | — |
-| `voice_tts` | ElevenLabs | `eleven_flash_v2_5` | — | — | — |
-| `mcp_description` | DeepSeek | `deepseek-v4-flash` | 0.5 | 5 000 | off |
-| `mcp_app_react_agent` | Anthropic | `claude-opus-4-6` | 1.0 | 30 000 | medium |
-| `skill_description_translator` | DeepSeek | `deepseek-v4-flash` | 0.5 | 5 000 | off |
+| `world_message_translator` | Anthropic | `claude-sonnet-5-5` | 0.0 | 50 000 | none |
+| `telephony_synthesis` | Anthropic | `claude-sonnet-5-5` | 0.4 | 100 000 | medium |
+| `relation_debrief` | Anthropic | `claude-sonnet-5-5` | 0.4 | 5 000 | medium |
+| `voice_comment` | Anthropic | `claude-haiku-5-5` | 1.0 | 5 000 | none |
+| `mcp_description` | Anthropic | `claude-haiku-5-5` | 0.3 | 5 000 | low |
+| `vision_analysis` | Anthropic | `claude-sonnet-5-5` | 1.0 | 10 000 | low |
+| `skill_description_translator` | Anthropic | `claude-haiku-5-5` | 0.2 | 5 000 | low |
 | `evaluator` | OpenAI | `gpt-4.1-mini` | 0.0 | 500 | — |
+| `diagnostician` | Anthropic | `claude-sonnet-5-5` | 0.0 | 100 000 | medium |
+| `image_generation` | OpenAI | `gpt-image-2.6-flare` | — | — | — |
+| `image_prompt_enhancement` | Anthropic | `claude-sonnet-5-5` | 0.4 | 50 000 | low |
+| `email_digest` | Anthropic | `claude-haiku-5-5` | 0.2 | 5 000 | low |
+| `tool_assist` | Anthropic | `claude-sonnet-5-5` | 0.2 | 50 000 | none |
+| `document_generation` | Anthropic | `claude-sonnet-5-5` | 0.2 | 100 000 | medium |
+| `interactive_page` | Anthropic | `claude-sonnet-5-5` | 0.2 | 100 000 | medium |
+| `meeting_synthesis` | Anthropic | `claude-sonnet-5-5` | 0.2 | 100 000 | medium |
+| `voice_transcription` | ElevenLabs | `scribe_v2` | — | — | — |
+| `voice_tts` | Fish Audio | `s2.1-pro-free` | — | — | — |
 
-#### Design Principles of the Production Configuration
+#### How the Reference Configuration Is Laid Out
 
-1. **DeepSeek V4 Flash** carries the bulk of the pipeline (routing, planning, response, ReAct, HITL, heartbeat): near-frontier quality at a fraction of the cost, with thinking (`high`) enabled only where depth pays (compaction, journal consolidation, heartbeat) and disabled (`off`) on latency-sensitive nodes.
-2. **`gpt-4.1-mini`** writes the text of an e-mail (`emails_agent`): a short, well-framed job that needs no reasoning.
-3. **`gpt-5.2`** handles precision extraction (memory, journals, interests) where structured-output quality matters most.
-4. **`gemini-3.8-flash`** (vision), **`claude-opus-4-6`** (interactive MCP apps / diagram generation), **`gpt-image-2`** (images) and **ElevenLabs** (voice) cover the specialized slots.
+1. **Claude Haiku 5.5** takes the short, structured decisions: query analysis, planning, semantic validation, HITL classification, the memory, interest and journal extractions, the heartbeat decision.
+2. **Claude Sonnet 5.5** writes and reasons at length: the agents (browser, MCP, sub-agents), documents and interactive pages, meeting synthesis, journal consolidation, image analysis, the briefing and the radio.
+3. **DeepSeek Flash** writes the chat answer (`response`) and drives the ReAct loop (`react_agent`).
+4. **OpenAI** serves two optional slots — images (`image_generation`) and the `evaluator` — and speech runs on **Fish Audio** (synthesis) and **ElevenLabs** (remote dictation): each waits for its provider's key, added in the Admin UI.
 
 > **Cost tip**: the dominant cost drivers are `response`, `planner` and the ReAct/browser loops. Any slot can be repointed at runtime from the Admin UI — including to a local Ollama model — without restart.
 
@@ -1589,7 +1628,7 @@ remains fully supported.
 ### Configuration
 
 1. Start from **`.env.min.prod.example`** (minimal working set) or `.env.prod.example` (full template) → `.env.prod`
-2. Replace every `CHANGE_ME_*` placeholder; set your real domains (CORS, URLs, cookie domain, OAuth redirect URIs on Google/Azure side)
+2. Replace every `CHANGE_ME_*` placeholder; set your real domains (CORS, URLs, cookie domain, OAuth redirect URIs on Google/Azure side). The full template selects the `searxng` profile: generate its secret (`SEARXNG_SECRET=$(openssl rand -hex 32)`), or remove `searxng` from `COMPOSE_PROFILES` and empty `SEARXNG_URL` — the container refuses to start without a secret ([WEB_SEARCH.md](./technical/WEB_SEARCH.md))
 3. Production hardening baked into the defaults: `DEBUG=false`, `LOG_LEVEL=INFO`, secure cookies, per-user rate limiting, no pgAdmin/Langfuse
 
 ### Secrets Encryption (SOPS + Age)
@@ -1740,7 +1779,7 @@ In development the equivalent is `task db:seed:sql` (or `task db:reset`), which 
 
 ### Infrastructure
 
-- [ ] `docker compose -f docker-compose.dev.yml ps` — all services healthy (17 in dev, 23 with the Langfuse profile)
+- [ ] `docker compose -f docker-compose.dev.yml ps` — all services healthy (20 in dev, 26 with the Langfuse profile)
 - [ ] Backend answers: `curl -k https://localhost:8000/health` (liveness) and `curl -k https://localhost:8000/ready` returns 200 (readiness — DB + Redis up)
 - [ ] Frontend reachable: https://localhost:3000 (certificate accepted on **both** :3000 and :8000)
 - [ ] Migrations applied (`task db:migrate`), admin created, seeds loaded (`task db:seed:sql`)

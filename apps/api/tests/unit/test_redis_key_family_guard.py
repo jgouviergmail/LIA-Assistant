@@ -8,8 +8,8 @@ were built from literal f-strings and escaped it (``heartbeat:birthdays``,
 reads every ``src/**/*.py`` file for an f-string whose literal head is followed
 by a user-id placeholder and requires the head to be a declared family. A
 head that starts with a placeholder (``f"{PREFIX}:{user_id}"``) is out of the
-regex's reach by construction — that residual is what the reset's
-``reset_undeclared_family_total`` counter is for.
+regex's reach by construction. The reset additionally requires an exact
+runtime inventory and refuses unknown or foreign members.
 
 Allow-list: empty. Add an entry only with a written reason; never weaken the
 regex.

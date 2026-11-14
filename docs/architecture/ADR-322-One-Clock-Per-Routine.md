@@ -341,3 +341,13 @@ a routine could no longer use an MCP tool its owner wants it to use.
 `tests/integration/domains/scheduled_actions/test_mcp_preapproval_db.py`; the form's
 checkboxes in `RoutineMcpPreapprovalField.test.tsx` and the axe journey
 `a routine form names the MCP servers its runs confirm for themselves`.
+
+## Amendment 2026-11-12 — a third reason on the ledger: `quota_blocked`
+
+`last_check_error` said why a check could not READ its source (`not_configured`, `unavailable`).
+It now also says why a check was not MADE: `quota_blocked`, written by the executor — never by an
+evaluator — when the account's usage ceiling stands the tick aside, in place of the run row a
+check never writes. Refused before its check, the ledger keeps what it had seen; refused inside
+the turn a new fact was about to start, the fact stays new (`condition_ledger.with_check_error`).
+The next admitted check rewrites the field, as every check does. Decision and guards:
+[ADR-265, amendment 2026-11-12](ADR-265-Routine-Week-Timeline-And-Run-History.md).

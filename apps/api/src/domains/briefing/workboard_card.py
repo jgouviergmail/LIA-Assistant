@@ -11,6 +11,7 @@ concurrent tasks.
 from __future__ import annotations
 
 from datetime import datetime
+from itertools import chain
 from uuid import UUID
 
 from src.core.config import settings
@@ -18,6 +19,7 @@ from src.core.time_utils import now_utc
 from src.domains.briefing.exceptions import ConnectorNotConfiguredError
 from src.domains.briefing.schemas import WorkboardData, WorkboardPreviews, WorkboardTicketItem
 from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
+from src.domains.workboard.category_service import WorkboardCategoryService
 from src.domains.workboard.constants import CLOSED_STATUSES
 from src.domains.workboard.models import WorkboardTicket
 from src.domains.workboard.repository import WorkboardRepository
@@ -54,10 +56,14 @@ async def fetch_workboard(*, user_id: UUID) -> WorkboardData:
             now,
             limit=settings.briefing_max_workboard_items,
         )
-        items = [_workboard_item(ticket, now) for ticket in figures.needs_me_first]
+        # Off the board the lane is a badge: one read names the category of
+        # every ticket the card shows, and none when nothing on it is filed.
+        shown = [*figures.needs_me_first, *chain.from_iterable(figures.previews.values())]
+        names = await WorkboardCategoryService(db).names_for(user_id, shown)
+        items = [_workboard_item(ticket, now, names) for ticket in figures.needs_me_first]
         previews = WorkboardPreviews.model_validate(
             {
-                key: [_workboard_item(ticket, now) for ticket in tickets]
+                key: [_workboard_item(ticket, now, names) for ticket in tickets]
                 for key, tickets in figures.previews.items()
             }
         )
@@ -73,9 +79,13 @@ async def fetch_workboard(*, user_id: UUID) -> WorkboardData:
     )
 
 
-def _workboard_item(ticket: WorkboardTicket, now: datetime) -> WorkboardTicketItem:
+def _workboard_item(
+    ticket: WorkboardTicket, now: datetime, names: dict[UUID, str]
+) -> WorkboardTicketItem:
     """The same read-only ticket projection for legacy rows and grouped previews."""
     return WorkboardTicketItem(
+        # A category deleted between the two reads is simply not named.
+        category=names.get(ticket.category_id) if ticket.category_id is not None else None,
         id=str(ticket.id),
         title=ticket.title,
         status=ticket.status,

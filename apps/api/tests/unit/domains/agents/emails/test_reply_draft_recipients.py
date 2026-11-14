@@ -37,6 +37,8 @@ def client() -> AsyncMock:
     client.get_message = AsyncMock(return_value=dict(ORIGINAL))
     client.get_own_address = AsyncMock(return_value="me@example.com")
     client.reply_email = AsyncMock(return_value={"id": "s1", "threadId": "t1"})
+    # A mailbox that tells no reply state (ADR-379): those are tested on their own.
+    client.conversations_of = AsyncMock(return_value={})
     return client
 
 

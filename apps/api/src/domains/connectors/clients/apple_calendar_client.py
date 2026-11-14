@@ -13,7 +13,7 @@ Created: 2026-03-10
 """
 
 from datetime import UTC, date, datetime, timedelta
-from typing import Any
+from typing import Any, Final
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
@@ -22,12 +22,18 @@ import structlog
 
 from src.core.config import settings
 from src.core.read_budget import current_read_owner, source_dav_request, source_http_hooks
+from src.core.wall_time import WallTime
 from src.domains.connectors.clients.apple_calendar_acts_mixin import AppleCalendarActsMixin
 from src.domains.connectors.clients.base_apple_client import BaseAppleClient
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.calendar_answers import PARTSTATS, EventAnswer, NotInvitedError
 from src.domains.connectors.clients.calendar_options import EventOptions, apply_ical_options
-from src.domains.connectors.clients.normalizers.all_day import all_day_dates
+from src.domains.connectors.clients.event_bounds import (
+    BoundsChange,
+    DayBounds,
+    EventBounds,
+    TimedSides,
+)
 from src.domains.connectors.clients.normalizers.calendar_normalizer import (
     normalize_calendar,
     normalize_vevent,
@@ -196,19 +202,16 @@ class AppleCalendarClient(AppleCalendarActsMixin, BaseAppleClient):
     async def create_event(
         self,
         summary: str,
-        start_datetime: str,
-        end_datetime: str,
-        timezone: str | None = None,
+        bounds: EventBounds,
         description: str | None = None,
         location: str | None = None,
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
         add_conference: bool = False,
         idempotency_key: str | None = None,
-        all_day: bool = False,
         options: EventOptions | None = None,
     ) -> dict[str, Any]:
-        """Create a new event.
+        """Create a new event, at the bounds it is given (``event_bounds``, ADR-380).
 
         ``add_conference`` is accepted for provider parity but ignored:
         CalDAV/iCloud has no conference-creation concept (graceful
@@ -228,15 +231,12 @@ class AppleCalendarClient(AppleCalendarActsMixin, BaseAppleClient):
             "create_event",
             self._create_event_impl,
             summary,
-            start_datetime,
-            end_datetime,
-            timezone,
+            bounds,
             description,
             location,
             attendees,
             calendar_id,
             uid=provider_idempotency_id(idempotency_key or uuid4().hex, "apple"),
-            all_day=all_day,
             options=options,
         )
 
@@ -244,14 +244,11 @@ class AppleCalendarClient(AppleCalendarActsMixin, BaseAppleClient):
         self,
         event_id: str,
         summary: str | None = None,
-        start_datetime: str | None = None,
-        end_datetime: str | None = None,
-        timezone: str | None = None,
+        bounds: BoundsChange | None = None,
         description: str | None = None,
         location: str | None = None,
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
-        all_day: bool | None = None,
         send_updates: str | None = None,
         add_conference: bool = False,
         options: EventOptions | None = None,
@@ -265,14 +262,11 @@ class AppleCalendarClient(AppleCalendarActsMixin, BaseAppleClient):
             self._update_event_impl,
             event_id,
             summary,
-            start_datetime,
-            end_datetime,
-            timezone,
+            bounds,
             description,
             location,
             attendees,
             calendar_id,
-            all_day=all_day,
             options=options,
         )
 
@@ -363,18 +357,6 @@ class AppleCalendarClient(AppleCalendarActsMixin, BaseAppleClient):
 
         return None
 
-    @staticmethod
-    def _apply_timezone(dt: datetime, timezone: str | None) -> datetime:
-        """Make a naive datetime timezone-aware.
-
-        The requested timezone wins; naive datetimes without a requested
-        timezone fall back to UTC. Timezone-aware datetimes are unchanged
-        (an explicit offset in the input takes precedence).
-        """
-        if dt.tzinfo is not None:
-            return dt
-        return dt.replace(tzinfo=ZoneInfo(timezone) if timezone else UTC)
-
     # =========================================================================
     # IMPLEMENTATION
     # =========================================================================
@@ -461,19 +443,6 @@ class AppleCalendarClient(AppleCalendarActsMixin, BaseAppleClient):
 
         return {"items": items[:max_results]}
 
-    def _bounds(
-        self, start: str, end: str, timezone: str | None, *, all_day: bool
-    ) -> tuple[date | datetime, date | datetime]:
-        """DTSTART/DTEND values: dates (``VALUE=DATE``, end exclusive) or zoned times."""
-        if all_day:
-            return all_day_dates(start, end)
-        # Parse WITHOUT stamping UTC so the requested timezone can apply to
-        # naive inputs; _apply_timezone falls back to UTC when timezone is None.
-        return (
-            self._apply_timezone(_parse_iso_datetime(start, assume_utc=False), timezone),
-            self._apply_timezone(_parse_iso_datetime(end, assume_utc=False), timezone),
-        )
-
     async def _events_window_impl(
         self, calendar_id: str, time_min: str, time_max: str, bound: int
     ) -> dict[str, Any]:
@@ -513,21 +482,18 @@ class AppleCalendarClient(AppleCalendarActsMixin, BaseAppleClient):
     async def _create_event_impl(
         self,
         summary: str,
-        start_datetime: str,
-        end_datetime: str,
-        timezone: str | None,
+        bounds: EventBounds,
         description: str | None,
         location: str | None,
         attendees: list[str] | None,
         calendar_id: str,
         *,
         uid: str,
-        all_day: bool = False,
         options: EventOptions | None = None,
     ) -> dict[str, Any]:
         """Create a new event via CalDAV, under the ``uid`` its caller fixed."""
         calendar = await self._get_calendar(calendar_id)
-        dtstart, dtend = self._bounds(start_datetime, end_datetime, timezone, all_day=all_day)
+        dtstart, dtend = _ical_values(bounds)
 
         kwargs: dict[str, Any] = {
             "uid": uid,
@@ -610,15 +576,12 @@ class AppleCalendarClient(AppleCalendarActsMixin, BaseAppleClient):
         self,
         event_id: str,
         summary: str | None,
-        start_datetime: str | None,
-        end_datetime: str | None,
-        timezone: str | None,
+        bounds: BoundsChange | None,
         description: str | None,
         location: str | None,
         attendees: list[str] | None,
         calendar_id: str,
         *,
-        all_day: bool | None = None,
         options: EventOptions | None = None,
     ) -> dict[str, Any]:
         """
@@ -638,22 +601,15 @@ class AppleCalendarClient(AppleCalendarActsMixin, BaseAppleClient):
         if summary is not None:
             vevent.summary.value = summary
 
-        if all_day is not None:
-            # A switch of shape carries both bounds (ADR-369): dates, or zoned times.
-            if start_datetime is None or end_datetime is None:
-                raise ValueError("Turning an event all-day or timed needs its new start and end.")
-            _set_bounds(
-                vevent, *self._bounds(start_datetime, end_datetime, timezone, all_day=all_day)
-            )
-            start_datetime = end_datetime = None
-
-        if start_datetime is not None:
-            dt = _parse_iso_datetime(start_datetime, assume_utc=False)
-            vevent.dtstart.value = self._apply_timezone(dt, timezone)
-
-        if end_datetime is not None:
-            dt = _parse_iso_datetime(end_datetime, assume_utc=False)
-            _write_end(vevent, self._apply_timezone(dt, timezone))
+        if isinstance(bounds, TimedSides):
+            # The event keeps its shape: a side given replaces, a side left out stays.
+            if bounds.start is not None:
+                _write(vevent, "dtstart", _ical_time(bounds.start))
+            if bounds.end is not None:
+                _write_end(vevent, _ical_time(bounds.end))
+        elif bounds is not None:
+            # A whole pair gives the event its shape (ADR-369): dates, or zoned times.
+            _set_bounds(vevent, *_ical_values(bounds))
 
         _apply_text_fields(vevent, description, location, attendees)
         apply_ical_options(vevent, options or EventOptions())
@@ -696,19 +652,58 @@ class AppleCalendarClient(AppleCalendarActsMixin, BaseAppleClient):
             self._principal = None
 
 
-def _parse_iso_datetime(dt_str: str, *, assume_utc: bool = True) -> datetime:
-    """Parse an ISO 8601 datetime string.
+class _IcalZone(ZoneInfo):
+    """A zone as iCalendar must name it: by its IANA key.
+
+    vobject, which writes every UPDATE, names a zone by its ``tzid`` and, finding
+    none, by its winter abbreviation — « EST » for New York, which is ANOTHER
+    zone's name: a server that knows it places a summer event an hour late.
+    caldav's own writer, which writes every create, reads ``key`` and always
+    wrote the name.
+    """
+
+    @property
+    def tzid(self) -> str:
+        """The name vobject writes as the zone's TZID."""
+        return self.key
+
+
+#: UTC as BOTH writers render ``…Z`` (vobject cannot name ``datetime.UTC``).
+_ICAL_UTC: Final = ZoneInfo("UTC")
+#: What an old value leaves on its line: its shape, its zone, and the zone vobject
+#: sets aside on reading — which it would write back as a TZID on a time in UTC.
+_STALE_PARAMS: Final = ("VALUE", "TZID", "X-VOBJ-ORIGINAL-TZID")
+
+
+def _ical_time(moment: WallTime) -> datetime:
+    """A DATE-TIME for both writers: the wall time, under its zone's own name.
+
+    An hour the zone's clocks skip or show twice is said in UTC: RFC 5545 and its
+    readers do not agree on which instant such a local time is.
+    """
+    if not moment.zone_suffices:
+        return moment.instant().astimezone(_ICAL_UTC)
+    return moment.local.replace(tzinfo=_IcalZone(moment.zone.key))
+
+
+def _ical_values(bounds: EventBounds) -> tuple[date | datetime, date | datetime]:
+    """DTSTART/DTEND values: dates (``VALUE=DATE``, end exclusive) or times in their zone."""
+    if isinstance(bounds, DayBounds):
+        return bounds.first, bounds.after_last
+    return _ical_time(bounds.start), _ical_time(bounds.end)
+
+
+def _parse_iso_datetime(dt_str: str) -> datetime:
+    """Parse a SEARCH bound: an ISO 8601 instant, read as UTC when it names no offset.
+
+    An event's own times never come through here: they are wall times that
+    travel with their zone (``event_bounds``).
 
     Args:
         dt_str: ISO 8601 datetime string (with or without offset/Z).
-        assume_utc: When True (default), naive results are stamped UTC —
-            correct for search bounds. Pass False when the caller applies a
-            user-requested timezone afterwards (event create/update): stamping
-            UTC first would make that timezone a silent no-op.
 
     Returns:
-        Parsed datetime; timezone-aware unless ``assume_utc=False`` and the
-        input carries no offset.
+        The instant, timezone-aware.
     """
     # Normalize trailing Z to +00:00 so strptime %z handles it as UTC
     normalized = dt_str.replace("Z", "+00:00") if dt_str.endswith("Z") else dt_str
@@ -729,24 +724,29 @@ def _parse_iso_datetime(dt_str: str, *, assume_utc: bool = True) -> datetime:
 
         dt = parse(dt_str)
 
-    if dt.tzinfo is None and assume_utc:
+    if dt.tzinfo is None:
         dt = dt.replace(tzinfo=UTC)
     return dt
 
 
+def _write(vevent: Any, name: str, value: date | datetime) -> None:
+    """Write DTSTART or DTEND: what the old value left on its line goes with it."""
+    line = getattr(vevent, name, None) or vevent.add(name)
+    for stale in _STALE_PARAMS:
+        line.params.pop(stale, None)
+    line.value = value
+
+
 def _set_bounds(vevent: Any, start: date | datetime, end: date | datetime) -> None:
-    """Write DTSTART/DTEND of a new shape: the old shape's VALUE/TZID go with it."""
-    for name, value in (("dtstart", start), ("dtend", end)):
-        line = getattr(vevent, name, None) or vevent.add(name)
-        line.params.pop("VALUE", None)
-        line.params.pop("TZID", None)
-        line.value = value
+    """Write DTSTART/DTEND of a new shape."""
+    _write(vevent, "dtstart", start)
+    _write(vevent, "dtend", end)
     _drop_duration(vevent)
 
 
 def _write_end(vevent: Any, end: datetime) -> None:
     """Write DTEND, added when the event had none (it may have ended by a DURATION)."""
-    (getattr(vevent, "dtend", None) or vevent.add("dtend")).value = end
+    _write(vevent, "dtend", end)
     _drop_duration(vevent)
 
 

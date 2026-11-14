@@ -56,6 +56,15 @@ class _FakeRedis:
     async def get(self, key: str) -> str | None:
         return self.data.get(key)
 
+    async def eval(self, script: str, numkeys: int, /, *args: str) -> object:
+        if numkeys == 1:
+            await self.set(args[0], args[1], ex=int(args[2]), nx=True)
+            return await self.get(args[0])
+        fence_key, key, token, payload, ttl = args
+        if await self.get(fence_key) != token:
+            return 0
+        return int(bool(await self.set(key, payload, ex=int(ttl), nx=True)))
+
     def scan_iter(self, match: str) -> object:
         prefix = match[:-1]
 

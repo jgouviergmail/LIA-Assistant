@@ -910,12 +910,21 @@ describe('FilesTool — organising what is ticked', () => {
     const { user } = screenOf();
     const [folder, , file] = await boxes();
     await user.click(folder!);
-    expect(within(bar()).queryByRole('button', { name: 'workbench.files.copy' })).toBeNull();
+    // A folder takes a rename alone, which stands in the bar: a copy beside it would open « … ».
+    expect(
+      within(bar()).getByRole('button', { name: 'workbench.files.rename' })
+    ).toBeInTheDocument();
+    expect(within(bar()).queryByRole('button', { name: MORE })).toBeNull();
 
     await user.click(folder!);
     await user.click(file!);
 
-    expect(within(bar()).getByRole('button', { name: 'workbench.files.copy' })).toBeInTheDocument();
+    // What one file takes waits behind « … », the move standing in the bar.
+    await user.click(within(bar()).getByRole('button', { name: MORE }));
+    expect((await screen.findAllByRole('menuitem')).map(line => line.textContent)).toEqual([
+      'workbench.files.rename',
+      'workbench.files.copy',
+    ]);
   });
 });
 
@@ -1706,7 +1715,8 @@ describe('FilesTool — the trash', () => {
     it('opens a file with what the trash allows, and nothing else', async () => {
       nav.search = 'view=trash&file=p1';
       const { user } = screenOf();
-      const detail = await screen.findByRole('article');
+      // By its file's name: the pane exists from the first render, empty while the file is read.
+      const detail = await screen.findByRole('article', { name: 'Budget.pdf' });
       expect(within(detail).queryByRole('button', { name: MORE })).toBeNull();
       expect(within(detail).queryByRole('button', { name: 'workbench.files.trash' })).toBeNull();
       expect(
@@ -1722,7 +1732,7 @@ describe('FilesTool — the trash', () => {
     it('deletes an open file for good after one question, then closes it', async () => {
       nav.search = 'view=trash&file=p1';
       const { user } = screenOf();
-      const detail = await screen.findByRole('article');
+      const detail = await screen.findByRole('article', { name: 'Budget.pdf' });
 
       await user.click(
         within(detail).getByRole('button', { name: 'workbench.files.delete_forever' })

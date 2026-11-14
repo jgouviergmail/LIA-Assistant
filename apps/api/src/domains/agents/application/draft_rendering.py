@@ -77,6 +77,7 @@ from src.domains.agents.application.session_bulk_operations import OtherSessions
 from src.domains.agents.application.session_revocation_schemas import DeviceSessionRevokePatch
 from src.domains.agents.drafts.card_spec import Note, PreviewLine, Row
 from src.domains.connectors.models import ConnectorType, get_connector_display_name
+from src.domains.scheduled_actions.models import TriggerKind
 
 _UNLINK_FIELDS = {
     "interests.delete_all": "interests_to_delete",
@@ -352,8 +353,11 @@ def _routine_creation_preview(
     created = RoutineCreatePatch.model_validate(draft.intent).routine_to_create
     if draft.before != {"routine_to_create": None} or created.id != draft.command_id:
         return [Note(text=labels["application_unavailable"])]
+    # ADR-386: the secret of a routine started by calls never reaches the chat.
+    on_calls = created.configuration.trigger_kind is TriggerKind.WEBHOOK
     return [
         Note(text=labels["application_routine_creation_note"]),
+        *([Note(text=labels["application_routine_webhook_note"])] if on_calls else []),
         Row(
             label=labels["application_routine_creation_title"],
             value=json.dumps(

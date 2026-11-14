@@ -16,7 +16,7 @@ Security (CRITICAL — multi-tenant):
     - Input sanitization (fill values, key whitelist)
     - Request interception (blocks dangerous schemes, private IPs)
     - Content wrapping (prompt injection prevention via wrap_external_content)
-    - Session isolation per user (separate BrowserContext per user)
+    - Session isolation per account and runtime (separate BrowserContext)
     - Global session coordination via Redis (prevents resource exhaustion)
 
 Phase: evolution F7 — Browser Control (Playwright)
@@ -27,15 +27,15 @@ import base64
 import time
 from contextlib import suppress
 from datetime import UTC, datetime
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import structlog
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
 from pydantic import BaseModel, Field
 
+from src.core.browser_scope import BrowserScope
 from src.core.config import settings
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n import resolve_language
 from src.domains.agents.constants import AGENT_BROWSER, CONTEXT_DOMAIN_BROWSERS
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
@@ -54,7 +54,7 @@ from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import validate_runtime_config
 from src.domains.agents.utils.content_wrapper import wrap_external_content
 from src.domains.agents.utils.rate_limiting import rate_limit
-from src.infrastructure.browser.errors import BrowserRefusal
+from src.infrastructure.browser.errors import BrowserRefusal, BrowserRefusalReason
 from src.infrastructure.observability.decorators import track_tool_metrics
 from src.infrastructure.observability.metrics_agents import (
     agent_tool_duration_seconds,
@@ -63,8 +63,9 @@ from src.infrastructure.observability.metrics_agents import (
 
 logger = structlog.get_logger(__name__)
 
-# Debounce tracking for progressive screenshots (per-user, monotonic clock)
-_screenshot_debounce: dict[str, float] = {}
+if TYPE_CHECKING:
+    from src.infrastructure.browser.pool import BrowserPool
+    from src.infrastructure.browser.session import BrowserSession
 
 
 async def _emit_progressive_screenshot(
@@ -88,19 +89,17 @@ async def _emit_progressive_screenshot(
         return
 
     try:
-        configurable = (runtime.config.get("configurable") or {}) if runtime else {}
         _ctx = tool_runtime_context(runtime)
         queue = _ctx.side_channel_queue if _ctx is not None else None
         if queue is None:
             return
 
-        # Debounce: skip if too soon after last emission for this user
+        # The timer belongs to the browser context, so another runtime starts fresh.
         user_id = tool_user_id_str(runtime, "unknown")
         now = time.monotonic()
-        last_time = _screenshot_debounce.get(user_id, 0.0)
-        if now - last_time < settings.browser_screenshot_debounce_seconds:
+        if now - session.last_screenshot_at < settings.browser_screenshot_debounce_seconds:
             return
-        _screenshot_debounce[user_id] = now
+        session.last_screenshot_at = now
 
         # Capture full-res + thumbnail in single Playwright call
         full_res_bytes, thumbnail_bytes = await session.screenshot_with_thumbnail()
@@ -124,18 +123,14 @@ async def _emit_progressive_screenshot(
             ),
         )
 
-        # Card finale: store full-res for Attachment saving (pattern: image_store.py)
-        # Use __parent_thread_id (forwarded from parent graph) — NOT thread_id
-        # which is a synthetic ID in ReAct nested_config (e.g., "browser_task_agent_xxx")
-        conversation_id = configurable.get("__parent_thread_id") or configurable.get(
-            "thread_id", ""
-        )
-        if conversation_id and full_res_bytes:
+        # A synthetic child keeps its parent's explicit delivery runtime.
+        runtime_id = _ctx.delivery_runtime_id if _ctx is not None else None
+        if runtime_id and full_res_bytes:
             from src.domains.agents.tools.browser_screenshot_store import (
                 store_last_browser_screenshot,
             )
 
-            store_last_browser_screenshot(str(conversation_id), full_res_bytes)
+            store_last_browser_screenshot(runtime_id, full_res_bytes)
 
         logger.debug(
             "browser_progressive_screenshot_emitted",
@@ -203,8 +198,8 @@ ContextTypeRegistry.register(
 
 async def _get_session(
     runtime: ToolRuntime[LiaRuntimeContext, Any], user_id: str
-) -> tuple[object, object]:
-    """Get browser pool and session for the current user.
+) -> tuple[BrowserPool, BrowserSession]:
+    """Get the browser session of the declared root runtime, shared with child agents.
 
     Extracts user language/timezone from runtime config for browser locale.
 
@@ -220,15 +215,13 @@ async def _get_session(
     """
     from src.infrastructure.browser.pool import get_browser_pool
 
-    pool = await get_browser_pool()
-
-    # The browser's locale and timezone come from the typed context (ADR-231);
-    # without one, the declared language (ADR-323).
     _ctx = tool_runtime_context(runtime)
-    user_language = resolve_language(_ctx.language if _ctx is not None else None)
-    user_timezone = _ctx.timezone if _ctx is not None else DEFAULT_USER_DISPLAY_TIMEZONE
-
-    session = await pool.acquire_session(user_id, user_language, user_timezone)
+    if _ctx is None or _ctx.runtime_id is None or str(_ctx.user_id) != user_id:
+        raise BrowserRefusal(BrowserRefusalReason.SCOPE_UNAVAILABLE)
+    pool = await get_browser_pool()
+    session = await pool.acquire_session(
+        BrowserScope(_ctx.user_id, _ctx.runtime_id), resolve_language(_ctx.language), _ctx.timezone
+    )
     return pool, session
 
 
@@ -347,7 +340,7 @@ async def browser_task_tool(
 
         # Update Redis with final page state
         if current_url:
-            await pool.update_session_redis(user_id, current_url, current_title)
+            await pool.update_session_redis(session.scope, current_url, current_title)
 
         if react_result.outcome is not SubAgentOutcome.ANSWERED:
             # Its steps may already have acted on the page: say how far it got
@@ -439,7 +432,7 @@ async def browser_navigate_tool(
         snapshot = await session.navigate(url)
 
         # Update Redis with current URL for cross-worker recovery
-        await pool.update_session_redis(user_id, snapshot.url, snapshot.title)
+        await pool.update_session_redis(session.scope, snapshot.url, snapshot.title)
 
         # Progressive screenshot for SSE side-channel (fire-and-forget)
         await _emit_progressive_screenshot(runtime, session, snapshot.url, snapshot.title)

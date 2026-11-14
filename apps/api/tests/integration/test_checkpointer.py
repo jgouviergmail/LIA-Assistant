@@ -22,8 +22,8 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from src.core.config import settings
 from src.domains.conversations.checkpointer import (
+    cleanup_checkpointer,
     get_checkpointer,
-    reset_checkpointer,
 )
 
 
@@ -50,7 +50,7 @@ pytestmark = pytest.mark.skipif(
 async def test_get_checkpointer_creates_instance():
     """Test get_checkpointer creates checkpointer instance."""
     # Reset first to ensure clean state
-    reset_checkpointer()
+    await cleanup_checkpointer()
 
     checkpointer = await get_checkpointer()
 
@@ -62,7 +62,7 @@ async def test_get_checkpointer_creates_instance():
 @pytest.mark.integration
 async def test_get_checkpointer_returns_singleton():
     """Test get_checkpointer returns same instance (singleton pattern)."""
-    reset_checkpointer()
+    await cleanup_checkpointer()
 
     checkpointer1 = await get_checkpointer()
     checkpointer2 = await get_checkpointer()
@@ -73,13 +73,13 @@ async def test_get_checkpointer_returns_singleton():
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_reset_checkpointer_clears_singleton():
-    """Test reset_checkpointer clears global singleton."""
+async def test_cleanup_checkpointer_releases_singleton():
+    """A joined cleanup releases the singleton before another is opened."""
     # Create checkpointer
     checkpointer1 = await get_checkpointer()
 
     # Reset
-    reset_checkpointer()
+    await cleanup_checkpointer()
 
     # Should create new instance
     checkpointer2 = await get_checkpointer()
@@ -92,7 +92,7 @@ async def test_reset_checkpointer_clears_singleton():
 @pytest.mark.integration
 async def test_checkpointer_setup_is_idempotent():
     """Test checkpointer setup can be called multiple times safely."""
-    reset_checkpointer()
+    await cleanup_checkpointer()
 
     # Call setup multiple times
     checkpointer1 = await get_checkpointer()
@@ -108,7 +108,7 @@ async def test_checkpointer_setup_is_idempotent():
 @pytest.mark.integration
 async def test_checkpointer_connection_string_format():
     """Test checkpointer uses correct psycopg3 connection string format."""
-    reset_checkpointer()
+    await cleanup_checkpointer()
 
     checkpointer = await get_checkpointer()
 

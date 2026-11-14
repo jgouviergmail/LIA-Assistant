@@ -1,6 +1,7 @@
 """Original HITL/browser consent authorizes one bounded personal skill file import."""
 
 import asyncio
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from io import BytesIO
 from pathlib import Path
@@ -8,6 +9,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import UploadFile
+from langchain_core.tools import StructuredTool
 from langgraph.store.memory import InMemoryStore
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,15 +17,19 @@ from starlette.datastructures import FormData
 
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException
+from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.application.command_service import CommandRejected
 from src.domains.agents.application.command_status import read_command_status
 from src.domains.agents.application.draft_execution import execute_application_action_draft
 from src.domains.agents.application.draft_models import ApplicationActionDraftContent
 from src.domains.agents.services import draft_executor
+from src.domains.agents.services.draft_executor_types import EXECUTOR_REGISTRY
 from src.domains.agents.tools import application_skill_tools
+from src.domains.agents.tools.output import UnifiedToolOutput
 from src.infrastructure.application_sessions import bind_browser_session
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.cache.session_store import SessionStore
+from tests.helpers.committed_account_session import async_session as async_session
 from tests.helpers.runtime_context import make_tool_runtime
 from tests.integration.application_runtime_context import installed_runtime_context
 from tests.integration.domains.skill_library.test_library_install import (
@@ -108,7 +114,7 @@ async def test_skill_file_needs_original_browser_and_both_confirmations(
     origin = bind_browser_session(actor, session.session_id)
 
     @asynccontextmanager
-    async def database():
+    async def database() -> AsyncIterator[AsyncSession]:
         try:
             yield async_session
             await async_session.commit()
@@ -121,10 +127,10 @@ async def test_skill_file_needs_original_browser_and_both_confirmations(
     monkeypatch.setattr(application_skill_tools, "get_db_context", database)
     monkeypatch.setattr("src.infrastructure.database.session.get_db_context", database)
     parsed = 0
-    events = asyncio.Queue()
+    events: asyncio.Queue[ChatStreamChunk] = asyncio.Queue()
 
     @asynccontextmanager
-    async def form():
+    async def form() -> AsyncIterator[FormData]:
         nonlocal parsed
         parsed += 1
         content = manifest("file-card")
@@ -136,12 +142,13 @@ async def test_skill_file_needs_original_browser_and_both_confirmations(
             monkeypatch.setattr(settings, "skills_enabled", False)
         elif scenario == "wrong_package_name":
             content = manifest("other-name")
-        data = FormData([("file", UploadFile(filename="SKILL.md", file=BytesIO(content)))])
+        uploaded = UploadFile(filename="SKILL.md", file=BytesIO(content))
+        data = FormData([("file", uploaded)])
         try:
             yield data
         finally:
             await data.close()
-            assert data["file"].file.closed
+            assert uploaded.file.closed
             if scenario == "close_failed":
                 raise OSError("Upload cleanup failed after the package commit")
 
@@ -154,7 +161,9 @@ async def test_skill_file_needs_original_browser_and_both_confirmations(
             execution_mode=mode,
             side_channel_queue=events,
         ):
-            proposal = await application_skill_tools.import_lia_skill_file_tool.coroutine(
+            tool = application_skill_tools.import_lia_skill_file_tool
+            assert isinstance(tool, StructuredTool) and tool.coroutine is not None
+            proposal = await tool.coroutine(
                 request={"replace_skill_id": str(target)} if target else {},
                 runtime=make_tool_runtime(
                     user_id=actor,
@@ -164,6 +173,7 @@ async def test_skill_file_needs_original_browser_and_both_confirmations(
                     side_channel_queue=events,
                 ),
             )
+            assert isinstance(proposal, UnifiedToolOutput)
             if scenario in {"foreign_target", "managed_target"}:
                 assert not proposal.success and parsed == 0
                 return
@@ -171,7 +181,7 @@ async def test_skill_file_needs_original_browser_and_both_confirmations(
             item = next(iter(proposal.registry_updates.values()))
             draft = ApplicationActionDraftContent.model_validate(item.payload["content"])
             if scenario != "no_confirmation":
-                with patch.dict(draft_executor.EXECUTOR_REGISTRY):
+                with patch.dict(EXECUTOR_REGISTRY):
                     draft_executor.register_executor(
                         "application_action", execute_application_action_draft
                     )
@@ -209,7 +219,7 @@ async def test_skill_file_needs_original_browser_and_both_confirmations(
                     commit_skill_import,
                 )
 
-                async def lost_ack(database):
+                async def lost_ack(database: AsyncSession) -> None:
                     await commit_skill_import(database)
                     raise SkillImportCompletionUnknown()
 
@@ -233,7 +243,8 @@ async def test_skill_file_needs_original_browser_and_both_confirmations(
                 assert live.is_file() and parsed == 1
                 assert accepted.values["cache_refresh_pending"] is (scenario == "cache_failed")
                 if target is not None:
-                    assert accepted.values["skill_file_upload"]["skill_id"] == str(target)
+                    upload = accepted.values["skill_file_upload"]
+                    assert isinstance(upload, dict) and upload["skill_id"] == str(target)
                 with pytest.raises(BaseAPIException):
                     await serve_skill_file_upload_command(
                         async_session,
@@ -249,9 +260,9 @@ async def test_skill_file_needs_original_browser_and_both_confirmations(
                     event = events.get_nowait()
                     if event.type == "application_state_changed":
                         changes.append(event)
-                assert len(changes) == 1 and changes[0].metadata["change"]["resources"] == [
-                    "skills"
-                ]
+                assert len(changes) == 1
+                metadata = changes[0].metadata
+                assert metadata is not None and metadata["change"]["resources"] == ["skills"]
             else:
                 with pytest.raises((BaseAPIException, ValueError, CommandRejected, OSError)):
                     await serve_skill_file_upload_command(
@@ -299,7 +310,8 @@ async def test_skill_file_needs_original_browser_and_both_confirmations(
                         status.outcome and status.outcome.committed and not status.outcome.success
                     )
                     assert status.outcome.values["upload_accepted"] is True
-                    assert status.outcome.values["skill_file_upload"]["name"] == "file-card"
+                    upload = status.outcome.values["skill_file_upload"]
+                    assert isinstance(upload, dict) and upload["name"] == "file-card"
     finally:
         await store.delete_session(session.session_id)
         await store.delete_session(other.session_id)

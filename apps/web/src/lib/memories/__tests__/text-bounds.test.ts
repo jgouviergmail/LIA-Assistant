@@ -23,6 +23,8 @@ const LIMITS: MemoryLimits = {
   content_max_chars: 500,
   trigger_topic_max_chars: 100,
   usage_nuance_max_chars: 300,
+  import_max_memories: 500,
+  import_max_file_kb: 2048,
 };
 
 const form = (over: Partial<Parameters<typeof isMemoryTextSavable>[0]> = {}) => ({

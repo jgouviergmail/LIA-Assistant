@@ -73,6 +73,14 @@ const STORAGE_OWNER_KEY = 'lia.storageOwner';
 export function purgeSensitiveClientStorage(): void {
   if (typeof window === 'undefined') return;
 
+  try {
+    for (const key of Object.keys(window.sessionStorage)) {
+      if (key.startsWith(`${DEBUG_METRICS_HISTORY_KEY}.`)) window.sessionStorage.removeItem(key);
+    }
+  } catch {
+    // Storage may be unavailable; the account namespace still prevents reuse.
+  }
+
   for (const key of SENSITIVE_SESSION_STORAGE_KEYS) {
     try {
       window.sessionStorage.removeItem(key);

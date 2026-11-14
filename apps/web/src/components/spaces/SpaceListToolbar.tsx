@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
+import type { DisclosureProps } from '@/components/ui/disclosure';
 import { ListChoice, ListToolbar } from '@/components/ui/list-toolbar';
 import { FilterChip } from '@/components/ui/filter-chip';
 import { ShieldCheck } from '@/lib/icons';
@@ -11,11 +12,14 @@ export function SpaceListToolbar({
   onChange,
   onlyManaged,
   onToggleManaged,
+  surface,
 }: {
   value: SpaceListQuery;
   onChange: (value: SpaceListQuery) => void;
   onlyManaged: boolean;
   onToggleManaged: () => void;
+  /** The ground the phone fold alternates with: `nested` inside a settings section. */
+  surface?: DisclosureProps['surface'];
 }) {
   const { t } = useTranslation();
   return (
@@ -30,6 +34,8 @@ export function SpaceListToolbar({
         value: key,
         label: t(`spaces.list.sort_${key}`),
       }))}
+      active={onlyManaged ? [t('spaces.managed.hint')] : []}
+      surface={surface}
       chips={
         <FilterChip
           active={onlyManaged}

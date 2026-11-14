@@ -1,7 +1,7 @@
 import { useEffectRequest } from '@/hooks/useEffectRequest';
 import { useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { apiClient } from '@/lib/api-client';
+import { ApiError, apiClient } from '@/lib/api-client';
 import { Message, type GeneratedDocument, type GeneratedImage } from '@/types/chat';
 import type { ConversationMessage } from '@/types/conversation-message';
 import type { SkillProposalCard } from '@/lib/skill-proposals/types';
@@ -11,6 +11,9 @@ import { executionTraceFromMetadata } from '@/lib/execution-trace-hydration';
 import { performedEffectsFromMetadata } from '@/lib/performed-effects-hydration';
 import { logger } from '@/lib/logger';
 import { useLoggingContext } from '@/lib/logging-context';
+import { conversationParams, conversationScopeKey } from '@/lib/conversation-selection';
+import { useScopedRequest } from '@/hooks/useScopedRequest';
+import type { ConversationSelection, ConversationSummary } from '@/types/conversation';
 
 /** Page size requested from /conversations/me/messages.
  *
@@ -33,19 +36,24 @@ function isNotFound(error: unknown): boolean {
   return status === 404 || response?.status === 404;
 }
 
+/** Explicit discussions and retired requests never degrade to an empty history. */
+function mustSurfaceReadFailure(
+  error: unknown,
+  strict: boolean,
+  selection?: ConversationSelection
+): boolean {
+  return (
+    strict ||
+    selection !== undefined ||
+    (error instanceof DOMException && error.name === 'AbortError')
+  );
+}
+
 /**
  * Hook for managing conversation state and persistence
  */
 
-export interface Conversation {
-  id: string;
-  user_id: string;
-  title: string | null;
-  message_count: number;
-  total_tokens: number;
-  created_at: string;
-  updated_at: string;
-}
+export type Conversation = ConversationSummary;
 
 /**
  * Narrow the untyped JSONB message metadata to the archived card payloads
@@ -74,6 +82,8 @@ export type { ConversationMessage };
 
 export interface ConversationTotals {
   conversation_id: string;
+  conversation_revision?: number;
+  user_message_count?: number;
   total_tokens_in: number;
   total_tokens_out: number;
   total_tokens_cache: number;
@@ -101,15 +111,28 @@ export interface ConversationPage {
   nextCursor: string | null;
 }
 
-/** One page of server-side history search results (QW-2).
+/** One message the history search found, with the discussion that holds it (lot 12). */
+export interface DiscussionSearchResult {
+  message_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  created_at: string;
+  conversation_id: string;
+  conversation_kind: 'main' | 'secondary';
+  /** A secondary discussion's title; null for Main, whose label is translated. */
+  conversation_title: string | null;
+  conversation_revision: number;
+}
+
+/** One page of the history search across every discussion (lot 12).
  *
  * Rows keep the raw API shape and DESC order (newest first) — the results
  * panel renders them as a dated list, not as chat bubbles.
  */
-export interface MessageSearchPage {
-  rows: ConversationMessage[];
+export interface DiscussionSearchPage {
+  rows: DiscussionSearchResult[];
   hasMore: boolean;
-  /** Pass back as ``before`` to fetch the next (older) results page. */
+  /** Pass back as ``cursor`` to fetch the next (older) results page. */
   nextCursor: string | null;
 }
 
@@ -130,17 +153,18 @@ export interface UseConversationReturn {
    *  ``loadConversationPage`` a transport failure THROWS: an empty page
    *  would read as « the conversation is empty ». A 404 is an empty page. */
   readNewestPage: () => Promise<ConversationPage>;
-  /** Server-side history search (QW-2): accent/case-insensitive substring
-   *  match over the WHOLE conversation, keyset-paginated. Throws on transport
-   *  errors (the caller owns the error state); a 404 (no conversation yet)
-   *  resolves to an empty page. */
-  searchMessages: (query: string, before?: string) => Promise<MessageSearchPage>;
+  /** History search across EVERY discussion of the account (lot 12):
+   *  accent/case-insensitive substring match, newest first, keyset-paginated by
+   *  an opaque cursor. Throws on transport errors (the caller owns the error
+   *  state). */
+  searchDiscussions: (query: string, cursor?: string) => Promise<DiscussionSearchPage>;
   loadConversationTotals: () => Promise<ConversationTotals | null>;
   resetConversation: () => Promise<void>;
 }
 
-export const useConversation = (): UseConversationReturn => {
+export const useConversation = (selection?: ConversationSelection): UseConversationReturn => {
   const { user } = useAuth();
+  const scopedRequest = useScopedRequest(conversationScopeKey(user?.id, selection));
   const { t } = useTranslation();
   const { withContext } = useLoggingContext();
   const [conversation, setConversation] = useState<Conversation | null>(null);
@@ -162,7 +186,14 @@ export const useConversation = (): UseConversationReturn => {
       }
 
       try {
-        const response = await apiClient.get<Conversation>('/conversations/me', { signal });
+        const response = await scopedRequest(scopeSignal =>
+          apiClient.get<Conversation>(
+            selection
+              ? `/conversations/${encodeURIComponent(selection.conversation_id)}`
+              : '/conversations/me',
+            { signal: signal ? AbortSignal.any([signal, scopeSignal]) : scopeSignal }
+          )
+        );
         if (signal?.aborted) return null;
         setConversation(response || null);
         return response;
@@ -179,7 +210,7 @@ export const useConversation = (): UseConversationReturn => {
         return null;
       }
     },
-    [user, withContext]
+    [user, withContext, selection, scopedRequest]
   );
 
   /**
@@ -253,13 +284,18 @@ export const useConversation = (): UseConversationReturn => {
         if (before) {
           params.before = before;
         }
-        const response = await apiClient.get<{
-          messages: ConversationMessage[];
-          conversation_id: string;
-          total_count: number;
-          has_more: boolean;
-          next_cursor: string | null;
-        }>('/conversations/me/messages', { params });
+        const response = await scopedRequest(signal =>
+          apiClient.get<{
+            messages: ConversationMessage[];
+            conversation_id: string;
+            total_count: number;
+            has_more: boolean;
+            next_cursor: string | null;
+          }>('/conversations/me/messages', {
+            params: { ...params, ...conversationParams(selection) },
+            signal,
+          })
+        );
 
         // Backend returns DESC (newest first). Reverse to display order.
         const messages: Message[] = response.messages.slice().reverse().map(toUiMessage);
@@ -286,7 +322,7 @@ export const useConversation = (): UseConversationReturn => {
         };
       } catch (error: unknown) {
         // 404 is expected for new users without conversation - not an error
-        if (isNotFound(error)) {
+        if (!selection && isNotFound(error)) {
           logger.debug(
             'conversation_not_found',
             withContext({
@@ -296,7 +332,7 @@ export const useConversation = (): UseConversationReturn => {
           );
           return { messages: [], hasMore: false, nextCursor: null };
         }
-        if (strict) throw error;
+        if (mustSurfaceReadFailure(error, strict, selection)) throw error;
 
         logger.error(
           before ? 'conversation_older_load_failed' : 'conversation_history_load_failed',
@@ -310,7 +346,7 @@ export const useConversation = (): UseConversationReturn => {
         return { messages: [], hasMore: false, nextCursor: null };
       }
     },
-    [user, withContext, toUiMessage]
+    [user, withContext, toUiMessage, selection, scopedRequest]
   );
 
   /**
@@ -358,40 +394,39 @@ export const useConversation = (): UseConversationReturn => {
   const readNewestPage = useCallback(() => fetchPage(undefined, true), [fetchPage]);
 
   /**
-   * Server-side history search (QW-2) — same endpoint, with ``search``.
+   * The history search across EVERY discussion of the account (lot 12).
    *
-   * Returns raw DESC rows for the results panel. 404 (no conversation yet)
-   * resolves to an empty page; other errors are logged and rethrown so the
-   * caller can surface its own error state.
+   * Returns raw DESC rows for the results panel, each naming its discussion; the
+   * same matching as the history search (QW-2). Errors are logged and rethrown so
+   * the caller can surface its own error state.
    */
-  const searchMessages = useCallback(
-    async (query: string, before?: string): Promise<MessageSearchPage> => {
+  const searchDiscussions = useCallback(
+    async (query: string, cursor?: string): Promise<DiscussionSearchPage> => {
       if (!user) {
         return { rows: [], hasMore: false, nextCursor: null };
       }
       try {
-        const params: { limit: number; search: string; before?: string } = {
+        const params: { q: string; limit: number; cursor?: string } = {
+          q: query,
           limit: CHAT_SEARCH_RESULTS_PAGE_SIZE,
-          search: query,
         };
-        if (before) {
-          params.before = before;
+        if (cursor) {
+          params.cursor = cursor;
         }
-        const response = await apiClient.get<{
-          messages: ConversationMessage[];
-          has_more: boolean;
-          next_cursor: string | null;
-        }>('/conversations/me/messages', { params });
+        const response = await scopedRequest(signal =>
+          apiClient.get<{
+            results: DiscussionSearchResult[];
+            has_more: boolean;
+            next_cursor: string | null;
+          }>('/conversations/me/search', { params, signal })
+        );
 
         return {
-          rows: response.messages,
+          rows: response.results,
           hasMore: response.has_more,
           nextCursor: response.next_cursor,
         };
       } catch (error: unknown) {
-        if (isNotFound(error)) {
-          return { rows: [], hasMore: false, nextCursor: null };
-        }
         logger.error(
           'conversation_search_failed',
           error as Error,
@@ -400,7 +435,7 @@ export const useConversation = (): UseConversationReturn => {
         throw error;
       }
     },
-    [user, withContext]
+    [user, withContext, scopedRequest]
   );
 
   /**
@@ -412,7 +447,16 @@ export const useConversation = (): UseConversationReturn => {
     }
 
     try {
-      const response = await apiClient.get<ConversationTotals>('/conversations/me/totals');
+      const response = await scopedRequest(signal =>
+        apiClient.get<ConversationTotals>('/conversations/me/totals', {
+          params: conversationParams(selection),
+          signal,
+        })
+      );
+      if (selection && (response.conversation_id !== selection.conversation_id ||
+        response.conversation_revision !== selection.conversation_revision)) {
+        throw new ApiError('Totals do not match the selected discussion generation', 409);
+      }
 
       logger.debug(
         'conversation_totals_loaded',
@@ -425,6 +469,7 @@ export const useConversation = (): UseConversationReturn => {
 
       return response;
     } catch (error: unknown) {
+      if (selection || (error instanceof DOMException && error.name === 'AbortError')) throw error;
       // 404 is expected for new users without conversation
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response?: { status?: number } };
@@ -450,7 +495,7 @@ export const useConversation = (): UseConversationReturn => {
       );
       return null;
     }
-  }, [user, withContext]);
+  }, [user, withContext, selection, scopedRequest]);
 
   /**
    * Reset conversation (soft delete + purge history)
@@ -463,6 +508,7 @@ export const useConversation = (): UseConversationReturn => {
 
     try {
       // Always call API - server handles the case where no conversation exists
+      if (selection) throw new Error('Explicit discussions use the reviewed lifecycle operation');
       await apiClient.post('/conversations/me/reset');
 
       logger.info(
@@ -487,7 +533,7 @@ export const useConversation = (): UseConversationReturn => {
       );
       throw error; // Re-throw for parent component to handle
     }
-  }, [user, conversation, withContext]);
+  }, [user, conversation, withContext, selection]);
 
   /**
    * Load conversation metadata on mount
@@ -501,7 +547,7 @@ export const useConversation = (): UseConversationReturn => {
     loadConversationPage,
     loadOlderMessages,
     readNewestPage,
-    searchMessages,
+    searchDiscussions,
     loadConversationTotals,
     resetConversation,
   };

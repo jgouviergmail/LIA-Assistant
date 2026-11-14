@@ -6,6 +6,8 @@ import { act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { ICON_STYLES } from '@/lib/icon-style';
+import { IconStyleContext } from '@/lib/icon-style-context';
 import { radioPreferences } from '@/lib/radio/__tests__/fixtures';
 import { IDLE_RADIO_VIEW, useRadioStore } from '@/stores/radioStore';
 
@@ -33,6 +35,19 @@ describe('RadioDashboardCard', () => {
   it('renders nothing where the radio is not offered', () => {
     const { container } = renderWithProviders(<RadioDashboardCard lng="en" enabled={false} />);
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it.each(ICON_STYLES)('marks the station with the radio set in %s', async style => {
+    api.get.mockResolvedValue(radioPreferences({ station_name: 'Radio Alex' }));
+    renderWithProviders(
+      <IconStyleContext.Provider value={style}>
+        <RadioDashboardCard lng="en" enabled />
+      </IconStyleContext.Provider>
+    );
+    const mark = (await screen.findByRole('heading', { name: 'Radio Alex' })).querySelector('svg');
+    // The set, in every style: the broadcast glyph belongs to the live voice.
+    expect(mark).toHaveAttribute('data-icon-name', 'RadioSet');
+    expect(mark).toHaveAttribute('data-icon-style', style);
   });
 
   it('carries the name the listener gave their station, else the language’s', async () => {

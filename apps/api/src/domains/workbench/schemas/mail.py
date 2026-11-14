@@ -242,6 +242,51 @@ class MailConversation(BaseModel):
     truncated: bool = Field(description="It holds older messages than these.")
 
 
+#: What a row shows of where it stands in its conversation: what HAPPENED, « nothing
+#: yet » being no mark (ADR-379).
+ReplyMark = Literal["answered", "answer_drafted", "reply_received"]
+
+
+class MessageRef(BaseModel):
+    """A listed message, named with its conversation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    id: ProviderId = Field(description="The message.")
+    thread_id: ProviderId = Field(description="Its conversation, as its row named it.")
+
+
+class ReplyMarksRequest(BaseModel):
+    """The rows of a page whose marks are asked: one at least, a page at most."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    messages: list[MessageRef] = Field(
+        min_length=1,
+        max_length=settings.api_max_items_per_request,
+        description="The rows shown (at most a page: the per-request ceiling).",
+    )
+
+
+class MailReplyMark(BaseModel):
+    """Where one row stands in its conversation."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: str = Field(description="The message.")
+    status: ReplyMark = Field(
+        description="What happened: answered, an answer drafted and unsent, a reply received."
+    )
+
+
+class MailReplyMarks(BaseModel):
+    """The marks of a page: only the rows something happened to."""
+
+    items: list[MailReplyMark] = Field(
+        description="One per marked row; an absent row has no mark, or the mailbox could not tell."
+    )
+
+
 class MailAttachment(BaseModel):
     """One attachment of a message."""
 

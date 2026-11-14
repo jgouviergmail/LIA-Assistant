@@ -59,7 +59,6 @@ from src.domains.shared.discussion_sources import (
     SourceSnapshot,
     semantic_version,
 )
-from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.metrics_proactive_discussions import (
     proactive_discussion_runs_total,
@@ -82,7 +81,6 @@ from src.infrastructure.proactive.discussion_run_setup import (
 )
 from src.infrastructure.proactive.discussion_sources import discussion_readers
 from src.infrastructure.proactive.tracking import out_of_turn_spend
-from src.infrastructure.streaming.run_stream_broker import active_run_lease
 
 logger = structlog.get_logger(__name__)
 
@@ -447,7 +445,7 @@ class DiscussionAct:
         )
 
     async def publish(self, draft: OpeningDraft) -> None:
-        """Publish the draft while the person's conversation is free, under the run's lease.
+        """Publish independently into current Main after the final attention check.
 
         Args:
             draft: The validated opening.
@@ -458,30 +456,24 @@ class DiscussionAct:
         """
         if not self.permit.may_publish:
             raise InitiativeStopped("unreconciled_spend")
-        await self.authority.check()
         async with get_db_context() as db:
-            conversation = await ConversationService().get_or_create_conversation(
-                self.setup.claim.owner_id, db, language=self.setup.language
+            await ConversationService().get_or_create_conversation(
+                self.setup.claim.owner_id,
+                db,
+                language=self.setup.language,
             )
-            conversation_id = str(conversation.id)
-        redis = await get_redis_cache()
+        await self.authority.check()
         token = str(self.setup.claim.run_id)
-        async with active_run_lease(
-            redis, conversation_id, run_id=token, stream_id=token
-        ) as acquired:
-            if not acquired:
-                raise InitiativeStopped("conversation_busy")
-            await self.authority.check(lease_owner=token)
-            # The opening is an act of LIA's own: claimed before its message is
-            # posted, settled from the commit that posts it (ADR-263).
-            async with proactive_discussion_effect(
-                user_id=self.setup.claim.owner_id, run_id=token
-            ) as opened:
-                async with get_db_context() as db:
-                    receipt = await publication_repository(db).commit_opening(
-                        self.setup.claim, draft, now=datetime.now(UTC), stats=self.stats
-                    )
-                opened.delivered = True
+        # Archiving an independently prepared opening starts no graph and
+        # cannot acquire or impersonate a human turn's admission.
+        async with proactive_discussion_effect(
+            user_id=self.setup.claim.owner_id, run_id=token
+        ) as opened:
+            async with get_db_context() as db:
+                receipt = await publication_repository(db).commit_opening(
+                    self.setup.claim, draft, now=datetime.now(UTC), stats=self.stats
+                )
+            opened.delivered = True
         self.published = receipt.opening_id
 
 

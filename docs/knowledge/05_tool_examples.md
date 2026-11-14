@@ -126,7 +126,7 @@ the access to your drive you already granted is enough.
 • "*Create a task in the Shopping list*"
 
 **💡 Tip:**
-Set your default task list in settings to save time. Commands are the same regardless of whether you use Google Tasks or Microsoft To Do — LIA automatically uses the active provider.
+"*Show my tasks*" reads **all your lists** and says which list each task is in; name a list to see only that one. Your **default list**, set on your tasks connector, does one thing only: it is where a new task goes when you name no list — the confirmation card says which. Commands are the same regardless of whether you use Google Tasks or Microsoft To Do — LIA automatically uses the active provider.
 
 ## What is the draft and approval system?
 To protect your data, anything that reaches someone else or cannot be undone in one gesture goes through a **draft system**:
@@ -478,3 +478,20 @@ Yes, in your words.
 • "*Set my automatic reply until Friday*"
 
 A reply or a forward can carry a file LIA made, one you sent or one of your drive, named on its card. Deleting for good stays in your hands, in **Tools**.
+
+## Does LIA know whether I already replied to an email?
+Yes. When LIA lists emails, it also reads their conversation in your mailbox: if you already replied, it knows — when, and the first words of your reply. So it no longer offers to answer that email, and it tells you where things stand.
+
+**✅ What you see:**
+• In the chat, the email card shows **Answered** (or **Reply received** for an email you sent), and **Reply expected** goes away
+• On the **Home page**, an unread email you already answered — from your phone's notification, for instance — is marked **Answered**
+• In **Tools > Mail**, each row shows an email you answered, a reply left as a draft, or a reply you received
+• Proactive notifications no longer announce an email you already answered
+
+**✍️ If you ask for a reply anyway:** the confirmation card warns you (**Already answered**), and when LIA writes the text (a draft kept in your mailbox, the Tools' reply assist), it reads your earlier reply and continues from it instead of repeating it.
+
+**💬 Try:**
+• "*What do my unread emails expect from me?*"
+• "*Did I reply to Marc's last email?*"
+
+**ℹ️ Good to know:** this is read in your mailbox (Gmail, Outlook or iCloud) when the emails are listed, with no AI model call. If your mailbox cannot tell at that moment, LIA claims nothing: it never says you have not replied without having checked.

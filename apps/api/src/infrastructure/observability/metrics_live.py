@@ -116,6 +116,15 @@ live_agent_tools_swept_total = Counter(
     ["outcome"],
 )
 
+live_agent_tools_repaired_total = Counter(
+    "live_agent_tools_repaired_total",
+    "Tools of LIA's found wrong in the person's ElevenLabs workspace when a voice "
+    "conversation was about to open on their agent, and repaired before it did (ADR-373 "
+    "amendment 2026-11-11), by surface (live, phone) and reason: drifted (rewritten in "
+    "place) or lost (re-created).",
+    ["surface", "reason"],
+)
+
 # What a `cues` session's voice wrote inside its words (ADR-373), measured where
 # its turns are archived: nothing in LIA bounds the cues of a voice that speaks
 # straight to its engine, so an abuse is seen rather than guessed.

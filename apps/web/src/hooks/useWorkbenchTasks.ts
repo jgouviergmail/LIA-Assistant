@@ -21,18 +21,22 @@
 import { useCallback, useRef, useState } from 'react';
 
 import { useApiMutation } from '@/hooks/useApiMutation';
+import { useWorkbenchItem, type WorkbenchItemState } from '@/hooks/useWorkbenchItem';
 import { useWorkbenchPage, type WorkbenchPageState } from '@/hooks/useWorkbenchPage';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import type {
-  DueTask,
+  ViewTask,
+  ViewTasks,
   WorkbenchTask,
   WorkbenchTaskImportance,
   WorkbenchTaskList,
   WorkbenchTaskRepeat,
+  WorkbenchTaskView,
 } from '@/lib/workbench/types';
 
 const LISTS_PATH = '/workbench/tasks/lists';
 const TASKS_PATH = '/workbench/tasks';
+const VIEW_PATH = '/workbench/tasks/view';
 const NO_PARAMS = {};
 
 /** A task to create in the open list (`schemas/tasks.NewTask`). */
@@ -84,12 +88,22 @@ export interface WorkbenchTasksState {
   pending: ReadonlySet<string>;
   setCompleted: (task: WorkbenchTask, completed: boolean) => Promise<void>;
   /** Marks done a task of any list, as a view shows it. */
-  completeDue: (task: DueTask) => Promise<void>;
+  completeDue: (task: ViewTask) => Promise<void>;
   saveTask: (task: WorkbenchTask, change: TaskChangeBody) => Promise<void>;
   addTask: (body: NewTaskBody) => Promise<void>;
   removeTask: (task: WorkbenchTask) => Promise<void>;
   addList: (title: string, idempotencyKey: string) => Promise<WorkbenchTaskList | undefined>;
   removeList: (list: WorkbenchTaskList) => Promise<void>;
+}
+
+/**
+ * @param view - The view on screen, in the place of a list; null reads nothing.
+ * @returns What every list holds for it, read by its name and re-read in place.
+ */
+export function useWorkbenchTaskView(
+  view: WorkbenchTaskView | null
+): WorkbenchItemState<ViewTasks> {
+  return useWorkbenchItem<ViewTasks>(view ? VIEW_PATH : null, { view: view ?? undefined });
 }
 
 /** The provider no longer has it: for a removal, that is the removal done. */
@@ -167,10 +181,16 @@ export function useWorkbenchTasks(
   );
 
   const completeDue = useCallback(
-    async (task: DueTask) => {
-      await patchTask(TASKS_PATH, { list_id: task.list_id, task_id: task.id, completed: true });
+    async (task: ViewTask) => {
+      const saved = await patchTask(TASKS_PATH, {
+        list_id: task.list_id,
+        task_id: task.id,
+        completed: true,
+      });
+      // The task may be open beside the view: its detail reads the list's own page.
+      if (saved && task.list_id === listId) replaceTask(task.id, saved);
     },
-    [patchTask]
+    [patchTask, listId, replaceTask]
   );
 
   const saveTask = useCallback(

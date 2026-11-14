@@ -118,6 +118,12 @@ const ROUTES: MockRoute[] = [
   },
   { url: '**/api/v1/workbench/tasks?*', method: 'GET', json: { items: [], next_page_token: null } },
   {
+    // The tasks screen opens on every list's tasks when the address names nothing.
+    url: '**/api/v1/workbench/tasks/view?*',
+    method: 'GET',
+    json: { tasks: [], truncated: false, failed: [] },
+  },
+  {
     url: '**/api/v1/workbench/tasks/due?*',
     method: 'GET',
     json: { tasks: [], truncated: false, failed: [] },
@@ -144,6 +150,8 @@ const ROUTES: MockRoute[] = [
         content_max_chars: 500,
         trigger_topic_max_chars: 100,
         usage_nuance_max_chars: 300,
+        import_max_memories: 500,
+        import_max_file_kb: 2048,
       },
     },
   },

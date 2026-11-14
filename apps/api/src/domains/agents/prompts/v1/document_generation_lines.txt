@@ -1,0 +1,21 @@
+# One-line scaffolds of the document writer's prompt (ADR-274), read by
+# document_generation/prompts.py through parse_prompt_sections: key|line.
+# The format the writer is told it writes, by DocumentType value.
+format.csv|CSV file (one table)
+format.xlsx|Excel workbook (.xlsx)
+format.docx|Word document (.docx)
+format.pdf|PDF document
+format.md|Markdown document (.md)
+format.txt|Plain-text document (.txt)
+format.pptx|PowerPoint presentation (.pptx, 16:9)
+# The pictures a writer may ask for, read in its request's tail: none, or the
+# rules its person's preference allows, under the budget normalization enforces.
+illustrations.none|ILLUSTRATIONS: none for this document. Leave every `illustration` empty and `image_style` empty.
+illustrations.auto.slides|ILLUSTRATIONS: ask for at most {illustrations_max} pictures, only where a picture serves the reader: the cover first, then part openers, a content slide only when an image explains better than words; never for data, a procedure or a dense slide, and none at all for a short or plain deck. For each, `illustration.subject` describes the scene in English (what is shown, never any text in it) and `illustration.alt` describes it in the document's language; give the deck ONE `image_style` in English (medium, palette, mood) that every picture shares.
+illustrations.on_request.slides|ILLUSTRATIONS: only if the request asks for images, pictures or visuals; then at most {illustrations_max} pictures, where the request wants them (the cover, part openers, content slides). For each, `illustration.subject` describes the scene in English (what is shown, never any text in it) and `illustration.alt` describes it in the document's language; give the deck ONE `image_style` in English (medium, palette, mood) that every picture shares. Otherwise leave every `illustration` and `image_style` empty.
+illustrations.auto.sectioned|ILLUSTRATIONS: ask for at most {illustrations_max} pictures, only where a picture serves the reader: the document's cover `illustration` first, then an `illustration` block opening a part when an image explains better than words; never for data, a procedure, a contract or a note, and none at all for a short or plain document. For each, `illustration.subject` describes the scene in English (what is shown, never any text in it) and `illustration.alt` describes it in the document's language, and an illustration block's `caption` names it; give the document ONE `image_style` in English (medium, palette, mood) that every picture shares.
+illustrations.on_request.sectioned|ILLUSTRATIONS: only if the request asks for images, pictures or visuals; then at most {illustrations_max} pictures, where the request wants them (the document's cover `illustration`, `illustration` blocks). For each, `illustration.subject` describes the scene in English (what is shown, never any text in it) and `illustration.alt` describes it in the document's language, and an illustration block's `caption` names it; give the document ONE `image_style` in English (medium, palette, mood) that every picture shares. Otherwise leave every `illustration` and `image_style` empty.
+# What the image model receives for one picture: the writer's subject, the deck's
+# style (or the default one), and the rule a document picture always keeps.
+illustration.prompt|{subject}. Visual style: {style}. No text, letters, numbers or logos anywhere in the picture.
+illustration.default_style|clean editorial illustration, soft natural light

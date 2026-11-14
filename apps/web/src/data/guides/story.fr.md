@@ -3,8 +3,8 @@
 > Retour d'expérience — un système complet, de la conception à la production.
 
 **Version** : 3.0
-**Date** : 2026-11-10
-**Application** : LIA v4.6.0
+**Date** : 2026-11-14
+**Application** : LIA v5.0.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi-totalité du code a été écrite par une IA. Mon travail a été de la
 | Indicateur | Valeur |
 | --- | --- |
 | Code écrit par une IA, dirigée, encadrée et contrôlée | **≈ 100 %** |
-| Lignes de source (hors tests), réparties en une soixantaine de paquets de domaines backend | **1 165 741** |
-| Tests automatisés inventoriés, en suites adaptées au commit et à la livraison | **81 253** |
-| Décisions d'architecture documentées (ADR) | **375** |
-| Versions livrées à rythme régulier | **296** |
+| Lignes de source (hors tests), réparties en une soixantaine de paquets de domaines backend | **1 219 345** |
+| Tests automatisés inventoriés, en suites adaptées au commit et à la livraison | **87 493** |
+| Décisions d'architecture documentées (ADR) | **386** |
+| Versions livrées à rythme régulier | **297** |
 | Langues, avec une parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **7,9/10** |
 
@@ -64,7 +64,7 @@ Le monde partagé donne à l'assistante des lieux : une bibliothèque pour les c
 
 Je voulais aussi qu’un assistant laisse la place à ce que l’on fait soi-même. L’espace Outils utilise les mêmes services connectés, mais un geste à la main n’y appelle aucun modèle et ne devient pas un acte de LIA ; ce qu’un clic lui demande reste une proposition, tracée et facturée à qui l’a demandée. Déléguer et garder la main peuvent partager une interface, à condition de savoir qui a décidé, qui a agi et ce qui a été approuvé.
 
-Voici trois décisions structurantes, parmi les 375 documentées.
+Voici trois décisions structurantes, parmi les 386 documentées.
 
 La première porte sur la **souveraineté** : je ne voulais aucune dépendance irréversible envers un fournisseur. Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity et des modèles locaux avec Ollama) passent tous par une même abstraction, si bien que chaque usage peut changer de fournisseur par simple configuration, coûts comparés. Côté services, Google, Apple et Microsoft sont interchangeables pour chaque catégorie, qu'il s'agisse de la messagerie, de l'agenda ou des contacts. L'auto-hébergement donne la maîtrise du serveur : les données du compte sont stockées sur l'instance et les identifiants des connecteurs sont chiffrés. Les services distants que la personne choisit reçoivent tout de même les données utiles à leur part de la demande.
 

@@ -96,6 +96,51 @@ workbench reaches the assistant's tools in the same lot:
 
 A display-only contract (an e-mail's HTML) reaches no tool: a model reads text, never markup.
 
+**Whoever reads a person's tasks reads ALL their lists (owner rule, amendment 2026-11-10).** The
+list a tasks connector's settings name as the default is where a NEW task goes when the chat names
+none, and nothing else. The Tools' views across the lists and the home's card came first; the
+assistant's tools, the heartbeat and the radio's journal followed in the next lot, through the one
+walk (`connectors/clients/task_lists.py`: a few lists at a time, a failed list named, a cut stated,
+and « no task » never told on a list nobody could read — `EveryTaskList.tasks_or_failure`). Three
+defects were measured on the way and are closed by `agents/tools/task_list_scope.py`:
+
+- a list the model names, by its id or by its name, is THAT list or a refusal
+  (`INVALID_INPUT`, pointing at `list_task_lists_tool`): the list's own id was looked up as a name,
+  found nowhere, and silently became the provider's default list — a task created where nobody
+  asked;
+- an act on a task that exists runs in the task's OWN list: the one named, else the one the
+  conversation last looked it up in (each task read carries `tasklist_id` and `taskListName`),
+  else the one that HOLDS it — every list is asked, the default one first
+  (`find_task_lists`; measured on Graph, a list answers 400 for another list's task and 404
+  for an id nobody has). A task no list holds is refused (`INVALID_INPUT`), never acted on in
+  a list picked for it, and a list that could not be asked is never read as not holding it;
+- the creation card says which list the task goes in, and `list_task_lists_tool` gives each
+  list's id and name in `structured_data`, the default one marked only when it is known.
+
+The Tools' tasks screen follows the same rule: an address that names nothing opens on « All
+tasks » (`useTaskPlaces`), not on the default list; a task named without its list is the one
+case still looked for there.
+
+Two readers followed on the owner's explicit decision the same day, each keeping what makes it
+what it is:
+
+- **a PEER's tasks** (`get_peer_tasks_tool`, amending ADR-182 §D1ter): every list of theirs is
+  read — their default list is where THEY create a task, not what they share. What leaves stays
+  what the share level names: the TITLES, the most pressing first, never a list's name. The
+  share's label and the FAQ say « every list », so the person sharing reads what they open;
+- **the discussions' tasks source** (`connectors/discussion_tasks.py`): each list is its own
+  CONTAINER, so a task's reference is minted under its list's scope and read back there only
+  (a reference minted under the provider's alias, before this, is still read). The read's
+  physical-call budget bounds the lists read (`DISCUSSION_READ_CALL_LIMIT` − 1: one call lists
+  them, one reads each) and a page that could not cover them all is `truncated`. A provider's
+  failure stays the READ's failure, never a list set aside: the gateway's backoff depends on it.
+
+**An instant is the same for both providers** (same amendment). Measured on Graph: a To Do
+`$filter` refuses a numeric offset (`…T00:00:00+01:00`, HTTP 400) and accepts the same instant in
+UTC. The radio's journal sent local midnight with its offset: its two tasks readers had never
+read a To Do account. `MicrosoftTasksClient` now sends the three filter instants in UTC
+(`_filter_instant`); Google is handed them as given.
+
 ### 5. An e-mail's HTML, isolated (D3)
 
 `get_message_html` on the three mail clients follows one rule: every `text/html` part in document
@@ -703,5 +748,16 @@ the Tools, the home's card, the heartbeat (overdue once the day has passed, neve
 radio and the assistant's told day. The assistant still writes a day as its UTC midnight (read
 right east of Greenwich, a day early west of it), and the chat's task card reads its due itself:
 both are left as they are, said.
+
+Amendment 2026-11-11 (owner, measured): what a selection can become holds on one line. The
+mail's selection bar drew nine buttons in words: measured with three messages ticked, 283px of
+a 320px list (a message open beside it), 243px of a 384px one, 283px of a phone's — the list's
+first screen. The three tools now declare their acts and one bar draws them
+(`ToolSelectionBar`): the count, an icon out of the selection, the acts used most as icons,
+the rest behind « … », the deletion last, solid red (ADR-207) — 63px at every width. The bar
+is measured, not ruled by a breakpoint: whole while it fits, its quick icons in the list where
+the room runs out. An act keeps the words and the icon its row and its reader use, since an
+icon alone cannot mean two things: the bar's own short words (`bar_*`) are gone, and marking
+read is the opened envelope everywhere. Nothing changes in what an act does, nor in D5.
 
 Technical reference: [WORKBENCH.md](../technical/WORKBENCH.md).

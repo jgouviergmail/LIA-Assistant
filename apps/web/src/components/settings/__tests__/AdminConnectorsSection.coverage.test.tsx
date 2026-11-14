@@ -40,6 +40,8 @@ const BACKEND_ADMINISTRABLE = [
   'wikipedia',
   'perplexity',
   'brave_search',
+  // The instance's own web search (lot 18): keyless, switchable by the administrator.
+  'searxng',
   'browser',
   'philips_hue',
   'elevenlabs_telephony',

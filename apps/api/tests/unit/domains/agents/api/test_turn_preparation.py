@@ -16,8 +16,10 @@ from typing import Any
 
 import pytest
 
+from src.core.conversation_target import ConversationKind
 from src.domains.agents.api import turn_preparation
 from src.domains.agents.api.turn_preparation import TurnStateRequest, prepare_turn_state
+from tests.fixtures.conversation_cases import conversation_target
 
 pytestmark = pytest.mark.unit
 
@@ -70,6 +72,11 @@ def _request(**overrides: Any) -> TurnStateRequest:
         "stt_kwargs": {"stt_provider": "remote"},
     }
     values.update(overrides)
+    values["target"] = conversation_target(
+        values["user_id"],
+        values.pop("conversation_id"),
+        kind=values.pop("kind", ConversationKind.MAIN),
+    )
     return TurnStateRequest(**values)
 
 
@@ -90,7 +97,6 @@ async def _prepare(request: TurnStateRequest, conversations: _Conversations) -> 
     return await prepare_turn_state(
         request,
         graph=object(),
-        db=object(),  # type: ignore[arg-type]
         orchestration_service=_Orchestration(),  # type: ignore[arg-type]
         conv_service=conversations,  # type: ignore[arg-type]
     )
@@ -155,3 +161,81 @@ async def test_uploads_off_reads_no_attachment(
 
     assert called == []
     assert "plan_approved" not in prepared.state
+
+
+# ---------------------------------------------------------------------------
+# An annex waiting for its title takes it from the first request (ADR-378
+# amendment 2026-11-12)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def titled(monkeypatch: pytest.MonkeyPatch) -> list[tuple[uuid.UUID, str]]:
+    """What the turn offered as a title, in place of the catalogue's own door."""
+    offered: list[tuple[uuid.UUID, str]] = []
+
+    async def offer(conversation_id: uuid.UUID, message: str) -> None:
+        offered.append((conversation_id, message))
+
+    monkeypatch.setattr(turn_preparation, "title_waiting_discussion", offer)
+    return offered
+
+
+async def test_a_request_typed_in_an_annex_offers_it_its_title(
+    noted: list[uuid.UUID | None], titled: list[tuple[uuid.UUID, str]]
+) -> None:
+    request = _request(kind=ConversationKind.SECONDARY)
+
+    await _prepare(request, _Conversations())
+
+    assert titled == [(request.conversation_id, "bonjour")]
+
+
+async def test_the_persons_spoken_words_name_the_discussion_not_their_restatement(
+    noted: list[uuid.UUID | None], titled: list[tuple[uuid.UUID, str]]
+) -> None:
+    """A Live delegation: ``user_message`` is the voice model's restatement."""
+    request = _request(kind=ConversationKind.SECONDARY, spoken_text="mes propres mots")
+
+    await _prepare(request, _Conversations())
+
+    assert titled == [(request.conversation_id, "mes propres mots")]
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        # Main has a fixed title.
+        {"kind": ConversationKind.MAIN},
+        # An answer to a question is not a subject.
+        {"kind": ConversationKind.SECONDARY, "is_hitl_resumption": True},
+        # Nobody typed a routine's instruction.
+        {"kind": ConversationKind.SECONDARY, "is_automated_source": True},
+        # A retry archived nothing: its first attempt already offered the title.
+        {"kind": ConversationKind.SECONDARY, "archive_user_message": False},
+    ],
+    ids=["main", "answer to a question", "automated run", "retry"],
+)
+async def test_what_never_names_a_discussion(
+    overrides: dict[str, Any],
+    noted: list[uuid.UUID | None],
+    titled: list[tuple[uuid.UUID, str]],
+) -> None:
+    await _prepare(_request(**overrides), _Conversations())
+
+    assert titled == []
+
+
+async def test_a_request_that_could_not_be_archived_names_nothing(
+    noted: list[uuid.UUID | None], titled: list[tuple[uuid.UUID, str]]
+) -> None:
+    """The title would name a message the discussion does not hold."""
+
+    class _Broken(_Conversations):
+        async def archive_message(self, *args: Any, **kwargs: Any) -> SimpleNamespace:
+            raise RuntimeError("database gone")
+
+    prepared = await _prepare(_request(kind=ConversationKind.SECONDARY), _Broken())
+
+    assert prepared.archived_user_msg_id is None
+    assert titled == []

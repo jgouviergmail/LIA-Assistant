@@ -23,6 +23,8 @@
  * why every call site here sits inside a real interaction handler.
  */
 
+import { useSyncExternalStore } from 'react';
+
 /** Preference key — device-scoped, alongside the theme and font ones. */
 export const HAPTICS_ENABLED_KEY = 'lia.haptics';
 
@@ -106,6 +108,20 @@ const listeners = new Set<() => void>();
 export function subscribeHaptics(onChange: () => void): () => void {
   listeners.add(onChange);
   return () => listeners.delete(onChange);
+}
+
+/**
+ * Whether this device can vibrate, for a component or a hook.
+ *
+ * ONE reading for the settings section and for its gate in the settings index
+ * (`deviceHaptics`): the rail, the search, the dock and the section cannot
+ * disagree about a device. The server snapshot is « no » — `navigator` does
+ * not exist there — and the client corrects it on hydration.
+ *
+ * @returns True where `navigator.vibrate` exists.
+ */
+export function useHapticsSupported(): boolean {
+  return useSyncExternalStore(subscribeHaptics, isHapticsSupported, () => false);
 }
 
 /**

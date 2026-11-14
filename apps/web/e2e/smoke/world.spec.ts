@@ -30,7 +30,7 @@ async function enterInertWorld(page: Page) {
   await page.locator('.world-admission button[type="submit"]').click();
 }
 
-test('world: shared header fits all nine destinations in all six languages', async ({
+test('world: shared header fits all ten destinations in all six languages', async ({
   page,
   authenticate,
   mockApi,
@@ -56,7 +56,8 @@ test('world: shared header fits all nine destinations in all six languages', asy
     await expect(page.locator('.world-admission')).toBeVisible();
     const banner = page.getByRole('banner');
     const nav = banner.getByRole('navigation');
-    await expect(nav.getByRole('link')).toHaveCount(9);
+    // The workboard joined the row on 2026-11-11, right after the meetings.
+    await expect(nav.getByRole('link')).toHaveCount(10);
     for (const width of [1536, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       const row = await nav.boundingBox();

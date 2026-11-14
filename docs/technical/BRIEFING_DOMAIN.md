@@ -9,7 +9,7 @@
 
 ## Overview
 
-The Today briefing turns the dashboard home page into a **daily ritual**: an LLM-generated greeting + contextual synthesis above a 10-card grid (weather, agenda, unread mails, upcoming birthdays from the active contacts provider (Google, Apple or Microsoft — ADR-077 amendment 2026-11-07), active reminders, health metrics, the « For you » card — open loops + automations digest, ADR-139/140 —, pending/overdue tasks from the active tasks provider, the latest modified Drive documents, and the workboard — what on the person's board needs them, ADR-276).
+The Today briefing turns the dashboard home page into a **daily ritual**: an LLM-generated greeting + contextual synthesis above a 10-card grid (weather, agenda, unread mails, upcoming birthdays from the active contacts provider (Google, Apple or Microsoft — ADR-077 amendment 2026-11-07), active reminders, health metrics, the « For you » card — open loops + automations digest, ADR-139/140 —, pending/overdue tasks of every list of the active tasks provider, the latest modified Drive documents, and the workboard — what on the person's board needs them, ADR-276).
 
 Architecture in one line: **lecture pure, asyncio.gather parallel, per-section Redis cache, two lightweight LLM calls** (greeting + synthesis), no LangGraph, no DB model, no scheduler.
 
@@ -43,20 +43,30 @@ apps/api/src/domains/briefing/
 ### Passive companion context
 
 `GET /api/v1/briefing/companion-context` returns the authenticated account's
-timezone and an optional current-weather snapshot. `BriefingService.read_cached_weather`
-reads only that account/language cache key, respects hidden weather preferences,
-and never invokes a fetcher or an LLM. `companion.project_weather` excludes failed,
-future, expired or malformed observations and strips location/description/forecast
-fields. The existing weather section TTL owns expiry. Cache absence or Redis
-failure returns `weather: null`; visiting the chat cannot incur a weather-provider
-request. The avatar's ephemeral frontend lifecycle and animation priorities are
-documented in [ADR-294](../architecture/ADR-294-A-Face-That-Never-Plays-The-Same-Twice.md).
+timezone and an optional current-weather snapshot: the NEWER of two reads, never a
+fetch (`companion.read_present_weather`). One is the weather card's cache
+(`BriefingService.read_cached_weather`); the other is the newest observation any other
+read of the person's place left — the heartbeat, the proactive discussions, the weather
+routines, the chat's own-place weather — through ONE door,
+[`connectors/companion_weather`](../../apps/api/src/domains/connectors/companion_weather.py)
+(`publish_companion_weather`, guarded by `test_companion_weather_readers_guard.py`), which
+keeps only a newer observation (a script on the Redis server), for as long as it is the
+present (`PRESENT_WEATHER_FRESH_SECONDS`), and says it on the person's channel
+(`companion_weather`) so an open page reads it at once. A hidden weather card hides both.
+A failed, future-dated, expired or malformed card produces no weather; an observation is
+never dated after the read that made it (a later or unreadable provider instant is read as
+the read's own), and one that holds an impossible value is refused. Both sides apply one
+rule of what is still the present (`is_present`), and the projection strips
+location/description/forecast fields. Cache absence or Redis failure returns
+`weather: null`; visiting the chat cannot incur a weather-provider request. The avatar's
+ephemeral frontend lifecycle and animation priorities are documented in
+[ADR-294](../architecture/ADR-294-A-Face-That-Never-Plays-The-Same-Twice.md).
 
 | Env var | Default | Bounds | Effect |
 |---------|---------|--------|--------|
 | `BRIEFING_MAX_AGENDA_ITEMS` | 10 | 1–50 | Max events on the agenda card (within the lookahead window) |
 | `BRIEFING_AGENDA_LOOKAHEAD_HOURS` | 24 | 1–168 | Forward window (h) scanned for agenda events |
-| `BRIEFING_MAX_MAILS_ITEMS` | 5 | 1–50 | Max emails on the mails card |
+| `BRIEFING_MAX_MAILS_ITEMS` | [source default](../../apps/api/src/core/constants.py) | 1–50 | Max emails on the mails card |
 | `BRIEFING_MAX_SMS_ITEMS` | [source default](../../apps/api/src/core/constants.py) | 1–50 | Latest retained SMS previews on the personal card; separate from consent-gated model evidence |
 | `BRIEFING_MAX_BIRTHDAYS_ITEMS` | 5 | 1–50 | Max upcoming birthdays |
 | `BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS` | 14 | 1–365 | Forward window (days) for upcoming birthdays |
@@ -448,6 +458,11 @@ the heartbeat's reading of the same board does. The greeting and synthesis do
 not read it (`SECTIONS_NOT_SUMMARISED`), so it does not count toward the
 synthesis threshold either.
 
+## An unread mail already answered (2026-11-11)
+
+The mails card lists UNREAD mail, and unread is not unanswered: a message answered from a phone's notification stays unread. Each listed mail carries its
+[reply state](./MAIL_REPLY_STATE.md) (`MailItem.reply_state`), read through the one door while the mailbox is open, for the listed mails alone. The card marks « answered » and withdraws « reply expected »; the greeting and the synthesis read the state beside the qualification (`prompt_cards._project_mails`), a reading of a moment lapsing by itself on a cached card; the radio's journal leaves an answered mail out. A routine's mail condition lists through the same read and opts out (`situate_items=False`): a watch waits for an arrival.
+
 ## From the home to the Tools (owner, 2026-11-07)
 
 Where the instance offers the « Tools » (ADR-369), a click on an item opens it in its tool, on
@@ -461,10 +476,24 @@ joined it: rows and LIA's acts are then exactly what they were.
 What a card carries for that: `AgendaEventItem.calendar_id` (the calendar read, `primary` an
 alias the calendar tool resolves to the account's own calendar) and `conference_url` (one reader
 for the Tools and the home, `connectors/clients/normalizers/calendar_links.py`);
-`TaskItem.list_id`, the list's REAL id (`@default` resolved by `get_task_list`, best effort: an
-unreadable one leaves it out and the card stands); `BirthdayItem.contact_id`, `email` and
+`TaskItem.list_id` and `list_name`, the task's own list by its REAL id and its name (the card
+reads every list, so the ids are the provider's own listing, never an alias such as `@default`);
+`BirthdayItem.contact_id`, `email` and
 `phone` (ADR-077 amendment). The tasks tool opens a task past the pages it read through
 `GET /workbench/tasks/task`, kept at the head of its list (`useKeptTask`, `keepItem`).
+
+The tasks card gathers EVERY list of the tasks provider (owner, 2026-11-10), not the settings'
+default one: `fetch_tasks` lists the lists (up to `TASK_LISTS_READ_MAX`) and reads one page of
+each through the walk the Tools' views share (`connectors/clients/task_lists.py`), a few lists at
+a time, then orders the whole (overdue first, oldest first) and keeps the card's first
+`briefing_max_tasks_items`. Its scope is unchanged: open tasks, overdue or due within
+`briefing_tasks_horizon_days`, the undated outside. Each row names its list in a badge. A list
+that fails leaves the others on the card and `TasksData.partial` says so under the tasks, as it
+does for a list cut at its page or an account holding more lists than were read; with nothing
+left to show, the failure is the card's — « nothing to do » is never told on a list nobody read
+(ADR-303). The readers of this section follow: the synthesis, the radio's tasks due soon (the
+section's cache) and the « overdue task » routine (`whole_page=True`, ADR-322), which now waits
+on every list.
 
 Each card's « More actions » holds at most five acts, direct ones first — no model, no register
 row (ADR-369, D5) — then LIA's, through the chat as before:

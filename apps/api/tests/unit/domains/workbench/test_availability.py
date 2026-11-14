@@ -253,6 +253,26 @@ async def test_outlook_is_never_offered_gmail_labels() -> None:
     assert WorkbenchFeature.LABELS not in tools[WorkbenchTool.MAIL].features
 
 
+@pytest.mark.parametrize(
+    "kind",
+    [ConnectorType.GOOGLE_GMAIL, ConnectorType.MICROSOFT_OUTLOOK, ConnectorType.APPLE_EMAIL],
+)
+async def test_the_reply_marks_are_offered_exactly_when_the_capability_is_on(
+    kind: ConnectorType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every mailbox reads conversations; the operator's switch withholds the marks, and a
+    page that is offered none asks for none (ADR-184, ADR-379)."""
+    rows, active = {kind: ConnectorStatus.ACTIVE}, {"email": kind}
+
+    monkeypatch.setattr(availability.settings, "mail_reply_state_enabled", True)
+    offered = (await _read(rows, active=active))[WorkbenchTool.MAIL].features
+    monkeypatch.setattr(availability.settings, "mail_reply_state_enabled", False)
+    withheld = (await _read(rows, active=active))[WorkbenchTool.MAIL].features
+
+    assert WorkbenchFeature.REPLY_MARKS in offered
+    assert set(offered) - set(withheld) == {WorkbenchFeature.REPLY_MARKS}
+
+
 async def test_a_broken_provider_asks_for_a_reconnection() -> None:
     tools = await _read(
         {ConnectorType.MICROSOFT_CALENDAR: ConnectorStatus.ERROR},

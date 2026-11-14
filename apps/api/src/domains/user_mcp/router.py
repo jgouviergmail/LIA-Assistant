@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import (
     MCP_USER_OAUTH_REDIRECT_PATH,
+    MCP_USER_OAUTH_RESULT_CHANGED,
     MCP_USER_OAUTH_RESULT_DENIED,
     MCP_USER_OAUTH_RESULT_ERROR,
     MCP_USER_OAUTH_RESULT_PARAM,
@@ -43,9 +44,12 @@ from src.domains.user_mcp.behavior_schemas import (
 )
 from src.domains.user_mcp.behavior_service import MCPBehaviorService
 from src.domains.user_mcp.defaults import published_defaults
+from src.domains.user_mcp.oauth_binding import persist_bound_oauth_credentials
 from src.domains.user_mcp.projection import owned_server_response
 from src.domains.user_mcp.projection import server_to_response as _server_to_response
 from src.domains.user_mcp.schemas import (
+    KnownMCPServerListResponse,
+    KnownMCPServerResponse,
     McpAppCallToolRequest,
     McpAppCallToolResponse,
     McpAppReadResourceRequest,
@@ -61,11 +65,13 @@ from src.domains.user_mcp.schemas import (
 )
 from src.domains.user_mcp.service import UserMCPServerService
 from src.domains.users.models import User
+from src.infrastructure.mcp.known_servers import KNOWN_MCP_SERVERS
 from src.infrastructure.mcp.oauth_application_guard import (
     application_command_from_state,
 )
 from src.infrastructure.mcp.oauth_flow import (
     MCPOAuthFlowHandler,
+    oauth_redirect_uri,
     safe_oauth_error_code_value,
 )
 from src.infrastructure.mcp.personal_oauth_contract import (
@@ -98,6 +104,39 @@ def _mcp_return(is_native: bool, params: dict[str, str]) -> RedirectResponse:
         ),
         params=params,
     )
+
+
+async def _settings_oauth_return(
+    is_native: bool, server_id: UUID, user_id: UUID, binding: str | None, encrypted_creds: str
+) -> RedirectResponse:
+    """Store a settings consent's tokens on the row it was asked for, and say how it went.
+
+    A row changed while the person consented (another type, address, client or scopes)
+    keeps what it has, and the person is told to authorize again (``oauth_binding``).
+
+    Args:
+        is_native: Whether a native shell started the flow.
+        server_id: The server the consent was for.
+        user_id: The account that started it.
+        binding: What the consent was asked for, read back from its state.
+        encrypted_creds: The encrypted tokens the exchange produced.
+
+    Returns:
+        A redirect saying ``success``, or ``changed`` when nothing was stored.
+    """
+    if not await persist_bound_oauth_credentials(server_id, user_id, binding, encrypted_creds):
+        logger.warning(
+            "user_mcp_oauth_callback_server_changed",
+            server_id=str(server_id),
+            user_id=str(user_id),
+        )
+        return _mcp_return(is_native, {MCP_USER_OAUTH_RESULT_PARAM: MCP_USER_OAUTH_RESULT_CHANGED})
+    logger.info(
+        "user_mcp_oauth_callback_success",
+        server_id=str(server_id),
+        user_id=str(user_id),
+    )
+    return _mcp_return(is_native, {"mcp_oauth": "success", "server_id": str(server_id)})
 
 
 #: Did a native shell start this MCP authorization?
@@ -163,6 +202,34 @@ async def list_servers(
         ],
         total=len(servers),
         defaults=published_defaults(user.mcp_hitl_required),
+    )
+
+
+# =============================================================================
+# Known servers — declared before every route that reads a server id
+# =============================================================================
+
+
+@router.get(
+    "/known",
+    response_model=KnownMCPServerListResponse,
+    summary="List the known MCP servers",
+    description=(
+        "The vendor-hosted servers a person may add without typing an address. Public "
+        "facts only: adding one goes through the create route like any other."
+    ),
+    dependencies=[Depends(get_current_active_session)],
+)
+async def list_known_servers() -> KnownMCPServerListResponse:
+    """Publish the known catalogue to the gallery and the create form (settings and chat).
+
+    The instance's OAuth callback travels with it: a server whose vendor registers no
+    client for LIA is added with the person's own OAuth application, which must declare
+    that address.
+    """
+    return KnownMCPServerListResponse(
+        servers=[KnownMCPServerResponse.model_validate(server) for server in KNOWN_MCP_SERVERS],
+        oauth_redirect_uri=oauth_redirect_uri(),
     )
 
 
@@ -402,6 +469,7 @@ async def test_connection(
         tool_count=result["tool_count"],
         tools=tools,
         error=result["error"],
+        error_code=result.get("error_code"),
         domain_description=result.get("domain_description"),
     )
 
@@ -661,16 +729,9 @@ async def oauth_callback(
                         "application_command_id": str(handler.application_command_id),
                     },
                 )
-            # Persist encrypted tokens and mark server as active
-            await UserMCPServerService.update_oauth_credentials(server_id, encrypted_creds)
-
-            logger.info(
-                "user_mcp_oauth_callback_success",
-                server_id=str(server_id),
-                user_id=str(user_id),
+            return await _settings_oauth_return(
+                is_native, server_id, user_id, handler.binding, encrypted_creds
             )
-
-            return _mcp_return(is_native, {"mcp_oauth": "success", "server_id": str(server_id)})
 
         except Exception as e:
             if isinstance(handler.application_command_id, UUID):

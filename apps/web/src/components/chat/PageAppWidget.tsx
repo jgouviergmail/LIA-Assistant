@@ -13,6 +13,10 @@
  * policy still refuses any submission. Nothing else is granted, and the bridge
  * (`usePageFrameBridge`) only listens.
  *
+ * What the page's policy refuses leaves a blank where the page meant something,
+ * and no error anywhere: the frame tells which kind of content was refused, and
+ * the widget says it in the person's language, below the page.
+ *
  * A page read back from history waits for a click: a loop that never ends blocks
  * the host's thread on Chromium, Firefox and WebKit alike (measured 2026-11-04),
  * and a page that started by itself would make its conversation impossible to
@@ -26,7 +30,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFrameLoadWatchdog } from '@/hooks/useFrameLoadWatchdog';
-import { usePageFrameBridge } from '@/hooks/usePageFrameBridge';
+import { usePageFrameBridge, type PageBlockedKind } from '@/hooks/usePageFrameBridge';
 import { useRegistryItem } from '@/lib/registry-context';
 import type { PageAppPayload } from '@/types/page-apps';
 
@@ -38,20 +42,28 @@ const CodeBlock = lazy(() =>
 /** The whole grant. Pinned by a test: every added flag undoes a measurement. */
 const PAGE_FRAME_SANDBOX = 'allow-scripts allow-forms';
 
+/** What the widget says for each kind of content the page was refused. */
+const BLOCKED_NOTICES = {
+  frame: 'page_apps.blocked_frame',
+  image: 'page_apps.blocked_image',
+  resource: 'page_apps.blocked_resource',
+} as const satisfies Record<PageBlockedKind, string>;
+
 interface PageFrameProps {
   html: string;
   title: string;
   hidden: boolean;
   takesFocus: boolean;
   onFault: (message: string) => void;
+  onBlocked: (kind: PageBlockedKind) => void;
 }
 
 /** The running page. Its own component so a restart is a remount, state included. */
-function PageFrame({ html, title, hidden, takesFocus, onFault }: PageFrameProps) {
+function PageFrame({ html, title, hidden, takesFocus, onFault, onBlocked }: PageFrameProps) {
   const { t } = useTranslation();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const status = useFrameLoadWatchdog(iframeRef, { kind: 'page', label: 'interactive_page' });
-  usePageFrameBridge(iframeRef, onFault);
+  usePageFrameBridge(iframeRef, onFault, onBlocked);
 
   useEffect(() => {
     if (!takesFocus) return;
@@ -118,11 +130,18 @@ function PageApp({ payload, restored }: { payload: PageAppPayload; restored: boo
   const [startedByClick, setStartedByClick] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [fault, setFault] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState<readonly PageBlockedKind[]>([]);
 
   const title = payload.title || t('page_apps.untitled');
   const frameTitle = t('page_apps.frame_title', { title });
   // The first failure explains the next ones.
   const onFault = useCallback((message: string) => setFault(first => first ?? message), []);
+  // Each kind is said once, in the order the page met them.
+  const onBlocked = useCallback(
+    (kind: PageBlockedKind) =>
+      setBlocked(known => (known.includes(kind) ? known : [...known, kind])),
+    []
+  );
   const toggleLabel = showsCode ? t('page_apps.show_page') : t('page_apps.show_code');
 
   const start = () => {
@@ -131,6 +150,7 @@ function PageApp({ payload, restored }: { payload: PageAppPayload; restored: boo
   };
   const restart = () => {
     setFault(null);
+    setBlocked([]);
     setAttempt(value => value + 1);
   };
 
@@ -160,6 +180,7 @@ function PageApp({ payload, restored }: { payload: PageAppPayload; restored: boo
           hidden={showsCode}
           takesFocus={startedByClick}
           onFault={onFault}
+          onBlocked={onBlocked}
         />
       ) : null}
 
@@ -184,6 +205,12 @@ function PageApp({ payload, restored }: { payload: PageAppPayload; restored: boo
           {t('page_apps.failed')} {fault}
         </p>
       ) : null}
+
+      {blocked.map(kind => (
+        <p key={kind} className="lia-page-app-widget__notice" role="status">
+          {t(BLOCKED_NOTICES[kind])}
+        </p>
+      ))}
     </section>
   );
 }

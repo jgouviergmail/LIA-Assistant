@@ -33,6 +33,7 @@ from src.domains.channels.router import (
     process_telegram_update,
 )
 from src.domains.channels.service import OtpAttemptsExhaustedError
+from src.domains.conversations.models import Conversation
 from src.domains.users.models import User
 from src.infrastructure.channels.telegram.formatter import get_bot_message
 from src.infrastructure.channels.telegram.hitl_keyboard import (
@@ -147,7 +148,7 @@ def _conversations(own: UUID | None) -> MagicMock:
     """
     repository = MagicMock()
     repository.get_active_for_user = AsyncMock(
-        return_value=None if own is None else MagicMock(id=own)
+        return_value=None if own is None else Conversation(id=own, runtime_id=own)
     )
     return repository
 
@@ -718,12 +719,11 @@ async def test_a_button_finds_the_question_where_the_engine_saved_it() -> None:
     press was told « expired » (review 12). Two keyspaces of one in-memory server,
     the real store."""
     from src.core.constants import REDIS_CACHE_DB, REDIS_SESSION_DB
-    from src.domains.agents.utils.hitl_store import HITLStore
     from tests.helpers.redis_databases import RedisServer
 
     server = RedisServer()
     engine_cache, door_session = server.client(REDIS_CACHE_DB), server.client(REDIS_SESSION_DB)
-    await HITLStore(redis_client=engine_cache, ttl_seconds=60).save_interrupt(
+    engine_cache.seed_pending_question(
         str(_OWN_CONVERSATION),
         {"action_requests": [], "run_id": "run-1", "message_id": _QUESTION_ID},
     )

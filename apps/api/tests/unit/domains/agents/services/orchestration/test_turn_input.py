@@ -31,6 +31,7 @@ from src.domains.agents.services.orchestration.turn_input import (
     snapshot_restored_state,
     turn_input,
 )
+from tests.fixtures.conversation_cases import conversation_target
 
 pytestmark = pytest.mark.unit
 
@@ -206,9 +207,8 @@ class TestTheLoaderSnapshot:
         ):
             state = await OrchestrationService().load_or_create_state(
                 graph,
-                uuid.uuid4(),
+                conversation_target(_USER, uuid.uuid4()),
                 "q2",
-                _USER,
                 "session",
                 "run-1",
                 "UTC",

@@ -42,6 +42,7 @@ from src.domains.workbench.schemas.tasks import (
     TaskSelectionMove,
     TaskStepChange,
     TaskViewQuery,
+    ViewTasks,
 )
 from tests.unit.domains.workbench.fakes import FakeRedis
 
@@ -78,7 +79,7 @@ def _gone() -> ConnectorAPIError:
     return ConnectorAPIError(connector_type="google_tasks", status_code=404, detail="x")
 
 
-def _reading(*dues: str) -> MagicMock:
+def _reading(*dues: str | None) -> MagicMock:
     return _client(
         list_task_lists={"items": [{"id": "l1"}], "next_page_token": None},
         list_tasks={
@@ -94,15 +95,17 @@ def _reading(*dues: str) -> MagicMock:
 class TestViews:
     NOW = datetime(2026, 11, 5, 23, 30, tzinfo=UTC)  # Already the 6th in Paris.
 
-    async def _read(self, view: str, client: MagicMock) -> list[date]:
+    async def _view(self, view: str, client: MagicMock) -> ViewTasks:
         with (
             _door(client),
             patch.object(tasks_service, "now_utc", return_value=self.NOW),
         ):
-            found = await tasks_service.read_task_view(
+            return await tasks_service.read_task_view(
                 USER, PARIS, TaskViewQuery(view=view)  # type: ignore[arg-type]
             )
-        return [task.due for task in found.tasks]
+
+    async def _read(self, view: str, client: MagicMock) -> list[date | None]:
+        return [task.due for task in (await self._view(view, client)).tasks]
 
     async def test_today_is_the_account_s_day(self) -> None:
         client = _reading("2026-11-05T00:00:00.000Z", "2026-11-06T00:00:00.000Z")
@@ -127,6 +130,111 @@ class TestViews:
         )
 
         assert await self._read("upcoming", client) == [date(2026, 11, 7), last]
+
+    async def test_the_timeline_is_the_three_views_together(self) -> None:
+        """What is late, today's and the days ahead up to the bound: nothing else, in time order."""
+        last = date.fromordinal(date(2026, 11, 6).toordinal() + WORKBENCH_TASK_UPCOMING_DAYS)
+        beyond = date.fromordinal(last.toordinal() + 1)
+        client = _reading(
+            f"{beyond.isoformat()}T00:00:00.000Z",
+            f"{last.isoformat()}T00:00:00.000Z",
+            None,
+            "2026-11-06T00:00:00.000Z",
+            "2019-01-01T00:00:00.000Z",
+        )
+
+        assert await self._read("timeline", client) == [date(2019, 1, 1), date(2026, 11, 6), last]
+
+    async def test_the_timeline_holds_exactly_what_the_three_views_hold(self) -> None:
+        last = date.fromordinal(date(2026, 11, 6).toordinal() + WORKBENCH_TASK_UPCOMING_DAYS)
+        dues = [
+            "2019-01-01T00:00:00.000Z",
+            "2026-11-05T00:00:00.000Z",
+            "2026-11-06T00:00:00.000Z",
+            "2026-11-07T00:00:00.000Z",
+            f"{last.isoformat()}T00:00:00.000Z",
+            f"{date.fromordinal(last.toordinal() + 1).isoformat()}T00:00:00.000Z",
+            None,
+        ]
+
+        apart = [
+            day
+            for view in ("overdue", "today", "upcoming")
+            for day in await self._read(view, _reading(*dues))
+        ]
+
+        assert await self._read("timeline", _reading(*dues)) == apart
+
+    async def test_all_gathers_every_open_task_whatever_its_day(self) -> None:
+        """Dated ones in time order, however far; the undated after them."""
+        client = _reading(None, "2031-05-01T00:00:00.000Z", "2019-01-01T00:00:00.000Z", None)
+
+        found = await self._view("all", client)
+
+        assert [(task.id, task.due) for task in found.tasks] == [
+            ("t2", date(2019, 1, 1)),
+            ("t1", date(2031, 5, 1)),
+            ("t0", None),
+            ("t3", None),
+        ]
+
+    async def test_all_names_the_list_of_each_task_and_keeps_the_lists_order_undated(self) -> None:
+        pages = {
+            "home": {"items": [{"id": "h1", "title": "H1"}, {"id": "h2", "title": "H2"}]},
+            "work": {
+                "items": [
+                    {"id": "w1", "title": "W1"},
+                    {"id": "w2", "title": "W2", "due": "2026-11-09T00:00:00.000Z"},
+                ]
+            },
+        }
+        client = MagicMock(
+            list_task_lists=AsyncMock(
+                return_value={"items": [{"id": "home"}, {"id": "work"}], "next_page_token": None}
+            ),
+            list_tasks=AsyncMock(side_effect=lambda list_id, **_: pages[list_id]),
+        )
+
+        found = await self._view("all", client)
+
+        assert [(task.list_id, task.id) for task in found.tasks] == [
+            ("work", "w2"),
+            ("home", "h1"),
+            ("home", "h2"),
+            ("work", "w1"),
+        ]
+        assert (found.truncated, found.failed) == (False, [])
+
+    async def test_all_asks_for_what_is_still_to_do_only(self) -> None:
+        client = _reading(None)
+
+        await self._view("all", client)
+
+        asked = client.list_tasks.await_args.kwargs
+        assert (asked["show_completed"], asked["show_hidden"]) == (False, False)
+
+    async def test_a_view_says_the_list_it_could_not_read(self) -> None:
+        down = ConnectorAPIError(connector_type="google_tasks", status_code=503, detail="down")
+        pages: dict[str, Any] = {"home": down, "work": {"items": [{"id": "w1", "title": "W1"}]}}
+
+        async def read(list_id: str, **_: Any) -> dict[str, Any]:
+            answer = pages[list_id]
+            if isinstance(answer, Exception):
+                raise answer
+            return dict(answer)
+
+        client = MagicMock(
+            list_task_lists=AsyncMock(
+                return_value={"items": [{"id": "home"}, {"id": "work"}], "next_page_token": "more"}
+            ),
+            list_tasks=AsyncMock(side_effect=read),
+        )
+
+        found = await self._view("all", client)
+
+        assert [task.id for task in found.tasks] == ["w1"]
+        assert found.failed == ["home"]
+        assert found.truncated is True
 
     def test_a_view_nobody_named_is_refused(self) -> None:
         with pytest.raises(ValidationError):

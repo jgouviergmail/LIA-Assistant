@@ -8,7 +8,7 @@
  * refusal keeps the form, an outcome nobody knows says to look in the calendar.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { fireEvent, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import { ApiError } from '@/lib/api-client';
@@ -119,29 +119,48 @@ const create = () => screen.getByRole('button', { name: 'workbench.calendar.edit
 const save = () => screen.getByRole('button', { name: 'workbench.calendar.editor.save' });
 
 describe('AI dates and native defaults', () => {
+  afterEach(() => vi.useRealTimers());
+
+  /**
+   * A proposal with no date starts on the NEXT hour of the clock, and lasts an
+   * hour. Left on the real clock, these tests failed one hour a day (measured
+   * 2026-11-11 at 22:10 in Paris): from ten to eleven in the evening the hour
+   * that follows ends at midnight, the day after.
+   */
+  const at = (instant: string) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(instant));
+  };
+
+  /** The editor, opened on what LIA read with no date in it. */
+  const proposed = (allDay: boolean): EditorTarget => {
+    const proposal: ProposedEvent = {
+      summary: 'Review',
+      description: '',
+      location: '',
+      attendees: [],
+      all_day: allDay,
+      start_date: null,
+      start_time: null,
+      end_date: null,
+      end_time: null,
+      repeat: 'none',
+      conference: false,
+    };
+    const targets: EditorTarget[] = [];
+    eventStarts(CALENDARS, '2026-11-02', PARIS, target => targets.push(target)).startWith(
+      'Review',
+      '',
+      proposal
+    );
+    return targets[0];
+  };
+
   it.each([false, true])(
     'names missing dates before a person saves (all day: %s)',
     async allDay => {
-      const proposal: ProposedEvent = {
-        summary: 'Review',
-        description: '',
-        location: '',
-        attendees: [],
-        all_day: allDay,
-        start_date: null,
-        start_time: null,
-        end_date: null,
-        end_time: null,
-        repeat: 'none',
-        conference: false,
-      };
-      const targets: EditorTarget[] = [];
-      eventStarts(CALENDARS, '2026-11-02', PARIS, target => targets.push(target)).startWith(
-        'Review',
-        '',
-        proposal
-      );
-      const { user, onCreate } = editor(targets[0]);
+      at('2026-11-02T09:30:00Z'); // 10:30 in Paris: eleven to noon, the same day.
+      const { user, onCreate } = editor(proposed(allDay));
       expect(await screen.findByText('workbench.calendar.editor.review_defaults')).toBeVisible();
       expect(onCreate).not.toHaveBeenCalled();
       fireEvent.change(
@@ -160,6 +179,49 @@ describe('AI dates and native defaults', () => {
       await waitFor(() => expect(onCreate).toHaveBeenCalledOnce());
     }
   );
+
+  it('ends the day after what is proposed in the last hours of an evening, and saves it so', async () => {
+    at('2026-11-02T21:30:00Z'); // 22:30 in Paris: eleven, then midnight.
+    const target = proposed(false);
+
+    expect(target).toMatchObject({
+      kind: 'new',
+      fields: {
+        startDate: '2026-11-02',
+        startTime: '23:00',
+        endDate: '2026-11-03',
+        endTime: '00:00',
+      },
+    });
+    const { user, onCreate } = editor(target);
+    await screen.findByText('workbench.calendar.editor.review_defaults');
+    await user.click(create());
+
+    await waitFor(() => expect(onCreate).toHaveBeenCalledOnce());
+    expect(onCreate.mock.calls[0][0]).toMatchObject({
+      start: '2026-11-02T23:00',
+      end: '2026-11-03T00:00',
+      all_day: false,
+      timezone: PARIS,
+    });
+  });
+
+  it('refuses one day at both ends of an event that crosses midnight, and says why', async () => {
+    at('2026-11-02T21:30:00Z'); // 22:30 in Paris: the times stay eleven and midnight.
+    const { onCreate } = editor(proposed(false));
+    await screen.findByText('workbench.calendar.editor.review_defaults');
+
+    fireEvent.change(screen.getByLabelText('workbench.calendar.editor.start'), {
+      target: { value: '2026-12-01' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.calendar.editor.end'), {
+      target: { value: '2026-12-01' },
+    });
+
+    expect(screen.getByText('workbench.calendar.editor.ends_before')).toBeInTheDocument();
+    fireEvent.submit(title().closest('form') as HTMLFormElement);
+    expect(onCreate).not.toHaveBeenCalled();
+  });
 });
 
 describe('EventEditor — a repeating event', () => {

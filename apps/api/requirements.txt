@@ -102,7 +102,7 @@ msgpack>=1.2.3
 anyio>=4.14.2  # via httpx, starlette, mcp and the LLM SDKs: CVE-2026-63374, CVE-2026-64847
 certifi>=2026.10.18  # via requests, httpx and the provider SDKs: GHSA-6q48-6c7w-9gw2 (critical, the distrusted emSign roots removed from the CA bundle)
 click>=8.4.2  # via uvicorn: PYSEC-2026-2132 (command injection through click.edit())
-cbor2>=6.2.1  # GHSA-55vx-2phh-7grr (high, native stack overflow in cbor2.loads through shared-reference tags), GHSA-6rgc-8hxm-rj7p (high, segfault on a cyclic CBORTag), via webauthn
+cbor2>=6.3.0  # GHSA-55vx-2phh-7grr (high, native stack overflow in cbor2.loads through shared-reference tags), GHSA-6rgc-8hxm-rj7p (high, segfault on a cyclic CBORTag), GHSA-ffh5-vwcq-7ccw (medium, segfault in cbor2.dumps on a nested cyclic CBORTag, fixed in 6.3.0), via webauthn
 dnspython>=2.9.2  # via caldav, email-validator: GHSA-45c3-73f7-pv4m (high, CPU exhaustion in dns.name.from_wire_parser), GHSA-vvf4-9x63-8xvv (high, excessive memory and CPU use)
 grpcio>=1.84.2  # via Google SDKs, grpcio-status and OTLP: GHSA-2xm2-c8xx-p9vh (bundled trust store), GHSA-7jmm-cgrp-9cvh (memory leak in AsyncIO client-streaming)
 icalendar>=7.2.2  # via caldav, recurring-ical-events: GHSA-qjcq-q7h7-r74v (CVE-2026-77399)
@@ -113,7 +113,7 @@ multidict>=6.9.1  # via aiohttp, yarl: GHSA-54p9-h82j-f925
 # >=0.6.5 also clears quadratic ASN.1 decoding: GHSA-2qm8-x737-gmw5,
 # GHSA-fm9c-5rcf-2q5p, GHSA-mm57-4v3p-rchx and GHSA-9m75-vc3g-4x39.
 pyasn1>=0.6.5  # via webauthn, pyasn1-modules; retains the CVE-2026-59886 fix
-soupsieve>=4.0.1  # via beautifulsoup4: CVE-2026-85999, CVE-2026-86000, GHSA-mmhr-3c5m-f64f, GHSA-4j63-6c4x-wfg4, GHSA-7g44-g9rc-x53w, GHSA-8jvp-3x96-xpqw
+soupsieve>=4.1  # via beautifulsoup4: CVE-2026-85999, CVE-2026-86000, GHSA-mmhr-3c5m-f64f, GHSA-4j63-6c4x-wfg4, GHSA-7g44-g9rc-x53w, GHSA-8jvp-3x96-xpqw, GHSA-f3mv-fm3p-593v
 truststore>=0.10.5; sys_platform != 'emscripten'  # via httpx2, httpcore2: GHSA-pmqj-r2x2-vx88 (high, shared SSLContext could skip certificate verification on Windows and macOS), GHSA-8v28-6h89-pmvr
 urllib3>=2.8.0  # via requests: CVE-2026-97687, CVE-2026-97688, CVE-2026-97689 (proxy TLS policy, Deflate with trailing bytes, unbounded chunk size)
 
@@ -153,6 +153,7 @@ langgraph-checkpoint==4.3.0  # history-consistency fixes; opt-in omit_expired (n
 langgraph-prebuilt==1.1.0  # Pinné explicitement (transitif de langgraph, reproductibilité builds)
 langgraph-checkpoint-postgres==3.1.3  # delta-history walk fix (3.1.2); 3.1.1 carried the PYSEC-2026-3635 namespace-leak fix; 3.1.3 is a SECURITY floor: GHSA-6hmw-9432-67qq (namespace labels containing '.' reached other namespaces in the Postgres store)
 tiktoken==0.13.0
+orjson>=3.12.0  # Native PostgreSQL Store deserializer contract; already transitively locked
 
 # Hybrid Memory Search - BM25 keyword matching combined with semantic search
 rank-bm25==0.2.2  # Okapi BM25 algorithm for keyword-based retrieval
@@ -199,6 +200,7 @@ PyMuPDF>=1.25.0  # PDF text extraction (lightweight, ARM64 compatible)
 python-docx>=1.1.0  # DOCX text extraction for RAG Spaces
 python-pptx>=1.0.2  # PPTX text extraction for RAG Spaces. >=1.0.2: security floor
 openpyxl>=3.1.0  # XLSX text extraction for RAG Spaces
+XlsxWriter>=3.2.9  # XLSX writing for generated workbooks: a formula WITH its cached value (openpyxl caches none); already python-pptx's own dependency
 numpy>=2.0  # Vector maths: semantic tool selection, embeddings, STT — imported by 4 modules and previously only transitive
 striprtf>=0.0.26  # RTF text extraction for RAG Spaces (pure Python)
 

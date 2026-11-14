@@ -15,7 +15,7 @@ import {
   MessageCircle,
   Newspaper,
   PenLine,
-  Radio,
+  RadioSet,
   Search,
   Zap,
   type LucideIcon,
@@ -63,7 +63,7 @@ export function RadioProgrammeFields({ lng, options, preferences, onChange }: Ra
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           {options.formats.map(item => {
-            const Icon = FORMAT_ICONS[item.format] ?? Radio;
+            const Icon = FORMAT_ICONS[item.format] ?? RadioSet;
             const id = `radio-frequency-${item.format}`;
             const hintId = `${id}-hint`;
             const choose = (value: string) => {

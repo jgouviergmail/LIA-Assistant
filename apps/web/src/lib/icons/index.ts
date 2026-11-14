@@ -519,7 +519,6 @@ import {
   fluent_chat,
   fluent_chat_add,
   fluent_chat_bubbles_question,
-  fluent_chat_more,
   fluent_chat_multiple,
   fluent_checkbox,
   fluent_checkmark_circle,
@@ -755,6 +754,7 @@ import {
   fluent_lia_MessageSquareOff,
   fluent_lia_MessageSquareQuote,
   fluent_lia_MessageSquareReply,
+  fluent_lia_MessageSquareText,
   fluent_lia_Metronome,
   fluent_lia_MicOff,
   fluent_lia_Microscope,
@@ -805,6 +805,7 @@ import {
   fluent_lia_Quote,
   fluent_lia_Radar,
   fluent_lia_Radio,
+  fluent_lia_RadioSet,
   fluent_lia_Redo2,
   fluent_lia_Repeat,
   fluent_lia_Repeat2,
@@ -1230,6 +1231,7 @@ import {
   flex_lia_Quote,
   flex_lia_Radar,
   flex_lia_Radio,
+  flex_lia_RadioSet,
   flex_lia_Redo2,
   flex_lia_RefreshCw,
   flex_lia_Repeat,
@@ -3996,7 +3998,7 @@ export const MessageSquareText = /*#__PURE__*/ createAppIcon(
   'MessageSquareText',
   LucideMessageSquareText,
   {
-    fluent: fluent_chat_more,
+    fluent: fluent_lia_MessageSquareText,
     flex: flex_chat_bubble_text_square_flat,
   },
   'lucide lucide-message-square-text'
@@ -4583,6 +4585,15 @@ export const Radio = /*#__PURE__*/ createAppIcon(
   {
     fluent: fluent_lia_Radio,
     flex: flex_lia_Radio,
+  },
+  'lucide lucide-radio'
+);
+export const RadioSet = /*#__PURE__*/ createAppIcon(
+  'RadioSet',
+  LucideRadio,
+  {
+    fluent: fluent_lia_RadioSet,
+    flex: flex_lia_RadioSet,
   },
   'lucide lucide-radio'
 );

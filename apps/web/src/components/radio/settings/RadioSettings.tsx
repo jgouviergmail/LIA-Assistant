@@ -9,7 +9,7 @@
  * placeholders, a save only marks the form busy — so a keyboard user keeps
  * their place.
  */
-import { Radio } from '@/lib/icons';
+import { RadioSet } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { SettingsSection } from '@/components/settings/SettingsSection';
@@ -37,7 +37,7 @@ export function RadioSettings({ lng }: BaseSettingsProps) {
   return (
     <SettingsSection
       value="radio"
-      icon={Radio}
+      icon={RadioSet}
       title={t('radio.settings.title')}
       description={t('radio.settings.description')}
     >

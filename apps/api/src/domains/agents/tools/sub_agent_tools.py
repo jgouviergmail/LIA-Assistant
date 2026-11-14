@@ -21,8 +21,8 @@ Architecture (ADR-083 — Sub-Agent Delegation as Parameterized ReAct Loop):
 - Depth limit: a sub-agent cannot spawn a sub-sub-agent. Two guards:
     1. resolve_tools_for_subagent excludes delegate_to_sub_agent_tool itself
        (primary anti-recursion mechanism).
-    2. This function rejects calls when the inbound session_id starts with
-       "subagent_" (belt-and-suspenders).
+    2. This function refuses an explicitly declared child context, as well as
+       the legacy "subagent_" thread spelling (belt-and-suspenders).
 
 Token attribution flows automatically into the parent TokenTrackingCallback
 via metadata["node_name_override"] = "sub-agent: <expertise>" (set by the
@@ -43,6 +43,7 @@ from langchain_core.tools import BaseTool, InjectedToolArg, tool
 
 from src.core.config import get_settings
 from src.core.context import request_tool_manifests_ctx
+from src.core.tool_context_scope import ChildToolContextScope
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.effects.runtime import resolve_policy
 from src.domains.agents.tools.output import UnifiedToolOutput
@@ -178,7 +179,9 @@ async def delegate_to_sub_agent_tool(
         # Depth check (belt-and-suspenders): the primary anti-recursion is in
         # resolve_tools_for_subagent, which excludes this tool from a sub-agent's
         # toolset. This guard catches legacy or odd invocation paths.
-        if config.session_id and config.session_id.startswith("subagent_"):
+        if isinstance(config.session_id, ChildToolContextScope) or config.session_id.startswith(
+            "subagent_"
+        ):
             return UnifiedToolOutput.failure(
                 message="Sub-agents cannot delegate to other sub-agents (depth limit reached).",
                 error_code="DEPTH_LIMIT_EXCEEDED",

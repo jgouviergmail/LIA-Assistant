@@ -1,24 +1,54 @@
+import type { ComponentProps } from 'react';
 import { act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInstance } from 'i18next';
+import { appConfigFixture } from '@/__tests__/fixtures/app-config';
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
-import { ApplicationPersonalMCPConfigurationCard } from '../ApplicationPersonalMCPConfigurationCard';
+import { AppConfigSeedContext, type AppConfig } from '@/hooks/useAppConfig';
+import { ApplicationPersonalMCPConfigurationCard as Card } from '../ApplicationPersonalMCPConfigurationCard';
 import type { ApplicationCommandStatus } from '@/types/application-commands';
 import type { RequestConfig } from '@/lib/api-client';
 import en from '../../../../locales/en/translation.json';
 
-const calls = vi.hoisted(() => ({ auth: vi.fn(), get: vi.fn(), post: vi.fn(), publish: vi.fn() }));
+const calls = vi.hoisted(() => ({
+  auth: vi.fn(),
+  get: vi.fn(),
+  post: vi.fn(),
+  publish: vi.fn(),
+  known: vi.fn(),
+}));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: calls.auth }));
+// The picker inside the form reads the catalogue through its own hook: held
+// here, so that `calls.get` stays what the CARD itself asks of the API.
+vi.mock('@/hooks/useKnownMCPServers', () => ({ useKnownMCPServers: calls.known }));
 vi.mock('@/lib/api-client', () => ({ default: { get: calls.get, post: calls.post } }));
 vi.mock('@/lib/application-resources', () => ({ publishApplicationResources: calls.publish }));
 const language = createInstance();
 await language.init({ lng: 'en', resources: { en: { translation: en } } });
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: language.t, i18n: language }) }));
+/** The layout's read of `/config` the card stands under; null until it answers. */
+const layout = { config: null as AppConfig | null };
+/** A configuration that has answered, with the operator's verdict on the personal servers. */
+const serversOffered = (enabled: boolean): AppConfig =>
+  appConfigFixture({ capabilities: { mcp: { enabled, family: 'reach' } } });
+
+/** The card as the chat mounts it: under the dashboard layout's configuration. */
+function ApplicationPersonalMCPConfigurationCard(props: ComponentProps<typeof Card>) {
+  return (
+    <AppConfigSeedContext.Provider value={layout.config}>
+      <Card {...props} />
+    </AppConfigSeedContext.Provider>
+  );
+}
+
 const command = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const server = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const check = vi.fn(async () => {});
 
-function waiting(serverId: string | null = null): ApplicationCommandStatus {
+function waiting(
+  serverId: string | null = null,
+  knownServer?: string
+): ApplicationCommandStatus {
   const expires = new Date(Date.now() + 60_000).toISOString();
   const interaction = { interaction_id: command, kind: 'device' as const, expires_at: expires };
   return {
@@ -40,6 +70,7 @@ function waiting(serverId: string | null = null): ApplicationCommandStatus {
           server_id: serverId,
           creating: serverId === null,
           requires_private_browser_form: true,
+          ...(knownServer && { known_server: knownServer }),
         },
       },
     },
@@ -103,8 +134,61 @@ async function fill(user: ReturnType<typeof render>['user']) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  layout.config = serversOffered(true);
   calls.auth.mockReturnValue({ user: { id: 'owner' } });
   calls.get.mockResolvedValue({ servers: [source()], total: 1 });
+  calls.known.mockReturnValue({ servers: [], loading: false });
+});
+
+describe('a known server the assistant proposed to add', () => {
+  const NOTION = {
+    key: 'notion',
+    name: 'Notion',
+    url: 'https://mcp.notion.com/mcp',
+    auth_type: 'oauth2',
+    domain_description: "The person's Notion workspace: pages, databases and comments.",
+  };
+
+  it('opens the private form filled with its public name, address and sign-in method', async () => {
+    calls.get.mockResolvedValue({ servers: [NOTION] });
+    calls.post.mockResolvedValue(saved(waiting(null, 'notion')));
+    const { user } = render(waiting(null, 'notion'));
+
+    expect(await open(user)).toHaveValue('Notion');
+
+    expect(calls.get).toHaveBeenCalledWith(
+      '/mcp/servers/known',
+      expect.objectContaining({ cache: 'no-store' })
+    );
+    expect(screen.getByRole('textbox', { name: 'Server URL' })).toHaveValue(
+      'https://mcp.notion.com/mcp'
+    );
+    // Nothing is saved by opening: the person still saves, and what leaves is the form.
+    expect(calls.post).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(calls.post.mock.calls[0][1]).toEqual({
+      values: {
+        name: 'Notion',
+        url: 'https://mcp.notion.com/mcp',
+        auth_type: 'oauth2',
+        timeout_seconds: 30,
+        iterative_mode: false,
+        domain_description: "The person's Notion workspace: pages, databases and comments.",
+      },
+    });
+  });
+
+  it.each([
+    ['the catalogue cannot be read', () => calls.get.mockRejectedValue(new Error('offline'))],
+    ['the catalogue no longer lists it', () => calls.get.mockResolvedValue({ servers: [] })],
+  ])('opens the empty form when %s: the address can still be typed', async (_label, arrange) => {
+    arrange();
+    const { user } = render(waiting(null, 'notion'));
+
+    expect(await open(user)).toHaveValue('');
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });
 
 describe('approved private MCP browser configuration', () => {
@@ -302,5 +386,87 @@ describe('approved private MCP browser configuration', () => {
       )
     ).toBeInTheDocument();
     expect(calls.publish).not.toHaveBeenCalled();
+  });
+});
+
+describe('a private MCP configuration the instance no longer offers', () => {
+  const OPEN = 'Open the private form';
+
+  it('offers no form where the operator closed the personal servers, and says the action cannot complete', () => {
+    // Confirmed while the servers were offered, read after the switch: the
+    // form could only open on a refused read and end on a refused save.
+    layout.config = serversOffered(false);
+
+    render(waiting(server));
+
+    expect(screen.queryByRole('button', { name: OPEN })).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      en.settings.application_tools.secure_failed
+    );
+    // The result stays checkable: the command may have completed elsewhere.
+    expect(screen.getByRole('button', { name: 'Check result' })).toBeInTheDocument();
+    expect(calls.get).not.toHaveBeenCalled();
+    expect(calls.post).not.toHaveBeenCalled();
+  });
+
+  it('offers the form again once the servers are offered again', () => {
+    layout.config = serversOffered(false);
+    const view = render(waiting());
+    expect(screen.queryByRole('button', { name: OPEN })).not.toBeInTheDocument();
+
+    layout.config = serversOffered(true);
+    view.rerender(
+      <ApplicationPersonalMCPConfigurationCard
+        status={waiting()}
+        checkResult={check}
+        readError={null}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: OPEN })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      en.settings.application_tools.mcp_configuration_waiting
+    );
+  });
+
+  it('closes a form the switch overtook, with what was typed in it', async () => {
+    // The SAME confirmation, re-read under a configuration that closed the
+    // servers: nothing else may explain the form going away.
+    const status = waiting();
+    const view = render(status);
+    await fill(view.user);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    view.rerender(
+      <ApplicationPersonalMCPConfigurationCard
+        status={{ ...status }}
+        checkResult={check}
+        readError={null}
+      />
+    );
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    layout.config = serversOffered(false);
+    view.rerender(
+      <ApplicationPersonalMCPConfigurationCard
+        status={{ ...status }}
+        checkResult={check}
+        readError={null}
+      />
+    );
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.queryByDisplayValue('New server')).not.toBeInTheDocument();
+    expect(calls.post).not.toHaveBeenCalled();
+  });
+
+  it('claims nothing before the configuration has answered: no form yet, and no failure either', () => {
+    layout.config = null;
+
+    render(waiting());
+
+    expect(screen.queryByRole('button', { name: OPEN })).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      en.settings.application_tools.mcp_configuration_waiting
+    );
   });
 });

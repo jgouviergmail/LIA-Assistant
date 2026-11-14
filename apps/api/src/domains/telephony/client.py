@@ -22,6 +22,9 @@ logger = structlog.get_logger(__name__)
 #: What a workspace tool became once released without force (ADR-373): deleted,
 #: kept because another agent still uses it, or kept on any other answer.
 ToolRelease = Literal["freed", "in_use", "refused"]
+#: The two kinds of workspace tools LIA creates: the live session's CLIENT tools
+#: (the browser answers them) and the phone's WEBHOOK tools (this API answers them).
+ToolKind = Literal["client", "webhook"]
 
 _BASE_URL = "https://api.elevenlabs.io/v1/convai"
 # ElevenLabs authenticates via this header (not a bearer token).
@@ -391,14 +394,36 @@ class ElevenLabsAgentsClient:
         logger.info("elevenlabs_tool_created", tool_id=tool_id)
         return tool_id
 
-    async def list_tools(self) -> list[dict[str, Any]]:
-        """The workspace's CLIENT tools, page after page (ADR-373).
+    async def update_tool(self, tool_id: str, body: dict[str, Any]) -> None:
+        """Rewrite a workspace tool in place, under its id.
 
-        LIA only ever creates client tools, so nothing else is read. Pages
-        follow ``next_cursor`` while ``has_more``, bounded by
+        Measured 2026-11-11 on a throwaway tool: ``PATCH /tools/{id}`` REPLACES
+        the tool's config (a field set by hand on the portal falls back to the
+        vendor's default when LIA's body omits it) and keeps the id, so every
+        agent naming the tool holds the rewritten one at once.
+
+        Args:
+            tool_id: The vendor's tool id.
+            body: The ``tool_config`` envelope LIA creates the tool from.
+
+        Raises:
+            ElevenLabsAgentsError: On a vendor refusal (404 for a tool gone).
+        """
+        await self._request("PATCH", f"/tools/{tool_id}", json=body)
+        logger.info("elevenlabs_tool_rewritten", tool_id=tool_id)
+
+    async def list_tools(self, kind: ToolKind) -> list[dict[str, Any]]:
+        """The workspace's tools of one kind, page after page (ADR-373).
+
+        A live session reads the CLIENT tools, the phone the WEBHOOK ones
+        (measured 2026-11-11: the listing filters on ``types``). Pages follow
+        ``next_cursor`` while ``has_more``, bounded by
         :data:`ELEVENLABS_TOOLS_LIST_MAX_PAGES`: a cursor that never ends
         cannot hold a session start, and past the bound the listing is what
         was read — the logs say so.
+
+        Args:
+            kind: The kind of tools to read.
 
         Returns:
             The tools as the vendor serves them (``id``, ``tool_config``).
@@ -409,7 +434,7 @@ class ElevenLabsAgentsClient:
         tools: list[dict[str, Any]] = []
         cursor: str | None = None
         for _page in range(ELEVENLABS_TOOLS_LIST_MAX_PAGES):
-            params: dict[str, Any] = {"page_size": ELEVENLABS_TOOLS_PAGE_SIZE, "types": "client"}
+            params: dict[str, Any] = {"page_size": ELEVENLABS_TOOLS_PAGE_SIZE, "types": kind}
             if cursor:
                 params["cursor"] = cursor
             payload = (await self._request("GET", "/tools", params=params)).json()

@@ -28,9 +28,13 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Sequence
+from collections.abc import Awaitable, Sequence
 from datetime import UTC, date, datetime
-from typing import Any
+from typing import Any, Protocol
+from uuid import uuid4
+
+from src.core.config import settings
+from src.core.constants import REDIS_KEY_RECURRENCE_WRITER_PREFIX
 
 KEY_PREFIX = "recurrence"
 
@@ -46,6 +50,60 @@ _INTENT_SHAPE = re.compile(r"^[a-z][a-z0-9_]*$")
 #: from ``product_outcomes`` by the habits recompute (ADR-214 amendment).
 ORIGIN_LIVE = "live"
 ORIGIN_SEED = "seed"
+
+
+class FenceRedis(Protocol):
+    """One atomic command, shared by native Redis and controlled test transports."""
+
+    def eval(self, script: str, numkeys: int, /, *args: str) -> Awaitable[object]: ...
+
+
+FENCED_STORE = """
+local function store_current(fence_key, key, token, payload, ttl, only_absent)
+    if redis.call('GET', fence_key) ~= token then return 0 end
+    if only_absent then
+        if not redis.call('SET', key, payload, 'EX', ttl, 'NX') then return 0 end
+    else
+        redis.call('SET', key, payload, 'EX', ttl)
+    end
+    return 1
+end
+"""
+
+
+def writer_key(user_id: str) -> str:
+    """An account fence survives erasure of the learning payloads themselves."""
+    return f"{REDIS_KEY_RECURRENCE_WRITER_PREFIX}{user_id}"
+
+
+async def acquire_write_token(redis: FenceRedis, user_id: str) -> str:
+    """Capture before source reads; an expired token never authorizes a late write."""
+    result = await redis.eval(
+        "redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2], 'NX'); "
+        "return redis.call('GET', KEYS[1])",
+        1,
+        writer_key(user_id),
+        str(uuid4()),
+        str(settings.recurrence_window_days * 86400),
+    )
+    if isinstance(result, bytes):
+        result = result.decode("ascii")
+    if not isinstance(result, str) or not result:
+        raise RuntimeError("Recurrence write authority unavailable")
+    return result
+
+
+async def revoke_writes(redis: FenceRedis, user_id: str) -> None:
+    """Rotate before acknowledging a preference withdrawal or erasing the ledger."""
+    result = await redis.eval(
+        "redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2]); return 1",
+        1,
+        writer_key(user_id),
+        str(uuid4()),
+        str(settings.recurrence_window_days * 86400),
+    )
+    if result != 1:
+        raise RuntimeError("Recurrence write revocation unconfirmed")
 
 
 def build_signature(primary_domain: str, secondary_domains: Sequence[str] = ()) -> str:
@@ -101,6 +159,7 @@ async def delete_user_ledger(redis: Any, user_id: str) -> int:
     Returns:
         Number of keys deleted (exact).
     """
+    await revoke_writes(redis, user_id)
     keys: list[str] = []
     async for key in redis.scan_iter(match=user_key_pattern(user_id)):
         keys.append(key.decode() if isinstance(key, bytes) else str(key))
@@ -155,13 +214,30 @@ async def store(redis: Any, key: str, data: dict[str, Any], ttl_days: int) -> No
     await redis.set(key, json.dumps(data), ex=ttl_days * 86400)
 
 
-async def store_if_absent(redis: Any, key: str, data: dict[str, Any], ttl_days: int) -> bool:
+async def store_if_absent(
+    redis: FenceRedis,
+    key: str,
+    data: dict[str, Any],
+    ttl_days: int,
+    *,
+    user_id: str,
+    write_token: str,
+) -> bool:
     """Persist ONLY when the key does not exist (seed path: live data wins).
 
     Returns:
         True when the key was written, False when it already existed.
     """
-    return bool(await redis.set(key, json.dumps(data), ex=ttl_days * 86400, nx=True))
+    result = await redis.eval(
+        FENCED_STORE + "return store_current(KEYS[1], KEYS[2], ARGV[1], ARGV[2], ARGV[3], true)",
+        2,
+        writer_key(user_id),
+        key,
+        write_token,
+        json.dumps(data),
+        str(ttl_days * 86400),
+    )
+    return result == 1
 
 
 def normalise_intent(raw: object) -> str | None:

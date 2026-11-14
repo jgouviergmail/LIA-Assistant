@@ -5,6 +5,10 @@ migration: the operator retires a model, or enters a tariff again at the same pr
 holds the seed to a migration keeps reading the row the migration wrote, at its own date, which
 stays in the bundle as history; only ``is_active`` is the operator's word, and only for the models
 named here (extraction of 2026-11-06, held honest by ``test_pricing_seed_extraction_guard.py``).
+
+Four of them -- ``llama3.2``, ``mistral``, ``qwen2.5`` and ``sonar-reasoning`` -- left on
+2026-11-11, when the owner had the bundle applied to production as written: it retires a model it
+prices only in the past and that no slot names.
 """
 
 from __future__ import annotations
@@ -36,14 +40,18 @@ RETIRED_BY_THE_OPERATOR: frozenset[str] = frozenset(
         "gpt-5.2-chat-latest",
         "gpt-5.2-codex",
         "gpt-5.3-chat-latest",
+        "llama3.2",
+        "mistral",
         "o1",
         "o1-pro",
         "o3-deep-research",
         "o3-mini",
         "o4-mini",
         "o4-mini-deep-research",
+        "qwen2.5",
         "qwen3.5-flash",
         "qwen3.5-plus",
+        "sonar-reasoning",
     }
 )
 

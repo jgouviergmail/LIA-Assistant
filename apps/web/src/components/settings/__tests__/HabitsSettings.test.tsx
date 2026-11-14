@@ -27,9 +27,16 @@ const state = {
   overview: null as HabitsOverview | null,
 };
 
+/** What the operator switched off: absent, the deployment flag alone decides. */
+const operator = vi.hoisted(() => ({
+  capabilities: undefined as Record<string, { enabled: boolean; family: string }> | undefined,
+}));
 vi.mock('@/hooks/useAppConfig', () => ({
   useAppConfig: () => ({
-    config: { features: { habits_enabled: state.flagOn } },
+    config: {
+      features: { habits_enabled: state.flagOn },
+      capabilities: operator.capabilities,
+    },
   }),
 }));
 // The global stub echoes keys; this one ALSO records every key asked for, so
@@ -591,5 +598,19 @@ describe('streaks (Lot 1-A4)', () => {
 
     expect(screen.getByText('settings.habits.rhythm_title')).toBeVisible();
     expect(screen.queryByText('settings.habits.streak_current')).not.toBeInTheDocument();
+  });
+});
+
+describe('HabitsSettings under the operator switch', () => {
+  it('keeps what was learned readable and withdraws the act the switch closed', () => {
+    // Learned habits are a record: the section stays. Recomputing is an act,
+    // and its route refuses once the operator switched the habits off.
+    state.flagOn = true;
+    operator.capabilities = { habits: { enabled: false, family: 'knowledge' } };
+    renderSection();
+    operator.capabilities = undefined;
+
+    expect(screen.getByRole('button', { name: /forget_all_label/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /recompute_label/ })).toBeNull();
   });
 });

@@ -14,6 +14,7 @@ What only the database can prove:
 from __future__ import annotations
 
 import asyncio
+import threading
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -24,7 +25,12 @@ from uuid import UUID, uuid4
 import pytest
 import pytest_asyncio
 from sqlalchemy import delete, func, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from src.core.exceptions import BaseAPIException
 from src.domains.attachments.models import (
@@ -41,11 +47,64 @@ from src.domains.peers.models import (
     PeerImageShare,
     canonical_pair,
 )
+from src.domains.users.account_cleanup import refuse_account_writers
 from src.domains.users.models import User
+from tests.helpers.committed_account_session import async_session as async_session
+from tests.helpers.committed_users import commit_owner
 
 pytestmark = pytest.mark.integration
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"shared-image-bytes"
+
+
+async def test_a_copy_in_flight_protects_both_accounts_from_erasure(
+    async_engine: AsyncEngine,
+    committed_user_ids: list[UUID],
+    storage: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The sender's action must not repopulate their rows after account purge."""
+    sender = await commit_owner(async_engine, committed_user_ids)
+    recipient = await commit_owner(async_engine, committed_user_ids)
+    async with AsyncSession(async_engine, expire_on_commit=False) as db:
+        connection = await _connection(db, sender, recipient, PeerConnectionStatus.ACCEPTED)
+        source = await _image(db, storage, sender)
+        await db.commit()
+        connection_id, attachment_id = connection.id, source.id
+    started, release = threading.Event(), threading.Event()
+    original = image_share._copy_file
+
+    def delayed(source_path: Path, target: Path) -> None:
+        started.set()
+        assert release.wait(15)
+        original(source_path, target)
+
+    monkeypatch.setattr(image_share, "_copy_file", delayed)
+
+    async def copy() -> None:
+        async with AsyncSession(async_engine, expire_on_commit=False) as db:
+            await image_share.share_image(
+                db,
+                sender_id=sender,
+                connection_id=connection_id,
+                attachment_id=attachment_id,
+                comment=None,
+                record_user_action=False,
+            )
+
+    task = asyncio.create_task(copy())
+    try:
+        assert await asyncio.to_thread(started.wait, 10)
+        async with AsyncSession(async_engine) as observer:
+            for owner in (sender, recipient):
+                with pytest.raises(BaseAPIException):
+                    await refuse_account_writers(observer, owner)
+    finally:
+        release.set()
+        await task
+    async with AsyncSession(async_engine) as observer:
+        for owner in (sender, recipient):
+            await refuse_account_writers(observer, owner)
 
 
 async def _user(session: AsyncSession, email: str, name: str) -> User:

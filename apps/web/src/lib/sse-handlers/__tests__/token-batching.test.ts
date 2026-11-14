@@ -9,17 +9,23 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { flushTokenBatching, processSSEChunk, resetTokenBatching } from '@/lib/sse-handlers';
+import { createSSEProcessor } from '@/lib/sse-handlers';
 import type { SSEHandlerContext } from '@/lib/sse-handlers/types';
 import type { ChatStreamChunk } from '@/types/chat';
+import { createInstance } from 'i18next';
+
+const { flushTokenBatching, processSSEChunk, resetTokenBatching } = createSSEProcessor();
 
 function buildContext(): { context: SSEHandlerContext; dispatch: ReturnType<typeof vi.fn> } {
   const dispatch = vi.fn();
   let normalStreamInitialized = true; // "stream already started" path → plain STREAM_TOKEN
-  const context = {
+  const context: SSEHandlerContext = {
     dispatch,
-    withContext: (extra: Record<string, unknown>) => extra,
-    t: (key: string) => key,
+    withContext: extra => extra ?? {},
+    t: createInstance().t,
+    handleVoiceChunk: vi.fn(),
+    hitlQuestionBuffer: { current: new Map() },
+    isReplay: false,
     progressMessageId: null,
     setProgressMessageId: vi.fn(),
     assistantMessageId: 'assistant-1',
@@ -35,7 +41,7 @@ function buildContext(): { context: SSEHandlerContext; dispatch: ReturnType<type
     reasoningBufRef: { current: '' },
     traceStepsRef: { current: [] },
     traceReasoningRef: { current: '' },
-  } as unknown as SSEHandlerContext;
+  };
   return { context, dispatch };
 }
 

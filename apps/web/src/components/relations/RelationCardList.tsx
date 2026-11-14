@@ -220,6 +220,10 @@ function Toolbar({
         value,
         label: t(`relations.sort_${value}`),
       }))}
+      active={[
+        ...(onlyPeers ? [t('relations.only_peers')] : []),
+        ...(onlyDormant ? [t('relations.only_dormant')] : []),
+      ]}
       chips={
         <>
           <FilterChip

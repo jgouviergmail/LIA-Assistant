@@ -644,37 +644,60 @@ tasks:
       - cmd: python3 -m scripts.sandbox_egress.libraries_check {{.IMAGE}}
         platforms: [linux, darwin]
 
-  react:selection:measure:
-    desc: Replay real ReAct turns against the tool-selection policy (NETWORK, on demand — ADR-293)
+  mcp:known-servers:check:
+    desc: Re-measure that LIA reaches every known MCP server as it is (NETWORK, read-only, no account)
+    # A MEASUREMENT, never a gate: it asks third-party hosts. Run it before a
+    # release — an address a vendor moved is a dead card of the known servers
+    # (src/infrastructure/mcp/known_servers.py, docs/technical/MCP_INTEGRATION.md
+    # § Known servers). Nothing is registered and nobody signs in.
     dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python -m scripts.mcp.known_servers_check
+        platforms: [windows]
+      - cmd: .venv/bin/python -m scripts.mcp.known_servers_check
+        platforms: [linux, darwin]
+
+  react:selection:measure:
+    desc: Replay real ReAct turns against the tool-selection policy (dev API; NETWORK, on demand — ADR-293)
     # A MEASUREMENT, never a gate: it needs the registry, the selector's
     # embedding cache and one small embedding call per turn (none with a
     # --rankings-cache already filled). The turns file is the operator's own
     # extraction (query, router domains, tools called); nothing in the
     # repository holds anyone's turns — apps/api/scripts/react/selection_corpus.json
-    # is a synthetic corpus (ADR-293 amendment 2026-10-12).
+    # is a synthetic corpus (ADR-293 amendment 2026-10-12). It runs inside the
+    # API container, as a module: a path given is read from apps/api, mounted there.
     cmds:
-      - cmd: .venv/Scripts/python scripts/react/measure_tool_selection.py {{.CLI_ARGS}}
-        platforms: [windows]
-      - cmd: .venv/bin/python scripts/react/measure_tool_selection.py {{.CLI_ARGS}}
-        platforms: [linux, darwin]
+      - cmd: docker exec lia-api-dev python -m scripts.react.measure_tool_selection {{.CLI_ARGS}}
 
   react:recovery:measure:
-    desc: Measure how the ReAct loop recovers from obstacles on real models (PAID, on demand — ADR-310)
-    dir: "{{.API_DIR}}"
-    # A MEASUREMENT, never a gate: eleven scenarios of deterministic stub tools
+    desc: Measure how the ReAct loop recovers from obstacles on real models (dev API; PAID, on demand — ADR-310)
+    # A MEASUREMENT, never a gate: twelve scenarios of deterministic stub tools
     # (wrong day served, error then fix, empty until relaxed, dedicated tool
-    # down, truncated list, unobtainable, the 2026-09-23 trip whose weather is
+    # down, a public subject searched on the web first where nothing is a
+    # fallback, truncated list, unobtainable, the 2026-09-23 trip whose weather is
     # a cross-check, clean control, and a draft send refused unattended —
     # its stand-in named, not named, or for a third party) through the loop's own
     # functions, on the models passed (`--models provider:model@level,...`,
     # Anthropic refused), stopping past `--budget` USD. `--baseline-prompt FILE`
     # renders another ReAct prompt, which is how a doctrine meets its predecessor.
+    # It runs inside the API container, which holds the model configuration, the
+    # provider keys and the tariffs: a path given is read from apps/api, mounted there.
     cmds:
-      - cmd: .venv/Scripts/python scripts/react/measure_recovery.py {{.CLI_ARGS}}
-        platforms: [windows]
-      - cmd: .venv/bin/python scripts/react/measure_recovery.py {{.CLI_ARGS}}
-        platforms: [linux, darwin]
+      - cmd: docker exec lia-api-dev python -m scripts.react.measure_recovery {{.CLI_ARGS}}
+
+  react:notes:measure:
+    desc: Measure how the ReAct loop takes a note the person adds mid-turn on real models (dev API; PAID, on demand — ADR-385)
+    # A MEASUREMENT, never a gate: three scenarios of deterministic stub tools
+    # (places filtered by a Sunday note, a forecast moved to another city, a
+    # packing list completed by a dog) through the loop's own functions — the
+    # ReAct prompt, the stamp, the note's record and its place — the note joining
+    # after the first tool results, on the models passed
+    # (`--models provider:model@level,...`), stopping past `--budget` USD.
+    # `--without-note` is the baseline every scenario must fail. It runs inside
+    # the API container, which holds the model configuration, the provider keys
+    # and the tariffs.
+    cmds:
+      - cmd: docker exec lia-api-dev python -m scripts.react.measure_turn_notes {{.CLI_ARGS}}
 
   discussions:context:measure:
     desc: Measure what a proactive-discussion context pass reads, admits and interprets for one account (dev API; --mode context is BILLED)
@@ -686,6 +709,93 @@ tasks:
     # and files every source it opens. It prints counts only.
     cmds:
       - cmd: docker exec lia-api-dev python -m scripts.proactive_discussions.measure_context {{.CLI_ARGS}}
+
+  routines:quiet:measure:
+    desc: Measure whether a model says « nothing new » when a quiet routine should stay silent (dev API; PAID, on demand — ADR-265 amendment c)
+    # A MEASUREMENT, never a gate. Five routine runs whose data is stated (a
+    # search that found nothing, one that found something, a watched condition
+    # unmet, met, and what the previous run already reported) go through the
+    # response node's own builders inside `quiet_run_scope`, and the
+    # declaration is read by the production seam. It runs inside the API
+    # container: the response slot and the tariffs are the database's.
+    # `--dry-run` asks no model; `--models provider:model@level,...` asks other
+    # families with the slot's own settings; it stops past `--budget-eur`.
+    cmds:
+      - cmd: docker exec lia-api-dev python -m scripts.routines.measure_quiet_delivery {{.CLI_ARGS}}
+
+  skills:detection:measure:
+    desc: Measure which skill the query analyzer detects for stated requests (dev API; PAID, on demand — ADR-160)
+    # A MEASUREMENT, never a gate. English pivots — triggers of the skills under
+    # test and neighbours one domain away — go through the production
+    # `analyze_query` with the checkout's system skills in its list; a hijack (a
+    # neighbour taken by a skill under test) is read first, then a miss. It runs
+    # inside the API container: the analyzer slot and the tariffs are the
+    # database's. `--dry-run` asks no model; `--models provider:model@level,...`
+    # asks other families with the slot's own settings; it stops past `--budget-eur`.
+    cmds:
+      - cmd: docker exec lia-api-dev python -m scripts.skills.measure_skill_detection {{.CLI_ARGS}}
+
+  connectors:searxng:measure:
+    desc: Measure what the instance's SearXNG answers LIA, in six languages, spaced and in a burst (free — lot 18)
+    # A MEASUREMENT, never a gate, and free: no paid API. It asks the `searxng`
+    # service of the dev stack the way LIA's client does and prints the useful
+    # searches per language, kind and phase, the waits, and the engines that
+    # answered or failed (docs/technical/WEB_SEARCH.md, ADR-382).
+    cmds:
+      - cmd: docker exec lia-api-dev python -m scripts.connectors.measure_searxng --url http://searxng:8080 {{.CLI_ARGS}}
+
+  skills:from-conversation:measure:
+    desc: Measure whether a skill made from what was just done holds what was done (dev API; PAID, on demand — lot 20)
+    # A MEASUREMENT, never a gate, on FICTIONAL conversations: the generator's runner call
+    # with the history as today, plus the tools that ran, or plus a generalisation rule;
+    # scored by rule (tools named, facts copied, the generator's validator)
+    # (docs/technical/SKILLS_INTEGRATION.md § A skill made from what was just done).
+    cmds:
+      - cmd: docker exec lia-api-dev python -m scripts.skills.measure_skill_from_conversation {{.CLI_ARGS}}
+
+  emails:writing-style:measure:
+    desc: Measure whether a reply or a new e-mail sounds like the person when the writer knows how they write (dev API; PAID, on demand — lot 19)
+    # A MEASUREMENT, never a gate, on FICTIONAL people only. Replies: three arms
+    # (production as it is, plus the style profile, plus three sent e-mails);
+    # pass --compose for new e-mails (plain, profile). Each persona's marks are
+    # checked by rule and a planted fact copied is a leak; --judge adds a blind
+    # vote (docs/technical/WRITING_STYLE.md, ADR-383).
+    cmds:
+      - cmd: docker exec lia-api-dev python -m scripts.emails.measure_writing_style {{.CLI_ARGS}}
+
+  agents:repetition:measure:
+    desc: Count the assistant answers that repeat themselves (read only, free — lot 26)
+    # A MEASUREMENT, never a gate. Three rule detectors over the archived answers of the
+    # last --days, in a read-only session; a flag shows the SHAPE of what repeats, never
+    # a word (docs/technical/MODEL_OUTPUT_HEALTH.md).
+    cmds:
+      - cmd: docker exec lia-api-dev python -m scripts.agents.measure_repeated_output {{.CLI_ARGS}}
+
+  agents:model-tail:measure:
+    desc: Read the tail of model calls and answer streams from Prometheus (read only, free — lot 26)
+    # A MEASUREMENT, never a gate: calls and errors by kind, calls past 30 and 60 s by
+    # node, streams and their errors (docs/technical/MODEL_OUTPUT_HEALTH.md).
+    cmds:
+      - cmd: docker exec lia-api-dev python -m scripts.agents.measure_model_call_tail {{.CLI_ARGS}}
+
+  agents:history-tokens:measure:
+    desc: Time the token counting of a compiled agent's history before each model call (free — lot 26)
+    # A MEASUREMENT, never a gate: the real middleware on browser-shaped histories, and
+    # what a per-message memo would encode instead (docs/technical/MODEL_OUTPUT_HEALTH.md).
+    cmds:
+      - cmd: docker exec lia-api-dev python -m scripts.agents.measure_history_token_counting {{.CLI_ARGS}}
+
+  agents:timestamps:measure:
+    desc: Measure whether stamping each earlier message with when it was written helps time-bound answers (dev API; PAID, on demand — lot 17)
+    # A MEASUREMENT, never a gate. Two arms per question — the history as
+    # production sends it, and each earlier message prefixed with its wall time
+    # in the person's zone plus one sentence saying so — on time-bound questions
+    # (both verdicts expected) and controls (what was said, not when). It runs
+    # inside the API container: the response slot and the tariffs are the
+    # database's. `--dry-run` asks no model; `--models provider:model@level,...`
+    # asks other families with the slot's own settings; it stops past `--budget-eur`.
+    cmds:
+      - cmd: docker exec lia-api-dev python -m scripts.agents.measure_message_timestamps {{.CLI_ARGS}}
 
   journals:portrait:measure:
     desc: Seed a synthetic persona into the PROOF account on dev and measure what the portrait publishes (NETWORK, billed, on demand)
@@ -774,6 +884,19 @@ tasks:
     cmds:
       - cmd: pwsh -NoProfile -File scripts/document_generation/measure_office.ps1 -Dir data/document_corpus_out
         platforms: [windows]
+
+  documents:writer:measure:
+    desc: Measure what the document writer costs and which rules it keeps, on real models (dev API; PAID, on demand — ADR-388)
+    # A MEASUREMENT, never a gate. The scenarios of
+    # apps/api/scripts/document_generation/writer_scenarios.json go through the
+    # production's own door (prompt, schema, structured output, retries) on the
+    # models passed (`--models provider:model@level,...`), pointed at in the
+    # measurement's own process — the database is never written — on the PROOF
+    # account, stopping past `--budget` USD. It reports calls, tokens, cost and
+    # the rules kept (figures from the material, no invented address, pictures
+    # within budget); it prints counts and flags, never a document.
+    cmds:
+      - cmd: docker exec lia-api-dev python -m scripts.document_generation.measure_writer {{.CLI_ARGS}}
 
   mobile:probe:android:
     desc: Measure LIA's production headers inside a real Android WebView (needs a booted emulator/device)
@@ -1353,6 +1476,21 @@ tasks:
         tests/unit/infrastructure/proactive/test_discussion_read_controls.py
         tests/unit/test_coverage_union_guard.py
         tests/integration/domains/conversations/test_response_feedback_route.py
+        tests/integration/domains/conversations/test_catalogue_routes.py
+        tests/integration/domains/conversations/test_targeted_history.py
+        tests/integration/domains/conversations/test_multi_conversation_accounting.py
+        tests/integration/domains/conversations/test_catalogue_migration.py
+        tests/integration/domains/conversations/test_creation_races.py
+        tests/integration/domains/conversations/test_multi_conversation_schema.py
+        tests/unit/domains/conversations/test_catalogue_contract.py
+        tests/unit/domains/conversations/test_runtime_identity.py
+        tests/unit/domains/agents/tools/test_tool_context_runtime.py
+        tests/unit/test_conversation_identity_guard.py
+        tests/fixtures/conversation_cases.py
+        tests/fixtures/persisted_runtimes.py
+        tests/integration/domains/conversations/test_runtime_write_fence.py
+        tests/integration/test_langgraph_pool_concurrency.py
+        tests/integration/test_checkpointer_pool_benchmark.py
         tests/unit/domains/proactive_discussions/test_reply_receipts.py
         tests/unit/core/security/test_password_reset_token.py
         tests/unit/domains/auth/reset_budget_fakes.py
@@ -1364,6 +1502,57 @@ tasks:
         tests/unit/core/config/test_turnstile_settings.py
         tests/unit/domains/auth/test_turnstile_gate.py
         tests/unit/infrastructure/external/test_turnstile_client.py
+        tests/unit/infrastructure/scheduler/test_voice_delegation.py
+        tests/integration/test_voice_delegation_redis.py
+        tests/integration/domains/attachments/test_conversation_usage.py
+        tests/integration/domains/conversations/test_lifecycle.py
+        tests/integration/domains/conversations/test_cleanup_recovery.py
+        tests/integration/domains/conversations/test_runtime_cleanup.py
+        tests/integration/domains/conversations/test_account_cleanup.py
+        tests/integration/domains/conversations/test_account_export_scope.py
+        tests/fixtures/learning_sources.py
+        tests/integration/domains/conversations/test_current_conversation_keep.py
+        tests/integration/domains/conversations/test_deferred_source_writers.py
+        tests/integration/domains/conversations/test_extraction_source_fence.py
+        tests/integration/domains/conversations/test_learning_provenance_retirement.py
+        tests/integration/domains/conversations/test_proactive_reply_scope.py
+        tests/integration/domains/conversations/test_recurrence_source_fence.py
+        tests/integration/domains/conversations/test_record_extractor_sources.py
+        tests/integration/domains/journals/test_extraction_business_source.py
+        tests/integration/domains/journals/test_multi_conversation_sources.py
+        tests/unit/domains/agents/nodes/test_secondary_extraction_parity.py
+        tests/unit/test_conversation_reader_scopes_guard.py
+        tests/fixtures/live_work.py
+        tests/unit/domains/live/test_conversation_binding.py
+        tests/integration/domains/conversations/test_live_reservation.py
+        tests/integration/domains/live/test_bound_archive.py
+        tests/integration/domains/live/test_opening_reservation.py
+        tests/integration/domains/live/test_work_cancellation.py
+        tests/integration/domains/live/test_relay_reservation.py
+        tests/integration/domains/live/test_store_ownership.py
+        tests/unit/domains/conversations/test_multi_conversation_sync.py
+        tests/integration/domains/conversations/test_multi_conversation_sync_pg.py
+        tests/integration/domains/conversations/test_account_file_writers.py
+        tests/integration/domains/conversations/test_account_audio_writers.py
+        tests/integration/domains/conversations/test_conversation_abandonment_metrics.py
+        tests/integration/domains/attachments/test_usage_migration.py
+        tests/integration/domains/attachments/test_file_publication.py
+        tests/integration/domains/attachments/test_file_cleanup.py
+        tests/integration/domains/attachments/test_generated_deletion.py
+        tests/integration/domains/attachments/test_upload_selection.py
+        tests/integration/domains/attachments/test_file_io_migrations.py
+        tests/integration/domains/attachments/test_copy_source_paths.py
+        tests/unit/domains/attachments/test_upload_bounds.py
+        tests/helpers/attachment_publication.py
+        tests/helpers/account_file_writes.py
+        tests/helpers/committed_account_session.py
+        tests/helpers/run_authority.py
+        tests/integration/domains/attachments/test_generated_publication.py
+        tests/unit/scripts/test_recover_file_writes_cli.py
+        tests/unit/domains/agents/api/test_attachments_injection_turn_files.py
+        tests/helpers/calendar_providers.py tests/unit/core/test_wall_time.py
+        tests/unit/domains/connectors/clients/test_event_bounds.py
+        tests/unit/domains/connectors/clients/test_event_time_round_trip.py
     cmds:
       - cmd: .venv/Scripts/ruff check src tests
         platforms: [windows]

@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import PROACTIVE_MESSAGE_TYPE_PREFIX
+from src.core.conversation_publication import CurrentPrimaryPublication
 from src.core.field_names import (
     FIELD_FEEDBACK_ENABLED,
     FIELD_RUN_ID,
@@ -656,7 +657,7 @@ class NotificationDispatcher:
 
         # Archive the proactive message
         message = await conv_service.archive_message(
-            conversation_id=conversation_id,
+            conversation_id=CurrentPrimaryPublication(user.id),
             role="assistant",
             content=content,
             metadata=metadata,

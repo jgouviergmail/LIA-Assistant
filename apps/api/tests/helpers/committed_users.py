@@ -8,6 +8,8 @@ from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from src.domains.users.models import User
+from src.domains.users.user_data_map import TABLE_RULES, TableDataClass
+from src.infrastructure.database.session import Base
 
 
 @asynccontextmanager
@@ -24,6 +26,12 @@ async def committed_user_scope(engine: AsyncEngine) -> AsyncIterator[list[UUID]]
         if identities:
             async with async_sessionmaker(engine)() as db:
                 await db.execute(delete(User).where(User.id.in_(identities)))
+                # Operational debt deliberately has no account CASCADE. Tests own
+                # these rows too; production retention is tested before teardown.
+                for name, rule in TABLE_RULES.items():
+                    if rule.data_class == TableDataClass.OPERATIONAL_RETAINED:
+                        table = Base.metadata.tables[name]
+                        await db.execute(delete(table).where(table.c.user_id.in_(identities)))
                 await db.commit()
 
 

@@ -12,45 +12,16 @@ import { describe, it, expect } from 'vitest';
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import { NeedsMeList } from '@/components/workboard/NeedsMeList';
 import type { TicketRow } from '@/types/workboard';
+import { makeTicket } from '@/__tests__/factories';
 
 function ticket(overrides: Partial<TicketRow> & { id: string }): TicketRow {
-  return {
+  return makeTicket({
     owner_user_id: 'me',
-    parent_id: null,
     title: `Ticket ${overrides.id}`,
-    description: null,
     status: 'waiting',
-    priority: 'medium',
-    start_at: null,
-    due_at: null,
-    assignee_kind: 'human',
-    assignee_user_id: null,
     effective_assignee_id: 'me',
-    position: 0,
-    follow_owner: false,
-    follow_assignee: false,
-    created_by: 'user',
-    status_changed_at: '2026-09-09T10:00:00Z',
-    run_count: 0,
-    run_claimed_at: null,
-    last_run_at: null,
-    last_run_outcome: null,
-    last_run_error: null,
-    last_run_tokens_in: null,
-    last_run_tokens_out: null,
-    last_run_tokens_cache: null,
-    last_run_google_requests: null,
-    last_run_cost_eur: null,
-    created_at: '2026-09-09T10:00:00Z',
-    execution_mode: 'react',
-    total_tokens_in: 0,
-    total_tokens_out: 0,
-    total_tokens_cache: 0,
-    total_google_requests: 0,
-    total_cost_eur: 0,
-    updated_at: '2026-09-09T10:00:00Z',
     ...overrides,
-  };
+  });
 }
 
 describe('the rows', () => {
@@ -92,5 +63,42 @@ describe('the rows', () => {
     const { container } = renderWithProviders(<NeedsMeList tickets={[]} lng="fr" />);
 
     expect(container.querySelectorAll('li')).toHaveLength(0);
+  });
+});
+
+describe('the category of a ticket', () => {
+  // On the board a card sits in its lane; here there is no lane to say it.
+  it('shows the lane as a badge, named by the page that carries the ticket', () => {
+    renderWithProviders(
+      <NeedsMeList
+        tickets={[ticket({ id: 'filed', category_id: 'home' })]}
+        categories={{ home: 'Maison' }}
+        lng="fr"
+      />
+    );
+
+    expect(screen.getByTestId('category-badge')).toHaveTextContent('Maison');
+    // Inside the row's own link: the badge is part of what the row says.
+    expect(screen.getByRole('link', { name: /Ticket filed/ })).toContainElement(
+      screen.getByTestId('category-badge')
+    );
+  });
+
+  it('shows no badge for a ticket filed under nothing', () => {
+    renderWithProviders(
+      <NeedsMeList tickets={[ticket({ id: 'loose' })]} categories={{ home: 'Maison' }} lng="fr" />
+    );
+
+    expect(screen.queryByTestId('category-badge')).toBeNull();
+  });
+
+  it('shows no badge, and no id, for a category the page does not name', () => {
+    // Deleted between two reads, or an API that predates categories.
+    renderWithProviders(
+      <NeedsMeList tickets={[ticket({ id: 'orphan', category_id: 'gone' })]} lng="fr" />
+    );
+
+    expect(screen.queryByTestId('category-badge')).toBeNull();
+    expect(screen.queryByText(/gone/)).toBeNull();
   });
 });

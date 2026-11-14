@@ -32,6 +32,7 @@
 
 import Link from 'next/link';
 import { Menu, type LucideIcon } from '@/lib/icons';
+import { MonochromeIcons } from '@/lib/icon-style-context';
 
 import {
   DropdownMenu,
@@ -68,7 +69,7 @@ export interface MobileNavMenuProps {
   /** Accessible name of the trigger, e.g. "Menu". */
   triggerLabel: string;
   /**
-   * The destinations this instance offers (`visibleDestinations`); defaults
+   * The destinations this instance offers (`offeredDestinations`); defaults
    * to the whole table. The layout passes the same list to the desktop nav.
    */
   destinations?: readonly DashboardDestination[];
@@ -121,10 +122,9 @@ export function MobileNavMenu({
           >
             LIA
           </span>
-          <Menu
-            aria-hidden="true"
-            className="h-3 w-3 text-primary-foreground [&.app-icon]:size-4"
-          />
+          <MonochromeIcons>
+            <Menu aria-hidden="true" className="h-3 w-3 text-primary-foreground" />
+          </MonochromeIcons>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-48">

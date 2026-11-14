@@ -17,6 +17,7 @@ from src.domains.psyche.efficacy_contracts import (
     EfficacyObservation,
 )
 from src.domains.psyche.efficacy_scoring import build_profile
+from tests.fixtures.conversation_cases import conversation_target
 
 pytestmark = pytest.mark.unit
 
@@ -59,7 +60,7 @@ async def test_real_planner_keeps_clarification_only_while_the_choice_is_unresol
         efficacy_runtime,
         "runtime_context_if_running",
         lambda: LiaRuntimeContext.for_conversation(
-            user_id=owner, conversation_id=owner, psyche_enabled=True
+            target=conversation_target(owner, owner), psyche_enabled=True
         ),
     )
     monkeypatch.setattr(

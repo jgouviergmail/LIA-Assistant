@@ -78,6 +78,23 @@ docker logs lia-api-prod --since 60m | grep retry_attempt | grep embedding
 `http_429` or `message:quota exceeded` means the quota. `http_500`/`http_503`
 means the provider itself. Anything else, read the payload.
 
+**What does the provider itself say?** A quota refusal is structured, and the
+structure is the fact (the sentence is not read by the code):
+```
+docker logs lia-api-prod --since 60m | grep gemini_embedding_failed | tail -1
+```
+- `QuotaFailure.violations[]` names the quota: its `quotaMetric`, its
+  `quotaValue` and its period. Measured 2026-11-09:
+  `embed_content_paid_tier_requests`, `3000`, per minute — and the provider
+  counts every embedded CONTENT as one request. A call carries a whole
+  document, about fifteen chunks: 230 calls a minute were 3,400 requests.
+- `RetryInfo.retryDelay` names the wait. It is rounded DOWN to whole seconds.
+
+`embedding_retry_not_attempted` in the logs is a refusal that named a delay its
+caller does not serve: the operation ended at once, without a retry. On a
+request path during a bulk indexing, it means a turn lost its context to the
+batch — the case that would justify reserving a share of the quota.
+
 **Is it a burst or a sustained rate?** Bursts cluster on the same second:
 ```
 docker logs lia-api-prod --since 60m | grep gemini_embedding_failed \
@@ -135,11 +152,31 @@ sum by (outcome) (increase(embedding_shaper_outcomes_total[30m]))
 2. Request a provider quota increase. This is the real fix as users grow; the
    shaper only makes the failure graceful.
 
+**If it is a bulk indexing** (a label or a folder linked at once: thousands of
+documents queued by one sync). Since 2026-11-10 that path declares itself
+patient: a refusal naming a delay up to `EMBEDDING_PATIENT_RETRY_MAX_WAIT_SECONDS`
+is waited (plus a one-second margin), then retried, and the batch proceeds at
+the provider's own pace with no failed document. Failures here mean the
+provider named a LONGER delay (a daily quota: nothing to do but wait for it or
+raise it), or the patience was set to 0. The source's lease is kept alive the
+whole time (`rag_source_lease_renewal_failed` / `_refused` say otherwise).
+
+Only a source's sync queue is declared (`process_queued`: Drive and Gmail, full
+syncs, push windows, history passes). A space reindex, the document reaper's
+re-drive, an upload, a bookmark and a meeting call `process_document` without
+declaring: there, a refusal naming a delay longer than the ordinary backoff
+ends the embedding at once (`embedding_retry_not_attempted`, `patient=false`).
+A reindex that fails documents on the quota is the case for declaring its
+drain too — after reading what its own lease allows.
+
 **Do not raise `EMBEDDING_RETRY_MAX_ATTEMPTS` as a first move.** The seam sits
 on a chat turn's critical path — `user_message_embedding` shares its singleton
 with the memory domain — and the budget is guarded by
 `TestTheBudgetStaysOffTheCriticalPath` for that reason. More attempts trade a
-fast degraded answer for a slow degraded answer.
+fast degraded answer for a slow degraded answer. Each attempt added is also one
+more wait a patient indexing batch may make under a single lease renewal: the
+settings refuse to boot when those waits together exceed half of
+`RAG_JOB_LEASE_TTL_SECONDS` (the deployment preflight says so before any switch).
 
 **Turning the shaper off** (`EMBEDDING_RATE_LIMIT_MAX_CALLS=0`) is safe and
 costs no Redis round-trip. It restores the pre-ADR-254 behaviour: calls go

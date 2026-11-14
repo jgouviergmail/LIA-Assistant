@@ -73,7 +73,10 @@ def _settings_patch(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sweep, "settings", _settings())
 
 
-MESSAGE = {"id": "m-1", "labelIds": ["INBOX"], "payload": {"headers": []}}
+# New mail, as it reaches the inbox: unread. The wake announces unread mail only.
+MESSAGE = {"id": "m-1", "labelIds": ["INBOX", "UNREAD"], "payload": {"headers": []}}
+#: The same mail once the person opened it, before the sweep read the delta.
+OPENED = {"id": "m-1", "labelIds": ["INBOX"], "payload": {"headers": []}}
 
 
 class _World:
@@ -180,6 +183,19 @@ class TestThePreFilterHasNoSayEither:
 
         assert outcome == "no_signal"
         world.arm.assert_awaited_once()
+
+    async def test_a_mail_already_opened_wakes_nobody_and_still_arms_the_watch(self) -> None:
+        """Opened mail is nothing to announce — and exactly what a watch may wait for."""
+        world = _World(has_watch=True, user=_user())
+        world.delta = AsyncMock(return_value=([OPENED], "999"))
+        served = AsyncMock(return_value="notified")
+        async with _world(world):
+            with patch.object(sweep, "_serve_heartbeat", served):
+                outcome = await sweep._serve_one(MagicMock(), _payload())
+
+        assert outcome == "no_signal"
+        served.assert_not_awaited()
+        assert world.arm.await_args.args[1] == [OPENED]
 
 
 class TestItNeverCostsSomebodyElsesQuota:

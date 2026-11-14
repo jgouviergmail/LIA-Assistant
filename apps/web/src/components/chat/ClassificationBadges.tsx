@@ -4,8 +4,9 @@ import type { CSSProperties, ComponentPropsWithoutRef } from 'react';
 import { useCallback, useSyncExternalStore } from 'react';
 import { ShieldAlert } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
-import { readClassification } from '@/lib/content-classification';
-import { classificationTone } from '@/lib/status-tone';
+import { readClassification, type ContentClassification } from '@/lib/content-classification';
+import { settledReplyStatus } from '@/lib/mail-reply-state';
+import { classificationTone, replyStateTone } from '@/lib/status-tone';
 import { Badge } from '@/components/ui/badge';
 
 const subscribe = () => () => {};
@@ -39,24 +40,38 @@ export function classificationAttentionStyle(
   return { animation: 'classification-attention 1s ease-in-out 4', animationDelay: `-${elapsed}s` };
 }
 
-export function ClassificationBadges({ value }: { value: unknown }) {
+/** The labels a current qualification shows; `answered` withdraws the reply it asked for. */
+function classificationLabels(annotation: ContentClassification, answered: boolean): string[] {
+  const labels: string[] = [];
+  if (annotation.category !== 'unknown') labels.push(annotation.category);
+  if (annotation.kind !== 'email') return labels;
+  if (annotation.priority !== 'unknown' && annotation.priority !== 'normal')
+    labels.push(annotation.priority);
+  // Only an expected reply is shown: « no reply » and « undecided » say nothing. And a
+  // reply already given is no longer expected, whatever the mail's own words say (ADR-379).
+  if (annotation.reply_expected === true && !answered) labels.push('reply_expected');
+  return labels;
+}
+
+/**
+ * The badges of a listed item: its qualification while current and, for a mail, what
+ * stays true of its conversation (`replyState`, ADR-379) whatever the qualification's age.
+ */
+export function ClassificationBadges({
+  value,
+  replyState,
+}: {
+  value: unknown;
+  replyState?: unknown;
+}) {
   const { t } = useTranslation();
   const hydrated = useSyncExternalStore(subscribe, clientSnapshot, serverSnapshot);
   const annotation = readClassification(value);
   const current = useCurrentClassification(annotation?.valid_until);
-  if (!annotation || !current) return null;
-  const labels = [];
-  if (annotation.category !== 'unknown') labels.push(annotation.category);
-  if (
-    annotation.kind === 'email' &&
-    annotation.priority !== 'unknown' &&
-    annotation.priority !== 'normal'
-  )
-    labels.push(annotation.priority);
-  // Only an expected reply is shown: « no reply » and « undecided » say nothing.
-  if (annotation.kind === 'email' && annotation.reply_expected === true)
-    labels.push('reply_expected');
-  if (!labels.length) return null;
+  const settled = settledReplyStatus(replyState);
+  const labels =
+    annotation && current ? classificationLabels(annotation, settled === 'answered') : [];
+  if (!labels.length && !settled) return null;
   return (
     <span className="inline-flex max-w-full flex-wrap gap-1.5">
       {labels.map(label => (
@@ -66,7 +81,7 @@ export function ClassificationBadges({ value }: { value: unknown }) {
           className={`content-classification-badge${label === 'phishing_scam' || label === 'critical' ? ' content-classification-badge--alert' : ''}`}
           style={
             hydrated && label === 'phishing_scam'
-              ? classificationAttentionStyle(annotation.evaluated_at)
+              ? classificationAttentionStyle(annotation?.evaluated_at)
               : undefined
           }
         >
@@ -76,6 +91,11 @@ export function ClassificationBadges({ value }: { value: unknown }) {
           {t(`classification.${label}`)}
         </Badge>
       ))}
+      {settled && (
+        <Badge variant={replyStateTone(settled)} className="content-classification-badge">
+          {t(`mail_reply_state.${settled}`)}
+        </Badge>
+      )}
     </span>
   );
 }

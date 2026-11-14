@@ -1354,7 +1354,7 @@ class TestDeleteUserGDPR:
         assert call_args.kwargs["action"] == "user_deleted_gdpr"
         assert call_args.kwargs["details"]["had_connectors"] == 3
         service.repository.hard_delete.assert_awaited_once_with(mock_user)
-        mock_db.commit.assert_awaited_once()
+        assert mock_db.commit.await_count == 2
 
     @pytest.mark.asyncio
     async def test_delete_user_gdpr_not_found_raises(self):

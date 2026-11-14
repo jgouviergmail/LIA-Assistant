@@ -8,13 +8,13 @@
  * the standalone page. The meetings themselves live on the meetings page,
  * which this section no longer repeats.
  *
- * Self-gated on the instance flag `features.meetings_enabled` (the
- * OpenLoopsSection precedent): off, it renders nothing and the settings shell
+ * Self-gated on what the instance offers now (`meetingsAvailable`: the
+ * operator's switch, then the deployment flag — the OpenLoopsSection
+ * precedent): off, it renders nothing and the settings shell
  * says the section is absent. First load shows skeletons; every later refetch
  * keeps the content mounted (`aria-busy`), so a typed value survives.
  */
 
-import { useMemo } from 'react';
 import { ClipboardList, LibraryBig, Save, Wand2 } from '@/lib/icons';
 import { toast } from 'sonner';
 
@@ -41,6 +41,7 @@ import { useMeetingPreferences } from '@/hooks/useMeetingPreferences';
 import { useMeetingTemplates } from '@/hooks/useMeetingTemplates';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { meetingsAvailable } from '@/lib/meetings/availability';
 import { MEETING_LANGUAGE_HINTS } from '@/lib/meetings/format';
 import { userTemplateCount } from '@/lib/meetings/templates';
 import type { BaseSettingsProps } from '@/types/settings';
@@ -247,7 +248,7 @@ function PreferencesForm({
 export function MeetingsSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { config, loading } = useAppConfig();
-  const enabled = useMemo(() => config?.features?.meetings_enabled ?? false, [config]);
+  const enabled = meetingsAvailable(config);
   // One library read for the section: the default-format select and the
   // embedded library share it, so a template created below is offered above.
   const library = useMeetingTemplates(enabled);

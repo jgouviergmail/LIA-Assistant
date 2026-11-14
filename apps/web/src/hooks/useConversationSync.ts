@@ -39,6 +39,8 @@ export function readerBusy(doc: Document = document): boolean {
 export interface UseConversationSyncOptions<Page extends { messages: Message[] }> {
   /** Account lifetime; replacing it retires every in-flight page. */
   ownerId?: string;
+  /** Discussion and revision lifetime, independent of the shared account. */
+  scopeKey?: string;
   /** Whether syncing makes sense at all (signed in, API reachable). */
   enabled: boolean;
   /** Whether the thread must not be touched now (streaming, past page, paginating). */
@@ -65,7 +67,7 @@ export interface UseConversationSyncReturn {
 export function useConversationSync<Page extends { messages: Message[] }>(
   options: UseConversationSyncOptions<Page>
 ): UseConversationSyncReturn {
-  const { ownerId } = options;
+  const { ownerId, scopeKey } = options;
   const latest = useRef(options);
   useEffect(() => {
     latest.current = options;
@@ -90,7 +92,7 @@ export function useConversationSync<Page extends { messages: Message[] }>(
       controller.dispose();
       controllerRef.current = null;
     };
-  }, [ownerId]);
+  }, [ownerId, scopeKey]);
 
   const requestSync = useCallback((reason: SyncReason) => {
     controllerRef.current?.request(reason);

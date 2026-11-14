@@ -22,6 +22,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from src.core.annotation_projection import ANNOTATION_KEYS, annotation_texts
 from src.core.config import settings
 
 # Content fields max length for truncation in LLM context
@@ -145,14 +146,11 @@ def payload_to_text(
     # 1. Extract display name (first priority field found)
     display_name = _extract_display_name(payload)
 
-    # 2. Serialize other fields
-    parts = []
-    from src.core.classification_projection import classification_text
-
-    if qualification := classification_text(payload.get("classification")):
-        parts.append(qualification)
+    # 2. Serialize other fields. An annotation (a JEV qualification, a mail's
+    # reply state) states its own line: labels and a state, never an instant.
+    parts = annotation_texts(payload)
     for key, value in payload.items():
-        if key == "classification":
+        if key in ANNOTATION_KEYS:
             continue
         if _should_skip(key, value):  # Pass value for content length check
             continue

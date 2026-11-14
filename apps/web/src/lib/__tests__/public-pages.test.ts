@@ -22,13 +22,16 @@ import path from 'path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { languages } from '@/i18n/settings';
+import { BLOG_ARTICLES } from '@/data/blog-articles';
+import { fallbackLng, languages } from '@/i18n/settings';
+import { LAST_UPDATED } from '@/lib/version';
 
 import {
   NON_INDEXED_SEGMENTS,
   PUBLIC_PAGES,
   indexablePathsWithoutHome,
   isPublicContentPath,
+  nonIndexedHeaderSources,
 } from '../public-pages';
 import robots from '../../app/robots';
 import sitemap from '../../app/sitemap';
@@ -98,9 +101,11 @@ describe('public pages declaration', () => {
       [wildcard?.allow ?? []].flat().map(rule => rule.replace(/\/\*$/, '') || '/')
     );
 
+    // Articles are allowed by the `/blog/*` wildcard, in every language.
+    const article = new RegExp(`^(/(${languages.join('|')}))?/blog/.+`);
     const announced = entries
       .map(entry => new URL(entry.url).pathname)
-      .filter(pathname => !pathname.startsWith('/blog/') || pathname === '/blog');
+      .filter(pathname => !article.test(pathname));
     expect(announced.length).toBeGreaterThan(5);
 
     const unallowed = announced.filter(pathname => !allowed.has(pathname));
@@ -118,6 +123,96 @@ describe('public pages declaration', () => {
         expect(allowed.has(`/${lng}${p}`), `${lng} misses ${p}`).toBe(true)
       )
     );
+  });
+
+  it('announces every language version, each with the whole set of alternates', () => {
+    vi.stubEnv('APP_URL_SERVER', 'https://example.test');
+
+    const entries = sitemap();
+    const byUrl = new Map(entries.map(entry => [entry.url, entry]));
+    expect(byUrl.size).toBe(entries.length);
+    expect(entries).toHaveLength((PUBLIC_PAGES.length + BLOG_ARTICLES.length) * languages.length);
+
+    for (const entry of entries) {
+      const alternates = entry.alternates?.languages ?? {};
+      // A version names itself, every other language and the default.
+      expect(Object.keys(alternates).sort()).toEqual([...languages, 'x-default'].sort());
+      expect(Object.values(alternates)).toContain(entry.url);
+      expect(alternates['x-default']).toBe(alternates[fallbackLng]);
+      // Reciprocity: every alternate is an announced entry carrying the same set.
+      for (const lng of languages) {
+        const other = byUrl.get(alternates[lng] as string);
+        expect(other, `${alternates[lng]} is named but not announced`).toBeDefined();
+        expect(other?.alternates?.languages).toEqual(alternates);
+      }
+    }
+  });
+
+  it('names no address that redirects: no trailing slash but the root', () => {
+    vi.stubEnv('APP_URL_SERVER', 'https://example.test');
+
+    const named = sitemap().flatMap(entry => [
+      entry.url,
+      ...Object.values(entry.alternates?.languages ?? {}),
+    ]);
+    const redirecting = named.filter(
+      url => typeof url === 'string' && url.endsWith('/') && new URL(url).pathname !== '/'
+    );
+    expect(redirecting).toEqual([]);
+  });
+
+  it('dates a page from what changes it, never from the moment it is asked', () => {
+    vi.stubEnv('APP_URL_SERVER', 'https://example.test');
+    const release = new Date(LAST_UPDATED.slice(0, 10));
+
+    const entries = sitemap();
+    const dateOf = (pathname: string) =>
+      entries.find(entry => new URL(entry.url).pathname === pathname)?.lastModified;
+
+    expect(dateOf('/changelog')).toEqual(release);
+    expect(dateOf('/en/changelog')).toEqual(release);
+    // A page no release rewrites states no date.
+    expect(dateOf('/privacy')).toBeUndefined();
+    expect(dateOf('/login')).toBeUndefined();
+    // An article is dated by its revision when it has one.
+    const revised = BLOG_ARTICLES.find(article => article.updated !== undefined);
+    expect(revised).toBeDefined();
+    expect(dateOf(`/blog/${revised?.slug}`)).toEqual(new Date(revised?.updated ?? ''));
+    const newest = Math.max(
+      ...BLOG_ARTICLES.map(article => new Date(article.updated ?? article.date).getTime())
+    );
+    expect(dateOf('/blog')).toEqual(new Date(newest));
+    // Nothing is dated in the future of the release it ships with.
+    for (const entry of entries) {
+      if (entry.lastModified === undefined) continue;
+      expect(new Date(entry.lastModified).getTime()).toBeLessThanOrEqual(
+        Math.max(release.getTime(), newest)
+      );
+    }
+  });
+
+  it('tells crawlers not to index a route kept out of the index, in every language', async () => {
+    const sources = nonIndexedHeaderSources();
+    for (const segment of Object.keys(NON_INDEXED_SEGMENTS)) {
+      expect(sources).toContain(`/${segment}/:path*`);
+      expect(sources).toContain(`/:lng(${languages.join('|')})/${segment}/:path*`);
+    }
+    // No public page is ever caught by one of these rules.
+    for (const { path: route } of PUBLIC_PAGES) {
+      const first = route.split('/')[1];
+      expect(first in NON_INDEXED_SEGMENTS, route).toBe(false);
+    }
+
+    // The rules are what the server actually sends.
+    const { default: config } = await import('../../../next.config');
+    const rules = await config.headers!();
+    for (const source of sources) {
+      const rule = rules.find(candidate => candidate.source === source);
+      expect(rule?.headers, source).toContainEqual({
+        key: 'X-Robots-Tag',
+        value: 'noindex, nofollow',
+      });
+    }
   });
 
   it('serves an honest empty sitemap when no origin is configured', () => {

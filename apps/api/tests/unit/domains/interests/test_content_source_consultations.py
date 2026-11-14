@@ -128,6 +128,9 @@ class TestTheVocabularyIsReadable:
         from src.domains.interests.services.content_sources.perplexity_source import (
             PerplexityContentSource,
         )
+        from src.domains.interests.services.content_sources.searxng_source import (
+            SearXNGContentSource,
+        )
         from src.domains.interests.services.content_sources.wikipedia_source import (
             WikipediaContentSource,
         )
@@ -137,6 +140,7 @@ class TestTheVocabularyIsReadable:
         running = {
             BraveSearchContentSource.source_name,
             PerplexityContentSource.source_name,
+            SearXNGContentSource.source_name,
             WikipediaContentSource.source_name,
             LLMReflectionContentSource.source_name,
         }

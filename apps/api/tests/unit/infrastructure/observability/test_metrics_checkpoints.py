@@ -13,6 +13,7 @@ patch AsyncPostgresSaver.aget_tuple — the real parent method — never a metho
 the parent does not define.
 """
 
+import pickle
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -259,7 +260,7 @@ class TestCheckpointErrorCategorization:
             checkpointer.__class__.__bases__[0],
             "aput",
             new_callable=AsyncMock,
-            side_effect=Exception("connection refused"),
+            side_effect=ConnectionError("synthetic failure"),
         ):
             initial_value = checkpoint_errors_total.labels(
                 error_type="db_connection", operation="save"
@@ -282,7 +283,7 @@ class TestCheckpointErrorCategorization:
             checkpointer.__class__.__bases__[0],
             "aput",
             new_callable=AsyncMock,
-            side_effect=Exception("operation timeout exceeded"),
+            side_effect=TimeoutError("synthetic failure"),
         ):
             initial_value = checkpoint_errors_total.labels(
                 error_type="timeout", operation="save"
@@ -305,7 +306,7 @@ class TestCheckpointErrorCategorization:
             checkpointer.__class__.__bases__[0],
             "aput",
             new_callable=AsyncMock,
-            side_effect=Exception("pickle error: cannot serialize object"),
+            side_effect=pickle.PicklingError("synthetic failure"),
         ):
             initial_value = checkpoint_errors_total.labels(
                 error_type="serialization", operation="save"
@@ -326,7 +327,7 @@ class TestCheckpointErrorCategorization:
             checkpointer.__class__.__bases__[0],
             "aget_tuple",
             new_callable=AsyncMock,
-            side_effect=Exception("deserialization failed"),
+            side_effect=pickle.UnpicklingError("synthetic failure"),
         ):
             initial_value = checkpoint_errors_total.labels(
                 error_type="deserialization", operation="load"
@@ -349,7 +350,7 @@ class TestCheckpointErrorCategorization:
             checkpointer.__class__.__bases__[0],
             "aput",
             new_callable=AsyncMock,
-            side_effect=Exception("permission denied for table checkpoints"),
+            side_effect=PermissionError("synthetic failure"),
         ):
             initial_value = checkpoint_errors_total.labels(
                 error_type="permission", operation="save"

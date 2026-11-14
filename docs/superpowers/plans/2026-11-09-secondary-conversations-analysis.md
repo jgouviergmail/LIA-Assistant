@@ -148,8 +148,8 @@ Conserver les routes `/conversations/me/*` comme alias **Principale**, et les an
 
 | Porte proposée | Contrat |
 |---|---|
-| `GET /conversations` | Principale nullable séparée, page d'annexes, total exact, curseur, capacités/bornes publiées. |
-| `POST /conversations` | `{title, request_id}` ; crée une annexe, assure Principale, aucun appel modèle. 201 pour création, 200 pour répétition identique. |
+| `GET /conversations` | Page de métadonnées avec Principale en premier lorsqu'elle existe, total exact des lignes persistées, limit/offset bornés et publiés. Le client présente une Principale virtuelle si le compte n'a encore aucune ligne ; la lecture ne crée rien. |
+| `POST /conversations` | `{title, request_id}` ; crée une annexe, assure Principale, aucun appel modèle. Réponse 200 avec identité et `replayed` pour distinguer création et répétition identique. |
 | `GET /conversations/{id}` | Métadonnées appartenant à la personne, rôle et révision. |
 | `GET /conversations/{id}/messages` | Page de la cible, recherche locale, ordre `(created_at,id)`, curseur composite opaque. |
 | `GET /conversations/{id}/stats` et `/totals` | Compteurs de cette discussion et budget de son checkpoint courant. |

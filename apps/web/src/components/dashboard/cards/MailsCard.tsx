@@ -200,7 +200,7 @@ function MailsContent({
                 {mail.subject}
               </span>
               <span className="line-clamp-2 break-words text-xs text-muted-foreground">{from}</span>
-              <ClassificationBadges value={mail.classification} />
+              <ClassificationBadges value={mail.classification} replyState={mail.reply_state} />
             </CardItemRow>
           );
         })}

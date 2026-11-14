@@ -79,7 +79,16 @@ async def test_each_preview_is_the_first_two_of_its_real_set_without_extra_reads
             result = MagicMock()
             result.all.return_value = rows
             if "preview_group" in names:
-                assert set(names) == {"preview_group", "id", "title", "status", "due_at"}
+                # The category rides along: the dashboard shows it as a badge,
+                # and a column the statement does not load cannot be read later.
+                assert set(names) == {
+                    "preview_group",
+                    "id",
+                    "title",
+                    "status",
+                    "due_at",
+                    "category_id",
+                }
                 records = [dict(zip(names, row, strict=True)) for row in rows]
                 result.all.return_value = [
                     (
@@ -87,6 +96,7 @@ async def test_each_preview_is_the_first_two_of_its_real_set_without_extra_reads
                         WorkboardTicket(
                             id=UUID(record["id"]),
                             title=record["title"],
+                            category_id=None,
                             status=record["status"],
                             due_at=(
                                 datetime.fromisoformat(record["due_at"]).replace(tzinfo=UTC)

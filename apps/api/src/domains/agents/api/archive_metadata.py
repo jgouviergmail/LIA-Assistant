@@ -50,6 +50,7 @@ from src.core.field_names import (
     FIELD_LIVE_SUMMARY,
     FIELD_RUN_ID,
     FIELD_SPOKEN_TEXT,
+    FIELD_TURN_NOTE,
 )
 from src.domains.agents.api.run_origin import with_origin_stamp
 from src.domains.agents.data_registry.message_widgets import with_persisted_widgets
@@ -247,6 +248,22 @@ def build_hitl_question_metadata(*, run_id: str, intention: str | None) -> dict[
         The metadata to archive with the question.
     """
     return with_origin_stamp({FIELD_RUN_ID: run_id, "hitl_question": True, "intention": intention})
+
+
+def build_turn_note_metadata(*, run_id: str) -> dict[str, Any]:
+    """What a note the person added while the answer was written carries (ADR-385).
+
+    The fourth row a turn may archive: the person's own words, read by the loop at
+    its next model call. Its kind is said, so no lookup of the turn's request can
+    take it for the question.
+
+    Args:
+        run_id: The turn, shared with its other rows.
+
+    Returns:
+        The metadata to archive with the note, stamped when a run is driving.
+    """
+    return with_origin_stamp({FIELD_RUN_ID: run_id, FIELD_TURN_NOTE: True})
 
 
 def build_live_turn_metadata(

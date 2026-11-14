@@ -7,20 +7,49 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   activeFrameSubscribers,
   IDLE_FRAME_MS,
+  MAX_CATCH_UP_MS,
   MAX_FRAME_MS,
   releaseFrames,
   requestFrames,
+  stepInSlices,
   type FrameDemand,
 } from '@/components/eyes/rig/scheduler';
 
 /** A subject that always needs full frames. */
 const active = (): FrameDemand => 'active';
 
+/**
+ * Frames fired by hand, at the instants the test chooses.
+ *
+ * The fake timers fire one frame every 16 ms however far the clock is
+ * advanced, so they can never hand the loop a LONG frame — and a long frame
+ * is the whole subject of the cap. (The previous cap test advanced two
+ * minutes, saw seven thousand frames of 16 ms and proved nothing.)
+ */
+function manualFrames() {
+  let queued: FrameRequestCallback[] = [];
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    queued.push(callback);
+    return queued.length;
+  });
+  vi.stubGlobal('cancelAnimationFrame', () => {
+    queued = [];
+  });
+  return {
+    fire(nowMs: number) {
+      const due = queued;
+      queued = [];
+      due.forEach(callback => callback(nowMs));
+    },
+  };
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
@@ -86,17 +115,37 @@ describe('frame scheduler', () => {
     releaseFrames(subject);
   });
 
-  it('clamps a catastrophic delta (a tab waking after minutes)', () => {
+  it('carries a long frame whole instead of throwing most of it away', () => {
+    // A busy main thread hands the loop a 200 ms frame. Capped at 64 ms, the
+    // face played at a third of its speed for as long as the page was slow —
+    // measured on a slowed-down device: 8.6 s lost out of 15.
+    const frames = manualFrames();
     const seen: number[] = [];
     const subject = (dt: number): FrameDemand => {
       seen.push(dt);
       return 'active';
     };
     requestFrames(subject);
-    vi.advanceTimersByTime(16);
-    vi.advanceTimersByTime(120_000);
+    frames.fire(1000);
+    frames.fire(1016);
+    frames.fire(1216);
     releaseFrames(subject);
-    expect(Math.max(...seen)).toBeLessThanOrEqual(MAX_FRAME_MS);
+    expect(seen).toEqual([0, 16, 200]);
+  });
+
+  it('still drops the time of a tab that slept for minutes', () => {
+    const frames = manualFrames();
+    const seen: number[] = [];
+    const subject = (dt: number): FrameDemand => {
+      seen.push(dt);
+      return 'active';
+    };
+    requestFrames(subject);
+    frames.fire(1000);
+    frames.fire(1016);
+    frames.fire(121_016);
+    releaseFrames(subject);
+    expect(seen).toEqual([0, 16, MAX_CATCH_UP_MS]);
   });
 
   it('survives a subscriber unsubscribing from inside its own step', () => {
@@ -133,6 +182,58 @@ describe('frame scheduler', () => {
     vi.advanceTimersByTime(320);
     releaseFrames(idle);
     expect(steps).toBeLessThan(320 / 16 / 1.8);
+  });
+});
+
+describe('integration slices', () => {
+  it.each([
+    [0, [0]],
+    [16, [16]],
+    [64, [64]],
+    [96, [48, 48]],
+    [200, [50, 50, 50, 50]],
+    [256, [64, 64, 64, 64]],
+  ])('hands a %d ms frame to the integrator as %j', (frameMs, slices) => {
+    const handed: number[] = [];
+    stepInSlices(frameMs, sliceMs => {
+      handed.push(sliceMs);
+      return true;
+    });
+    expect(handed).toEqual(slices);
+  });
+
+  it('never hands the integrator more than it could read before the cap was lifted', () => {
+    for (let frameMs = 1; frameMs <= MAX_CATCH_UP_MS; frameMs += 1) {
+      let longest = 0;
+      let total = 0;
+      stepInSlices(frameMs, sliceMs => {
+        longest = Math.max(longest, sliceMs);
+        total += sliceMs;
+        return true;
+      });
+      expect(longest).toBeLessThanOrEqual(MAX_FRAME_MS);
+      expect(total).toBeCloseTo(frameMs, 9);
+    }
+  });
+
+  it('hands a frame it cannot measure as ONE step, never an endless loop', () => {
+    // The loop runs on the main thread: a count that is not a number would
+    // freeze the whole page, not just the face.
+    for (const frameMs of [Number.POSITIVE_INFINITY, Number.NaN]) {
+      const handed: number[] = [];
+      stepInSlices(frameMs, sliceMs => {
+        handed.push(sliceMs);
+        if (handed.length > 8) throw new Error('endless slicing');
+        return true;
+      });
+      expect(handed).toEqual([frameMs]);
+    }
+  });
+
+  it('answers with what the LAST slice said', () => {
+    const answers = ['moving', 'moving', 'settled'];
+    expect(stepInSlices(150, () => answers.shift())).toBe('settled');
+    expect(answers).toEqual([]);
   });
 });
 

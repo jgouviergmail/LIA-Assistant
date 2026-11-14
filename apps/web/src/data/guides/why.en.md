@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 7.0
-**Date**: 2026-11-10
-**Application**: LIA v4.6.0
+**Date**: 2026-11-14
+**Application**: LIA v5.0.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -35,15 +35,15 @@ The mechanics are explained in [the technical guide](/en/how). How the code was 
 
 Open **Tools** when you want to do something yourself: mail, calendar, tasks, contacts, files and Hue lights are available through the services you connected. You click, edit and send directly, without an AI call, and yellow stars ask LIA to sum up or write when you want, its cost shown; anywhere in LIA, selected words can be explained, translated or turned into a task or an event. Each screen offers only what its provider supports; actions you take there belong to you and do not enter LIA’s activity registers.
 
-You talk to her normally, in writing or by voice. The interface exists in six languages (French, English, German, Spanish, Italian, Chinese) and your dictation is transcribed in your account's language. Some twenty specialized agents share the work: your personal data, the web, creation, the smart home, browsing websites and anticipation.
+You talk to her normally, in writing or by voice, one discussion per subject, even while she answers. The interface exists in six languages (French, English, German, Spanish, Italian, Chinese) and your dictation is transcribed in your account's language. Some twenty specialized agents share the work: your personal data, the web, creation, the smart home, browsing websites and anticipation.
 
 A switch in the chat chooses how she reasons. **Pipeline** mode, the default, prepares every step, checks them, then runs them in parallel: it is predictable and uses 4 to 8 times fewer tokens. **ReAct** mode moves step by step, more autonomous and more costly, for an open-ended search; when a step needs a real calculation, it writes a few lines of Python and runs them in a locked sandbox, which reaches the web only through a single proxy and without your keys ([privacy](/en/faq#faq-privacy), [the journey of a message](/en/how#pipeline)).
 
-If you choose the **cards** display (the other two modes are plain HTML and Markdown), answers that carry data arrive this way: photos of a place, the weather slot by slot, a route, a preview of a document. A card shows what the source provided, inventing nothing, and replying to an email from its card prepares the request without sending anything.
+If you choose the **cards** display, answers that carry data arrive this way: photos of a place, the weather slot by slot, a route, a preview of a document. A card shows what the source provided, inventing nothing, and replying to an email from its card prepares the request without sending anything.
 
 ### Your services
 
-You ask LIA to move your Thursday appointment: she prepares the change and shows it to you before sending it. She reads, searches, summarizes, drafts, sends and forwards your emails (Gmail, Outlook, Apple Mail), reads their attachments, including a photo or a scan, and manages your mailbox drafts, which she sends only after you confirm. She keeps your calendar and your contacts at Google, Microsoft or Apple, your tasks at Google or Microsoft, reads and organizes your files on Google Drive or OneDrive, writes into them only with your consent, and turns on your Philips Hue lights.
+You ask LIA to move your Thursday appointment: she prepares the change and shows it to you before sending it. She reads, searches, summarizes, sends and forwards your emails (Gmail, Outlook, Apple Mail), knows which ones you answered, drafts them the way you write, reads their attachments, including a photo or a scan, and manages your mailbox drafts, which she sends only after you confirm. She keeps your calendar and your contacts at Google, Microsoft or Apple, your tasks at Google or Microsoft, reads and organizes your files on Google Drive or OneDrive, writes into them only with your consent, and turns on your Philips Hue lights.
 
 Without configuring anything, you get Wikipedia, web page reading, nearby places with opening hours and reviews, five-day weather with air quality and pollen, and routes on foot, by bike, by car or by public transport ([connectors](/en/faq#faq-connectors)). With your own keys, web search also cross-checks Brave Search and Perplexity, and cites its sources. LIA can also browse a site for you, click, fill in a form.
 
@@ -55,15 +55,15 @@ You hold down the microphone, or you say "Dis LIA" to talk hands-free. This wake
 
 ### Create and keep
 
-LIA creates and edits images with the model the administrator chose, without moving to an option more expensive than your preferences. As an option, she enriches your description, and you find an image again by asking her for it ([images](/en/faq#faq-image_generation)). She produces real files (CSV, Excel, Word, PowerPoint, PDF), built by a local engine and delivered with their expiry date, Excalidraw diagrams, and she reads the photos and PDFs you attach. MCP apps display their forms directly in the chat, and a game, a quiz or a calculator you ask for runs there too, in a sealed frame.
+LIA creates and edits images with the model the administrator chose, without moving to an option more expensive than your preferences. As an option, she enriches your description, and you find an image again by asking her for it ([images](/en/faq#faq-image_generation)). She produces real files (CSV, Excel, Word, PowerPoint, PDF) — live formulas, editable charts and, if you allow them, illustrations — built by a local engine and delivered with their expiry date, Excalidraw diagrams, and she reads the photos and documents you attach. MCP apps display their forms directly in the chat, and a game, a quiz or a calculator you ask for runs there too, in a sealed frame.
 
 What she produces, you keep, send by email in one click, share with a person connected to your instance when it is an image, or let expire. A kept answer leaves the conversation with your request and its date, and joins a knowledge space where LIA will find it weeks later.
 
 ### Taking the initiative
 
-If you allow it, LIA does more than wait. She writes to you when your calendar, the weather, your tasks, your emails or your interests warrant it, and she can start a personal conversation on her own. At the end of a meeting, she asks you how it went. When your mailbox or your calendar changes, she can react within minutes, and "Watch" keeps an eye out for an expected email until it arrives. If rain is forecast for Saturday, she looks at your outdoor activities. She remembers what you really care about, a topic you turn down does not come back, and what you ask for on many days becomes a proposal you accept in one click, such as a routine ready before you ask.
+If you allow it, LIA does more than wait. She writes to you when your calendar, the weather, your tasks, your emails or your interests warrant it, and she can start a personal conversation on her own. At the end of a meeting, she asks you how it went. When your mailbox or your calendar changes, she can react within minutes, and "Watch" keeps an eye out for an expected email until it arrives. If rain is forecast for Saturday, she looks at your outdoor activities. She remembers what you really care about, a topic you turn down does not come back, and what you ask for on many days becomes a proposal you accept in one click.
 
-You hand her a ticket: she takes it at her own pace and gives you back a result to accept. For a complex task, she delegates to sub-agents working in parallel. Routines and reminders follow rich rhythms (every other Tuesday, the second Tuesday of the month, until a given date), and a week view shows what actually happened ([initiative](/en/how#proactivity)).
+You hand her a ticket: she takes it at her own pace and gives you back a result to accept. For a complex task, she delegates to sub-agents working in parallel. Routines and reminders follow rich rhythms (every other Tuesday, until a given date); a routine can also watch a web page or wait for another system's call, and a week view shows what actually happened ([initiative](/en/how#proactivity)).
 
 ### Other people
 

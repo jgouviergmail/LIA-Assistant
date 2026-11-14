@@ -87,6 +87,31 @@ async def _generate_document_embedding(text: str) -> list[float] | None:
         return None
 
 
+async def generate_document_embeddings(texts: list[str]) -> list[list[float]]:
+    """Embed several texts for storage in ONE provider call, or fail.
+
+    The batch door of an import. Unlike :func:`_generate_document_embedding` it does not
+    degrade: one memory stored without its vector is a memory search misses, several
+    hundred are an import that looks done and is not. A failed call is raised, and the
+    import writes nothing.
+
+    Args:
+        texts: The texts to embed, at most what one provider request carries.
+
+    Returns:
+        One vector per text, in the same order.
+
+    Raises:
+        ValueError: The provider answered another number of vectors than texts.
+    """
+    from src.infrastructure.llm.memory_embeddings import get_memory_embeddings
+
+    vectors = await get_memory_embeddings().aembed_documents(texts)
+    if len(vectors) != len(texts):
+        raise ValueError(f"{len(vectors)} vectors answered for {len(texts)} texts")
+    return vectors
+
+
 async def _generate_dual_embeddings(
     content: str,
     trigger_topic: str,

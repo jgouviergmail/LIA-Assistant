@@ -16,6 +16,8 @@ In **Settings › Features › Extensions & Data › Skills**, click **Import** 
 ## How do I create my own skill?
 **The easiest way: just ask LIA!** Say something like "*create a skill for [your need]*" and the built-in **Skill Generator** will guide you step by step: need analysis, archetype selection (any of the 5 archetypes), generation, automatic validation — then a **proposal card** in the chat: you read its name, description and files, and one click on **Install** puts it in **My Skills**, ready to use. Nothing is installed without your click; a ticket or a messaging channel sends you back to the chat, where the card can be shown.
 
+**Just did something you will want again?** Right after, say "*make it a skill*": the Skill Generator reads what was just done in the conversation and turns it into a reusable skill. Read its card before you install it: a skill made from one occasion must not keep that occasion's names, places or subjects.
+
 You can also manually create a SKILL.md file with a minimal YAML header (name + description) followed by Markdown instructions. See the **built-in guide** (📖 Guide button in My Skills) for advanced options including full agent & tool catalogue with parameters.
 
 ## What is in the built-in skills guide?
@@ -29,7 +31,7 @@ Prefer not to write it yourself? Describe your need in the chat:
 • *Create a skill that shows a QR code*
 
 ## What is the difference between admin skills and my skills?
-**Admin skills (built-in)**: shipped with the application, available to all users. You can enable/disable them individually.
+**Admin skills (built-in)**: shipped with the application, available to all users. You can enable/disable them individually. Among them, the **weekly review** (what got done, what is still open, the week ahead and what to decide) and the **inbox triage** (your unread messages sorted into to answer, to read, for information and promotions, without ever replying, archiving or deleting): ask for them in so many words, or start them from a ready-made routine.
 **My skills (imported)**: personal skills you import. You can toggle, download, or delete them.
 A name is unique within your own skills, not across the instance: another person may keep a skill with the same name as yours. What stays refused is reusing the name of a built-in skill — pick a variant name instead.
 
@@ -187,11 +189,16 @@ A skill received from an accepted LIA connection is an explicit exception: its c
 ## Can I have an existing skill modified?
 Yes, by talking to LIA: "*adjust my X skill*", "*add a section to it*", "*fix the wording*". LIA re-reads the complete skill — its manifest, its scripts, its reference documents — applies your request, then **regenerates the whole thing** rather than patching one spot: that is what keeps the description, the scripts and the resources consistent with each other.
 
-Nothing is written directly: LIA proposes the new version on a card showing **exactly what will be replaced, added and removed**. Only your click on **Install** applies it, and if your skill changed in the meantime, the card says so instead of overwriting it. **There is no version history** — once replaced, the previous version cannot be recovered, so read the summary. The gallery thumbnail, however, is preserved automatically: chat can only carry text, so the server copies bundled images back from the version being replaced.
+Nothing is written directly: LIA proposes the new version on a card showing **exactly what will be replaced, added and removed**. Only your click on **Install** applies it, and if your skill changed in the meantime, the card says so instead of overwriting it. **One step back is kept**: in Settings › Skills, the skill's sheet offers **Restore the previous version**, which puts back the version this replacement set aside — and keeps the current one in its place, so a restoration can itself be undone. There is no longer history than that one step, and it exists only for your own skills (imported from your file or written with LIA): a skill from an address, the library, a plugin or another person follows its source instead. The gallery thumbnail, however, is preserved automatically: chat can only carry text, so the server copies bundled images back from the version being replaced.
 
 Three cases are refused: **system** skills (maintained by the administrator, no fork offered), skills **installed from the library or brought by a plugin** (they follow their source — update them instead), and your own ones that are **disabled** — re-enable it first in the Skills section.
 
 A regenerated package is also checked for internal consistency: a skill declaring an interactive output with no script, or advertising a resource it does not ship, is rejected rather than stored broken.
+
+## Which skills do I actually use?
+Each skill card in Settings › Skills says how often LIA used it — « Used 4 times since 13 Nov 2026, last on 2 Dec » — counting from the day the counter appeared (nothing earlier was counted). A skill **always loaded** has no line: it enters every message, so there is no use to count.
+
+A skill left on but unused still sits among the skills LIA weighs for every message. After **60 days** without a use (`SKILLS_DORMANT_AFTER_DAYS` on your server), the Skills section names those skills and asks: **Switch them off**, or **Keep them** — keeping them means LIA asks again only if they stay unused for another whole period, on every device. You can also ask LIA « which skills do I never use? »: it reads the same counts and can switch one off after your confirmation.
 
 ## Can I manage skills, plugins and MCP servers through conversation?
 

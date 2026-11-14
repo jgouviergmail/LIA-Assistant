@@ -4,7 +4,8 @@ Scheduled Actions service for business logic.
 Handles CRUD operations, schedule recalculation, and timezone cascade updates.
 When a routine next runs is asked of ONE place, ``trigger.TriggerPlan``: a
 schedule for a time routine, the system's checks for a condition routine
-(ADR-322).
+(ADR-322), the calls to its address for a webhook routine (ADR-386) — whose
+address and secret ``webhook_address`` draws and erases.
 """
 
 from collections.abc import Mapping
@@ -37,6 +38,7 @@ from src.domains.scheduled_actions.run_repository import ScheduledActionRunRepos
 from src.domains.scheduled_actions.schemas import (
     ScheduledActionCreate,
     ScheduledActionUpdate,
+    delivery_refusal,
     trigger_mode_refusal,
 )
 from src.domains.scheduled_actions.trigger import (
@@ -44,6 +46,12 @@ from src.domains.scheduled_actions.trigger import (
     TriggerPlan,
     condition_until,
 )
+from src.domains.scheduled_actions.webhook_address import (
+    address_change,
+    address_on_entry,
+    encrypted_secret,
+)
+from src.domains.scheduled_actions.webhooks import draw_webhook_secret
 from src.domains.scheduled_actions.week import ActionWeek, build_week, week_read_lower_bound
 from src.domains.user_mcp.callable_servers import callable_mcp_servers
 
@@ -139,13 +147,23 @@ def _trigger_edit(
 
     Raises:
         ValidationError: When the resulting row would not have exactly one clock,
-            or a new last day is already over.
+            a new last day is already over, or the routine would both propose
+            first and ask to be told only of something new.
     """
     rearm = not _CLOCK_FIELDS.isdisjoint(values)
     values = _serialised(data, values)
     kind, recurrence, config = _resulting_clock(action, values)
     refusal = trigger_mode_refusal(
-        kind, has_recurrence=recurrence is not None, has_condition=config is not None
+        kind,
+        has_recurrence=recurrence is not None,
+        has_condition=config is not None,
+        proposes_first=values.get("requires_approval", action.requires_approval),
+    )
+    if refusal:
+        raise ValidationError(refusal)
+    refusal = delivery_refusal(
+        requires_approval=values.get("requires_approval", action.requires_approval),
+        notify_only_when_new=values.get("notify_only_when_new", action.notify_only_when_new),
     )
     if refusal:
         raise ValidationError(refusal)
@@ -207,9 +225,11 @@ def _resulting_clock(
     kind = str(values.get("trigger_kind", action.trigger_kind))
     recurrence = values.get("recurrence", action.recurrence)
     config = values.get("condition_config", action.condition_config)
-    if kind == TriggerKind.CONDITION.value and "recurrence" not in values:
+    # Only a time routine keeps a schedule, only a condition routine a
+    # condition; a webhook routine keeps neither (ADR-386).
+    if kind != TriggerKind.TIME.value and "recurrence" not in values:
         recurrence = None
-    if kind == TriggerKind.TIME.value and "condition_config" not in values:
+    if kind != TriggerKind.CONDITION.value and "condition_config" not in values:
         config = None
     return kind, recurrence, config
 
@@ -261,6 +281,11 @@ class ScheduledActionService:
         action = await self.repository.lock_owned(action_id, user_id)
         if action is None:
             raise ResourceNotFoundError("scheduled_action", str(action_id))
+        if action.trigger_kind == TriggerKind.WEBHOOK.value:
+            # Nothing to run without a call: its runs read what the calls sent.
+            raise ValidationError(
+                "a webhook routine runs when its address is called: send it a signed call"
+            )
         if action.status == ScheduledActionStatus.EXECUTING.value:
             raise_scheduled_action_already_executing(action_id)
         return await self.repository.update(
@@ -301,6 +326,9 @@ class ScheduledActionService:
 
         condition_config = data.condition_config.stored() if data.condition_config else None
         validate_routine_creation(data, user_timezone)
+        address = (
+            await address_on_entry(self.db) if data.trigger_kind is TriggerKind.WEBHOOK else {}
+        )
         action_id = action_id or uuid4()
         # The first armed instant, from the plan the executor re-arms with.
         next_trigger_at = TriggerPlan(
@@ -326,10 +354,12 @@ class ScheduledActionService:
                 "trigger_kind": data.trigger_kind.value,
                 "condition_config": condition_config,
                 "requires_approval": data.requires_approval,
+                "notify_only_when_new": data.notify_only_when_new,
                 "execution_mode": data.execution_mode,
                 "next_trigger_at": next_trigger_at,
                 "is_enabled": True,
                 "status": ScheduledActionStatus.ACTIVE.value,
+                **address,
             }
         )
 
@@ -367,7 +397,13 @@ class ScheduledActionService:
             return action
 
         edit = _trigger_edit(action, data, update_data)
-        action = await self.repository.update(action, edit.values)
+        address = await address_change(
+            self.db,
+            action_id=action.id,
+            stored_kind=action.trigger_kind,
+            resulting_kind=edit.plan.trigger_kind,
+        )
+        action = await self.repository.update(action, {**edit.values, **address})
 
         if edit.rearm:
             next_trigger_at = edit.plan.first(now_utc())
@@ -402,6 +438,35 @@ class ScheduledActionService:
         )
 
         return action
+
+    async def new_webhook_secret(
+        self, action_id: UUID, user_id: UUID
+    ) -> tuple[ScheduledAction, str]:
+        """Draw a new secret for a webhook routine, retiring the old one at once.
+
+        The only time a secret leaves the server: the answer of this request.
+        The address stays — a sender is reconfigured with the new secret alone.
+
+        Args:
+            action_id: The routine.
+            user_id: Its owner.
+
+        Returns:
+            The routine and its new secret, in clear.
+
+        Raises:
+            ResourceNotFoundError: If the routine is not the owner's.
+            ValidationError: If it does not run on calls.
+        """
+        action = await self.repository.lock_owned(action_id, user_id)
+        if action is None:
+            raise ResourceNotFoundError("scheduled_action", str(action_id))
+        if action.trigger_kind != TriggerKind.WEBHOOK.value:
+            raise ValidationError("only a routine started by calls has a secret")
+        secret = draw_webhook_secret()
+        action = await self.repository.update(action, {"webhook_secret": encrypted_secret(secret)})
+        logger.info("routine_webhook_secret_drawn", action_id=str(action_id), user_id=str(user_id))
+        return action, secret
 
     async def delete(self, action_id: UUID, user_id: UUID) -> None:
         """

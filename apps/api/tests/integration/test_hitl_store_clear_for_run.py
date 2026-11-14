@@ -1,8 +1,9 @@
 """A run clears ITS pending question, and nothing else (N10).
 
 A routine that stops on a question nobody can answer must not leave it on the
-person's thread. It must not clear what it did not ask either: routines hold no
-conversation lock, so the person's own turn may have saved its question since.
+person's thread. It must not clear what it did not ask either: another invocation
+may have saved its question since. This file covers legacy records; the current
+invocation protocol is exercised by test_hitl_runtime_authority.
 The comparison and the deletion are one server-side step, so this is proven on
 a real Redis — a mocked client would only echo the call it was given.
 """
@@ -26,14 +27,21 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture
 async def store() -> AsyncGenerator[HITLStore]:
-    """A store on the real Redis (the engine's decode mode). Skips if down."""
-    try:
-        redis = Redis.from_url(str(settings.redis_url), decode_responses=True)
+    """A store on required disposable Redis; an unavailable boundary fails the suite."""
+    async with Redis.from_url(str(settings.redis_url), decode_responses=True) as redis:
         await redis.ping()
-    except Exception as exc:  # noqa: BLE001 — no server, no proof to run
-        pytest.skip(f"Redis unavailable: {exc}")
-    yield HITLStore(redis, ttl_seconds=60)
-    await redis.aclose()
+        yield HITLStore(redis, ttl_seconds=60)
+
+
+async def seed_legacy(store: HITLStore, thread: str, run_id: str) -> None:
+    """Seed the pre-migration envelope, not a current production write."""
+    await store.redis.set(
+        f"{REDIS_KEY_HITL_PENDING_PREFIX}{thread}",
+        json.dumps(
+            {"schema_version": 1, "interrupt_data": {"action_requests": [], FIELD_RUN_ID: run_id}}
+        ),
+        ex=60,
+    )
 
 
 def _thread() -> str:
@@ -42,7 +50,7 @@ def _thread() -> str:
 
 async def test_the_question_of_the_run_is_cleared(store: HITLStore) -> None:
     thread = _thread()
-    await store.save_interrupt(thread, {"action_requests": [], FIELD_RUN_ID: "run-routine"})
+    await seed_legacy(store, thread, "run-routine")
 
     assert await store.clear_interrupt_for_run(thread, "run-routine") is True
     assert await store.get_pending(thread) is None
@@ -51,12 +59,12 @@ async def test_the_question_of_the_run_is_cleared(store: HITLStore) -> None:
 async def test_another_run_s_question_survives(store: HITLStore) -> None:
     """The person's own turn saved its question after the routine's."""
     thread = _thread()
-    await store.save_interrupt(thread, {"action_requests": [], FIELD_RUN_ID: "run-person"})
+    await seed_legacy(store, thread, "run-person")
 
     assert await store.clear_interrupt_for_run(thread, "run-routine") is False
     pending = await store.get_pending(thread)
     assert pending is not None and pending[FIELD_RUN_ID] == "run-person"
-    await store.delete_interrupt(thread)
+    await store.redis.delete(f"{REDIS_KEY_HITL_PENDING_PREFIX}{thread}")
 
 
 async def test_nothing_pending_clears_nothing(store: HITLStore) -> None:

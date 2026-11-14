@@ -1,5 +1,6 @@
 /**
- * Theme-mode logic — the light → dark → OLED → light cycle and its persistence.
+ * Theme-mode logic — the light → dark → OLED → automatic → light cycle and its
+ * persistence (a visitor's circle has no automatic stop).
  *
  * Kept as pure functions, away from React and from `next-themes`, because the
  * traps here are all logical rather than visual:
@@ -22,48 +23,100 @@ import {
   nextInCycle,
   toPersistedTheme,
   withThemeTransition,
+  type CycleState,
+  type CycleStop,
+  type DisplayMode,
 } from '../theme-mode';
 
+/** What the header control reads: the chosen mode, what it renders, the OLED flag. */
+function at(
+  resolved: 'light' | 'dark' | undefined,
+  oled: boolean,
+  mode: DisplayMode = resolved ?? 'light'
+): CycleState {
+  return { mode, resolved, oled };
+}
+
+/** What the page shows once a stop is applied; automatic shows its hour. */
+function shown(stop: CycleStop, night: boolean): CycleState {
+  if (stop.mode === 'auto') return at(night ? 'dark' : 'light', night, 'auto');
+  return at(stop.mode, stop.oled);
+}
+
+/** Every stop of one full turn from light, for an account or a visitor. */
+function turn(automaticAvailable: boolean, night: boolean): string[] {
+  let state = at('light', false);
+  const seen: string[] = [];
+  for (let i = 0; i < 5; i++) {
+    const next = nextInCycle(state, automaticAvailable);
+    seen.push(`${next.mode}${next.oled ? '+oled' : ''}`);
+    if (next.mode === 'light') break;
+    state = shown(next, night);
+  }
+  return seen;
+}
+
 describe('theme-mode cycle', () => {
-  it('goes light → dark', () => {
-    expect(nextInCycle('light', false)).toEqual({ mode: 'dark', oled: false });
+  it.each([true, false])('goes light → dark (account: %s)', automaticAvailable => {
+    expect(nextInCycle(at('light', false), automaticAvailable)).toEqual({
+      mode: 'dark',
+      oled: false,
+    });
   });
 
-  it('goes dark → OLED', () => {
-    expect(nextInCycle('dark', false)).toEqual({ mode: 'dark', oled: true });
+  it.each([true, false])('goes dark → OLED (account: %s)', automaticAvailable => {
+    expect(nextInCycle(at('dark', false), automaticAvailable)).toEqual({
+      mode: 'dark',
+      oled: true,
+    });
   });
 
-  it('closes the circle OLED → light', () => {
-    expect(nextInCycle('dark', true)).toEqual({ mode: 'light', oled: false });
+  it('goes OLED → automatic for an account', () => {
+    expect(nextInCycle(at('dark', true), true)).toEqual({ mode: 'auto', oled: false });
   });
 
-  it('completes a full turn in exactly three steps', () => {
-    let state = { mode: 'light' as const, oled: false };
-    const seen: string[] = [];
-    for (let i = 0; i < 3; i++) {
-      const next = nextInCycle(state.mode === 'light' ? 'light' : 'dark', state.oled);
-      seen.push(`${next.mode}${next.oled ? '+oled' : ''}`);
-      state = next as typeof state;
-    }
-    expect(seen).toEqual(['dark', 'dark+oled', 'light']);
+  it("closes a visitor's circle OLED → light: the automatic hours live on an account", () => {
+    expect(nextInCycle(at('dark', true), false)).toEqual({ mode: 'light', oled: false });
+  });
+
+  it.each([
+    ['by day', 'light', false],
+    ['at night', 'dark', true],
+  ] as const)('leaves automatic for light %s, whatever it shows', (_when, resolved, oled) => {
+    // Automatic renders light by day and absolute black at night: read by what
+    // it SHOWS, it would look like a manual stop and the circle would never
+    // leave it at night (OLED → automatic → automatic …).
+    expect(nextInCycle(at(resolved, oled, 'auto'), true)).toEqual({ mode: 'light', oled: false });
+  });
+
+  it.each([
+    ['by day', false],
+    ['at night', true],
+  ])("completes an account's turn in four stops %s", (_when, night) => {
+    expect(turn(true, night)).toEqual(['dark', 'dark+oled', 'auto', 'light']);
+  });
+
+  it("completes a visitor's turn in exactly three stops", () => {
+    expect(turn(false, false)).toEqual(['dark', 'dark+oled', 'light']);
   });
 
   it('leaves OLED behind when it returns to light', () => {
     // Light mode cannot express OLED — the CSS selector requires `.dark` — so
     // carrying the flag would make the NEXT click land on dark+OLED, skipping
     // plain dark and breaking the circle.
-    expect(nextInCycle('dark', true).oled).toBe(false);
+    expect(nextInCycle(at('dark', true), false).oled).toBe(false);
+    expect(nextInCycle(at('dark', true, 'auto'), true).oled).toBe(false);
   });
 
   it('starts from the resolved theme, so a system-dark user advances visibly', () => {
     // The pre-existing bug: `theme` is 'system', `resolvedTheme` is 'dark'.
     // Reading `theme` would send them to 'dark' — no visible change at all.
-    expect(nextInCycle('dark', false)).toEqual({ mode: 'dark', oled: true });
+    expect(nextInCycle(at('dark', false, 'system'), true)).toEqual({ mode: 'dark', oled: true });
   });
 
   it('treats an unresolved theme as light rather than throwing', () => {
     // Before mount `resolvedTheme` is undefined; the control must still work.
-    expect(nextInCycle(undefined, false)).toEqual({ mode: 'dark', oled: false });
+    expect(nextInCycle(at(undefined, false), true)).toEqual({ mode: 'dark', oled: false });
   });
 });
 

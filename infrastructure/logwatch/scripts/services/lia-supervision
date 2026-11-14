@@ -56,6 +56,21 @@ EPISODES_SHOWN_PER_ALERT = 6
 RESTARTS_FLAGGED_FROM = 3
 #: The containers the memory alert watches (ContainerMemoryNearLimit).
 MEMORY_SELECTOR = 'name=~"lia.*"'
+#: The page cache the kernel still holds as active, which the memory alert
+#: subtracts from the working set (cAdvisor; in Prometheus's keep-list from the
+#: change of 2026-11-10 on, so absent from every window recorded before it).
+ACTIVE_CACHE = "container_memory_total_active_file_bytes"
+MEMORY_TITLE_UNRECLAIMABLE = (
+    "  === PICS DE MEMOIRE (memoire non liberable / limite du conteneur) ==="
+)
+MEMORY_TITLE_WORKING_SET = "  === PICS DE MEMOIRE (working set / limite du conteneur) ==="
+#: The API's scrape target, the one ServiceDown reads.
+API_UP = 'up{job="lia-api"}'
+#: Alertmanager's integration label for the self-diagnostics webhook to the API.
+DIAGNOSTICS_INTEGRATION = "webhook"
+#: Alertmanager's failure reason for a target it could not reach (DNS, TCP):
+#: neither a refusal (clientError) nor a server answer (serverError).
+UNREACHABLE_REASON = "other"
 #: The scrape jobs whose ``up`` stands for a source (prometheus.yml): Prometheus
 #: itself (it evaluates the alert rules) and cAdvisor (restarts, memory).
 PROMETHEUS_SELF_UP = 'up{job="prometheus"} == 1'
@@ -420,10 +435,13 @@ def _target_lines(prometheus: Prometheus) -> list[str]:
 
 
 def _by_integration(samples: list[dict[str, object]]) -> str:
-    return ", ".join(
-        f"{_labels(sample).get('integration', '?')}={int(round(_value(sample)))}"
-        for sample in samples
-    )
+    """One ``integration=count`` per channel, its samples summed (a channel
+    may come as several series, one per failure reason)."""
+    totals: dict[str, float] = {}
+    for sample in samples:
+        name = _labels(sample).get("integration", "?")
+        totals[name] = totals.get(name, 0.0) + _value(sample)
+    return ", ".join(f"{name}={int(round(total))}" for name, total in totals.items())
 
 
 def _notification_lines(prometheus: Prometheus, window: Window) -> list[str]:
@@ -445,15 +463,50 @@ def _notification_lines(prometheus: Prometheus, window: Window) -> list[str]:
         f"sum by (integration) (increase(alertmanager_notifications_total[{w}s])) > 0", window.end
     )
     failed = prometheus.instant(
-        f"sum by (integration) (increase(alertmanager_notifications_failed_total[{w}s])) > 0",
+        "sum by (integration, reason)"
+        f" (increase(alertmanager_notifications_failed_total[{w}s])) > 0",
         window.end,
     )
     lines.append(f"  Notifications envoyees    : {_by_integration(sent) or 'aucun'}")
-    if failed:
-        lines.append(f"  NOTIFICATIONS EN ECHEC    : {_by_integration(failed)}  *** ATTENTION ***")
+    # The self-diagnostics webhook targets the API: on a day the API was
+    # unreachable, the failures Alertmanager itself classifies as a target it
+    # could not reach are that outage seen from Alertmanager, not a broken
+    # channel (2026-11-09: 22 of them, the e-mail leaving normally). Both facts
+    # are stated exactly and the reader judges. Any other reason is an API
+    # that answered and refused, and with no outage nothing explains a
+    # failure: those stay flagged like any other channel.
+    api_down_minutes = _api_unreachable_minutes(prometheus, window)
+    explained = [sample for sample in failed if _is_the_outage(sample, api_down_minutes)]
+    flagged = [sample for sample in failed if not _is_the_outage(sample, api_down_minutes)]
+    if flagged:
+        lines.append(f"  NOTIFICATIONS EN ECHEC    : {_by_integration(flagged)}  *** ATTENTION ***")
     else:
         lines.append("  Notifications en echec    : 0")
+    if explained:
+        count = int(round(sum(_value(sample) for sample in explained)))
+        lines.append(
+            f"  Webhook de diagnostic     : {count} echec(s) ; sa cible est"
+            f" l API, injoignable {api_down_minutes} min sur la periode"
+        )
     return lines
+
+
+def _is_the_outage(sample: dict[str, object], api_down_minutes: int) -> bool:
+    """Whether a failed-notification series is the API's own outage, seen from Alertmanager."""
+    labels = _labels(sample)
+    return (
+        api_down_minutes > 0
+        and labels.get("integration") == DIAGNOSTICS_INTEGRATION
+        and labels.get("reason") == UNREACHABLE_REASON
+    )
+
+
+def _api_unreachable_minutes(prometheus: Prometheus, window: Window) -> int:
+    """Minutes of the window during which Prometheus could not scrape the API."""
+    samples = prometheus.instant(
+        f"max(count_over_time(({API_UP} == 0)[{window.seconds}s:1m]))", window.end
+    )
+    return int(round(max((_value(sample) for sample in samples), default=0.0)))
 
 
 def render_chain(prometheus: Prometheus, window: Window) -> list[str]:
@@ -651,13 +704,32 @@ def memory_peaks(series: list[dict[str, object]]) -> list[tuple[str, float, floa
 
 def render_memory(prometheus: Prometheus, window: Window) -> list[str]:
     """The memory peaks of the containers the memory alert watches."""
-    lines = ["", "  === PICS DE MEMOIRE (working set / limite du conteneur) ===", ""]
     measured = coverage(prometheus, CADVISOR_UP, window)
-    lines += _coverage_lines("cAdvisor", measured)
     if measured <= 0:
-        return lines
+        return ["", MEMORY_TITLE_WORKING_SET, "", *_coverage_lines("cAdvisor", measured)]
+    # The figure declares what it is: « non liberable » only for a window the
+    # active cache was recorded over in full. On a partial or blind one the
+    # fallback below answers with the working set, and the title says so.
+    cache_share = coverage(prometheus, f"{ACTIVE_CACHE}{{{MEMORY_SELECTOR}}}", window)
+    full = cache_share >= FULL_COVERAGE
+    lines = ["", MEMORY_TITLE_UNRECLAIMABLE if full else MEMORY_TITLE_WORKING_SET, ""]
+    lines += _coverage_lines("cAdvisor", measured)
+    if cache_share <= 0:
+        lines.append("  Cache actif non mesure sur la periode : le working set le compte encore.")
+    elif not full:
+        lines.append(
+            f"  Cache actif mesure sur {int(cache_share * 100)} % de la periode :"
+            " avant, le working set le compte."
+        )
+    # The alert's own expression (alerts-core.yml): the working set minus the
+    # ACTIVE page cache, which the kernel can still drop. A large binary keeps
+    # its pages on the active list (Alloy read 98.1 % here on 2026-11-09 with
+    # half of its limit in anonymous memory). The fallback subtracts nothing
+    # for a container, or a day, whose active-cache series is missing.
     series = prometheus.series(
-        f"(container_memory_working_set_bytes{{{MEMORY_SELECTOR}}}"
+        f"((container_memory_working_set_bytes{{{MEMORY_SELECTOR}}}"
+        f" - ({ACTIVE_CACHE}{{{MEMORY_SELECTOR}}}"
+        f" or container_memory_working_set_bytes{{{MEMORY_SELECTOR}}} * 0))"
         f" / (container_spec_memory_limit_bytes{{{MEMORY_SELECTOR}}} > 0)) * 100",
         window,
     )

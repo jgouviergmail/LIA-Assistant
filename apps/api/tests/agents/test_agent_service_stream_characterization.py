@@ -46,12 +46,14 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from langgraph.errors import GraphInterrupt
 
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.api.service import AgentService
 from src.domains.agents.services.orchestration.approval_decision import HitlDecisionStaleError
 from src.domains.chat.schemas import TokenSummaryDTO
 from src.domains.skills.repository import RequestSkillState
 from src.domains.voice.schemas import VoiceAudioChunk
+from tests.fixtures.conversation_cases import conversation_target
 
 # ---------------------------------------------------------------------------
 # Scripted chunk helpers (structural fixtures — content is ours, not an LLM's)
@@ -60,6 +62,7 @@ from src.domains.voice.schemas import VoiceAudioChunk
 USER_MESSAGE = "test user message"
 SESSION_ID = "sess-char"
 CONVERSATION_ID = uuid.uuid4()
+RUNTIME_ID = uuid.uuid4()
 USER_ID = uuid.uuid4()
 
 
@@ -234,7 +237,7 @@ class FakeStreamingService:
         self.efficacy_capture = EfficacyCapture()
         FakeStreamingService.instances.append(self)
 
-    async def stream_sse_chunks(self, graph_stream, conversation_id, run_id):
+    async def stream_sse_chunks(self, graph_stream, target, run_id):
         for item in FakeStreamingService.script:
             if callable(item):
                 result = item(self)
@@ -436,15 +439,13 @@ class Harness:
         )
 
         class FakeConversationOrchestrator:
-            # `language` mirrors the production signature: the conversation's
-            # default title is user-facing, so the nominal chat path forwards
-            # the user's locale here. A fake that omitted it made the whole
-            # stream raise and every characterization assert on an EMPTY chunk
-            # list — which reads as "nothing streamed", not as "wrong call".
-            async def setup_conversation(self, user_id, session_id, run_id, db, language=None):
-                harness.setup_conversation_language = language
+            # Identity is already admitted at entry; this seam only prepares
+            # account grants and tracking for that exact frozen target.
+            async def setup_conversation(self, target, session_id, run_id, db):
+                harness.setup_conversation_target = target
                 return SimpleNamespace(
                     conversation_id=CONVERSATION_ID,
+                    target=target,
                     tracking_context=harness.tracker,
                     oauth_scopes=[],
                     active_connector_types=frozenset(),
@@ -535,6 +536,7 @@ class Harness:
                 ),
                 ("src.domains.chat.service.TrackingContext", FakeTrackingContext),
                 ("src.domains.agents.utils.hitl_store.HITLStore", FakeHITLStore),
+                ("src.domains.agents.utils.HITLStore", FakeHITLStore),
                 ("src.domains.voice.service.VoiceCommentService", FakeVoiceCommentService),
                 ("src.infrastructure.database.get_db_context", fake_db_context),
                 ("src.infrastructure.async_utils.safe_fire_and_forget", fake_fire_and_forget),
@@ -599,11 +601,17 @@ class Harness:
                 stack.enter_context(patch(target, replacement))
 
             chunks: list[ChatStreamChunk] = []
-            stream = service.stream_chat_response(
+            # This harness characterizes the inner streaming orchestration.
+            # The public admission boundary is exercised on real PostgreSQL
+            # and Redis in test_service_run_admission, never faked here.
+            stream = service._stream_with_new_services(
                 user_message=USER_MESSAGE,
                 user_id=USER_ID,
                 session_id=SESSION_ID,
                 user_language="fr",
+                user_timezone=DEFAULT_USER_DISPLAY_TIMEZONE,
+                target=conversation_target(USER_ID, CONVERSATION_ID, runtime_id=RUNTIME_ID),
+                run_id=self.original_run_id or str(uuid.uuid4()),
                 original_run_id=self.original_run_id,
             )
             try:
@@ -661,11 +669,8 @@ async def test_char_simple_message_sequence():
 
     assert _types(chunks) == ["router_decision", "token", "token", "token", "done"]
     assert chunks[0].metadata["intention"] == "conversation"
-    # The nominal path forwards the user's locale to the conversation factory:
-    # the default title it may have to generate is user-facing. Asserted here
-    # rather than only on the orchestrator, because this is the ONE test that
-    # exercises the real call site.
-    assert harness.setup_conversation_language == "fr"
+    # The caller's distinct working runtime survives orchestration setup.
+    assert harness.setup_conversation_target.runtime_id == RUNTIME_ID
 
     done = chunks[-1]
     # Structural contract of the done chunk (values from the fake DTO).
@@ -859,7 +864,7 @@ async def test_char_hitl_resumption_sequence():
     # Pending HITL cleared (no new interrupt). Detection-cache invalidation
     # now lives inside HITLStore.delete_interrupt itself — covered end-to-end
     # by tests/integration/test_hitl_pending_lifecycle.py.
-    assert any(store.cleared == [str(CONVERSATION_ID)] for store in FakeHITLStore.instances)
+    assert any(store.cleared == [str(RUNTIME_ID)] for store in FakeHITLStore.instances)
 
 
 # ---------------------------------------------------------------------------

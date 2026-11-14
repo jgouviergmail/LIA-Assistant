@@ -69,6 +69,7 @@ export type WorkbenchFeature =
   | 'filters'
   | 'filter_words'
   | 'send_as'
+  | 'reply_marks'
   | 'all_day'
   | 'conference'
   | 'notify_attendees'
@@ -218,8 +219,11 @@ export interface WorkbenchTaskStep {
 
 export type WorkbenchTaskImportance = 'low' | 'normal' | 'high';
 export type WorkbenchTaskRepeat = 'daily' | 'weekly' | 'monthly' | 'yearly';
-/** A view across the lists, decided in the account's day. */
-export type WorkbenchTaskView = 'today' | 'overdue' | 'upcoming';
+/**
+ * A view across the lists, decided in the account's day: one stretch of days, the three
+ * together (`timeline`), or every open task, dated or not (`all`, drawn among the lists).
+ */
+export type WorkbenchTaskView = 'today' | 'overdue' | 'upcoming' | 'timeline' | 'all';
 
 /** What a move did: each task moved says what it is called from now on. */
 export interface WorkbenchTaskMoveOutcome extends WorkbenchActOutcome {
@@ -274,6 +278,17 @@ export interface MailSummary {
   has_attachments: boolean;
   /** The person's own Gmail labels on it (ids); none elsewhere. */
   label_ids: string[];
+}
+
+/**
+ * What a row shows of where it stands in its conversation (ADR-379): what HAPPENED —
+ * « nothing yet » is no mark.
+ */
+export type MailReplyMark = 'answered' | 'answer_drafted' | 'reply_received';
+
+/** The marks of a page of rows: only the rows something happened to. */
+export interface MailReplyMarks {
+  items: { id: string; status: MailReplyMark }[];
 }
 
 /** What was said around a message: oldest first, drafts left out. */
@@ -539,6 +554,23 @@ export interface DueTasks {
   failed: string[];
 }
 
+/** One open task of any list, as a view across the lists shows it. */
+export interface ViewTask {
+  id: string;
+  list_id: string;
+  title: string;
+  /** The day it is due, `YYYY-MM-DD`; null without one (the « all tasks » view alone). */
+  due: string | null;
+}
+
+/** What a view across the lists gathers: the earliest first, the undated last. */
+export interface ViewTasks {
+  tasks: ViewTask[];
+  truncated: boolean;
+  /** The lists that could not be read. */
+  failed: string[];
+}
+
 /** An answer the person can give; `needsAction` is only ever read. */
 export type EventAnswer = Exclude<AttendeeResponse, 'needsAction'>;
 
@@ -642,6 +674,8 @@ export interface ContactHistoryMail {
   id: string;
   subject: string;
   at: string | null;
+  /** What happened next in its conversation, when something did (ADR-379). */
+  reply?: MailReplyMark | null;
 }
 
 /** One meeting with a contact. */

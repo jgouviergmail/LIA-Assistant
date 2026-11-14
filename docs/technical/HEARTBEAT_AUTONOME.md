@@ -101,8 +101,8 @@ The `ContextAggregator` fetches all sources in parallel via `asyncio.gather(retu
 |--------|--------|------------|----------|
 | Calendar | Google/Apple/Microsoft Calendar API | Active connector | None |
 | Weather + Changes | OpenWeatherMap API | Connector + home_location | None |
-| Tasks | Google Tasks / Microsoft To Do API | Active connector | None |
-| Emails | Gmail / Apple Email / Microsoft Outlook | Active connector | None |
+| Tasks | Google Tasks / Microsoft To Do API, EVERY list of the account (`tasks_context.fetch_tasks_context`): the most pressing first, each naming its list, under `HEARTBEAT_CONTEXT_TASKS_MAX`; a list that failed leaves the others to answer, nothing beside a failed list is a failed source | Active connector | None |
+| Emails | Gmail / Apple Email / Microsoft Outlook — UNREAD mail only, whichever road brought it (the search, the Gmail delta, a push wake): a delta lists every NEW inbox message, so each is kept only while the mailbox still marks it unread (`core.mail_vocabulary.is_unread`). Unread is not unanswered either: each candidate is situated in its conversation (`heartbeat/mail_context.py`, [reply state](./MAIL_REPLY_STATE.md)), one the person already answered is left out BEFORE the cap, and an answer drafted and never sent is marked on the mail's own line (`[REPLY DRAFTED, NOT SENT]`, explained in the decision prompt) | Active connector | None |
 | Interests | InterestRepository + `pick_varied_sample` (ADR-135: one per subject, least-recently-served first) | Active interests | None |
 | Memories | LangGraph Store (semantic search, second-pass dynamic query — P8, symmetric with journals) | memory_enabled | None |
 | Journals | JournalEntryRepository (semantic search, second-pass dynamic query) | journals_enabled | None |
@@ -311,7 +311,8 @@ there in one click — never through a heartbeat notification.
 
 What the decision sees: the aggregator receives the wake payload — the mail
 metadata the pre-filter already fetched (used instead of the delta fast-path,
-then the anchor is advanced) or the changed calendar events (merged into the
+then the anchor is advanced; only the messages still unread are listed, the
+cap applied after that filter) or the changed calendar events (merged into the
 upcoming ones) — and `HeartbeatContext.wake_trigger` renders a FRESH line at
 the top of the prompt. The audit row persists `trigger = push`, published by
 the history API and shown as a badge in the notifications hub.

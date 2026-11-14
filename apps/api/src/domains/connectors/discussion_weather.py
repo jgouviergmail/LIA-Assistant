@@ -10,6 +10,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.domains.connectors.clients.google_weather_client import GoogleWeatherClient
+from src.domains.connectors.companion_weather import publish_companion_weather
 from src.domains.connectors.service import ConnectorService
 from src.domains.connectors.weather_provider import resolve_weather_client
 from src.domains.shared.discussion_sources import (
@@ -181,13 +182,12 @@ class WeatherDiscussionSource:
                 )
                 points = tuple(ForecastPage.model_validate(raw).points)
             else:
-                points = (
-                    WeatherPoint.model_validate(
-                        await client.get_current_weather(
-                            lat=focus.lat, lon=focus.lon, units="metric"
-                        )
-                    ),
+                current = await client.get_current_weather(
+                    lat=focus.lat, lon=focus.lon, units="metric"
                 )
+                # The person's place, read now: the companion shows it too (ADR-294).
+                await publish_companion_weather(request.owner_id, current)
+                points = (WeatherPoint.model_validate(current),)
         forecast = request.request.operation == "future"
         items = tuple(
             _evidence(point, request, scope, forecast=forecast)

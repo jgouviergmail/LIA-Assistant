@@ -24,6 +24,7 @@ from src.core.exceptions import BaseAPIException
 from src.domains.attachments import knowledge_copy
 from src.domains.attachments.models import AttachmentContentType, AttachmentOrigin, AttachmentStatus
 from src.domains.rag_spaces.models import RAGDocumentStatus
+from tests.helpers.attachment_publication import stub_publication
 
 pytestmark = pytest.mark.unit
 
@@ -66,12 +67,7 @@ def storage(tmp_path: Path) -> dict[str, Path]:
 
 async def _copy(storage, doc, *, max_chars: int = 50_000, db: AsyncMock | None = None):
     db = db or AsyncMock()
-    created: list[dict] = []
-
-    async def create(payload):
-        created.append(payload)
-        row = MagicMock(id=uuid.uuid4(), **payload)
-        return row
+    created: list[dict[str, object]] = []
 
     settings_mock = MagicMock(
         attachments_storage_path=str(storage["att"]),
@@ -83,9 +79,8 @@ async def _copy(storage, doc, *, max_chars: int = 50_000, db: AsyncMock | None =
         patch.object(knowledge_copy, "settings", settings_mock),
         patch("src.domains.rag_spaces.document_access.settings", settings_mock),
         patch.object(knowledge_copy, "owned_document", AsyncMock(return_value=doc)),
-        patch.object(knowledge_copy, "AttachmentRepository") as repo_cls,
+        stub_publication(storage["att"], created),
     ):
-        repo_cls.return_value.create = AsyncMock(side_effect=create)
         row = await knowledge_copy.copy_knowledge_document(
             db, user_id=doc.user_id, space_id=doc.space_id, document_id=doc.id
         )
@@ -114,8 +109,8 @@ async def test_a_ready_document_becomes_an_upload_attachment_with_its_text(stora
     assert copied.exists() and copied != stored and stored.exists()
     assert payload["file_path"].startswith(f"{user_id}/")
     assert payload["file_size"] == stored.stat().st_size
-    # The reads end before the copy, the row is committed after it.
-    assert db.commit.await_count == 2
+    # Source reads close before path I/O; the intent precedes the copy, then publication.
+    assert db.commit.await_count == 3
 
 
 async def test_the_text_is_capped_and_the_cut_is_stated(storage) -> None:
@@ -170,9 +165,8 @@ async def test_a_row_that_fails_leaves_no_orphan_copy_on_disk(storage) -> None:
         patch.object(knowledge_copy, "settings", settings_mock),
         patch("src.domains.rag_spaces.document_access.settings", settings_mock),
         patch.object(knowledge_copy, "owned_document", AsyncMock(return_value=doc)),
-        patch.object(knowledge_copy, "AttachmentRepository") as repo_cls,
+        stub_publication(storage["att"], fail_stage=True),
     ):
-        repo_cls.return_value.create = AsyncMock(side_effect=RuntimeError("db down"))
         with pytest.raises(RuntimeError):
             await knowledge_copy.copy_knowledge_document(
                 AsyncMock(), user_id=user_id, space_id=space_id, document_id=doc.id
@@ -197,11 +191,13 @@ async def test_the_reads_end_before_the_copy_is_made(storage) -> None:
     db.commit = AsyncMock(side_effect=lambda: order.append("commit"))
     copy = knowledge_copy.copy_and_extract
 
-    def recorded_copy(*args: object) -> tuple[str | None, int]:
+    def recorded_copy(
+        source: Path, target: Path, content_type: str | None, max_chars: int
+    ) -> tuple[str | None, int]:
         order.append("copy")
-        return copy(*args)  # type: ignore[arg-type]
+        return copy(source, target, content_type, max_chars)
 
     with patch.object(knowledge_copy, "copy_and_extract", recorded_copy):
         await _copy(storage, doc, db=db)
 
-    assert order == ["commit", "copy", "commit"]
+    assert order == ["commit", "commit", "copy", "commit"]

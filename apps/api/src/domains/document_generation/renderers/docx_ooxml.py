@@ -12,6 +12,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from docx.opc.constants import RELATIONSHIP_TYPE
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
@@ -19,6 +20,20 @@ from docx.oxml.ns import qn
 NUMBERED_LEVELS = 3
 #: Border width of the callout's left rule, in eighths of a point.
 _CALLOUT_BORDER_SIZE = "18"
+#: Twentieths of a point, the unit of every OOXML table measure.
+TWIPS_PER_PT = 20
+#: What may FOLLOW each table or cell property, in schema order: a property is
+#: inserted before the first of these present, or Word repairs the file.
+_AFTER_CELL_SPACING = ("w:tblInd", "w:tblBorders", "w:shd", "w:tblLayout", "w:tblCellMar")
+_AFTER_TABLE_MARGINS = ("w:tblLook", "w:tblCaption", "w:tblDescription", "w:tblPrChange")
+_AFTER_CELL_SHADING = (
+    "w:noWrap",
+    "w:tcMar",
+    "w:textDirection",
+    "w:tcFitText",
+    "w:vAlign",
+    "w:hideMark",
+)
 
 
 def naive_utc(moment: datetime) -> datetime:
@@ -219,3 +234,80 @@ def recolor_title_rule(style: Any, color_hex: str) -> None:
     bottom.set(qn("w:color"), color_hex)
     for themed in ("w:themeColor", "w:themeShade", "w:themeTint"):
         bottom.attrib.pop(qn(themed), None)
+
+
+def describe_picture(picture: Any, *, title: str, description: str) -> None:
+    """A picture's words for a screen reader: Word's « alternative text ».
+
+    Args:
+        picture: The inline shape python-docx returned.
+        title: Its short name (the figure's caption).
+        description: Everything it shows, in words.
+    """
+    properties = picture._inline.docPr
+    properties.set("title", title)
+    properties.set("descr", description)
+
+
+def shade_cell(cell: Any, fill_hex: str) -> None:
+    """A table cell filled with one colour."""
+    cell._tc.get_or_add_tcPr().insert_element_before(
+        _element("w:shd", val="clear", color="auto", fill=fill_hex), *_AFTER_CELL_SHADING
+    )
+
+
+def space_cells(table: Any, *, spacing_pt: float, margin_pt: float) -> None:
+    """Separate the cells of a table and pad them: tiles rather than a grid.
+
+    Args:
+        table: The python-docx table.
+        spacing_pt: The space between two cells, and between a cell and the edge.
+        margin_pt: The space inside each cell, on all four sides.
+    """
+    properties = table._tbl.tblPr
+    properties.insert_element_before(
+        _element("w:tblCellSpacing", w=str(round(spacing_pt * TWIPS_PER_PT)), type="dxa"),
+        *_AFTER_CELL_SPACING,
+        *_AFTER_TABLE_MARGINS,
+    )
+    margins = OxmlElement("w:tblCellMar")
+    for side in ("top", "left", "bottom", "right"):
+        margins.append(_element(f"w:{side}", w=str(round(margin_pt * TWIPS_PER_PT)), type="dxa"))
+    properties.insert_element_before(margins, *_AFTER_TABLE_MARGINS)
+
+
+def add_hyperlink(
+    paragraph: Any, url: str, text: str, *, color_hex: str, bold: bool = False, italic: bool = False
+) -> None:
+    """A run that opens ``url``: underlined, in the link's ink.
+
+    Word draws a link only from a relationship to the address; a run that merely
+    LOOKS like a link opens nothing.
+
+    Args:
+        paragraph: Where the link goes.
+        url: The web address, already checked to be one.
+        text: What the reader sees.
+        color_hex: The link's ink.
+        bold: Whether the words are bold.
+        italic: Whether they are italic.
+    """
+    relationship = paragraph.part.relate_to(url, RELATIONSHIP_TYPE.HYPERLINK, is_external=True)
+    link = OxmlElement("w:hyperlink")
+    link.set(qn("r:id"), relationship)
+    run = OxmlElement("w:r")
+    properties = OxmlElement("w:rPr")
+    # CT_RPr order: b, i, ..., color, ..., u.
+    if bold:
+        properties.append(OxmlElement("w:b"))
+    if italic:
+        properties.append(OxmlElement("w:i"))
+    properties.append(_element("w:color", val=color_hex))
+    properties.append(_element("w:u", val="single"))
+    run.append(properties)
+    words = OxmlElement("w:t")
+    words.set(qn("xml:space"), "preserve")
+    words.text = text
+    run.append(words)
+    link.append(run)
+    paragraph._p.append(link)

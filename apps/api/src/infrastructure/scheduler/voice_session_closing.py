@@ -33,6 +33,7 @@ while ``voice_sessions`` imports no carrier. The carriers keep what is theirs
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from collections.abc import Awaitable, Callable, Mapping
 from contextlib import suppress
@@ -43,12 +44,14 @@ from typing import Any, Final
 
 import structlog
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import LIVE_TURN_TEXT_MAX_CHARS
+from src.core.conversation_execution import ExecutionRevoked
+from src.core.conversation_publication import PinnedReservationPublication
 from src.core.exceptions_domains import UsageLimitExceededError
 from src.core.field_names import FIELD_LIVE_SUMMARY
-from src.core.i18n_live import get_live_phrases
 from src.domains.agents.api.archive_metadata import (
     build_live_session_summary_metadata,
     build_live_turn_metadata,
@@ -59,10 +62,12 @@ from src.domains.agents.effects.models import DecisionOutcome
 from src.domains.agents.services.memory_extractor import extract_memories_background
 from src.domains.chat.service import TrackingContext
 from src.domains.conversations.models import ConversationMessage
+from src.domains.conversations.reservation_repository import ConversationReservationRepository
 from src.domains.conversations.service import ConversationService
 from src.domains.interests.services import extract_interests_background
 from src.domains.telephony.schemas import SelfCallData, SelfCallRelay
 from src.domains.telephony.synthesis_usage import track_voice_synthesis_usage
+from src.domains.users.conversation_authority import hold_conversation_source
 from src.domains.users.models import User
 from src.domains.voice_sessions.session import VoiceCarrier, VoiceSession
 from src.domains.voice_sessions.summary import (
@@ -72,20 +77,22 @@ from src.domains.voice_sessions.summary import (
     render_summary_markdown,
     rewrite_session_card,
     session_card,
+    session_closing_card,
     session_run_ids,
     session_voice_rows,
 )
 from src.domains.voice_sessions.transcript import VoiceTranscript
-from src.infrastructure.async_utils import safe_fire_and_forget
+from src.infrastructure.async_utils import finish_owned_task, safe_fire_and_forget
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.metrics_live import live_direct_relay_total
-from src.infrastructure.proactive.notification import NotificationDispatcher
 from src.infrastructure.scheduler.voice_relay import (
     RelayOutcome,
     VoiceRelayRequest,
     run_voice_relay,
     synthesize_relay,
 )
+from src.infrastructure.scheduler.voice_relay_notice import notify_relay as _notify_relay
+from src.infrastructure.scheduler.voice_reservation import schedule_session_relay
 
 logger = structlog.get_logger(__name__)
 
@@ -134,6 +141,7 @@ async def _learn(
     run_id: str,
     messages: list[BaseMessage],
     language: str,
+    timezone: str,
 ) -> None:
     session_id = f"live_{run_id}"
     async with TrackingContext(run_id, user_id, session_id, conversation_id):
@@ -145,6 +153,7 @@ async def _learn(
                 personality_instruction=None,
                 conversation_id=str(conversation_id),
                 parent_run_id=run_id,
+                user_timezone=timezone,
             )
         await extract_interests_background(
             str(user_id),
@@ -153,6 +162,7 @@ async def _learn(
             conversation_id=str(conversation_id),
             user_language=language,
             parent_run_id=run_id,
+            user_timezone=timezone,
         )
 
 
@@ -175,6 +185,7 @@ async def schedule_voice_learning(
     run_id: str,
     rows: list[tuple[str, str]],
     language: str,
+    timezone: str,
     run_inline: bool = False,
     after: Callable[[], Awaitable[None]] | None = None,
 ) -> None:
@@ -213,6 +224,7 @@ async def schedule_voice_learning(
             run_id=run_id,
             messages=messages,
             language=language,
+            timezone=timezone,
         ),
         after,
     )
@@ -244,6 +256,7 @@ async def _synthesize_direct(
     overwritten, so a model that does not copy it cannot turn the person's
     own session into « someone else was speaking » (``NOT_OWNER``).
     """
+    conversation_id = session.conversation_id if session.reservation is not None else None
     try:
         relay, usage = await synthesize_relay(
             carrier=session.carrier,
@@ -257,6 +270,7 @@ async def _synthesize_direct(
             task_type=session.origin_kind,
             target_id=session.origin_id,
             run_id=session.run_id,
+            conversation_id=conversation_id,
         )
     except UsageLimitExceededError:
         return RelayOutcome.QUOTA_BLOCKED.value, None
@@ -273,6 +287,7 @@ async def _synthesize_direct(
         task_type=session.origin_kind,
         target_id=session.origin_id,
         run_id=session.run_id,
+        conversation_id=conversation_id,
     )
     if not relay.relay_message.strip():
         return RelayOutcome.EMPTY.value, None
@@ -321,8 +336,11 @@ async def _settle_card(
     extensions: int,
 ) -> None:
     """Rewrite the card with the fate (and the recap), tell the person's screen, commit."""
+    if session.reservation is not None:
+        await ConversationReservationRepository(db).require_current(session.reservation)
     await _rewrite_card(db, session, card_id, fate, extensions=extensions, relay_summary=recap)
     user = await db.get(User, session.user_id)
+    await db.commit()
     if user is not None:
         await _notify_relay(db, user, session, fate)
     await db.commit()
@@ -367,53 +385,88 @@ async def _settle_direct_relay(
     logger.info("voice_direct_relay_settled", origin_id=session.origin_id, outcome=fate)
 
 
-#: Keeps a standby relay's fate where the closing card will read it.
-KeepFate = Callable[[str, str | None], Awaitable[None]]
-
-
-def schedule_standby_relay(
-    session: VoiceSession, transcript: VoiceTranscript, *, keep_fate: KeepFate
-) -> None:
+async def schedule_standby_relay(session: VoiceSession, transcript: VoiceTranscript) -> None:
     """Relay the words of a direct session that went to sleep, off the request path (ADR-329).
 
-    The same synthesis and relay as the end's, in a task the closing owns
-    (the background-task set, drained at shutdown): the standby answers at
-    once, the words become the person's own turn when they settled, and the
-    fate is kept for the closing card — no card exists yet to rewrite.
+    The standby answers at once. The task owns its reservation until its
+    recap and bill have either reached the closing card or can be read by it.
     """
-    safe_fire_and_forget(
-        _settle_standby_relay(session, transcript, keep_fate),
+    await schedule_session_relay(
+        session,
+        lambda bound: _settle_standby_relay(bound, transcript),
         name=f"voice_standby_relay_{session.run_id}",
     )
 
 
-async def _settle_standby_relay(
-    session: VoiceSession, transcript: VoiceTranscript, keep_fate: KeepFate
-) -> None:
-    """Relay, keep the fate, tell the person's screen — whatever raised, the fate is kept."""
+async def _commit_standby_result(session: VoiceSession, recap: str | None) -> bool:
+    """Commit the pending recap or redraw the already committed card under one lock."""
+    work = session.reservation
+    if work is None:
+        raise ExecutionRevoked()
+    async with get_db_context() as db:
+        repo = ConversationReservationRepository(db)
+        if not await repo.record_standby_result(work, recap):
+            return False
+        card = await session_closing_card(
+            db,
+            conversation_id=work.admission.target.id,
+            live_session_id=session.key,
+            run_id=session.run_id,
+        )
+        if card is not None:
+            await _append_standby_recaps(db, session, card, await repo.take_standby_recaps(work))
+    return True
+
+
+async def _persist_standby_result(session: VoiceSession, recap: str | None) -> bool:
+    """Retry a database refusal only. The work row prevents repeating a committed result."""
+    try:
+        return await _commit_standby_result(session, recap)
+    except DBAPIError:
+        return await _commit_standby_result(session, recap)
+
+
+async def _settle_standby_relay(session: VoiceSession, transcript: VoiceTranscript) -> None:
+    """Finish the reservation's durable result before handing the account's slot back."""
     fate, recap = RelayOutcome.FAILED.value, None
     try:
-        fate, recap = await relay_direct_transcript(session, transcript)
-    except Exception as exc:  # noqa: BLE001 — the fate is kept whatever broke
-        logger.error(
-            "voice_standby_relay_failed", origin_id=session.origin_id, error_type=type(exc).__name__
-        )
+        try:
+            fate, recap = await relay_direct_transcript(session, transcript)
+        except Exception as exc:  # noqa: BLE001 — the fate is kept whatever broke
+            logger.error(
+                "voice_standby_relay_failed",
+                origin_id=session.origin_id,
+                error_type=type(exc).__name__,
+            )
+    finally:
+        kept = await _keep_standby_result(session, recap)
+    if kept:
+        try:
+            async with get_db_context() as db:
+                user = await db.get(User, session.user_id)
+                if user is not None:
+                    await _notify_relay(db, user, session, fate)
+        except Exception as exc:  # noqa: BLE001 — a notice cannot undo the durable result
+            logger.warning(
+                "voice_standby_relay_notice_failed",
+                origin_id=session.origin_id,
+                error_type=type(exc).__name__,
+            )
+    live_direct_relay_total.labels(outcome=fate).inc()
+    logger.info("voice_standby_relay_settled", origin_id=session.origin_id, outcome=fate)
+
+
+async def _keep_standby_result(session: VoiceSession, recap: str | None) -> bool:
+    """Join the one result write even while shutdown cancels the relay."""
     try:
-        await keep_fate(fate, recap)
-        async with get_db_context() as db:
-            user = await db.get(User, session.user_id)
-            if user is not None:
-                await _notify_relay(db, user, session, fate)
-            await db.commit()
+        return await finish_owned_task(asyncio.create_task(_persist_standby_result(session, recap)))
     except Exception as exc:  # noqa: BLE001 — a lost fate is logged and counted, never raised
         logger.warning(
             "voice_standby_relay_fate_unkept",
             origin_id=session.origin_id,
-            fate=fate,
             error_type=type(exc).__name__,
         )
-    live_direct_relay_total.labels(outcome=fate).inc()
-    logger.info("voice_standby_relay_settled", origin_id=session.origin_id, outcome=fate)
+        return False
 
 
 async def _session_bill(
@@ -433,6 +486,27 @@ async def _session_bill(
 def _card_figures(row: ConversationMessage) -> dict[str, Any]:
     """What the closing settled on the card (outcome, duration, counts)."""
     return dict((row.message_metadata or {}).get(FIELD_LIVE_SUMMARY) or {})
+
+
+async def _append_standby_recaps(
+    db: AsyncSession, session: VoiceSession, card: ConversationMessage, recaps: list[str]
+) -> None:
+    """Update the same card with newly settled words and the exact committed bill."""
+    _, usage = await _session_bill(db, session)
+    if not recaps and (usage is None or not _bill_grew(card.message_metadata or {}, usage)):
+        return
+    figures = _card_figures(card)
+    figures["standby_recaps"] = [*(figures.get("standby_recaps") or ()), *recaps]
+    await _redraw_card(
+        db,
+        session,
+        card.id,
+        figures,
+        usage,
+        relay=figures.get("relay"),
+        extensions=int(figures.get("extensions") or 0),
+        relay_summary=figures.get("relay_summary"),
+    )
 
 
 async def _rewrite_card(
@@ -497,6 +571,10 @@ async def restate_card_bill(session: VoiceSession, card_id: uuid.UUID) -> None:
     """
     try:
         async with get_db_context() as db:
+            if session.reservation is not None:
+                await hold_conversation_source(
+                    db, session.user_id, session.reservation.admission.target
+                )
             row = await session_card(db, card_id)
             if row is None:
                 return
@@ -578,31 +656,6 @@ async def _redraw_card(
     )
 
 
-async def _notify_relay(db: AsyncSession, user: User, session: VoiceSession, relay: str) -> None:
-    """A notice on the person's SSE stream and nothing else: the rows are in the chat."""
-    phrases = get_live_phrases(session.language)
-    try:
-        await NotificationDispatcher(
-            fcm_enabled=False, channel_enabled=False, archive_enabled=False, sse_enabled=True
-        ).dispatch(
-            user=user,
-            content=phrases[f"relay_{relay}"],
-            task_type=session.origin_kind,
-            target_id=session.origin_id,
-            metadata={"event": "live_relay", "relay": relay, "session_id": session.origin_id},
-            db=db,
-            title=phrases["summary_title"],
-            commit_before_notification=False,
-            push_enabled=False,
-        )
-    except Exception as exc:  # noqa: BLE001 — a notice failing never undoes the turn
-        logger.warning(
-            "voice_direct_relay_notice_failed",
-            origin_id=session.origin_id,
-            error_type=type(exc).__name__,
-        )
-
-
 # ---------------------------------------------------------------------------
 # The closing
 # ---------------------------------------------------------------------------
@@ -611,7 +664,7 @@ async def _notify_relay(db: AsyncSession, user: User, session: VoiceSession, rel
 async def archive_row(
     db: AsyncSession,
     *,
-    conversation_id: uuid.UUID,
+    conversation_id: uuid.UUID | PinnedReservationPublication,
     role: str,
     content: str,
     metadata: dict[str, Any],
@@ -652,7 +705,7 @@ async def archive_voice_turns(
         for turn in exchange:
             await archive_row(
                 db,
-                conversation_id=session.conversation_id,
+                conversation_id=session.publication,
                 role=turn.role,
                 content=turn.text[:LIVE_TURN_TEXT_MAX_CHARS],
                 metadata=build_live_turn_metadata(
@@ -701,9 +754,7 @@ async def close_voice_session(
         learn_inline: Tests only.
         standbys: How many times a browser session went to sleep (ADR-329);
             the phone passes none.
-        standby_relays: The ``(fate, recap)`` of each standby's relay of a
-            direct browser session, in order; a relay still running at the
-            end is not among them.
+        standby_relays: Legacy ``(fate, recap)`` pairs already stored in Redis.
 
     Returns:
         The figures the carrier reports.
@@ -713,6 +764,7 @@ async def close_voice_session(
             be placed in time, and a guessed instant would misdate them.
     """
     relay: str | None = None
+    standby_recaps = [recap for _, recap in standby_relays or () if recap]
     if session.delegated:
         if transcript is not None:
             if started_at is None:
@@ -725,17 +777,19 @@ async def close_voice_session(
         # person's own turn in the task below — the card says so now, and
         # says the fate once the words settled. No model runs here.
         relay = RELAY_SCHEDULED if transcript else RelayOutcome.EMPTY.value
+        if session.reservation is not None:
+            standby_recaps.extend(
+                await ConversationReservationRepository(db).take_standby_recaps(session.reservation)
+            )
     run_ids, usage = await _session_bill(db, session)
     # The card's figures are EXACT, never the client's claim (ADR-185).
     delegations = len(run_ids)
     voice_turns = await count_voice_turns(
         db, conversation_id=session.conversation_id, live_session_id=session.key
     )
-    # The words a standby could not turn into a turn stay on the card.
-    standby_recaps = [recap for _, recap in standby_relays or () if recap]
     row = await archive_row(
         db,
-        conversation_id=session.conversation_id,
+        conversation_id=session.publication,
         role="assistant",
         content=render_summary_markdown(
             language=session.language,
@@ -770,13 +824,17 @@ async def close_voice_session(
         # The synthesis and the turn run in a task the closing owns, on a
         # session of their own: the end answers now, the card is rewritten
         # when the words settled.
-        safe_fire_and_forget(
-            _settle_direct_relay(session, transcript, row.id, extensions=extensions),
+        await schedule_session_relay(
+            session,
+            lambda bound: _settle_direct_relay(bound, transcript, row.id, extensions=extensions),
             name=f"voice_direct_relay_{session.run_id}",
         )
-    voice_rows = await session_voice_rows(
-        db, conversation_id=session.conversation_id, live_session_id=session.key
-    )
+    voice_rows = []
+    if session.delegated:
+        voice_rows = await session_voice_rows(
+            db, conversation_id=session.conversation_id, live_session_id=session.key
+        )
+        await db.commit()
     decision = out_of_turn_decision(
         run_id=session.run_id,
         user_id=session.user_id,
@@ -797,6 +855,7 @@ async def close_voice_session(
             run_id=session.run_id,
             rows=voice_rows,
             language=session.language,
+            timezone=session.timezone,
             run_inline=learn_inline,
             # The learning spends under the session's run AFTER the card.
             after=partial(restate_card_bill, session, row.id),

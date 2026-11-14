@@ -10,13 +10,16 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CAPABILITY_PAGE,
   CAPABILITY_SECTION,
   SECTION_CAPABILITY,
   CAPABILITY_SECTION_TAB,
   capabilityOfSection,
+  pageOfCapability,
   tabOfCapability,
   sectionOfCapability,
 } from '../capability-sections';
+import { DASHBOARD_DESTINATIONS, destinationPath } from '../dashboard-nav';
 import { SETTINGS_SECTIONS, type SettingsSectionToken } from '../settings-sections';
 
 describe('CAPABILITY_SECTION', () => {
@@ -50,9 +53,10 @@ describe('lookups', () => {
   });
 
   it('answers null rather than guessing, on either side', () => {
-    // `documents` has no settings section at all, and `theme` no capability:
-    // an invented pairing would put a count on a card that cannot hold one.
-    expect(sectionOfCapability('documents')).toBeNull();
+    // `relations` lives on its page, not in the settings, and `theme` holds no
+    // capability: an invented pairing would put a count on a card that cannot
+    // hold one.
+    expect(sectionOfCapability('relations')).toBeNull();
     expect(capabilityOfSection('theme' as SettingsSectionToken)).toBeNull();
   });
 });
@@ -75,5 +79,41 @@ describe('CAPABILITY_SECTION_TAB — a node landing on a TAB of a shared section
 
   it('answers null for a capability that owns its whole section', () => {
     expect(tabOfCapability('memory')).toBeNull();
+  });
+});
+
+describe('CAPABILITY_PAGE — a capability whose place is a page, not a section', () => {
+  it('sends the workboard to its own page: it has no settings section left', () => {
+    // The owner removed the board's settings section on 2026-11-11: the board
+    // is a destination of the header, and its figures stand above its filters.
+    expect(sectionOfCapability('workboard')).toBeNull();
+    expect(pageOfCapability('workboard')).toBe('/dashboard/workboard');
+  });
+
+  it('sends the relations to their own page too: what they configure is shown there', () => {
+    // ADR-269 put the debrief's switch on the Relations page, where its result
+    // is read. The star used to fall back to the settings root, which holds
+    // nothing about relations.
+    expect(sectionOfCapability('relations')).toBeNull();
+    expect(pageOfCapability('relations')).toBe('/dashboard/relations');
+  });
+
+  it('only names pages the header offers as destinations', () => {
+    // A star must not lead to a route nothing else in the application knows.
+    const known = new Set(
+      DASHBOARD_DESTINATIONS.map(destination => destinationPath(destination.segment))
+    );
+    for (const page of Object.values(CAPABILITY_PAGE)) expect(known.has(page)).toBe(true);
+  });
+
+  it('never doubles a settings destination', () => {
+    for (const capability of Object.keys(CAPABILITY_PAGE)) {
+      expect(sectionOfCapability(capability)).toBeNull();
+    }
+  });
+
+  it('answers null for a capability the settings configure', () => {
+    expect(pageOfCapability('memory')).toBeNull();
+    expect(pageOfCapability('documents')).toBeNull();
   });
 });

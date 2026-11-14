@@ -80,7 +80,6 @@ RUNTIME_MANAGED_INDEXES = {
     # DESC-ordered expression indexes: reflected as an opaque UnaryExpression that
     # autogenerate cannot match to the model's ``postgresql_ops={... : "DESC"}``,
     # so they are compared out even though they are declared in the ORM.
-    "ix_conversation_messages_conv_created",
     "ix_token_usage_logs_created_at",
     "ix_token_usage_logs_lifetime_aggregation",
     "ix_token_usage_logs_controller_window",

@@ -260,6 +260,15 @@ place action as the visible control. All essential functions remain directly
 reachable without walking. The native notification receiver stays mounted; the
 redundant floating chat shortcut appears only for activity or unread attention.
 
+The catalogue's « Application » links are the header's own destinations, read
+from one list (`apps/web/src/components/dashboard/offered-destinations.ts`):
+each gated destination takes what the instance offers now, so one the operator
+switched off is offered in neither place. The workspaces a place opens
+(meetings, workboard, SMS) and the private signals that lead to them ask the
+same availability doors, and a switched-off workspace is withdrawn rather than
+opened on a refusal. The files LIA produced stay readable under the deployment
+flag alone: they are a record (ADR-279).
+
 Personal lighting uses server-anchored civil time in the account timezone. Weather
 borrows only the fresh native briefing cache, without a location, provider call or
 model request. Missing or expired cache is neutral. The owner-scoped query aborts

@@ -7,14 +7,21 @@ in-memory tracker reset between tests.
 """
 
 import uuid
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
 import pytest
 from langchain.tools import ToolRuntime
 
+from src.core.document_preferences import (
+    DocumentAnimations,
+    DocumentIllustrations,
+    DocumentPreferences,
+)
 from src.domains.agents.tools import document_generation_tools as mod
 from src.domains.agents.utils.rate_limiting import _rate_limit_tracker
+from src.domains.document_generation.illustrations import IllustrationReport
 from src.domains.document_generation.service import GeneratedDocumentResult
 from src.domains.feature_switches.registry import PlatformCapability
 from tests.helpers.runtime_context import make_tool_runtime
@@ -22,10 +29,12 @@ from tests.helpers.runtime_context import make_tool_runtime
 SETTINGS_PATCH_PATH = "src.core.config.get_settings"
 
 _USER_ID = "11111111-1111-1111-1111-111111111111"
+_CONVERSATION_ID = UUID("22222222-2222-4222-8222-222222222222")
+_RUNTIME_ID = UUID("33333333-3333-4333-8333-333333333333")
 
 
 @pytest.fixture(autouse=True)
-def reset_tracker():
+def reset_tracker() -> Iterator[None]:
     """Isolate the in-memory sliding-window tracker between tests."""
     _rate_limit_tracker.clear()
     yield
@@ -33,7 +42,7 @@ def reset_tracker():
 
 
 @pytest.fixture(autouse=True)
-def capability_on():
+def capability_on() -> Iterator[AsyncMock]:
     """The capability is on unless a test switches it off (no settings store read)."""
     with patch.object(mod, "is_capability_enabled", AsyncMock(return_value=True)) as gate:
         yield gate
@@ -50,7 +59,13 @@ def _runtime(user_id: str | None = _USER_ID) -> ToolRuntime | MagicMock:
         runtime.config = {"configurable": {"thread_id": "conv1"}}
         runtime.context = None
         return runtime
-    return make_tool_runtime(user_id=UUID(user_id), thread_id="conv1", conversation_id="conv1")
+    return make_tool_runtime(
+        user_id=UUID(user_id),
+        thread_id=str(_RUNTIME_ID),
+        conversation_id=str(_CONVERSATION_ID),
+        runtime_id=_RUNTIME_ID,
+        conversation_revision=3,
+    )
 
 
 def _fake_settings() -> MagicMock:
@@ -250,6 +265,126 @@ class TestGenerateDocumentOutcomes:
             )
         kwargs = service_mock.call_args.kwargs
         assert kwargs["language"] == "fr"
-        assert kwargs["conversation_id"] == "conv1"
+        assert kwargs["conversation_id"] == str(_CONVERSATION_ID)
+        assert kwargs["delivery_runtime_id"] == str(_RUNTIME_ID)
         assert kwargs["source_data"] == "données"
         assert kwargs["requested_filename"] == "mon-fichier"
+
+
+@pytest.mark.unit
+class TestTheDocumentPreferencesReachTheService:
+    """The person's choices, read once per generation; images need BOTH switches."""
+
+    @staticmethod
+    def _account(*, illustrations: str | None, animations: str | None, images: bool) -> MagicMock:
+        user = _user()
+        user.document_illustrations = illustrations
+        user.document_animations = animations
+        user.image_generation_enabled = images
+        user.image_generation_default_quality = "medium"
+        user.image_generation_default_size = "1536x1024"
+        return user
+
+    async def _preferences(self, user: MagicMock) -> DocumentPreferences:
+        with (
+            patch.object(mod, "settings", _fake_settings()),
+            patch(SETTINGS_PATCH_PATH, return_value=_wrapper_settings()),
+            patch.object(mod, "_load_user", AsyncMock(return_value=user)),
+            patch.object(
+                mod, "generate_document_for_user", AsyncMock(return_value=_success_result())
+            ) as service_mock,
+        ):
+            invoke = mod.generate_document.coroutine
+            assert invoke is not None
+            await invoke(instructions="liste", doc_type="pptx", runtime=_runtime())
+        preferences = service_mock.call_args.kwargs["preferences"]
+        assert isinstance(preferences, DocumentPreferences)
+        return preferences
+
+    async def test_the_stored_choices_reach_the_service(self) -> None:
+        user = self._account(illustrations="never", animations="always", images=True)
+
+        assert await self._preferences(user) == DocumentPreferences(
+            illustrations=DocumentIllustrations.NEVER,
+            animations=DocumentAnimations.ALWAYS,
+            images_allowed=True,
+            image_quality="medium",
+            image_size="1536x1024",
+        )
+
+    async def test_choices_nobody_made_read_as_the_owners_defaults(self) -> None:
+        user = self._account(illustrations=None, animations="weekly", images=True)
+
+        preferences = await self._preferences(user)
+
+        assert preferences.illustrations is DocumentIllustrations.AUTO
+        assert preferences.animations is DocumentAnimations.PRESENTED
+
+    async def test_an_instance_without_image_generation_allows_no_illustration(
+        self, capability_on: AsyncMock
+    ) -> None:
+        capability_on.side_effect = lambda capability: (
+            capability is not PlatformCapability.IMAGE_GENERATION
+        )
+        user = self._account(illustrations="auto", animations=None, images=True)
+
+        assert (await self._preferences(user)).images_allowed is False
+
+    async def test_a_person_without_image_generation_allows_no_illustration(
+        self, capability_on: AsyncMock
+    ) -> None:
+        user = self._account(illustrations="auto", animations=None, images=False)
+
+        assert (await self._preferences(user)).images_allowed is False
+        # The person's own switch decides first: the instance is not even asked.
+        asked = [call.args[0] for call in capability_on.await_args_list]
+        assert PlatformCapability.IMAGE_GENERATION not in asked
+
+
+@pytest.mark.unit
+class TestWhatBecameOfThePicturesIsTold:
+    """A picture that was not drawn is said, by its facts, never left for the model to guess."""
+
+    @pytest.mark.parametrize(
+        ("report", "said"),
+        [
+            (IllustrationReport(), None),
+            (IllustrationReport(requested=3, drawn=3), "It carries 3 illustration(s)."),
+            (
+                IllustrationReport(requested=3, drawn=1, failures=("rate_limited", "refused")),
+                "1 of 3 illustrations were drawn; the others failed (rate_limited, refused)",
+            ),
+            (
+                IllustrationReport(requested=2, skipped="usage_limit"),
+                "were not drawn: the usage limit is reached",
+            ),
+            (
+                IllustrationReport(requested=2, skipped="model_not_served"),
+                "were not drawn: no image model is available",
+            ),
+        ],
+    )
+    async def test_the_message_says_it(self, report: IllustrationReport, said: str | None) -> None:
+        result = _success_result()
+        result.illustrations = report
+        with (
+            patch.object(mod, "settings", _fake_settings()),
+            patch(SETTINGS_PATCH_PATH, return_value=_wrapper_settings()),
+            patch.object(mod, "_load_user", AsyncMock(return_value=_user())),
+            patch.object(mod, "generate_document_for_user", AsyncMock(return_value=result)),
+        ):
+            invoke = mod.generate_document.coroutine
+            assert invoke is not None
+            output = await invoke(instructions="deck", doc_type="pptx", runtime=_runtime())
+
+        assert output.success is True
+        if said is None:
+            assert "illustration" not in output.message
+        else:
+            assert said in output.message
+        assert output.structured_data["illustrations"] == {
+            "requested": report.requested,
+            "drawn": report.drawn,
+            "failures": list(report.failures),
+            "skipped": report.skipped,
+        }

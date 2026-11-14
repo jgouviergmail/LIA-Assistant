@@ -1,0 +1,248 @@
+{
+  "doc_types": [
+    "docx",
+    "pdf",
+    "md",
+    "txt"
+  ],
+  "language": "fr",
+  "content": {
+    "filename_stem": "revue-commerciale",
+    "title": "Revue commerciale du semestre",
+    "subtitle": "Comité de direction",
+    "tone": "warm",
+    "blocks": [
+      {
+        "kind": "heading",
+        "level": 1,
+        "text": "Résultats par région"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Le chiffre d'affaires progresse dans trois régions sur quatre ; l'Est reste en recul."
+      },
+      {
+        "kind": "table",
+        "caption": "Résultats par région",
+        "table": {
+          "name": "Régions",
+          "headers": [
+            "Région",
+            "Chiffre d'affaires",
+            "Coûts"
+          ],
+          "rows": [
+            [
+              "Nord",
+              "12000",
+              "7400"
+            ],
+            [
+              "Sud",
+              "8500",
+              "6100"
+            ],
+            [
+              "Est",
+              "6100",
+              "6300"
+            ],
+            [
+              "Ouest",
+              "9900",
+              "5200"
+            ]
+          ],
+          "columns": [
+            {
+              "header": "Chiffre d'affaires",
+              "kind": "amount",
+              "unit": "EUR",
+              "total": "sum"
+            },
+            {
+              "header": "Coûts",
+              "kind": "amount",
+              "unit": "EUR",
+              "total": "sum"
+            },
+            {
+              "header": "Marge",
+              "formula": "{Chiffre d'affaires} - {Coûts}",
+              "kind": "amount",
+              "unit": "EUR",
+              "total": "sum"
+            }
+          ],
+          "chart": {
+            "intent": "compare",
+            "values": [
+              "Chiffre d'affaires",
+              "Coûts"
+            ],
+            "title": "Chiffre d'affaires et coûts par région"
+          }
+        }
+      },
+      {
+        "kind": "heading",
+        "level": 1,
+        "text": "Évolution mensuelle"
+      },
+      {
+        "kind": "paragraph",
+        "text": "La croissance mensuelle reste positive, sauf en mai."
+      },
+      {
+        "kind": "chart",
+        "caption": "Croissance mensuelle du chiffre d'affaires",
+        "table": {
+          "name": "Mois",
+          "headers": [
+            "Mois",
+            "Chiffre d'affaires"
+          ],
+          "rows": [
+            [
+              "janvier",
+              "100"
+            ],
+            [
+              "février",
+              "120"
+            ],
+            [
+              "mars",
+              "130"
+            ],
+            [
+              "avril",
+              "150"
+            ],
+            [
+              "mai",
+              "141"
+            ],
+            [
+              "juin",
+              "160"
+            ]
+          ],
+          "columns": [
+            {
+              "header": "Croissance",
+              "formula": "{Chiffre d'affaires} / PREVIOUS({Chiffre d'affaires}) - 1",
+              "kind": "percent"
+            }
+          ],
+          "chart": {
+            "intent": "trend",
+            "values": [
+              "Croissance"
+            ]
+          }
+        }
+      },
+      {
+        "kind": "heading",
+        "level": 1,
+        "text": "Canaux de vente"
+      },
+      {
+        "kind": "chart",
+        "caption": "Répartition des commandes par canal",
+        "table": {
+          "name": "Canaux",
+          "headers": [
+            "Canal",
+            "Commandes"
+          ],
+          "rows": [
+            [
+              "Site web",
+              "540"
+            ],
+            [
+              "Magasins",
+              "310"
+            ],
+            [
+              "Téléphone",
+              "90"
+            ],
+            [
+              "Partenaires",
+              "4"
+            ]
+          ],
+          "chart": {
+            "intent": "share"
+          }
+        }
+      },
+      {
+        "kind": "chart",
+        "caption": "Écart au budget par direction",
+        "table": {
+          "name": "Directions",
+          "headers": [
+            "Direction",
+            "Écart"
+          ],
+          "rows": [
+            [
+              "Direction des systèmes d'information",
+              "-500"
+            ],
+            [
+              "Direction commerciale et marketing",
+              "300"
+            ],
+            [
+              "Direction des ressources humaines",
+              "200"
+            ],
+            [
+              "Direction financière",
+              "-100"
+            ],
+            [
+              "Direction de la production industrielle",
+              "450"
+            ],
+            [
+              "Direction juridique",
+              "120"
+            ],
+            [
+              "Direction de la communication",
+              "80"
+            ],
+            [
+              "Direction des achats",
+              "60"
+            ],
+            [
+              "Direction de la qualité",
+              "40"
+            ]
+          ],
+          "columns": [
+            {
+              "header": "Écart",
+              "kind": "amount",
+              "unit": "EUR"
+            }
+          ],
+          "chart": {
+            "intent": "compare"
+          }
+        }
+      },
+      {
+        "kind": "paragraph",
+        "text": "Les écarts négatifs relèvent d'investissements anticipés."
+      }
+    ]
+  }
+}

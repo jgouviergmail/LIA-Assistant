@@ -730,7 +730,7 @@ export const flex_lia_CornerUpRight: IconArtwork = {
   viewBox: '0 0 24 24',
 };
 export const flex_lia_Disc: IconArtwork = {
-  body: '<defs></defs><g stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="7.2" fill="#6267BB" stroke="#2875B5" stroke-width="1.5"/><circle cx="12" cy="12" r="2" fill="#F8C86A" stroke="#2875B5" stroke-width="1.6"/></g>',
+  body: '<defs></defs><g stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="6.5" fill="#E5383B" stroke="none"/><path d="M8.6 10.9a3.6 3.6 0 0 1 2.6-2.4" fill="none" stroke="#FFD3A8" stroke-width="1.3"/></g>',
   viewBox: '0 0 24 24',
 };
 export const flex_lia_DollarSign: IconArtwork = {
@@ -1155,6 +1155,10 @@ export const flex_lia_Radar: IconArtwork = {
 };
 export const flex_lia_Radio: IconArtwork = {
   body: '<defs></defs><g stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M16.247 7.761a6 6 0 0 1 0 8.478" fill="none" stroke="#8854BA" stroke-width="2.3"/><path d="M19.075 4.933a10 10 0 0 1 0 14.134" fill="none" stroke="#2875B5" stroke-width="2.3"/><path d="M4.925 19.067a10 10 0 0 1 0-14.134" fill="none" stroke="#2875B5" stroke-width="2.3"/><path d="M7.753 16.239a6 6 0 0 1 0-8.478" fill="none" stroke="#8854BA" stroke-width="2.3"/><circle cx="12" cy="12" r="2" fill="#F8C86A" stroke="#D28A2C" stroke-width="1.2"/></g>',
+  viewBox: '0 0 24 24',
+};
+export const flex_lia_RadioSet: IconArtwork = {
+  body: '<defs></defs><g stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 8.5 16.5 2.8" fill="none" stroke="#2875B5" stroke-width="1.7"/><circle cx="17" cy="2.6" r="1.3" fill="#F8C86A" stroke="#D28A2C" stroke-width="1"/><rect x="2.5" y="8" width="19" height="13" rx="3" fill="#55A8EB" stroke="#2875B5" stroke-width="1.5"/><circle cx="8.4" cy="14.5" r="3.7" fill="#8854BA" stroke="#8854BA" stroke-width="1.2"/><circle cx="8.4" cy="14.5" r="1.2" fill="#F9F6FC" stroke="none"/><circle cx="16.6" cy="12.3" r="1.7" fill="#F8C86A" stroke="#D28A2C" stroke-width="1"/><path d="M14.2 17.2h4.8" fill="none" stroke="#F9F6FC" stroke-width="1.6"/></g>',
   viewBox: '0 0 24 24',
 };
 export const flex_lia_Redo2: IconArtwork = {

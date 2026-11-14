@@ -199,3 +199,110 @@ in a prompt.**
 failure answered by a later call of the same tool no longer reaches the response, each success
 answering one failure. What was set out and not obtained stays declared by the loop itself. See
 [ADR-370](ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md).
+
+## Amendment 2026-11-14: the fallback mark says what the loop did
+
+On dev, on 2026-11-14, a ReAct turn asked for an illustrated presentation on the history of large
+language models told the person that its chronology « repose sur une recherche web unique, faute
+d'autre source disponible ». The turn's checkpoint holds the 78 tools it bound: Brave's web and
+news search, the unified search (Perplexity, Brave and Wikipedia in one call), a page fetch, two
+encyclopedia tools and thirteen MCP tools among them. Nothing the loop called had failed. It
+searched once (Perplexity, ten citations; the doctrine asks for no second lookup), generated the
+deck, and wrote « Source : Perplexity (…) — fallback, aucune autre source disponible ». The
+response, bound to state a fallback fact with its source, said it, though it held five Brave
+results from its own knowledge enrichment.
+
+The cause was one sentence of the final-message rules: « A fact obtained outside the tool
+dedicated to its domain carries its source: "Source: <site or tool> (fallback)" ». It hung the
+mark on a JUDGMENT (which tool is dedicated to this fact's domain?) that a public fact cannot
+answer, where Decisions 1 and 6 tie it to the ladder: a fact obtained from another source, once
+the first did not deliver it, carries that source. Given a mark nothing had earned, the model
+wrote a reason for it. The bench could not see the defect: no scenario held a public fact a web
+search delivers first, and it read `(fallback)` with its parentheses, a form the incident did not
+write.
+
+**Decision.** The mark says what the loop did, in both places that speak of it. The ladder's
+second rung: « The fact carries the source you used, marked (fallback). » The final message: « A
+fact obtained from another source after the tool you called for it did not deliver it carries its
+source: "Source: <site or tool> (fallback)". A fact the tool you called for it delivered — a web
+search included — carries its source without the mark. » A third sentence, « Never write that no
+other source was available. », was measured with these two and then withdrawn (below): the
+prompt forbids no sentence about the other sources. « Did not deliver » is the ladder's own word: it covers a failure, an empty, partial
+or unverifiable result and an answer to another question, and every later rung — the second, or
+the sandbox's when `<Computation>` adds it. One consequence is deliberate: a fact the web
+delivered first while a dedicated tool was bound and never called is no longer marked; whether
+that tool should have been called first is the plan's question (the Workflow's PLAN step), not
+the mark's. The response prompt is unchanged: it states what the data marks, and the data no
+longer marks a first source. Pinned by `test_the_fallback_mark_follows_what_the_loop_did`.
+
+**The bench learned the case.** `public_web_first` replays the incident's shape: a deck on a
+public subject, with a web search, an encyclopedia and a document tool, every one answering, so a
+mark there is false by construction (without `--bind-catalogue`, whose neutral answers would make
+a later web search a true fallback). The readers (`marks_fallback`, `claims_no_other_source`) are
+French and English, as the bench's answers are: a mark is the prompt's word, parentheses or not,
+or a French name for a fallback source, anywhere, and an ordinary word (« repli », « en
+remplacement ») or a failure report only on the line naming a source, never when negated on
+either side; a claim says no other source was available, never what the turn consulted or what
+no source said. A run's facts are looked for outside its declared gaps, each block read from the
+last opening before its closing, as production reads it. Each run records its reasoning level,
+the lines carrying either reading (`marked_lines`) and its whole final message (`final_text`),
+so that every count below can be read again line by line. Pinned by
+`apps/api/tests/unit/scripts/test_react_recovery_measure.py`.
+
+**Measured** (2026-11-14, `scripts/react/measure_recovery.py`, the script behind `task
+react:recovery:measure`, run inside the dev API container; the final sentences against their
+predecessors through `--baseline-prompt`, everything else equal; deepseek-flash, gpt-6-luna and
+gemini-3.8-flash at `low`, recorded on every run; 120 runs, 0.34 USD; every count below re-read
+from the kept final messages with the readers above; no Anthropic call; the forbidding
+sentence was part of the doctrine measured):
+
+- `public_web_first`, 24 runs a doctrine (deepseek-flash, the incident's family, 12): a source
+  that had answered marked as a fallback, nothing having failed, in 2 runs before (both
+  deepseek-flash, on some of the facts its first search or the encyclopedia had delivered); in
+  none after.
+- The substitution said where it is due, `dedicated_down`, 18 runs: 15 before, 17 after
+  (gpt-6-luna 3 of 6, then 5; the two other families 6 of 6 in both).
+- « No other source available » did not go down: 1 run of 42 before (a declared gap), 6 after,
+  all deepseek-flash: twice a remark that « the only accessible pages » or sources were the
+  example domains, once beside a due fallback mark (« aucune source indépendante trouvée »), and
+  three times in the reasoning or a declared gap. Every one came after both of the bench's sources
+  had been tried, so true in a bench binding two; the new sentence forbidding it is not reliably
+  obeyed. At this size the rise is not significant, but it is not a reduction.
+- The forbidding sentence compared alone (same day, the prompt with it against the prompt
+  without it through `--baseline-prompt`, deepseek-flash at `low`, `dedicated_down` and
+  `public_web_first`, 24 runs an arm, 0.055 USD): the claim in 1 run of 24 with the sentence,
+  in 2 of 24 without — a declared gap listing the rungs tried, or a remark that the bench's
+  example domains were the only sources, each true there. No effect is measurable either
+  way, so the rise above was not the sentence's doing; a source that had answered was marked
+  as a fallback once in 12 `public_web_first` runs with it, never without, and the due mark
+  was written 12 times of 12 in both. **The sentence is withdrawn**: no code enforces it
+  (ADR-284), it forbids a statement that can be true — the ladder's own declaration names
+  the rungs tried — and it buys nothing that was measured.
+- Recovery passes: deepseek-flash declared gaps in 1 run of 6 before and 4 after on
+  `dedicated_down` (twice the hours it held, as unconfirmed by the place provider, twice details
+  nobody asked for), and in 4 runs of 12 before and 9 after on `public_web_first` (location,
+  collections, attendance, the founder's biography: details it chose to look up; once an
+  independent check of the chronology it held). An exploratory series on the sentence's first
+  wording found the opposite on `dedicated_down` (6 runs of 9 before, 2 after) and no difference
+  on `public_web_first` (13 of 18 in both): at six to eighteen runs a family, an effect on passes
+  is not measurable, and none is claimed.
+- Answers obtained: `dedicated_down` 18 in both; `public_web_first` 23 before, 22 after, the
+  difference gpt-6-luna's: before, one run wrote an outline to complete without searching; after,
+  one run gave the dates as provisional and one ended on a client exception raised inside the
+  model call (`TypeError: 'tuple' object is not callable`), unrelated to the prompt and left for
+  its own investigation.
+- `control`, 18 runs each: no mark, no claim, no pass, one call, every forecast stated, in both.
+- The static prompt grew by 41 tokens (o200k) with the three sentences, 32 once the third
+  was withdrawn, measured on a working tree that holds other pending edits to the same
+  prompt; its cached prefix is written again once at deployment.
+
+The exploratory series (144 runs, 0.44 USD) is otherwise not quoted: its reader counted the
+English token alone, missed one family's French marks, and cut a final message at the first
+mention of `<unresolved>`. The bench reproduces the incident rarely: the turn held 78 tools and a
+production context, which `--bind-catalogue` cannot replay for this scenario. « After » is a
+sequence: when the dedicated tool and a web search go out in one batch, a literal reading leaves
+the web's fact unmarked. The old sentence met that case three times on `dedicated_down` and marked
+it each time; no final run after the change batched the two, so how the new one reads it is not
+measured. The decision rests on the mechanism; the measurement shows that the final sentences mark
+no first source in 24 runs where the old one marked two, and take no due mark away where the
+calls followed one another.

@@ -19,7 +19,7 @@ recorded in ADR-140.
 
 N-07 (ADR-175) boundary: this chat tool creates ``time`` routines only. The
 schema fields it omits (``trigger_kind``, ``condition_config``,
-``requires_approval``) are additive with time defaults, so a chat-created
+``requires_approval``, ``notify_only_when_new``) are additive with time defaults, so a chat-created
 routine and a studio-created one are the SAME object — the studio is simply
 where the legacy time routine can be edited. The native `create_lia_routine_tool`
 now authors both clocks through the Studio's strict configuration contract;
@@ -274,10 +274,11 @@ def _listed(action: Any, language: str) -> dict[str, Any]:
 
     Returns:
         Its identity, its clock in words, and its state. A condition routine's
-        ``next_trigger_at`` is null: its trigger is a check, not a run.
+        ``next_trigger_at`` is null: its trigger is a check, not a run; nor
+        does a webhook routine announce one: it runs when it is called.
     """
     plan = TriggerPlan.of(action)
-    next_run = None if plan.is_condition else action.next_trigger_at
+    next_run = None if plan.is_condition or plan.is_webhook else action.next_trigger_at
     return {
         "id": str(action.id),
         "title": action.title,

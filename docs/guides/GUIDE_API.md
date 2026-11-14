@@ -825,6 +825,7 @@ Cookie: session_id=xxx
 #   POST   /api/v1/conversations/me/reset     # repartir a zero
 #   GET    /api/v1/conversations/me/stats
 #   GET    /api/v1/conversations/me/totals
+#   GET    /api/v1/conversations/me/export     # la discussion en fichier Markdown (meme selection que /me/messages)
 ```
 
 **Response:** `201 Created`
@@ -2349,7 +2350,7 @@ Cookie: session_id=xxx
 ```
 
 **Comportement :**
-- `outcome` vaut `success`, `failure`, `skipped_condition`, `proposed`, `skipped_hitl`, ou `null` quand aucun run n'a servi ce creneau
+- `outcome` vaut `success`, `failure`, `skipped_condition`, `proposed`, `skipped_hitl`, `skipped_busy`, `skipped_quota`, `skipped_late`, ou `null` quand aucun run n'a servi ce creneau
 - Une cellule prend le DERNIER run dont `slot_at` est EGAL a l'instant du creneau : un changement d'horaire remet la semaine a blanc par construction
 - Le navigateur ne recalcule rien : il peint
 - Le statut passe a `executing` pour eviter les executions concurrentes

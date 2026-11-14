@@ -104,8 +104,11 @@ describe('the brow', () => {
     // constant ink: a thin brow is a long one.
     const block = CSS.slice(CSS.indexOf('.lia-eye-brow {'));
     const rule = block.slice(0, block.indexOf('\n}'));
-    expect(CSS).toContain('stroke-width: calc(10px * clamp(0.94, var(--brow-s), 1.06))');
-    expect(rule).toMatch(/width:\s*calc\(var\(--eye-w, 1\.3em\) \* 0\.72\)/);
+    expect(rule).toContain('--brow-weight: clamp(0.94, var(--brow-s), 1.06)');
+    expect(rule).toContain('--brow-ink: 10;');
+    expect(CSS).toContain('stroke-width: calc(var(--brow-ink) * 1px * var(--brow-weight))');
+    expect(rule).toMatch(/--brow-w:\s*calc\(var\(--eye-w, 1\.3em\) \* 0\.72\)/);
+    expect(rule).toMatch(/\bwidth:\s*var\(--brow-w\)/);
   });
 
   it('sits ON the eye: anchored to the visible top edge of the shape, so a dome never leaves it floating', () => {
@@ -115,11 +118,17 @@ describe('the brow', () => {
     const block = CSS.slice(CSS.indexOf('.lia-eye-brow {'));
     const rule = block.slice(0, block.indexOf('\n}'));
     expect(rule).toMatch(
-      /top:\s*calc\(var\(--oy\) \* \(1 - var\(--sy\)\) \+ var\(--lid-top\) \* var\(--sy\)\)/
+      /--brow-anchor:\s*calc\(var\(--oy\) \* \(1 - var\(--sy\)\) \+ var\(--lid-top\) \* var\(--sy\)\)/
     );
     expect(rule).not.toContain('bottom: 100%');
+    // The authored placement: the whole box above that edge, and a breath.
+    // The box is as tall as the eye, so the anchor's percentages keep their
+    // meaning inside the ONE transform that places the brow.
+    expect(rule).toMatch(/--brow-lift:\s*calc\(var\(--brow-h\) \+ [\d.]+em\)/);
+    expect(rule).toMatch(/\btop:\s*0;/);
+    expect(rule).toMatch(/\bheight:\s*100%;/);
     expect(rule).toMatch(
-      /translate:\s*calc\(-50% \+ var\(--brow-x\)\)\s*calc\(-100% - [\d.]+em \+ var\(--brow-y\)\)/
+      /translate:\s*calc\(-50% \+ var\(--brow-x\)\)\s*min\(\s*calc\(var\(--brow-anchor\) - var\(--brow-lift\) \+ var\(--brow-y\)\),/
     );
   });
 

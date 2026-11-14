@@ -20,8 +20,14 @@ import pytest
 
 from src.core.constants import RAG_DRIVE_REGULAR_FILE_MAP
 from src.domains.rag_spaces import drive_ingest, drive_sync, storage_paths
+from tests.helpers.account_file_writes import account_writer_sql_stub as account_writer_sql_stub
 from tests.support.structlog_capture import fresh_module_logger
 from tests.unit.domains.rag_spaces.drive_fakes import FakeDetachedConnectors
+
+
+@pytest.fixture(autouse=True)
+def _writer_sql(account_writer_sql_stub: None) -> None:
+    """Only SQL is substituted; disk and task ownership stay real."""
 
 
 @pytest.fixture(autouse=True)
@@ -96,12 +102,19 @@ async def test_source_completed_only_after_all_documents_processed(tmp_path):
     settings_mock.rag_spaces_max_docs_per_space = 100
     settings_mock.rag_spaces_max_file_size_mb = 10
 
+    @contextlib.asynccontextmanager
+    async def lease_kept(kept_source_id, *, table):
+        events.append(("lease held", (kept_source_id, table)))
+        yield
+        events.append(("lease released", None))
+
     with (
         patch.object(drive_sync, "get_db_context", _fake_db_context),
         patch.object(drive_sync, "RAGDriveSourceRepository", return_value=source_repo),
         patch.object(drive_sync, "RAGDocumentRepository", return_value=doc_repo),
         patch.object(drive_ingest, "RAGDocumentRepository", return_value=doc_repo),
         patch.object(drive_ingest, "RAGChunkRepository", return_value=AsyncMock()),
+        patch.object(drive_ingest, "source_lease_kept", lease_kept),
         patch.object(
             drive_sync,
             "DetachedConnectorService",
@@ -115,6 +128,14 @@ async def test_source_completed_only_after_all_documents_processed(tmp_path):
         patch.object(storage_paths, "settings", settings_mock),
     ):
         await drive_sync.sync_folder_background(space_id, source_id, user_id)
+
+    # The folder's documents embed under THIS source's lease, held from before
+    # the first one to after the last (2026-11-09 double sync).
+    held = events.index(("lease held", (source_id, "rag_drive_sources")))
+    released = events.index(("lease released", None))
+    assert all(
+        held < i < released for i, e in enumerate(events) if e[0] == "processed"
+    ), f"documents embedded outside the source lease, events={events}"
 
     processed = [i for i, e in enumerate(events) if e[0] == "processed"]
     completed = [

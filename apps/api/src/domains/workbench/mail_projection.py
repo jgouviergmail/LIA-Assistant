@@ -11,16 +11,26 @@ between two reads, ADR-296).
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import UTC, datetime
+from datetime import datetime
 from email.utils import getaddresses
-from typing import Any
+from typing import Any, Final
 
+from src.core.mail_reply_state import ReplyState, ReplyStatus
+from src.core.mail_vocabulary import instant_of, is_unread
 from src.domains.connectors.clients.email_attachments import declares_attachments
 from src.domains.connectors.clients.gmail_attachments_mixin import GmailAttachmentsMixin
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.workbench.previews import can_be_shown
-from src.domains.workbench.schemas.mail import MailAddress, MailAttachment
+from src.domains.workbench.schemas.mail import MailAddress, MailAttachment, ReplyMark
+
+#: The states a row marks: read fresh by the person's own hand, an unsent answer is
+#: told too; « nothing yet » is no mark.
+_MARKS: Final[Mapping[ReplyStatus, ReplyMark]] = {
+    "answered": "answered",
+    "answer_drafted": "answer_drafted",
+    "reply_received": "reply_received",
+}
 
 
 def addresses(header: object) -> list[MailAddress]:
@@ -34,6 +44,11 @@ def addresses(header: object) -> list[MailAddress]:
     ]
 
 
+def reply_mark(state: ReplyState | None) -> ReplyMark | None:
+    """What a row shows of where it stands (ADR-379): what happened, or nothing."""
+    return _MARKS.get(state.status) if state is not None else None
+
+
 def first_address(header: object) -> MailAddress | None:
     """A header's first mailbox (a sender), or None."""
     found = addresses(header)
@@ -42,16 +57,12 @@ def first_address(header: object) -> MailAddress | None:
 
 def received_at(value: object) -> datetime | None:
     """Epoch milliseconds, as the normalisers carry them; absent, 0 or absurd is no date."""
-    try:
-        millis = int(str(value))
-        return datetime.fromtimestamp(millis / 1000, UTC) if millis > 0 else None
-    except ValueError, OverflowError, OSError:
-        return None
+    return instant_of(value)
 
 
 def is_read(message: Mapping[str, Any]) -> bool:
-    """Read unless Gmail-style labels say ``UNREAD``."""
-    return "UNREAD" not in (message.get("labelIds") or [])
+    """Read unless the vocabulary's labels say ``UNREAD`` (``core.mail_vocabulary``)."""
+    return not is_unread(message)
 
 
 def is_starred(message: Mapping[str, Any]) -> bool:

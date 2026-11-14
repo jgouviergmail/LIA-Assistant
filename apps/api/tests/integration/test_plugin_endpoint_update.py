@@ -2,10 +2,12 @@
 
 import io
 import json
+from pathlib import Path
 from unittest.mock import AsyncMock
 from zipfile import ZipFile
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import AGENT_PLUGINS_MCP_SCHEMA_ID, AGENT_PLUGINS_PLUGIN_SCHEMA_ID
@@ -13,6 +15,8 @@ from src.domains.plugins.import_service import PluginImportService
 from src.domains.plugins.schemas import PluginComponentStatus
 from src.domains.user_mcp.models import UserMCPServer
 from src.domains.user_mcp.service import UserMCPServerService
+from src.domains.users.models import User
+from tests.helpers.committed_account_session import async_session as async_session
 from tests.integration.test_application_plugin_read import _plugin
 
 pytestmark = pytest.mark.integration
@@ -20,8 +24,12 @@ pytestmark = pytest.mark.integration
 
 @pytest.mark.parametrize("allowed", [False, True])
 async def test_plugin_endpoint_update_revalidates_before_replacing_endpoint_or_headers(
-    async_session, test_user, monkeypatch, tmp_path, allowed
-):
+    async_session: AsyncSession,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    allowed: bool,
+) -> None:
     monkeypatch.setattr(settings, "plugins_users_path", str(tmp_path / "plugins"))
     plugin = await _plugin(async_session, test_user.id, "endpoint-update")
     server = UserMCPServer(

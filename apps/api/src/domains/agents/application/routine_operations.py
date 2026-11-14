@@ -38,6 +38,7 @@ _CONFIGURATION_FIELDS = frozenset(
         "trigger_kind",
         "condition_config",
         "requires_approval",
+        "notify_only_when_new",
         "execution_mode",
     }
 )

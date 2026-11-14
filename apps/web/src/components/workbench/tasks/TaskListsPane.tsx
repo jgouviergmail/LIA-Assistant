@@ -9,7 +9,9 @@
  * screen reader already know. A list count is never drawn: it would be exact
  * only once every task of every list was read (ADR-185). « More lists » reads
  * the provider's next page; « New list » is offered where the provider manages
- * lists (the descriptor says so). The views across the lists stand above them.
+ * lists (the descriptor says so). The views across the lists stand above them,
+ * and « All tasks » — every list's tasks together — heads the lists as one of
+ * them, though no provider holds it (owner, 2026-11-10).
  */
 import Link from 'next/link';
 import { CalendarClock, ListChecks, Plus } from '@/lib/icons';
@@ -18,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { cn } from '@/lib/utils';
-import { TASK_VIEWS } from '@/lib/workbench/tasks';
+import { ALL_TASKS_VIEW, NAMED_TASK_VIEWS, TASK_VIEWS } from '@/lib/workbench/tasks';
 import type { WorkbenchTaskList, WorkbenchTaskView } from '@/lib/workbench/types';
 import type { WorkbenchPageState } from '@/hooks/useWorkbenchPage';
 
@@ -50,7 +52,6 @@ export interface TaskListsPaneProps {
   pane?: WorkbenchPaneState;
 }
 
-/** The column beside the tasks (from `lg`). */
 /** The way a view goes through the phone's select, beside the lists' ids. */
 const VIEW_OPTION = 'view:';
 
@@ -59,6 +60,7 @@ const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:rin
 const OPEN = 'bg-primary/10 font-medium text-primary';
 const CLOSED = 'text-foreground hover:bg-accent hover:text-accent-foreground';
 
+/** The column beside the tasks (from `lg`). */
 export function TaskListsColumn({
   lng,
   lists,
@@ -100,6 +102,14 @@ export function TaskListsColumn({
         <ListChecks className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
         {t('workbench.tasks.lists_title')}
       </p>
+      <Link
+        href={viewHrefOf(ALL_TASKS_VIEW)}
+        scroll={false}
+        aria-current={view === ALL_TASKS_VIEW ? 'page' : undefined}
+        className={cn(ROW, FOCUS, view === ALL_TASKS_VIEW ? OPEN : CLOSED)}
+      >
+        {t(`workbench.tasks.views.${ALL_TASKS_VIEW}`)}
+      </Link>
       {lists.items.map(list => (
         <Link
           key={list.id}
@@ -148,7 +158,9 @@ export function TaskListsSelect({
           aria-label={t('workbench.tasks.list_label')}
           value={view ? `${VIEW_OPTION}${view}` : (openId ?? '')}
           onChange={event => {
-            const picked = TASK_VIEWS.find(item => `${VIEW_OPTION}${item}` === event.target.value);
+            const picked = NAMED_TASK_VIEWS.find(
+              item => `${VIEW_OPTION}${item}` === event.target.value
+            );
             if (picked) onPickView(picked);
             else onPick(event.target.value);
           }}
@@ -161,6 +173,9 @@ export function TaskListsSelect({
             ))}
           </optgroup>
           <optgroup label={t('workbench.tasks.lists_title')}>
+            <option value={`${VIEW_OPTION}${ALL_TASKS_VIEW}`}>
+              {t(`workbench.tasks.views.${ALL_TASKS_VIEW}`)}
+            </option>
             {lists.items.map(list => (
               <option key={list.id} value={list.id}>
                 {list.title || t('workbench.tasks.untitled')}

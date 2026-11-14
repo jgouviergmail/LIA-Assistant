@@ -7,8 +7,10 @@ how many hits the provider listed but could not read (F11). The reader reads
 one message whole, fresh, and marks nothing read: reading is not an act. Its
 text is the provider's clean text (the quoted history left out — the HTML
 reader shows the message whole); its conversation is read apart, so the message
-never waits for it, as rows, the newest kept and the cut said; an attachment
-carries its handle AND its
+never waits for it, as rows, the newest kept and the cut said. Where each row of a
+page stands in its conversation is read apart too (ADR-379): one read through the one
+door for the rows shown, answered as the marks to draw, and a mailbox that cannot tell
+marks nothing — the page never depends on it. An attachment carries its handle AND its
 name, because a Gmail handle expires between two reads (ADR-296). The HTML
 reader is served the message's HTML up to a published ceiling, cut on a
 character boundary past it, and the cut said — never read by any tool: the
@@ -34,6 +36,7 @@ from src.domains.connectors.clients.email_compose import reply_recipients
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 from src.domains.connectors.clients.mail_inline_images import InlineBudget
 from src.domains.connectors.clients.protocols import EmailClientProtocol
+from src.domains.connectors.mail_reply_states import reply_states_of
 from src.domains.connectors.models import ConnectorType
 from src.domains.workbench.availability import listing_page_size
 from src.domains.workbench.calls import provider_call
@@ -47,6 +50,7 @@ from src.domains.workbench.mail_projection import (
     is_read,
     is_starred,
     received_at,
+    reply_mark,
     user_labels,
 )
 from src.domains.workbench.mail_query import MailSearch, compose_query
@@ -59,7 +63,10 @@ from src.domains.workbench.schemas.mail import (
     MailListing,
     MailMessage,
     MailPage,
+    MailReplyMark,
+    MailReplyMarks,
     MailSummary,
+    ReplyMarksRequest,
 )
 from src.domains.workbench.schemas.mail_compose import ReplyRecipients
 
@@ -124,6 +131,30 @@ async def read_conversation(user_id: UUID, message_id: str) -> MailConversation:
     return MailConversation(
         items=[_summary(hit, opened.connector_type) for hit in raw["messages"]],
         truncated=bool(raw["truncated"]),
+    )
+
+
+async def read_reply_marks(
+    user_id: UUID, zone: ZoneInfo, request: ReplyMarksRequest
+) -> MailReplyMarks:
+    """Where the rows of a page stand in their conversations; nothing is marked read.
+
+    Args:
+        user_id: The account.
+        zone: The account's zone.
+        request: The rows shown, each named with its conversation.
+
+    Returns:
+        A mark per row something happened to; a row absent has none, or the mailbox
+        could not tell (the read is fail-open, ``mail_reply_states``).
+    """
+    asked = [{"id": row.id, "threadId": row.thread_id} for row in request.messages]
+    async with open_tool_client(_TOOL, user_id) as opened:
+        async with provider_call(_TOOL, "read_reply_marks", act=False):
+            states = await reply_states_of(opened.client, asked, user_timezone=zone.key)
+    marks = ((row.id, reply_mark(states.get(row.id))) for row in request.messages)
+    return MailReplyMarks(
+        items=[MailReplyMark(id=row, status=mark) for row, mark in marks if mark is not None]
     )
 
 

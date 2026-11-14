@@ -230,7 +230,8 @@ async def find_generated_files_tool(
         limit=bounded_count(max_results, settings.generated_files_search_max_results),
     )
     if rows and context is not None:
-        _show(rows, context.conversation_id)
+        if context.delivery_runtime_id is not None:
+            _show(rows, context.delivery_runtime_id)
     logger.info(
         "generated_files_lookup_completed",
         user_id=str(user_id),

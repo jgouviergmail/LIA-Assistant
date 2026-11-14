@@ -1,7 +1,7 @@
 # Disposable qualification overlay (ADR-215, G3/G4).
 #
-# Adds the hermetic fake provider to the installed stack and points BOTH
-# required backend providers at it. Only the qualification workflow (and a
+# Adds the hermetic fake provider to the installed stack and points every
+# required backend provider at it. Only the qualification workflow (and a
 # local disposable proof) ever selects this file; the public installer never
 # references it.
 services:
@@ -17,6 +17,8 @@ services:
 
   api:
     environment:
+      # The host alone: the Anthropic SDK appends /v1/messages itself.
+      - ANTHROPIC_BASE_URL=http://fake-provider:18080
       - OPENAI_BASE_URL=http://fake-provider:18080/v1
       - DEEPSEEK_BASE_URL=http://fake-provider:18080/v1
       - QWEN_BASE_URL=http://fake-provider:18080/v1

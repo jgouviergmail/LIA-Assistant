@@ -18,6 +18,7 @@ from __future__ import annotations
 import contextlib
 import json
 import signal
+import urllib.error
 import urllib.request
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
@@ -298,7 +299,8 @@ def wait_ready(
     The entrypoint now resolves the effective Uvicorn worker count from its
     arguments (reload serves from one process). The installer still gates on
     the application's /ready response, not a predicted worker count or a
-    container's merely-running state.
+    container's merely-running state. While a dependency does not answer,
+    /ready says 503: that answer is released before the next poll.
     """
     deadline = clock.monotonic() + timeout_s
     while True:
@@ -307,6 +309,10 @@ def wait_ready(
             with opener(request, timeout=10.0) as response:
                 if int(getattr(response, "status", 0)) == 200:
                     return
+        except urllib.error.HTTPError as not_ready:
+            # The error IS the response: released here, not whenever the
+            # garbage collector reaches it.
+            not_ready.close()
         except Exception:  # noqa: BLE001 - every failure is just "not ready yet"
             pass
         if clock.monotonic() >= deadline:
@@ -636,7 +642,8 @@ def reconfigure_existing(
     Allowed changes are the non-secret routing and capability choices
     (installer language, exposure, server host, web/API domains, Caddy
     email, default language, observability, self-diagnostics, skill
-    sandbox, live mode, radio, speaking avatar). Mode, release identity, and
+    sandbox, live mode, radio, speaking avatar, LIA World, the instance's web
+    search). Mode, release identity, and
     admin identity are immutable; generated secrets are preserved by
     construction (the candidate ``.env`` reuses the ones in force); seeds and
     bootstrap are NEVER invoked.

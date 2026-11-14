@@ -12,12 +12,13 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
-from contextlib import suppress
+from contextlib import aclosing, suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from src.core.constants import CHANNEL_TYPE_TELEGRAM, TELEGRAM_TYPING_INTERVAL_SECONDS
+from src.core.conversation_execution import ConversationBusy
 from src.core.field_names import (
     FIELD_ACTION_REQUESTS,
     FIELD_ERROR_CODE,
@@ -25,6 +26,7 @@ from src.core.field_names import (
     FIELD_TYPE,
 )
 from src.domains.channels.abstractions import ChannelInboundMessage
+from src.infrastructure.async_utils import cancel_and_join
 from src.infrastructure.channels.assistant_gateway import (
     ChannelAgentRequest,
     ChannelStreamChunk,
@@ -291,6 +293,10 @@ class InboundMessageHandler:
 
         except asyncio.CancelledError:
             raise
+        except ConversationBusy:
+            await self.sender.send_message(
+                channel_user_id, ChannelOutboundMessage(text=get_bot_message("busy", user_language))
+            )
         except Exception:
             logger.error(
                 "channel_inbound_handler_error",
@@ -307,9 +313,7 @@ class InboundMessageHandler:
                 logger.error("channel_error_message_send_failed", exc_info=True)
         finally:
             # Cancel typing indicator
-            typing_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await typing_task
+            await cancel_and_join(typing_task)
 
     async def _stream_and_collect(
         self,
@@ -371,8 +375,9 @@ class InboundMessageHandler:
             user_psyche_enabled=user_psyche_enabled,
             hitl_decision=dict(hitl_decision) if hitl_decision is not None else None,
         )
-        async for chunk in get_channel_gateway().stream(request):
-            turn.feed(chunk)
+        async with aclosing(get_channel_gateway().stream(request)) as stream:
+            async for chunk in stream:
+                turn.feed(chunk)
 
         if turn.error_code is not None:
             # The code, never the content: some refusals carry technical text.

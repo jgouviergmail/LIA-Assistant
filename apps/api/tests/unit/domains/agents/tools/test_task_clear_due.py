@@ -47,7 +47,7 @@ class TestTheDraftTool:
         tool = UpdateTaskDraftTool()
         client = MagicMock(get_task=AsyncMock(return_value={"id": "t1", "due": _DUE}))
         with (
-            patch.object(tasks_tools, "_resolve_default_task_list", AsyncMock(return_value="l1")),
+            patch.object(tasks_tools, "own_task_list_id", AsyncMock(return_value="l1")),
             patch.object(tool, "get_user_preferences_safe", AsyncMock(return_value=("UTC", "en"))),
         ):
             return await tool.execute_api_call(client, uuid4(), task_id="t1", **kwargs)

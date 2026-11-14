@@ -9,6 +9,8 @@ import { act, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
+import { ICON_STYLES } from '@/lib/icon-style';
+import { IconStyleContext } from '@/lib/icon-style-context';
 import type { RadioSegment } from '@/lib/radio/types';
 import { IDLE_RADIO_VIEW, useRadioStore } from '@/stores/radioStore';
 
@@ -66,6 +68,17 @@ describe('startOptions', () => {
 });
 
 describe('RadioPage', () => {
+  it.each(ICON_STYLES)('titles the page with the radio set in %s', style => {
+    renderWithProviders(
+      <IconStyleContext.Provider value={style}>
+        <RadioPage lng="en" available />
+      </IconStyleContext.Provider>
+    );
+    const mark = screen.getByRole('heading', { level: 1 }).querySelector('svg');
+    expect(mark).toHaveAttribute('data-icon-name', 'RadioSet');
+    expect(mark).toHaveAttribute('data-icon-style', style);
+  });
+
   it('starts the station from its button, with the listener’s settings by default', () => {
     renderWithProviders(<RadioPage lng="en" available />);
     fireEvent.click(screen.getByRole('button', { name: 'radio.page.start' }));

@@ -5,9 +5,9 @@
  *
  * One controller per mount, built with the real transport, player, microphone
  * and API client; the page hands the chat's doors through `bindings` and the
- * hook points the controller at the LATEST ones without rebuilding it (a
- * delegated turn must reach the chat the page currently renders, not the one
- * it rendered when the session started). Two effects belong here and nowhere
+ * hook offers the latest bindings for the NEXT start without rebuilding it.
+ * An open session keeps the discussion and chat doors captured at its start.
+ * Two effects belong here and nowhere
  * else: the page visibility (a hidden page past the grace puts the session to
  * sleep, ADR-329) and the unmount (a session never outlives its page).
  *
@@ -54,10 +54,13 @@ export interface UseLiveSessionReturn {
   wake: () => Promise<void>;
 }
 
-export function useLiveSession(bindings: LiveChatBindings, ownerId?: string): UseLiveSessionReturn {
+export function useLiveSession(
+  readChat: () => LiveChatBindings | null,
+  ownerId?: string
+): UseLiveSessionReturn & { stopAll: () => Promise<void> } {
   const { i18n } = useTranslation();
   // One controller per mount (a lazy initial state, never re-created); the
-  // chat's doors are pointed at the page's CURRENT bindings by an effect.
+  // next start receives the selected discussion's bindings by an effect.
   const [controller] = useState(
     () =>
       new LiveSessionController({
@@ -69,7 +72,7 @@ export function useLiveSession(bindings: LiveChatBindings, ownerId?: string): Us
           new RoutedLivePlayer(new PcmStreamPlayer(isAppleMobile() ? 120 : 0), avatarEngine),
         startMic: startMicCapture,
         isSupported: isLiveSupported,
-        chat: bindings,
+        chat: null,
         createWakeListener: options => (isWakeWordSupported() ? new WakeListener(options) : null),
         // The i18n instance is the app's singleton: its language is the current one.
         wakeLanguage: () => wakeLanguageOf(i18n.language),
@@ -78,10 +81,6 @@ export function useLiveSession(bindings: LiveChatBindings, ownerId?: string): Us
       })
   );
   useEffect(() => {
-    controller.setChat(bindings);
-  }, [controller, bindings]);
-
-  useEffect(() => {
     const onVisibility = () => controller.pageHidden(document.visibilityState === 'hidden');
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
@@ -89,7 +88,8 @@ export function useLiveSession(bindings: LiveChatBindings, ownerId?: string): Us
 
   useEffect(
     () => () => {
-      if (isSessionOpen(useLiveStore.getState().status)) void controller.end('ended');
+      const { status } = useLiveStore.getState();
+      if (status === 'minting' || isSessionOpen(status)) void controller.end('ended');
     },
     [controller]
   );
@@ -98,22 +98,35 @@ export function useLiveSession(bindings: LiveChatBindings, ownerId?: string): Us
   // here, by the only session that holds the chat's doors — in the mode asked.
   useEffect(() => {
     const consume = () => {
+      const chat = readChat();
+      if (!chat) return;
       const mode = useLiveStore.getState().consumeStart(ownerId);
-      if (mode !== null) void controller.start(mode);
+      if (mode === null) return;
+      controller.setChat(chat);
+      void controller.start(mode);
     };
     consume();
     return useLiveStore.subscribe(state => {
       if (state.pendingStart !== null) consume();
     });
-  }, [controller, ownerId]);
+  }, [controller, ownerId, readChat]);
 
-  const start = useCallback((mode?: LiveSessionMode) => controller.start(mode), [controller]);
+  const start = useCallback(
+    async (mode?: LiveSessionMode) => {
+      const chat = readChat();
+      if (!chat) return;
+      controller.setChat(chat);
+      await controller.start(mode);
+    },
+    [controller, readChat]
+  );
   const end = useCallback((outcome?: LiveOutcome) => controller.end(outcome), [controller]);
+  const stopAll = useCallback(() => controller.stopAll(), [controller]);
   const toggleMute = useCallback(() => controller.toggleMute(), [controller]);
   const extend = useCallback(() => controller.extend(), [controller]);
   const declineExtension = useCallback(() => controller.declineExtension(), [controller]);
   const standby = useCallback(() => controller.standby('manual'), [controller]);
   const wake = useCallback(() => controller.wake(), [controller]);
 
-  return { start, end, toggleMute, extend, declineExtension, standby, wake };
+  return { start, end, stopAll, toggleMute, extend, declineExtension, standby, wake };
 }

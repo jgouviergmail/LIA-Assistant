@@ -60,8 +60,9 @@ _STATUS_TO_PHRASE: dict[str, str] = {
     # only reconnecting the connector with a valid key can fix it.
     "auth_failed": "auth_failed",
     # The vendor agent could not be PATCHed to allow the per-call override an
-    # owner or verification mandate needs (lot 2): refused rather than dialled
-    # under the stranger's rules. Transient — the next attempt re-syncs.
+    # owner or verification mandate needs (lot 2), or its tools could not be
+    # made exactly the call's (owner decision 2026-11-11): refused rather than
+    # dialled wrong. Transient — the next attempt re-syncs.
     "agent_sync_failed": "agent_sync_failed",
 }
 

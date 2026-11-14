@@ -113,7 +113,7 @@ function AccountAdminMCPServersSettings({ lng }: AdminMCPServersSettingsProps) {
                   <Switch
                     checked={server.enabled_for_user}
                     onCheckedChange={() => handleToggle(server)}
-                    disabled={toggling}
+                    busy={toggling}
                     aria-label={t('settings.admin_mcp.toggle_server', {
                       name: server.name,
                     })}

@@ -57,6 +57,9 @@ class ConnectorType(str, enum.Enum):
     WIKIPEDIA = "wikipedia"
     PERPLEXITY = "perplexity"
     BRAVE_SEARCH = "brave_search"
+    # The instance's own web search (lot 18, keyless — ADR-307): the default
+    # of an account whose person configured no search key of their own.
+    SEARXNG = "searxng"
     BROWSER = "browser"  # Interactive web browsing (evolution F7)
 
     # Smart Home
@@ -274,6 +277,7 @@ _KEYLESS_USER_CONNECTOR_TYPES: frozenset[ConnectorType] = frozenset(
         ConnectorType.GOOGLE_PLACES,
         ConnectorType.GOOGLE_WEATHER,
         ConnectorType.GOOGLE_ENVIRONMENT,
+        ConnectorType.SEARXNG,
     }
 )
 
@@ -410,6 +414,7 @@ CONNECTOR_DISPLAY_NAMES: dict[ConnectorType, str] = {
     ConnectorType.WIKIPEDIA: "Wikipedia",
     ConnectorType.PERPLEXITY: "Perplexity",
     ConnectorType.BRAVE_SEARCH: "Brave Search",
+    ConnectorType.SEARXNG: "SearXNG",
     ConnectorType.BROWSER: "Browser",
     ConnectorType.PHILIPS_HUE: "Philips Hue",
     ConnectorType.ELEVENLABS_TELEPHONY: "ElevenLabs Telephony",

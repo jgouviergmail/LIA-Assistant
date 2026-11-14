@@ -142,6 +142,44 @@ any exception on top of the SDK (its default `retry_on`, read, not simulated);
 the ReAct node's stream-then-buffered fallback sends a second round (six
 requests for one persistent 503, simulated).
 
+**Amendment 2026-11-13 — a structure written as text, and a bracket that
+closes nothing** ([ADR-388](ADR-388-Documents-Use-What-Their-Formats-Can-Do.md)).
+The documents' writer measurement (`task documents:writer:measure`, proof
+account) found two more mechanical refusals of COMPLETE answers, each paid
+again up to three times. A reasoning model on the auto-tool door wrote a
+workbook's `sheets` as JSON TEXT — and stopped that text between two values,
+after a sheet's `rows`, writing the rest of the open sheet (`columns`,
+sometimes `chart`) as keys of the call itself: 4 workbooks lost in 9. A
+second reasoning model wrote the same field as whole JSON text closed once too
+often (5 of its 7 refusals in 8 workbooks) or broken by a stray character
+inside a row (2 of 7). A fast model without reasoning closed a long report's
+arguments once too often — a whole value, valid against the schema, then one
+`}` (« Extra data »): one report lost in 24 after three calls, three calls
+refused in ten in the diagnosis that followed. Two repairs join the chain, still after ADR-275's
+verdict. `decode_text_structures` reads back, where the schema expects a list
+or an object and admits no text, a value written as JSON text: a text cut
+between two values gets only the brackets it owes
+(`json_recovery.close_cut_structure`; the closed text must parse, so a cut
+inside a string never closes), and each key the call's schema does not declare
+goes back into the innermost object the text left open whose model declares
+it — a key that fits nowhere stays where the model wrote it. Its outcome is
+`structures_decoded`, logged with counts (`decoded`, `closed`, `rehomed`).
+`drop_trailing_closers` keeps a whole value followed by brackets only — a
+call's arguments under `invalid_call_repaired`, a value written as text inside
+the structure reading (`closers_dropped` on both lines); anything else after
+the value may be content and stays. Claude's strict tool use, left above for measurement,
+cannot carry the document schemas: a request may hold 24 optional parameters
+across its strict tools, `SectionedContent` declares 33 and `SlideContent` 36,
+and this door never bends a schema to fit. Measured after, same scenarios: 6
+workbooks of 6 delivered in one call each (every answer read back, one or two
+keys put back), 8 of 8 for the second model (three read back), 8 long reports
+of 8 in one call (two closing brackets dropped), and no repair on four decks
+and reports that needed none. A diagnosis read where the keys go: when the split answer carries a
+chart, it lands in its sheet; when it does not, no key of the call holds one.
+Shapes left as refusals: a nesting broken inside the arguments (a bracket
+missing mid-way) and a stray character inside a text, whose repair would be a
+guess.
+
 ### 2. Prompt convention (root cause)
 
 Prompts consumed by native structured output MUST NOT instruct JSON-text

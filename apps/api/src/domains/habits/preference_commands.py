@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import raise_user_not_found
 from src.domains.habits.schemas import HabitsSettingsUpdate
+from src.domains.users.extraction_consent import invalidate_extractions
 from src.domains.users.models import User
 from src.domains.users.preference_cas import (
     PreferenceWriteReceipt,
@@ -16,12 +17,22 @@ from src.domains.users.preference_cas import (
     verified_preference_noop,
 )
 from src.domains.users.repository import UserRepository
+from src.infrastructure.cache import recurrence_store
+from src.infrastructure.cache.redis import get_redis_cache
 
 HABIT_SETTING_FIELDS = frozenset(HabitsSettingsUpdate.model_fields)
 
 
 class HabitSettingsCompletionUnknown(RuntimeError):
     """The database acknowledgement cannot establish the preference's completion."""
+
+
+async def _revoke_learning_writes(actor_id: UUID) -> None:
+    """A lost Redis acknowledgement stays unknown; replay revokes again."""
+    try:
+        await recurrence_store.revoke_writes(await get_redis_cache(), str(actor_id))
+    except Exception as exc:
+        raise HabitSettingsCompletionUnknown from exc
 
 
 async def update_habit_settings(
@@ -44,7 +55,13 @@ async def update_habit_settings(
         check_expected_preferences(actor, patch, expected)
     current = {name: getattr(actor, name) for name in patch.model_fields_set}
     if verified_preference_noop(patch, current, receipt):
+        await db.commit()
+        if not actor.habits_enabled:
+            await _revoke_learning_writes(actor_id)
         return actor
+    consent_changed = actor.habits_enabled != patch.habits_enabled
+    if consent_changed:
+        invalidate_extractions(actor)
     for name, value in patch.model_dump(exclude_unset=True).items():
         setattr(actor, name, value)
     await db.flush()
@@ -56,4 +73,6 @@ async def update_habit_settings(
         raise HabitSettingsCompletionUnknown from exc
     if receipt is not None:
         receipt.committed = True
+    if consent_changed:
+        await _revoke_learning_writes(actor_id)
     return actor

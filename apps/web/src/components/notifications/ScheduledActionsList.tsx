@@ -27,6 +27,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
+import type { TriggerKind } from '@/hooks/useScheduledActions';
 import { formatInstant } from '@/lib/format-instant';
 import { lifecycleTone } from '@/lib/status-tone';
 
@@ -34,7 +35,7 @@ export interface ScheduledActionRow {
   id: string;
   title: string;
   is_enabled: boolean;
-  trigger_kind: 'time' | 'condition';
+  trigger_kind: TriggerKind;
   next_trigger_at: string | null;
   schedule_display: string;
 }
@@ -72,7 +73,9 @@ export function ScheduledActionsList({
             <p className="mt-1 break-words text-xs leading-relaxed text-muted-foreground">
               {action.schedule_display}
             </p>
-            {action.is_enabled && action.trigger_kind !== 'condition' && (
+            {/* Only a schedule announces a run: a condition's trigger is a check,
+                a webhook routine's a call (ADR-322, ADR-386). */}
+            {action.is_enabled && action.trigger_kind === 'time' && (
               <p className="mt-1 text-xs tabular-nums leading-relaxed text-muted-foreground">
                 {action.next_trigger_at
                   ? t('notifications_hub.next_run', {

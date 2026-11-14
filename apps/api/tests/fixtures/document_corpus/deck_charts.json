@@ -1,0 +1,261 @@
+{
+  "doc_types": [
+    "pptx"
+  ],
+  "language": "de",
+  "content": {
+    "filename_stem": "vertriebsbericht",
+    "title": "Vertriebsbericht",
+    "subtitle": "Geschäftsführung",
+    "tone": "institutional",
+    "slides": [
+      {
+        "title": "Der Norden trägt das Wachstum",
+        "kind": "chart",
+        "table": {
+          "name": "Regionen",
+          "headers": [
+            "Region",
+            "Umsatz"
+          ],
+          "rows": [
+            [
+              "Nord",
+              "12000"
+            ],
+            [
+              "Süd",
+              "8500"
+            ],
+            [
+              "Ost",
+              "6100"
+            ],
+            [
+              "West",
+              "9900"
+            ]
+          ],
+          "columns": [
+            {
+              "header": "Umsatz",
+              "kind": "amount",
+              "unit": "EUR"
+            }
+          ],
+          "chart": {
+            "intent": "compare"
+          }
+        },
+        "notes": "Der Norden liefert fast ein Drittel des Umsatzes."
+      },
+      {
+        "title": "Zwei Abteilungen überziehen ihr Budget",
+        "kind": "chart",
+        "table": {
+          "name": "Abteilungen",
+          "headers": [
+            "Abteilung",
+            "Abweichung"
+          ],
+          "rows": [
+            [
+              "Informationssysteme und Digitalisierung",
+              "-500"
+            ],
+            [
+              "Vertrieb und Marketing",
+              "300"
+            ],
+            [
+              "Personalwesen",
+              "200"
+            ],
+            [
+              "Finanzen und Controlling",
+              "-100"
+            ],
+            [
+              "Produktion und Logistik",
+              "450"
+            ],
+            [
+              "Recht",
+              "120"
+            ]
+          ],
+          "columns": [
+            {
+              "header": "Abweichung",
+              "kind": "amount",
+              "unit": "EUR"
+            }
+          ],
+          "chart": {
+            "intent": "compare"
+          }
+        }
+      },
+      {
+        "title": "Das Wachstum bleibt positiv, außer im Mai",
+        "kind": "chart",
+        "table": {
+          "name": "Monate",
+          "headers": [
+            "Monat",
+            "Umsatz"
+          ],
+          "rows": [
+            [
+              "Jan",
+              "100"
+            ],
+            [
+              "Feb",
+              "120"
+            ],
+            [
+              "Mär",
+              "130"
+            ],
+            [
+              "Apr",
+              "150"
+            ],
+            [
+              "Mai",
+              "141"
+            ],
+            [
+              "Jun",
+              "160"
+            ]
+          ],
+          "columns": [
+            {
+              "header": "Wachstum",
+              "formula": "{Umsatz} / PREVIOUS({Umsatz}) - 1",
+              "kind": "percent"
+            }
+          ],
+          "chart": {
+            "intent": "trend",
+            "values": [
+              "Wachstum"
+            ]
+          }
+        }
+      },
+      {
+        "title": "Der Webshop bringt mehr als die Hälfte der Bestellungen",
+        "kind": "chart",
+        "table": {
+          "name": "Kanäle",
+          "headers": [
+            "Kanal",
+            "Bestellungen"
+          ],
+          "rows": [
+            [
+              "Webshop",
+              "540"
+            ],
+            [
+              "Filialen",
+              "310"
+            ],
+            [
+              "Telefon",
+              "90"
+            ],
+            [
+              "Partner",
+              "60"
+            ]
+          ],
+          "chart": {
+            "intent": "share"
+          }
+        }
+      },
+      {
+        "title": "Bestellungen nach Kanal",
+        "kind": "chart",
+        "table": {
+          "name": "Kanäle",
+          "headers": [
+            "Kanal",
+            "Bestellungen"
+          ],
+          "rows": [
+            [
+              "Webshop",
+              "540"
+            ],
+            [
+              "Filialen",
+              "310"
+            ],
+            [
+              "Telefon",
+              "90"
+            ]
+          ],
+          "chart": {
+            "intent": "share",
+            "form": "doughnut"
+          }
+        }
+      },
+      {
+        "title": "Größere Filialen verkaufen mehr",
+        "kind": "chart",
+        "table": {
+          "name": "Filialen",
+          "headers": [
+            "Filiale",
+            "Fläche",
+            "Umsatz"
+          ],
+          "rows": [
+            [
+              "Köln",
+              "120",
+              "410"
+            ],
+            [
+              "Bonn",
+              "95",
+              "350"
+            ],
+            [
+              "Mainz",
+              "140",
+              "480"
+            ],
+            [
+              "Trier",
+              "80",
+              "300"
+            ]
+          ],
+          "columns": [
+            {
+              "header": "Fläche",
+              "kind": "quantity",
+              "unit": "m²"
+            },
+            {
+              "header": "Umsatz",
+              "kind": "amount",
+              "unit": "EUR"
+            }
+          ],
+          "chart": {
+            "intent": "relation"
+          }
+        }
+      }
+    ]
+  }
+}

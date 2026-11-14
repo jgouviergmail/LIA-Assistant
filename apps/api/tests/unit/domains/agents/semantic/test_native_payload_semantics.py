@@ -276,8 +276,9 @@ def test_workboard_summary_exposes_real_uuid_status_and_deadline(
         priority="high",
         start_at=None,
         due_at=_WHEN,
+        category_id=None,
     )
-    data = {"tickets": [_ticket_summary(ticket)]}
+    data = {"tickets": [_ticket_summary(ticket, {})]}
     manifest = manifests["list_tickets_tool"]
     assert _value(manifest, data, "tickets[].id", "ticket_id") == str(_ID)
     assert _value(manifest, data, "tickets[].status", "ticket_status") == "todo"

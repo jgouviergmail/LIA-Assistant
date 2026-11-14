@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Check, ClipboardList, FileText, LockKeyhole, Mail, Radio, Sparkles } from '@/lib/icons';
+import { Check, ClipboardList, FileText, LockKeyhole, Mail, RadioSet, Sparkles } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { SCENE_TONES } from './scene-tones';
@@ -47,7 +47,7 @@ export function ProductResult({ sceneId }: { sceneId: ProductSceneId }) {
     <div className="landing-product-result space-y-3 [--lia-text-secondary:var(--lia-text)]">
       {sceneId === 'day' && (
         <div className="flex h-9 items-center justify-center gap-1" aria-hidden="true">
-          <Radio className="mr-3 h-5 w-5 text-primary" />
+          <RadioSet className="mr-3 h-5 w-5 text-primary" />
           {[8, 16, 24, 12, 28, 19, 32, 22, 14, 26, 32, 18, 10, 24, 16, 8].map((height, i) => (
             <span key={i} className="w-1.5 rounded-full bg-primary/60" style={{ height }} />
           ))}

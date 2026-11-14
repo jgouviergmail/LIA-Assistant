@@ -41,33 +41,38 @@ import hashlib
 import json
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, tzinfo
 from functools import lru_cache
 from uuid import UUID
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage
 
 from src.core.config import settings
 from src.core.constants import (
     INTEREST_ACTIVE_LIST_LIMIT,
     INTEREST_ANALYSIS_CACHE_TTL,
-    INTEREST_EXTRACTION_QUERY_TRUNCATION_LENGTH,
     REDIS_KEY_INTEREST_ANALYSIS_PREFIX,
 )
 from src.core.i18n import get_language_name, resolve_language
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.prompt_layout import single_call_messages
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
+from src.core.time_utils import resolve_zone
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.services.jev_extraction_observer import (
     observe_extractor,
     start_extraction_observation,
 )
-from src.domains.agents.utils.json_parser import extract_json_from_llm_response
 from src.domains.interests.repository import InterestRepository
 from src.domains.interests.schemas import ExtractedInterest
 from src.domains.interests.services.action_applier import (
     find_similar_interest,
+)
+from src.domains.interests.services.extraction_reading import (
+    format_messages_for_extraction as _format_messages_for_extraction,
+)
+from src.domains.interests.services.extraction_reading import (
+    parse_extraction_result as _parse_extraction_result,
 )
 from src.domains.interests.services.extraction_storage import (
     capture_interest_revision,
@@ -77,11 +82,11 @@ from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.shared.extraction_targets import (
     extraction_window,
     find_last_user_message,
-    is_synthetic_message,
 )
 from src.infrastructure.database import get_db_context
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
+from src.infrastructure.llm.message_view import present_label
 from src.infrastructure.llm.usage_metadata import UsageTokens, tokens_from_response
 from src.infrastructure.observability.logging import get_logger
 
@@ -368,106 +373,6 @@ def _get_extraction_prompt() -> str:
     return str(load_prompt("interest_extraction_prompt"))
 
 
-def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
-    """
-    Format messages for extraction prompt.
-
-    Converts LangChain messages to readable conversation format. Only the
-    conversation itself is kept: tool results and system scaffolding are
-    dropped, mirroring the journals extractor
-    (``domains/journals/extraction_service``), which has always skipped them.
-
-    They used to reach the prompt under a ``SYSTEM`` label. The context window
-    is the four messages preceding the new user message, so right after a tool
-    call it carried a raw tool payload — a contact list, a message body — into
-    a prompt whose only question is "what does the USER care about". That both
-    invited an interest inferred from data the user never mentioned, and copied
-    personal data into a prompt that has no use for it.
-
-    Args:
-        messages: List of conversation messages
-
-    Returns:
-        Formatted conversation string
-    """
-    lines = []
-    max_chars = INTEREST_EXTRACTION_QUERY_TRUNCATION_LENGTH
-
-    for msg in messages:
-        if isinstance(msg, HumanMessage):
-            # System-fabricated HITL scaffolding is not conversation.
-            if is_synthetic_message(msg):
-                continue
-            prefix = "USER"
-        elif isinstance(msg, AIMessage):
-            # Skip proactive notifications (interest/heartbeat) — not user-generated content
-            if msg.additional_kwargs.get("proactive_notification"):
-                continue
-            prefix = "ASSISTANT"
-        else:
-            continue  # Skip tool messages, system messages
-
-        content = str(msg.text)
-        # Truncate very long messages
-        if len(content) > max_chars:
-            content = content[:max_chars] + "..."
-
-        lines.append(f"{prefix}: {content}")
-
-    return "\n".join(lines)
-
-
-def _parse_extraction_result(result_text: str) -> list[ExtractedInterest]:
-    """
-    Parse LLM extraction result into ExtractedInterest objects.
-
-    Handles common JSON parsing issues (markdown fences, whitespace, comments).
-
-    Args:
-        result_text: Raw LLM output
-
-    Returns:
-        List of validated ExtractedInterest objects
-    """
-
-    def _parse_items(data: list) -> list[ExtractedInterest]:
-        interests: list[ExtractedInterest] = []
-        for item in data:
-            try:
-                action = item.get("action", "create")
-
-                # Filter by minimum confidence (only for create actions)
-                if action == "create":
-                    confidence = item.get("confidence", 0)
-                    if confidence < settings.interest_extraction_min_confidence:
-                        logger.debug(
-                            "interest_extraction_low_confidence",
-                            topic=item.get("topic", "")[:50],
-                            confidence=confidence,
-                        )
-                        continue
-
-                interest = ExtractedInterest(**item)
-                interests.append(interest)
-            except Exception as e:
-                logger.debug(
-                    "interest_item_validation_failed",
-                    item=item,
-                    error=str(e),
-                )
-                continue
-        return interests
-
-    # Central parser handles fences, array extraction, trailing commas and //
-    # comments (strict-first, instrumented via json_parse_* with this context).
-    result = extract_json_from_llm_response(
-        result_text, expected_type=list, context="interest_extraction"
-    )
-    if not result.success or not isinstance(result.data, list):
-        return []
-    return _parse_items(result.data)
-
-
 # ============================================================================
 # Core Analysis Function (DRY - used by both debug and background)
 # ============================================================================
@@ -477,12 +382,19 @@ def _render_extraction_prompt(
     conversation: str,
     existing_texts: list[str],
     user_language: str,
+    *,
+    zone: tzinfo,
+    now: datetime | None = None,
 ) -> str:
-    """Render the same complete policy and state for the extractor and observer."""
+    """Render the same complete policy and state for the extractor and observer.
+
+    The present is written in the person's zone, beside an exchange stamped in it
+    (ADR-381 amendment): one clock for every relative date.
+    """
     return _get_extraction_prompt().format(
         conversation=conversation,
         existing_interests="\n".join(existing_texts) if existing_texts else _no_known_interest(),
-        current_datetime=datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M"),
+        current_datetime=present_label(zone, now),
         user_language=get_language_name(user_language),
     )
 
@@ -493,6 +405,8 @@ async def _analyze_interests_core(
     session_id: str,
     user_language: str | None = None,
     use_cache: bool = True,
+    *,
+    user_timezone: str | None,
 ) -> InterestAnalysisResult:
     """
     Core interest extraction analysis (LLM-based).
@@ -569,10 +483,11 @@ async def _analyze_interests_core(
     ]
 
     # Format conversation with context
-    conversation = _format_messages_for_extraction(context_messages)
+    zone = resolve_zone(user_timezone)
+    conversation = _format_messages_for_extraction(context_messages, zone=zone)
 
     # Build prompt from external file
-    prompt = _render_extraction_prompt(conversation, existing_texts, user_language)
+    prompt = _render_extraction_prompt(conversation, existing_texts, user_language, zone=zone)
 
     # Resolve the effective state before cache lookup: identical final user
     # text can refer to different context or a changed interest to update/delete.
@@ -677,6 +592,8 @@ async def extract_interests_background(
     conversation_id: str | None = None,
     user_language: str | None = None,
     parent_run_id: str | None = None,
+    *,
+    user_timezone: str | None,
 ) -> int:
     """
     Background interest extraction from conversation.
@@ -726,6 +643,7 @@ async def extract_interests_background(
             session_id=session_id,
             user_language=resolve_language(user_language),
             use_cache=True,
+            user_timezone=user_timezone,
         )
 
         if not analysis.analyzed:
@@ -795,6 +713,8 @@ async def analyze_interests_for_debug(
     messages: list[BaseMessage],
     session_id: str,
     user_language: str | None = None,
+    *,
+    user_timezone: str | None,
 ) -> dict:
     """
     Analyze conversation for interests (debug panel - LLM-based).
@@ -853,6 +773,7 @@ async def analyze_interests_for_debug(
             session_id=session_id,
             user_language=resolve_language(user_language),
             use_cache=True,
+            user_timezone=user_timezone,
         )
 
         if not analysis.analyzed:

@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { publishApplicationResources } from '@/lib/application-resources';
+import { bumpRevision } from '@/stores/revisionStore';
 import type { SkillListResponse } from '../useSkills';
 
 const { get, useAuth } = vi.hoisted(() => ({ get: vi.fn(), useAuth: vi.fn() }));
@@ -81,5 +82,22 @@ describe('personal skill changes and queries belong to their current account', (
     const { result } = renderHook(() => useSkills());
     await waitFor(() => expect(result.current.error).toBeTruthy());
     expect(result.current.loading).toBe(false);
+  });
+});
+
+describe('skills the instance has switched off', () => {
+  it('asks nothing of the closed router: on mount, on a resource event, on a new revision', async () => {
+    const { result } = renderHook(() => useSkills(false, false));
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 20));
+    });
+    act(() => publishApplicationResources('one', new Set(['skills'])));
+    act(() => bumpRevision('skills'));
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 20));
+    });
+
+    expect(get).not.toHaveBeenCalled();
+    expect(result.current.skills).toEqual([]);
   });
 });

@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from src.core.config import settings
+from src.domains.agents.services.nothing_new import note_run_admission
 from src.domains.agents.services.outcome_directive import build_requested_outcomes_block
 from src.domains.agents.utils.message_filters import current_turn_responses
 
@@ -67,11 +68,39 @@ async def build_run_honesty_block(state: dict[str, Any]) -> str:
         The formatted directive; NEVER raises — a broken diagnostics path
         must not break response synthesis.
     """
-    blocks = [build_truncation_block(state)]
-    blocks.append(build_requested_outcomes_block(state))
-    blocks.append(await _failures_block(state))
-    blocks.append(held_not_run_block(state))
+    truncation = build_truncation_block(state)
+    failures = await _failures_block(state)
+    not_run = held_not_run_block(state)
+    if truncation or not_run or _turn_failed(state):
+        # A routine told to notify only of something new: a run that failed
+        # somewhere is never « nothing new », whatever its model declares. The
+        # failures block may speak of the PLATFORM alone (a degradation): told
+        # to the model, no failure of the run.
+        note_run_admission()
+    blocks = [truncation, build_requested_outcomes_block(state), failures, not_run]
     return "\n\n".join(block for block in blocks if block)
+
+
+def _turn_failed(state: dict[str, Any]) -> bool:
+    """Whether a step or a call of THIS turn failed — the count the directive states.
+
+    Args:
+        state: The LangGraph state (``completed_steps`` and ``messages`` are read).
+
+    Returns:
+        True when the turn failed somewhere, and when it cannot be told: the
+        seam never raises, and doubt notifies.
+    """
+    try:
+        from src.domains.diagnostics.failure_context import count_turn_failures
+
+        messages: list[BaseMessage] = state.get("messages") or []
+        return (
+            count_turn_failures(state.get("completed_steps"), current_turn_responses(messages)) > 0
+        )
+    except Exception as exc:  # the seam never breaks synthesis; doubt notifies
+        logger.debug("turn_failure_count_failed", error_type=type(exc).__name__)
+        return True
 
 
 def held_not_run_block(state: dict[str, Any]) -> str:

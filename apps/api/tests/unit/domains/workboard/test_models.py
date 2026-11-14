@@ -28,7 +28,12 @@ from src.domains.workboard.constants import (
     TicketPriority,
     TicketStatus,
 )
-from src.domains.workboard.models import WorkboardComment, WorkboardTicket, WorkboardTicketEvent
+from src.domains.workboard.models import (
+    WorkboardCategory,
+    WorkboardComment,
+    WorkboardTicket,
+    WorkboardTicketEvent,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -212,6 +217,7 @@ class TestTicketTable:
             "due_at",
             "assignee_user_id",
             "pending_action",
+            "category_id",
         ):
             assert columns[optional].nullable is True, optional
 
@@ -241,3 +247,37 @@ class TestChildTables:
     def test_a_comment_keeps_the_run_that_wrote_it(self) -> None:
         """The join key to the three ADR-263 registers."""
         assert WorkboardComment.__table__.c.run_id.nullable is True
+
+
+class TestCategoryTable:
+    """A category is the owner's, and removing one never removes a ticket."""
+
+    def test_table_name(self) -> None:
+        assert WorkboardCategory.__tablename__ == "workboard_categories"
+
+    def test_it_dies_with_its_account(self) -> None:
+        fk = next(iter(WorkboardCategory.__table__.c.owner_user_id.foreign_keys))
+        assert fk.column.table.name == "users"
+        assert fk.ondelete == "CASCADE"
+
+    def test_one_folded_name_per_account(self) -> None:
+        """The database is the backstop of the service's own check: two lanes
+        answering to one name is a state nothing may persist."""
+        unique = {
+            tuple(column.name for column in constraint.columns)
+            for constraint in WorkboardCategory.__table__.constraints
+            if constraint.__class__.__name__ == "UniqueConstraint"
+        }
+        assert ("owner_user_id", "name_key") in unique
+
+    def test_a_ticket_survives_its_category(self) -> None:
+        """SET NULL, never CASCADE: deleting a lane sends its tickets back to
+        « to categorise », it does not delete the work filed under it."""
+        column = WorkboardTicket.__table__.c.category_id
+        fk = next(iter(column.foreign_keys))
+        assert column.nullable is True
+        assert fk.column.table.name == "workboard_categories"
+        assert fk.ondelete == "SET NULL"
+
+    def test_a_lane_is_read_through_an_index(self) -> None:
+        assert WorkboardTicket.__table__.c.category_id.index is True

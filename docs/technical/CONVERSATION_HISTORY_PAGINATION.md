@@ -79,9 +79,10 @@ The codebase convention elsewhere is offset-based pagination returning
 - A global `COUNT(*)` would be `O(conversation_messages)` per request — no
   cheap filter can short-circuit it — and is useless to the scroll-up UI,
   which only needs `has_more`.
-- Keyset uses the composite index `ix_conversation_messages_conv_created
-  (conversation_id, created_at DESC)` for an index-only seek per page,
-  regardless of conversation length.
+- Keyset uses the composite index `ix_conversation_messages_history_position
+  (conversation_id, created_at, id)`, read backwards, for an index seek per
+  page regardless of conversation length. The `id` closes the order: two
+  messages of one instant never swap between two pages.
 
 The choice is documented in
 `ConversationRepository.get_messages_with_token_summaries` so future readers

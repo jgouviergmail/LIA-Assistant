@@ -17,13 +17,23 @@ through ``infrastructure.cache.recurrence_store``).
 
 from __future__ import annotations
 
+import json
 from datetime import date
-from typing import Any
+from typing import Protocol
+from uuid import UUID
 
 import structlog
+from sqlalchemy import select
 
+from src.core.conversation_execution import ExecutionRevoked
+from src.core.conversation_source import current_conversation_source
+from src.core.run_authority import require_runtime_authority
+from src.domains.agents.context.extraction_revision import capture_run_extraction_revision
+from src.domains.users.models import User
 from src.infrastructure.cache import recurrence_store
+from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.metrics_agents import recurrence_ledger_writes_total
+from src.infrastructure.streaming.runtime_redis import run_runtime_mutation
 
 logger = structlog.get_logger(__name__)
 
@@ -43,6 +53,15 @@ WRITE_USER_DISABLED = "user_disabled"
 #: The operator switched the habits capability off after boot (the
 #: deployment ceiling is read by the extraction gate itself).
 WRITE_FEATURE_DISABLED = "feature_disabled"
+WRITE_SOURCE_RETIRED = "source_retired"
+
+
+class RecurrenceSettings(Protocol):
+    """Only the storage bounds the writer consumes."""
+
+    recurrence_day_hours_cap: int
+    recurrence_ledger_max_entries: int
+    recurrence_window_days: int
 
 
 # The key's tail has ONE producer, shared with the nightly seed (habits): the
@@ -56,7 +75,7 @@ async def record_occurrence(
     *,
     local_date: date,
     local_hour: float,
-    settings: Any,
+    settings: RecurrenceSettings,
     intent: str | None = None,
 ) -> None:
     """Append one occurrence for (user, signature) — per-day, capped.
@@ -82,6 +101,8 @@ async def record_occurrence(
         if not redis:
             recurrence_ledger_writes_total.labels(outcome=WRITE_REDIS_UNAVAILABLE).inc()
             return
+        source = current_conversation_source()
+        write_token = await recurrence_store.acquire_write_token(redis, user_id) if source else None
         key = recurrence_store.redis_key(user_id, signature)
         data = await recurrence_store.load(redis, key)
         recurrence_store.add_day_hour(
@@ -95,8 +116,37 @@ async def record_occurrence(
         # ``live`` even when the seed first rebuilt it (ADR-214 amendment).
         data["origin"] = recurrence_store.ORIGIN_LIVE
         recurrence_store.trim(data, settings.recurrence_ledger_max_entries)
-        await recurrence_store.store(redis, key, data, settings.recurrence_window_days)
+        if source is None:
+            await recurrence_store.store(redis, key, data, settings.recurrence_window_days)
+        else:
+            owner = UUID(user_id)
+            require_runtime_authority(owner, source.runtime_id)
+            async with get_db_context() as db:
+                if await capture_run_extraction_revision(db, owner) is None:
+                    raise ExecutionRevoked()
+                if not await db.scalar(select(User.habits_enabled).where(User.id == owner)):
+                    raise ExecutionRevoked()
+            # Account learning is not runtime garbage: do not inventory this
+            # key. The atomic invocation grant still rejects a command that
+            # arrives after closure/reset, without holding SQL across Redis.
+            written = await run_runtime_mutation(
+                redis,
+                owner_id=owner,
+                runtime_id=source.runtime_id,
+                script=recurrence_store.FENCED_STORE
+                + "return store_current(KEYS[4], KEYS[3], ARGV[5], ARGV[3], ARGV[4], false)",
+                keys=(key, recurrence_store.writer_key(user_id)),
+                args=(
+                    json.dumps(data),
+                    str(settings.recurrence_window_days * 86400),
+                    str(write_token),
+                ),
+            )
+            if written != 1:
+                raise ExecutionRevoked()
         recurrence_ledger_writes_total.labels(outcome=WRITE_WRITTEN).inc()
+    except ExecutionRevoked:
+        recurrence_ledger_writes_total.labels(outcome=WRITE_SOURCE_RETIRED).inc()
     except Exception as exc:  # noqa: BLE001 — advisory ledger, never blocks
         recurrence_ledger_writes_total.labels(outcome=WRITE_FAILED).inc()
         # Facts only (ADR-317): the exception text may quote the payload.
@@ -109,7 +159,7 @@ async def record_occurrence_if_allowed(
     *,
     local_date: date,
     local_hour: float,
-    settings: Any,
+    settings: RecurrenceSettings,
     intent: str | None = None,
 ) -> None:
     """Record one occurrence unless the person switched learning off.

@@ -40,6 +40,7 @@ from src.core.constants import (
 )
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.prompt_layout import single_call_messages
+from src.core.time_utils import resolve_zone
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.services.jev_extraction_observer import (
@@ -215,6 +216,8 @@ async def extract_memories_background(
     conversation_id: str | None = None,
     parent_run_id: str | None = None,
     query_embedding: list[float] | None = None,
+    *,
+    user_timezone: str | None,
 ) -> int:
     """Background psychoanalytical extraction from conversation.
 
@@ -230,6 +233,9 @@ async def extract_memories_background(
         conversation_id: Optional conversation UUID.
         parent_run_id: Pipeline run_id for token UPSERT and debug cache.
         query_embedding: Pre-computed embedding from centralized service.
+        user_timezone: The person's display zone (IANA name), the turn's own: the
+            exchange is stamped and the present written in it (ADR-381 amendment);
+            None reads as the declared default zone.
 
     Returns:
         Number of actions applied (create/update/delete).
@@ -307,7 +313,8 @@ async def extract_memories_background(
             return 0
 
         context_messages = extraction_window(messages, last_human_index)
-        conversation = _format_messages_for_extraction(context_messages)
+        zone = resolve_zone(user_timezone)
+        conversation = _format_messages_for_extraction(context_messages, zone=zone)
 
         # ================================================================
         # Semantic search for dedup + relationships (using pre-computed embedding or local)
@@ -379,6 +386,7 @@ async def extract_memories_background(
             existing_memories=existing_memories_text,
             known_relationships=known_relationships,
             health_context=health_context,
+            zone=zone,
         )
 
         if personality_instruction:

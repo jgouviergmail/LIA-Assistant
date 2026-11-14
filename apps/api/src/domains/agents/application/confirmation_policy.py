@@ -47,6 +47,8 @@ CONFIRMATION_FREE_FIELDS: dict[str, frozenset[str]] = {
             "image_generation_default_size",
             "image_generation_output_format",
             "image_generation_prompt_enhancement",
+            "document_illustrations",
+            "document_animations",
             "exchange_rhythm",
             # Tighten-only (spec 2026-10-30 D7): « always ask » alone, judged at the write.
             "mcp_hitl_required",
@@ -65,6 +67,7 @@ CONFIRMATION_FREE_FIELDS: dict[str, frozenset[str]] = {
             "onboarding_completed",
             "debug_panel_enabled",
             "response_display_mode",
+            "writing_style_enabled",
         }
     ),
 }

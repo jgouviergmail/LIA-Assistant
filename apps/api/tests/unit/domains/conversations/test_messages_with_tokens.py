@@ -12,7 +12,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from typing import Any
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -27,6 +26,7 @@ from src.core.field_names import (
     FIELD_TOKENS_IN,
     FIELD_TOKENS_OUT,
 )
+from src.domains.conversations.message_reads import TokenSummaryPayload
 from src.domains.conversations.models import ConversationMessage
 from src.domains.conversations.repository import ConversationRepository
 from src.domains.conversations.service import ConversationService
@@ -54,23 +54,25 @@ def _message(role: str, content: str, run_id: str | None, minutes_ago: int) -> C
     )
 
 
-def _summary(tokens: int) -> dict[str, Any]:
+def _summary(tokens: int) -> TokenSummaryPayload:
     return {
+        "run_id": "run-1",
+        "total_tokens": tokens + tokens // 2,
         "prompt_tokens": tokens,
         "completion_tokens": tokens // 2,
         "cached_tokens": tokens // 4,
         "cost_eur": tokens / 1000,
-        FIELD_GOOGLE_API_REQUESTS: 1,
+        "google_api_requests": 1,
     }
 
 
 async def _loaded(
     monkeypatch: pytest.MonkeyPatch,
-    rows: Sequence[tuple[ConversationMessage, dict[str, Any] | None]],
-) -> list[dict[str, Any]]:
+    rows: Sequence[tuple[ConversationMessage, TokenSummaryPayload | None]],
+) -> list[dict[str, object]]:
     async def loaded(
         self: ConversationRepository, **_: object
-    ) -> Sequence[tuple[ConversationMessage, dict[str, Any] | None]]:
+    ) -> Sequence[tuple[ConversationMessage, TokenSummaryPayload | None]]:
         return rows
 
     monkeypatch.setattr(ConversationRepository, "get_messages_with_token_summaries", loaded)

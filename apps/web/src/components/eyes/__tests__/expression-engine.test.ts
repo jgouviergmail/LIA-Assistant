@@ -41,9 +41,6 @@ import {
   moodShiftPerformance,
   MOOD_SHIFT_RISE_PERFORMANCE,
   MOOD_SHIFT_FALL_PERFORMANCE,
-  readingGazeAt,
-  READING_MOVE_MS,
-  READING_RETURN_MS,
   wakePerformanceFor,
   SHORT_NAP_MS,
   WAKE_SHORT_PERFORMANCE,
@@ -142,10 +139,12 @@ describe('deriveExpression — priority chain', () => {
     expect(deriveExpression(inputs({ voiceState: 'listening' })).expression).toBe('neutral');
   });
 
-  it('sending shows attentive with gaze toward the input (down)', () => {
-    const frame = deriveExpression(inputs({ chatStatus: 'sending' }));
-    expect(frame.expression).toBe('attentive');
-    expect(frame.gaze).toEqual({ x: 0, y: 1 });
+  it('sending looks at the field the message left — down when the screen says nothing', () => {
+    expect(deriveExpression(inputs({ chatStatus: 'sending' }))).toEqual({
+      expression: 'attentive',
+      gaze: { x: 0, y: 1 },
+      target: 'input',
+    });
   });
 
   it('compacting shows focused', () => {
@@ -188,6 +187,24 @@ describe('deriveExpression — priority chain', () => {
     expect(frame.expression).toBe('attentive');
   });
 
+  it('names the answer being written as what the face looks at, and leaves the direction to the screen', () => {
+    const frame = deriveExpression(inputs({ chatStatus: 'streaming', streamPhase: 'answer' }));
+    // No direction of its own: where the text is depends on where the person
+    // parked the face, and only the screen knows.
+    expect(frame).toEqual({ expression: 'attentive', gaze: null, target: 'answer' });
+  });
+
+  it('names no target while it works, waits or rests', () => {
+    for (const state of [
+      inputs({ chatStatus: 'streaming', streamPhase: 'progress', lastStepKind: 'tool' }),
+      inputs({ chatStatus: 'streaming', streamPhase: 'answer', activity: 'reading' }),
+      inputs({ chatStatus: 'idle' }),
+      inputs({ chatStatus: 'idle', reaction: 'joy' }),
+    ]) {
+      expect(deriveExpression(state).target).toBeUndefined();
+    }
+  });
+
   it('a held reaction wins over notification, typing and idle', () => {
     const frame = deriveExpression(
       inputs({
@@ -200,16 +217,20 @@ describe('deriveExpression — priority chain', () => {
     expect(frame.expression).toBe('joy');
   });
 
-  it('a notification ping shows surprise with gaze toward the toast (top-right)', () => {
-    const frame = deriveExpression(inputs({ notificationPing: true, userTyping: true }));
-    expect(frame.expression).toBe('surprise');
-    expect(frame.gaze).toEqual({ x: 1, y: -1 });
+  it('a notification ping looks at the notification — up, where the toaster is, when the screen says nothing', () => {
+    expect(deriveExpression(inputs({ notificationPing: true, userTyping: true }))).toEqual({
+      expression: 'surprise',
+      gaze: { x: 0, y: -1 },
+      target: 'notification',
+    });
   });
 
-  it('user typing shows attentive with gaze down toward the input', () => {
-    const frame = deriveExpression(inputs({ userTyping: true, inactivityStage: 1 }));
-    expect(frame.expression).toBe('attentive');
-    expect(frame.gaze).toEqual({ x: 0, y: 1 });
+  it('user typing looks at the field being typed in — down when the screen says nothing', () => {
+    expect(deriveExpression(inputs({ userTyping: true, inactivityStage: 1 }))).toEqual({
+      expression: 'attentive',
+      gaze: { x: 0, y: 1 },
+      target: 'input',
+    });
   });
 
   it('inactivity stages: tired, then sleepy, then sleep', () => {
@@ -630,23 +651,6 @@ describe('mood shift beats', () => {
     for (const beat of [MOOD_SHIFT_RISE_PERFORMANCE, MOOD_SHIFT_FALL_PERFORMANCE]) {
       expect(beat[beat.length - 1].gaze).toBeNull();
     }
-  });
-});
-
-describe('reading pattern', () => {
-  it('walks the line left to right, slightly up, then carriage-returns', () => {
-    const first = readingGazeAt(1);
-    const second = readingGazeAt(2);
-    const third = readingGazeAt(3);
-    expect(second.gaze.x).toBeGreaterThan(first.gaze.x);
-    expect(third.gaze.x).toBeGreaterThan(second.gaze.x);
-    for (const step of [first, second, third]) {
-      expect(step.gaze.y).toBeLessThan(0);
-      expect(step.ms).toBe(READING_MOVE_MS);
-    }
-    // Step 0 (and every full cycle) is the quick carriage return to line start.
-    expect(readingGazeAt(0).ms).toBe(READING_RETURN_MS);
-    expect(readingGazeAt(4).gaze).toEqual(readingGazeAt(0).gaze);
   });
 });
 

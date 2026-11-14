@@ -1,6 +1,7 @@
 """Commit evidence and the durable attempt fence outlive later cache/Redis failures."""
 
 import asyncio
+from dataclasses import replace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -19,7 +20,7 @@ pytestmark = pytest.mark.unit
 async def test_known_commit_survives_cache_failure(cancelled: bool) -> None:
     store = MagicMock(spec=ProposalStore)
     attempt = ProposalAttempt(
-        store, _proposal(), _proposal(status="installing", attempt_id="b" * 32)
+        store, _proposal(), replace(_proposal(), status="installing", attempt_id="b" * 32)
     )
     service = MagicMock(spec=SkillImportService)
 
@@ -53,7 +54,7 @@ async def test_redis_settlement_loss_retains_known_commit_and_no_second_write() 
     store = MagicMock(spec=ProposalStore)
     store.transition.side_effect = ConnectionError("lost Redis")
     attempt = ProposalAttempt(
-        store, _proposal(), _proposal(status="installing", attempt_id="b" * 32)
+        store, _proposal(), replace(_proposal(), status="installing", attempt_id="b" * 32)
     )
     service = MagicMock(spec=SkillImportService)
     result = await execute_proposal_attempt(

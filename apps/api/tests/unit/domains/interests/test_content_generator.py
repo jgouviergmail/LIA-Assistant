@@ -19,6 +19,27 @@ from src.domains.interests.services.content_sources.content_generator import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _every_source_applies(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests are about duplicates and retries: every source would ask its service.
+
+    Whether a source applies (a key of the person's, lot 18) is proven in
+    ``test_interest_sources_apply.py``.
+    """
+    from src.domains.interests.services.content_sources import (
+        brave_source,
+        perplexity_source,
+        searxng_source,
+    )
+
+    for cls in (
+        brave_source.BraveSearchContentSource,
+        perplexity_source.PerplexityContentSource,
+        searxng_source.SearXNGContentSource,
+    ):
+        monkeypatch.setattr(cls, "applies", AsyncMock(return_value=True))
+
+
 def _make_context(**overrides) -> ContentGenerationContext:
     """Create a ContentGenerationContext with defaults."""
     defaults = {

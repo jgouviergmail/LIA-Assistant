@@ -442,6 +442,37 @@ describe('ChatInput — generation in flight', () => {
     // plain (empty, disabled) send button — never a push-to-talk invitation.
     expect(screen.getByRole('button', { name: 'chat.input.send' })).toBeInTheDocument();
   });
+
+  // ADR-384: words typed while LIA answers wait for their turn.
+  it('lets words written meanwhile be sent next, beside the stop button', async () => {
+    const onSendMessage = vi.fn();
+    const { user } = renderWithProviders(
+      <ChatInput onSendMessage={onSendMessage} isGenerating onStopGeneration={vi.fn()} />
+    );
+    const field = screen.getByRole('textbox');
+    expect(field).toHaveAttribute('placeholder', 'chat.input.placeholder_waiting');
+    expect(screen.queryByRole('button', { name: 'chat.input.queue' })).not.toBeInTheDocument();
+    await user.type(field, 'And the bakery');
+    await user.click(screen.getByRole('button', { name: 'chat.input.queue' }));
+    expect(onSendMessage).toHaveBeenCalledWith('And the bakery', undefined, undefined, undefined);
+    expect(screen.getByRole('button', { name: 'chat.input.stop' })).toBeInTheDocument();
+  });
+
+  it('sends nothing while LIA answers when a file waits in the composer', async () => {
+    upload.attachments.push(attachment());
+    try {
+      const onSendMessage = vi.fn();
+      const { user } = renderWithProviders(
+        <ChatInput onSendMessage={onSendMessage} isGenerating onStopGeneration={vi.fn()} />
+      );
+      await user.type(screen.getByRole('textbox'), 'With the photo{Enter}');
+      expect(screen.queryByRole('button', { name: 'chat.input.queue' })).not.toBeInTheDocument();
+      expect(onSendMessage).not.toHaveBeenCalled();
+      expect(screen.getByRole('textbox')).toHaveValue('With the photo');
+    } finally {
+      upload.attachments.length = 0;
+    }
+  });
 });
 
 describe('ChatInput — attachments', () => {
@@ -459,7 +490,7 @@ describe('ChatInput — attachments', () => {
 
     await user.upload(input, file);
 
-    await waitFor(() => expect(upload.uploadFile).toHaveBeenCalledWith(file));
+    await waitFor(() => expect(upload.uploadFile).toHaveBeenCalledWith(file, undefined));
     // The input is reset so re-picking the same file still fires a change event.
     expect(input.value).toBe('');
   });
@@ -591,7 +622,7 @@ describe('ChatInput — attachments', () => {
 
     await user.upload(photoInput(), shot);
 
-    await waitFor(() => expect(upload.uploadFile).toHaveBeenCalledWith(shot));
+    await waitFor(() => expect(upload.uploadFile).toHaveBeenCalledWith(shot, undefined));
     expect(photoInput().value).toBe('');
   });
 
@@ -700,6 +731,42 @@ describe('ChatInput — drag and drop', () => {
     await waitFor(() => expect(upload.uploadFile).toHaveBeenCalledTimes(2));
     expect(uploadedNames()).toEqual([image.name, pdf.name]);
     expect(uploadedNames()).not.toContain(binary.name);
+  });
+
+  it('takes the documents the instance publishes, by their name, and offers them in the picker', async () => {
+    // A browser reports no type for a `.md` and a spreadsheet's for a `.csv`:
+    // the name is what the composer reads (the server decides on the content).
+    const formats = { image_types: ['image/png'], document_extensions: ['.csv', '.docx', '.md'] };
+    const { container } = renderWithProviders(
+      <ChatInput onSendMessage={vi.fn()} attachmentsEnabled attachmentFormats={formats} />
+    );
+    const word = new File(['x'], 'report.docx', { type: '' });
+    const sheet = new File(['x'], 'export.CSV', { type: 'application/vnd.ms-excel' });
+    const pdf = new File(['x'], 'doc.pdf', { type: 'application/pdf' });
+
+    fireEvent.drop(dropZone(container), { dataTransfer: { files: [word, sheet, pdf] } });
+
+    await waitFor(() => expect(upload.uploadFile).toHaveBeenCalledTimes(2));
+    // This instance takes no PDF: it is left out rather than sent to be refused.
+    expect(uploadedNames()).toEqual([word.name, sheet.name]);
+    expect(container.querySelector('input[type="file"][multiple]')).toHaveAttribute(
+      'accept',
+      'image/*,.csv,.docx,.md'
+    );
+  });
+
+  it('hands the upload door the formats the instance publishes, so a picked document is judged by them', async () => {
+    // The picker's `accept` is a hint an OS dialog lets a person leave: the
+    // door decides, and it must decide on what THIS instance takes.
+    const formats = { image_types: ['image/png'], document_extensions: ['.docx'] };
+    const { user } = renderWithProviders(
+      <ChatInput onSendMessage={vi.fn()} attachmentsEnabled attachmentFormats={formats} />
+    );
+    const word = new File(['x'], 'report.docx', { type: '' });
+
+    await user.upload(fileInput(), word);
+
+    await waitFor(() => expect(upload.uploadFile).toHaveBeenCalledWith(word, formats));
   });
 
   it('refuses a drop when attachments are not enabled', async () => {
@@ -1144,22 +1211,25 @@ describe('shared chat workspace capability integration', () => {
     ['from_bookmark', 'bookmark-picker'],
     ['from_generated', 'generated-picker'],
     ['import_meeting', 'meeting-import'],
-  ])('opens %s from the instance configuration without sending a message', async (entry, dialog) => {
-    const send = vi.fn();
-    const { user } = renderWithProviders(
-      <ChatInput onSendMessage={send} {...composerFeatureFlags(config)} />
-    );
-    await user.click(screen.getByRole('button', { name: 'chat.attachments.add' }));
-    const menu = await screen.findByRole('menu');
-    expect(within(menu).getByRole('menuitem', { name: /from_bookmark/ })).toBeVisible();
-    expect(within(menu).getByRole('menuitem', { name: /from_generated/ })).toBeVisible();
-    // The import door is advertised independently of a mounted microphone recorder.
-    expect(within(menu).getByRole('menuitem', { name: /import_meeting/ })).toBeVisible();
-    await user.click(within(menu).getByRole('menuitem', { name: new RegExp(entry) }));
-    await waitFor(() => expect(screen.getByTestId(dialog)).toBeInTheDocument());
-    expect(send).not.toHaveBeenCalled();
-    expect(upload.uploadFile).not.toHaveBeenCalled();
-  });
+  ])(
+    'opens %s from the instance configuration without sending a message',
+    async (entry, dialog) => {
+      const send = vi.fn();
+      const { user } = renderWithProviders(
+        <ChatInput onSendMessage={send} {...composerFeatureFlags(config)} />
+      );
+      await user.click(screen.getByRole('button', { name: 'chat.attachments.add' }));
+      const menu = await screen.findByRole('menu');
+      expect(within(menu).getByRole('menuitem', { name: /from_bookmark/ })).toBeVisible();
+      expect(within(menu).getByRole('menuitem', { name: /from_generated/ })).toBeVisible();
+      // The import door is advertised independently of a mounted microphone recorder.
+      expect(within(menu).getByRole('menuitem', { name: /import_meeting/ })).toBeVisible();
+      await user.click(within(menu).getByRole('menuitem', { name: new RegExp(entry) }));
+      await waitFor(() => expect(screen.getByTestId(dialog)).toBeInTheDocument());
+      expect(send).not.toHaveBeenCalled();
+      expect(upload.uploadFile).not.toHaveBeenCalled();
+    }
+  );
 
   it('keeps generated files readable while unadvertised capabilities stay hidden', async () => {
     const { user } = renderWithProviders(
@@ -1169,6 +1239,15 @@ describe('shared chat workspace capability integration', () => {
     const menu = await screen.findByRole('menu');
     expect(within(menu).getByRole('menuitem', { name: /from_generated/ })).toBeVisible();
     expect(within(menu).queryByRole('menuitem', { name: /from_bookmark/ })).not.toBeInTheDocument();
-    expect(within(menu).queryByRole('menuitem', { name: /import_meeting/ })).not.toBeInTheDocument();
+    expect(
+      within(menu).queryByRole('menuitem', { name: /import_meeting/ })
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe('ChatInput — the companion looks at it', () => {
+  it('declares its field as the place the person types in', () => {
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} />);
+    expect(screen.getByRole('textbox')).toHaveAttribute('data-eyes-target', 'input');
   });
 });

@@ -93,7 +93,7 @@ export function LastKnownLocationSection({ t }: LastKnownLocationSectionProps) {
         <Switch
           checked={optedIn}
           onCheckedChange={handleToggle}
-          disabled={updating}
+          busy={updating}
           aria-label={t('settings.location.last_known.toggle_label')}
         />
       </div>

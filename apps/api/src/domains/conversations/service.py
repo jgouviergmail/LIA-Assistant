@@ -9,44 +9,37 @@ Handles conversation lifecycle:
 """
 
 from contextlib import suppress
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.constants import (
-    REDIS_KEY_GMAIL_MESSAGE_PREFIX,
-    REDIS_KEY_GMAIL_SEARCH_PREFIX,
+from src.core.conversation_publication import (
+    CurrentPrimaryPublication,
+    PinnedReservationPublication,
+    PinnedRunPublication,
 )
+from src.core.conversation_target import ConversationRef
+from src.core.exceptions import raise_conversation_not_found
 from src.core.field_names import (
-    FIELD_CONTENT,
-    FIELD_CONVERSATION_ID,
-    FIELD_COST_EUR,
-    FIELD_GOOGLE_API_REQUESTS,
-    FIELD_TOKENS_CACHE,
     FIELD_TOKENS_IN,
-    FIELD_TOKENS_OUT,
-    FIELD_TOTAL_COST_EUR,
-    FIELD_TOTAL_TOKENS_CACHE,
-    FIELD_TOTAL_TOKENS_IN,
-    FIELD_TOTAL_TOKENS_OUT,
 )
-from src.core.i18n import resolve_language
-from src.core.i18n_api_messages import APIMessages
-from src.domains.conversations.message_tokens import shown_with_tokens_once
+from src.domains.conversations.catalogue_service import ConversationCatalogueService
+from src.domains.conversations.legacy_reset import reset_primary
+from src.domains.conversations.lifecycle_schemas import ConversationOperationResponse
+from src.domains.conversations.message_tokens import enriched_message, shown_with_tokens_once
 from src.domains.conversations.models import (
     Conversation,
     ConversationAuditLog,
     ConversationMessage,
 )
+from src.domains.conversations.publication_repository import ConversationPublicationRepository
 from src.domains.conversations.repository import ConversationRepository
 from src.domains.conversations.sync_signal import (
-    CONVERSATION_RESET,
     arm_after_archive,
-    arm_conversation_signal,
 )
-from src.infrastructure.discussion_invalidation import invalidate_conversation_discussions
+from src.domains.conversations.titles import default_conversation_title
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -63,125 +56,23 @@ class ConversationService:
     async def get_or_create_conversation(
         self, user_id: UUID, db: AsyncSession, language: str | None = None
     ) -> Conversation:
-        """
-        Get user's active conversation, reactivate soft-deleted, or create new one.
+        """Resolve Main through the catalogue's single creation door.
 
-        Priority order:
-        1. Return active conversation if exists (deleted_at IS NULL)
-        2. Reactivate soft-deleted conversation if exists (deleted_at IS NOT NULL)
-        3. Create new conversation only if none exists
-
-        This prevents unique constraint violations when a user has a soft-deleted
-        conversation (since conversation.id = user_id in 1:1 mapping).
+        Existing readers retain their short read-only path. First use and
+        legacy reactivation serialize with annex creation under the owner lock.
 
         Args:
-            user_id: User UUID
-            db: Database session
-            language: Raw or canonical language code, used only when a title has
-                to be generated (creation / reactivation). ``None`` writes it in
-                the declared language (ADR-323) — pass it whenever the caller has
-                a user context.
+            user_id: Account owning Main.
+            db: Caller-owned database session.
+            language: Declared language used only for a new or reactivated title.
 
         Returns:
-            Active conversation (deleted_at IS NULL)
-
-        Example:
-            >>> conversation = await service.get_or_create_conversation(user_id, db)
-            >>> print(conversation.message_count)
-            0
+            The unique active Main, never an annex selected by recent activity.
         """
-        # Use repository for DB access
-        repo = ConversationRepository(db)
-
-        # 1. Try to get active conversation
-        conversation = await repo.get_active_for_user(user_id)
-        if conversation:
-            logger.debug(
-                "conversation_loaded",
-                user_id=str(user_id),
-                conversation_id=str(conversation.id),
-                message_count=conversation.message_count,
-            )
+        conversation = await ConversationRepository(db).get_active_for_user(user_id)
+        if conversation is not None:
             return conversation
-
-        # 2. Check for soft-deleted conversation to reactivate
-        soft_deleted = await repo.get_soft_deleted_for_user(user_id)
-        if soft_deleted:
-            logger.info(
-                "conversation_reactivating",
-                user_id=str(user_id),
-                conversation_id=str(soft_deleted.id),
-                previous_message_count=soft_deleted.message_count,
-            )
-            conversation = await repo.reactivate_conversation(
-                conversation=soft_deleted,
-                new_title=self._generate_title(language),
-            )
-            await db.commit()
-
-            # Track metrics
-            from src.infrastructure.observability.metrics_agents import (
-                conversation_reactivated_total,
-            )
-
-            conversation_reactivated_total.inc()
-
-            return conversation
-
-        # 3. Create new conversation with audit log (atomic operation)
-        conversation = await repo.create_with_audit(
-            user_id=user_id,
-            title=self._generate_title(language),
-            initial_message_count=0,
-            initial_tokens=0,
-        )
-
-        await db.commit()
-
-        # Track metrics
-        from src.infrastructure.observability.metrics_agents import conversation_created_total
-
-        conversation_created_total.inc()
-
-        # Detect returning user — single DB roundtrip returns (last_prior_ts) and we
-        # classify client-side. A "returning user" is one who already had a
-        # conversation older than 1 hour at the time of creating this one.
-        with suppress(Exception):
-            from datetime import UTC, datetime, timedelta
-
-            from sqlalchemy import func as _sql_func
-            from sqlalchemy import select as _sql_select
-
-            from src.domains.conversations.models import Conversation
-            from src.infrastructure.observability.metrics_business import (
-                user_return_rate_total,
-            )
-
-            now_utc = datetime.now(UTC)
-            last_prior = await db.scalar(
-                _sql_select(_sql_func.max(Conversation.created_at))
-                .where(Conversation.user_id == user_id)
-                .where(Conversation.created_at < now_utc - timedelta(hours=1))
-            )
-            if last_prior is not None:
-                # Classify into a single exclusive bucket. Using .inc() on a Counter
-                # with stable label values = rate()-friendly event counting.
-                age = now_utc - last_prior
-                if age < timedelta(days=1):
-                    window = "24h"
-                elif age < timedelta(days=7):
-                    window = "7d"
-                else:
-                    window = "30d"
-                user_return_rate_total.labels(time_window=window).inc()
-
-        logger.info(
-            "conversation_created",
-            user_id=str(user_id),
-            conversation_id=str(conversation.id),
-        )
-
-        return conversation
+        return await ConversationCatalogueService(db).ensure_primary_row(user_id, language)
 
     async def get_active_conversation(self, user_id: UUID, db: AsyncSession) -> Conversation | None:
         """
@@ -202,381 +93,24 @@ class ConversationService:
         user_id: UUID,
         db: AsyncSession,
         language: str | None = None,
-    ) -> None:
+        *,
+        operation_id: UUID | None = None,
+        expected_revision: int | None = None,
+    ) -> ConversationOperationResponse | None:
+        """Reset Main through the same atomic lifecycle as an explicit target.
+
+        The language parameter remains for callers compiled against the legacy
+        signature; a reset now preserves the discussion's existing title.
         """
-        Reset conversation: reset stats + purge everything attached to it.
-
-        IMPORTANT: Does NOT soft-delete the conversation itself to avoid duplicate key errors.
-        Instead, resets counters to 0 and deletes all messages.
-
-        This approach:
-        - Preserves the conversation record (avoids id=user_id duplicate key)
-        - Resets stats to 0 and generates a fresh localized title
-        - Purges all conversation_messages
-        - Purges the user's UPLOADED attachments; a file LIA generated belongs
-          to the person and keeps its own deadline (ADR-279)
-        - Purges the per-conversation token summaries
-        - Purges the LangGraph checkpoints EXPLICITLY via ``adelete_thread()``
-          (the thread id is the conversation id, which survives the reset — so
-          nothing would clear them otherwise)
-        - Purges the tool contexts and user-scoped entries of the Store
-
-        The checkpoint / context / store purges are best-effort: a failure is
-        logged and does not abort the reset.
-
-        Args:
-            user_id: User UUID
-            db: Database session
-            language: Raw or canonical language code used for the fresh title.
-                ``None`` writes it in the declared language (ADR-323).
-
-        Note:
-            - Conversation record persists (id stays valid)
-            - All messages are deleted (cascade from conversation_messages)
-            - Audit log created for compliance and debugging
-        """
-        # Fence autonomous openings before acquiring or changing conversation rows.
-        await invalidate_conversation_discussions(db, user_id)
-        # Get active conversation
-        conversation = await self.get_active_conversation(user_id, db)
-
-        if not conversation:
-            logger.warning("conversation_reset_no_active_conversation", user_id=str(user_id))
-            return
-
-        # Capture stats before reset
-        message_count = conversation.message_count
-        total_tokens = conversation.total_tokens
-
-        # METRICS: Track conversation length distribution (before reset)
-        if message_count > 0:
-            from src.infrastructure.observability.metrics import conversation_length_messages
-            from src.infrastructure.observability.metrics_business import (
-                conversation_abandonment_at_message_count,
-                conversation_abandonment_total,
-                conversation_tokens_total,
-            )
-
-            conversation_length_messages.observe(message_count)
-
-            # Infer agent_type from conversation metadata (or default to "generic")
-            # Note: Define before conditional blocks to ensure availability for all metrics
-            agent_type = getattr(conversation, "agent_type", "generic")
-
-            # Track tokens consumed in this conversation
-            if total_tokens > 0:
-                conversation_tokens_total.labels(agent_type=agent_type).observe(total_tokens)
-
-            # Track conversation abandonment (user reset = abandonment)
-            abandonment_reason = "user_reset"
-            conversation_abandonment_total.labels(
-                abandonment_reason=abandonment_reason, agent_type=agent_type
-            ).inc()
-
-            conversation_abandonment_at_message_count.labels(
-                abandonment_reason=abandonment_reason
-            ).observe(message_count)
-
-            logger.debug(
-                "conversation_abandonment_tracked",
-                message_count=message_count,
-                total_tokens=total_tokens,
-                abandonment_reason=abandonment_reason,
-                conversation_id=str(conversation.id),
-            )
-
-        # Reset conversation stats (keep record alive, avoid duplicate key)
-        conversation.message_count = 0
-        conversation.total_tokens = 0
-        conversation.title = self._generate_title(language)  # New title for fresh start
-
-        # Delete all messages using repository
-        repo = ConversationRepository(db)
-        await repo.delete_messages_for_conversation(conversation.id)
-        # The person's other tabs empty theirs once this commits (ADR-320).
-        arm_conversation_signal(
-            db, user_id=user_id, conversation_id=conversation.id, kind=CONVERSATION_RESET
-        )
-
-        # Delete the user's UPLOADS (evolution F4 — File Attachments).
-        #
-        # Uploads alone since ADR-279: a file LIA produced — an image, a
-        # document, a browser screenshot — belongs to the person's gallery and
-        # outlives the conversation it was produced in (owner arbitration,
-        # 2026-09-10). Before that, resetting the conversation silently deleted
-        # every generated file the account had.
-        from src.core.config import get_settings as _get_settings
-
-        _settings = _get_settings()
-        if getattr(_settings, "attachments_enabled", False):
-            try:
-                from src.domains.attachments.models import AttachmentOrigin
-                from src.domains.attachments.service import AttachmentService
-
-                attachment_service = AttachmentService(db)
-                attachments_deleted = await attachment_service.delete_all_for_user(
-                    user_id, origins={AttachmentOrigin.UPLOAD.value}
-                )
-                logger.info(
-                    "attachments_purged",
-                    user_id=str(user_id),
-                    conversation_id=str(conversation.id),
-                    count=attachments_deleted,
-                )
-            except Exception as e:
-                logger.warning(
-                    "attachments_purge_failed",
-                    user_id=str(user_id),
-                    error=str(e),
-                )
-
-        # Delete token summaries for this conversation
-        # CRITICAL: Without this, get_conversation_totals() would return stale token counts
-        from src.domains.chat.repository import ChatRepository
-
-        chat_repo = ChatRepository(db)
-        token_summaries_deleted = await chat_repo.delete_token_summaries_for_conversation(
-            conversation.id
-        )
-        logger.info(
-            "token_summaries_purged",
-            user_id=str(user_id),
-            conversation_id=str(conversation.id),
-            count=token_summaries_deleted,
-        )
-
-        # Purge LangGraph checkpoints for this thread using checkpointer.adelete_thread()
-        # CRITICAL: Must use checkpointer's method instead of direct SQL to invalidate internal caches
-        try:
-            from src.domains.conversations.checkpointer import get_checkpointer
-
-            checkpointer = await get_checkpointer()
-            thread_id_str = str(conversation.id)
-
-            # Use checkpointer's adelete_thread() - handles cache invalidation correctly
-            # This deletes from: checkpoints, checkpoint_blobs, checkpoint_writes
-            await checkpointer.adelete_thread(thread_id_str)
-
-            logger.info(
-                "checkpoints_purged",
-                user_id=str(user_id),
-                conversation_id=str(conversation.id),
-                thread_id=thread_id_str,
-            )
-        except Exception as checkpoint_error:
-            # Non-fatal: continue even if checkpoint purge fails
-            logger.warning(
-                "checkpoint_purge_failed",
-                user_id=str(user_id),
-                conversation_id=str(conversation.id),
-                error=str(checkpoint_error),
-            )
-
-        # Purge tool contexts from AsyncPostgresStore (Multi-Keys Store Pattern)
-        # CRITICAL: Clean ALL domains (contacts, emails, events) for this session
-        try:
-            from src.domains.agents.context.manager import ToolContextManager
-            from src.domains.agents.context.store import get_tool_context_store
-
-            context_manager = ToolContextManager()
-            context_store = await get_tool_context_store()
-            # BUGFIX: Store namespaces use conversation.id directly as thread_id (no prefix)
-            # The RunnableConfig sets thread_id=str(conversation_id) without "session_" prefix
-            session_id_str = str(conversation.id)
-
-            # Delete all Store items: (user_id, "session_{conversation_id}", "context", *)
-            cleanup_stats = await context_manager.cleanup_session_contexts(
-                user_id=user_id,
-                session_id=session_id_str,
-                store=context_store,
-            )
-
-            logger.info(
-                "tool_contexts_purged",
-                user_id=str(user_id),
-                conversation_id=str(conversation.id),
-                session_id=session_id_str,
-                domains_cleaned=cleanup_stats["domains_cleaned"],
-                items_deleted=cleanup_stats["total_items_deleted"],
-            )
-
-            # ADDITIONAL CLEANUP: Remove user-scoped store entries
-            # AsyncPostgresStore stores namespace tuples, but we also need to clean entries
-            # that were created with user_id in the namespace.
-            #
-            # IMPORTANT: We do NOT clean orphaned entries (emails.item, emails.list) here
-            # because they lack user_id and could belong to OTHER users in parallel sessions.
-            # Cleaning them would cause data loss for other active users.
-            #
-            # TODO (Issue #38): Fix emails_tools.py and contacts_tools.py to use proper namespaces
-            # Expected: (user_id, session_id, "context", domain)
-            # Current: ("emails", "list") - missing user_id, not cleanable per-user
-            try:
-                from sqlalchemy import text
-
-                user_id_str = str(user_id)
-
-                # SAVEPOINT (begin_nested), NOT begin(): the ``store`` table is created
-                # at runtime by AsyncPostgresStore.setup(), so this raw cleanup can hit
-                # a missing relation / transient error. Wrapping it in a savepoint means
-                # such a failure rolls back only THIS best-effort cleanup — it must never
-                # poison the caller's transaction and abort the audit-log write below.
-                # Delete ONLY user-specific entries (safety: only this user's data).
-                async with db.begin_nested():
-                    count_user_result = await db.execute(
-                        text("SELECT COUNT(*) FROM store WHERE prefix LIKE :pattern"),
-                        {"pattern": f"%{user_id_str}%"},
-                    )
-                    user_entries_count = int(count_user_result.scalar_one())
-
-                    if user_entries_count > 0:
-                        await db.execute(
-                            text("DELETE FROM store WHERE prefix LIKE :pattern"),
-                            {"pattern": f"%{user_id_str}%"},
-                        )
-                        logger.info(
-                            "user_store_entries_deleted",
-                            user_id=str(user_id),
-                            conversation_id=str(conversation.id),
-                            count=user_entries_count,
-                        )
-                    else:
-                        logger.debug(
-                            "no_user_store_entries_to_delete",
-                            user_id=str(user_id),
-                            conversation_id=str(conversation.id),
-                        )
-
-            except Exception as store_cleanup_error:
-                # Non-fatal: log warning but continue
-                logger.warning(
-                    "user_store_cleanup_failed",
-                    user_id=str(user_id),
-                    conversation_id=str(conversation.id),
-                    error=str(store_cleanup_error),
-                    error_type=type(store_cleanup_error).__name__,
-                )
-
-        except Exception as context_cleanup_error:
-            # Non-fatal: continue even if Store cleanup fails
-            logger.warning(
-                "tool_context_cleanup_failed",
-                user_id=str(user_id),
-                conversation_id=str(conversation.id),
-                error=str(context_cleanup_error),
-            )
-
-        # Purge the conversation's Redis keys by declared family (ADR-260).
-        # The scan patterns are the historical six; the registry decides what
-        # is conversation/cache (deleted) and what is learning/runtime (kept).
-        # Best-effort: a failed purge costs a cache miss, never a failed reset
-        # — but a Redis outage is a real signal, so it is warned, not hidden.
-        try:
-            from src.domains.conversations.reset_purge import purge_conversation_keys
-            from src.infrastructure.cache.redis import get_redis_cache
-
-            await purge_conversation_keys(
-                await get_redis_cache(),
-                user_id=str(user_id),
-                conversation_id=str(conversation.id),
-            )
-        except Exception as redis_error:
-            logger.warning(
-                "redis_purge_failed",
-                user_id=str(user_id),
-                conversation_id=str(conversation.id),
-                error=str(redis_error),
-                error_type=type(redis_error).__name__,
-            )
-
-        # Invalidate ALL LLM cache (llm_cache:*, gmail:*) - COMPREHENSIVE CLEANUP
-        # Critical: Clean ALL LLM caches (router, planner, response, orchestrator, etc.)
-        # to prevent stale cache bleed-through into new conversations.
-        #
-        # Why flush ALL LLM cache?
-        # - llm_cache:* keys are NOT user-scoped (global cache for deterministic calls)
-        # - Stale cache can cause incorrect responses across conversations
-        # - Small performance cost (cache rebuild) vs correctness (no stale responses)
-        # - Cache TTL is 5 minutes anyway, so we're just accelerating natural expiry
-        try:
-            from src.infrastructure.cache.llm_cache import invalidate_llm_cache
-
-            # ALL LLM response cache (router, planner, response, orchestrator, etc.)
-            # Uses pattern "llm_cache:*" to match ALL function caches:
-            # - llm_cache:_call_router_llm:*
-            # - llm_cache:_call_planner_llm:*
-            # - llm_cache:_call_response_llm:*
-            # - llm_cache:_call_task_orchestrator_llm:*
-            # - Any future LLM cache entries
-            all_llm_cache_invalidated = await invalidate_llm_cache("llm_cache:*")
-
-            # Gmail cache (search + messages) - user-scoped
-            gmail_search_invalidated = await invalidate_llm_cache(
-                f"{REDIS_KEY_GMAIL_SEARCH_PREFIX}{user_id}:*"
-            )
-            gmail_message_invalidated = await invalidate_llm_cache(
-                f"{REDIS_KEY_GMAIL_MESSAGE_PREFIX}{user_id}:*"
-            )
-
-            total_llm_cache_deleted = (
-                all_llm_cache_invalidated + gmail_search_invalidated + gmail_message_invalidated
-            )
-
-            logger.info(
-                "llm_cache_invalidated",
-                user_id=str(user_id),
-                conversation_id=str(conversation.id),
-                all_llm_cache_deleted=all_llm_cache_invalidated,
-                gmail_search_keys_deleted=gmail_search_invalidated,
-                gmail_message_keys_deleted=gmail_message_invalidated,
-                total_llm_cache_deleted=total_llm_cache_deleted,
-            )
-        except Exception as cache_error:
-            # Non-fatal: continue even if cache invalidation fails
-            logger.warning(
-                "llm_cache_invalidation_failed",
-                user_id=str(user_id),
-                conversation_id=str(conversation.id),
-                error=str(cache_error),
-                error_type=type(cache_error).__name__,
-            )
-
-        # NOTE: Contacts cache is already cleaned by generic Redis scan above
-        # (patterns: contacts_list:{user_id}, contacts_search:{user_id}:*, contacts_details:{user_id}:*)
-        # No need for separate ContactsCache.invalidate_user() call - removed for simplicity
-
-        # Create audit log using repository
-        await repo.create_audit_log(
-            user_id=user_id,
-            conversation_id=conversation.id,
-            action="reset",
-            message_count_at_action=message_count,
-            metadata={
-                "total_tokens": total_tokens,
-                "reset_at": datetime.now(UTC).isoformat(),
-                "reset_type": "stats_reset",  # Not soft_delete
-            },
-        )
-
-        await db.commit()
-
-        # Track metrics
-        from src.infrastructure.observability.metrics_agents import conversation_resets_total
-
-        # No per-user label to avoid high cardinality (10K+ users = 10K+ time series)
-        conversation_resets_total.inc()
-
-        logger.info(
-            "conversation_reset",
-            user_id=str(user_id),
-            conversation_id=str(conversation.id),
-            message_count=message_count,
-            total_tokens=total_tokens,
+        return await reset_primary(
+            user_id, db, operation_id=operation_id, expected_revision=expected_revision
         )
 
     async def archive_message(
         self,
-        conversation_id: UUID,
+        conversation_id: (
+            UUID | PinnedRunPublication | CurrentPrimaryPublication | PinnedReservationPublication
+        ),
         role: str,
         content: str,
         metadata: dict[str, Any] | None,
@@ -641,6 +175,11 @@ class ConversationService:
         from decimal import Decimal
 
         from src.infrastructure.cache.pricing_cache import get_cached_usd_eur_rate
+
+        resolved_id, metadata = await ConversationPublicationRepository(db).prepare(
+            conversation_id, metadata
+        )
+        conversation_id = resolved_id
 
         # Convert STT floats to Decimal for the DB columns. Only attach the
         # cost data on user messages produced by a remote provider — assistant
@@ -869,19 +408,14 @@ class ConversationService:
         Note:
             Caller is responsible for commit to allow transaction batching.
         """
+        await ConversationPublicationRepository(db).resolve(conversation_id)
         repo = ConversationRepository(db)
-        conversation = await repo.get_by_id(conversation_id)
-
-        if conversation:
-            conversation.message_count += message_increment
-            conversation.total_tokens += tokens
-
+        if await repo.increment_stats(conversation_id, messages=message_increment, tokens=tokens):
             logger.debug(
                 "conversation_stats_incremented",
                 conversation_id=str(conversation_id),
-                new_message_count=conversation.message_count,
-                new_total_tokens=conversation.total_tokens,
                 message_increment=message_increment,
+                token_increment=tokens,
             )
         else:
             logger.warning(
@@ -967,30 +501,36 @@ class ConversationService:
         user_id: UUID,
         limit: int,
         db: AsyncSession,
-        search: str | None = None,
         before_created_at: datetime | None = None,
+        *,
+        target: ConversationRef | None = None,
+        before_message_id: UUID | None = None,
     ) -> list[dict[str, Any]]:
         """
         The active conversation's messages with their token summaries, in one query.
 
         One LEFT JOIN reads the messages and their runs' token summaries together
-        (the loader it replaced read the summaries in a second query).
+        (the loader it replaced read the summaries in a second query). Words are
+        searched elsewhere, across every discussion (``discussion_search``).
 
         Args:
             user_id: User UUID
             limit: Maximum number of messages to return
             db: Database session
-            search: Optional case-insensitive ILIKE filter on message content.
             before_created_at: Keyset pagination cursor (scroll-up). When set,
                 only returns messages strictly older than this timestamp.
+            target: The resolved discussion; Main when omitted.
+            before_message_id: The primary key completing a composite cursor.
 
         Returns:
             List of dicts with message fields + tokens_in/out/cache/cost_eur, newest
             first; an answer with no visible text is left out, and a run's tokens
             show on its newest answer only.
         """
-        # Get active conversation
-        conversation = await self.get_active_conversation(user_id, db)
+        # An explicit resolved target never falls back to Main.
+        if target is not None and target.owner_id != user_id:
+            raise_conversation_not_found(target.id)
+        conversation = target or await self.get_active_conversation(user_id, db)
 
         if not conversation:
             return []
@@ -1001,60 +541,13 @@ class ConversationService:
         results = await repo.get_messages_with_token_summaries(
             conversation_id=conversation.id,
             limit=limit,
-            search=search,
             before_created_at=before_created_at,
+            before_message_id=before_message_id,
         )
 
-        # Build enriched message list - O(n) with no additional DB queries
-        enriched_messages: list[dict[str, object]] = []
-        for message, token_dict in results:
-            msg_data: dict[str, object] = {
-                "id": message.id,
-                "role": message.role,
-                FIELD_CONTENT: message.content,
-                "message_metadata": message.message_metadata,
-                "created_at": message.created_at,
-                FIELD_TOKENS_IN: None,
-                FIELD_TOKENS_OUT: None,
-                FIELD_TOKENS_CACHE: None,
-                FIELD_COST_EUR: None,
-                FIELD_GOOGLE_API_REQUESTS: None,
-                # Per-message STT cost (remote-STT user messages only).
-                "stt_provider": message.stt_provider,
-                "stt_audio_duration_seconds": (
-                    float(message.stt_audio_duration_seconds)
-                    if message.stt_audio_duration_seconds is not None
-                    else None
-                ),
-                "stt_cost_eur": (
-                    float(message.stt_cost_eur) if message.stt_cost_eur is not None else None
-                ),
-                # Per-message TTS cost (paid-TTS assistant messages only).
-                "tts_provider": message.tts_provider,
-                "tts_model": message.tts_model,
-                "tts_characters": message.tts_characters,
-                "tts_cost_eur": (
-                    float(message.tts_cost_eur) if message.tts_cost_eur is not None else None
-                ),
-            }
-
-            # Add token data if available (from LEFT JOIN, no extra queries needed)
-            if token_dict:
-                msg_data[FIELD_TOKENS_IN] = token_dict["prompt_tokens"]
-                msg_data[FIELD_TOKENS_OUT] = token_dict["completion_tokens"]
-                msg_data[FIELD_TOKENS_CACHE] = token_dict["cached_tokens"]
-                # The historical billed total (message_token_summary): model,
-                # Maps Platform, images and paid speech (ADR-324) — the bubble's
-                # own TTS share is already in it.
-                msg_data[FIELD_COST_EUR] = token_dict.get("cost_eur")
-                # Google API tracking
-                msg_data[FIELD_GOOGLE_API_REQUESTS] = token_dict.get(FIELD_GOOGLE_API_REQUESTS)
-
-            enriched_messages.append(msg_data)
-
-        # An answer with no visible text is not shown; a run's tokens stay on its newest
-        # answer only (messages come newest first; a HITL run answers more than once).
-        enriched_messages = shown_with_tokens_once(enriched_messages)
+        enriched_messages = shown_with_tokens_once(
+            [enriched_message(message, token_dict) for message, token_dict in results]
+        )
 
         logger.debug(
             "messages_with_tokens_loaded_v2_optimized",
@@ -1072,8 +565,10 @@ class ConversationService:
         user_id: UUID,
         limit: int,
         db: AsyncSession,
-        search: str | None = None,
         before_created_at: datetime | None = None,
+        *,
+        target: ConversationRef | None = None,
+        before_message_id: UUID | None = None,
     ) -> list[dict[str, Any]]:
         """
         The history page's loader: ``get_messages_with_tokens_v2``, timed.
@@ -1085,9 +580,10 @@ class ConversationService:
             user_id: User UUID
             limit: Maximum number of messages to return
             db: Database session
-            search: Optional case-insensitive ILIKE filter on message content.
             before_created_at: Keyset pagination cursor (scroll-up). When set,
                 only returns messages strictly older than this timestamp.
+            target: The resolved discussion; Main when omitted.
+            before_message_id: The primary key completing a composite cursor.
 
         Returns:
             List of dicts with message fields + tokens_in/out/cache/cost_eur
@@ -1102,114 +598,10 @@ class ConversationService:
                 user_id,
                 limit,
                 db,
-                search=search,
                 before_created_at=before_created_at,
+                target=target,
+                before_message_id=before_message_id,
             )
-
-    async def get_conversation_totals(self, user_id: UUID, db: AsyncSession) -> dict[str, Any]:
-        """
-        Get conversation totals: aggregate tokens and historical cost.
-
-        Returns aggregated token usage and cost from message_token_summary.
-        Cost reflects historical prices at time of execution (not recalculated).
-
-        Performance: Single SQL query with SUM aggregations - O(1) regardless
-        of conversation length. Optimized for resource-constrained environments.
-
-        Args:
-            user_id: User UUID
-            db: Database session
-
-        Returns:
-            Dict with conversation_id, total_tokens_in/out/cache, total_cost_eur
-
-        Example:
-            >>> totals = await service.get_conversation_totals(user_id, db)
-            >>> print(f"Total: {totals[FIELD_TOTAL_COST_EUR]} EUR")
-        """
-        # Get active conversation
-        conversation = await self.get_active_conversation(user_id, db)
-
-        if not conversation:
-            return {
-                FIELD_CONVERSATION_ID: None,
-                FIELD_TOTAL_TOKENS_IN: 0,
-                FIELD_TOTAL_TOKENS_OUT: 0,
-                FIELD_TOTAL_TOKENS_CACHE: 0,
-                FIELD_TOTAL_COST_EUR: 0.0,
-            }
-
-        # Get aggregated token totals and cost using repository (single query)
-        # Repository returns standardized keys matching field_names constants
-        conv_repo = ConversationRepository(db)
-        token_totals = await conv_repo.get_token_totals(conversation.id)
-
-        logger.debug(
-            "conversation_totals_calculated",
-            user_id=str(user_id),
-            conversation_id=str(conversation.id),
-            **token_totals,
-        )
-
-        result: dict[str, Any] = {
-            FIELD_CONVERSATION_ID: conversation.id,
-            **token_totals,  # Contains FIELD_TOTAL_TOKENS_IN/OUT/CACHE, FIELD_TOTAL_COST_EUR
-        }
-
-        # Context-usage pill (2026-05): expose current checkpoint token footprint
-        # and dynamic compaction threshold so the frontend can hydrate the pill
-        # on page refresh. Best-effort — failure is silent (returns nothing).
-        try:
-            context_usage = await self._compute_checkpoint_context_usage(conversation.id)
-            if context_usage:
-                result.update(context_usage)
-        except Exception as e:  # pragma: no cover - defensive
-            logger.debug(
-                "context_usage_load_failed",
-                conversation_id=str(conversation.id),
-                error=str(e),
-            )
-
-        return result
-
-    async def _compute_checkpoint_context_usage(
-        self, conversation_id: UUID
-    ) -> dict[str, int] | None:
-        """Read the latest LangGraph checkpoint for the conversation and return
-        the current token footprint along with the compaction threshold.
-
-        Used by `get_conversation_totals` to persist the context-usage pill
-        across page refreshes. Returns None if no checkpoint exists yet (eg
-        brand-new conversation) or if the deserialised state is missing the
-        `messages` list.
-
-        Uses `aget_tuple()` (not `aget()`) so we operate against the canonical
-        `CheckpointTuple` API. `aget()` is annotated `CheckpointTuple | None`
-        on `InstrumentedAsyncPostgresSaver` even though it returns a `Checkpoint`
-        dict at runtime — calling `.get()` on it relies on that mismatch and
-        would break the moment LangGraph honours its declared return type.
-        """
-        from langchain_core.runnables import RunnableConfig
-
-        from src.domains.agents.services.compaction_service import CompactionService
-        from src.domains.conversations.checkpointer import get_checkpointer
-
-        checkpointer = await get_checkpointer()
-        config = RunnableConfig(configurable={"thread_id": str(conversation_id)})
-        snapshot = await checkpointer.aget_tuple(config)
-        if snapshot is None:
-            return None
-        messages = snapshot.checkpoint.get("channel_values", {}).get("messages")
-        if not messages:
-            return None
-
-        service = CompactionService()
-        tokens = service._token_counter.count_messages_tokens(messages)
-        threshold = service.compute_effective_threshold()
-        return {
-            "context_tokens": int(tokens),
-            "context_threshold": int(threshold),
-        }
 
     def _generate_title(self, language: str | None = None) -> str:
         """
@@ -1229,5 +621,4 @@ class ConversationService:
         Returns:
             Localized title, e.g. ``"Conversation du 26/07/2026"``.
         """
-        canonical = resolve_language(language)
-        return APIMessages.conversation_default_title(datetime.now(UTC).date(), canonical)
+        return default_conversation_title(language)

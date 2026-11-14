@@ -44,11 +44,8 @@ BEST_EFFORT: dict[tuple[str, str], str] = {
     ("infrastructure/scheduler/phone_relay_runner.py", "_push_relay_ran"): (
         "A push and nothing else: the relayed turn already archived its rows in the chat."
     ),
-    ("infrastructure/scheduler/scheduled_action_executor.py", "_send_approval_notification"): (
-        "A proposal to run a routine: the next tick proposes again, nothing is filed."
-    ),
-    ("infrastructure/scheduler/voice_session_closing.py", "_notify_relay"): (
-        "An SSE notice on the person's stream; the relayed rows are already in the chat."
+    ("infrastructure/scheduler/voice_relay_notice.py", "notify_relay"): (
+        "An SSE notice on the person's stream. The relay's result is already settled."
     ),
 }
 

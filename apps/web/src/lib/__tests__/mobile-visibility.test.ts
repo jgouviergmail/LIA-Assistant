@@ -114,7 +114,10 @@ describe('the table describes the real code', () => {
   it.each(
     MOBILE_SURFACES.filter(s => s.minWidth !== null && !s.mountedOnly).map(s => [s.id, s] as const)
   )('%s carries the Tailwind variant of its declared threshold', (_id, surface) => {
-    const variant = VARIANT_FOR_WIDTH[surface.minWidth as number];
+    const variant =
+      surface.query === 'container'
+        ? `@min-[${surface.minWidth}px]:`
+        : VARIANT_FOR_WIDTH[surface.minWidth as number];
     const files = resolveLocations(surface.location);
     const found = files.some(file => hasVariant(readFileSync(file, 'utf8'), variant));
     expect(

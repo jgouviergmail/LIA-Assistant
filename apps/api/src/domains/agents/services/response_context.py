@@ -38,6 +38,7 @@ from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr, 
 from src.domains.agents.analysis.resolved_references import person_name_values
 from src.domains.agents.context.runtime_context import (
     runtime_context_if_running,
+    runtime_source_conversation_id,
     runtime_user_id_str,
 )
 from src.domains.agents.middleware.memory_injection import build_psychological_profile
@@ -202,6 +203,7 @@ async def fetch_user_rag_context(
         from src.infrastructure.database.session import get_db_context
 
         user_id_for_rag = runtime_user_id_str(None)
+        context = runtime_context_if_running()
         thread_id_for_rag = config.get("configurable", {}).get("thread_id")
         if not (user_id_for_rag and last_user_message):
             return None, None
@@ -211,7 +213,7 @@ async def fetch_user_rag_context(
                 query=last_user_message,
                 db=rag_db,
                 session_id=thread_id_for_rag,
-                conversation_id=thread_id_for_rag,
+                conversation_id=runtime_source_conversation_id(context),
                 run_id=run_id,
             )
         if rag_result and rag_result.chunks:
@@ -366,7 +368,7 @@ async def fetch_response_context(
                 limit=settings.memory_max_results,
                 min_score=settings.memory_min_search_score,
                 session_id=thread_id_for_memory,
-                conversation_id=thread_id_for_memory,
+                conversation_id=runtime_source_conversation_id(_ctx),
                 include_debug=True,
             )
             injection_debug = {
