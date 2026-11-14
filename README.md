@@ -5,6 +5,10 @@
 I built LIA because I wanted to pick up a conversation without piecing its context together again.
 This free, open-source, self-hosted AI assistant brings your emails, meeting notes and open commitments into view, then helps you prepare the next step. The software is free; hosting and connected services may incur costs.
 
+https://github.com/user-attachments/assets/dcd4f489-edf2-4d35-96ac-62ee993f2e36
+
+**[Watch the presentation film in 1080p](https://github.com/jgouviergmail/LIA-Assistant/releases/download/v3.0.0/lia-presentation-v3.0.0.mp4)** (1 min 54, French) · [About the film](#product-presentation)
+
 **Start the guided installer:**
 
 ```bash
@@ -233,7 +237,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 #### Knowledge spaces
 
-- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive and OneDrive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 566 questions cover every feature a person can use, in six languages.
+- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive and OneDrive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 567 questions cover every feature a person can use, in six languages.
 - A document that cannot be indexed says why in your language — a scanned PDF without a text layer names its remedy.
 - Search spaces by their name or a file's, sort them by name, recency, file count or activity, and keep favourites in their own group, right after Meetings in the menu: a favourite changes the list, never what retrieval reads.
 - Any indexed document, paused space or not, attaches to a chat message as a copy from the composer's « + » ([ADR-295](docs/architecture/ADR-295-Knowledge-Documents-As-Message-Attachments.md), [GUIDE_RAG_SPACES](docs/guides/GUIDE_RAG_SPACES.md), [ADR-055](docs/architecture/ADR-055-RAG-Spaces-Architecture.md), [ADR-058](docs/architecture/ADR-058-System-RAG-Spaces.md)).
@@ -1027,23 +1031,24 @@ Open any image at full resolution. The [home capture manifest](apps/web/public/s
 ## Product presentation
 
 <details>
-<summary><strong>Watch the full presentation, or explore its editable sources</strong></summary>
+<summary><strong>About the presentation film and its editable sources</strong></summary>
 
-[![Watch the complete LIA product presentation](docs/assets/lia-presentation.png)](https://github.com/jgouviergmail/LIA-Assistant/releases/download/v3.0.0/lia-presentation-v3.0.0.mp4)
+The film at the [top of this page](#lia) runs 1 min 54 in French and follows six
+chapters: what LIA knows about you, what it produces, how it anticipates, where it
+follows you, the circle it connects and the control you keep, before every
+capability links up around it. Every screen is rebuilt from the product's own
+interface with fictional demonstration data, and the companions are played by
+their real animation rig. The landing's blue **Presentation** button opens the
+same film with sound and controls in an exclusive fullscreen player.
 
-[Watch or download the complete film](https://github.com/jgouviergmail/LIA-Assistant/releases/download/v3.0.0/lia-presentation-v3.0.0.mp4).
-The French presentation follows concrete uses, contextual native avatars,
-display modes, reminders, Relations, planned actions, administration and the
-installable mobile web application. Interfaces follow the product's UI with
-fictional demonstration data. The landing's blue **Presentation** button opens
-the full film with sound and controls in an exclusive fullscreen player.
-
-The [editable construction](tools/lia-motion/README.md),
-[production and update procedure](docs/technical/MOTION_DESIGN.md) and
-[decision record](docs/architecture/ADR-341-Editable-Motion-Production-And-Exclusive-Presentation.md)
-preserve the scenario, native-view sources, feature focuses and soundtrack
-provenance for future product updates. Release assets include a
-[checked editable source archive](https://github.com/jgouviergmail/LIA-Assistant/releases/download/v3.0.0/lia-motion-sources-v3.0.0.zip).
+The [editable construction](tools/lia-motion/src/promo/README.md) holds the story,
+the beat grid of its original soundtrack, every on-screen word and the render,
+audio and review commands; the [production and publication
+procedure](docs/technical/MOTION_DESIGN.md) and the [decision
+record](docs/architecture/ADR-341-Editable-Motion-Production-And-Exclusive-Presentation.md)
+describe how it reaches the landing. The music and sound effects were generated
+for the film; their prompts and hashes are in its
+[provenance record](tools/lia-motion/public/audio/promo/PROVENANCE.json).
 The video is a product demonstration, not a recorded provider session.
 
 </details>
@@ -1089,7 +1094,7 @@ A panel embedded in the chat, organised into six groups; an empty section shows 
 
 ### Observability
 
-- **Prometheus**: 677 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric — and the reverse holds: every panel reads a series something produces.
+- **Prometheus**: 678 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric — and the reverse holds: every panel reads a series something produces.
 - **Grafana**: 33 dashboards, including product-value and radio cockpits · **Loki**: structured JSON logs that keep facts, never people's words, shipped by Grafana Alloy ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)) · **Tempo**: distributed tracing, spans named by the route template · **Langfuse**: LLM tracing with prompt versions. The whole stack runs on supported versions, pinned by digest.
 - **Linked signals, a pipeline that watches itself**: a log line opens its trace, a trace its logs and metrics, a latency point its exemplar; Loki, Alloy, Tempo and Grafana are scraped on closed keep-lists and `LogsNotDelivered` fires when lines go missing; every dashboard opens on seven days (logs and traces on four hours) behind one shared menu — [ADR-333](docs/architecture/ADR-333-Linked-Signals-And-A-Pipeline-That-Watches-Itself.md).
 - **Probes**: liveness (`GET /health`) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](docs/architecture/ADR-115-Liveness-Readiness-Probes.md).
@@ -1417,7 +1422,7 @@ The [full story](https://lia.jeyswork.com/story) covers the method, trade-offs a
 |                                |                                          |                                        |                                                      |
 | ------------------------------ | ---------------------------------------- | -------------------------------------- | ---------------------------------------------------- |
 | **63** backend domain packages | **1,219,354** source lines (excl. tests) | **87,496** inventoried automated tests | **386** ADRs                                         |
-| **297** versions shipped       | **6 languages**, parity enforced in CI   | **677** Prometheus metrics             | [Technical audit and protocol](docs/audit/README.md) |
+| **297** versions shipped       | **6 languages**, parity enforced in CI   | **678** Prometheus metrics             | [Technical audit and protocol](docs/audit/README.md) |
 
 Source-line figure: 1,219,354 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-11-14). The domain figure counts backend domain packages. Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 

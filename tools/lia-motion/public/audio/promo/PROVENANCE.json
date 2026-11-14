@@ -1,0 +1,40 @@
+{
+  "film": "LIA promotional film (src/promo, composition LIA-Promo)",
+  "generatedOn": "2026-11-14",
+  "generator": "ElevenLabs Creative through the account's Stewdio connector, flow 1DqKTfSJ0CCHibSImxfg",
+  "terms": "Use is subject to the provider's terms and to the plan of the account that generated the assets; no exclusive copyright and no Creative Commons licence are claimed.",
+  "music": {
+    "file": "lia-promo-music.mp3",
+    "sha256": "edfda36a7b77df80ce34d7e3b94a4a77a9874de314f06bc98eaddd74e8a86d9b",
+    "model": "eleven_music_v2_5",
+    "generationId": "99bBx3LFjD8qdwTpVJLf",
+    "parameters": { "duration_seconds": 82, "lyrics_type": "instrumental", "instrumental": true },
+    "prompt": "Instrumental modern electronic pop for a premium tech product film, 120 BPM in 4/4, bright, confident and optimistic, with a crisp modern polished mix: punchy kick, tight claps, deep warm sub bass, shimmering synth arpeggios, glassy plucks, airy pads and a catchy lead hook. Energy evolves exactly like this: 0:00-0:08 tense filtered intro of staccato plucks and stabs on every beat with a riser and reverse cymbal into a big drop at 0:08; 0:08-0:40 full energetic groove with the lead hook, briefly stripped back around 0:24 then building again, with a short dramatic stop at 0:36; 0:40-0:56 driving high-energy section with impacts every two bars; 0:56-1:08 breakdown where the drums drop out, warm pads and a soft optimistic piano-pluck melody, building with a snare roll and riser; 1:08-1:16 final chorus at full power; 1:16 one final big hit then a clean reverb ring-out ending in silence at 1:22.",
+    "selection": "Best of three takes by measurement: drop at 8.0 s, breakdown 40-48 s, final hit 76.0 s, ring-out to silence at 82 s (take 3BNm dropped at 24 s, take 12Jh stopped for 6 s at 64 s).",
+    "measuredGrid": "120.0 BPM, beats on whole and half seconds (kick attacks at x.02 s, DP beat tracker spread 2-3 ms per 8 s window)",
+    "format": "MP3 48 kHz stereo 192 kbit/s, 82.03 s"
+  },
+  "effects": [
+    { "file": "sfx/whoosh-fast.mp3", "generationId": "oS9jtiW432GqtGQAYQUQ", "sha256": "9f8d6da4774c3f626ac1cab2bceaff3dda311c5ddb4555d7b55c8cb22a9fbb63" },
+    { "file": "sfx/whoosh-long.mp3", "generationId": "1evIVvKSfJXYS9M1B1Iu", "sha256": "f3965134204c4412304ec7bde92a1348db87650d872ed94ae6af2964efd10e36" },
+    { "file": "sfx/click.mp3", "generationId": "iMkndqkDEntlKn0Pdn9q", "sha256": "5b0db5c0f364b0a4b8e2fb2f3a81272a430bcbe5024e454d01abf223687795b2" },
+    { "file": "sfx/pop.mp3", "generationId": "0ossv7IFfxjoIhdyTQA7", "sha256": "7fa8ffcbdafb67001ca8289cb321e82e268ed36f65745b51830dba324db82569" },
+    { "file": "sfx/notification.mp3", "generationId": "gPr9Sx830jZhpy2E2EA7", "sha256": "99512b83dc4c7e2374c0806e549cb7d924a767709dc95a01fc97ed4e03f7fc88" },
+    { "file": "sfx/success.mp3", "generationId": "tHIXeTZAGjbHDRQAxPYi", "sha256": "ade51db67132d514edbc4c1534d9fea3f795070df2b74c4a1851834e71b3e044" },
+    { "file": "sfx/typing.mp3", "generationId": "RngVVPpRBcmUIIrYLk8j", "sha256": "dc1ce8f560b7f346488b466379e95319b24067fdc71135d1eb1b61b8a2a4e84d" },
+    { "file": "sfx/shimmer.mp3", "generationId": "FYCR6qY7FSUla6Ci7G1N", "sha256": "d30bb3517ae38ccde1b2ac51c9972c6ea47a805e6a5cf4d16e41e4eec79d1b5c" },
+    { "file": "sfx/impact.mp3", "generationId": "zLYpn7jcMFr9qEIW6P7Y", "sha256": "b28e42a8488f76dd6233462267792a18a294766583740726e126b26b4f469dd2" },
+    { "file": "sfx/tap.mp3", "generationId": "WpTJp54tmNjfpDGWj3dg", "sha256": "56f4990dc1122253b5ac8e0d518257111740dba0e10a5cba68c6ce2dd0a64f4b" },
+    { "file": "sfx/swish.mp3", "generationId": "WSj3UnTALq8LnUs2YkXE", "sha256": "459ec10eddb824d83a79195d37f40d4d2120cd4e5316be06cd8463ddf30bfb1a" }
+  ],
+  "effectsModel": "eleven_text_to_sound_v2 (two or three takes each; the take kept has one clean transient and no tail noise, measured)",
+  "image": {
+    "file": "../../promo/lighthouse.webp",
+    "sha256": "50bcbd25f031d2d79f89e898ba6b180f91c33f81a7d08033b9db5d0d0316482d",
+    "model": "gemini-3.1-flash-image",
+    "generationId": "OqSSoPhjUJGWF3x9kuQ8",
+    "prompt": "Watercolor illustration of a white lighthouse on a rocky coast at sunset, warm peach and violet sky reflected on a calm sea, soft painterly brush strokes on textured paper, gentle and luminous, square composition, no text, no signature",
+    "use": "Shown as the result of LIA's image generation in the montage (fictitious request)."
+  },
+  "grain": { "file": "../../promo/grain.png", "sha256": "190604e17a2335add0da9e4c6da48b8a8eb57883758b65b3e2b84aaecd954013", "origin": "Gaussian noise generated locally with a fixed seed" }
+}

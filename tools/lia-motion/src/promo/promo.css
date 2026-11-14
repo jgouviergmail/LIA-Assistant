@@ -1,0 +1,97 @@
+/*
+ * LIA promotional film — one stylesheet for the whole composition.
+ *
+ * Two identities meet here, as on the public site: the cosmos skin (dark
+ * ground, blue -> violet -> cyan signature gradient) carries the film, and the
+ * authenticated application surfaces float on it with their own warm light
+ * palette. Colour values are sampled from the product's current captures
+ * (apps/web/public/screenshots, 2026-11-10) and from the design tokens
+ * (.claude/skills/lia-design/tokens): primary #00619b, card #f6f4f1, bar
+ * #f1eee9, chat ground #ebecf0, ink #333c45.
+ */
+@font-face { font-family: PromoInter; src: url('../../public/fonts/Inter-Variable.woff2') format('woff2'); font-weight: 100 900; font-display: block; }
+@font-face { font-family: PromoSymbols; src: url('../../public/film/MaterialSymbolsOutlined.woff2') format('woff2'); font-weight: 100 700; font-display: block; }
+
+.promo {
+  --bg: #06070f; --bg2: #0a0e1d; --ink: #eef1fb; --mut: #98a0bd;
+  --blue: #4f8dfd; --violet: #8b5cf6; --cyan: #38d4f5;
+  --grad: linear-gradient(100deg, #4f8dfd, #8b5cf6 55%, #38d4f5);
+  --app-ground: #ebecf0; --app-bar: #f1eee9; --card: #f6f4f1; --card-hi: #faf9f6;
+  --line: #e1ddd5; --ink-app: #2f3741; --mut-app: #6b7480; --primary: #00619b;
+  --primary-soft: rgba(0, 97, 155, 0.1); --user: #347eaf;
+  position: absolute; inset: 0; overflow: hidden; background: var(--bg); color: var(--ink);
+  font-family: PromoInter, Inter, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv11', 'ss01'; text-rendering: geometricPrecision;
+}
+.promo *, .promo *::before, .promo *::after { box-sizing: border-box; }
+.promo h1, .promo h2, .promo h3, .promo p { margin: 0; }
+
+.sym { font-family: PromoSymbols; font-weight: 400; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; white-space: nowrap; direction: ltr; font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 48; -webkit-font-feature-settings: 'liga'; font-feature-settings: 'liga'; display: inline-block; }
+
+/* ---------- cosmos ground ---------- */
+.cosmos-layer { position: absolute; inset: -6%; pointer-events: none; }
+.grain { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: overlay; opacity: 0.06; }
+.vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 95% at 50% 45%, transparent 55%, rgba(2, 3, 8, 0.72) 100%); }
+.ghost-word { position: absolute; font-weight: 800; letter-spacing: -0.04em; line-height: 0.9; color: rgba(148, 163, 220, 0.045); -webkit-text-stroke: 2px rgba(148, 163, 220, 0.22); filter: blur(1.5px); white-space: nowrap; pointer-events: none; }
+
+/* ---------- kinetic type ---------- */
+.kt { position: absolute; font-weight: 800; letter-spacing: -0.035em; line-height: 1.02; color: var(--ink); white-space: nowrap; }
+.kt .w { display: inline-block; will-change: transform, opacity, filter; }
+.kt .g { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; padding-bottom: 0.08em; }
+.kt-sub { position: absolute; font-weight: 500; letter-spacing: -0.01em; color: var(--mut); white-space: nowrap; }
+
+/* ---------- domain tiles ---------- */
+.tile { position: absolute; display: flex; align-items: center; justify-content: center; color: #fff; }
+.tile::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(160deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 46%); pointer-events: none; }
+
+/* ---------- application surfaces ---------- */
+.app { position: absolute; background: var(--app-ground); color: var(--ink-app); border-radius: 26px; overflow: hidden; box-shadow: 0 50px 120px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.10), 0 0 90px rgba(79, 141, 253, 0.18); }
+.app-glow { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(60% 55% at 18% 8%, rgba(160, 168, 240, 0.42), transparent 70%), radial-gradient(50% 50% at 92% 30%, rgba(196, 181, 253, 0.32), transparent 70%), radial-gradient(60% 60% at 50% 110%, rgba(165, 214, 245, 0.30), transparent 70%); }
+.app-bar { position: relative; height: 84px; display: flex; align-items: center; gap: 30px; padding: 0 34px; background: var(--app-bar); border-bottom: 1px solid #e3dfd7; }
+.lia-badge { width: 70px; height: 54px; border-radius: 15px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 750; font-size: 23px; letter-spacing: -0.01em; background: linear-gradient(135deg, #0a6aa3, #00548a); box-shadow: 0 3px 8px rgba(0, 72, 120, 0.25); }
+.nav-icons { display: flex; align-items: center; gap: 26px; }
+.nav-icons .on { background: rgba(0, 97, 155, 0.12); border: 1px solid rgba(0, 97, 155, 0.22); border-radius: 12px; }
+.nav-ic { width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; }
+.bar-end { margin-left: auto; display: flex; align-items: center; gap: 22px; }
+.logout { width: 50px; height: 50px; border-radius: 13px; background: #b3083a; color: #fff; display: flex; align-items: center; justify-content: center; }
+
+.card { position: relative; background: var(--card); border: 1px solid #e2ded6; border-radius: 22px; box-shadow: 0 3px 12px rgba(30, 30, 40, 0.06), 0 1px 3px rgba(30, 30, 40, 0.05); }
+.card-head { display: flex; align-items: center; gap: 14px; }
+.card-title { font-size: 25px; font-weight: 700; color: var(--ink-app); letter-spacing: -0.01em; }
+.card-meta { margin-left: auto; font-size: 17px; color: var(--mut-app); }
+.ic-tile { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex: none; }
+.muted { color: var(--mut-app); }
+.pill { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 6px 15px; font-size: 18px; font-weight: 600; border: 1px solid; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; border-radius: 12px; padding: 13px 26px; font-size: 22px; font-weight: 600; line-height: 1; border: 1.5px solid transparent; white-space: nowrap; }
+.btn-primary { background: var(--primary); color: #fff; box-shadow: 0 3px 8px rgba(0, 80, 130, 0.28); }
+.btn-ghost { color: var(--ink-app); }
+.btn-outline { color: var(--primary); border-color: rgba(0, 97, 155, 0.45); background: rgba(255, 255, 255, 0.4); }
+
+.toggle { position: relative; width: 74px; height: 42px; border-radius: 999px; background: #cfd3da; flex: none; }
+.toggle i { position: absolute; top: 4px; left: 4px; width: 34px; height: 34px; border-radius: 50%; background: #fff; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); }
+
+/* chat */
+.bubble-user { position: relative; display: inline-block; max-width: 900px; padding: 18px 26px; color: #fff; font-size: 25px; line-height: 1.38; border-radius: 0 22px 22px 22px; background: linear-gradient(135deg, #3b84b4, #2f78aa); box-shadow: 0 6px 18px rgba(30, 90, 140, 0.25); }
+.bubble-lia { position: relative; padding: 22px 28px 20px; font-size: 24px; line-height: 1.45; color: var(--ink-app); border-radius: 22px 0 22px 22px; background: rgba(250, 248, 246, 0.92); border: 1px solid #e6e2dc; box-shadow: 0 10px 30px rgba(40, 40, 70, 0.12); }
+.bubble-lia h4 { margin: 0 0 12px; padding-bottom: 10px; border-bottom: 2px solid var(--primary); color: var(--primary); font-size: 27px; font-weight: 500; }
+.avatar-dot { width: 54px; height: 54px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; background: linear-gradient(135deg, #2d6fa3, #1d5b8e); box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.7); }
+.composer { display: flex; align-items: center; gap: 18px; padding: 18px 26px; background: var(--app-bar); border-top: 1px solid #e3dfd7; }
+.composer-field { flex: 1; height: 66px; border-radius: 14px; border: 1.5px solid #d9d4cb; background: #f7f5f1; display: flex; align-items: center; padding: 0 22px; font-size: 24px; color: var(--ink-app); overflow: hidden; white-space: nowrap; }
+.caret { display: inline-block; width: 2.5px; height: 1.1em; margin-left: 2px; background: var(--primary); vertical-align: -0.18em; }
+.token-line { font-size: 17px; color: #4b5563; display: flex; gap: 10px; align-items: center; justify-content: flex-end; font-variant-numeric: tabular-nums; }
+
+/* phone */
+.phone { position: absolute; border-radius: 74px; background: linear-gradient(145deg, #2a2f3d, #0b0d14 40%, #1b1f2b); padding: 16px; box-shadow: 0 60px 120px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(255, 255, 255, 0.07), inset 0 0 0 2px rgba(255, 255, 255, 0.06), 0 0 120px rgba(79, 141, 253, 0.16); }
+.phone-screen { position: relative; width: 100%; height: 100%; border-radius: 60px; overflow: hidden; background: var(--app-ground); color: var(--ink-app); }
+.phone-island { position: absolute; top: 16px; left: 50%; width: 128px; height: 36px; margin-left: -64px; border-radius: 20px; background: #05060a; z-index: 5; }
+.status-bar { position: relative; height: 68px; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 44px 8px; font-size: 22px; font-weight: 650; color: #1f2937; }
+
+.notif { position: absolute; border-radius: 34px; padding: 22px 24px 20px; background: rgba(250, 250, 252, 0.84); backdrop-filter: blur(24px); box-shadow: 0 18px 50px rgba(10, 20, 40, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.6); color: #1d2430; }
+
+/* cursor and taps */
+.cursor { position: absolute; width: 46px; height: 58px; pointer-events: none; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35)); transform-origin: 6px 6px; z-index: 80; }
+.ripple { position: absolute; border-radius: 50%; pointer-events: none; z-index: 79; }
+
+/* labels inside the montage and the constellation */
+.node-label { position: absolute; font-weight: 650; font-size: 26px; color: var(--ink); white-space: nowrap; letter-spacing: -0.01em; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6); }

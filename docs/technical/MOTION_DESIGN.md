@@ -174,6 +174,18 @@ The film currently has French editorial copy. CTA, dialog and disclosure text
 are localized in six languages; the shared video is not automatically translated.
 An additional language requires its own reviewed composition and media delivery.
 
+## Promotional film (2026-11)
+
+Since 2026-11-14 the landing presents the motion-design film built in
+`tools/lia-motion/src/promo` ([construction notes](../../tools/lia-motion/src/promo/README.md),
+[ADR-341 amendment](../architecture/ADR-341-Editable-Motion-Production-And-Exclusive-Presentation.md#amendment-2026-11-14--the-presentation-becomes-a-motion-design-film)).
+`node tools/lia-motion/scripts/render-promo.mjs` renders review stills, the DOM
+inspection (`inspect`), the video by frame range, the mix and the master. Its
+landing delivery keeps the rules above: new bytes always get a new hash-named
+file (the host serves media as immutable for a year), the manifest is replaced
+last, and superseded files leave the host only after the public application
+resolves the new ones.
+
 ## Preservation and cleanup
 
 Run `task motion:archive` after final source reports and delivered measurements.

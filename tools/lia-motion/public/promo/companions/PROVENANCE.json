@@ -1,0 +1,91 @@
+{
+  "what": "Film-resolution copies (1024 px) of the reviewed companion bodies the application ships at 192 px.",
+  "source": "The reviewed originals that apps/web/public/avatars/<character>/<version>/manifest.json hashes (artwork.<variant>.sha256); every hash verified.",
+  "transform": "Fit into 1024x1024 with Lanczos on premultiplied alpha, centred on a transparent square: the product encoder fits the same source into 192x192, so the face registration is identical.",
+  "records": {
+    "bip/male": {
+      "body_version": "v1",
+      "source": "exec-2cdd5867-86cd-469a-bdbd-3398dc14aca2.png",
+      "source_sha256": "6a15490175640bc48cc7a9a799f694fec6ff59a5ca3bad3d2ff6cece224f0739",
+      "bytes": 618405
+    },
+    "bip/female": {
+      "body_version": "v1",
+      "source": "exec-55e360a4-4f38-4f8f-b5d7-0f5c18a0bf41.png",
+      "source_sha256": "b223200e91a1707c7d941bb041a9b2c1705f5a4165913a8ebf1ca005e6b81655",
+      "bytes": 629038
+    },
+    "boulon/male": {
+      "body_version": "v1",
+      "source": "exec-3df42b8c-a235-40c9-9011-1d003794fa13.png",
+      "source_sha256": "1c8383e60aa257571451571c3bb691e1b3dd4ea54689a339af3ba87191ec7000",
+      "bytes": 1150279
+    },
+    "boulon/female": {
+      "body_version": "v1",
+      "source": "exec-65eec323-fb9e-4a62-838c-33b39cacaf4f.png",
+      "source_sha256": "209567bd30afa7f575a9fa7de629aba29bf1522d446805f5201d84f59aac8fce",
+      "bytes": 893339
+    },
+    "lumen/male": {
+      "body_version": "v2",
+      "source": "exec-8e754a4f-2216-4c70-9c2e-2681d648b80a.png",
+      "source_sha256": "c5333af9016b55eb18bc337c95b23be7b50f90caf70f742503a75ad6e9cb78b2",
+      "bytes": 599495
+    },
+    "lumen/female": {
+      "body_version": "v2",
+      "source": "exec-25c758f7-a3e9-4a50-b18b-6d48f0bf2ea4.png",
+      "source_sha256": "428100714cb26ebc96823389d42f1adbfb88cbae2b55123ed5342ce350605c56",
+      "bytes": 582074
+    },
+    "moss/male": {
+      "body_version": "v2",
+      "source": "exec-bf59b9d7-5293-4250-bd90-65ddbb1465f2.png",
+      "source_sha256": "536f8620d8685d3b95ce4466903591f522eeb1d65c5997a1a1470a8b67cbe387",
+      "bytes": 661216
+    },
+    "moss/female": {
+      "body_version": "v2",
+      "source": "exec-07ea3500-5506-48cd-af38-734ac277acad.png",
+      "source_sha256": "6f7e2a64dcfffd3d61f379261b3d74a83917725d2ef236666b6143d8f5150303",
+      "bytes": 559543
+    },
+    "nimbo/male": {
+      "body_version": "v1",
+      "source": "exec-09ad5e72-21b1-4981-8b4f-79a01c32ecfe.png",
+      "source_sha256": "e506df6c3ecbd51795f7acfb8798a78fba053cc710c0eccf36af1e943fb1b548",
+      "bytes": 537229
+    },
+    "nimbo/female": {
+      "body_version": "v1",
+      "source": "exec-faebce5f-395b-4570-b929-0c17c610b1d8.png",
+      "source_sha256": "de8cdabac314ab72aad0acf7b34ac98409d5797bc293017add5d38be1af4536e",
+      "bytes": 553261
+    },
+    "orbit/male": {
+      "body_version": "v1",
+      "source": "exec-27b744b1-51b4-4e53-a4ab-8a6c7a9ad2af.png",
+      "source_sha256": "65cf5d781be7c6e7c6f2646427daa6154ffbde7e28088b7495bc6db6da6abec2",
+      "bytes": 650227
+    },
+    "orbit/female": {
+      "body_version": "v1",
+      "source": "exec-834c5114-156a-4f0d-8400-3da1d9acfe45.png",
+      "source_sha256": "ca7664b6d6598a672360c9a133a468236cb3811f834293980316b8f778c39d17",
+      "bytes": 695753
+    },
+    "oscar/male": {
+      "body_version": "v1",
+      "source": "exec-8549aff8-a7d3-4f4f-b19a-a76fce6e78e9.png",
+      "source_sha256": "5a46b6961367a89dfa0afd1281fa19bd0571b179cde292aff78865dd74a506b6",
+      "bytes": 778048
+    },
+    "oscar/female": {
+      "body_version": "v1",
+      "source": "exec-536288b8-e73f-4e8b-a2c0-2c571e4b069b.png",
+      "source_sha256": "895d5e03c0818dca562f27d9d5fe031eae9478ff6024b83c84c009ff257da540",
+      "bytes": 739264
+    }
+  }
+}

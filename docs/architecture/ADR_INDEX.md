@@ -5229,6 +5229,8 @@ graph TD
 
 **Decision**: Keep an offline deterministic HTML/CSS/Remotion construction with faithful native UI, stationary complete screens, explicit fixed focus crops, native companions and measured musical cuts. Preserve coverage and provenance. Package immutable static media and measure actual exports. An explicit full-film descriptor opens an accessible fullscreen player that suspends background playback.
 
+**Amendment 2026-11-14**: the presentation becomes a 114-second motion-design film (`tools/lia-motion/src/promo`) whose views move with a 3D camera at an enlarged scale, leaving the stationary-screen rule for this film alone; native sources, fictitious data, the companions' real rig, recorded provenance and hash-named delivery still hold.
+
 ### ADR-342: optional runtime companion preference campaigns
 
 **File**: `docs/architecture/ADR-342-Opt-In-Runtime-Avatar-Preference-Campaigns.md`

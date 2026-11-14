@@ -79,3 +79,33 @@ changes. Frontend tests separately cover explicit media selection, public
 transport, fullscreen lifecycle, background suspension and six-language copy.
 The [production procedure](../technical/MOTION_DESIGN.md) describes selective
 rerendering, publication order, preservation and rollback.
+
+## Amendment 2026-11-14 — the presentation becomes a motion-design film
+
+The landing's first video and its `presentation` descriptor now name a
+114-second motion-design film (`tools/lia-motion/src/promo`, composition
+`LIA-Promo`, [construction notes](../../tools/lia-motion/src/promo/README.md))
+that replaces the 80-second chapter film. It deliberately leaves point 3 for
+this film: views move with a 3D camera at an enlarged scale, because the
+stationary chapter film read as small fixed windows at landing size (owner
+review, 2026-11-14). Points 1, 2, 5 and 6 still hold:
+
+- views are reconstructed from native sources and labels with fictitious data,
+  and a DOM inspector (`render-promo.mjs inspect`) reports text overflow, edge
+  proximity and overlaps on rendered frames;
+- companions render at native size (the skin is em-based) with 1024-pixel
+  bodies taken from the reviewed originals whose hashes the application's
+  avatar manifests record; their faces are driven by the product's rig runtime,
+  stepped deterministically per frame. The 192-pixel widget assets are never
+  upscaled;
+- the soundtrack and effects are original generations with prompts and hashes in
+  `tools/lia-motion/public/audio/promo/PROVENANCE.json`; the cut follows the
+  recording's measured 120 BPM grid, lengthened by bar-aligned repeats;
+- the delivery is hash-named under the existing `lia-feature-*` family: AV1 and
+  H.264 renditions at 1080p60 (from 900 pixels wide) and 720p60, a poster and a
+  beat map. The manifest names the film first and as `presentation` and keeps the
+  other playlist entries byte-identical; the README's stable
+  `lia-presentation-v3.0.0.mp4` alias carries the same film. The 80-second assets
+  are removed from the host only after the switch is verified, and kept offline.
+
+The chapter film's construction stays in `tools/lia-motion/src` and its archive.

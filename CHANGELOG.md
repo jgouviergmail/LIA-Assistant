@@ -119,6 +119,10 @@ searched without a key of your own.
   and filters behind **Filters**; in the Tools the selection bars of mail, files and tasks hold on one
   line, the mail bar in the reader's own words. The SMS archive opens on what arrived last, day by
   day, the grouping by sender one press away.
+- 🎬 **A new presentation film** (ADR-341 amendment): the landing's **Presentation** button and the
+  top of the README play a 114-second film in French, its screens rebuilt from the product's own
+  interface with fictional data and its companions played by their real rig. Its editable
+  construction, soundtrack and provenance ship in `tools/lia-motion/src/promo`.
 - 🛠️ **The installer asks for an Anthropic and a DeepSeek key** (ADR-215 amendment) and checks each
   one with its provider; a new installation starts on the reference configuration production runs,
   and Claude Fable 5.2 joins the model catalogue (ADR-306 amendment).
@@ -234,7 +238,7 @@ searched without a key of your own.
   `agents:model-tail:measure`, `agents:history-tokens:measure`).
 - 📚 **Documentation**: ADR-378 to ADR-388, amendments to ADR-067, 100, 117, 119, 129, 139, 165, 172,
   182, 215, 229, 230, 243, 244, 250, 252, 254, 260, 261, 262, 265, 274, 276, 277, 279, 280, 290, 294,
-  295, 306, 307, 310, 319, 322, 344, 369, 370, 373 and 377, `SECONDARY_CONVERSATIONS.md`,
+  295, 306, 307, 310, 319, 322, 341, 344, 369, 370, 373 and 377, `SECONDARY_CONVERSATIONS.md`,
   `WAITING_MESSAGES.md`, `ROUTINE_WEBHOOKS.md`, `MAIL_REPLY_STATE.md`, `WRITING_STYLE.md`,
   `WEB_SEARCH.md`, `MODEL_OUTPUT_HEALTH.md`, five runbooks (the recovery of a conversation execution
   and four alerts), six-language FAQ and knowledge, public guides, settings search and the
