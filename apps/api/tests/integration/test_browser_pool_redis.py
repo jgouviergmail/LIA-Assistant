@@ -126,6 +126,24 @@ async def _acquire(pool: module.BrowserPool, user: BrowserScope) -> Any:
         return exc
 
 
+async def _wait_for_redis_expiry(client: Redis, key: str, field: str, deadline: int) -> None:
+    """Observe native field expiry before a pool operation can prune it in Lua.
+
+    Args:
+        client: The isolated test Redis connection.
+        key: The namespaced browser ownership registry.
+        field: The browser scope whose native expiry is observed.
+        deadline: Its Redis millisecond deadline, or -2 if already expired.
+    """
+    async with asyncio.timeout(5):
+        while True:
+            seconds, microseconds = await client.time()
+            if seconds * 1000 + microseconds // 1000 > deadline:
+                break
+            await asyncio.sleep(0.05)
+    assert await client.hexists(key, field) == 0
+
+
 async def test_an_allocating_context_already_occupies_the_last_global_slot(world: _World) -> None:
     first, second, _ = world.pools
     entered, release = asyncio.Event(), asyncio.Event()
@@ -244,7 +262,14 @@ async def test_an_allocation_that_lost_ownership_is_closed_before_it_can_be_lent
     try:
         await asyncio.wait_for(entered.wait(), timeout=2)
         if loss == "expiry":
-            await asyncio.sleep(1.1)
+            # Redis owns this deadline. A host sleep cannot prove it has passed.
+            client = world.namespace.client
+            key = world.namespace.prefix + REDIS_KEY_BROWSER_POOL_REGISTRY
+            deadline = int(
+                (await client.execute_command("HPEXPIRETIME", key, "FIELDS", 1, user.key))[0]
+            )
+            assert deadline >= 0 or deadline == -2  # A field may already have expired.
+            await _wait_for_redis_expiry(client, key, user.key, deadline)
         await second.acquire_session(user if loss == "takeover" else browser_scope())
     finally:
         release.set()
@@ -387,12 +412,7 @@ async def test_expired_private_metadata_does_not_survive_another_users_activity(
     # Redis TIME owns the deadline, not the host running pytest (Docker/WSL
     # may have a different wall clock). Do not let a host sleep stand in for
     # observing expiry, nor let a missing native TTL hide behind Lua pruning.
-    async with asyncio.timeout(5):
-        while True:
-            seconds, microseconds = await client.time()
-            if seconds * 1000 + microseconds // 1000 > deadline:
-                break
-            await asyncio.sleep(0.05)
+    await _wait_for_redis_expiry(client, key, old_user.key, deadline)
 
     if access == "renew":
         assert await second._owns_session(current_user) is True
