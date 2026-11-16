@@ -111,7 +111,7 @@ services:
 
   # Redis for caching and sessions
   redis:
-    image: redis:7.4.11-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+    image: redis:8.10.2-alpine@sha256:9f8d2d789b9a1d1e3f283f979aa9cbf393373806472e1ccd460e2f9c869b833b
     container_name: lia-redis-prod
     restart: unless-stopped
     security_opt:
