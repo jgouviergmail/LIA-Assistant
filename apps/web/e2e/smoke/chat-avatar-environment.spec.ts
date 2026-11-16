@@ -193,7 +193,11 @@ for (const climate of climates) {
     const transform = () => moving.evaluate(e => getComputedStyle(e).transform);
     // A scarf the native cloth draws has no fallback to read: see below.
     const before = climate.kind === 'cold' ? null : await transform();
-    await page.clock.runFor(450);
+    // A sway can return to the same rounded transform after 450 ms. Read its
+    // rendered midpoint too: a moving round trip passes, a frozen prop cannot.
+    await page.clock.runFor(225);
+    const during = climate.kind === 'cold' ? null : await transform();
+    await page.clock.runFor(225);
     if (climate.kind === 'cold') {
       await expect(avatar).toHaveAttribute('data-volume-scarf-ready', 'true');
       // While the native cloth is drawn, its fitted fallback is out of the
@@ -257,7 +261,10 @@ for (const climate of climates) {
       expect(await fallbackMatrix()).toEqual([1, 0, 0, 1, 0, 0]);
       expect(await bandTransform()).toBe(attached);
     } else if (climate.kind !== 'freezing') {
-      expect(await transform()).not.toBe(before);
+      expect(
+        new Set([before, during, await transform()]).size,
+        'The rendered weather prop must move within 450 ms'
+      ).toBeGreaterThan(1);
     }
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.clock.runFor(64);
