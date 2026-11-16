@@ -60,8 +60,8 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **i18next** | 26.x | i18n framework |
-| **react-i18next** | 17.0.x | React bindings |
+| **i18next** | 27.x | i18n framework |
+| **react-i18next** | 17.1.x | React bindings |
 
 ### Dev Tools
 

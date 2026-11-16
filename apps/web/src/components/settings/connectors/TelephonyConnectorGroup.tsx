@@ -30,11 +30,12 @@ import { ConnectorGroupTrigger } from './ConnectorGroupTrigger';
 import { isTelephonyConnectorType } from './constants';
 import { TelephonyConnectorForm } from './TelephonyConnectorForm';
 import { isConnectorActive, type Connector } from './types';
+import type { TextTranslator } from '@/i18n/types';
 
 export interface TelephonyConnectorGroupProps {
   connectors: Connector[];
   lng: Language;
-  t: (key: string, options?: Record<string, string>) => string;
+  t: TextTranslator;
   /** Re-read the list after an activation or a disconnect. */
   refetch: () => void;
 }

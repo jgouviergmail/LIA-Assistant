@@ -82,7 +82,7 @@ function useSaid(lng: Language) {
       return await run();
     } catch (error: unknown) {
       const refusal = workbenchRefusal(error);
-      toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.files.failed'));
+      toast.error(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.files.failed'));
       return false;
     }
   };

@@ -54,6 +54,7 @@ import type {
   ContactHistoryText,
   WorkbenchContactHistory,
 } from '@/lib/workbench/types';
+import type { TextTranslationOptions, TextTranslator } from '@/i18n/types';
 
 const HISTORY_PATH = '/workbench/contacts/history';
 const DAYS_PER_MONTH = 30;
@@ -153,7 +154,7 @@ function Column({
 
 /** The words of the history, and a line's day, in the reader's zone and language. */
 interface Reading {
-  word: (key: string, values?: Record<string, string | number>) => string;
+  word: TextTranslator;
   /** A count in the reader's own writing. */
   count: (value: number) => string;
   mailLines: (rows: readonly ContactHistoryMail[], sent: boolean) => Line[];
@@ -319,7 +320,7 @@ export function ContactHistory({ lng, name, addresses, phones }: ContactHistoryP
     asked ? HISTORY_PATH : null,
     { address: addresses, phone: phones }
   );
-  const word = (key: string, values?: Record<string, string | number>) =>
+  const word: TextTranslator = (key: string, values: TextTranslationOptions = {}) =>
     t(`workbench.contacts.history.${key}`, values);
 
   if (!asked) return null;

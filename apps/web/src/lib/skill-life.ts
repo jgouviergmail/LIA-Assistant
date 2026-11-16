@@ -10,12 +10,10 @@
 import type { Skill } from '@/hooks/useSkills';
 import type { Language } from '@/i18n/settings';
 import { formatDate } from '@/lib/format';
+import type { TextTranslator } from '@/i18n/types';
 
 /** The settings' `t`, with the numeric `count` i18next pluralises on. */
-export type SkillLifeTranslator = (
-  key: string,
-  options?: Record<string, string | number>
-) => string;
+export type SkillLifeTranslator = TextTranslator;
 
 /**
  * The skills the settings propose to switch off.

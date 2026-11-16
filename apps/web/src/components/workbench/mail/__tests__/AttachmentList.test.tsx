@@ -20,7 +20,7 @@ const { api, i18n, pdf, toast } = vi.hoisted(() => ({
   toast: { error: vi.fn(), success: vi.fn() },
   i18n: {
     t: (key: string, values?: Record<string, string | number>) =>
-      values ? `${key}(${Object.values(values).join('|')})` : key,
+      values && Object.keys(values).length > 0 ? `${key}(${Object.values(values).join('|')})` : key,
     i18n: { language: 'en' },
   },
 }));

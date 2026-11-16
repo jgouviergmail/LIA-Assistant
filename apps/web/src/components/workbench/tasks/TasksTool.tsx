@@ -157,7 +157,7 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
   const tell = useCallback(
     (error: unknown) => {
       const refusal = workbenchRefusal(error);
-      toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.tasks.failed'));
+      toast.error(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.tasks.failed'));
     },
     [t]
   );

@@ -1,5 +1,6 @@
 import type { GameView } from '../game-protocol';
-type GameText = (key: string, values?: Record<string, unknown>) => string;
+import type { TextTranslator } from '@/i18n/types';
+type GameText = TextTranslator;
 /** A named opponent's alias, or null for the computer, which has sentences of its own. */
 function opponentAlias(game: GameView, number: number, t: GameText): string | null {
   if (game.computer) return null;

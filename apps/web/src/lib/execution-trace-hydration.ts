@@ -20,6 +20,7 @@ import type {
 } from '@/types/execution-trace';
 import { capTraceSteps } from '@/types/execution-trace';
 import { outcomeCounts } from '@/lib/execution-outcome';
+import type { TextTranslator } from '@/i18n/types';
 
 /** Metadata key written by the backend (`FIELD_EXECUTION_TRACE`). */
 const EXECUTION_TRACE_METADATA_KEY = 'execution_trace';
@@ -27,7 +28,7 @@ const EXECUTION_TRACE_METADATA_KEY = 'execution_trace';
 const TRACE_CATEGORIES: ReadonlySet<string> = new Set(['system', 'agent', 'tool', 'context']);
 
 /** Minimal translator contract — satisfied by i18next's `t`. */
-type TranslateFn = (key: string, options?: { defaultValue?: string }) => string;
+type TranslateFn = TextTranslator;
 
 function hydrateStep(raw: unknown, t: TranslateFn): ExecutionTraceStep | null {
   if (typeof raw !== 'object' || raw === null) return null;

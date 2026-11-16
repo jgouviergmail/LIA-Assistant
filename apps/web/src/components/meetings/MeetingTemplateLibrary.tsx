@@ -34,6 +34,7 @@ import type { Language } from '@/i18n/settings';
 import { groupByCategory, isTranscriptTemplate, userTemplateCount } from '@/lib/meetings/templates';
 import { pageSelectionState, toggleId } from '@/lib/selection';
 import type { MeetingTemplateSummary } from '@/types/meetings';
+import type { TextTranslator } from '@/i18n/types';
 
 export interface MeetingTemplateLibraryProps {
   lng: Language;
@@ -62,7 +63,7 @@ export interface MeetingTemplateLibraryProps {
   nested?: boolean;
 }
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
+type Translate = TextTranslator;
 
 /** The rows of one section in display order: category by category. */
 function orderedRefs(items: readonly MeetingTemplateSummary[]): string[] {

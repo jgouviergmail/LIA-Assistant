@@ -117,7 +117,9 @@ export function SelectionProgress<T>({
   return (
     <div className="space-y-2">
       <p role="alert">
-        {state.refusal ? t(state.refusal.key, state.refusal.values) : t('selectionAssist.failed')}
+        {state.refusal
+          ? t(state.refusal.key, state.refusal.values ?? {})
+          : t('selectionAssist.failed')}
       </p>
       <Button type="button" variant="outline" onClick={onRetry}>
         {t('common.retry')}

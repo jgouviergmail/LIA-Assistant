@@ -27,11 +27,12 @@ import { ConnectedConnectorCard } from './ConnectedConnectorCard';
 import { ConnectorGroupTrigger } from './ConnectorGroupTrigger';
 import { LiveConnectorForm } from './LiveConnectorForm';
 import { isConnectorActive, type Connector } from './types';
+import type { TextTranslator } from '@/i18n/types';
 
 export interface LiveConnectorGroupProps {
   connectors: Connector[];
   lng: Language;
-  t: (key: string, options?: Record<string, string>) => string;
+  t: TextTranslator;
   /** Re-read the list after an activation. */
   refetch: () => void;
   /** Open the in-app disconnect confirmation for this connector id. */

@@ -23,15 +23,7 @@
 import { useRef } from 'react';
 
 import type { LucideIcon } from '@/lib/icons';
-import {
-  AlertTriangle,
-  FileSpreadsheet,
-  Pencil,
-  Plus,
-  Power,
-  PowerOff,
-  Upload,
-} from '@/lib/icons';
+import { AlertTriangle, FileSpreadsheet, Pencil, Plus, Power, PowerOff, Upload } from '@/lib/icons';
 
 import type {
   PricingSheetImportReport,
@@ -52,11 +44,12 @@ import { Disclosure } from '@/components/ui/disclosure';
 import { usePricingSheetImportState } from '@/components/settings/pricing-sheet-import-state';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import type { TextTranslator } from '@/i18n/types';
 
 const ACCEPTED = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 /** Anything the reader may translate, resolved by the caller. */
-type Translate = (key: string, options?: Record<string, unknown>) => string;
+type Translate = TextTranslator;
 
 /**
  * Order the preview reads in — created, edited, brought back, retired — each

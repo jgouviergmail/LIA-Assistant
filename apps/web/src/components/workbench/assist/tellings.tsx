@@ -28,7 +28,9 @@ export function useToldFailure<T>(lng: Language, state: AssistState<T>): void {
   useEffect(() => {
     if (state.status !== 'failed') return;
     toast.error(
-      state.refusal ? t(state.refusal.key, state.refusal.values) : t('workbench.assist.failed')
+      state.refusal
+        ? t(state.refusal.key, state.refusal.values ?? {})
+        : t('workbench.assist.failed')
     );
   }, [state, t]);
 }

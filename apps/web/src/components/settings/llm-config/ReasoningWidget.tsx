@@ -20,6 +20,7 @@ import type {
 } from '@/types/llm-config';
 import { REASONING_DOC_TEXT } from './reasoningDocText';
 import { EMPTY_INTENT, withBudget, withExclude, withLevel } from './reasoningHelpers';
+import type { TextTranslator } from '@/i18n/types';
 
 /**
  * The single reasoning control, for every provider (ADR-245).
@@ -50,7 +51,7 @@ interface ReasoningWidgetProps {
   onChange: (next: ReasoningEffortValue) => void;
   disabled?: boolean;
   /** Accepts i18next interpolation options — the range hint needs them. */
-  t: (key: string, options?: Record<string, unknown>) => string;
+  t: TextTranslator;
 }
 
 /** Sentinel for "no override" in the level Select — Radix forbids an empty
@@ -63,7 +64,7 @@ interface FieldProps {
   value: ReasoningEffortValue;
   onChange: (next: ReasoningEffortValue) => void;
   disabled?: boolean;
-  t: (key: string, options?: Record<string, unknown>) => string;
+  t: TextTranslator;
 }
 
 /** Depth: the ladder the model published, plus "no override". */

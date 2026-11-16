@@ -34,6 +34,7 @@ import type { Language } from '@/i18n/settings';
 import { Button } from '@/components/ui/button';
 import type { BulkGroup } from '@/lib/connectors/bulk-reconnect';
 import { settingsSectionHref } from '@/lib/settings-sections';
+import type { TextTranslator } from '@/i18n/types';
 
 /**
  * Height this banner currently occupies, published on the document root.
@@ -56,7 +57,7 @@ interface ConnectorHealthBannerProps {
   /** The horizontal frame of the page under the banner (`PAGE_FRAME_*`). */
   pageFrame: string;
   /** Translator from the owning container, so there is one i18n instance. */
-  t: (key: string, options?: Record<string, unknown>) => string;
+  t: TextTranslator;
   /** True while an OAuth redirect is in flight. */
   reconnecting: boolean;
   /** Starts the reconnection for the single broken connector. */

@@ -236,7 +236,9 @@ export function MessageReader(props: MessageReaderProps) {
     const refusal = workbenchRefusal(error);
     content = (
       <EmptyState
-        description={refusal ? t(refusal.key, refusal.values) : t('workbench.mail.read_failed')}
+        description={
+          refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.mail.read_failed')
+        }
         action={{ label: t('workbench.states.retry'), onClick: onRetry }}
       />
     );

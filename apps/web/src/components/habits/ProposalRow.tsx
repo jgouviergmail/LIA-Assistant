@@ -27,9 +27,10 @@ import type {
 } from '@/hooks/useHabitProposals';
 import { weekdayName } from '@/lib/habit-labels';
 import { clockLabel } from '@/lib/recurrence';
+import type { TextTranslator } from '@/i18n/types';
 
 /** The one thing the copy needs from i18next: a key and its values in, a sentence out. */
-type Translate = (key: string, options?: Record<string, unknown>) => string;
+type Translate = TextTranslator;
 
 interface ProposalCopy {
   text: string;

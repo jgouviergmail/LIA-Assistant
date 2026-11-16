@@ -47,7 +47,7 @@ const SPACE_REFUSALS: Readonly<Record<number, string>> = {
 
 function refusalWords(refused: unknown, t: Say): string {
   const refusal = workbenchRefusal(refused);
-  if (refusal) return t(refusal.key, refusal.values);
+  if (refusal) return t(refusal.key, refusal.values ?? {});
   const status = refused instanceof ApiError ? refused.status : 0;
   return t(SPACE_REFUSALS[status] ?? 'workbench.assist.keep.failed');
 }

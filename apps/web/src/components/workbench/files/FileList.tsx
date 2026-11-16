@@ -85,7 +85,7 @@ export function FileList(props: FileListProps) {
     return (
       <EmptyState
         className="flex-1"
-        description={refusal ? t(refusal.key, refusal.values) : t('workbench.files.failed')}
+        description={refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.files.failed')}
         action={{ label: t('workbench.states.retry'), onClick: () => void list.refresh() }}
       />
     );

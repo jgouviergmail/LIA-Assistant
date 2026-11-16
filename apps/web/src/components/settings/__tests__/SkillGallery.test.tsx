@@ -8,6 +8,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
 import { SkillGallery } from '../SkillGallery';
 import type { Skill } from '@/hooks/useSkills';
+import type { TextTranslationOptions, TextTranslator } from '@/i18n/types';
 
 function skill(over: Partial<Skill> = {}): Skill {
   return {
@@ -27,7 +28,7 @@ function skill(over: Partial<Skill> = {}): Skill {
   };
 }
 
-const t = (key: string, options?: Record<string, string | number>) =>
+const t: TextTranslator = (key: string, options: TextTranslationOptions = {}) =>
   options?.name ? `${key}:${options.name}` : key;
 
 function cardOf(name: string): HTMLElement {

@@ -129,6 +129,7 @@ import {
   type ConversationState,
   type MailAddress,
 } from './useMailScreen';
+import type { TextTranslator } from '@/i18n/types';
 
 /** A mouse, or what moves like one: a finger scrolls a list. */
 const FINE_POINTER = '(pointer: fine)';
@@ -571,7 +572,7 @@ function useMailShortcuts({
 /** Where an open message can go: another tool holding a way back to it, or LIA. */
 function messageBridges(
   bridges: ToolBridges,
-  t: (key: string, values?: Record<string, string>) => string,
+  t: TextTranslator,
   hrefOf: (message: MailSummary) => string
 ): MessageBridges {
   const linkTo = (message: MailMessage) =>
@@ -1039,10 +1040,7 @@ function ReaderPane({
 }
 
 /** Its text on paper: who wrote it, to whom, and the words. */
-function printMessage(
-  message: MailMessage,
-  t: (key: string, values?: Record<string, string>) => string
-): void {
+function printMessage(message: MailMessage, t: TextTranslator): void {
   const sender = message.sender ? addressLabel(message.sender) : '';
   const recipients = message.to.map(addressLabel).join(', ');
   printText(

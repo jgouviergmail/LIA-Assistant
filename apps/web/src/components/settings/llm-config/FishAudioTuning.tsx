@@ -50,8 +50,9 @@ import {
   type SetTtsKey,
   type TTSProviderConfig,
 } from './configDialogHelpers';
+import type { TextTranslator } from '@/i18n/types';
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
+type Translate = TextTranslator;
 
 const KEY = 'settings.admin.llmConfig.voiceTts';
 

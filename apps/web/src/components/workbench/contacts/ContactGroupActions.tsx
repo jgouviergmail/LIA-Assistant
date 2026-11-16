@@ -45,7 +45,7 @@ export function ContactGroupActions({
 
   const say = (error: unknown) => {
     const refusal = workbenchRefusal(error);
-    toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.contacts.failed'));
+    toast.error(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.contacts.failed'));
   };
 
   const rename = async (event: FormEvent) => {

@@ -20,7 +20,7 @@ vi.mock('@/i18n/client', async () => {
   return {
     useTranslation: () => ({
       t: (key: string, options?: Record<string, unknown>) =>
-        key.startsWith('meetings.detail.cost') ? instance.t(key, options) : key,
+        key.startsWith('meetings.detail.cost') ? instance.t(key, options ?? {}) : key,
     }),
   };
 });

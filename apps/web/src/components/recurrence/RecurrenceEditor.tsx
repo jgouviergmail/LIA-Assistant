@@ -117,7 +117,7 @@ export function RecurrenceEditor({
 
       {error && (
         <p className="text-xs text-destructive" role="alert">
-          {t(error.key, error.params)}
+          {t(error.key, error.params ?? {})}
         </p>
       )}
 

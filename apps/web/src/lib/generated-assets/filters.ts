@@ -13,12 +13,13 @@
  */
 
 import type { GeneratedAssetFilters } from '@/types/generated-assets';
+import type { TextTranslator } from '@/i18n/types';
 
 /** Between two narrowings — the mark the cards use between two facts. */
 const JOIN = ' · ';
 
 /** Resolver of an i18n key — the caller's own `t`, never a hook here. */
-type Translate = (key: string, options?: Record<string, unknown>) => string;
+type Translate = TextTranslator;
 
 /**
  * How many controls narrow this gallery right now.

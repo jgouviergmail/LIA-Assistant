@@ -125,7 +125,7 @@ function Station({
           <span className="font-semibold">{name}</span>
           <span aria-hidden="true"> · </span>
           <span className="text-xs font-medium uppercase tracking-wide">
-            {t(message.key, message.values)}
+            {t(message.key, message.values ?? {})}
           </span>
         </p>
         {/* The line stays while the station is live — empty between two
@@ -182,7 +182,7 @@ function Meters({ lng, view }: { lng: Language; view: RadioView }) {
             <span>
               <span aria-hidden="true">· </span>
               <span className="sr-only">{t('radio.banner.estimate_label')} </span>
-              {t(estimate.key, estimate.values)}
+              {t(estimate.key, estimate.values ?? {})}
             </span>
           )}
         </span>

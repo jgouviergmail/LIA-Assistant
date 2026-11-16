@@ -64,8 +64,8 @@ export function WorkbenchUnavailable({ lng, kind, tool, onRetry }: WorkbenchUnav
   const { t } = useTranslation(lng);
   const situation = SITUATIONS[kind];
   const values = tool ? { tool: t(toolSpec(tool).labelKey) } : undefined;
-  const title = t(`workbench.states.${situation.state}_title`, values);
-  const description = t(`workbench.states.${situation.state}_description`, values);
+  const title = t(`workbench.states.${situation.state}_title`, values ?? {});
+  const description = t(`workbench.states.${situation.state}_description`, values ?? {});
 
   if (situation.exit === 'retry') {
     return (

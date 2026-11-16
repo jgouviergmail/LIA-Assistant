@@ -205,7 +205,7 @@ export function ShownReading({ lng, read: { state, retry }, name, large }: Shown
     return (
       <div className="flex flex-wrap items-center gap-3">
         <p className="text-sm">
-          {refusal ? t(refusal.key, refusal.values) : t('workbench.files.reading_failed')}
+          {refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.files.reading_failed')}
         </p>
         <Button variant="outline" size="sm" onClick={retry}>
           {t('workbench.files.retry')}

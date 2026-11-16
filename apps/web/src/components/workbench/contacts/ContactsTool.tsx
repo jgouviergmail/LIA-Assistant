@@ -210,7 +210,7 @@ function ReadyContacts({ lng, tool }: { lng: Language; tool: WorkbenchToolAvaila
       toast.success(t('workbench.contacts.saved_other'));
     } catch (error: unknown) {
       const refusal = workbenchRefusal(error);
-      toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.contacts.failed'));
+      toast.error(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.contacts.failed'));
     }
   };
   const remove = async (contact: WorkbenchContact) => {
@@ -228,7 +228,7 @@ function ReadyContacts({ lng, tool }: { lng: Language; tool: WorkbenchToolAvaila
       toast.success(t('workbench.contacts.deleted'));
     } catch (error: unknown) {
       const refusal = workbenchRefusal(error);
-      toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.contacts.failed'));
+      toast.error(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.contacts.failed'));
     }
   };
 
@@ -499,7 +499,9 @@ function ContactRows({ lng, state, other, lettered, openId, hrefOf, linkRef }: C
     return (
       <EmptyState
         className="flex-1"
-        description={refusal ? t(refusal.key, refusal.values) : t('workbench.contacts.failed')}
+        description={
+          refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.contacts.failed')
+        }
         action={{ label: t('workbench.states.retry'), onClick: () => void list.refresh() }}
       />
     );

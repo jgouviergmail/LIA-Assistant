@@ -10,6 +10,7 @@ import { getIntlLocale, type Language } from '@/i18n/settings';
 import type { CalendarEvent } from '@/lib/workbench/types';
 
 import { addDays } from './zoned';
+import type { TextTranslator } from '@/i18n/types';
 
 function dayDate(day: string): Date {
   const [year, month, date] = day.split('-').map(Number);
@@ -95,10 +96,7 @@ export function eventWhen(
 }
 
 /** A reminder as a person reads it: at the start, minutes, hours or days before. */
-export function reminderLabel(
-  minutes: number,
-  t: (key: string, values?: Record<string, string | number>) => string
-): string {
+export function reminderLabel(minutes: number, t: TextTranslator): string {
   if (minutes === -1) return t('workbench.calendar.editor.reminder_none');
   if (minutes === 0) return t('workbench.calendar.reminder_at_start');
   if (minutes % 1440 === 0) {

@@ -125,8 +125,8 @@
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
  *   Measured for v5.1.0: backend 66,996 in 4,342 files
  *   (pytest tests --collect-only -q --no-cov, Windows/Python 3.14, 2026-11-16)
- *   + frontend 22,390 in 1,603 files (vitest list, 2026-11-16)
- *   = 89,386; rounded strictly down to 89,300.
+ *   + frontend 22,436 in 1,604 files (vitest list, 2026-11-16)
+ *   = 89,432; rounded strictly down to 89,400.
  *   Measured for v5.0.0: backend 65,431 collected in 4,246 files (pytest tests
  *   --collect-only -q --no-cov, 2026-11-14); frontend 22,065 tests in 1,586 files
  *   (vitest list, 2026-11-14). Combined inventory: 87,496.
@@ -477,7 +477,7 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 683,
   uiLanguages: 6,
-  tests: 89300,
+  tests: 89400,
   adrs: 389,
   releases: 298,
   auditScore: '7.9/10',

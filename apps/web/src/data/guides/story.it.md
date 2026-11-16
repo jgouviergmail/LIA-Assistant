@@ -18,8 +18,8 @@ La quasi totalità del codice è stata scritta da un'IA. Il mio lavoro è stato 
 | Indicatore | Valore |
 | --- | --- |
 | Codice scritto da un'IA, diretta, inquadrata e controllata | **≈ 100 %** |
-| Righe di codice sorgente (esclusi i test), suddivise in una sessantina di pacchetti di dominio backend | **1.238.253** |
-| Test automatizzati inventariati, in suite adatte al commit e al rilascio | **89.386** |
+| Righe di codice sorgente (esclusi i test), suddivise in una sessantina di pacchetti di dominio backend | **1.238.317** |
+| Test automatizzati inventariati, in suite adatte al commit e al rilascio | **89.432** |
 | Decisioni di architettura documentate (ADR) | **389** |
 | Versioni rilasciate a ritmo regolare | **298** |
 | Lingue, con una parità verificata automaticamente | **6** |

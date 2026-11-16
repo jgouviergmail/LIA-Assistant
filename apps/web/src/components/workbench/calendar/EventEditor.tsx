@@ -119,7 +119,7 @@ export function EventEditor(props: EventEditorProps) {
     } catch (error: unknown) {
       const refusal = workbenchRefusal(error);
       setStatus(refusal?.key === UNKNOWN ? 'unknown' : 'editing');
-      setProblem(refusal ? t(refusal.key, refusal.values) : t('workbench.calendar.failed'));
+      setProblem(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.calendar.failed'));
     } finally {
       busy.current = false;
     }

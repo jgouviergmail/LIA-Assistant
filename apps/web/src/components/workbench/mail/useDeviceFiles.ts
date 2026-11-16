@@ -54,7 +54,7 @@ export function useDeviceFiles({
     ({ failed, refusal }: UploadTally) => {
       onTheirWay.current = [];
       if (failed === 0) return;
-      toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.files.failed'));
+      toast.error(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.files.failed'));
     },
     [t]
   );

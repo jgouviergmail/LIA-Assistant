@@ -3,8 +3,9 @@
 import { Blocks, Server } from '@/lib/icons';
 import { Badge } from '@/components/ui/badge';
 import type { PluginComponentReport, PluginImportReport } from '@/hooks/usePlugins';
+import type { TextTranslator } from '@/i18n/types';
 
-type Translator = (key: string, options?: Record<string, unknown>) => string;
+type Translator = TextTranslator;
 const statusVariant: Record<
   PluginComponentReport['status'],
   'default' | 'secondary' | 'outline' | 'destructive'

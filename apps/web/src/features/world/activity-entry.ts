@@ -11,6 +11,7 @@ import { worldActions } from './functions';
 import type { BoardFilters } from '@/types/workboard';
 import type { DashboardDestination } from '@/components/dashboard/DashboardNavigation';
 import { CABINET_GAMES, type CabinetId } from './game-catalogue';
+import type { TextTranslator } from '@/i18n/types';
 
 export const WORKSPACE_SELECTION = {
   dashboard: 'world-dashboard',
@@ -66,7 +67,7 @@ export function dashboardEntry(destination: DashboardDestination): ActivityEntry
       return { selection: WORKSPACE_SELECTION.sms, smsMessageId: destination.messageId };
   }
 }
-type Translate = (key: string, values?: Record<string, unknown>) => string;
+type Translate = TextTranslator;
 export function workspaceFromSelection(selection: WorldSelection): WorldWorkspace | null {
   for (const id of Object.keys(WORKSPACE_SELECTION) as WorldWorkspace[])
     if (WORKSPACE_SELECTION[id] === selection) return id;

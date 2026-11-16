@@ -65,7 +65,7 @@ export function MailboxSettingsPanel({
   const settings = useWorkbenchMailSettings(open && vacationOffered, open && filtersOffered);
   const unread = (error: unknown): string => {
     const refusal = workbenchRefusal(error);
-    return refusal ? t(refusal.key, refusal.values) : t('workbench.mail.settings.failed');
+    return refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.mail.settings.failed');
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -55,6 +55,7 @@ import {
 import type { MailReplyMark, MailSummary } from '@/lib/workbench/types';
 
 import { ReplyMarkIcon } from './ReplyMarkIcon';
+import type { TextTranslator } from '@/i18n/types';
 
 export interface MessageRowProps {
   lng: Language;
@@ -309,7 +310,7 @@ function rowActions(
   message: MailSummary,
   subject: string,
   moves: MailMoves,
-  t: (key: string, values?: Record<string, string>) => string,
+  t: TextTranslator,
   { onRead, onStar, onSend, onMove, onForever }: RowActs
 ): RowAction[] {
   const said = (key: string) => t(key, { subject });

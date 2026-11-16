@@ -62,7 +62,7 @@ export function ContactImport({ lng, maxBytes, onImported }: ContactImportProps)
       else toast.success(t('workbench.contacts.imported', { count: answer?.done ?? 0 }));
     } catch (error: unknown) {
       const refusal = workbenchRefusal(error);
-      toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.contacts.failed'));
+      toast.error(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.contacts.failed'));
     } finally {
       setBusy(false);
     }

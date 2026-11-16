@@ -152,5 +152,5 @@ export function sayRefusal(
   refusal: RadioRefusal | null,
   fallbackKey: string
 ): string {
-  return refusal ? t(refusal.key, refusal.values) : t(fallbackKey);
+  return refusal ? t(refusal.key, refusal.values ?? {}) : t(fallbackKey);
 }

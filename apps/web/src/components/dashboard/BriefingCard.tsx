@@ -361,7 +361,7 @@ function CardBody<T extends SectionData>({
       )}
       {section.status === 'empty' && (
         <div className="flex-1 flex items-center justify-center text-center text-sm text-muted-foreground italic py-2">
-          {t(emptyStateKey, emptyStateValues)}
+          {t(emptyStateKey, emptyStateValues ?? {})}
         </div>
       )}
     </>

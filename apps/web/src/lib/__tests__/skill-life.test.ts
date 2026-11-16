@@ -32,7 +32,7 @@ function skill(over: Partial<Skill> = {}): Skill {
 }
 
 /** Echoes the key and its options, so the test reads what was asked. */
-const t: SkillLifeTranslator = (key, options) => `${key} ${JSON.stringify(options ?? {})}`;
+const t: SkillLifeTranslator = (key, options = {}) => `${key} ${JSON.stringify(options)}`;
 const day = (iso: string) => formatDate(iso, 'en', { dateStyle: 'medium' });
 
 describe('dormantSkills', () => {

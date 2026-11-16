@@ -21,6 +21,7 @@ import {
   reasoningEffortIsVisible,
   reasoningIsActive,
 } from './reasoningHelpers';
+import type { TextTranslator } from '@/i18n/types';
 
 // --- TTS provider_config -----------------------------------------------------
 
@@ -428,7 +429,7 @@ export function structuredErrorDetail(err: unknown): StructuredErrorDetail | nul
   return detail as StructuredErrorDetail;
 }
 
-type ErrorTranslator = (key: string, options?: Record<string, unknown>) => string;
+type ErrorTranslator = TextTranslator;
 
 const VOICE_SAVE_REFUSALS = new Map([
   ['fishaudio_voice_unavailable', 'settings.voice_mode.lia_voices.errors.lia_voice_unknown'],

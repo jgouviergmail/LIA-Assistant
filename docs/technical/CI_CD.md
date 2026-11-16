@@ -881,6 +881,19 @@ the sandbox lock receives the soupsieve fix as well. The expired CalDAV
 acceptance is removed. The pnpm override and lock move DOMPurify to 3.4.18
 for [GHSA-qm7q-q8h9-jg8q](https://github.com/cure53/DOMPurify/security/advisories/GHSA-qm7q-q8h9-jg8q).
 
+The same release advances `i18next` and its compatible `react-i18next` binding
+to the security floors in [the web manifest](../../apps/web/package.json), for
+[GHSA-q76c-gcvw-89x9](https://github.com/i18next/i18next/security/advisories/GHSA-q76c-gcvw-89x9).
+The publisher excludes configurations using `supportedLngs`; LIA already uses
+that allowlist, so a working application exploit is not claimed. The dependency
+is updated without an advisory exemption. The [major-version migration](https://www.i18next.com/misc/migration-guide)
+changes the empty-string default: shared options explicitly preserve intentional
+empty translations, with real catalogue and malformed-language contracts covering
+the six languages. Text-only helpers share the library's two supported call shapes
+through [TextTranslator](../../apps/web/src/i18n/types.ts): a key alone, or a key
+with defined options. Object-valued translations keep the full library contract.
+The lockfile, cold type check and production build qualify the pair.
+
 **Accepted advisories** — an advisory with no published fix, or a demonstrably
 unaffected dependency caught by an overbroad version range, is recorded with evidence.
 It is accepted by its GHSA in `pnpm.auditConfig.ignoreGhsas` (root `package.json`), never by

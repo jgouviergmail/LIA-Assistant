@@ -60,7 +60,7 @@ export function FileShareDialog({ lng, file, onClose }: FileShareDialogProps) {
       return true;
     } catch (error: unknown) {
       const refusal = workbenchRefusal(error);
-      toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.files.failed'));
+      toast.error(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.files.failed'));
       return false;
     } finally {
       setBusy(false);
@@ -228,7 +228,7 @@ function SharedPeople({
   const refusal = workbenchRefusal(error);
   return (
     <EmptyState
-      description={refusal ? t(refusal.key, refusal.values) : t('workbench.files.failed')}
+      description={refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.files.failed')}
       action={{ label: t('workbench.states.retry'), onClick: onRetry }}
     />
   );

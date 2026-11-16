@@ -5,6 +5,7 @@ import type { Language } from '@/i18n/settings';
 import type { GameKind } from '../game-catalogue';
 import type { GameMove, GameView } from '../game-protocol';
 import { useBoardFocus } from './board-focus';
+import type { TextTranslator } from '@/i18n/types';
 
 export interface GameBoardProps {
   lng: Language;
@@ -13,7 +14,7 @@ export interface GameBoardProps {
   isCurrent(): boolean;
   onMove(move: GameMove): void;
 }
-type GameText = (key: string, values?: Record<string, unknown>) => string;
+type GameText = TextTranslator;
 export function pieceLabel(t: GameText, kind: GameKind, value: number): string {
   return t(
     value === 0 ? 'world.arcade.empty' : `world.arcade.games.${kind}.${value === 1 ? 'one' : 'two'}`

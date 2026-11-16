@@ -114,7 +114,7 @@ function ReadyLights({ lng }: { lng: Language }) {
         await run();
       } catch (refused: unknown) {
         const refusal = workbenchRefusal(refused);
-        toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.lights.failed'));
+        toast.error(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.lights.failed'));
         throw refused;
       }
     },

@@ -11,6 +11,8 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createInstance, type PostProcessorModule } from 'i18next';
+import { defaultNS, fallbackLng, getOptions } from '@/i18n/settings';
 
 const toastMock = vi.hoisted(() => {
   const fn = vi.fn() as ReturnType<typeof vi.fn> & Record<string, ReturnType<typeof vi.fn>>;
@@ -59,11 +61,24 @@ const slow = (server: string, name?: string) =>
 const ready = (server: string) => notice('chat.mcp_preparation.ready', server, 'ready');
 const deferred = (server: string) => notice('chat.mcp_preparation.deferred', server, 'deferred');
 
+// A real i18next function; its post-processor exposes the caller's exact options.
+const translations = createInstance().use<PostProcessorModule>({
+  type: 'postProcessor',
+  name: 'testOptions',
+  process: (value, keys, options) =>
+    Object.keys(options).length > 0 ? `${keys[0]}|${JSON.stringify(options)}` : value,
+});
+void translations.init({
+  ...getOptions(),
+  initAsync: false,
+  resources: { [fallbackLng]: { [defaultNS]: {} } },
+  postProcess: 'testOptions',
+});
+
 function run(chunks: ChatStreamChunk[], options: { isReplay?: boolean; run?: string } = {}) {
   const { context } = buildHandlerContext({
     isReplay: options.isReplay ?? false,
-    t: (key: string, opts?: Record<string, unknown>) =>
-      opts ? `${key}|${JSON.stringify(opts)}` : key,
+    t: translations.t,
   });
   Object.assign(context, { assistantMessageId: options.run ?? 'run-1' });
   for (const chunk of chunks) handleExecutionStep(chunk, context);

@@ -33,6 +33,7 @@ import { useSpaces } from '@/hooks/useSpaces';
 import type { HomeLocation } from '@/hooks/useHomeLocationSettings';
 import { ragSpacesAvailable } from '@/lib/rag-spaces/availability';
 import { settingsSectionHref, type SettingsSectionToken } from '@/lib/settings-sections';
+import type { TextTranslator } from '@/i18n/types';
 
 export type ChecklistItemId =
   | 'home'
@@ -211,7 +212,7 @@ function ChecklistBody({
   config,
 }: {
   lng: string;
-  t: (key: string, opts?: Record<string, unknown>) => string;
+  t: TextTranslator;
   config: ReturnType<typeof useAppConfig>['config'];
 }) {
   const items = visibleChecklistItems(checklistFlags(config));

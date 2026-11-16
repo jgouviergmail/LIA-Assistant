@@ -50,7 +50,7 @@ export function useFileSending({
       else if (tally.failed === 0) toast.success(t('workbench.files.sent', { count: tally.sent }));
       else if (tally.sent === 0 && tally.failed === 1) {
         const { refusal } = tally;
-        toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.files.failed'));
+        toast.error(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.files.failed'));
       } else {
         toast.error(t('workbench.files.sent_partial', { done: tally.sent, failed: tally.failed }));
       }

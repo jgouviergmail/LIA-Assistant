@@ -673,7 +673,7 @@ section ne référence.
 | Tailwind CSS | 4.3.3 | Styling |
 | Radix UI | v1–v2 | Composants UI |
 | TanStack Query | 5.101 | State management |
-| react-i18next | 17.0 | Internationalisation |
+| react-i18next | 17.1 | Internationalisation |
 
 ### Observabilité
 

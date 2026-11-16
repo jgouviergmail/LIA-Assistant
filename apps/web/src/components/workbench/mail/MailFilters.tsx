@@ -153,7 +153,8 @@ export function MailFilters({
       setCreating(false);
     }
   };
-  const said = (parts: readonly Part[]) => parts.map(part => t(part.key, part.values)).join(' · ');
+  const said = (parts: readonly Part[]) =>
+    parts.map(part => t(part.key, part.values ?? {})).join(' · ');
   const remove = async (filter: MailFilter) => {
     if (deleting) return;
     // Two filters on one sender differ only by what they do: the question says both.

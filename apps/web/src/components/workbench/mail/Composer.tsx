@@ -258,7 +258,7 @@ export function Composer({
               {t(`workbench.mail.compose.title_${titleOf(target)}`)}
             </h2>
             <p id={lineId} className="text-sm text-muted-foreground">
-              {t(context.key, context.values)}
+              {t(context.key, context.values ?? {})}
             </p>
           </div>
           {parts.recipients && (
@@ -501,7 +501,7 @@ function RecipientFields({ lng, target, state, senders, queryMin }: RecipientFie
       onChange={value => set({ [name]: value })}
       label={t(labelKey)}
       placeholder={t('workbench.mail.compose.recipients_placeholder')}
-      error={problem?.field === name ? t(problem.key, problem.values) : undefined}
+      error={problem?.field === name ? t(problem.key, problem.values ?? {}) : undefined}
       minChars={queryMin}
       suggestionsPath={WORKBENCH_RECIPIENTS_PATH}
     />
@@ -547,7 +547,7 @@ function ComposerNotices({ lng, state }: { lng: Language; state: ComposerState }
     <>
       {problem && !problem.field && (
         <p role="alert" className="text-sm text-destructive">
-          {t(problem.key, problem.values)}
+          {t(problem.key, problem.values ?? {})}
         </p>
       )}
       {status === 'unknown' && (

@@ -7,6 +7,7 @@ import { Disclosure } from '@/components/ui/disclosure';
 import { capabilityProvenanceTone } from '@/lib/status-tone';
 import { formatLocalDateInput } from '@/lib/date-format';
 import type { CatalogueStatus } from '@/lib/actions/settings-actions';
+import type { TextTranslator } from '@/i18n/types';
 
 /**
  * What the two vendored public registries say about this catalogue (ADR-244).
@@ -23,7 +24,7 @@ import type { CatalogueStatus } from '@/lib/actions/settings-actions';
  */
 interface CatalogueStatusPanelProps {
   status: CatalogueStatus | null;
-  t: (key: string, options?: Record<string, unknown>) => string;
+  t: TextTranslator;
 }
 
 /** Order matters: the reader looks for the untrusted rows first. */

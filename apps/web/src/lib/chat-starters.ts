@@ -26,6 +26,8 @@
  */
 
 /** Identifiers of the starters, in display order. */
+import type { TextTranslator } from '@/i18n/types';
+
 export const CHAT_STARTER_IDS = ['capabilities', 'reminder', 'explain'] as const;
 
 export type ChatStarterId = (typeof CHAT_STARTER_IDS)[number];
@@ -81,13 +83,13 @@ export interface StarterRailEntry {
  */
 export function composeStarterRail(
   grounded: readonly { id: string; params?: Record<string, string> }[],
-  t: (key: string, options?: Record<string, unknown>) => string
+  t: TextTranslator
 ): StarterRailEntry[] {
   const entries: StarterRailEntry[] = grounded
     .filter(suggestion => KNOWN_SUGGESTION_IDS.has(suggestion.id))
     .map(suggestion => ({
       key: `grounded:${suggestion.id}`,
-      text: t(`chat.suggestions.${suggestion.id}`, suggestion.params),
+      text: t(`chat.suggestions.${suggestion.id}`, suggestion.params ?? {}),
       grounded: true,
     }));
 

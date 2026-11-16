@@ -143,7 +143,9 @@ export function ContactDetail(props: ContactDetailProps) {
     const refusal = workbenchRefusal(error);
     content = (
       <EmptyState
-        description={refusal ? t(refusal.key, refusal.values) : t('workbench.contacts.read_failed')}
+        description={
+          refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.contacts.read_failed')
+        }
         action={{ label: t('workbench.states.retry'), onClick: onRetry }}
       />
     );

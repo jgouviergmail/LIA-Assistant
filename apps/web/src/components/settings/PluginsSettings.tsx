@@ -37,12 +37,13 @@ import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { usePlugins, type InstalledPlugin, type PluginImportReport } from '@/hooks/usePlugins';
+import type { TextTranslator } from '@/i18n/types';
 
 interface PluginsSettingsProps {
   lng: Language;
 }
 
-type Translator = (key: string, options?: Record<string, unknown>) => string;
+type Translator = TextTranslator;
 
 /** One installed plugin row: identity, component-count badges, uninstall. */
 function PluginRow({

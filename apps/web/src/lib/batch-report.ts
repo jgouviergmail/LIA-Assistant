@@ -8,7 +8,9 @@
  * `<prefix>.skipped` for the sentence, `<prefix>.skip.<code>` for a reason.
  */
 
-export type Translate = (key: string, options?: Record<string, unknown>) => string;
+import type { TextTranslator } from '@/i18n/types';
+
+export type Translate = TextTranslator;
 
 export function skippedSentence(
   t: Translate,

@@ -97,7 +97,9 @@ export function FileDetail(props: FileDetailProps) {
     const refusal = workbenchRefusal(error);
     content = (
       <EmptyState
-        description={refusal ? t(refusal.key, refusal.values) : t('workbench.files.read_failed')}
+        description={
+          refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.files.read_failed')
+        }
         action={{ label: t('workbench.states.retry'), onClick: onRetry }}
       />
     );

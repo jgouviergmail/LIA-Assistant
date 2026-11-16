@@ -176,7 +176,9 @@ function SearchAnswer({ lng, found, onOpen }: AnswerProps) {
     const refusal = workbenchRefusal(found.error);
     return (
       <EmptyState
-        description={refusal ? t(refusal.key, refusal.values) : t('workbench.search.unavailable')}
+        description={
+          refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.search.unavailable')
+        }
         action={{ label: t('workbench.states.retry'), onClick: () => void found.refresh() }}
       />
     );

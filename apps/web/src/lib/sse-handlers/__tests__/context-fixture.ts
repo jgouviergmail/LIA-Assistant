@@ -10,10 +10,11 @@
  */
 
 import { vi, type Mock } from 'vitest';
+import { createInstance, type InitOptions, type ResourceLanguage } from 'i18next';
 
+import { defaultNS, fallbackLng, getOptions } from '@/i18n/settings';
 import type { SSEHandlerContext } from '@/lib/sse-handlers/types';
 import type { VoiceAudioChunk } from '@/types/chat';
-import type { ExecutionTraceStep } from '@/types/execution-trace';
 
 export interface FixtureOptions {
   /** Initial progress message id (default: null). */
@@ -21,7 +22,7 @@ export interface FixtureOptions {
   /** Initial normal-stream flag (default: false). */
   normalStreamInitialized?: boolean;
   /** Custom translation function (default: echoes the key). */
-  t?: (key: string, opts?: Record<string, unknown>) => unknown;
+  t?: SSEHandlerContext['t'];
   /** Replay mode — suppresses out-of-reducer side effects (default: false). */
   isReplay?: boolean;
 }
@@ -34,6 +35,25 @@ export interface HandlerFixture {
   state: { progressMessageId: string | null; normalStreamInitialized: boolean };
 }
 
+/** A real translator with a small catalogue and explicit missing-key behavior. */
+export function testTranslator({
+  translation = {},
+  parseMissingKeyHandler = key => key,
+}: {
+  translation?: ResourceLanguage;
+  parseMissingKeyHandler?: InitOptions['parseMissingKeyHandler'];
+} = {}): SSEHandlerContext['t'] {
+  const instance = createInstance();
+  // Inline resources and initAsync:false initialize synchronously; no backend runs.
+  void instance.init({
+    ...getOptions(),
+    initAsync: false,
+    resources: { [fallbackLng]: { [defaultNS]: translation } },
+    parseMissingKeyHandler,
+  });
+  return instance.t;
+}
+
 export function buildHandlerContext(options: FixtureOptions = {}): HandlerFixture {
   const dispatch = vi.fn();
   const handleVoiceChunk = vi.fn((_chunk: VoiceAudioChunk) => {});
@@ -42,19 +62,19 @@ export function buildHandlerContext(options: FixtureOptions = {}): HandlerFixtur
     normalStreamInitialized: options.normalStreamInitialized ?? false,
   };
 
-  const t = options.t ?? ((key: string) => key);
+  const t = options.t ?? testTranslator();
 
-  const context = {
+  const context: SSEHandlerContext = {
     dispatch,
     t,
     withContext: (extra?: Record<string, unknown>) => extra ?? {},
     handleVoiceChunk,
     hitlQuestionBuffer: { current: new Map<string, string>() },
-    executionStepsRef: { current: [] as string[] },
+    executionStepsRef: { current: [] },
     emittedStepKeysRef: { current: new Set<string>() },
     stepTalliesRef: { current: new Map() },
     reasoningBufRef: { current: '' },
-    traceStepsRef: { current: [] as ExecutionTraceStep[] },
+    traceStepsRef: { current: [] },
     traceReasoningRef: { current: '' },
     assistantMessageId: 'assistant-1',
     get progressMessageId() {
@@ -70,7 +90,7 @@ export function buildHandlerContext(options: FixtureOptions = {}): HandlerFixtur
       state.normalStreamInitialized = v;
     },
     isReplay: options.isReplay ?? false,
-  } as unknown as SSEHandlerContext;
+  };
 
   return { context, dispatch, handleVoiceChunk, state };
 }

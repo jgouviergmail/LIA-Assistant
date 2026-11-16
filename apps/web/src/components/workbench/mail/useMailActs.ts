@@ -109,7 +109,7 @@ export function useMailActs(
   const tell = useCallback(
     (error: unknown) => {
       const refusal = workbenchRefusal(error);
-      toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.mail.act_failed'));
+      toast.error(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.mail.act_failed'));
     },
     [t]
   );

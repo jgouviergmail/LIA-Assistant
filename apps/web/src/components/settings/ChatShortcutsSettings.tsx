@@ -25,6 +25,7 @@ import { validateShortcutId, type ShortcutIdError } from '@/lib/slash-commands';
 import { CHAT_SHORTCUT_ID_MAX_LENGTH, CHAT_SHORTCUT_TEXT_MAX_LENGTH } from '@/lib/constants';
 import { useTranslation } from '@/i18n/client';
 import type { BaseSettingsProps } from '@/types/settings';
+import type { TextTranslator } from '@/i18n/types';
 
 /** A shortcut in read mode: what it is, and the two ways to change it. */
 function ShortcutRow({
@@ -36,7 +37,7 @@ function ShortcutRow({
 }: {
   shortcut: { id: string; text: string };
   saving: boolean;
-  t: (key: string, options?: Record<string, unknown>) => string;
+  t: TextTranslator;
   onEdit: () => void;
   onRemove: () => void;
 }) {

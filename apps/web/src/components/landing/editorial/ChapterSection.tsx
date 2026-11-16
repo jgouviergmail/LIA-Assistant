@@ -26,7 +26,7 @@ export function ChapterSection({
   ghost?: React.ReactNode;
 }) {
   const k = (suffix: string, options?: Record<string, unknown>) =>
-    t(`landing.chapters.${chapter.key}.${suffix}`, options);
+    t(`landing.chapters.${chapter.key}.${suffix}`, options ?? {});
   const benefitIndexes = Array.from({ length: chapter.benefits }, (_, i) => i + 1);
   const tone = SCENE_TONES[chapter.scene];
 
@@ -87,7 +87,10 @@ export function ChapterSection({
                   key={i}
                   className="rounded-2xl border border-border bg-background p-4 text-sm leading-relaxed sm:last:odd:col-span-2"
                 >
-                  <span aria-hidden="true" className={cn('mb-3 block h-1 w-8 rounded-full', tone.fill)} />
+                  <span
+                    aria-hidden="true"
+                    className={cn('mb-3 block h-1 w-8 rounded-full', tone.fill)}
+                  />
                   <strong className="block font-semibold">{k(`b${i}_t`)}</strong>
                   <span className="mt-1 block text-muted-foreground">{k(`b${i}_d`)}</span>
                 </li>

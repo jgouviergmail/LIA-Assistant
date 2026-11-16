@@ -85,7 +85,7 @@ export function useHomeAct(onDone: () => void) {
       } catch (error: unknown) {
         const refusal = workbenchRefusal(error);
         toast.error(
-          refusal ? t(refusal.key, refusal.values) : t('dashboard.briefing.home_acts_failed')
+          refusal ? t(refusal.key, refusal.values ?? {}) : t('dashboard.briefing.home_acts_failed')
         );
       } finally {
         running.current = false;

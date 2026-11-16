@@ -11,9 +11,10 @@ import { Bell, Bot, Library, MessageCircleQuestion, ScrollText } from '@/lib/ico
 import type { DetailDeed } from '../DetailBar';
 import type { Keeping } from './KeepDialog';
 import type { AssistDoors } from './useAssistHost';
+import type { TextTranslator } from '@/i18n/types';
 
 /** Words in the reader's language. */
-export type Say = (key: string, values?: Record<string, string | number>) => string;
+export type Say = TextTranslator;
 
 /** Each thing a ready-made question exists for. */
 export type ReadyQuestion = 'mail' | 'event' | 'task' | 'contact' | 'file' | 'lights';

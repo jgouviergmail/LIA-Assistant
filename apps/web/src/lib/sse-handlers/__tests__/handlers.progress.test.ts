@@ -16,8 +16,7 @@ import {
   handleToken,
 } from '@/lib/sse-handlers/handlers';
 import type { ChatStreamChunk } from '@/types/chat';
-import type { SSEHandlerContext } from '@/lib/sse-handlers/types';
-import { buildHandlerContext, dispatchedOfType } from './context-fixture';
+import { buildHandlerContext, dispatchedOfType, testTranslator } from './context-fixture';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -28,14 +27,13 @@ function executionStepChunk(metadata: Record<string, unknown> | undefined): Chat
 }
 
 describe('getProgressMessage', () => {
-  const tKey = ((key: string) => key) as SSEHandlerContext['t'];
+  const tKey = testTranslator();
 
   it('router_decision picks a random phrase from the analyzing pool', () => {
     const pool = ['phrase-a', 'phrase-b', 'phrase-c'];
-    const t = ((key: string, opts?: { returnObjects?: boolean }) =>
-      key === 'hitl.progress.analyzingMessages' && opts?.returnObjects
-        ? pool
-        : key) as SSEHandlerContext['t'];
+    const t = testTranslator({
+      translation: { hitl: { progress: { analyzingMessages: pool } } },
+    });
 
     vi.spyOn(Math, 'random').mockReturnValue(0.99);
     expect(getProgressMessage('router_decision', t)).toBe('phrase-c');
@@ -63,10 +61,10 @@ describe('getProgressMessage', () => {
   });
 
   it('execution_step whose label no language knows reads as thinking', () => {
-    const tEmptySteps = ((key: string, opts?: { defaultValue?: string }) =>
-      key.startsWith('execution.steps.')
-        ? (opts?.defaultValue ?? '')
-        : key) as SSEHandlerContext['t'];
+    const tEmptySteps = testTranslator({
+      parseMissingKeyHandler: (key, defaultValue) =>
+        key.startsWith('execution.steps.') ? (defaultValue ?? '') : key,
+    });
 
     const message = getProgressMessage('execution_step', tEmptySteps, {
       emoji: '🔎',
@@ -199,7 +197,9 @@ describe('handleExecutionStep — generic accumulator', () => {
 
   it('counts on the line of a label the trace cannot name, and draws no trace step', () => {
     // No translation for the key: the line falls back, the trace has no step for it.
-    const t = (key: string) => (key.startsWith('execution.steps.unnamed') ? '' : key);
+    const t = testTranslator({
+      parseMissingKeyHandler: key => (key.startsWith('execution.steps.unnamed') ? '' : key),
+    });
     const { context } = buildHandlerContext({ progressMessageId: 'assistant-1', t });
     const step = (outcome?: Record<string, number>) =>
       handleExecutionStep(

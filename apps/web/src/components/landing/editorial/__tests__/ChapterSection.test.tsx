@@ -35,7 +35,7 @@ describe('ChapterSection benefits', () => {
     async (_key, chapter) => {
       const i18n = createInstance();
       await i18n.init({ lng: 'fr', resources: { fr: { translation: fr } } });
-      const t: Translate = (key, options) => i18n.t(key, options);
+      const t: Translate = i18n.t;
       render(<ChapterSection t={t} chapter={chapter} reverse={false} visual={null} />);
       const list = screen.getByText(t(`landing.chapters.${chapter.key}.b1_t`)).closest('ul');
       expect(list).not.toBeNull();
@@ -61,7 +61,7 @@ describe.each(['en', 'fr'] as const)('ChapterSection reading order (%s)', langua
         lng: language,
         resources: { en: { translation: en }, fr: { translation: fr } },
       });
-      const t: Translate = (key, options) => i18n.t(key, options);
+      const t: Translate = i18n.t;
       const chapter = CHAPTERS[0];
       const user = userEvent.setup();
       render(

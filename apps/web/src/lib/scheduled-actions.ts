@@ -16,6 +16,7 @@ import type {
   WeatherConditionRule,
 } from '@/hooks/useScheduledActions';
 import { SCHEDULED_ACTION_TITLE_MAX_LENGTH } from '@/lib/constants';
+import type { TextTranslator } from '@/i18n/types';
 
 /**
  * Whether a routine runs on the system's checks rather than a schedule (ADR-322).
@@ -53,7 +54,7 @@ export function hasNoFutureLeft(
 const WEATHER_KINDS = ['rain', 'drizzle', 'snow', 'thunderstorm'] as const;
 
 /** The little of i18next's `t` the sentence needs. */
-type Translate = (key: string, options?: Record<string, unknown>) => string;
+type Translate = TextTranslator;
 
 function orList(parts: string[], locale: string): string {
   try {

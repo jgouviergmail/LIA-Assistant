@@ -19,7 +19,7 @@ async function translator(language: keyof typeof languages) {
     lng: language,
     resources: { [language]: { translation: languages[language] } },
   });
-  return (key: string, options?: Record<string, unknown>) => i18n.t(key, options);
+  return i18n.t;
 }
 
 describe('FeatureCatalog', () => {

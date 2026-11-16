@@ -17,8 +17,9 @@ import type { ConfirmOptions } from '@/components/ui/use-confirm';
 import type { UseMeetingReturn } from '@/hooks/useMeetings';
 import { meetingErrorCode } from '@/lib/meetings/api';
 import type { MeetingReformatRequest, MeetingReport } from '@/types/meetings';
+import type { TextTranslator } from '@/i18n/types';
 
-export type Translate = (key: string, options?: Record<string, unknown>) => string;
+export type Translate = TextTranslator;
 
 export interface MeetingActionDeps {
   t: Translate;

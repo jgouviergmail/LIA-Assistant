@@ -85,7 +85,7 @@ export function ContactPortrait({ lng, contact, readOnly, maxBytes }: ContactPor
       setVersion(current => current + 1);
     } catch (error: unknown) {
       const refusal = workbenchRefusal(error);
-      toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.contacts.failed'));
+      toast.error(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.contacts.failed'));
     } finally {
       setBusy(false);
     }

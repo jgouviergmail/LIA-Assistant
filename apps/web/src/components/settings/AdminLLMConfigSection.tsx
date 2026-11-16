@@ -84,6 +84,7 @@ import {
   type TTSProviderConfig,
   type TtsProvider,
 } from './llm-config/configDialogHelpers';
+import type { TextTranslator } from '@/i18n/types';
 
 // --- Provider Key Row ---
 
@@ -241,7 +242,7 @@ function LLMTypeCard({
    * from GET /llm-config/metadata; missing when the configured model is
    * not (or no longer) registered. */
   modelCapabilities?: ModelCapabilities;
-  t: (key: string, options?: Record<string, unknown>) => string;
+  t: TextTranslator;
 }) {
   // The resolved ladder + supports_temperature directly (Philosophy A: raw
   // truth). is_reasoning_model alone is ambiguous — a model can reason with no
@@ -966,7 +967,7 @@ function ModelField({
   onModelChange: (modelId: string) => void;
   onFreeTextModel: (raw: string) => void;
   /** Interpolating: the undescribed-tags notice carries a count. */
-  t: (key: string, options?: Record<string, unknown>) => string;
+  t: TextTranslator;
 }) {
   // Accessible name = the visible label (F012). The label names whichever
   // control this branch renders — the catalogue select or the free-text input.
@@ -1045,7 +1046,7 @@ function OllamaCatalogueNote({
   provider: string | null | undefined;
   loading: boolean;
   data: OllamaModelsResponse | null;
-  t: (key: string, options?: Record<string, unknown>) => string;
+  t: TextTranslator;
 }) {
   if (provider !== 'ollama' || loading || !data) return null;
   const live = data.source === 'live';
@@ -1089,7 +1090,7 @@ function ReasoningSection({
   // The reasoning widget interpolates (the budget range), so this branch of
   // the tree declares the translator it actually receives rather than the
   // one-argument narrowing the older sections use.
-  t: (key: string, options?: Record<string, unknown>) => string;
+  t: TextTranslator;
 }) {
   return (
     <>
@@ -1189,7 +1190,7 @@ function SamplingFields({
   discoveredWindow?: OllamaModelCapabilities;
   /** The output cap the budget exceeds (`exceededOutputCap`), or null. */
   outputCap: number | null;
-  t: (key: string, options?: Record<string, unknown>) => string;
+  t: TextTranslator;
 }) {
   return (
     <>
@@ -1344,7 +1345,7 @@ function LLMConfigDialog({
   };
   // Interpolation options are needed by the structured-422 toast
   // (thinkingBudgetBelowFloor carries {{floor}}/{{maxTokens}} from the ctx).
-  t: (key: string, options?: Record<string, unknown>) => string;
+  t: TextTranslator;
 }) {
   const [form, setForm] = useState<LLMTypeConfigUpdate>({});
   // Parsed ``provider_config`` JSONB blob — only consumed when the LLM type's

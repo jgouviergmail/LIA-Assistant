@@ -26,6 +26,7 @@ import type {
   PollenItem,
   WeatherData,
 } from '@/types/briefing';
+import type { TextTranslator } from '@/i18n/types';
 
 type LucideIcon = ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
 
@@ -48,7 +49,7 @@ const FORECAST_ALERT_ICON: Record<ForecastAlertKind, LucideIcon> = {
  */
 function windLabelFor(
   data: Pick<WeatherData, 'wind_speed_kmh' | 'wind_direction_cardinal'>,
-  t: (key: string, options?: { defaultValue?: string }) => string
+  t: TextTranslator
 ): string | null {
   if (data.wind_speed_kmh === null) return null;
   const cardinal = data.wind_direction_cardinal

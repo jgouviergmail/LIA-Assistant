@@ -61,7 +61,7 @@ export function ContactGroupsField({
       return true;
     } catch (error: unknown) {
       const refusal = workbenchRefusal(error);
-      toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.contacts.failed'));
+      toast.error(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.contacts.failed'));
       return false;
     } finally {
       setBusy(false);

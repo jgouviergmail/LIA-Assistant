@@ -14,7 +14,6 @@ import { renderWithProviders } from '@/__tests__/test-utils';
 import { Toaster } from '@/components/ui/toaster';
 import { handleExecutionStep } from '@/lib/sse-handlers/handlers';
 import { resetMcpPreparationNotices } from '@/lib/sse-handlers/mcp-preparation';
-import type { SSEHandlerContext } from '@/lib/sse-handlers/types';
 
 import en from '../../../../locales/en/translation.json';
 import fr from '../../../../locales/fr/translation.json';
@@ -54,7 +53,7 @@ describe('slow-server notice, real toaster', () => {
     );
     const composer = screen.getByRole('textbox', { name: 'composer' });
     composer.focus();
-    const { context } = buildHandlerContext({ t: i18n.t.bind(i18n) as SSEHandlerContext['t'] });
+    const { context } = buildHandlerContext({ t: i18n.t });
 
     act(() => {
       handleExecutionStep(

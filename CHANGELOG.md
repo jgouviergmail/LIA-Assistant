@@ -88,6 +88,10 @@ conversations keep more of your words when their history is condensed.
 - 🔎 **Administrator register diagnostics**: the completed answer retains the decision,
   consultation and verdict snapshot collected during its turn. This live snapshot remains
   explicitly separate from proof that the registers were persisted.
+- 🛡️ **Translation dependency hardening**: update i18next and its compatible React binding for
+  [GHSA-q76c-gcvw-89x9](https://github.com/i18next/i18next/security/advisories/GHSA-q76c-gcvw-89x9).
+  LIA retains its supported-language allowlist and explicitly preserves intentionally empty
+  translations across all six languages when adopting the new library defaults.
 - 🧵 **Long-conversation continuity** (ADR-086 amendment): compaction retains whole recent
   exchanges and a bounded, verbatim record of the person's earlier words, including the truncation
   fallback. A provider refusal caused by a full context can compact and replay once from the

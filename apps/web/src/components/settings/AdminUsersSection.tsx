@@ -38,6 +38,7 @@ import {
 } from '@/components/settings/admin-users/columns';
 import { ColumnLegend } from '@/components/settings/admin-users/ColumnLegend';
 import { SortableHeader, type SortOrder } from '@/components/settings/admin-users/SortableHeader';
+import type { TextTranslator } from '@/i18n/types';
 
 // Language code to display label (universal, not translated)
 // Maps both frontend Language codes and backend codes (zh vs zh-CN)
@@ -558,7 +559,7 @@ export default function AdminUsersSection({ lng }: BaseSettingsProps) {
   );
 }
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
+type Translate = TextTranslator;
 
 /** A yes/no cell: the glyph when set, a dash when not, and the state spelled out for a screen reader. */
 function FlagCell({

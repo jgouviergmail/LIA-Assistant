@@ -106,12 +106,13 @@ import {
 } from '@/lib/scheduled-actions';
 import { lifecycleTone, type BadgeTone } from '@/lib/status-tone';
 import { toast } from 'sonner';
+import type { TextTranslator } from '@/i18n/types';
 
 interface ScheduledActionsSettingsProps {
   lng: Language;
 }
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
+type Translate = TextTranslator;
 
 type RoutineScheduleEditorProps = Omit<RecurrenceEditorProps, 'limits'> & {
   /** The caps the server published, or undefined while it has not. */

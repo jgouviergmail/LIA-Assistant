@@ -103,5 +103,7 @@ export function getOptions(lng: Language = fallbackLng, ns: string = defaultNS) 
     // Enable returnObjects globally for t() calls with { returnObjects: true }
     // Required for GeolocationPrompt detection keywords/patterns arrays
     returnObjects: true,
+    // Empty subtitles and particles in the catalogues intentionally render nothing.
+    returnEmptyString: true,
   };
 }

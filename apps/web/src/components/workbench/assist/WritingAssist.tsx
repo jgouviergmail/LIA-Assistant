@@ -335,7 +335,9 @@ export function WaitOrRefusal<T>({
   return (
     <div className="space-y-2 text-sm">
       <p role="alert" className="text-destructive">
-        {state.refusal ? t(state.refusal.key, state.refusal.values) : t('workbench.assist.failed')}
+        {state.refusal
+          ? t(state.refusal.key, state.refusal.values ?? {})
+          : t('workbench.assist.failed')}
       </p>
       {onRetry && (
         <Button variant="outline" size="sm" onClick={onRetry}>

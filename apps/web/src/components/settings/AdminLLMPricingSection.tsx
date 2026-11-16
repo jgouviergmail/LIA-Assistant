@@ -75,6 +75,7 @@ import { WeekdayToggleGroup } from '@/components/recurrence/WeekdayToggleGroup';
 import { useLLMPricingSheet } from '@/hooks/useLLMPricingSheet';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import type { BaseSettingsProps } from '@/types/settings';
+import type { TextTranslator } from '@/i18n/types';
 
 const PROVIDER_OPTIONS: readonly LLMProviderName[] = [
   'openai',
@@ -846,7 +847,7 @@ interface ModelPricingModalProps {
 interface PricingSectionProps {
   formData: ModelPricingFormData;
   setFormData: React.Dispatch<React.SetStateAction<ModelPricingFormData>>;
-  t: (key: string, opts?: Record<string, unknown>) => string;
+  t: TextTranslator;
 }
 
 /** Section 1 — provider (immutable in edit) + model name. */

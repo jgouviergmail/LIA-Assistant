@@ -85,6 +85,11 @@ graph TB
 
 ### Technology Stack
 
+The following snippet records the original decision's illustrative stack.
+Current versions and compatible bindings are declared in
+[the web manifest](../../apps/web/package.json) and the committed lockfile;
+the translation contracts are maintained in [ADR-024](ADR-024-i18n-Architecture.md).
+
 ```typescript
 // package.json
 {

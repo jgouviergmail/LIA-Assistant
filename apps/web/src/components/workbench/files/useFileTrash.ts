@@ -47,7 +47,7 @@ export function useFileTrash({
 
   const refused = (error: unknown) => {
     const refusal = workbenchRefusal(error);
-    toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.files.failed'));
+    toast.error(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.files.failed'));
   };
 
   /** What stays ticked, and the file that left the detail. */

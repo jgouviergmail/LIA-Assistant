@@ -112,7 +112,7 @@ export function FilesColumn({
   const star = (item: WorkbenchDriveItem) => {
     state.star(item, !item.starred).catch((error: unknown) => {
       const refusal = workbenchRefusal(error);
-      toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.files.failed'));
+      toast.error(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.files.failed'));
     });
   };
 

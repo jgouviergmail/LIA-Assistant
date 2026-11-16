@@ -1,5 +1,6 @@
 import { FeatureExplorer } from './FeatureExplorer';
 import { FEATURE_SCENES } from './FeatureScenes';
+import type { TextTranslator } from '@/i18n/types';
 
 const HOME_DESCRIPTION_OVERRIDES = new Set(['meetings', 'live_voice', 'telephony']);
 
@@ -8,7 +9,7 @@ const HOME_DESCRIPTION_OVERRIDES = new Set(['meetings', 'live_voice', 'telephony
  * `options` carries interpolation values (a derived `count`, never a number
  * typed into the copy).
  */
-export type Translate = (key: string, options?: Record<string, unknown>) => string;
+export type Translate = TextTranslator;
 
 /**
  * Translate on the server, then pass serializable copy to the explorer.

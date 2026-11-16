@@ -9,6 +9,7 @@ import {
   ERROR_CODE_CONNECTOR_OAUTH_EXPIRED,
   ERROR_CODE_CONNECTOR_RATE_LIMIT,
 } from '@/types/briefing';
+import type { TextTranslator } from '@/i18n/types';
 
 // =============================================================================
 // Relative time helper for "updated X ago" labels
@@ -57,11 +58,7 @@ export function computeTimeAgo(generatedAtIso: string, now: Date = new Date()): 
  * @param iso - ISO 8601 UTC timestamp.
  * @param now - Injectable clock for tests.
  */
-export function timeAgoLabel(
-  t: (key: string, options?: Record<string, unknown>) => string,
-  iso: string,
-  now: Date = new Date()
-): string {
+export function timeAgoLabel(t: TextTranslator, iso: string, now: Date = new Date()): string {
   const bucket = computeTimeAgo(iso, now);
   switch (bucket.kind) {
     case 'minutes':

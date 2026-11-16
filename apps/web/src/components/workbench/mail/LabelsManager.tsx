@@ -77,7 +77,8 @@ export function LabelsManager({
 }: LabelsManagerProps) {
   const { t: translate } = useTranslation(lng);
   /** The manager's words: its kind's. */
-  const t = (key: string, values?: Record<string, string>) => translate(wordOf(kind, key), values);
+  const t = (key: string, values?: Record<string, string>) =>
+    translate(wordOf(kind, key), values ?? {});
   const { confirm, confirmDialog } = useToolConfirm();
   const [name, setName] = useState('');
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);

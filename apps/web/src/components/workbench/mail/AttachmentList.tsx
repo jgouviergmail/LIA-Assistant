@@ -117,7 +117,7 @@ function KeepOnDrive({
       return true;
     } catch (error: unknown) {
       const refusal = workbenchRefusal(error);
-      toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.mail.keep_failed'));
+      toast.error(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.mail.keep_failed'));
       return false;
     }
   };

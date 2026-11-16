@@ -155,7 +155,7 @@ export function AssistPanel<T extends { usage: LLMUsage | null }>({
           <>
             <p role="alert" className="text-destructive">
               {state.refusal
-                ? t(state.refusal.key, state.refusal.values)
+                ? t(state.refusal.key, state.refusal.values ?? {})
                 : t('workbench.assist.failed')}
             </p>
             <Button variant="outline" size="sm" onClick={() => void call.retry()}>

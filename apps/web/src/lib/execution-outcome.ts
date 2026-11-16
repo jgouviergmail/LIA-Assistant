@@ -10,6 +10,8 @@
  */
 
 /** Counts only: what a step did, never words (the trace is persisted). */
+import type { TextTranslator } from '@/i18n/types';
+
 export interface StepOutcome {
   calls?: number;
   found?: number;
@@ -66,7 +68,7 @@ export function summarizeTally(tally: StepTally): StepOutcome {
   return summary;
 }
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
+type Translate = TextTranslator;
 
 /**
  * A label once its step says what it did: the trailing ellipsis that

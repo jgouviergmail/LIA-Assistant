@@ -203,7 +203,7 @@ function LearningNoticeView({ notice, lng }: { notice: LearningNotice; lng: Lang
   const { t } = useTranslation(lng);
   return (
     <InfoBox variant={notice.tone} className="space-y-2">
-      <p className="text-sm">{t(notice.key, notice.values)}</p>
+      <p className="text-sm">{t(notice.key, notice.values ?? {})}</p>
       {notice.toConnectors || notice.usage ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {notice.toConnectors ? (

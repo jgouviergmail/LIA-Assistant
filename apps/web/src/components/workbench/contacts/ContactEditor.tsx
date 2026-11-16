@@ -101,7 +101,7 @@ export function ContactEditor({
       onClose();
     } catch (error: unknown) {
       const refusal = workbenchRefusal(error);
-      setProblem(refusal ? t(refusal.key, refusal.values) : t('workbench.contacts.failed'));
+      setProblem(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.contacts.failed'));
     } finally {
       busy.current = false;
       setSaving(false);

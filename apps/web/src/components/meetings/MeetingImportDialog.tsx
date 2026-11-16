@@ -53,6 +53,7 @@ import {
 } from '@/lib/meetings/import-file';
 import { uploadImportFile } from '@/lib/meetings/import-uploader';
 import type { MeetingImportLimits } from '@/types/meetings';
+import type { TextTranslator } from '@/i18n/types';
 
 interface MeetingImportDialogProps {
   lng: Language;
@@ -136,11 +137,7 @@ function UploadProgress({ lng, progress }: { lng: Language; progress: Progress }
   );
 }
 
-function refusalText(
-  t: (key: string, options?: Record<string, unknown>) => string,
-  limits: MeetingImportLimits,
-  refusal: string
-): string {
+function refusalText(t: TextTranslator, limits: MeetingImportLimits, refusal: string): string {
   return t(`meetings.import.refusal_${refusal}`, {
     size: formatFileSize(limits.max_bytes),
     minutes: limits.max_duration_minutes,

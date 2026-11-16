@@ -16,7 +16,7 @@ import { deepFreeze } from '@/__tests__/deep-freeze';
 import { ScopedTranslations } from '@/components/ScopedTranslations';
 import { TranslationsProvider } from '@/components/TranslationsProvider';
 import { translationBundle } from '@/i18n';
-import { languages, type Language } from '@/i18n/settings';
+import { getOptions, languages, type Language } from '@/i18n/settings';
 import {
   DASHBOARD_TRANSLATION_SCOPES,
   HOME_TRANSLATION_SCOPES,
@@ -223,7 +223,10 @@ function NavigationFixture({ lng, inDashboard }: { lng: Language; inDashboard: b
 describe('scope navigation with real translations', () => {
   it.each(languages)('%s restores routes without leaking into the root or sibling', async lng => {
     const full = createInstance();
-    await full.init({ lng, resources: { [lng]: { translation: translationBundle(lng) } } });
+    await full.init({
+      ...getOptions(lng),
+      resources: { [lng]: { translation: translationBundle(lng) } },
+    });
     const [loading, admin, more] = NAVIGATION_KEYS.map(key => full.t(key));
     expect(admin).not.toBe(NAVIGATION_KEYS[1]);
     expect(more).not.toBe(NAVIGATION_KEYS[2]);

@@ -119,6 +119,7 @@ export function getOptions(lng: Language = fallbackLng, ns: string = defaultNS) 
       escapeValue: false, // React handles escaping
     },
     returnObjects: true, // For arrays in translations
+    returnEmptyString: true, // Intentionally empty labels stay empty
   };
 }
 ```
@@ -595,6 +596,31 @@ labels. Link validation derives article destinations from `BLOG_ARTICLES`.
 The browser journey `apps/web/e2e/smoke/landing-seo.spec.ts` checks public
 language stability against a conflicting preference, the translated home,
 mobile reflow and a contextual article link in every supported language.
+
+---
+
+## Amendment 2026-11-16 — preserve translation contracts through security updates
+
+The security update to i18next changes its empty-string default. LIA keeps
+intentional blanks explicitly in `getOptions`, shared by the server, root
+provider and scoped provider. An empty subtitle or grammatical particle is
+content, not a missing translation. The six-language allowlist and French
+fallback remain explicit. The real-catalogue contracts in
+`apps/web/src/i18n/__tests__/runtime-contract.test.ts` cover these semantics,
+prefixed/object reads, interpolation and malformed locale inputs.
+
+Text-only presentation helpers share `TextTranslator` from
+`apps/web/src/i18n/types.ts`. Its two call shapes match the library: a key
+alone, or a key with defined, publicly typed options. A function with an
+optional second parameter would also promise `t(key, undefined)`, which
+the updated library's type contract does not accept. Object and detailed
+results retain the full library contract; strict type checks are not disabled.
+Forwarders normalize an absent options object, and fixtures needing the
+branded `TFunction` can initialize a real instance with inline resources.
+
+The advisory, compatible package floors and release qualification are recorded
+in [CI/CD](../technical/CI_CD.md). This amendment preserves public language
+selection and route-scoped catalogue isolation.
 
 ---
 

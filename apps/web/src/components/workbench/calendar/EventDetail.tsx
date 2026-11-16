@@ -56,6 +56,7 @@ import { CalendarSwatch } from './EventChip';
 import { callHref } from '@/lib/workbench/calendar/events';
 import { eventWhen, reminderLabel } from '@/lib/workbench/calendar/format';
 import { readableZone } from '@/lib/workbench/calendar/zoned';
+import type { TextTranslator } from '@/i18n/types';
 
 /** Each answer's icon and colour (statuses are data: their colours are fixed). */
 const RESPONSES: Readonly<Record<AttendeeResponse, { icon: typeof CircleCheck; tone: string }>> = {
@@ -108,7 +109,7 @@ export function EventDetail(props: EventDetailProps) {
     content = (
       <EmptyState
         description={
-          refusal ? t(refusal.key, refusal.values) : t('workbench.calendar.event_failed')
+          refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.calendar.event_failed')
         }
         action={{ label: t('workbench.states.retry'), onClick: onRetry }}
       />
@@ -136,7 +137,7 @@ export function EventDetail(props: EventDetailProps) {
 function eventActs(
   props: EventDetailProps,
   event: CalendarEventDetail,
-  t: (key: string, values?: Record<string, string>) => string
+  t: TextTranslator
 ): readonly DetailAct[] {
   const { calendar, occurrenceEdit, onEdit, onEditSeries, onDelete, onDuplicate, onAsk } = props;
   const { destinations = [], onMove, assist } = props;

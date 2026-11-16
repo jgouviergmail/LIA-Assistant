@@ -15,18 +15,19 @@ import {
   handleToken,
   handleDone,
 } from '@/lib/sse-handlers/handlers';
-import { buildHandlerContext } from './context-fixture';
+import { buildHandlerContext, testTranslator } from './context-fixture';
 import type { ChatStreamChunk } from '@/types/chat';
 import type { ChatAction } from '@/types/chat-state';
-import type { TFunction } from 'i18next';
 
 type TraceAttachAction = Extract<ChatAction, { type: 'TRACE_ATTACH' }>;
 
 // execution.steps.* → key tail; every other key echoes; honors defaultValue.
-const traceT = (key: string, opts?: Record<string, unknown>) => {
-  if (key.startsWith('execution.steps.')) return key.slice('execution.steps.'.length);
-  return (opts?.defaultValue as string) ?? key;
-};
+const traceT = testTranslator({
+  parseMissingKeyHandler: (key, defaultValue) =>
+    key.startsWith('execution.steps.')
+      ? key.slice('execution.steps.'.length)
+      : (defaultValue ?? key),
+});
 
 function routerChunk(): ChatStreamChunk {
   return {
@@ -130,14 +131,10 @@ describe('handlers — trace step whose label resolves to nothing', () => {
   it('traces no step when the i18n key resolves to an empty string', () => {
     // Translator that resolves execution.steps.* to '' (missing translation):
     // with no label to show, buildTraceStep keeps no step.
-    // `as unknown as TFunction`, not `as never`: TFunction is the sanctioned
-    // external-boundary escape (F057) — i18next's overloaded signature is not
-    // constructible from a plain arrow. `as never` bypasses the contract
-    // instead of naming it, and would swallow a genuine signature change.
-    const emptyT = ((key: string, opts?: { defaultValue?: string }) =>
-      key.startsWith('execution.steps.')
-        ? ''
-        : (opts?.defaultValue ?? key)) as unknown as TFunction;
+    const emptyT = testTranslator({
+      parseMissingKeyHandler: (key, defaultValue) =>
+        key.startsWith('execution.steps.') ? '' : (defaultValue ?? key),
+    });
     const { context, dispatch } = buildHandlerContext({ t: emptyT });
     handleRouterDecision(routerChunk(), context);
 

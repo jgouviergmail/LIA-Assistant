@@ -178,7 +178,7 @@ function ReadyCalendar({ lng, tool, limits, tasksReady }: ReadyCalendarProps) {
   const tell = useCallback(
     (error: unknown) => {
       const refusal = workbenchRefusal(error);
-      toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.calendar.failed'));
+      toast.error(refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.calendar.failed'));
     },
     [t]
   );
@@ -801,7 +801,9 @@ function ViewBody({
     return (
       <EmptyState
         className="flex-1"
-        description={refusal ? t(refusal.key, refusal.values) : t('workbench.calendar.failed')}
+        description={
+          refusal ? t(refusal.key, refusal.values ?? {}) : t('workbench.calendar.failed')
+        }
         action={{ label: t('workbench.states.retry'), onClick: () => void window.refresh() }}
       />
     );
