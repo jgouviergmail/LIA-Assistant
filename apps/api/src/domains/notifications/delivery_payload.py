@@ -1,12 +1,11 @@
 """Typed Firebase payload and content-free, conservative error classification."""
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
-from email.utils import parsedate_to_datetime
 
 from firebase_admin import exceptions, messaging
 
-from src.core.constants import FCM_WEBPUSH_ICON_PATH
+from src.core.constants import DELIVERY_RETRY_AFTER_DEFAULT_SECONDS, FCM_WEBPUSH_ICON_PATH
+from src.infrastructure.utils.retry_after import delivery_retry_delay
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,21 +13,7 @@ class TransportFailure:
     code: str
     invalid: bool = False
     retryable: bool = False
-    retry_after_seconds: int = 60
-
-
-def retry_after(value: str | None) -> int:
-    if not value:
-        return 60
-    try:
-        seconds = (
-            int(value)
-            if value.isdecimal()
-            else int((parsedate_to_datetime(value) - datetime.now(UTC)).total_seconds())
-        )
-    except ValueError, TypeError, OverflowError:
-        return 60
-    return max(60, min(86400, seconds))
+    retry_after_seconds: int = DELIVERY_RETRY_AFTER_DEFAULT_SECONDS
 
 
 def classify_failure(error: Exception) -> TransportFailure:
@@ -36,7 +21,9 @@ def classify_failure(error: Exception) -> TransportFailure:
         return TransportFailure("DEVICE_INVALID", invalid=True)
     if isinstance(error, exceptions.ResourceExhaustedError):
         response = error.http_response
-        delay = retry_after(response.headers.get("Retry-After") if response is not None else None)
+        delay = delivery_retry_delay(
+            response.headers.get("Retry-After") if response is not None else None
+        )
         return TransportFailure("TRANSPORT_QUOTA", retryable=True, retry_after_seconds=delay)
     if isinstance(
         error,

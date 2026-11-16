@@ -306,6 +306,11 @@ An Android shell older than its `frameLinks` capability opens no tab from a sand
 a download lands nowhere ([measured](../guides/GUIDE_MOBILE_ANDROID.md)): the reader asks the shell
 and says the links open from the text only to one that cannot.
 
+The frame, its notes and its images are one view, `mail/OriginalLayout.tsx`, read by the reader
+and, since 2026-11-14, by a mail card of the chat, which reads the layout under the card's signed
+source (`useWorkbenchItem(path, params, cardSource)` sends `X-LIA-Card-Source`;
+[HTML_CARDS.md](./HTML_CARDS.md#a-mail-in-its-original-layout-2026-11-14)).
+
 ## Refusals
 
 Every refusal is a `detail.code` with a sentence in six languages on the page

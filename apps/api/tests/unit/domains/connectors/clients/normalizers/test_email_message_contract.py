@@ -243,8 +243,29 @@ class TestTheThreeNormalisersSpeakOneVocabulary:
     def test_a_text_body_is_never_touched(self) -> None:
         msg = _imap_message()
         msg.text = "Plain text with a < b comparison."
+        msg.html = ""  # a text message: no layout to read instead
         out = normalize_imap_message(msg, "INBOX")
         assert out["body"] == "Plain text with a < b comparison."
+
+    def test_every_reader_reads_the_layout_over_a_text_part_that_says_nothing(self) -> None:
+        """ADR-287 amendment 2026-11-15: the words the layout shows, the same on every mailbox
+        (Graph serves one body, its layout, and always did)."""
+        stand_in = "To view this email, open it in a client that shows HTML."
+        gmail = _gmail_full_html_only()
+        encoded = base64.urlsafe_b64encode(stand_in.encode()).decode()
+        gmail["payload"]["parts"].insert(0, {"mimeType": "text/plain", "body": {"data": encoded}})
+        GoogleGmailClient._normalize_message_fields(gmail, "full")
+        imap = _imap_message()
+        imap.text = stand_in
+
+        bodies = {
+            gmail["body"],
+            normalize_graph_message(_graph_message())["body"],
+            normalize_imap_message(imap, "INBOX")["body"],
+        }
+
+        assert len(bodies) == 1
+        _assert_clean_text_body(bodies.pop())
 
 
 REPLY_TEXT = (
@@ -278,9 +299,11 @@ class TestTheQuotedHistoryLeavesAtTheClientBoundary:
         graph["body"] = {"contentType": "html", "content": REPLY_HTML}
         assert normalize_graph_message(graph)["body"] == OWN_WORDS
 
-    def test_imap_reply(self) -> None:
+    @pytest.mark.parametrize("layout", ["", REPLY_HTML], ids=["text-only", "with-layout"])
+    def test_imap_reply(self, layout: str) -> None:
         msg = _imap_message()
         msg.text = REPLY_TEXT
+        msg.html = layout
         assert normalize_imap_message(msg, "INBOX")["body"] == OWN_WORDS
 
     def test_the_switch_keeps_the_body_whole(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -289,11 +312,13 @@ class TestTheQuotedHistoryLeavesAtTheClientBoundary:
         monkeypatch.setattr(settings, "emails_trim_quoted_replies", False)
         msg = _imap_message()
         msg.text = REPLY_TEXT
+        msg.html = ""
         assert normalize_imap_message(msg, "INBOX")["body"] == REPLY_TEXT
 
     def test_a_bare_thanks_keeps_the_quote_it_answers(self) -> None:
         msg = _imap_message()
         msg.text = "Thanks!\n\nOn Tue, 15 Sep 2026 at 09:12, Alice wrote:\n> Room booked.\n"
+        msg.html = ""
         body = normalize_imap_message(msg, "INBOX")["body"]
         assert "Room booked." in body, "below MIN_KEPT_CHARS the quote is what the reader wants"
         assert len("Thanks!") < MIN_KEPT_CHARS

@@ -10,9 +10,12 @@ off-target" instead of presenting it as fact.
 
 The provider client comes from ``providers.client.open_category_client`` — the
 module that already owns "resolve the active connector, instantiate it, close
-its transport on every path". This file used to carry its own copy of that
-resolution, which closed the client in a ``finally`` of its own and left it open
-whenever resolution itself failed halfway.
+its transport on every path" — and the calendar from the shared calendar door
+(``open_active_calendar``), which also names the default calendar: every
+calendar the account owns is searched, as for the card (``calendar_lists``).
+This file used to carry its own copy of that resolution, which closed the
+client in a ``finally`` of its own and left it open whenever resolution itself
+failed halfway.
 """
 
 from __future__ import annotations
@@ -22,8 +25,11 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
-from src.core.constants import GMAIL_FORMAT_METADATA
+from src.core.constants import CALENDARS_READ_MAX, GMAIL_FORMAT_METADATA
 from src.core.mail_reply_state import REPLY_STATE_KEY, reply_state_fields
+from src.domains.connectors.calendar_access import CalendarAccess, open_active_calendar
+from src.domains.connectors.clients.calendar_lists import calendars_to_read
+from src.domains.connectors.clients.event_order import soonest_first
 from src.domains.connectors.mail_reply_states import attach_reply_states
 from src.domains.relations.overview_scope import OverviewSection, RelationOverviewScope
 from src.domains.relations.providers.client import ProviderNotConfigured, open_category_client
@@ -82,27 +88,46 @@ async def fetch_recent_emails(user_id: UUID, person_name: str) -> list[dict[str,
 
 
 async def fetch_upcoming_events(user_id: UUID, person_name: str) -> list[dict[str, Any]] | None:
-    """Upcoming events mentioning the person (next 30 days).
+    """Upcoming events mentioning the person (next 30 days), in every calendar the account owns.
+
+    The provider's own word search, asked of each calendar (``calendar_lists``:
+    the default says where an event is created, never where a meeting is); the
+    soonest are kept across calendars, each meeting once.
 
     Args:
-        user_id: Owner of the calendar.
+        user_id: Owner of the calendars.
         person_name: The name to search for.
 
     Returns:
         The events found, or None when no calendar connector is usable.
     """
     now = datetime.now(UTC)
-    try:
-        async with open_category_client("calendar", user_id) as opened:
-            result = await opened.client.list_events(
-                time_min=now.isoformat(),
-                time_max=(now + timedelta(days=_UPCOMING_EVENTS_DAYS)).isoformat(),
+    time_min, time_max = now.isoformat(), (now + timedelta(days=_UPCOMING_EVENTS_DAYS)).isoformat()
+    found: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    # The shared calendar door: no session held while the provider answers (ADR-304).
+    async with open_active_calendar(user_id) as access:
+        if not isinstance(access, CalendarAccess):
+            return None
+        calendars = await calendars_to_read(
+            access.client, access.calendar_id, bound=CALENDARS_READ_MAX
+        )
+        for calendar_id in calendars.ids:
+            page = await access.client.list_events(
+                time_min=time_min,
+                time_max=time_max,
                 max_results=_UPCOMING_EVENTS_LIMIT,
+                calendar_id=calendar_id,
                 query=person_name,
                 fields=["id", "summary", "start", "end", "location", "attendees"],
             )
-    except ProviderNotConfigured:
-        return None
+            for event in page.get("items") or []:
+                key = str(event.get("id") or "")
+                if key in seen:
+                    continue
+                if key:
+                    seen.add(key)
+                found.append(event)
     return [
         {
             "title": event.get("summary", "Untitled"),
@@ -110,7 +135,7 @@ async def fetch_upcoming_events(user_id: UUID, person_name: str) -> list[dict[st
             or (event.get("start") or {}).get("date"),
             "location": event.get("location"),
         }
-        for event in result.get("items", []) or []
+        for event in soonest_first(found)[:_UPCOMING_EVENTS_LIMIT]
     ]
 
 

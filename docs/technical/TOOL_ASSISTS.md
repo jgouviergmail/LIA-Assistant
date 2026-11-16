@@ -116,6 +116,33 @@ recipients=True)`), and every value it reads lands in a form the person checks:
 A task handed to the Tasks tool opens its « New task » form (`tasks/NewTaskDialog.tsx`), never the
 quick add, so nothing is saved that the person did not see.
 
+## What LIA reads of a message: what its reader shows (2026-11-14)
+
+The reader draws a message in its original layout when it has one, and that layout is what the
+person asks LIA about. So every assist on ONE message reads it through one door,
+`shown_words.words_as_shown` (behind `mail.read_as_shown`): the message's HTML, read whole (its parts
+too large to travel inline included), handed to the reading door every mailbox uses
+(`html_text.shown_words`, ADR-287 amendment 2026-11-15) — its quoted history and its signature kept,
+as the frame shows them — never the text part a sender wrote beside it. A message with no HTML keeps
+the mailbox's text, itself turned to text when it is markup sent as text (`looks_like_html`). The
+markup is cut at `EMAIL_HTML_TEXT_MAX_CHARS` before it is parsed, off the event loop; a layout
+holding no words (an image alone) keeps the mailbox's text. The mailbox's own message is never
+rewritten: the reader gets a copy. Since 2026-11-15 the chat reads every message through the same
+door (ADR-287 amendment), so a question asked in the chat and a click in the Tools read the same words.
+
+Measured in production on 2026-11-14: three « make it an event » on HTML mail ended in
+`assist_not_found`, one of them on a prompt of 556 tokens in all — the instructions and a body that
+said nothing. On dev, with the proof account and the instance's slot, the same synthetic invitation
+whose text part only says « open it in an HTML client » reads `assist_not_found` from its text part
+and the whole event (title, day, hours, place) from its layout.
+
+| Reads the message as shown | Keeps the mailbox's text |
+|---|---|
+| summary (on a cache miss), reply, translation, event, task, a contact card's latest messages | a page's triage and a conversation's summary: many messages, each one's quoted history would repeat the others |
+
+The digest a summary computes is the one the chat reads (same key, never paid twice); computed here,
+it is computed from the layout's words.
+
 ## A passage in its bubble
 
 The application has one selection engine, including chat, the mail text reader, document

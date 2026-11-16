@@ -107,6 +107,17 @@ est un bug à corriger dans la même livraison, pas une nuance à conserver.
 
 > **F6 — Sub-Agent Delegation**: Le planner peut décider de déléguer des tâches complexes à des sous-agents éphémères via `delegate_to_sub_agent_tool` (tool transversal, toujours dans le catalogue). Chaque sous-agent exécute un pipeline simplifié (query analysis → planner → parallel executor → LLM synthesis) sans semantic validator ni approval gate. Les sous-agents sont read-only (V1), invisibles pour l'utilisateur, et ne peuvent pas spawner d'autres sous-agents (depth limit = 1). Détails : `docs/technical/SUB_AGENTS.md`.
 
+Le mode demandé (`pipeline`, `react`, `auto`) et le moteur exécuté sont deux
+contrats distincts. Le routeur fixe `TurnEngine` une fois, la reprise HITL le garde,
+et les outils, registres et métriques lisent `executed_mode_of(context)` ; `auto`
+ne désigne jamais un moteur ([ADR-390](architecture/ADR-390-The-Automatic-Mode-Chooses-The-Engine-Per-Request.md)).
+
+Une lecture de connecteur précise sa portée : une requête d'agent publie sa coupe,
+tandis qu'un lecteur d'une fenêtre ou d'un ensemble draine les pages par sa porte
+dédiée. Les surfaces personnelles d'agenda lisent tous les agendas possédés ; le
+choix d'agenda par défaut reste celui des créations. Les mêmes opérations Google,
+Microsoft et Apple partagent ce contrat ([ADR-185](architecture/ADR-185-Exact-CRM-Counts-And-Readable-Relayed-Messages.md)).
+
 ### 1.3 Fichiers Clés par Composant
 
 | Composant | Fichiers |

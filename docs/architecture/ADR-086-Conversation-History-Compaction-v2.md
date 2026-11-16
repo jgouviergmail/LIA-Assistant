@@ -261,3 +261,89 @@ real usage shape.
 A chunk's call is bounded by the `compaction` slot's timeout, and `COMPACTION_PER_CHUNK_TIMEOUT_SECONDS`
 is gone: it cut at 35 s a call the administrator had given 300 (ADR-221 amendment 2026-11-05).
 `COMPACTION_GLOBAL_TIMEOUT_SECONDS` stays the whole budget and yields to one whole call.
+
+## Amendment 2026-11-15 — a turn the model's window refused is compacted and replayed, once (lot 15)
+
+**Measured first** (read-only): neither production — twelve weeks of recorded call
+failures in `token_usage_logs`, seven days of Loki, 178 graph runs — nor dev ever
+recorded a `ContextOverflowError`, and no compaction triggered in seven days; the
+longest prompts reached a quarter of their model's window. The path is reachable by
+configuration all the same: the threshold is a share of the **response** slot's
+window, so a slot on a smaller one is refused before any compaction runs, turn after
+turn, while the person reads « please try again » and fails again.
+
+**Decision.** A refusal is a known outcome (the provider generated nothing), so the
+turn is replayed once, with its compaction forced:
+
+- it **forks from the checkpoint the turn was restored from** (the loader names it on
+  the state beside its snapshot; the stream pops it before the graph input is built):
+  the refused attempt's writes stay on a branch nobody reads;
+- the forcing travels on the **run's context** (`LiaRuntimeContext.compaction_forced`),
+  never on the state, so it cannot outlive the replay; nothing is consumed and no
+  confirmation is asked, unlike `/resume`;
+- it runs **only where a compaction can help**: compaction on, a checkpoint to fork
+  from, messages before the kept tail (`compaction_service.compactable_messages`, the
+  rule the compaction itself applies), no question pending
+  (`CompactionService.pending_question`);
+- it **never runs after an act**: the register is read last, through the one door
+  every replay of a run now asks (`effects/replay_guard.run_may_have_acted`, which
+  the out-of-turn retry used to keep to itself); doubt counts as an act;
+- a **resumed question is never replayed** (its value is the person's answer), and a
+  replay the window refuses again is the turn's failure.
+
+That failure is said with what helps: `SSEErrorMessages` names the category
+`context_overflow` before reading the status (a provider's overflow is also its
+SDK's 400, which read as « unknown — try again »), and tells the person to type
+`/resume` or to continue in a new discussion, in the six languages. The final
+`graph_context_overflow` log carries the error type, never the provider's text.
+
+Observed by `compaction_overflow_replays_total{outcome}` (`replayed`,
+`replay_overflowed`, `refused_<reason>`) on the "22 - Compaction" dashboard.
+
+**Not decided here, proposed:** deriving the threshold from the smallest window among
+the slots that read the whole history would prevent the refusal instead of
+recovering from it.
+
+Guards: `tests/unit/domains/agents/services/orchestration/test_overflow_replay.py`
+(a real graph and checkpointer: the refused attempt's writes absent, one replay at
+most, none after an act, every refusal decided before the register is read),
+`test_turn_input.py`, `test_compaction_node.py`,
+`tests/unit/domains/agents/api/test_error_classification.py`.
+
+## Amendment 2026-11-15 (b) — what a compaction keeps, measured: whole exchanges, the person's words as written (lot 16)
+
+`task agents:compaction:measure` plants facts in five fictional discussions where the
+compaction summarises (the person's words, a tool's result, an identifier, a decision),
+runs the production entry node on each, and reads every fact in the response model's
+view before and after, then asks it (`docs/technical/COMPACTION_v2.md` § What a
+compaction keeps).
+
+**The kept tail begins on the person's message.** Counted in messages, it began on
+LIA's answer or a tool result in two discussions out of five: both summaries listed the
+request as unanswered, and the response model read an answer without its question. It
+now keeps at least `COMPACTION_PRESERVE_RECENT_MESSAGES` messages and extends back to
+the person's message of the exchange it would cut — the documented contract (recent
+messages are never compacted), whole. One rule
+(`compaction_service.compactable_messages`) for the summary, the node's removals, the
+truncation fallback and the overflow replay; measured after, no tail cuts an exchange.
+
+**The person's words are quoted as written.** The configured slot kept all 17 of the
+person's planted words, a small summarizer of another family 12 (lost in a multi-chunk
+merge), the truncation fallback none. Every human message stamped with when it was
+written (ADR-381) of the compacted part is quoted under the summary and in the
+truncation notice, the most recent first within `COMPACTION_PERSON_WORDS_MAX_TOKENS`
+(2,000 by default: a person's message weighs 121 characters at the median on
+production), the rest counted. The quotes ride on the summary message as data, so a
+later compaction carries them as written; the merge reads the earlier summaries
+without them. Measured after: 17 out of 17 for every family, the fallback included.
+Quoted under the system summary, they remain the person's words and grant nothing:
+what an act may do is enforced by the gate and its confirmations (ADR-263), never by a
+sentence a model reads.
+
+**Not built:** a tail sized in tokens. Once the tail stopped cutting exchanges, the
+bench lost no fact to its size.
+
+Guards: `tests/unit/agents/services/test_compaction_tail.py`,
+`tests/unit/agents/services/test_compaction_person_words.py`,
+`tests/unit/scripts/test_compaction_recall_measure.py` (every rule reads its own
+exchange and nothing else).

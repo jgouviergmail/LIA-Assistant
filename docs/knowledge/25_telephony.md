@@ -15,8 +15,9 @@ The debrief that follows a call also lists the **concrete findings** the call pr
 **💡 Good to know:** LIA only places **outgoing** calls — it never answers your incoming calls.
 
 ## How does a call work, step by step?
+
 **1. You ask in the chat**
-"Call Dr. Martin's office and ask for an appointment this week"
+• *Call Dr. Martin's office and ask for an appointment this week*
 
 **2. LIA asks for your confirmation**
 Before dialing anything, LIA shows you a confirmation card: **who** it will call, **which number**, and **why**. Nothing happens without your explicit approval.
@@ -26,6 +27,8 @@ LIA's voice agent makes the call from your number and works toward the objective
 
 **4. The summary arrives in the chat**
 A written summary is delivered asynchronously, with a suggested follow-up action when there is something to do next. Your recent calls are also listed under **Settings › Preferences › Recent calls**, with their status, outcome, summary and cost.
+
+The summary comes back to the discussion you asked for the call in. If the call reaches a voicemail, LIA tells you whether its message was left; if nobody answers or the line fails, it tells you that too, and invents nothing. If the provider never reports on the call, or does not answer the request to call, LIA says it does not know how the call ended rather than staying silent; a refusal that will not pass on its own is never presented as a passing problem.
 
 ## What do I need before starting?
 Phone calls use **your own accounts** with two external services — LIA adds no charge of its own:

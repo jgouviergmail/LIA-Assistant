@@ -22,11 +22,12 @@ from __future__ import annotations
 
 from collections.abc import Collection
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, delete, distinct, func, select, update
+from sqlalchemy import Select, and_, delete, distinct, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, defer
 from sqlalchemy.sql.elements import ColumnElement
 
 from src.domains.memories.models import Memory, MemoryCategory
@@ -40,6 +41,19 @@ from src.infrastructure.observability.logging import get_logger
 def _active() -> ColumnElement[bool]:
     """SQLAlchemy predicate selecting live facts only."""
     return Memory.invalidated_at.is_(None)
+
+
+def _without_vectors[T: tuple[Any, ...]](stmt: Select[T]) -> Select[T]:
+    """The statement with both vector columns left in the database (latency lot 5).
+
+    pgvector hands each vector to Python as text parsed float by float on the
+    event loop: 84.5 ms for 75 rows on the production host, 8.9 ms without them.
+    ``raiseload`` makes a read the caller forgot raise instead of reloading.
+    """
+    return stmt.options(
+        defer(Memory.embedding, raiseload=True),
+        defer(Memory.keyword_embedding, raiseload=True),
+    )
 
 
 def _mentions(name: str) -> ColumnElement[bool] | None:
@@ -160,6 +174,8 @@ class MemoryRepository:
         limit: int = 10,
         min_score: float = 0.5,
         categories: Collection[str] | None = None,
+        *,
+        with_vectors: bool = True,
     ) -> list[tuple[Memory, float]]:
         """Search memories by multi-vector semantic relevance.
 
@@ -177,6 +193,8 @@ class MemoryRepository:
             min_score: Minimum similarity score to include (0.0-1.0).
             categories: Families to keep (ADR-313, the memory search tool);
                 None or empty keeps every family — never « none allowed ».
+            with_vectors: False for a read door that ranks and reads text: the
+                vector columns stay in the database and reading one raises.
 
         Returns:
             List of (memory, score) tuples sorted by score descending,
@@ -204,6 +222,8 @@ class MemoryRepository:
             .order_by(best_distance)
             .limit(limit)
         )
+        if not with_vectors:
+            stmt = _without_vectors(stmt)
         result = await self.db.execute(stmt)
         all_rows = result.all()
 
@@ -230,6 +250,8 @@ class MemoryRepository:
         query_embedding: list[float],
         limit: int = 20,
         min_score: float = 0.3,
+        *,
+        with_vectors: bool = True,
     ) -> list[tuple[Memory, float]]:
         """Search relationship memories for name enrichment.
 
@@ -242,6 +264,8 @@ class MemoryRepository:
             query_embedding: Pre-computed query embedding vector.
             limit: Max results to return.
             min_score: Minimum similarity score.
+            with_vectors: False for a read door that ranks and reads text: the
+                vector columns stay in the database and reading one raises.
 
         Returns:
             List of (memory, score) tuples for relationship category only.
@@ -269,6 +293,8 @@ class MemoryRepository:
             .order_by(best_distance)
             .limit(limit)
         )
+        if not with_vectors:
+            stmt = _without_vectors(stmt)
         result = await self.db.execute(stmt)
 
         scored: list[tuple[Memory, float]] = []
@@ -395,6 +421,8 @@ class MemoryRepository:
         self,
         user_id: UUID,
         limit: int = 5,
+        *,
+        with_vectors: bool = True,
     ) -> list[Memory]:
         """Get most recent memories for fallback injection.
 
@@ -404,6 +432,8 @@ class MemoryRepository:
         Args:
             user_id: User UUID.
             limit: Number of recent memories.
+            with_vectors: False for a read door that reads text: the vector
+                columns stay in the database and reading one raises.
 
         Returns:
             List of memories ordered by created_at descending.
@@ -414,6 +444,8 @@ class MemoryRepository:
             .order_by(Memory.created_at.desc())
             .limit(limit)
         )
+        if not with_vectors:
+            stmt = _without_vectors(stmt)
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 

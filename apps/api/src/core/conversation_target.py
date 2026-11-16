@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Self
 from uuid import UUID
 
 
@@ -21,3 +22,21 @@ class ConversationRef:
     kind: ConversationKind
     revision: int
     runtime_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class ConversationOrigin:
+    """The discussion generation an act was begun in: its return comes back there.
+
+    Stored beside the act, never trusted as a destination by itself: the
+    publication checks that this generation still lives (not deleted, not
+    reset since), and Main receives the return otherwise.
+    """
+
+    conversation_id: UUID
+    revision: int
+
+    @classmethod
+    def of(cls, target: ConversationRef) -> Self:
+        """The origin an act begun in ``target`` records."""
+        return cls(target.id, target.revision)

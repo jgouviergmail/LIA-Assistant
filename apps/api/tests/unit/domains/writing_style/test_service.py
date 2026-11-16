@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -34,14 +34,28 @@ def _row(encrypted: str | None, mails_read: int = 12) -> Any:
     return SimpleNamespace(profile_encrypted=encrypted, mails_read=mails_read, built_at=LEARNED)
 
 
-async def test_a_learned_style_is_shown_with_when_it_is_learned_again() -> None:
+async def test_a_learned_style_is_shown_with_when_it_was_learned() -> None:
+    """Kept until the person learns it again: no renewal date exists any more."""
     service, _db = _service(StoredStyle(True, _row(encrypt_data("Signs « Seb »."))))
 
     shown = await service.read(uuid4())
 
     assert shown.enabled and shown.profile == "Signs « Seb »." and shown.mails_read == 12
     assert shown.learned_at == LEARNED
-    assert shown.renews_at == LEARNED + timedelta(days=settings.writing_style_max_age_days)
+    assert "renews_at" not in shown.model_dump()
+
+
+async def test_every_state_publishes_how_many_sent_mails_a_learning_reads() -> None:
+    """The bound a learning keeps is said where the person decides to learn (ADR-184)."""
+    for stored in (
+        StoredStyle(True, _row(encrypt_data("x"))),
+        StoredStyle(True, None),
+        StoredStyle(False, None),
+        StoredStyle(True, _row("not-a-fernet-token")),
+    ):
+        service, _db = _service(stored)
+
+        assert (await service.read(uuid4())).mails_to_read == settings.writing_style_sent_mails
 
 
 async def test_too_few_sent_mails_show_what_was_read_and_no_style() -> None:
@@ -58,7 +72,7 @@ async def test_nothing_learned_yet_and_a_switched_off_style_read_as_such() -> No
     shown = await service.read(uuid4())
 
     assert not shown.enabled and shown.profile is None and shown.mails_read is None
-    assert shown.learned_at is None and shown.renews_at is None
+    assert shown.learned_at is None
 
 
 async def test_a_style_that_cannot_be_read_back_reads_as_not_learned() -> None:

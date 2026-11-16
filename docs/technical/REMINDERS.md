@@ -2,7 +2,7 @@
 
 ## Overview
 
-Le système de rappels permet aux utilisateurs de créer des rappels vocaux ou textuels qui seront envoyés sous forme de notifications push (FCM) à l'heure programmée. Les messages sont personnalisés via LLM en utilisant la personnalité de l'utilisateur et ses mémoires pertinentes.
+Le système de rappels permet aux utilisateurs de créer des rappels vocaux ou textuels, livrés à l'heure programmée dans la conversation, sur les appareils Firebase, les abonnements [ntfy](NTFY.md) et les canaux externes actifs. Les messages sont personnalisés via LLM en utilisant la personnalité de l'utilisateur et ses mémoires pertinentes. L'occurrence enregistrée permet ensuite de reporter ce qui a sonné ou d'arrêter sa série.
 
 **ADR associé**: [ADR-051-Reminder-Notification-System](../architecture/ADR-051-Reminder-Notification-System.md)
 
@@ -92,11 +92,44 @@ second point d'appel serait un second endroit a ne pas oublier.
 | `POST /reminders` | Creation |
 | `PATCH /reminders/{id}` | Modification (recurrence remplacee EN ENTIER) |
 | `DELETE /reminders/{id}` | Suppression |
+| `GET /reminders/firings/{firing_id}` | Ce qu'offre la bulle d'un rappel qui a sonné (2026-11-16) |
+| `POST /reminders/firings/{firing_id}/snooze` | Reporter cette occurrence (`short`, `long`, `morning`) |
+| `POST /reminders/firings/{firing_id}/stop` | Arrêter la série dont elle vient |
 
 Le domaine refusait cette surface par conception jusqu'au 2026-09-06 ; le
 proprietaire a renverse la decision. **Ce que le renversement ne change pas :
 la liste n'est jamais un historique.** Une ligne est supprimee des qu'il ne lui
 reste rien, donc il n'y a rien derriere elle a lister.
+
+## Reporter un rappel qui a sonné (2026-11-16)
+
+ADR-268 refusait le report : un appui ne pouvait pas dire QUELLE occurrence il
+déplace (un rappel ponctuel est supprimé dès qu'il sonne, une série est déjà
+réarmée). Chaque occurrence qui sonne est désormais enregistrée
+(`reminder_firings`), et un appui nomme cette ligne, jamais le rappel.
+
+| Surface | Ce qu'elle offre |
+|---|---|
+| Bulle du chat | Dans 10 min, Dans 1 h, Demain matin ; « Arrêter ce rappel » (confirmé) quand il a un avenir |
+| Toast de la page ouverte | Le délai court |
+| Appareil du « monde » | La rangée de la bulle |
+| Telegram | Les mêmes boutons, réponse au-dessus de la conversation |
+| Push web | Deux actions (le maximum d'un navigateur) ; le service worker poste avec la session et ouvre le chat si l'appui n'aboutit pas |
+
+- **Une seule fois** : la copie et la marque s'écrivent dans une transaction, sous le
+  verrou de la ligne de l'occurrence. Un second appui (autre appareil) lit le verdict
+  du premier (`already_snoozed`).
+- **La copie est un rappel ponctuel ordinaire** qui porte `first_asked_at` : son
+  message dit qu'il REVIENT comme convenu (`reminder_origin_postponed.txt`).
+- **« Demain matin »** se lit sur l'horloge du compte (`WallTime`), à
+  `REMINDER_SNOOZE_MORNING_HOUR` ; appuyé avant 05:00, c'est le matin qui vient.
+- **Refus nommés** : `expired` après `REMINDER_SNOOZE_WINDOW_HOURS`, `collides` quand
+  la série revient avant l'instant demandé (les boutons restent, un délai plus court
+  marche).
+- **Jamais une porte** : une occurrence qu'on n'a pas pu écrire sonne quand même, sans
+  bouton, et c'est compté (`reminder_firings_unrecorded_total`, panneau « Reminders »
+  du tableau de bord proactif).
+- **Aucun modèle, aucune ligne de registre** : un appui est un geste de la personne.
 
 ---
 
@@ -283,9 +316,30 @@ bornes : 48 déclenchements par jour pour un rappel, 12 pour une routine.
 
 ### list_reminders_tool
 
-Liste les rappels en attente de l'utilisateur.
+Liste les rappels en attente de l'utilisateur, ou tous ceux qui sonnent un jour donné.
 
-**Parameters**: None (user_id from runtime context)
+**Parameters**:
+- `on_day` (optionnel) : une date ou un instant ISO 8601. Seuls les rappels qui sonnent
+  ce jour-là, dans le fuseau de la personne, sont rendus ; un instant (l'échéance d'un
+  ticket, le début d'un événement) vaut le jour local où il tombe
+  (`core/date_contract.local_day_bounds`). Une valeur illisible est refusée
+  (`INVALID_INPUT`, le format et la date du jour), jamais remplacée par « tous les
+  rappels » (ADR-310). Le texte est UN : le manifeste et le schéma `@tool` lisent
+  `ON_DAY_DESCRIPTION`. Il vaut pour UN jour : pour une période de plusieurs jours,
+  le paramètre est omis et la page des rappels en attente vient la plus proche
+  d'abord (E05 : « les trois prochains jours » découpés en un appel par jour,
+  aujourd'hui et les deux suivants, laissaient le rappel du troisième jour non lu).
+
+« Sonne ce jour-là » se lit sur la récurrence, par le moteur unique (ADR-268) : un
+rappel garde seulement sa PROCHAINE échéance dans `trigger_at`, et un rappel quotidien
+dû demain sonne aussi le surlendemain. `reminders/service.fires_within` interroge
+`slots_between` à partir de la prochaine échéance, pour tout rappel (un rappel unique
+est `freq='once'`). Une récurrence stockée illisible se replie sur `trigger_at`. La
+fenêtre lit TOUS les rappels dus avant sa fin, page par page : la page bornée des agents
+n'est pas une limite sur les rappels d'un jour (ADR-185). Né de la qualification du
+mode automatique (ADR-390, E08) : sans jour, le plan listait tout et laissait la réponse
+comparer les dates, et elle répondait « aucun rappel ce jour-là » au-dessus du rappel
+de ce jour.
 
 **Output**:
 ```json
@@ -369,10 +423,14 @@ scheduler.add_job(
    c. Load personality (optional)
    d. Search relevant memories (semantic, top 5 with score >= 0.6)
    e. Generate personalized message via LLM
-   f. Send FCM push notification to all user devices
-   g. Archive message in conversation history
-   h. Publish to Redis for SSE real-time
-   i. Re-arm from the recurrence, or DELETE when nothing follows
+   f. Record the occurrence that rings (reminder_firings) — never a gate
+   g. Send FCM push notification to all user devices (+ Telegram buttons)
+   h. Archive message in conversation history
+   i. Publish to Redis for SSE real-time
+   j. Re-arm from the recurrence, or DELETE when nothing follows
+
+   After the batch, each tick purges a batch of occurrences whose snooze window
+   closed, in a session of its own: a failed purge never stops a reminder.
 
 3. On failure:
    - retry_count++
@@ -538,6 +596,9 @@ await redis.publish(
         "content": message,
         "reminder_id": str(reminder.id),
         "title": title,
+        # When the occurrence was recorded (ADR-268 amendment 2026-11-16):
+        "firing_id": str(offer.firing_id),
+        "snooze_short_minutes": settings.reminder_snooze_short_minutes,
     }, ensure_ascii=False),
 )
 ```

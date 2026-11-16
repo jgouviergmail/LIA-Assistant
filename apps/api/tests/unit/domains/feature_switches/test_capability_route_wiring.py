@@ -66,6 +66,7 @@ _ROUTER_MODULES: dict[PlatformCapability, str] = {
     PlatformCapability.PEERS: "src.domains.peers.router",
     PlatformCapability.PSYCHE: "src.domains.psyche.router",
     PlatformCapability.CHANNELS: "src.domains.channels.router",
+    PlatformCapability.NTFY: "src.domains.notifications.ntfy_router",
     PlatformCapability.OPEN_LOOPS: "src.domains.open_loops.router",
     # ADR-282 — guarded at the ROUTE like uploads: keeping is the act, the
     # kept answers are the record.

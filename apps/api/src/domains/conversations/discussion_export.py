@@ -30,7 +30,7 @@ from datetime import datetime
 from typing import Protocol
 
 from src.core.conversation_target import ConversationRef
-from src.core.html_markdown import as_markdown
+from src.core.html_markdown import as_markdown, is_html_document
 from src.core.i18n_account_export import render_discussion_label, render_export_turn
 from src.core.text_clip import one_line
 from src.core.time_utils import format_datetime_for_display
@@ -96,12 +96,8 @@ def _words(message: TranscriptMessage) -> str:
     """What a message says, as the document writes it.
 
     The person's words are exported as typed. An answer is converted only when
-    it is an HTML DOCUMENT — it opens on a tag, as the ``html`` display mode
-    draws it. A Markdown answer that merely carries an HTML block is valid
-    Markdown as it stands, and converting it would escape every mark of its
-    prose and fold its paragraphs. Measured on a development base, 2026-11-12:
-    of 2 184 visible answers, 2 161 hold no tag, 12 open on one, 5 carry a
-    block inside Markdown.
+    it is an HTML DOCUMENT (``is_html_document``): a Markdown answer that merely
+    carries an HTML block is valid Markdown as it stands.
 
     Args:
         message: The row.
@@ -109,7 +105,7 @@ def _words(message: TranscriptMessage) -> str:
     Returns:
         The words, in Markdown.
     """
-    if message.role != _ASSISTANT_ROLE or not message.content.lstrip().startswith("<"):
+    if message.role != _ASSISTANT_ROLE or not is_html_document(message.content):
         return message.content
     return as_markdown(message.content).strip()
 

@@ -9,6 +9,8 @@
  * on one surface only.
  */
 
+import type { ExecutionMode } from '@/lib/execution-mode';
+
 /**
  * The seven columns, in board order.
  *
@@ -32,13 +34,13 @@ export const CONDITIONAL_STATUSES: ReadonlySet<string> = new Set(['confirming'])
 /**
  * How LIA executes a ticket nobody is watching.
  *
- * The TICKET's choice, never the chat header's toggle: the loop is the default
+ * The TICKET's choice, never the chat header's menu: the loop is the default
  * because a ticket is a multi-step task with nobody there to steer a plan, and
  * the person may change it at any point of the ticket's life — the next run
  * reads what it says.
  */
-export const EXECUTION_MODES = ['react', 'pipeline'] as const;
-export type ExecutionMode = (typeof EXECUTION_MODES)[number];
+// One vocabulary for the chat, the tickets and the routines (ADR-390: « auto » too).
+export { EXECUTION_MODES, type ExecutionMode } from '@/lib/execution-mode';
 
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
@@ -91,7 +93,7 @@ export interface TicketRow {
   follow_owner: boolean;
   follow_assignee: boolean;
   created_by: string;
-  /** `pipeline` | `react` — how LIA runs THIS ticket, changeable at any time. */
+  /** `pipeline` | `react` | `auto` — how LIA runs THIS ticket, changeable at any time. */
   execution_mode: string;
   status_changed_at: string;
   run_count: number;

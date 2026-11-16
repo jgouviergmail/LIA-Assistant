@@ -277,3 +277,55 @@ def test_the_habit_proposal_card_travels_with_the_answer_and_its_done_chunk():
 
     assert archived[FIELD_HABIT_PROPOSAL] == done[FIELD_HABIT_PROPOSAL] == card
     assert archived["followup_suggestions"] == done["followup_suggestions"] == ["Et demain ?"]
+
+
+class TestTheEngineAnAutomaticTurnRanIn:
+    """ADR-390: the answer's badge reads ``execution_engine``, archived with the
+    answer so it survives a reload, and carried live in ``done``."""
+
+    @staticmethod
+    def _both(extras: TurnExtras = NO_TURN_EXTRAS) -> tuple[dict[str, Any], dict[str, Any]]:
+        from src.domains.agents.services.streaming.done_metadata import with_done_enrichments
+
+        archived = build_assistant_metadata(
+            {"run_id": "turn"},
+            widgets=None,
+            trace_capture=_Capture([]),
+            duration_ms=1,
+            run_id="turn",
+            extras=extras,
+            effects=None,
+        )
+        done = with_done_enrichments(
+            {"tokens_in": 3},
+            user_message_id=None,
+            assistant_message_id=None,
+            extras=extras,
+            effects=None,
+            card_metadata={},
+        )
+        return archived, done
+
+    @pytest.mark.parametrize("engine", ["pipeline", "react"])
+    def test_an_automatic_turn_names_its_engine_on_both_roads(self, engine: str) -> None:
+        from unittest.mock import patch
+
+        from src.core.field_names import FIELD_EXECUTION_ENGINE
+
+        with patch(
+            "src.domains.agents.effects.decisions.automatic_turn_engine", return_value=engine
+        ):
+            archived, done = self._both()
+
+        assert archived[FIELD_EXECUTION_ENGINE] == done[FIELD_EXECUTION_ENGINE] == engine
+
+    def test_any_other_turn_carries_no_engine(self) -> None:
+        from unittest.mock import patch
+
+        from src.core.field_names import FIELD_EXECUTION_ENGINE
+
+        with patch("src.domains.agents.effects.decisions.automatic_turn_engine", return_value=None):
+            archived, done = self._both()
+
+        assert FIELD_EXECUTION_ENGINE not in archived
+        assert FIELD_EXECUTION_ENGINE not in done

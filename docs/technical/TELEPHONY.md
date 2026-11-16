@@ -59,7 +59,7 @@ flowchart TD
 | `owner_call.py` + `infrastructure/scheduler/voice_relay.py` | The owner-call completion path by the mode the row RAN (ADR-301): a DIRECT call is synthesised (`synthesize_relay`, the chokepoint, `SelfCallRelay`: `owner_confirmed`, `relay_message`, `summary`) and relayed (RELAYING outbox, fallback notification, `RelayOutcome`); a LIVE call closes with no return to deliver and the voice session's own books (`voice_session_closing`). |
 | `delegation_tool.py` + `callback.py` | The Live mode's ONE vendor tool (`send_to_lia`, asynchronous, the browser's own description and schema), provisioned by fingerprint and held against the workspace before every Live owner call; where the vendor calls back (`TELEPHONY_CALLBACK_BASE_URL`, else `API_URL`) and whether it can (`is_public_host` — a private host makes Live unavailable). |
 | `infrastructure/scheduler/phone_relay_runner.py` | Runs the relayed turn through `stream_instruction(spoken_by_person=True)` with a VISIBLE `phone_call` origin; retries a busy thread, stands aside for a pending question, settles the outbox. Lives outside `telephony` so the domain never imports `agents`. |
-| `live_tools.py` (telephony) + `agents/telephony/live_tools.py` + `agents/telephony/live_provisioning.py` + `live_tools_router.py` | Live read-only lookups during an owner call (flagged): derived token, vendor tool bodies, fingerprinted provisioning verified against the workspace before every owner call (`live_provisioning.py`), the session-less call-back. |
+| `live_tools.py` (telephony) + `agents/telephony/live_tools.py` + `agents/telephony/live_provisioning.py` + `live_tools_router.py` | Live read-only lookups during an owner call (flagged): derived token, vendor tool bodies, fingerprinted provisioning verified against the workspace before every owner call (`live_provisioning.py`), the session-less call-back, which reads the call on short sessions closed before the lookup or the delegated turn (ADR-304). |
 | `workspace_tools.py` | The ONE door both voice surfaces use to keep LIA's tools exact in the person's ElevenLabs workspace (ADR-373 amendment 2026-11-11): `holds` (everything LIA sent served as sent), `repair_set` (a drifted tool rewritten in place, a lost one re-created), `create_tools` (all or nothing), `agent_tool_ids`. |
 | Tool | `agents/tools/telephony_self_tools.py::call_me` — `reversible` with a written reason: no card, and a routine may plan it. |
 
@@ -78,11 +78,28 @@ examples asked the model to speak a message itself, competing with the provider'
 configured message. The HTTP client enables the system tool without supplying a
 `voicemail_message` value. The portal remains the place to edit that text.
 
+**One message for every mandate, kept (owner decision 2026-11-14).** The portal's
+text belongs to the agent, so it plays wherever a mandate meets an answering
+machine: a third-party call, an owner call reaching the owner's own voicemail, a
+number verification (whose code is never read there). A text per mandate would move
+it from the portal to LIA; the owner kept the portal's single message.
+
 The baked third-party prompt participates in the existing agent-config fingerprint
 and is synchronized before the next call after deployment; the owner and
 verification prompts travel as per-call overrides. HTTP contract tests verify
 that neither create nor update supplies a voicemail message. A real phone call is
 still needed to verify acoustic timing and the provider's delivered speech.
+
+**A tool is called, never written (2026-11-14).** The provider's conversation log
+showed the model SPEAKING the tool call the prompts' examples wrote as text: the
+voicemail recording began with « voicemail_detection reason = automated greeting… »
+before the portal message, and an answered call ended on « [Action: end_call()] ».
+The four voice prompts (`telephony_agent_system_prompt`, `telephony_self_call_system_prompt`,
+`telephony_self_live_system_prompt`, `telephony_verification_prompt`) now describe each
+tool in their context lines, never as a call notation, and carry one rule line: every
+character written is spoken aloud. A guard holds them to it
+(`tests/unit/domains/telephony/test_voice_prompts_speak_only_words.py`: no bracketed
+action, no tool signature written as speech, the rule line present).
 
 See the [ElevenLabs voicemail tool documentation](https://elevenlabs.io/docs/eleven-agents/customization/tools/system-tools/voicemail-detection).
 
@@ -102,6 +119,50 @@ notification delivery, the durable outbox already holds the localized unanswered
 notice (or the separate line-failure notice). An interruption at that point cannot
 turn a known unanswered call into a claimed chat-relay failure. These rules apply
 to both direct and Live owner calls and are exercised in all supported languages.
+
+**A third-party call's return states the provider's facts (2026-11-14).** Measured in
+production: the two calls of 14/11 that reached a voicemail returned « I placed your
+call but could not produce a detailed summary ». The synthesis had failed three times
+on each (the structured door rejected five blank-string lists), and it had never been
+told what the provider recorded (`call_result: voicemail`, the voicemail tool's result
+carrying the message it played). Now:
+
+- `telephony/call_facts.read_call_facts` reads, once, the status and whether the
+  provider left its voicemail message (`voicemail_message_left`: yes, no, unknown);
+- when nobody on the line spoke (no answer, a voicemail, a failed line), no model is
+  asked: the return is the fixed sentence of its case in the account's language
+  (`RETURN_PHRASES`: `voicemail_left`, `voicemail_not_left`, `voicemail_unknown`,
+  `no_answer`, `line_failed`, six languages), naming the callee;
+- otherwise the synthesis receives a `CALL FACTS:` line it must not contradict, and its
+  failure falls back to that same sentence; the generic refusal remains only for a
+  call that connected;
+- a blank where a list is expected is the absent value
+  (`tool_call_rescue._blank_where_a_structure_is_expected`), and the prompt writes
+  empty lists as `[]`.
+
+**A call nobody reports on is told (2026-11-14).** Two sweeps close a call without
+its return: the stale-call reaper (no terminal webhook, `stale_no_webhook`) and the
+return reaper giving up a synthesis (`return_synthesis_gave_up`, its transcript
+purged). Both closed the row in silence (production, 2026-07-17). Each now arms the
+call's return outbox in its own transaction (`telephony/closing_notices.py`):
+`PENDING`, the words in the owner's language and `completed_at`, so the notification
+reaper delivers it past its grace window, to the discussion the call was placed from.
+A third-party call says that no report came, naming the callee (`no_report`), or
+that no summary could be made (`fallback`); an owner call says the same in the
+second person (`relay_no_report`, `relay_failed`). A verification call owes no
+return, and a Live owner call brought every request to the chat during the call.
+
+**The return comes back to the discussion the call was placed from** (ADR-378
+amendment 2026-11-14): third-party and owner calls, direct, Live delegated or
+closing, record their origin (`phone_calls.origin_conversation_id` /
+`_revision`); the synthesis, the unanswered notice and the owner's relayed turn are
+archived there while that generation lives, in Main otherwise, and the push opens it.
+Its bill follows it: the call's spend is filed before any discussion is known (the
+lookups, the synthesis), so the door writing the call's words names the bill's
+discussion (`conversations/run_bills.attach_run_bill`, from the notification
+dispatcher's archive and the voice relay). The return's bubble shows the call's cost
+there, and that discussion's totals count it. A bill already named keeps its
+discussion; past bills are not rewritten.
 
 ## Security invariants (do not weaken)
 
@@ -246,12 +307,15 @@ close. Worse, such a row carries **no conversation id**, so the self-healing
 probe of the one-active-call guard cannot even ask the vendor about it: the row
 blocked every further call until the 15-minute stale threshold elapsed.
 
-`TelephonyService._dial_and_interpret` therefore reads four distinct outcomes:
+`TelephonyService._dial_and_interpret` therefore tells its outcomes apart:
 
 | Vendor answer | Status | Row transition | What the user is told |
 |---|---|---|---|
 | `ElevenLabsAgentsError` with `is_auth_error` (401, or a 4xx whose body carries `detail.type == "authentication_error"`) | `auth_failed` | `mark_dial_failed(initiate_auth_failed:<code>)` | the stored connector key is no longer valid — reconnect ElevenLabs; retrying will not help |
-| `ElevenLabsAgentsError` (network, 5xx) | `failed` | `mark_dial_failed(initiate_failed:<code>)` | transient — "try again in a moment" |
+| `ElevenLabsAgentsError` 408, 429 or 5xx | `failed` | `mark_dial_failed(initiate_failed:<code>)` | transient — "try again in a moment" |
+| `ElevenLabsAgentsError`, another 4xx | `refused` | `mark_dial_failed(initiate_refused:<code>)` | the request itself was refused — retrying as is will not help |
+| transport failure that never reached the vendor (`request_outcome.never_reached_the_server`: refused connection, connect timeout, no pooled connection) | `failed` | `mark_dial_failed(initiate_unreachable)` | transient — "try again in a moment" |
+| transport failure after the request left (a read timeout, a cut answer) | `unknown` | none: the row stays active | the outcome is unknown; the return, or the stale sweep's notice, follows |
 | `200` + `success: false` | `rejected` | `mark_dial_failed(initiate_rejected:<message>)` | configuration — retrying will not help |
 | `200` + `success: true` | `placed` | `set_conversation_id(...)` | the call is ringing |
 
@@ -259,7 +323,11 @@ The auth classification is structural (the vendor's `detail.type` taxonomy
 field, read on the full body before log truncation) — never a message
 substring. Observed in production 2026-08-15: ElevenLabs stopped accepting a
 legacy key-ID-shaped credential with 400 `invalid_api_key`, and every call
-died behind the generic "try again" message.
+died behind the generic "try again" message. Until 2026-11-14 every other 4xx was
+told "try again" too (production: `initiate_failed:404` and `:400`), and a lost answer
+escaped as an unhandled transport error. An `unknown` dial stays active because the
+call may be ringing; the confirmed tool still files its effect as failed (the
+register has no unknown outcome, ADR-263), and a call that did ring returns normally.
 
 A `placed` call **without** a conversation id keeps its row active on purpose:
 it may well be ringing, and closing it would let a second call start in
@@ -452,7 +520,10 @@ flowchart TD
   `telephony/call_notifications.dispatch_call_notification`, which stamps
   `phone_call_<hex>`; the history joins the bill on it like any turn's. A
   guard (`test_call_notification_door_guard.py`) refuses any other dispatch
-  of the `phone_call` task type, spelled as a literal or a constant. **A lookup that spends on Google alone is filed too** (ADR-272
+  of the `phone_call` task type, spelled as a literal or a constant. Joining
+  on the run is not enough in an annex: a bill naming no discussion shows
+  under Main alone, so the door writing the words also names the bill's
+  discussion (2026-11-14, `conversations/run_bills`). **A lookup that spends on Google alone is filed too** (ADR-272
   amendment, 2026-09-20): a Places or Routes lookup makes no model call, so
   its tracker held one Google record and — until then — both persistence
   doors of `TrackingContext`, which counted the model's records alone, wrote

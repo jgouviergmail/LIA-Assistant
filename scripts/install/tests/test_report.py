@@ -60,6 +60,54 @@ def test_the_report_says_whether_the_instance_searches_the_web() -> None:
     assert "searxng" not in off
 
 
+def test_the_report_writes_an_ipv6_host_between_brackets() -> None:
+    import dataclasses
+
+    public = dataclasses.replace(
+        _public(InstallMode.LOCAL, Exposure.LAN), server_host="fd00::50", ntfy_server=True
+    )
+    report = render_report(
+        public,
+        release_summary="local build",
+        backup_dir=Path("/srv/backups"),
+        optional_unkeyed={},
+    )
+    assert "Web UI:        http://[fd00::50]:3000" in report
+    assert "at http://[fd00::50]:2586" in report
+
+
+def test_the_report_says_where_phones_reach_the_ntfy_server() -> None:
+    import dataclasses
+
+    kwargs = {
+        "release_summary": "local build",
+        "backup_dir": Path("/srv/backups"),
+        "optional_unkeyed": {},
+    }
+    lan = dataclasses.replace(_public(InstallMode.LOCAL, Exposure.LAN), ntfy_server=True)
+    report = render_report(lan, **kwargs)
+    assert "ntfy server: enabled (profile 'ntfy') at http://192.168.1.50:2586" in report
+    assert "iPhones: no relay through ntfy.sh, delivery may take hours" in report
+    relayed = render_report(dataclasses.replace(lan, ntfy_ios_relay=True), **kwargs)
+    assert "iPhones: relayed by ntfy.sh, which sees when a message leaves, never its text" in (
+        relayed
+    )
+
+    proxy = dataclasses.replace(
+        _public(InstallMode.LOCAL, Exposure.PROXY),
+        ntfy_server=True,
+        ntfy_domain="ntfy.example.org",
+    )
+    routed = render_report(proxy, **kwargs)
+    assert "ntfy server: enabled (profile 'ntfy') at https://ntfy.example.org" in routed
+    # The operator's own proxy must carry the name LIA cannot route itself.
+    assert "route ntfy.example.org to 127.0.0.1:2586, unbuffered" in routed
+    caddy = dataclasses.replace(proxy, exposure=Exposure.CADDY)
+    assert "127.0.0.1:2586" not in render_report(caddy, **kwargs)
+
+    assert "ntfy" not in render_report(_public(InstallMode.LOCAL, Exposure.LAN), **kwargs)
+
+
 def test_prebuilt_report_states_the_firebase_limitation() -> None:
     report = render_report(
         _public(InstallMode.PREBUILT, Exposure.CADDY),

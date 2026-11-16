@@ -1625,7 +1625,7 @@ export function useChat(conversationId: string) {
 
 ### LangGraph StateGraph
 
-Le graphe est assemblé par `build_graph()` dans `apps/api/src/domains/agents/graph.py`. La compaction du contexte ouvre chaque tour ; le routeur choisit ensuite la réponse directe, le mode Pipeline (planificateur → validateur sémantique → orchestrateur) ou le mode ReAct (boucle à cinq nœuds). Les deux modes convergent vers le nœud d'initiative puis vers le nœud de réponse, et tout brouillon à valider passe par le même nœud de dispatch HITL. L'état est checkpointé dans PostgreSQL après chaque nœud, ce qui rend chaque interruption reprenable.
+Le graphe est assemblé par `build_graph()` dans `apps/api/src/domains/agents/graph.py`. La compaction du contexte ouvre chaque tour ; le routeur choisit ensuite la réponse directe ou un moteur : Pipeline (planificateur → validateur sémantique → orchestrateur) ou ReAct (boucle à cinq nœuds). La personne demande `pipeline`, `react` ou `auto` : en automatique, le routeur fixe le moteur une fois pour la demande, et une reprise conserve ce choix ([ADR-390](architecture/ADR-390-The-Automatic-Mode-Chooses-The-Engine-Per-Request.md)). Les deux moteurs convergent vers le nœud d'initiative puis vers le nœud de réponse, et tout brouillon à valider passe par le même dispatch HITL. L'état est checkpointé dans PostgreSQL après chaque nœud, ce qui rend chaque interruption reprenable.
 
 ```mermaid
 graph TD
@@ -2970,79 +2970,34 @@ Le système utilise **APScheduler** (AsyncIOScheduler) pour les tâches planifi�
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-#### Reminder Notification Job (ADR-051)
+#### Reminder Notification Job (ADR-051, ADR-268)
 
-```python
-# src/infrastructure/scheduler/reminder_notification.py
+`infrastructure/scheduler/reminder_notification.py` orchestre les rappels échus ;
+`reminder_delivery.py` porte leur publication.
 
-async def process_due_reminders() -> None:
-    """
-    Traite les rappels en attente et envoie les notifications.
+1. Un rappel est réclamé par `FOR UPDATE SKIP LOCKED`, passé à `PROCESSING` et
+   committé avant tout appel au modèle ou à un service externe.
+2. Le message est personnalisé, puis l'occurrence est enregistrée dans
+   `reminder_firings`. Un échec de cet enregistrement est compté et laisse le rappel
+   sonner, sans bouton de report.
+3. La livraison atteint les appareils Firebase, les abonnements ntfy et les canaux
+   externes actifs, puis la conversation et son signal temps réel. SSE seul ne
+   constitue pas une livraison durable.
+4. Une transaction distincte clôt la tentative. La récurrence fournit le prochain
+   instant ; s'il n'en reste aucun, le rappel est supprimé. Un échec épuisant les
+   tentatives abandonne l'occurrence, pas toute la série.
+5. Le report depuis le chat, la notification web ou Telegram nomme l'occurrence
+   enregistrée. Sous son verrou, un seul appui crée une copie ponctuelle en gardant
+   la date de la demande initiale ; arrêter la série supprime ce qui reste à venir.
 
-    Exécution: @every 1 minute via APScheduler
+La porte push atteint aussi ntfy quand aucun appareil Firebase n'est enregistré.
+Le contenu y reste minimal par défaut ; la personne choisit le texte complet par
+abonnement. Le serveur fourni par l'instance est facultatif et activé séparément
+par l'installateur.
 
-    Features:
-    - Sélection atomique: FOR UPDATE SKIP LOCKED (concurrency-safe)
-    - Timezone handling: Comparaison en UTC avec timezone utilisateur
-    - Personnalisation LLM: Message adapté (personality + memories)
-    - Multi-canal: FCM Push (Android/iOS/Web) + SSE temps-réel
-    - Token tracking: Tokens LLM comptés et persistés
-    - One-shot behavior: DELETE après notification réussie
-    - Retry logic: MAX_RETRIES=3 avec incrémentation échecs
-    """
-
-    async with session_factory() as session:
-        # 1. Sélection concurrency-safe
-        due_reminders = await session.execute(
-            select(Reminder)
-            .where(
-                Reminder.reminder_datetime <= datetime.now(UTC),
-                Reminder.status == ReminderStatus.PENDING,
-                Reminder.failed_attempts < MAX_RETRIES
-            )
-            .with_for_update(skip_locked=True)  # Critical: évite race conditions
-            .limit(100)
-        )
-
-        for reminder in due_reminders.scalars():
-            try:
-                # 2. Génération message personnalisé via LLM
-                message = await generate_personalized_message(reminder)
-
-                # 3. Envoi notification push (FCM)
-                await send_fcm_notification(
-                    user_id=reminder.user_id,
-                    title=reminder.title,
-                    body=message,
-                    data={"reminder_id": str(reminder.id)}
-                )
-
-                # 4. Publication SSE temps-réel
-                await publish_sse_event(
-                    user_id=reminder.user_id,
-                    event_type="reminder_triggered",
-                    data=reminder.to_dict()
-                )
-
-                # 5. Suppression (one-shot)
-                await session.delete(reminder)
-
-            except Exception as e:
-                # Retry logic
-                reminder.failed_attempts += 1
-                reminder.last_error = str(e)
-                logger.error("reminder_notification_failed", reminder_id=reminder.id, error=str(e))
-
-        await session.commit()
-```
-
-**Bénéfices** :
-- ✅ **FOR UPDATE SKIP LOCKED** : Pas de conflits multi-process
-- ✅ **LLM Personalization** : Messages engageants (personality + memories)
-- ✅ **Multi-canal** : FCM + SSE simultanés
-- ✅ **Robuste** : Retry avec backoff
-
-**Voir** : [NOTIFICATIONS_FLOW.md](./technical/NOTIFICATIONS_FLOW.md) | [ADR-051](./architecture/ADR-051-Reminder-Notification-System.md)
+**Voir** : [REMINDERS.md](./technical/REMINDERS.md),
+[NOTIFICATIONS_FLOW.md](./technical/NOTIFICATIONS_FLOW.md),
+[NTFY.md](./technical/NTFY.md).
 
 ---
 
@@ -3293,7 +3248,7 @@ data/skills/
 
 **Today Briefing — read-only daily ritual home (v1.18.0, [BRIEFING_DOMAIN.md](technical/BRIEFING_DOMAIN.md), [ADR-077](architecture/ADR-077-Today-Briefing-Domain.md))** : Nouveau bounded context `apps/api/src/domains/briefing/` qui transforme la home du dashboard en briefing quotidien. **Choix architectural fort** : aucun graphe LangGraph, aucun modèle DB, aucune migration, aucun job scheduler — orchestration directe via `asyncio.gather` de 6 fetchers indépendants (météo / agenda / mails / anniversaires / rappels / santé), chacun acquérant sa propre `AsyncSession` via `get_db_context()` (l'`AsyncSession` SQLAlchemy ne supporte pas l'usage concurrent depuis une session partagée). **Cache Redis par section** avec TTL adapté (météo 1 h, agenda 10 min, mails 5 min, anniversaires 24 h, rappels live, santé 15 min), encodé `CardSection.model_dump_json` ; `ConnectorNotConfiguredError` → `NOT_CONFIGURED` (carte cachée), `ConnectorAccessError` → `ERROR` (CTA mappé via `error_code` stable). **Endpoints split** : `GET /briefing/cards` (rapide, sans LLM) + `GET /briefing/synthesis` (LLM-bound, lit les cartes depuis Redis) + `POST /briefing/refresh` (force-refresh). Le frontend appelle les deux endpoints en parallèle via `useApiQuery` pour un rendu progressif non-bloquant. **Deux appels LLM** (greeting + synthesis) sur un seul slot `briefing` dans `LLM_TYPES_REGISTRY` (`gpt-4.1-nano` par défaut, T=0.7, 500 tokens), prompts versionnés `v1` distincts. La synthesis est **skippée** quand `< BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA` cartes ont des données (évite un coût LLM pour un dashboard vide), et un fallback localisé (6 langues) garantit que la home rend toujours même si le LLM est down. **Tracking tokens + coût** via `track_proactive_tokens(task_type="briefing", ...)` qui alimente `token_usage_logs`, `message_token_summary` et `user_statistics` ; les `cached_input_tokens` sont soustraits de `input_tokens` avant tracking pour éviter le double comptage de coût (alignement avec `TokenAccumulator`). Chaque appel LLM retourne un `(text, LLMUsage | None)` — `LLMUsage` (`tokens_in`, `tokens_out`, `tokens_cache`, `cost_eur` calculé via `get_cached_cost_usd_eur`, `model_name`) est attaché à `TextSection.usage` pour que le frontend affiche un badge inline à côté du timestamp. **Frontend** : composant générique `<BriefingCard>` (4 status states + prop `centerContent`), `<BriefingSkeleton>` mirroir layout final, `<BriefingSynthesis>`/`<BriefingGreeting>` avec `<LLMUsageBadge>`. Carte santé refondue en CSS Grid unique avec `display: contents` sur les `<li>` pour aligner verticalement les séparateurs aujourd'hui/moyenne entre métriques. Carte météo avec strip 5 jours dont les abréviations sont localisées côté client via `Intl.DateTimeFormat` (suppression du champ `weekday_short` C-locale du backend). 4 nouvelles métriques Prometheus dans `metrics_briefing.py` (`briefing_build_duration_seconds`, `briefing_section_status_total`, `briefing_refresh_requests_total`, `briefing_llm_invocations_total`). Tests unitaires sur formatters + service orchestration avec mocks fetchers + LLM, dont un test happy-path validant la propagation de `LLMUsage` dans `TextSection.usage`.
 
-**Health Metrics — assistant integrations + extensibilité (v1.17.2, [ADR-076](architecture/ADR-076-Health-Metrics-Ingestion.md))** : Les données santé ingérées en v1.17.1 alimentent maintenant les trois boucles centrales de LIA (conversation / proactivité / introspection) derrière un **toggle utilisateur unique** `User.health_metrics_agents_enabled` (opt-in, default `false`, migration `health_metrics_004`). Refactoring autour d'un **registre central** `HEALTH_KINDS: dict[str, HealthKindSpec]` (`src/domains/health_metrics/kinds.py`) portant pour chaque kind les bornes physiologiques, stratégie de merge intra-batch, méthode d'agrégation bucket, type de baseline (`daily_sum`/`daily_avg`/`resting`), agent associé, clé i18n et legacy fields — ingestion/repository/aggregator/heartbeat/memory/journal itèrent ce registre donc ajouter un kind (sleep, SpO2, calories…) = une entrée + un pack de tools, zéro modification des pipelines. **Baseline adaptive** (`baseline.py`) `bootstrap` (médiane toutes les données, mode visible < 7 jours) → `rolling` (médiane mobile 28 j). **Détection de signaux** (`signals.py`) : streaks directionnels + événements structurels (ex. inactivité `steps` ≥ 3 j à 0). **Un unique `health_agent`** (convention 1 agent ↔ 1 domaine, cf. `email_agent`, `event_agent`, `weather_agent`…) avec **7 tools hand-crafted** (summary/breakdown/baseline pour `steps`, summary/baseline pour `heart_rate`, overview + change-detection cross-kind), un prompt v1 unique + 7 manifests catalogue + domain `"health"` dans le `DOMAIN_REGISTRY`. Les tools summary + overview utilisent **`time_min` / `time_max` ISO 8601** exactement comme `calendar_tools.search_events_tool` : le `QueryAnalyzer` pré-résout les références temporelles (« cette semaine » → `2026-04-20 to 2026-04-26`) dans ses `resolved_references` et le planner splitte les deux dates sur les deux paramètres. Défauts côté service : `time_min` → aujourd'hui 00:00 UTC, `time_max` → `datetime.now(UTC)`. Les valeurs factuelles (totaux, moyennes, entrées par jour) sont inlinées dans le champ `UnifiedToolOutput.message` (pattern issu de `weather_tools`) pour que le LLM Response les surface directement sans avoir à lire `structured_data`. Tous les tools sont gatés au niveau du tool via `_check_user_toggle_or_error` → `UnifiedToolOutput.failure(error_code="PERMISSION_DENIED")`. **Heartbeat source** `health_signals` injectée dans `CURRENT CONTEXT` via `heartbeat/health_context.py`, bornée par un budget `asyncio.timeout` de 2 s. Ce budget encadre une part d'**event-loop partagé** avec les onze autres fetchers du `gather`, pas un temps de base : il était franchi en régime nominal parce que le builder rapatriait ~30 662 lignes brutes par tick pour produire 74 nombres, gelant le worker ~480 ms d'un seul tenant. Depuis [ADR-148](architecture/ADR-148-Health-Daily-Rollup.md), la lecture passe par un **rollup journalier côté SQL** (`fetch_daily_stats` → une ligne par jour UTC avec `total`/`count`/`minimum`, dont toute agrégation `BaselineKind` se dérive) : 353 → 7 ms mesurés, budget redevenu un vrai détecteur d'anomalie. Le repli reste fail-open mais n'est plus **silencieux** — chaque abandon est compté (`heartbeat_source_dropped_total{source,reason}`) et chronométré. **Mémoire** : migration `health_metrics_005` (colonne `memories.context_biometric JSONB` optionnelle), placeholder `{health_context}` dans `memory_extraction_prompt.txt`, blob `context_biometric` (deltas/trends/événements seulement, jamais de valeurs brutes) émis par le LLM quand |emotional_weight| ≥ 3. **Journal** : placeholders `{health_context}` (extraction) et `{health_signals_section}` (consolidation) injectés uniquement opt-in. **Endpoint** `PATCH /auth/me/health-metrics-agents-preference` + section « Assistant » dans Settings → Health data (6 langues). **Backward-compat** : `HealthMetricAggregatePoint` conserve les champs typés et ajoute `metrics_by_kind: dict[str, dict]` optionnel — les futurs kinds y apparaissent sans casser le front existant.
+**Health Metrics — lectures partagées** ([ADR-076](architecture/ADR-076-Health-Metrics-Ingestion.md), [ADR-148](architecture/ADR-148-Health-Daily-Rollup.md)) : les mesures reçues restent intactes ; `fusion.counted_samples` décide une seule fois comment compter les intervalles qui se chevauchent, selon la règle du type de mesure. Les pas prennent le débit maximal de chaque tranche commune, tandis que chaque mesure de fréquence cardiaque reste une observation. Les graphiques passent par `chart_read.read_chart_statistics`, et les lignes journalières sont groupées à minuit dans le fuseau de la personne. Conversation, briefing, Heartbeat et discussions proactives lisent ces mêmes mesures ; l'autorisation d'usage par l'assistant reste le choix du compte. Le registre `HEALTH_KINDS` porte les stratégies et les bornes, les résultats des outils voyagent dans `structured_data`, et une absence de données reste distincte d'une mesure nulle. Voir [HEALTH_METRICS.md](technical/HEALTH_METRICS.md) pour les contrats de lecture, les changements d'heure et les preuves PostgreSQL.
 
 **Health Metrics — iPhone Shortcuts ingestion (v1.17.0, [ADR-076](architecture/ADR-076-Health-Metrics-Ingestion.md))** : Nouveau domaine DDD `health_metrics` exposant deux endpoints par-kind `POST /api/v1/ingest/health/steps` et `POST /api/v1/ingest/health/heart_rate`, authentifiés par le même token Bearer (préfixe `hm_`, hash SHA-256 stocké, valeur brute révélée une seule fois). Le contrat client est un **tableau de samples auto-horodatés** `[{date_start, date_end, steps|heart_rate, o}, …]` (ISO 8601 avec offset, normalisé UTC + tronqué à la seconde côté serveur pour une clé d'idempotence stable). Parser flexible acceptant quatre formes d'enveloppe (tableau JSON, NDJSON, `{"data":[…]}`, wrapping « Dictionnaire » iOS `{"<ndjson>":{}}`) pour absorber les variantes d'auteurs Raccourcis. Stockage **polymorphe** en table unique `health_samples(user_id, kind, date_start, date_end, value, source)` avec `UniqueConstraint(user_id, kind, date_start, date_end)` comme ancre d'idempotence et `CheckConstraint` sur `kind` ∈ {`heart_rate`, `steps`}. UPSERT PostgreSQL `ON CONFLICT DO UPDATE ... RETURNING (xmax = 0)` discriminant inserts vs updates en un aller-retour. Dedupe intra-batch avec **arbitrage per-kind** (MAX pour `steps` — Watch+iPhone comptent des sous-ensembles complémentaires ; AVG arrondi pour `heart_rate` — fusion de deux capteurs visant le même signal) pour absorber les samples overlap Apple Watch + iPhone sans `CardinalityViolationError`. Validation mixte par-sample (hors plage [20, 250] bpm ou [0, 15 000] pas → sample rejeté individuellement avec index + reason bornée `out_of_range|malformed|missing_field|invalid_date`, voisins valides préservés). Rate-limit Redis 60 req/h/token (sliding window), plafond `health_metrics_max_samples_per_request` (1000 par défaut) avec `HTTP 413`. Migration `health_metrics_003` (drop `health_metrics` → create `health_samples` polymorphe, feature flag off en prod au moment de la coupure). Aggregator polymorphe Python (`AVG/MIN/MAX` HR + `SUM` steps par bucket heure/jour/semaine/mois/année, gaps préservés `has_data=False`). UI Settings 4 sous-sections (API + tokens avec deux URLs, charts recharts, statistiques avec fenêtre temporelle affichée, gestion par kind). Métriques Prometheus bornées (`health_samples_upserted_total{kind, operation}`, `health_samples_batch_duplicates_total{kind}`, `health_metrics_validation_rejected_total{field, reason}`, …) + dashboard Grafana 21. Feature flag `HEALTH_METRICS_ENABLED`.
 
@@ -3494,7 +3449,7 @@ apps/api/src/domains/interests/
 
 ### Scheduled Actions (Actions Planifiees)
 
-**Systeme d'actions recurrentes** : L'utilisateur configure des taches executees automatiquement par l'assistant selon un calendrier (jours + heure). Le resultat est archive dans la conversation et notifie via FCM + SSE.
+**Systeme d'actions recurrentes** : L'utilisateur configure des taches executees automatiquement par l'assistant selon un calendrier (jours + heure). Le resultat est archive dans la conversation et notifie via Firebase, ntfy, SSE et les canaux externes actifs.
 
 **Composants** :
 
@@ -3720,16 +3675,17 @@ async with TrackingContext(user_id, run_id) as tracker:
 | Couche | Composant | Rôle |
 |--------|-----------|------|
 | Domain | `domains/channels/` | Service, Repository, Schemas, OTP linking |
-| Infrastructure | `infrastructure/channels/telegram/` | Sender, WebhookHandler, Formatter, Voice STT |
-| Observabilité | `metrics_channels.py` | 12 métriques Prometheus RED |
+| Infrastructure | `infrastructure/channels/telegram/` | Transport, webhook, rendu partagé, voix et fichiers |
+| Observabilité | `metrics_channels.py` | Délais, résultats et refus du canal |
 
 **Fonctionnalités** :
 
-- **Chat bidirectionnel** : texte + voix (OGG → PCM 16kHz → Sherpa Whisper STT)
+- **Chat bidirectionnel** : texte, messages cités, position, photos, documents et albums ; réponse vocale aux notes vocales selon la préférence du canal
 - **OTP Linking** : code 6 digits, single-use, TTL 5min, anti-brute-force Redis
 - **HITL Inline Keyboards** : 3 types de boutons × 6 langues localisées
 - **Notifications proactives** : rappels et alertes d'intérêts via `NotificationDispatcher` Step 4
-- **Abstraction extensible** : `BaseChannelSender` / `BaseChannelWebhookHandler` pour futurs canaux
+- **Tour partagé avec le chat** : mêmes outils et confirmations, choix Pipeline/ReAct/Automatique, `/stop` pour annuler, mots conservés en attente pendant un tour occupé puis réponse dans Telegram
+- **Passerelle injectée** : les besoins du canal passent par les ports de `AssistantGateway` ; fichiers et voix réutilisent les portes du chat ([ADR-389](architecture/ADR-389-Telegram-Reads-And-Answers-Like-The-Chat.md))
 
 **Table** : `user_channel_bindings` avec 2 contraintes UNIQUE + 1 partial index (webhook hot path).
 

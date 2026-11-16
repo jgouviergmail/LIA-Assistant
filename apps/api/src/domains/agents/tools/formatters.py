@@ -47,7 +47,8 @@ class GmailFormatter:
         """Extract email body content (provider-aware).
 
         - Apple and Microsoft: body is at top-level, already text (ADR-287)
-        - Gmail: body is in payload.parts (base64url encoded, needs recursive extraction)
+        - Gmail: body is in payload.parts, read by the client's reading door — the
+          words the layout shows (ADR-287 amendment 2026-11-15)
         """
         # Fast path: top-level body (Apple/Microsoft normalizer, or already enriched)
         top_level_body = message.get("body")
@@ -63,9 +64,9 @@ class GmailFormatter:
             return ""
 
         # Import here to avoid circular dependency
-        from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
+        from src.domains.connectors.clients.gmail_html_mixin import shown_body
 
-        return GoogleGmailClient._extract_body_recursive(payload)
+        return shown_body(payload)
 
     @staticmethod
     def _extract_attachments(

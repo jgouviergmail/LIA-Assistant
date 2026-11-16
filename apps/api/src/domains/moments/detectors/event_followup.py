@@ -34,8 +34,15 @@ from zoneinfo import ZoneInfo
 import structlog
 
 from src.core.config import get_settings
+from src.core.constants import CALENDAR_WINDOW_READ_MAX
 from src.core.time_utils import resolve_user_timezone
 from src.domains.connectors.calendar_access import CalendarAccess, open_active_calendar
+from src.domains.connectors.clients.calendar_lists import (
+    calendar_ref,
+    event_key,
+    owned_calendar_by_ref,
+    read_owned_events,
+)
 from src.domains.moments.calendar_reading import (
     event_instant,
     is_cancelled,
@@ -49,6 +56,9 @@ from src.domains.shared.text_normalization import fold_email, fold_name
 from src.infrastructure.database import get_db_context
 
 logger = structlog.get_logger(__name__)
+
+#: Where the filed payload keeps the digest of a calendar other than the default.
+_CALENDAR_REF_KEY = "calendar_ref"
 
 #: What the detector asks the provider for. ``attendees`` and ``organizer`` are
 #: what the score is made of; ``status`` is how a cancelled event says so.
@@ -182,20 +192,34 @@ async def _local_context(user_id: UUID, *, since: datetime) -> _LocalContext:
         return _LocalContext(frozenset(), frozenset(), frozenset())
 
 
-def _payload(event: Mapping[str, Any], verdict: EventScore, end: datetime) -> dict[str, Any]:
-    """What deduplication and scoring need — and nothing else.
+def _payload(
+    event: Mapping[str, Any], verdict: EventScore, end: datetime, calendar: str | None
+) -> dict[str, Any]:
+    """What deduplication, scoring and the re-read need — and nothing else.
 
     No attendee names: the revalidation re-reads the event anyway, so storing
-    the people would be personal data kept for nothing.
+    the people would be personal data kept for nothing. An event read in another
+    calendar than the default keeps a DIGEST of that calendar (``calendar_ref``),
+    never its id: Google names a calendar by an address.
     """
     attendees = event.get("attendees")
-    return {
+    payload: dict[str, Any] = {
         "title": str(event.get("summary") or "")[:200],
         "end": end.isoformat(),
         "score": verdict.score,
         "reasons": [reason.value for reason in verdict.reasons],
         "attendee_count": len(attendees) if isinstance(attendees, list) else 0,
     }
+    if calendar is not None:
+        payload[_CALENDAR_REF_KEY] = calendar
+    return payload
+
+
+def _calendar_of(calendar_id: str | None, default_id: str) -> str | None:
+    """What a filed moment keeps of the calendar an event was read in: nothing for the default."""
+    if calendar_id is None or calendar_id == default_id:
+        return None
+    return calendar_ref(calendar_id)
 
 
 def _candidate_for(
@@ -209,6 +233,7 @@ def _candidate_for(
     linked_keys: frozenset[str],
     recorded: frozenset[str],
     now: datetime,
+    calendar: str | None,
 ) -> MomentCandidate | None:
     """Whether this finished event earns a moment, and what that moment is.
 
@@ -222,6 +247,7 @@ def _candidate_for(
         linked_keys: Folded names cited by an open commitment.
         recorded: Calendar events LIA already recorded a meeting for.
         now: The instant the pass runs at.
+        calendar: The digest of the calendar it was read in, None for the default.
 
     Returns:
         The candidate, or None when this event earns nothing.
@@ -256,7 +282,7 @@ def _candidate_for(
         source_ref=event_id,
         due_at=due_at,
         not_after=due_at + timedelta(minutes=settings.moments_event_followup_window_minutes),
-        payload=_payload(event, verdict, end),
+        payload=_payload(event, verdict, end, calendar),
     )
 
 
@@ -279,23 +305,23 @@ async def detect(user: Any, now: datetime) -> list[MomentCandidate]:
         async with open_active_calendar(user_id) as access:
             if not isinstance(access, CalendarAccess):
                 return []
-            result = await access.client.list_events(
-                time_min=(
-                    now - timedelta(minutes=settings.moments_detect_lookback_minutes)
-                ).isoformat(),
-                # Past ``now`` by exactly the chain gap, and no further. The
-                # block rule asks whether another meeting starts within that
-                # gap AFTER this one ends; a window stopping at ``now`` cannot
-                # see a meeting that has not started, so the rule answered
-                # « nothing follows » about a block whose end it could not see —
-                # and a filed moment is never un-filed. What comes back from the
-                # future half is a chain BREAKER only: `_candidate_for` refuses
-                # anything that has not ended.
-                time_max=(
-                    now + timedelta(minutes=settings.moments_event_chain_gap_minutes)
-                ).isoformat(),
-                max_results=25,
-                calendar_id=access.calendar_id,
+            default_id = access.calendar_id
+            lookback = now - timedelta(minutes=settings.moments_detect_lookback_minutes)
+            # Past ``now`` by exactly the chain gap, and no further. The block rule
+            # asks whether another meeting starts within that gap AFTER this one
+            # ends; a window stopping at ``now`` cannot see a meeting that has not
+            # started, so the rule answered « nothing follows » about a block whose
+            # end it could not see — and a filed moment is never un-filed. What comes
+            # back from the future half is a chain BREAKER only: `_candidate_for`
+            # refuses anything that has not ended.
+            horizon = now + timedelta(minutes=settings.moments_event_chain_gap_minutes)
+            # Every calendar the account owns: an invitation sits in the main
+            # calendar whichever one events are created in (owner rule 2026-11-15).
+            owned = await read_owned_events(
+                access.client,
+                default_id,
+                [(lookback.isoformat(), horizon.isoformat())],
+                bound=CALENDAR_WINDOW_READ_MAX,
                 fields=_EVENT_FIELDS,
             )
     except Exception as exc:  # noqa: BLE001 — one pass, never the sweep
@@ -306,9 +332,11 @@ async def detect(user: Any, now: datetime) -> list[MomentCandidate]:
         )
         return []
 
-    events = [item for item in (result.get("items") or []) if isinstance(item, Mapping)]
+    events = [item for item in owned.events if isinstance(item, Mapping)]
     if not events:
         return []
+    # The default as it was READ: ``primary`` is read under the main calendar's id.
+    default_read = owned.calendars[0] if owned.calendars else default_id
 
     local = await _local_context(
         user_id, since=now - timedelta(minutes=settings.moments_detect_lookback_minutes)
@@ -329,6 +357,7 @@ async def detect(user: Any, now: datetime) -> list[MomentCandidate]:
                 linked_keys=local.linked,
                 recorded=local.recorded,
                 now=now,
+                calendar=_calendar_of(owned.calendar_of.get(event_key(event)), default_read),
             )
         )
         is not None
@@ -387,6 +416,18 @@ def _fact_lines(
     return tuple(lines)
 
 
+async def _calendar_to_reread(access: CalendarAccess, payload: Mapping[str, Any]) -> str | None:
+    """The calendar the detector read the event in, or None when it is no longer theirs.
+
+    A moment that names none came from the default one (and every moment filed
+    before calendars were all read did): it is re-read there, with no listing.
+    """
+    ref = payload.get(_CALENDAR_REF_KEY)
+    if not ref:
+        return str(access.calendar_id)
+    return await owned_calendar_by_ref(access.client, access.calendar_id, str(ref))
+
+
 async def revalidate(user: Any, source_ref: str, payload: Mapping[str, Any]) -> MomentFacts:
     """Re-read the event, and say whether there is still something to ask about.
 
@@ -407,9 +448,12 @@ async def revalidate(user: Any, source_ref: str, payload: Mapping[str, Any]) -> 
         async with open_active_calendar(user_id) as access:
             if not isinstance(access, CalendarAccess):
                 return MomentFacts(still_valid=False)
+            calendar_id = await _calendar_to_reread(access, payload)
+            if calendar_id is None:
+                return MomentFacts(still_valid=False)  # no longer a calendar of theirs
             event = await access.client.get_event(
                 event_id=source_ref,
-                calendar_id=access.calendar_id,
+                calendar_id=calendar_id,
                 fields=_EVENT_FIELDS,
             )
     except Exception as exc:  # noqa: BLE001 — a re-read that fails says nothing

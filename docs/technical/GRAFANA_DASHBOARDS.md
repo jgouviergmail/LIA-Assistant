@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 5.0** | 2026-10-22 (panel counts re-measured 2026-11-07) | 33 dashboards, 898 panels (rows excluded)
+> **Version 5.0** | 2026-10-22 (panel counts re-measured 2026-11-07) | 33 dashboards, 905 panels (rows excluded)
 
 ---
 
@@ -155,7 +155,7 @@ Dans le fichier de provisioning, un `$` litteral s'ecrit `$$` (sinon `$__tags` e
 | 19 | Sub-agents & Skills | `19-subagents-skills` | lia, subagents, skills || 21 | Executions de sous-agents ReAct (spawns, duree, tokens, erreurs, how each run ended — ADR-083 amendment 2026-10-13), skills |
 | 20 | ReAct Agent & Browser | `20-react-browser` | lia, react, browser || 33 | Boucle ReAct (iterations, outils, HITL tool-level, passes de reprise par issue — ADR-310, replis du cache inter-tours par raison — ADR-308), sessions navigateur, snapshots, API workers' resident memory |
 | 21 | Health Metrics | `21-health-metrics` | lia, health-metrics || 10 | Ingestion des echantillons sante (auth, validation, doublons), variations detectees |
-| 22 | Compaction | `22-compaction` | lia, compaction || 13 | Sante compaction (executions, fallbacks truncation, writer unavailable), timeouts, volume et economies de tokens |
+| 22 | Compaction | `22-compaction` | lia, compaction || 14 | Sante compaction (executions, fallbacks truncation, writer unavailable), timeouts, volume et economies de tokens, tours refuses par la fenetre du modele |
 | 23 | Journals & User Model | `23-journals-user-model` | lia, journals, user-model || 18 | Extraction, actions sur entrees, consolidation par niveaux, portrait utilisateur |
 | 24 | Telephony | `24-telephony` | lia, telephony, calls || 15 | Appels sortants par statut, duree, reapers de recuperation (T1), webhooks ignores |
 | 25 | Today Briefing | `25-briefing` | lia, briefing || 14 | Duree de build par etat de cache, statuts par section, invocations LLM, refresh, chargement progressif par etape |
@@ -300,9 +300,9 @@ Mode d'execution ReAct : iterations par tour, appels d'outils, interruptions HIT
 
 Ingestion des echantillons sante (Apple Health) : volume par type, echecs d'authentification, rejets de validation, variations significatives detectees. Section repliee : doublons de batch ignores a l'ingestion.
 
-### 22 - Compaction (13 panels)
+### 22 - Compaction (14 panels)
 
-Compaction de contexte v2. Ligne de sante en tete : compactions 24h, fallbacks truncation (rouge si > 0), erreurs, writer unavailable (rouge si > 0). Strategie mix, duree end-to-end et par chunk, timeouts par chunk et globaux, raisons de skip, tokens economises vs tokens consommes par la compaction.
+Compaction de contexte v2. Ligne de sante en tete : compactions 24h, fallbacks truncation (rouge si > 0), erreurs, writer unavailable (rouge si > 0). Strategie mix, duree end-to-end et par chunk, timeouts par chunk et globaux, raisons de skip, tokens economises vs tokens consommes par la compaction. Dernier panneau : les tours que la fenetre du modele a refuses et ce qu'est devenue leur relance compactee unique (`compaction_overflow_replays_total{outcome}` : `replayed`, `replay_overflowed`, `refused_*` ; `or vector(0)`, zero attendu).
 
 ### 23 - Journals & User Model (18 panels)
 

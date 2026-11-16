@@ -278,6 +278,9 @@ def _answer_variants() -> list[PublicAnswers]:
         replace(lan, speaking_avatar=True),
         replace(lan, world=True),
         replace(lan, web_search=True),
+        replace(lan, ntfy_server=True),
+        replace(lan, ntfy_server=True, ntfy_ios_relay=True),
+        replace(_public(Exposure.CADDY), ntfy_server=True, ntfy_domain="ntfy.example.org"),
     ]
 
 
@@ -400,6 +403,127 @@ def test_a_template_web_search_secret_is_no_secret(unset: str) -> None:
         ),
     )
     assert re.fullmatch(r"[0-9a-f]{64}", _values(candidate)["SEARXNG_SECRET"])
+
+
+def test_an_ipv6_lan_host_is_written_between_brackets() -> None:
+    # Without them the port reads as part of the address, and no browser or phone
+    # opens it.
+    public = replace(_public(), server_host="fd00::50", ntfy_server=True)
+    derived = derive_environment(public, generate_secrets())
+    origins = {derived[key] for key in ("APP_URL_SERVER", "FRONTEND_URL", "API_URL", "CORS_ORIGINS")}
+    assert origins == {"http://[fd00::50]:3000"}
+    assert derived["NTFY_PUBLIC_URL"] == "http://[fd00::50]:2586"
+
+
+NTFY_TOKEN = re.compile(r"tk_[a-z0-9]{29}")
+NTFY_ACCOUNT_HASH = re.compile(r"[./A-Za-z0-9]{53}")
+
+
+def test_no_ntfy_server_leaves_every_ntfy_value_empty() -> None:
+    off = derive_environment(_public(), generate_secrets())
+    assert {key: off[key] for key in off if key.startswith("NTFY_")} == {
+        "NTFY_SERVER_URL": "",
+        "NTFY_PUBLIC_URL": "",
+        "NTFY_PUBLISH_TOKEN": "",
+        "NTFY_ACCOUNT_HASH": "",
+        "NTFY_BEHIND_PROXY": "false",
+        "NTFY_UPSTREAM_BASE_URL": "",
+    }
+
+
+def test_a_lan_ntfy_server_is_reached_on_the_host_and_published_with_a_token() -> None:
+    # ADR-391: LIA publishes inside the network, phones subscribe on the host's
+    # published port; the token is LIA's only key — its account has no password.
+    generated = generate_secrets()
+    on = derive_environment(replace(_public(), ntfy_server=True), generated)
+    assert on["NTFY_SERVER_URL"] == "http://ntfy:80"
+    assert on["NTFY_PUBLIC_URL"] == "http://192.168.1.50:2586"
+    assert NTFY_TOKEN.fullmatch(on["NTFY_PUBLISH_TOKEN"])
+    assert NTFY_ACCOUNT_HASH.fullmatch(on["NTFY_ACCOUNT_HASH"])
+    assert on["NTFY_BEHIND_PROXY"] == "false"
+    assert on["NTFY_UPSTREAM_BASE_URL"] == ""
+    assert {"NTFY_PUBLISH_TOKEN", "NTFY_ACCOUNT_HASH"} <= SECRET_ANSWER_DERIVED_KEYS
+    again = derive_environment(replace(_public(), ntfy_server=True), generated)
+    assert again["NTFY_PUBLISH_TOKEN"] != on["NTFY_PUBLISH_TOKEN"]
+
+
+@pytest.mark.parametrize("exposure", [Exposure.PROXY, Exposure.CADDY])
+def test_a_ntfy_server_on_a_domain_is_https_behind_the_proxy(exposure: Exposure) -> None:
+    public = replace(_public(exposure), ntfy_server=True, ntfy_domain="ntfy.example.org")
+    on = derive_environment(public, generate_secrets())
+    assert on["NTFY_PUBLIC_URL"] == "https://ntfy.example.org"
+    assert on["NTFY_BEHIND_PROXY"] == "true"
+
+
+def test_the_iphone_relay_names_ntfy_sh_only_when_the_operator_chose_it() -> None:
+    generated = generate_secrets()
+    relayed = derive_environment(
+        replace(_public(), ntfy_server=True, ntfy_ios_relay=True), generated
+    )
+    assert relayed["NTFY_UPSTREAM_BASE_URL"] == "https://ntfy.sh"
+    # A relay answer left from a server since switched off relays nothing.
+    stale = derive_environment(replace(_public(), ntfy_ios_relay=True), generated)
+    assert stale["NTFY_UPSTREAM_BASE_URL"] == ""
+
+
+def test_the_ntfy_credentials_in_force_are_kept_and_never_shown() -> None:
+    public = replace(_public(), ntfy_server=True)
+    generated = generate_secrets()
+    current = render_env("", derive_environment(public, generated))
+    token, account = (_values(current)[key] for key in ("NTFY_PUBLISH_TOKEN", "NTFY_ACCOUNT_HASH"))
+
+    moved = render_reconfigured_env(
+        current,
+        derive_environment(replace(public, server_host="10.0.0.9"), generated, current_env=current),
+    )
+    assert (_values(moved)["NTFY_PUBLISH_TOKEN"], _values(moved)["NTFY_ACCOUNT_HASH"]) == (
+        token,
+        account,
+    )
+    assert _values(moved)["NTFY_PUBLIC_URL"] == "http://10.0.0.9:2586"
+
+    # Switched off, LIA stops publishing; the credentials wait for a re-enable.
+    off = render_reconfigured_env(
+        current,
+        derive_environment(replace(public, ntfy_server=False), generated, current_env=current),
+    )
+    assert (_values(off)["NTFY_SERVER_URL"], _values(off)["NTFY_PUBLIC_URL"]) == ("", "")
+    assert (_values(off)["NTFY_PUBLISH_TOKEN"], _values(off)["NTFY_ACCOUNT_HASH"]) == (
+        token,
+        account,
+    )
+    for key, value in (("NTFY_PUBLISH_TOKEN", token), ("NTFY_ACCOUNT_HASH", account)):
+        assert value not in describe_change(EnvChange(key, None, value))
+
+
+@pytest.mark.parametrize(
+    "unusable",
+    ["", '""', "CHANGE_ME", "tk_short", "tk_" + "A" * 29, "tk_" + "a" * 30],
+)
+def test_a_ntfy_token_the_server_would_refuse_is_replaced(unusable: str) -> None:
+    # ntfy refuses to start on a malformed token, and nothing but LIA's own
+    # `.env` names it: a new one costs nothing, keeping it stops the server.
+    current = f"NTFY_PUBLISH_TOKEN={unusable}\nNTFY_ACCOUNT_HASH={'.' * 53}\n"
+    candidate = render_reconfigured_env(
+        current,
+        derive_environment(
+            replace(_public(), ntfy_server=True), generate_secrets(), current_env=current
+        ),
+    )
+    assert NTFY_TOKEN.fullmatch(_values(candidate)["NTFY_PUBLISH_TOKEN"])
+    assert _values(candidate)["NTFY_ACCOUNT_HASH"] == "." * 53
+
+
+@pytest.mark.parametrize("unusable", ["", "CHANGE_ME", "x" * 52, "$" * 53, "a" * 54])
+def test_an_account_hash_the_server_would_refuse_is_replaced(unusable: str) -> None:
+    current = f"NTFY_ACCOUNT_HASH={unusable}\n"
+    candidate = render_reconfigured_env(
+        current,
+        derive_environment(
+            replace(_public(), ntfy_server=True), generate_secrets(), current_env=current
+        ),
+    )
+    assert NTFY_ACCOUNT_HASH.fullmatch(_values(candidate)["NTFY_ACCOUNT_HASH"])
 
 
 def test_a_write_that_fails_halfway_leaves_no_partial_copy(

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -51,6 +52,9 @@ class Harness:
     def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
         self.claims: list[bool] = []
         self.started: list[tuple[RunAdmission, Candidate]] = []
+        self.on_channel: list[tuple[RunAdmission, str, Any]] = []
+        self.route: Any = None
+        self.told_held: list[tuple[UUID, tuple[UUID, ...]]] = []
         self.released: list[RunAdmission] = []
         self.announced: list[bool] = []
         self.reserved = 0
@@ -74,11 +78,17 @@ class Harness:
         async def pending(runtime_id: str) -> str | None:
             return "question" if UUID(runtime_id) in self.pending else None
 
-        async def reserve(target: ConversationRef, **_: object) -> RunAdmission | RunBusy:
+        async def reserve(target: ConversationRef, **kwargs: Any) -> RunAdmission | RunBusy:
             self.reserved += 1
             if self.busy:
                 return RunBusy(target, ExecutionKind.GRAPH, ExecutionPhase.RUNNING, "r", "s")
-            return _admission(target)
+            return replace(_admission(target), relayed=kwargs["relayed"])
+
+        async def reply_route(_owner: UUID, reply_channel: str | None) -> Any:
+            return self.route if reply_channel is not None else None
+
+        async def tell_held(owner: UUID, held: tuple[UUID, ...]) -> None:
+            self.told_held.append((owner, held))
 
         async def release(admission: RunAdmission, *, announce: bool = True) -> None:
             self.released.append(admission)
@@ -95,6 +105,13 @@ class Harness:
             "_start_turn",
             lambda admission, _user, candidate: self.started.append((admission, candidate)),
         )
+        monkeypatch.setattr(waiting_departure, "reply_route", reply_route)
+        monkeypatch.setattr(
+            waiting_departure,
+            "start_channel_turn",
+            lambda admission, _user, text, route: self.on_channel.append((admission, text, route)),
+        )
+        monkeypatch.setattr(waiting_departure, "tell_held", tell_held)
 
     async def _claim(self, *_args: object, **_kwargs: object) -> bool:
         return self.claims.pop(0) if self.claims else True
@@ -219,3 +236,66 @@ def test_the_departure_is_the_installed_release_listener() -> None:
     from src.infrastructure.streaming import release_listener
 
     assert release_listener._listener is waiting_departure.depart_after_release
+
+
+async def test_words_written_on_a_channel_leave_as_its_turn_unrelayed(harness: Harness) -> None:
+    """Telegram lot 34: the answer goes where the person waits for it — a
+    channel turn, never relayed to a browser that would wait for its chunks."""
+    harness.route = SimpleNamespace(channel_type="telegram", channel_user_id="12345")
+    candidate = replace(_candidate(), reply_channel="telegram")
+
+    result = await waiting_departure.depart(OWNER, candidate)
+
+    assert result.outcome is Departure.SENT and result.stream_id is None
+    [(admission, text, route)] = harness.on_channel
+    assert text == candidate.content and route is harness.route
+    assert not admission.relayed and admission.cancellable
+    assert harness.started == []
+
+
+async def test_a_channel_no_longer_linked_answers_in_the_app(harness: Harness) -> None:
+    """The binding was switched off or removed meanwhile: the words still leave."""
+    harness.route = None
+    candidate = replace(_candidate(), reply_channel="telegram")
+
+    result = await waiting_departure.depart(OWNER, candidate)
+
+    assert result.outcome is Departure.SENT and result.stream_id is not None
+    [(admission, started)] = harness.started
+    assert started == candidate and admission.relayed
+    assert harness.on_channel == []
+
+
+async def test_a_release_tells_the_channels_what_it_held(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(waiting_departure, "_candidates", AsyncMock(return_value=[]))
+    held = (uuid4(),)
+
+    await waiting_departure.depart_after_release(OWNER, RunEnd.INTERRUPTED, held)
+
+    assert harness.told_held == [(OWNER, held)]
+
+
+async def test_a_release_whose_departure_failed_still_tells_what_it_held(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        waiting_departure, "_candidates", AsyncMock(side_effect=ConnectionError("away"))
+    )
+    held = (uuid4(),)
+
+    with pytest.raises(ConnectionError):
+        await waiting_departure.depart_after_release(OWNER, RunEnd.INTERRUPTED, held)
+
+    assert harness.told_held == [(OWNER, held)]
+
+
+async def test_a_release_that_held_nothing_tells_nobody(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(waiting_departure, "_candidates", AsyncMock(return_value=[]))
+
+    await waiting_departure.depart_after_release(OWNER, RunEnd.NORMAL, ())
+
+    assert harness.told_held == []

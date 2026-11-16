@@ -13,7 +13,7 @@ import {
   switchLanguageInPath,
 } from '@/utils/i18n-path-utils';
 import Link from 'next/link';
-import { ExecutionModeToggle } from '@/components/execution-mode-toggle';
+import { ExecutionModeMenu } from '@/components/execution-mode-menu';
 import { VoiceToggle } from '@/components/voice-toggle';
 import { TokensDisplayToggle } from '@/components/tokens-display-toggle';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -300,7 +300,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                       <div
                         className={`flex items-center flex-1 justify-evenly lg:justify-end ${HEADER_ICON_GAP}`}
                       >
-                        <ExecutionModeToggle lng={lng} className={HEADER_ICON_SLOT} />
+                        <ExecutionModeMenu lng={lng} className={HEADER_ICON_SLOT} />
                         {/* ADR-259: record / stop a meeting from any page. Below `lg`
                     the logo menu carries the same command (no width for a
                     seventh control on a phone — measured). */}

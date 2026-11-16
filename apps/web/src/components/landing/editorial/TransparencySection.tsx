@@ -46,7 +46,7 @@ export async function TransparencySection({
           <h2 id="transparency-title" className="text-3xl font-bold tracking-tight mobile:text-4xl">
             {t('landing.transparency.title')}
           </h2>
-          <p className="mx-auto mt-3 max-w-[60ch] text-muted-foreground">
+          <p className="mt-3 leading-7 text-muted-foreground">
             {t('landing.transparency.sub')}
           </p>
 

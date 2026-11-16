@@ -14,6 +14,7 @@ from uuid import UUID, uuid4
 
 import structlog
 
+from src.core.constants import CALENDAR_LIST_PAGE_MAX
 from src.core.exceptions import ConnectorAPIError, ExternalServiceError
 from src.core.i18n_api_messages import APIMessages
 from src.core.wall_time import WallTime
@@ -297,11 +298,13 @@ class GoogleCalendarClient(BaseGoogleClient):
         Used for preference resolution (name -> ID mapping).
 
         Args:
-            max_results: Maximum number of calendars (default: 100, max: 250)
+            max_results: Maximum number of calendars (default: 100, max:
+                ``CALENDAR_LIST_PAGE_MAX``)
             show_hidden: Include hidden calendars (default: False)
 
         Returns:
-            Dict with 'items' list of calendar metadata
+            Dict with 'items' list of calendar metadata, and ``truncated``: the
+            listing holds calendars past this page
 
         Example:
             >>> result = await client.list_calendars()
@@ -311,8 +314,8 @@ class GoogleCalendarClient(BaseGoogleClient):
         # Metadata enumeration (calendar name -> ID resolution), NOT item
         # volumetry: intentionally exempt from the global per-request cap so a
         # user with many (shared) calendars can still resolve any of them. Bounded
-        # by the Google API hard limit (250). See the volumetry guard allow-list.
-        max_results = min(max_results, 250)
+        # by the Google API hard limit. See the volumetry guard allow-list.
+        max_results = min(max_results, CALENDAR_LIST_PAGE_MAX)
 
         params: dict[str, Any] = {
             "maxResults": max_results,
@@ -324,11 +327,14 @@ class GoogleCalendarClient(BaseGoogleClient):
             "/users/me/calendarList",
             params=params,
         )
+        # A page token says the listing holds more: the cut is said, never guessed.
+        response["truncated"] = bool(response.get("nextPageToken"))
 
         logger.info(
             "calendar_list_retrieved",
             user_id=str(self.user_id),
             count=len(response.get("items", [])),
+            truncated=response["truncated"],
         )
 
         return response
@@ -419,12 +425,17 @@ class GoogleCalendarClient(BaseGoogleClient):
         fields: list[str] | None = None,
     ) -> dict[str, Any]:
         """
-        List calendar events with optional filters and field projection.
+        The soonest events of a window, in start order, and whether it holds more.
+
+        One request: Google pages a window from its start, so this answer is that
+        page and ``truncated`` says another follows. A reader of a whole window
+        reads ``list_events_window`` (ADR-185 amendment 2026-11-15).
 
         Args:
             time_min: Start time filter (ISO format with timezone, e.g., '2025-01-15T00:00:00Z')
             time_max: End time filter (ISO format with timezone)
-            max_results: Maximum number of events to return (default: 10, max: 2500)
+            max_results: Most events returned, never past the per-request ceiling
+                (``api_max_items_per_request``)
             calendar_id: Calendar ID (default: primary)
             query: Free text search query (optional)
             fields: List of event fields to return (optional, for optimization).
@@ -432,7 +443,7 @@ class GoogleCalendarClient(BaseGoogleClient):
                    Example: ["id", "summary", "start", "end", "location"]
 
         Returns:
-            Dict with 'items' list of events
+            Dict with 'items' list of events and ``truncated`` (the window holds more)
 
         Example:
             >>> result = await client.list_events(
@@ -457,11 +468,15 @@ class GoogleCalendarClient(BaseGoogleClient):
             f"/calendars/{_segment(calendar_id)}/events",
             params=params,
         )
+        # The projection keeps ``nextPageToken`` (``_events_params``): a next page
+        # is the window holding more than this answer.
+        response["truncated"] = bool(response.get("nextPageToken"))
 
         logger.info(
             "calendar_events_listed",
             user_id=str(self.user_id),
             count=len(response.get("items", [])),
+            truncated=response["truncated"],
             # A query is a name, a subject or an address: content, never INFO.
             has_query=bool(query),
             fields_projected=bool(fields),
@@ -638,13 +653,20 @@ class GoogleCalendarClient(BaseGoogleClient):
         return answered
 
     async def list_events_window(
-        self, calendar_id: str, time_min: str, time_max: str, *, bound: int
+        self,
+        calendar_id: str,
+        time_min: str,
+        time_max: str,
+        *,
+        bound: int,
+        fields: list[str] | None = None,
     ) -> dict[str, Any]:
         """Every event of a window — occurrences expanded — up to ``bound`` (ADR-369).
 
         Pages are drained (``pageToken``) until the window is read or ``bound``
         events are; past it — or past ``_WINDOW_MAX_PAGES`` pages, since Google
         may answer an empty page with a token — the answer says it was cut.
+        ``fields`` projects each event as ``list_events`` does, the page token kept.
 
         Returns:
             ``{"events": [...], "truncated": bool}``.
@@ -659,6 +681,8 @@ class GoogleCalendarClient(BaseGoogleClient):
                 "orderBy": "startTime",
                 "maxResults": min(_WINDOW_PAGE_SIZE, bound - len(events) + 1),
             }
+            if fields:
+                params["fields"] = f"items({','.join(fields)}),nextPageToken"
             if page_token:
                 params["pageToken"] = page_token
             response = await self._make_request(

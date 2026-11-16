@@ -86,19 +86,51 @@ def _db_ctx() -> Any:
     return _ctx
 
 
-def _calendar(items: list[dict[str, Any]] | Exception) -> Any:
+#: The account's main calendar, under the id Google lists it by: an ADDRESS.
+_MAIN = "moi@example.com"
+
+
+def _client(
+    items: list[dict[str, Any]] | Exception,
+    *,
+    held: dict[str, list[dict[str, Any]]] | None = None,
+) -> MagicMock:
+    """A calendar client: the main calendar holds ``items`` unless ``held`` says more."""
+    calendars: dict[str, Any] = {_MAIN: items} if held is None else held
+    client = MagicMock()
+    client.list_calendars = AsyncMock(
+        return_value={
+            "items": [
+                {"id": key, "accessRole": "owner", "primary": key == _MAIN} for key in calendars
+            ]
+        }
+    )
+
+    async def window(calendar_id: str, *_: Any, **__: Any) -> dict[str, Any]:
+        answer = calendars.get(calendar_id, [])
+        if isinstance(answer, Exception):
+            raise answer
+        return {"events": answer, "truncated": False}
+
+    client.list_events_window = AsyncMock(side_effect=window)
+    client.close = AsyncMock()
+    return client
+
+
+def _calendar(
+    items: list[dict[str, Any]] | Exception,
+    *,
+    default: str = "primary",
+    held: dict[str, list[dict[str, Any]]] | None = None,
+    client: MagicMock | None = None,
+) -> Any:
     from contextlib import asynccontextmanager
 
-    client = MagicMock()
-    if isinstance(items, Exception):
-        client.list_events = AsyncMock(side_effect=items)
-    else:
-        client.list_events = AsyncMock(return_value={"items": items})
-    client.close = AsyncMock()
+    opened = client or _client(items, held=held)
 
     @asynccontextmanager
     async def _open(_user_id: Any):
-        yield CalendarAccess(client=client, calendar_id="primary", connector_type=None)
+        yield CalendarAccess(client=opened, calendar_id=default, connector_type=None)
 
     return _open
 
@@ -205,6 +237,33 @@ class TestWhatIsFiled:
         thin["organizer"] = {"email": "g1@example.com"}
 
         assert await _detect([thin]) == []
+
+
+class TestEveryOwnedCalendar:
+    """The default says where events are created; an invitation sits in the main one."""
+
+    async def test_a_meeting_in_the_main_calendar_is_filed_with_a_digest_of_it(self) -> None:
+        from src.domains.connectors.clients.calendar_lists import calendar_ref
+
+        opener = _calendar([], default="famille", held={"famille": [], _MAIN: [_event()]})
+
+        [candidate] = await _detect([], opener=opener)
+
+        assert candidate.payload["calendar_ref"] == calendar_ref(_MAIN)
+        # The calendar is named by an address at Google: never stored as such.
+        assert "@" not in str(candidate.payload)
+
+    async def test_a_meeting_in_the_default_calendar_names_none(self) -> None:
+        opener = _calendar([], default="famille", held={"famille": [_event()], _MAIN: []})
+
+        [candidate] = await _detect([], opener=opener)
+
+        assert "calendar_ref" not in candidate.payload
+
+    async def test_a_meeting_two_calendars_hold_is_filed_once(self) -> None:
+        opener = _calendar([], default="famille", held={"famille": [_event()], _MAIN: [_event()]})
+
+        assert len(await _detect([], opener=opener)) == 1
 
 
 class TestTheBlockRule:
@@ -349,39 +408,31 @@ class TestTheWindowTheChainRuleNeeds:
     """
 
     @staticmethod
-    async def _captured_window(items: list[dict[str, Any]]) -> dict[str, Any]:
-        """The kwargs the detector really sent the provider."""
-        from contextlib import asynccontextmanager
-
-        client = MagicMock()
-        client.list_events = AsyncMock(return_value={"items": items})
-        client.close = AsyncMock()
-
-        @asynccontextmanager
-        async def _open(_user_id: Any):
-            yield CalendarAccess(client=client, calendar_id="primary", connector_type=None)
-
+    async def _captured_window(items: list[dict[str, Any]]) -> tuple[str, str]:
+        """The window the detector really asked the provider for."""
+        client = _client(items)
         with (
             patch(f"{_MODULE}.get_db_context", new=_db_ctx()),
-            patch(f"{_MODULE}.open_active_calendar", new=_open),
+            patch(f"{_MODULE}.open_active_calendar", new=_calendar(items, client=client)),
             patch(f"{_MODULE}._local_context", new=_local()),
         ):
             await event_followup.detect(_user(), NOW)
 
-        return dict(client.list_events.await_args.kwargs)
+        _, time_min, time_max = client.list_events_window.await_args.args
+        return time_min, time_max
 
     async def test_the_read_reaches_the_chain_gap_beyond_now(self) -> None:
-        kwargs = await self._captured_window([_event()])
+        _, time_max = await self._captured_window([_event()])
 
-        time_max = datetime.fromisoformat(kwargs["time_max"])
         gap = timedelta(minutes=settings.moments_event_chain_gap_minutes)
-        assert time_max == NOW + gap
+        assert datetime.fromisoformat(time_max) == NOW + gap
 
     async def test_it_still_starts_at_the_lookback(self) -> None:
-        kwargs = await self._captured_window([_event()])
+        time_min, _ = await self._captured_window([_event()])
 
-        time_min = datetime.fromisoformat(kwargs["time_min"])
-        assert time_min == NOW - timedelta(minutes=settings.moments_detect_lookback_minutes)
+        assert datetime.fromisoformat(time_min) == NOW - timedelta(
+            minutes=settings.moments_detect_lookback_minutes
+        )
 
     async def test_a_meeting_that_has_not_ended_earns_nothing_itself(self) -> None:
         """The widened window returns future events; they are chain breakers
@@ -485,3 +536,44 @@ class TestOneReadingOfDeclined:
         assert (
             "responseStatus" not in source
         ), "a second inline copy of the rule is how the two readings drift"
+
+
+class TestTheReReadAsksTheCalendarTheMeetingSitsIn:
+    """A moment filed from the main calendar is re-read THERE, not in the default."""
+
+    @staticmethod
+    async def _revalidate(payload: dict[str, Any]) -> tuple[Any, MagicMock]:
+        client = _client([], held={"famille": [], _MAIN: []})
+        client.get_event = AsyncMock(return_value=_event(anchor=datetime.now(UTC)))
+        with (
+            patch(f"{_MODULE}.get_db_context", new=_db_ctx()),
+            patch(
+                f"{_MODULE}.open_active_calendar",
+                new=_calendar([], default="famille", client=client),
+            ),
+        ):
+            facts = await event_followup.revalidate(_user(), "evt-1", payload)
+        return facts, client
+
+    async def test_the_digest_finds_the_main_calendar_again(self) -> None:
+        from src.domains.connectors.clients.calendar_lists import calendar_ref
+
+        facts, client = await self._revalidate(
+            {"title": "Point", "calendar_ref": calendar_ref(_MAIN)}
+        )
+
+        assert client.get_event.await_args.kwargs["calendar_id"] == _MAIN
+        assert facts.still_valid is True
+
+    async def test_no_digest_reads_the_default_without_listing(self) -> None:
+        facts, client = await self._revalidate({"title": "Point"})
+
+        assert client.get_event.await_args.kwargs["calendar_id"] == "famille"
+        client.list_calendars.assert_not_awaited()
+        assert facts.still_valid is True
+
+    async def test_a_calendar_no_longer_theirs_says_nothing(self) -> None:
+        facts, client = await self._revalidate({"title": "Point", "calendar_ref": "0" * 16})
+
+        client.get_event.assert_not_awaited()
+        assert facts.still_valid is False

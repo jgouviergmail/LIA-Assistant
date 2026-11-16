@@ -6,6 +6,11 @@ import { TrackView } from '@/components/telemetry/TelemetryBootstrap';
 import { LandingHeader } from '@/components/landing/LandingHeader';
 import { EditorialChapters } from '@/components/landing/editorial/EditorialChapters';
 import { PromiseSection } from '@/components/landing/editorial/PromiseSection';
+import { PositioningSection } from '@/components/landing/editorial/PositioningSection';
+import { ArgumentsSection } from '@/components/landing/editorial/ArgumentsSection';
+import { ComparisonSection } from '@/components/landing/comparison/ComparisonSection';
+import { ScopedTranslations } from '@/components/ScopedTranslations';
+import { HOME_TRANSLATION_SCOPES } from '@/i18n/scoped-translations';
 import { PersonalContextSection } from '@/components/landing/editorial/PersonalContextSection';
 import { PlatformSection } from '@/components/landing/editorial/PlatformSection';
 import { LandingVideoSection } from '@/components/landing/video/LandingVideoSection';
@@ -64,60 +69,68 @@ export default async function HomePage({ params }: HomePageProps) {
       {/* Product funnel (ADR-178 Phase 4, anonymous allowed) — inert unless enabled */}
       <TrackView event="landing_view" />
 
-      <div className="landing-page cosmos cosmos-attention cosmos-home">
-        <CosmicBackdrop />
-        {/* Animated « attention + latent space » layer, landing only. */}
-        <AttentionBackdrop />
+      {/* The landing words this page's browser reads reach it on this route
+          alone; the server-rendered sections ship none (scoped-translations). */}
+      <ScopedTranslations lng={lng} scopes={HOME_TRANSLATION_SCOPES}>
+        <div className="landing-page cosmos cosmos-attention cosmos-home">
+          <CosmicBackdrop />
+          {/* Animated « attention + latent space » layer, landing only. */}
+          <AttentionBackdrop />
 
-        {/* Skip to content */}
-        <a
-          href="#features"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md"
-        >
-          {t('landing.nav.features')}
-        </a>
+          {/* Skip to content */}
+          <a
+            href="#features"
+            className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md"
+          >
+            {t('landing.nav.features')}
+          </a>
 
-        <LandingHeader lng={lng} home />
-        <ChapterRail />
+          <LandingHeader lng={lng} home />
+          <ChapterRail />
 
-        {/* Editorial narrative (ADR: the page speaks the product's language),
+          {/* Editorial narrative (ADR: the page speaks the product's language),
             worn by the cosmos identity: content reused verbatim, the `.cosmos`
             scope + the cosmos compositions provide the skin. */}
-        <main>
-          <CosmosHero lng={lng} />
-          {/* Operator-hosted video (ADR-330): mounts only when the running
+          <main>
+            <CosmosHero lng={lng} />
+            {/* Where LIA stands, before anything is shown (owner, 2026-11-15). */}
+            <PositioningSection lng={lng} />
+            {/* Operator-hosted video (ADR-330): mounts only when the running
               server names a media directory — nothing of it is in the build. */}
-          <LandingVideoSection lng={lng} />
-          <GallerySection />
-          <PromiseSection lng={lng} />
-          <PersonalContextSection lng={lng} />
-          <EditorialChapters lng={lng} ghosts />
-          <BasicsBand lng={lng} />
-          <TransparencySection
-            lng={lng}
-            ghost={<GhostWord wordKey="landing.cosmos.ghost.transparency" direction={1} />}
-          />
-          <CosmosDay />
-          <PlatformSection lng={lng} />
-          <TechSection lng={lng} />
-          <ChangelogSection lng={lng} />
-          <BlogPreviewSection lng={lng} />
-          <CosmosFinale lng={lng} />
-        </main>
+            <LandingVideoSection lng={lng} />
+            <ArgumentsSection lng={lng} />
+            <ComparisonSection lng={lng} />
+            <GallerySection />
+            <PromiseSection lng={lng} />
+            <PersonalContextSection lng={lng} />
+            <EditorialChapters lng={lng} ghosts />
+            <BasicsBand lng={lng} />
+            <TransparencySection
+              lng={lng}
+              ghost={<GhostWord wordKey="landing.cosmos.ghost.transparency" direction={1} />}
+            />
+            <CosmosDay />
+            <PlatformSection lng={lng} />
+            <TechSection lng={lng} />
+            <ChangelogSection lng={lng} />
+            <BlogPreviewSection lng={lng} />
+            <CosmosFinale lng={lng} />
+          </main>
 
-        {/* Scroll-scrub drivers: each writes its section's --sp so the cosmos
+          {/* Scroll-scrub drivers: each writes its section's --sp so the cosmos
             skin can choreograph the tiles in sync with the scroll (one distinct
             pattern per section — rise, 3D flip, lift, pop, execution trace). */}
-        <ScrollScrub targetId="transparency" />
-        <ScrollScrub targetId="gallery" />
-        <ScrollScrub targetId="changelog" />
+          <ScrollScrub targetId="transparency" />
+          <ScrollScrub targetId="gallery" />
+          <ScrollScrub targetId="changelog" />
 
-        <LandingFooter lng={lng} />
+          <LandingFooter lng={lng} />
 
-        {/* LIA's eyes: fixed to the viewport, draggable, on their own
+          {/* LIA's eyes: fixed to the viewport, draggable, on their own
             position slot (ADR-240, landing surface). */}
-        <LandingEyes />
-      </div>
+          <LandingEyes />
+        </div>
+      </ScopedTranslations>
     </>
   );
 }

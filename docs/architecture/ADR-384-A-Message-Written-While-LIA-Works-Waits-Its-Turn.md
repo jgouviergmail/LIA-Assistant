@@ -92,14 +92,39 @@ unchanged; Telegram follows the same rule in its own lot.
 
 ## What this decision leaves, and says so
 
-- **Telegram** still answers « busy » and drops the message: lot 34 of the channel programme
-  applies this rule there.
+- **Telegram** answered « busy » and dropped the message: lot 34 of the channel programme
+  applies this rule there since — see the amendment of 2026-11-15 below.
 - **A note handed to the running answer** (the message read by the loop at its next step) is a
   separate decision, not taken here — taken since by
   [ADR-385](ADR-385-A-Note-Joins-The-Answer-Being-Written.md) (2026-11-13): a waiting message can
   join a ReAct answer a person waits for, read at the loop's next model call.
 - An archive that fails while a departed run goes on (the archive is best-effort, ADR-117) leaves
   the message `held` although LIA answered it: the person sees both and withdraws it.
+
+## Amendment 2026-11-15 — words written on Telegram wait too (lot 34)
+
+Telegram follows the rule in its own lot, as the context announced:
+
+1. **A message written on Telegram while the account is busy is kept like the app's**, for Main,
+   through the channel gateway (`agents/api/waiting_channel.keep_from_channel`), under the same
+   owner lock. Its channel is written on the row (`waiting_messages.reply_channel`, set once and
+   kept: an edit from the app never moves the answer away), and the person's message is marked
+   « seen » by a 👀 reaction, a sentence where Telegram refuses it. A voice note waits as its
+   transcription.
+2. **It is answered where it was written.** The departure reserves the account unrelayed and runs
+   the person's channel turn (`channels/waiting.start_channel_turn`), which owns the reservation
+   from its first instruction; a channel switched off or unlinked meanwhile answers in the app.
+3. **A message a release held is told on its chat.** The close returns the ids it held
+   (`SettledRelease.held_ids`), the release announces them, and the notice quotes the words with
+   the bubble's two answers as buttons — send it now, withdraw it — refused like a question's
+   button for an unknown chat, a deactivated account or a channel switched off. A notice that
+   cannot be sent never undoes the release.
+4. **What cannot wait does not.** An answer to a pending question (it IS the answer), a shared
+   position and a file: kept, each would leave as words alone, its meaning lost. The person is
+   told to send it again.
+
+The migration `5ad5dfadfe7a` adds the column and its `CHECK`. The rest of the Telegram lot is
+[ADR-389](ADR-389-Telegram-Reads-And-Answers-Like-The-Chat.md).
 
 ## References
 
@@ -110,3 +135,6 @@ unchanged; Telegram follows the same rule in its own lot.
 - `apps/web/src/hooks/useWaitingMessage.ts`, `apps/web/src/hooks/useWaitingComposer.ts`,
   `apps/web/src/components/chat/WaitingMessageBubble.tsx`, `apps/web/src/lib/waiting-message.ts`
 - `docs/technical/WAITING_MESSAGES.md` — the whole mechanism, with its limits
+- `apps/api/src/domains/agents/api/waiting_channel.py`, `apps/api/src/domains/channels/waiting.py`,
+  `apps/api/src/infrastructure/channels/telegram/waiting_keyboard.py` — the channel's half
+  (amendment 2026-11-15)

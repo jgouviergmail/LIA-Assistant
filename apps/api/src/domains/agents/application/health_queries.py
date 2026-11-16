@@ -17,15 +17,30 @@ from src.domains.agents.application.health_read_schemas import (
     HealthTokensRead,
 )
 from src.domains.health_metrics import management_read
+from src.domains.users.models import User
 
 
-async def require_health_access(db: AsyncSession, actor_id: UUID, *, data: bool = True) -> None:
+async def require_health_access(db: AsyncSession, actor_id: UUID, *, data: bool = True) -> User:
+    """Refuse unless the health feature and the account's consent allow the read.
+
+    Args:
+        db: The command's session.
+        actor_id: The account reading.
+        data: Whether the read touches measurements (the consent applies).
+
+    Returns:
+        The freshly loaded actor (its timezone cuts the health days).
+
+    Raises:
+        AuthorizationError: The feature is off or the consent is not given.
+    """
     await require_application_tools(db)
     actor = await load_actor(db, actor_id)
     if not settings.health_metrics_enabled or (
         data and not getattr(actor, HEALTH_METRICS_USER_TOGGLE_ATTR, False)
     ):
         raise AuthorizationError(detail={"error_code": "FORBIDDEN"})
+    return actor
 
 
 async def read_health_samples(

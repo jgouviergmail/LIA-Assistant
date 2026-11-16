@@ -8,13 +8,18 @@ from langgraph.prebuilt import ToolRuntime
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
+from src.core.constants import EXECUTION_MODE_REACT
 from src.core.exceptions import (
     AuthorizationError,
     ExternalServiceError,
     ResourceConflictError,
     ResourceNotFoundError,
 )
-from src.domains.agents.context.runtime_context import LiaRuntimeContext, tool_runtime_context
+from src.domains.agents.context.runtime_context import (
+    LiaRuntimeContext,
+    executed_mode_of,
+    tool_runtime_context,
+)
 from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.data_registry.models import RegistryItem, RegistryItemMeta, RegistryItemType
 from src.domains.agents.sms.model_output import SmsModelToolOutput
@@ -77,7 +82,11 @@ async def _read(
             message="Authenticated context required.", error_code="FORBIDDEN"
         )
     # The page reaches the final response model, and in ReAct the loop's model before it.
-    slots = ("react_agent", "response") if context.execution_mode == "react" else ("response",)
+    slots = (
+        ("react_agent", "response")
+        if executed_mode_of(context) == EXECUTION_MODE_REACT
+        else ("response",)
+    )
     budget = min(
         SMS_TOOL_TOKEN_BUDGET,
         max(1, min(slot_tool_result_budget(slot) for slot in slots) - 128),

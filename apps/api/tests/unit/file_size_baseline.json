@@ -31,7 +31,7 @@
     "domains/agents/tools/weather_tools.py": 716,
     "domains/auth/router.py": 727,
     "domains/chat/service.py": 778,
-    "domains/connectors/clients/google_gmail_client.py": 682,
+    "domains/connectors/clients/google_gmail_client.py": 652,
     "domains/connectors/router.py": 1239,
     "domains/connectors/service.py": 1362,
     "domains/conversations/repository.py": 651,

@@ -175,8 +175,8 @@ class TestExpireStaleReturns:
         await repo.persist_return_inbox(
             call.id, encrypted_payload=encrypt_data("old"), received_at=now - timedelta(hours=3)
         )
-        count = await repo.expire_stale_returns(max_age_cutoff=now - timedelta(minutes=60))
-        assert count == 1
+        retired = await repo.expire_stale_returns(max_age_cutoff=now - timedelta(minutes=60))
+        assert [c.id for c in retired] == [call.id]
         await async_session.refresh(call)
         assert call.return_status == ReturnSynthesisStatus.FAILED
         assert call.return_webhook_encrypted is None  # purged
@@ -205,4 +205,5 @@ class TestRecoverStaleExcludesInbox:
         assert with_inbox.status == PhoneCallStatus.DIALING  # untouched
         assert with_inbox.return_status == ReturnSynthesisStatus.RECEIVED
         assert no_webhook.status == PhoneCallStatus.FAILED  # reaped
-        assert reaped >= 1
+        assert no_webhook.id in {c.id for c in reaped}
+        assert with_inbox.id not in {c.id for c in reaped}

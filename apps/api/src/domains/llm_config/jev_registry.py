@@ -24,6 +24,7 @@ class JevUsage(StrEnum):
     PARAMETER_KIND = "parameter_kind"
     EMAIL_CLASSIFICATION = "email_classification"
     EVENT_CLASSIFICATION = "event_classification"
+    EXECUTION_MODE = "execution_mode"
 
 
 @dataclass(frozen=True)
@@ -120,6 +121,12 @@ JEV_USAGES: dict[JevUsage, JevUsageSpec] = {
         "jev_event_classification",
         "settings.admin.jev.usages.event_classification",
         SystemSettingKey.JEV_EVENT_CLASSIFICATION_THRESHOLDS,
+    ),
+    JevUsage.EXECUTION_MODE: JevUsageSpec(
+        SystemSettingKey.JEV_EXECUTION_MODE_ENABLED,
+        "jev_execution_mode",
+        "settings.admin.jev.usages.execution_mode",
+        SystemSettingKey.JEV_EXECUTION_MODE_THRESHOLDS,
     ),
 }
 

@@ -330,27 +330,33 @@
   "execution_mode": {
     "fr": {
       "pipeline": "Mode Pipeline",
-      "react": "Mode ReAct"
+      "react": "Mode ReAct",
+      "auto": "Mode automatique"
     },
     "en": {
       "pipeline": "Pipeline mode",
-      "react": "ReAct mode"
+      "react": "ReAct mode",
+      "auto": "Automatic mode"
     },
     "de": {
       "pipeline": "Pipeline-Modus",
-      "react": "ReAct-Modus"
+      "react": "ReAct-Modus",
+      "auto": "Automatischer Modus"
     },
     "es": {
       "pipeline": "Modo Pipeline",
-      "react": "Modo ReAct"
+      "react": "Modo ReAct",
+      "auto": "Modo automático"
     },
     "it": {
       "pipeline": "Modalità Pipeline",
-      "react": "Modalità ReAct"
+      "react": "Modalità ReAct",
+      "auto": "Modalità automatica"
     },
     "zh-CN": {
       "pipeline": "Pipeline 模式",
-      "react": "ReAct 模式"
+      "react": "ReAct 模式",
+      "auto": "自动模式"
     }
   },
   "voice_stt_mode": {

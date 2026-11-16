@@ -618,6 +618,15 @@ describe('matchSettingsSections — recall in the six languages', () => {
     ['zh', '密码', 'security-auth'],
     ['zh', '时区', 'timezone'],
     ['zh', '语言', 'language'],
+    // ntfy lives in the notifications section (ADR-391): a reader looks for it by its name
+    // or by what it spares them.
+    ['en', 'ntfy', 'notifications'],
+    ['fr', 'ntfy', 'notifications'],
+    ['fr', 'sans Google', 'notifications'],
+    ['de', 'ohne Google', 'notifications'],
+    ['es', 'sin Google', 'notifications'],
+    ['it', 'senza Google', 'notifications'],
+    ['zh', 'ntfy', 'notifications'],
   ];
 
   const indexes = Object.fromEntries(

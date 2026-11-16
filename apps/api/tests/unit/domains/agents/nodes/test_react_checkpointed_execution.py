@@ -43,6 +43,7 @@ from src.domains.agents.tools.tool_registry import get_tool, register_external_t
 from src.domains.conversations.checkpointer import _CHECKPOINT_ALLOWED_MODULES
 from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.skills.executor import ScriptResult, SkillScriptExecutor
+from tests.helpers.runtime_context import make_runtime_context
 from tests.unit.domains.agents.nodes.react_execution_harness import execution_graph, state_result
 
 pytestmark = pytest.mark.unit
@@ -117,7 +118,7 @@ def _state(*calls: ToolCall) -> MessagesState:
 
 
 def _context(thread: str = "fixture", user: UUID = USER) -> LiaRuntimeContext:
-    return LiaRuntimeContext(
+    return make_runtime_context(
         user_id=user, thread_id=thread, conversation_id=thread, execution_mode="react"
     )
 

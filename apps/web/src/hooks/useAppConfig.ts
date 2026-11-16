@@ -60,6 +60,8 @@ export interface AppConfig {
     // The home address: its deployment ceiling (Google Places, ADR-307).
     home_address_enabled?: boolean;
     channels_enabled?: boolean;
+    /** ntfy (ADR-391): the deployment offers notifications through ntfy. */
+    ntfy_enabled?: boolean;
     heartbeat_enabled?: boolean;
     skills_enabled?: boolean;
     open_loops_enabled?: boolean;

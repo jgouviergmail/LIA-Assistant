@@ -16,8 +16,13 @@ from uuid import uuid4
 
 import pytest
 
+from src.core.constants import NTFY_BROADCAST_CONCURRENCY
+from src.core.i18n import _ as _i18n
 from src.core.i18n import language_scope
+from src.domains.notifications import broadcast_service as broadcast_module
 from src.domains.notifications.broadcast_service import BroadcastService
+from src.domains.notifications.ntfy_delivery import NtfyBatch
+from src.infrastructure.external.ntfy_client import NtfyOutcome
 
 
 def _make_service() -> BroadcastService:
@@ -27,6 +32,8 @@ def _make_service() -> BroadcastService:
     service.broadcast_repo.merge_translations = AsyncMock()
     service.fcm_service = MagicMock()
     service.fcm_service.get_active_token_strings = AsyncMock(return_value=[])
+    # No ntfy topic unless a test gives some (ADR-391).
+    service._ntfy_targets_by_language = AsyncMock(return_value={})  # type: ignore[method-assign]
     return service
 
 
@@ -295,7 +302,10 @@ def _logged(events: list[str], name: str, value: object = None) -> AsyncMock:
 
 
 def _delivering_service(
-    events: list[str], monkeypatch: pytest.MonkeyPatch, users: dict[str, list]
+    events: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    users: dict[str, list],
+    ntfy: dict[str, list] | None = None,
 ) -> BroadcastService:
     """A send that runs the REAL delivery, every database and network door logged."""
     service = _make_service()
@@ -310,6 +320,11 @@ def _delivering_service(
     )
     service.fcm_service.get_active_token_strings = _logged(events, "read", ["t1", "t2"])
     service.fcm_service.send_multicast = _logged(events, "push", (2, 0))
+    service._ntfy_targets_by_language = _logged(events, "read", ntfy or {})  # type: ignore[method-assign]
+    monkeypatch.setattr(
+        "src.domains.notifications.broadcast_service.deliver",
+        _logged(events, "push", NtfyBatch(outcomes=(NtfyOutcome.SENT,))),
+    )
     redis = MagicMock()
     redis.publish = _logged(events, "publish")
     monkeypatch.setattr(
@@ -372,3 +387,42 @@ class TestNoTransactionIsHeldAcrossANetworkCall:
             "push",
         ]
         assert not open_transaction, f"the send ends with its writes uncommitted: {events}"
+
+
+@pytest.mark.unit
+class TestABroadcastReachesNtfy:
+    """ADR-391: each language group's ntfy topics receive the group's own words, read with the
+    tokens before the commit and published after it, a burst bounded."""
+
+    async def test_a_group_s_topics_receive_its_translation_after_its_push(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        events: list[str] = []
+        target = MagicMock()
+        service = _delivering_service(
+            events, monkeypatch, {"fr": [uuid4()], "en": [uuid4()]}, ntfy={"en": [target]}
+        )
+
+        with language_scope("fr"):
+            await service.send_broadcast(message="Bonjour à tous", admin_user_id=uuid4())
+
+        deliver = broadcast_module.deliver
+        deliver.assert_awaited_once()
+        call = deliver.await_args_list[-1]
+        (pairs,), kwargs = call.args, call.kwargs
+        ((sent_to, notice),) = pairs
+        assert sent_to is target
+        assert (notice.body, notice.language) == ("Hello everyone", "en")
+        assert notice.title == _i18n("Important message", "en")
+        assert kwargs["concurrency"] == NTFY_BROADCAST_CONCURRENCY
+        network = [e for e in events if e in _NETWORK_EVENTS]
+        assert network == ["model", "publish", "push", "publish", "push", "push"]
+
+    async def test_no_topic_means_no_publication(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        events: list[str] = []
+        service = _delivering_service(events, monkeypatch, {"fr": [uuid4()]})
+
+        with language_scope("fr"):
+            await service.send_broadcast(message="Bonjour", admin_user_id=uuid4())
+
+        broadcast_module.deliver.assert_not_awaited()

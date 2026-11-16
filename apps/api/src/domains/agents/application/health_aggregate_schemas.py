@@ -5,9 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from src.domains.agents.application.health_read_schemas import HealthSamplesRead
-from src.domains.health_metrics.aggregator import PeriodLiteral
-
-HEALTH_CHART_MAX_BUCKETS = 200
+from src.domains.health_metrics.chart_read import PeriodLiteral
 
 
 class HealthAggregateRead(BaseModel):

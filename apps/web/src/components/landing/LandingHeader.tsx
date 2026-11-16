@@ -55,6 +55,8 @@ interface NavPage {
   readonly key: string;
   /** Unlocalized path. */
   readonly href: string;
+  /** Keep a destination's dedicated assets for an actual visit. */
+  readonly prefetch?: false;
   /** Hidden in the desktop row below `xl`, like `NavAnchor.xlOnly`. */
   readonly xlOnly?: boolean;
 }
@@ -69,7 +71,7 @@ interface NavPage {
  * `xl`, exactly like the release entry beside it.
  */
 const PAGE_LINKS: readonly NavPage[] = [
-  { id: 'maps', key: 'landing.nav.maps', href: '/maps', xlOnly: true },
+  { id: 'maps', key: 'landing.nav.maps', href: '/maps', xlOnly: true, prefetch: false },
   { id: 'story', key: 'landing.nav.story', href: '/story' },
   { id: 'why', key: 'landing.nav.philosophy', href: '/why' },
   { id: 'how', key: 'landing.nav.technical', href: '/how' },
@@ -186,10 +188,11 @@ export function LandingHeader({ lng, home = false }: LandingHeaderProps) {
               </a>
             ))}
             <span className="w-px h-4 bg-border mx-0.5" aria-hidden="true" />
-            {PAGE_LINKS.map(({ id, key, href, xlOnly }) => (
+            {PAGE_LINKS.map(({ id, key, href, xlOnly, prefetch }) => (
               <Link
                 key={id}
                 href={buildLocalizedPath(href, lng as Language)}
+                prefetch={prefetch}
                 className={cn(
                   'shrink-0 whitespace-nowrap px-1.5 py-2 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50',
                   xlOnly && 'hidden xl:block'
@@ -254,10 +257,11 @@ export function LandingHeader({ lng, home = false }: LandingHeaderProps) {
               </a>
             ))}
             <div className="border-t border-border/30 my-2" />
-            {PAGE_LINKS.map(({ id, key, href }) => (
+            {PAGE_LINKS.map(({ id, key, href, prefetch }) => (
               <Link
                 key={id}
                 href={buildLocalizedPath(href, lng as Language)}
+                prefetch={prefetch}
                 onClick={handleNavClick}
                 className="block px-4 py-2.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
               >

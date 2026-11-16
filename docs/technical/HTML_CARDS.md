@@ -171,7 +171,7 @@ A missing measurement, zero and false are different states. A renderer does not 
 
 | Domain | Presentation and useful detail |
 |---|---|
-| Email | Complete body, parties, attachments, known mailbox states and native source navigation; authorized reply/forward/deletion composition where the source account can be verified |
+| Email | Complete body, parties, attachments, known mailbox states and native source navigation; authorized reply/forward/deletion composition where the source account can be verified; in the web chat, the body opens in its original layout as the Tools show it (below) |
 | Contacts | Received names and pronunciation, every organization with supplied civil employment dates/current state, phones, addresses, birthdays, notes and source links |
 | Calendars/events | Visible calendar alias and original name, access including restricted private details, received owner/location/notification preferences, known selection/hidden states, reminder methods, source-aware clocks, civil all-day dates, attendees, every supported conference join point and recurrence facts |
 | Tasks/reminders | Full notes, received subtasks and completion, explicit provider state, stored reminder recurrence and owner's source timezone |
@@ -184,9 +184,28 @@ A missing measurement, zero and false are different states. A renderer does not 
 | Tickets | Shared status/priority/assignment/category summary (the category by its name, never a colour of its own); full reads retain description, steps, comments and known run outcome/cost/token usage |
 | MCP | Bounded public JSON snapshots, application-authored server identity/public origin and invoked method, binary metadata and explicit redaction/limit indicators |
 
-This is a policy for **received** information, not a promise that every list endpoint requests every provider field. Provider masks and detail operations keep their established scope. Internal credentials, raw binary bodies, private orchestration fields and unsupported technical records are deliberately excluded. No new light command, ticket action, provider fetch or model call is caused by opening a disclosure. Google conference identifiers and signatures do not serve as join information; only the supplied public entry points and their access codes do.
+This is a policy for **received** information, not a promise that every list endpoint requests every provider field. Provider masks and detail operations keep their established scope. Internal credentials, raw binary bodies, private orchestration fields and unsupported technical records are deliberately excluded. No new light command, ticket action, provider fetch or model call is caused by opening a disclosure, with one exception: a mail's original layout (below). Google conference identifiers and signatures do not serve as join information; only the supplied public entry points and their access codes do.
 
 Microsoft native recurrence patterns remain native facts instead of a lossy invented RRULE. The [source recurrence renderer](../../apps/api/src/domains/agents/display/components/source_recurrence.py) uses the shared recurrence vocabulary when a faithful description is supported and a bounded source view otherwise. Source clocks pass through [time_parsing.py](../../apps/api/src/core/time_parsing.py); explicit offsets are authoritative and ambiguous/unknown zones are not silently interpreted as UTC. An all-day provider date remains a civil date even when the registry adds a clock alias for cross-domain binding.
+
+### A mail in its original layout (2026-11-14)
+
+The mail card carries the message's text inside a marker naming it
+(`<div class="lia-email-original" data-message-id="…">`, written by
+[EmailCard._original_layout](../../apps/api/src/domains/agents/display/components/email_card.py)).
+Every surface that cannot open the layout reads that text. In the web chat,
+[markdown-email-original.tsx](../../apps/web/src/components/chat/markdown-email-original.tsx)
+watches the marker; once the card's details are seen, and only when the Tools are
+offered (`workbenchAvailable`, read where the reader is mounted) and the card carries a
+signed source of the email family (`useCardReadSource('email')`), it reads
+`GET /workbench/mail/message/html` and the images the layout names under that source
+(`X-LIA-Card-Source`), and draws the Tools' own view,
+[OriginalLayout](../../apps/web/src/components/workbench/mail/OriginalLayout.tsx), in a
+frame sized for a card: sandboxed, remote images on a click, dark theme turned down, the
+text a click away. The text stays while the layout is on its way, where there is none,
+and where it could not be read (`workbench.mail.html_failed` says so). A card with no
+source proof, or with the Tools switched off, stays text and asks nothing. Nothing of the
+sender's markup enters the page or the message's record (ADR-332 amendment 2026-11-14).
 
 ### Document previews
 

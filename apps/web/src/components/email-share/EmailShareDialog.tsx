@@ -264,7 +264,9 @@ function AttachmentLine({
   const ceiling = options.max_file_bytes;
   return (
     <div className="space-y-1 text-sm">
-      <p className="flex items-start gap-2 break-words font-medium">
+      {/* The name sits beside the icon as an anonymous flex item: only `wrap-anywhere` lets it
+          shrink below its longest word, which a file name often is (owner, 2026-11-15). */}
+      <p className="flex items-start gap-2 wrap-anywhere font-medium">
         <Paperclip className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         {size === null
           ? sourceName(source)

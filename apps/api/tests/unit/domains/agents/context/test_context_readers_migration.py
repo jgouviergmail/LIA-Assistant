@@ -24,18 +24,18 @@ class TestRouterNodeExecutionMode:
     """``router_node_v3`` publishes the run's execution mode into the state."""
 
     def test_execution_mode_comes_from_the_typed_context(self) -> None:
-        from src.domains.agents.nodes.router_node_v3 import _resolve_execution_mode
+        from src.domains.agents.nodes.router_node_v3 import _requested_execution_mode
 
-        with installed_runtime_context(execution_mode="react"):
-            assert _resolve_execution_mode() == "react"
+        with installed_runtime_context(requested_execution_mode="react"):
+            assert _requested_execution_mode() == "react"
 
     def test_execution_mode_falls_back_to_the_canonical_default_outside_a_run(self) -> None:
         """A direct call (unit test, script) has no run; the default must be the
         centralized constant, never an inline literal."""
         from src.core.constants import EXECUTION_MODE_PIPELINE
-        from src.domains.agents.nodes.router_node_v3 import _resolve_execution_mode
+        from src.domains.agents.nodes.router_node_v3 import _requested_execution_mode
 
-        assert _resolve_execution_mode() == EXECUTION_MODE_PIPELINE
+        assert _requested_execution_mode() == EXECUTION_MODE_PIPELINE
 
 
 @pytest.mark.unit

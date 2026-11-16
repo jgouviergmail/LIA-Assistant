@@ -177,3 +177,27 @@ class TestSubjectsAndBodies:
             "\n\n---------- Forwarded message ---------\n"
             f"From: {PAUL}\nDate: d\nSubject: Budget\nTo: {ME}\n\nBody"
         )
+
+
+class TestNothingTheModelReadsLeavesInAMail:
+    """An original read off its layout carries the model's link labels (ADR-287): a person
+    reading the quote sees each address as mail clients write one, never ``[link](…)``."""
+
+    READ = "Book here [link](https://example.org/b?x=1) or call."
+
+    @pytest.mark.parametrize("is_html", [False, True])
+    def test_a_quoted_original_writes_its_links_for_people(self, is_html: bool) -> None:
+        quoted = quoted_reply("Ok.", self.READ, date="d", sender=PAUL, is_html=is_html)
+
+        assert "[link]" not in quoted
+        written = "&lt;https://example.org/b?x=1&gt;" if is_html else "<https://example.org/b?x=1>"
+        assert f"Book here {written} or call." in quoted
+
+    @pytest.mark.parametrize("is_html", [False, True])
+    def test_a_forwarded_original_writes_its_links_for_people(self, is_html: bool) -> None:
+        forwarded = forwarded_body(
+            None, self.READ, sender=PAUL, date="d", subject="S", to=ME, is_html=is_html
+        )
+
+        assert "[link]" not in forwarded
+        assert "https://example.org/b?x=1" in forwarded

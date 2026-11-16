@@ -4,7 +4,6 @@ from datetime import datetime, tzinfo
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-import structlog
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 
 from src.core.config import settings
@@ -15,6 +14,7 @@ from src.core.constants import (
 )
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.sms.message_policy import is_sms_source_message
+from src.domains.health_metrics.prompt_context import opted_in_health_context
 from src.domains.shared.extraction_targets import is_synthetic_message
 from src.infrastructure.llm.message_view import present_label, written_prefix
 
@@ -130,17 +130,12 @@ def format_existing_memories_with_ids(
     return "\n".join(lines)
 
 
-logger = structlog.get_logger(__name__)
-
-
 async def _maybe_build_health_context(user_id: str) -> str:
-    """Return the Health Metrics context block for the extraction prompt.
+    """Return the opted-in Health Metrics context block for the extraction prompt.
 
-    Returns an empty string when the global feature flag is off, the user
-    has not opted into Health Metrics assistant integrations, or when
-    their health history is empty. The prompt template includes a
-    ``{health_context}`` placeholder flagged ``(optional)`` so the LLM
-    handles the empty case transparently.
+    The gate (instance switch, the person's opt-in, their zone) is the one
+    door's, ``health_metrics.prompt_context``; the prompt marks the
+    ``{health_context}`` placeholder optional, so an empty block is fine.
 
     Args:
         user_id: Owner user ID (string form from the extractor plumbing).
@@ -148,28 +143,4 @@ async def _maybe_build_health_context(user_id: str) -> str:
     Returns:
         A short textual block (``""`` if none).
     """
-    from src.core.config import settings as global_settings
-    from src.core.constants import HEALTH_METRICS_USER_TOGGLE_ATTR
-
-    if not getattr(global_settings, "health_metrics_enabled", False):
-        return ""
-
-    try:
-        from src.infrastructure.database.session import get_db_context
-
-        async with get_db_context() as db:
-            from src.domains.health_metrics.service import HealthMetricsService
-            from src.domains.users.repository import UserRepository
-
-            user = await UserRepository(db).get_by_id(UUID(user_id))
-            if user is None or not getattr(user, HEALTH_METRICS_USER_TOGGLE_ATTR, False):
-                return ""
-            service = HealthMetricsService(db)
-            return await service.build_health_context_for_prompt(UUID(user_id))
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.warning(
-            "memory_extractor_health_context_failed",
-            user_id=user_id,
-            error_type=type(exc).__name__,
-        )
-        return ""
+    return await opted_in_health_context(UUID(user_id), surface="memory_extraction")

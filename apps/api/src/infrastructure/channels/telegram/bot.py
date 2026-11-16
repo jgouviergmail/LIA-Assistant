@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 
-from telegram import Bot
+from telegram import Bot, BotCommand
 from telegram.ext import Application
 
 from src.core.config import settings
@@ -161,6 +161,70 @@ async def ensure_telegram_webhook() -> None:
         )
         return
     logger.info("telegram_webhook_set", webhook_url=webhook_url)
+
+
+#: LIA's languages as Telegram names them (``setMyCommands`` takes a two-letter
+#: ISO 639-1 code): mapped at the provider boundary, every canonical code listed.
+_TELEGRAM_LANGUAGE_CODES: dict[str, str] = {
+    "fr": "fr",
+    "en": "en",
+    "es": "es",
+    "de": "de",
+    "it": "it",
+    "zh-CN": "zh",
+}
+
+
+#: What the menu lists, in order — each one a command the bot answers itself
+#: (``domains/channels/commands.ChannelCommand``; ``test_commands`` holds them
+#: together). ``/start`` is Telegram's own first gesture and needs no line.
+MENU_COMMANDS: tuple[str, ...] = ("stop", "help")
+
+
+def _menu(language: str) -> list[BotCommand]:
+    """The command menu, its descriptions in ``language``."""
+    from src.infrastructure.channels.telegram.formatter import get_bot_message
+
+    return [
+        BotCommand(command, get_bot_message(f"command_{command}", language))
+        for command in MENU_COMMANDS
+    ]
+
+
+async def _set_commands(bot: Bot, language: str, language_code: str | None) -> None:
+    """Set one language's menu; a flood-limit is waited out once."""
+    from telegram.error import RetryAfter
+
+    kwargs = {"commands": _menu(language), "language_code": language_code}
+    try:
+        await bot.set_my_commands(**kwargs)
+    except RetryAfter as exc:
+        await asyncio.sleep(retry_after_seconds(exc) + 0.5)
+        await bot.set_my_commands(**kwargs)
+
+
+async def ensure_telegram_commands() -> None:
+    """Set the bot's command menu — run by the scheduler leader alone (lot 33).
+
+    Bot-global like the webhook, so one call serves every worker, in webhook
+    and polling mode alike: one menu per language LIA speaks, and for every
+    other client language the instance's declared one (ADR-323). Re-running it
+    replaces the same menus. A menu that could not be set is an ERROR: the
+    commands still work, but nobody sees them offered.
+    """
+    from src.core.i18n import resolve_language
+
+    if _bot is None:
+        logger.info("telegram_commands_setup_skipped", reason="no_bot")
+        return
+    try:
+        for language, language_code in _TELEGRAM_LANGUAGE_CODES.items():
+            await _set_commands(_bot, language, language_code)
+        await _set_commands(_bot, resolve_language(), None)
+    except Exception as exc:
+        logger.error("telegram_commands_setup_failed", error_type=type(exc).__name__)
+        return
+    logger.info("telegram_commands_set", languages=len(_TELEGRAM_LANGUAGE_CODES))
 
 
 async def shutdown_telegram_bot() -> None:

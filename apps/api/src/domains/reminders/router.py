@@ -19,6 +19,13 @@ reader would take for "nothing was ever sent".
 Naming a reminder by its id is what makes deletion honest: the agent path
 (`cancel_reminder_tool`) resolves its target from a content substring, and two
 reminders worded alike send the wrong one.
+
+**A fired reminder can be postponed** (ADR-268 amendment 2026-11-16). The ADR
+first refused it because a press could not name WHICH occurrence it meant; every
+occurrence that rings is now recorded (`reminder_firings`), and the three
+`/firings/{firing_id}` routes act on that record — what the chat bubble offers,
+a postponement (a one-shot copy, once), and stopping the series it came from.
+A press is the person's own act: no model, no register row.
 """
 
 from uuid import UUID
@@ -28,11 +35,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import (
     DEFAULT_USER_DISPLAY_TIMEZONE,
+    RATE_LIMIT_REMINDER_FIRING_ACTIONS_PER_MINUTE,
     RECURRENCE_REMINDER_LIMITS,
 )
 from src.core.dependencies import get_db
 from src.core.i18n import normalize_language
 from src.core.session_dependencies import get_current_active_session
+from src.core.time_utils import now_utc
+from src.domains.auth.dependencies import create_user_rate_limiter
+from src.domains.reminders.firing_schemas import (
+    ReminderFiringStateResponse,
+    ReminderSnoozeRequest,
+    ReminderSnoozeResponse,
+    ReminderStopResponse,
+)
+from src.domains.reminders.firing_service import ReminderFiringService
+from src.domains.reminders.firings import FiringSurface
 from src.domains.reminders.read_models import (
     PendingReminderItem,
     PendingReminderPage,
@@ -45,6 +63,10 @@ from src.domains.shared.display_query import DisplayQuery, display_query
 from src.domains.users.models import User
 
 router = APIRouter(prefix="/reminders", tags=["Reminders"])
+
+rate_limit_firing_actions = create_user_rate_limiter(
+    action="reminder_firing_action", max_calls=RATE_LIMIT_REMINDER_FIRING_ACTIONS_PER_MINUTE
+)
 
 
 @router.get(
@@ -164,6 +186,118 @@ async def create_reminder(
     reminder = await ReminderService(db).create_reminder(user.id, payload, timezone)
     await db.commit()
     return ReminderDetail.of(reminder, normalize_language(user.language))
+
+
+@router.get(
+    "/firings/{firing_id}",
+    response_model=ReminderFiringStateResponse,
+    summary="What a fired reminder offers",
+    description=(
+        "The occurrence that rang: until when it can be postponed, where a press "
+        "already put it, and whether its reminder has a future to stop. An unknown, "
+        "purged or foreign occurrence answers 404 alike."
+    ),
+)
+async def get_reminder_firing(
+    firing_id: UUID,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> ReminderFiringStateResponse:
+    """The state of one fired occurrence the caller owns.
+
+    Args:
+        firing_id: The occurrence the notification named.
+        user: Authenticated session owner.
+        db: Request-scoped session.
+
+    Returns:
+        What its bubble offers.
+
+    Raises:
+        ResourceNotFoundError: Unknown, purged, or another account's occurrence.
+    """
+    state = await ReminderFiringService(db).state(firing_id, user.id, now=now_utc())
+    return ReminderFiringStateResponse.of(state)
+
+
+@router.post(
+    "/firings/{firing_id}/snooze",
+    response_model=ReminderSnoozeResponse,
+    dependencies=[Depends(rate_limit_firing_actions)],
+    summary="Postpone a fired reminder",
+    description=(
+        "Bring the occurrence back in a short or long delay, or tomorrow morning on "
+        "the account's wall clock: a one-shot copy, created once whatever the number "
+        "of presses. The outcome says when it comes back, that the window closed, or "
+        "that the series already rings again before that instant."
+    ),
+)
+async def snooze_reminder_firing(
+    firing_id: UUID,
+    payload: ReminderSnoozeRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> ReminderSnoozeResponse:
+    """Postpone one fired occurrence the caller owns.
+
+    Args:
+        firing_id: The occurrence the notification named.
+        payload: Which « later », and where the press came from.
+        user: Authenticated session owner.
+        db: Request-scoped session.
+
+    Returns:
+        The verdict and the instants it rests on.
+
+    Raises:
+        ResourceNotFoundError: Unknown, purged, or another account's occurrence.
+    """
+    result = await ReminderFiringService(db).snooze(
+        firing_id,
+        user.id,
+        payload.choice,
+        zone=user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE,
+        now=now_utc(),
+        surface=payload.surface,
+    )
+    await db.commit()
+    return ReminderSnoozeResponse.of(result)
+
+
+@router.post(
+    "/firings/{firing_id}/stop",
+    response_model=ReminderStopResponse,
+    dependencies=[Depends(rate_limit_firing_actions)],
+    summary="Stop the reminder a fired occurrence came from",
+    description=(
+        "Delete the repeating reminder this occurrence belongs to: it will not ring "
+        "again. A reminder already gone, or one with no future left, answers "
+        "already_stopped."
+    ),
+)
+async def stop_reminder_firing(
+    firing_id: UUID,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> ReminderStopResponse:
+    """Stop the series behind one fired occurrence the caller owns.
+
+    Args:
+        firing_id: The occurrence the notification named.
+        user: Authenticated session owner.
+        db: Request-scoped session.
+
+    Returns:
+        Stopped, or already stopped.
+
+    Raises:
+        ResourceNotFoundError: Unknown, purged, or another account's occurrence.
+    """
+    outcome = await ReminderFiringService(db).stop(
+        firing_id, user.id, now=now_utc(), surface=FiringSurface.CHAT
+    )
+    await db.commit()
+    return ReminderStopResponse(outcome=outcome)
 
 
 @router.patch(

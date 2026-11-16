@@ -153,7 +153,7 @@ def test_an_inbox_is_bounded_and_counted() -> None:
     )
     facts = day_of(bundle(mails=section(mails))).day
     assert len(facts) == MAX_PER_SOURCE[PersonalSource.MAILS]
-    assert facts[0].text == "Unread e-mails received today: 10"
+    assert facts[0].text == "Unread e-mails in the inbox: 10"
 
 
 def test_tasks_and_commitments_say_when_and_who() -> None:

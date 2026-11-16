@@ -391,6 +391,19 @@ KNOWN_MCP_SERVERS: Final[tuple[KnownMCPServer, ...]] = (
         header_name="X-API-Key",
     ),
     KnownMCPServer(
+        key="stripe",
+        name="Stripe",
+        # Its authorization server's issuer has a path (``…/mcp``): found where RFC 8414
+        # inserts it (2026-11-14), with dynamic registration and PKCE ``S256``.
+        url="https://mcp.stripe.com",
+        auth_type="oauth2",
+        domain_description=(
+            "The person's Stripe account: customers, products, prices, invoices, payments, "
+            "subscriptions and refunds, and Stripe's documentation."
+        ),
+        icon="stripe.svg",
+    ),
+    KnownMCPServer(
         key="todoist",
         name="Todoist",
         url="https://ai.todoist.net/mcp",

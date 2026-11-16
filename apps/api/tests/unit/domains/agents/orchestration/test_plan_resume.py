@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterator
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -26,6 +25,7 @@ from src.domains.agents.orchestration.plan_schemas import ExecutionPlan, Executi
 from src.domains.agents.orchestration.tool_data_projection import without_tool_data
 from src.domains.agents.services.runtime_failure_directive import held_not_run_block
 from src.domains.agents.tools.output import UnifiedToolOutput
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -137,7 +137,7 @@ def _turn(monkeypatch: pytest.MonkeyPatch) -> Iterator[_WinningLedger]:
     _register("probe_create_task_tool", _create_task, "title", "draft")
     ledger = _WinningLedger()
     sink = AsyncMock()
-    run = SimpleNamespace(
+    run = make_runtime_context(
         user_id=uuid.uuid4(),
         thread_id="thread-resume",
         execution_mode="pipeline",

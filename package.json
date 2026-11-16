@@ -1,6 +1,6 @@
 {
   "name": "lia",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "private": true,
   "license": "AGPL-3.0-or-later",
   "description": "LIA - AI-powered personal assistant monorepo",
@@ -40,7 +40,7 @@
       "vite": "^8.3.7",
       "protobufjs": "^7.6.3",
       "uuid": "^11.1.1",
-      "dompurify": "^3.4.17",
+      "dompurify": "^3.4.18",
       "@grpc/grpc-js": "^1.14.5",
       "@babel/core": "^7.29.6",
       "browserslist": "^4.28.7",

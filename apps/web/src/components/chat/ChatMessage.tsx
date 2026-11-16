@@ -39,6 +39,7 @@ import { DiscussionActions } from '@/components/chat/DiscussionActions';
 import { ShareImageButton } from '@/components/peers/ShareImageButton';
 import { FileEmailShareButton } from '@/components/email-share/FileEmailShareButton';
 import { WorkboardNotificationActions } from '@/components/chat/WorkboardNotificationActions';
+import { ReminderFiringActions } from '@/components/chat/ReminderFiringActions';
 import { isInterestNotificationMetadata } from './InterestNotificationCard';
 import { MeetingMinutesCard } from '@/components/meetings/MeetingMinutesCard';
 import { isMeetingNotificationMetadata } from '@/types/meetings';
@@ -62,6 +63,7 @@ import {
   type ResponseFeedbackButtonsProps,
 } from './ResponseFeedbackButtons';
 import { BookmarkButton } from './BookmarkButton';
+import { ExecutionEngineMark } from './ExecutionEngineMark';
 import { TurnNoteMark } from './TurnNoteMark';
 import { ActionChipButton } from './ActionChipButton';
 import { ShareResponseActions } from './ShareResponseActions';
@@ -450,6 +452,9 @@ function AssistantActionRow({
           stopped needing the person — finish it in the chat. Self-gated on
           the metadata, like the peer row above it. */}
       <WorkboardNotificationActions metadata={message.metadata} />
+      {/* ADR-268 amendment 2026-11-16: a reminder that rang offers « later » and,
+          when it repeats, « stop » — self-gated on its recorded occurrence. */}
+      <ReminderFiringActions metadata={message.metadata} />
       <ExecutionTraceDisclosure trace={trace} />
       {/* ADR-263: what the turn actually DID. Visible, never folded — a claim
           the reader must expand to see is a claim they will miss. */}
@@ -1263,6 +1268,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
           <span className="text-px-11 mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium whitespace-nowrap w-full text-right">
             {formatTime(message.timestamp)}
             <LiveOriginMark metadata={message.metadata} />
+            {/* ADR-390: the engine an automatic turn ran on (renders nothing
+                under a chosen mode — the mark owns its check). */}
+            <ExecutionEngineMark metadata={message.metadata} />
             {/* ADR-117 Lot 3: partial answer of a cancelled/interrupted run.
                 Same metadata flag for live bubbles (synthesized done) and
                 archived history rows. */}

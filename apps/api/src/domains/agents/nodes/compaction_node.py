@@ -5,7 +5,9 @@ Runs as the entry point of the LangGraph graph, before the router.
 Checks if conversation history exceeds the dynamic token threshold,
 and if safe, replaces old messages with a concise LLM-generated summary.
 
-Also handles the /resume command to force compaction regardless of threshold.
+Also handles the /resume command to force compaction regardless of threshold,
+and the one replay of a turn the model's window refused (lot 15), which the
+run's context forces the same way without consuming any message.
 
 Key design: The summary is injected as a SystemMessage (not HumanMessage)
 so the router does not interpret it as a user action request. For /resume,
@@ -25,6 +27,7 @@ from langchain_core.runnables import RunnableConfig
 from src.core.config import settings
 from src.core.constants import (
     COMPACTION_EXTERNAL_PROVENANCE_BANNER,
+    COMPACTION_PERSON_WORDS_KEY,
     COMPACTION_SSE_STEP_TYPE,
     COMPACTION_SUMMARY_MARKER,
     COMPACTION_UI_ESTIMATE_CHARS_PER_TOKEN,
@@ -36,7 +39,10 @@ from src.core.i18n import resolve_language
 from src.core.time_utils import resolve_zone
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.models import MessagesState
-from src.domains.agents.services.compaction_service import CompactionService
+from src.domains.agents.services.compaction_service import (
+    CompactionService,
+    compactable_messages,
+)
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_compaction import (
     compaction_skipped_total,
@@ -130,7 +136,9 @@ async def compaction_node(state: MessagesState, config: RunnableConfig) -> dict[
 
     Logic:
     1. If disabled → pass-through (return empty dict)
-    2. If /resume command → force compaction (skip threshold check)
+    2. If /resume command, or the run replays a turn the model's window
+       refused (``compaction_forced`` on its context, lot 15) → force
+       compaction (skip threshold check)
     3. If should_compact() and is_safe_to_compact() → compact
     4. Otherwise → pass-through
 
@@ -151,7 +159,7 @@ async def compaction_node(state: MessagesState, config: RunnableConfig) -> dict[
             including a resume after a HITL interrupt — otherwise succeeds
             SILENTLY and every node reads ``None`` (measured; ADR-231, ADR-085).
     """
-    runtime_context_if_running()
+    context = runtime_context_if_running()
 
     if not settings.compaction_enabled:
         return {}
@@ -163,8 +171,10 @@ async def compaction_node(state: MessagesState, config: RunnableConfig) -> dict[
     service = CompactionService()
     is_resume = _is_resume_command(messages)
 
-    # Determine if compaction is needed
-    force_compact = is_resume
+    # Forced by the person (/resume) or by the replay of a turn the model's
+    # window refused (lot 15) — the threshold is not asked then.
+    is_replay = context is not None and context.compaction_forced
+    force_compact = is_resume or is_replay
     should_compact = force_compact or service.should_compact(messages)
 
     if not should_compact:
@@ -255,10 +265,9 @@ async def compaction_node(state: MessagesState, config: RunnableConfig) -> dict[
     # 3. For /resume: conversational HumanMessage to trigger confirmation
     compacted_count = state.get("compaction_count", 0) + 1
 
-    # Identify messages to remove (all non-system, non-recent messages)
-    non_system = [m for m in messages if not isinstance(m, SystemMessage)]
-    preserve_n_effective = min(preserve_n, len(non_system))
-    to_remove = non_system[:-preserve_n_effective] if preserve_n_effective > 0 else non_system
+    # Exactly what the summary replaces: the rule the service applied (lot 16 — the
+    # kept tail begins on the person's message of the exchange it would cut).
+    to_remove = compactable_messages(messages, preserve_n)
 
     new_messages: list[BaseMessage] = []
 
@@ -306,6 +315,11 @@ async def compaction_node(state: MessagesState, config: RunnableConfig) -> dict[
             f"{result.tokens_saved} tokens saved. "
             f"Strategy: {result.strategy}.]\n\n{provenance_banner}{result.summary}"
         ),
+        # The person's words it quotes, as data: a later compaction carries them
+        # as written instead of asking a model to merge them (lot 16).
+        additional_kwargs=(
+            {COMPACTION_PERSON_WORDS_KEY: result.person_words} if result.person_words else {}
+        ),
     )
     new_messages.append(summary_system)
 
@@ -329,6 +343,7 @@ async def compaction_node(state: MessagesState, config: RunnableConfig) -> dict[
         strategy=result.strategy,
         compaction_count=compacted_count,
         is_resume=is_resume,
+        is_replay=is_replay,
     )
 
     return {

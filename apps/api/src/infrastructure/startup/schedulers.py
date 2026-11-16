@@ -46,6 +46,7 @@ from src.core.constants import (
     SCHEDULER_JOB_RAG_JOB_REAPER,
     SCHEDULER_JOB_REMINDER_NOTIFICATION,
     SCHEDULER_JOB_SCHEDULED_ACTION_EXECUTOR,
+    SCHEDULER_JOB_TELEGRAM_COMMANDS,
     SCHEDULER_JOB_TELEGRAM_WEBHOOK,
     SCHEDULER_JOB_TOKEN_REFRESH,
     SCHEDULER_JOB_UNVERIFIED_CLEANUP,
@@ -87,6 +88,44 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
+def register_telegram_setup(scheduler: AsyncIOScheduler) -> None:
+    """Register the leader's one-shot Telegram setup: the webhook and the command menu.
+
+    Both are bot-GLOBAL (ADR-304), so the leader alone sets them — a one-shot job
+    every newly elected leader runs once, however late its election (no misfire
+    window). Every worker setting the webhook at boot was a « Conflict:
+    terminated by other setWebhook » at every deploy. The menu is set in
+    polling mode too (lot 33); an instance with no bot schedules neither.
+
+    Args:
+        scheduler: The APScheduler instance.
+    """
+    if not (settings.channels_enabled and settings.telegram_bot_token):
+        return
+    from src.infrastructure.channels.telegram.bot import (
+        ensure_telegram_commands,
+        ensure_telegram_webhook,
+    )
+
+    if settings.telegram_webhook_url:
+        scheduler.add_job(
+            ensure_telegram_webhook,
+            trigger="date",
+            id=SCHEDULER_JOB_TELEGRAM_WEBHOOK,
+            name="Set the Telegram webhook (leader only)",
+            replace_existing=True,
+            misfire_grace_time=None,
+        )
+    scheduler.add_job(
+        ensure_telegram_commands,
+        trigger="date",
+        id=SCHEDULER_JOB_TELEGRAM_COMMANDS,
+        name="Set the Telegram command menu (leader only)",
+        replace_existing=True,
+        misfire_grace_time=None,
+    )
+
+
 async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
     """Register all background jobs and start the scheduler behind leader election.
 
@@ -121,23 +160,7 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
 
     # Start APScheduler for background tasks
     try:
-        # Telegram webhook (ADR-304): bot-GLOBAL, so the leader alone sets it —
-        # a one-shot job every newly elected leader runs once, however late its
-        # election (no misfire window). Every worker setting it at boot was a
-        # « Conflict: terminated by other setWebhook » at every deploy.
-        if getattr(settings, "channels_enabled", False) and getattr(
-            settings, "telegram_webhook_url", None
-        ):
-            from src.infrastructure.channels.telegram.bot import ensure_telegram_webhook
-
-            scheduler.add_job(
-                ensure_telegram_webhook,
-                trigger="date",
-                id=SCHEDULER_JOB_TELEGRAM_WEBHOOK,
-                name="Set the Telegram webhook (leader only)",
-                replace_existing=True,
-                misfire_grace_time=None,
-            )
+        register_telegram_setup(scheduler)
 
         # Schedule daily currency sync at configured time (default: 3:00 AM UTC)
         scheduler.add_job(

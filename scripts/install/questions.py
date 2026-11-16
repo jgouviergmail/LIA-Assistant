@@ -44,6 +44,14 @@ def _needs_caddy(answers: Mapping[str, Any]) -> bool:
     return answers.get("exposure") is Exposure.CADDY
 
 
+def _runs_ntfy(answers: Mapping[str, Any]) -> bool:
+    return answers.get("ntfy_server") is True
+
+
+def _needs_ntfy_domain(answers: Mapping[str, Any]) -> bool:
+    return _runs_ntfy(answers) and _needs_domains(answers)
+
+
 def _yes_no(value: bool) -> str:
     return "yes" if value else "no"
 
@@ -77,6 +85,9 @@ def build_reconfiguration_questions(current: PublicAnswers) -> tuple[Question, .
         "speaking_avatar": _yes_no(current.speaking_avatar),
         "world": _yes_no(current.world),
         "web_search": _yes_no(current.web_search),
+        "ntfy_server": _yes_no(current.ntfy_server),
+        "ntfy_domain": current.ntfy_domain,
+        "ntfy_ios_relay": _yes_no(current.ntfy_ios_relay),
     }
     return tuple(
         dataclasses.replace(question, default=in_force[question.key] or question.default)
@@ -164,12 +175,15 @@ def build_questions() -> tuple[Question, ...]:
             validator=is_valid_domain,
             applies=_needs_domains,
         ),
+        # One proxy serves each name once: Caddy refuses to start on a name served
+        # twice, and the operator's own proxy cannot route one name to two services.
         Question(
             key="api_domain",
             kind=QuestionKind.TEXT,
             message_id="question.api_domain",
             validator=is_valid_domain,
             applies=_needs_domains,
+            distinct_from=("web_domain",),
         ),
         Question(
             key="caddy_email",
@@ -247,6 +261,31 @@ def build_questions() -> tuple[Question, ...]:
             kind=QuestionKind.BOOL,
             message_id="question.web_search",
             default="yes",
+        ),
+        # Off unless asked (ADR-391): a person can still subscribe through a public
+        # server such as ntfy.sh. Behind a proxy the server needs a name of its own
+        # (ntfy serves no sub-path), which the same proxy must not already serve.
+        Question(
+            key="ntfy_server",
+            kind=QuestionKind.BOOL,
+            message_id="question.ntfy_server",
+            default="no",
+        ),
+        Question(
+            key="ntfy_domain",
+            kind=QuestionKind.TEXT,
+            message_id="question.ntfy_domain",
+            validator=is_valid_domain,
+            applies=_needs_ntfy_domain,
+            distinct_from=("web_domain", "api_domain"),
+        ),
+        # A privacy decision, left to the operator as PUSH_RELAY_URL is (ADR-246).
+        Question(
+            key="ntfy_ios_relay",
+            kind=QuestionKind.BOOL,
+            message_id="question.ntfy_ios_relay",
+            default="no",
+            applies=_runs_ntfy,
         ),
         Question(
             key="admin_password",

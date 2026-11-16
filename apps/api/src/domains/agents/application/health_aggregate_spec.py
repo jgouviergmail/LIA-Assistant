@@ -1,9 +1,7 @@
 """The exact source chart contract is distinct from the existing health-agent summaries."""
 
-from src.domains.agents.application.health_aggregate_schemas import (
-    HEALTH_CHART_MAX_BUCKETS,
-    HealthAggregateRead,
-)
+from src.core.constants import HEALTH_METRICS_CHART_MAX_BUCKETS
+from src.domains.agents.application.health_aggregate_schemas import HealthAggregateRead
 from src.domains.agents.application.operation_spec import ApplicationOperationSpec, OperationKind
 from src.domains.agents.registry.catalogue import (
     CostProfile,
@@ -27,13 +25,13 @@ HEALTH_AGGREGATE_OPERATION = ApplicationOperationSpec(
 HEALTH_AGGREGATE_MANIFEST = ToolManifest(
     name=HEALTH_AGGREGATE_OPERATION.tool_name,
     agent="setting_agent",
-    description=f"Read the current account's exact Settings Health Metrics chart points and period-wide averages. Use hour/day/week/month/year with timezone-aware inclusive from_ts and exclusive to_ts; omitted bounds use the source UI defaults. Native/deployment/account authority and existing assistant-health consent are checked before and after SQL aggregation. Source UTC bucket alignment, empty gaps, kind registry, weighted HR averages and steps-per-day over the actual full window are preserved. No raw history is materialized in application memory. At most {HEALTH_CHART_MAX_BUCKETS} buckets: a larger request is refused before querying, so choose a coarser period or explicit narrower window; no points are silently dropped. Measurements remain mutable. No model, mutation or medical interpretation. Existing health_agent tools remain available for summaries and baseline comparisons.",
+    description=f"Read the current account's exact Settings Health Metrics chart points and period-wide averages. Use hour/day/week/month/year with timezone-aware inclusive from_ts and exclusive to_ts; omitted bounds use the source UI defaults. Native/deployment/account authority and existing assistant-health consent are checked before and after SQL aggregation. Buckets are cut at the account's clock (a day starts at its midnight, in its timezone); empty gaps, kind registry, weighted HR averages and steps-per-day over the actual full window are preserved; overlapping step samples from two devices count once. No raw history is materialized in application memory. At most {HEALTH_METRICS_CHART_MAX_BUCKETS} buckets: a larger request is refused before querying, so choose a coarser period or explicit narrower window; no points are silently dropped. Measurements remain mutable. No model, mutation or medical interpretation. Existing health_agent tools remain available for summaries and baseline comparisons.",
     parameters=[
         ParameterSchema(
             name="query",
             type="object",
             required=False,
-            description=f"Source chart period/window; at most {HEALTH_CHART_MAX_BUCKETS} complete UTC buckets",
+            description=f"Source chart period/window; at most {HEALTH_METRICS_CHART_MAX_BUCKETS} buckets at the account's clock",
             schema=HealthAggregateRead.model_json_schema(),
         )
     ],

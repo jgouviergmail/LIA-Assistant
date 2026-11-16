@@ -19,6 +19,7 @@ from scripts.install.model import (
     InstallMode,
     PublicAnswers,
 )
+from scripts.install.ntfy import NTFY_HOST_PORT
 
 BASE_COMPOSE = "docker-compose.prod.yml"
 INSTALL_COMPOSE = "docker-compose.install.yml"
@@ -31,6 +32,8 @@ SKILL_SANDBOX_LOCAL_IMAGE = "lia-skill-sandbox:local"
 SKILL_SANDBOX_BUILD = ("apps/api", "apps/api/Dockerfile.sandbox")
 
 _CADDYFILE_TEMPLATE_RELPATH = ("infrastructure", "caddy", "Caddyfile.template")
+#: The ntfy server's site, appended when the instance runs one (ADR-391).
+_CADDYFILE_NTFY_TEMPLATE_RELPATH = ("infrastructure", "caddy", "Caddyfile.ntfy.template")
 
 
 def build_invocation(
@@ -47,6 +50,8 @@ def build_invocation(
         profiles.append("observability")
     if public.web_search:
         profiles.append("searxng")
+    if public.ntfy_server:
+        profiles.append("ntfy")
     return ComposeInvocation(
         files=tuple(files),
         profiles=tuple(profiles),
@@ -78,12 +83,16 @@ OBSERVABILITY_SERVICES: tuple[str, ...] = (
 #: The instance's keyless web search (ADR-382), behind the ``searxng`` profile.
 WEB_SEARCH_SERVICES: tuple[str, ...] = ("searxng",)
 
+#: The instance's own ntfy server (ADR-391), behind the ``ntfy`` profile.
+NTFY_SERVICES: tuple[str, ...] = ("ntfy",)
+
 #: The services each optional profile starts. Compose never counts a disabled
 #: profile's containers as orphans, so turning a profile off must stop these by
 #: name; a test holds every profile :func:`build_invocation` emits here.
 PROFILE_SERVICES: dict[str, tuple[str, ...]] = {
     "observability": OBSERVABILITY_SERVICES,
     "searxng": WEB_SEARCH_SERVICES,
+    "ntfy": NTFY_SERVICES,
 }
 
 #: The generated Caddyfile Caddy reads once at start (bind-mounted, no watch).
@@ -101,6 +110,8 @@ def locked_services(public: PublicAnswers) -> tuple[str, ...]:
         services.extend(OBSERVABILITY_SERVICES)
     if public.web_search:
         services.extend(WEB_SEARCH_SERVICES)
+    if public.ntfy_server:
+        services.extend(NTFY_SERVICES)
     if public.exposure is Exposure.CADDY:
         services.append("caddy")
     return tuple(services)
@@ -153,6 +164,14 @@ def render_install_override(
             # (browsers reach it same-origin through the web proxy).
             '      - "3000:3000"',
         ]
+        if public.ntfy_server:
+            # Phones on the network subscribe to the ntfy server on the host,
+            # as browsers reach the web (ADR-391).
+            lines += [
+                "  ntfy:",
+                "    ports: !override",
+                f'      - "{NTFY_HOST_PORT}:80"',
+            ]
     if public.exposure is Exposure.CADDY:
         lines += [
             "  caddy:",
@@ -179,15 +198,34 @@ def render_install_override(
 
 
 def render_caddyfile(public: PublicAnswers, *, template_root: Path | None = None) -> str:
-    """Render the generated Caddyfile from the repository template."""
+    """Render the generated Caddyfile from the repository templates.
+
+    The ntfy server's site follows the application's when the instance runs one.
+    """
     if public.exposure is not Exposure.CADDY:
         raise ValueError("caddyfile_requires_caddy_exposure")
     if template_root is None:
         template_root = Path(__file__).resolve().parents[2]
-    template_path = template_root.joinpath(*_CADDYFILE_TEMPLATE_RELPATH)
-    template = string.Template(template_path.read_text(encoding="utf-8"))
-    return template.substitute(
-        WEB_DOMAIN=str(public.web_domain),
-        API_DOMAIN=str(public.api_domain),
-        CADDY_EMAIL=str(public.caddy_email),
-    )
+    sites = [
+        _substitute(
+            template_root,
+            _CADDYFILE_TEMPLATE_RELPATH,
+            WEB_DOMAIN=str(public.web_domain),
+            API_DOMAIN=str(public.api_domain),
+            CADDY_EMAIL=str(public.caddy_email),
+        )
+    ]
+    if public.ntfy_server:
+        sites.append(
+            _substitute(
+                template_root,
+                _CADDYFILE_NTFY_TEMPLATE_RELPATH,
+                NTFY_DOMAIN=str(public.ntfy_domain),
+            )
+        )
+    return "\n".join(sites)
+
+
+def _substitute(root: Path, relpath: tuple[str, ...], **values: str) -> str:
+    template = string.Template(root.joinpath(*relpath).read_text(encoding="utf-8"))
+    return template.substitute(**values)

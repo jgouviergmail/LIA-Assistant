@@ -52,11 +52,19 @@ these licenses independently for these specific libraries.
 
 The icons of the known MCP servers (`apps/web/public/mcp-icons/`) are the logos and
 favicons their vendors publish on their own websites (Airtable, Asana, Calendly, Canva,
-ClickUp, Dropbox, GitHub, Hugging Face, IGN, Linear, Microsoft, Notion, Todoist,
+ClickUp, Dropbox, GitHub, Hugging Face, IGN, Linear, Microsoft, Notion, Stripe, Todoist,
 trivago, Wolfram and the other services listed in
 `apps/api/src/infrastructure/mcp/known_servers.py`). They remain the trademarks of their
 respective owners, are not covered by this project's license, and are shown only to
 identify each service in the list a person adds a server from; no endorsement is implied.
+
+The marks of OpenClaw, Hermes Agent (Nous Research) and Muse (Meta) in
+`apps/web/public/comparison-icons/` are the icons their publishers serve on their own
+websites (openclaw.ai, hermes-agent.nousresearch.com, muse.ai), read on 2026-11-15; the
+Hermes Agent logo is downscaled to 128 px and re-encoded as a lossless palette PNG, the two
+others are unchanged. They remain the trademarks of their respective owners, are not
+covered by this project's license, and are shown only to identify each product in the home
+page comparison; no endorsement or affiliation is implied.
 
 ## Permissive Dependencies
 

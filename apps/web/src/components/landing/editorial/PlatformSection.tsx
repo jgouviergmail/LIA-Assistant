@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Activity, Cpu, BellRing, Users } from '@/lib/icons';
+import { Activity, BellRing, Building2, Cpu, Users, type LucideIcon } from '@/lib/icons';
 import { initI18next } from '@/i18n';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
@@ -18,6 +18,26 @@ const OBSERVABILITY_SOURCE =
 const PLATFORM_LINK_CLASSNAME =
   'h-auto min-h-11 w-full whitespace-normal px-5 py-3 text-center leading-5 sm:w-auto';
 
+/** A tile's title beside its icon, in the theme's round chip. */
+function TileHeading({
+  icon: Icon,
+  className,
+  children,
+}: {
+  icon: LucideIcon;
+  className: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary/10">
+        <Icon className="size-5 text-primary" aria-hidden="true" />
+      </span>
+      <h3 className={cn('min-w-0 break-words font-semibold', className)}>{children}</h3>
+    </div>
+  );
+}
+
 /** Visible operator evidence, with real provisioned Grafana captures. */
 export async function PlatformSection({ lng }: { lng: string }) {
   const { t } = await initI18next(lng);
@@ -29,39 +49,44 @@ export async function PlatformSection({ lng }: { lng: string }) {
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div>
-          <h2 id="platform-title" className="text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 id="platform-title" className="text-3xl font-bold tracking-tight mobile:text-4xl">
             {t('landing.platform.title')}
           </h2>
-          <p className="mt-4 max-w-[68ch] leading-7 text-muted-foreground">
-            {t('landing.platform.sub')}
-          </p>
+          <p className="mt-4 leading-7 text-muted-foreground">{t('landing.platform.sub')}</p>
         </div>
         <h3 className="mt-8 mb-4 text-xl font-semibold">{t('landing.platform.dashboard_title')}</h3>
         <ScreenshotsSection monitoring />
-        <p className="mx-auto mt-3 max-w-3xl text-center text-xs leading-5 text-muted-foreground">
+        <p className="mt-3 text-center text-xs leading-5 text-muted-foreground">
           {t('landing.platform.dashboard_note')}
         </p>
-        <div className="mt-8 grid gap-x-10 gap-y-7 sm:grid-cols-2">
-          {PLATFORM_PROOFS.map(({ key, icon: Icon }) => (
-            <article key={key} className="border-t border-border pt-5">
-              <h3 className="flex items-center gap-3 text-base font-semibold">
-                <Icon className="size-5 shrink-0 text-primary" aria-hidden="true" />
+        {/* Tiles (owner, 2026-11-15: « plus lisible et conforme au thème »): each
+            opens on its icon beside its title; the business base closes the
+            mosaic across the full width, in the theme's tint. */}
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {PLATFORM_PROOFS.map(({ key, icon }) => (
+            <article
+              key={key}
+              className="rounded-2xl border border-border bg-background p-5 sm:p-6"
+            >
+              <TileHeading icon={icon} className="text-base">
                 {t(`landing.platform.${key}.title`)}
-              </h3>
+              </TileHeading>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
                 {t(`landing.platform.${key}.body`)}
               </p>
             </article>
           ))}
-        </div>
-        <div className="mt-9 border-l-2 border-primary/40 pl-5 sm:pl-6">
-          <h3 className="text-xl font-semibold">{t('landing.platform.business_title')}</h3>
-          <p className="mt-3 max-w-[92ch] text-sm leading-6 text-muted-foreground">
-            {t('landing.platform.business_body')}
-          </p>
-          <p className="mt-3 max-w-[92ch] text-sm leading-6 text-muted-foreground">
-            {t('landing.platform.business_scope')}
-          </p>
+          <article className="rounded-2xl border border-primary/40 bg-[color-mix(in_srgb,var(--color-primary)_7%,var(--color-background))] p-5 sm:col-span-2 sm:p-6">
+            <TileHeading icon={Building2} className="text-xl">
+              {t('landing.platform.business_title')}
+            </TileHeading>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              {t('landing.platform.business_body')}
+            </p>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              {t('landing.platform.business_scope')}
+            </p>
+          </article>
         </div>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <a

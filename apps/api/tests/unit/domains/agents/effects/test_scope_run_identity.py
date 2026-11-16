@@ -22,13 +22,13 @@ created. The configs below are the orchestration service's own shape.
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
 import pytest
 
 from src.domains.agents.effects.scope import react_call_scope, scope_from_config, step_effect_key
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -40,7 +40,7 @@ def _graph_config(run_id: str | None) -> dict[str, Any]:
 
 
 def _context(thread_id: str = "thread-42") -> Any:
-    return SimpleNamespace(
+    return make_runtime_context(
         user_id="u", thread_id=thread_id, execution_mode="react", is_automated_source=False
     )
 

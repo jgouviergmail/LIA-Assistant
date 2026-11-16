@@ -10,6 +10,7 @@ import { MarkdownWeatherSeries } from './markdown-weather-series';
 import { MarkdownRouteMap } from './markdown-route-map';
 import { MarkdownPlacePosition } from './markdown-place-position';
 import { MarkdownLocationMap } from './markdown-location-map';
+import { MarkdownEmailOriginal } from './markdown-email-original';
 import { CardToolBoundary } from './markdown-card-target';
 
 // MCP Apps widget — lazy loaded (only needed when MCP App sentinel divs are present)
@@ -66,6 +67,13 @@ function renderNativePresentation(
       <MarkdownLocationMap {...props} className={className} node={node}>
         {children}
       </MarkdownLocationMap>
+    );
+  }
+  if (classes.has('lia-email-original')) {
+    return (
+      <MarkdownEmailOriginal {...props} className={className} node={node}>
+        {children}
+      </MarkdownEmailOriginal>
     );
   }
   return null;

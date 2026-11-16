@@ -127,3 +127,14 @@ channel_notification_errors_total = Counter(
     "Total proactive notification send errors",
     ["channel_type", "error_type"],
 )
+
+# ============================================================================
+# NOTIFICATIONS VIA NTFY (ADR-391)
+# ============================================================================
+
+ntfy_publications_total = Counter(
+    "ntfy_publications_total",
+    "Publications to ntfy servers, by whose server and how they ended",
+    ["server_kind", "outcome"],
+    # server_kind: instance | custom ; outcome: NtfyOutcome values
+)

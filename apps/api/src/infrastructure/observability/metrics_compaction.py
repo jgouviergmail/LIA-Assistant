@@ -89,3 +89,13 @@ compaction_writer_unavailable_total = Counter(
     "Compaction node fallbacks to a no-op stream writer (start/done events dropped)",
     ["reason"],  # reason: get_stream_writer_import_failed / get_stream_writer_raised
 )
+
+# A turn the model's window refused (lot 15): the replay decision and its outcome.
+compaction_overflow_replays_total = Counter(
+    "compaction_overflow_replays_total",
+    "Turns the model's window refused, by what became of the one compacted replay",
+    ["outcome"],
+    # outcome: replayed / replay_overflowed (the replay refused again) /
+    #   refused_compaction_disabled / refused_no_checkpoint /
+    #   refused_nothing_to_compact / refused_hitl_pending / refused_acted
+)

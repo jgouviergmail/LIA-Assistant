@@ -25,3 +25,26 @@ export function replaceChatDiscussion(id: string | null): void {
   else params.set('conversation', id);
   replaceChatQuery(params);
 }
+
+const CHAT_PATH = /^\/(?:(?:fr|en|es|de|it|zh)\/)?dashboard\/chat\/?$/;
+const DISCUSSION_ID = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
+
+/**
+ * The annex the chat page shows, read where the chat reads it: its URL.
+ *
+ * What an act begun from anywhere in the dashboard names as its discussion (a
+ * meeting recorded from the header while an annex is open, ADR-378 amendment
+ * 2026-11-14): its return comes back there. Main carries no parameter, and
+ * any other page shows no discussion.
+ *
+ * @param location - The page's `pathname` and `search`.
+ * @returns The annex's id, or `null`.
+ */
+export function chatDiscussionOnScreen(location: {
+  pathname: string;
+  search: string;
+}): string | null {
+  if (!CHAT_PATH.test(location.pathname)) return null;
+  const id = new URLSearchParams(location.search).get('conversation');
+  return id !== null && DISCUSSION_ID.test(id) ? id.toLowerCase() : null;
+}

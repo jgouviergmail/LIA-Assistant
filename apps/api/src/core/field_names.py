@@ -38,6 +38,8 @@ FIELD_FENCE = "fence"
 
 # Agents & LangGraph
 FIELD_RUN_ID = "run_id"
+# ADR-390: the engine an « auto » turn ran in, on its answer (the badge reads it).
+FIELD_EXECUTION_ENGINE = "execution_engine"
 FIELD_TURN_ID = "turn_id"
 FIELD_STEP_ID = "step_id"
 # ADR-367: a step another step of the plan depends on — a means, not what was shown.

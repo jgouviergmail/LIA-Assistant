@@ -25,7 +25,7 @@ export function GallerySection() {
             <h2 id="gallery-title" className="text-3xl font-bold tracking-tight mobile:text-4xl">
               {t('landing.gallery.title')}
             </h2>
-            <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+            <p className="mt-3 leading-7 text-muted-foreground">
               {t('landing.gallery.sub')}
             </p>
           </div>
@@ -47,7 +47,7 @@ export function GallerySection() {
               },
             ]}
           />
-          <p className="mx-auto mt-4 max-w-3xl text-center text-xs leading-5 text-muted-foreground">
+          <p className="mt-4 text-center text-xs leading-5 text-muted-foreground">
             {t('landing.gallery.provenance')}
           </p>
         </FadeInOnScroll>

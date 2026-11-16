@@ -68,6 +68,27 @@ class TestTheCallerDecidesTheMode:
 
         assert seen["user_execution_mode"] == "react"
 
+    async def test_a_row_choosing_auto_lets_the_router_decide(self) -> None:
+        """ADR-390 (owner decision 2026-11-15): routines and tickets offer « auto »
+        too; the run hands it to the turn, whose router settles the engine."""
+        seen = await _capture_call(_request(execution_mode="auto"))
+
+        assert seen["user_execution_mode"] == "auto"
+
+    @pytest.mark.parametrize("mode", ["pipeline", "react", "auto"])
+    def test_a_ticket_and_a_routine_accept_every_choice(self, mode: str) -> None:
+        from src.domains.workboard.schemas import TicketCreate
+
+        assert TicketCreate(title="Réserver la salle", execution_mode=mode).execution_mode == mode
+
+    def test_a_value_no_choice_names_is_refused_at_the_boundary(self) -> None:
+        from pydantic import ValidationError
+
+        from src.domains.workboard.schemas import TicketCreate
+
+        with pytest.raises(ValidationError):
+            TicketCreate(title="Réserver la salle", execution_mode="loop")  # type: ignore[arg-type]
+
     async def test_the_mode_is_passed_EXPLICITLY_never_defaulted(self) -> None:
         """The parameter's own default is « pipeline »: an omission would look
         exactly like a decision, which is how every run ignored the mode."""

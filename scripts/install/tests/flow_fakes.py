@@ -107,10 +107,11 @@ def _bundle(tmp_path: Path) -> Path:
     seeds.mkdir(parents=True)
     for seed in (REPO_ROOT / "infrastructure" / "database" / "seeds").glob("*.sql"):
         shutil.copy(seed, seeds / seed.name)
-    shutil.copy(
-        REPO_ROOT / "infrastructure" / "caddy" / "Caddyfile.template",
-        _mk(root / "infrastructure" / "caddy") / "Caddyfile.template",
-    )
+    for template in ("Caddyfile.template", "Caddyfile.ntfy.template"):
+        shutil.copy(
+            REPO_ROOT / "infrastructure" / "caddy" / template,
+            _mk(root / "infrastructure" / "caddy") / template,
+        )
     shutil.copy(REPO_ROOT / ".env.min.prod.example", root / ".env.min.prod.example")
     for name in ("docker-compose.prod.yml", "docker-compose.skill-sandbox.yml"):
         shutil.copy(REPO_ROOT / name, root / name)

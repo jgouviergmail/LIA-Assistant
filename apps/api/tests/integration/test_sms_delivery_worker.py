@@ -384,3 +384,37 @@ async def test_sql_owner_lock_wait_is_bounded_before_transport(
     async with AsyncSession(async_engine) as db:
         row = await db.get(IngestionDelivery, claim.id)
         assert row.state == "pending" and row.attempts == 0
+
+
+@pytest.mark.parametrize(("active", "reached"), [(True, True), (False, False)])
+async def test_an_ntfy_subscription_is_one_more_destination(
+    async_engine, committed_actor, active, reached
+):
+    """A person subscribed to ntfy gets one « ntfy » destination; a paused topic gets none
+    (ADR-391). Like a device, only a subscription that existed when the message arrived."""
+    from src.domains.notifications.models import NtfySubscription
+    from src.infrastructure.scheduler.ingestion_delivery import IngestionDeliveryWorker
+
+    async with AsyncSession(async_engine, expire_on_commit=False) as db:
+        db.add(
+            NtfySubscription(
+                user_id=committed_actor,
+                server_kind="instance",
+                topic_encrypted="sealed",
+                is_active=active,
+                created_at=datetime.now(UTC) - timedelta(minutes=1),
+            )
+        )
+        await db.commit()
+    device = await seed(async_engine, committed_actor)
+    sent = []
+
+    class Transport:
+        async def send(self, envelope):
+            sent.append(envelope.destination_key)
+            return DeliveryResult(DeliveryDisposition.ACCEPTED)
+
+    await IngestionDeliveryWorker(sessions(async_engine), Transport()).run_once(limit=10)
+
+    expected = {"sse", f"device:{device}"} | ({"ntfy"} if reached else set())
+    assert set(sent) == expected and len(sent) == len(expected)

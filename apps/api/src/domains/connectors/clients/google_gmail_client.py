@@ -6,6 +6,7 @@ Inherits from BaseGoogleClient for common functionality.
 Reference: https://developers.google.com/gmail/api/reference/rest
 """
 
+import asyncio
 import base64
 import json
 import re
@@ -19,6 +20,7 @@ import structlog
 from src.core.config import settings
 from src.core.constants import (
     GMAIL_FORMAT_FULL,
+    GMAIL_HISTORY_PAGE_SIZE,
     GMAIL_LABELS_CACHE_TTL,
     GMAIL_SEND_MESSAGE_MAX_BYTES,
     GOOGLE_GMAIL_API_BASE_URL,
@@ -28,7 +30,6 @@ from src.core.constants import (
 from src.core.field_names import FIELD_CACHED_AT
 from src.domains.connectors.clients.base_google_client import (
     BaseGoogleClient,
-    apply_max_items_limit,
 )
 from src.domains.connectors.clients.gmail_attachments_mixin import GmailAttachmentsMixin
 from src.domains.connectors.clients.gmail_cache_generation import GmailCacheGenerationMixin
@@ -36,10 +37,11 @@ from src.domains.connectors.clients.gmail_compose import GmailComposeMixin
 from src.domains.connectors.clients.gmail_drafts_mixin import GmailDraftsMixin
 from src.domains.connectors.clients.gmail_html_mixin import GmailHtmlMixin
 from src.domains.connectors.clients.gmail_message_state_mixin import GmailMessageStateMixin
+from src.domains.connectors.clients.gmail_message_text import body_text, sender_text
 from src.domains.connectors.clients.gmail_search_mixin import GmailSearchMixin
 from src.domains.connectors.clients.gmail_send_mixin import GmailSendMixin
 from src.domains.connectors.clients.gmail_threads_mixin import GmailThreadsMixin
-from src.domains.connectors.clients.normalizers.html_text import html_to_text, strip_html_to_line
+from src.domains.connectors.clients.normalizers.html_text import strip_html_to_line
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
 from src.domains.connectors.clients.path_segments import path_segment
 from src.domains.connectors.models import ConnectorType
@@ -108,34 +110,11 @@ class GoogleGmailClient(
     # ========================================================================
 
     @staticmethod
-    def _decode_base64url(data: str) -> str:
-        """
-        Decode Gmail's base64url-encoded string.
-
-        Gmail uses base64url encoding (RFC 4648) for message bodies.
-        This replaces - with + and _ with /, then pads with = as needed.
-
-        Args:
-            data: Base64url-encoded string.
-
-        Returns:
-            Decoded UTF-8 string.
-        """
-        # Replace URL-safe chars with standard base64
-        data = data.replace("-", "+").replace("_", "/")
-
-        # Add padding if needed
-        padding = len(data) % 4
-        if padding:
-            data += "=" * (4 - padding)
-
-        # Decode
-        try:
-            decoded_bytes = base64.b64decode(data)
-            return decoded_bytes.decode("utf-8", errors="ignore")
-        except Exception as e:
-            logger.warning("base64url_decode_failed", error=str(e))
-            return ""
+    def _extract_body_recursive(
+        payload: dict[str, Any], max_depth: int = 10, _current_depth: int = 0
+    ) -> str:
+        """The text a sender wrote, for what goes back to a mailbox (``sender_text``)."""
+        return sender_text(payload, max_depth, _current_depth)
 
     @staticmethod
     def _encode_base64url(text: str) -> str:
@@ -225,7 +204,7 @@ class GoogleGmailClient(
         if format == GMAIL_FORMAT_FULL and "body" not in message:
             payload = message.get("payload")
             if payload:
-                body = GoogleGmailClient._extract_body_recursive(payload)
+                body = body_text(payload, keep_quoted=keep_quoted)
                 if body:
                     message["body"] = (
                         body
@@ -243,79 +222,6 @@ class GoogleGmailClient(
         # Mark provider for downstream identification (same as Apple/Microsoft)
         if "_provider" not in message:
             message["_provider"] = "google"
-
-    @staticmethod
-    def _extract_body_recursive(
-        payload: dict[str, Any],
-        max_depth: int = 10,
-        _current_depth: int = 0,
-    ) -> str:
-        """
-        Recursively extract text body from multipart MIME message with bounded recursion.
-
-        Gmail messages can be complex multipart structures:
-        - text/plain (preferred for LLM consumption)
-        - text/html (converted to readable plain text)
-        - multipart/alternative (contains both text and HTML)
-        - multipart/mixed (contains attachments)
-
-        Security 2025-12-19: Added max_depth to prevent stack overflow on malformed payloads.
-        Typical Gmail messages have 2-4 levels; max_depth=10 provides safety margin.
-
-        Args:
-            payload: Gmail message payload object.
-            max_depth: Maximum recursion depth (default: 10).
-            _current_depth: Internal counter (do not set externally).
-
-        Returns:
-            Extracted text body (plain text preferred, HTML converted to text).
-            Returns "" if max depth exceeded.
-        """
-        # Fail-safe: prevent stack overflow on malformed/malicious payloads
-        if _current_depth >= max_depth:
-            return ""
-        mime_type = payload.get("mimeType", "")
-
-        # Base case: Simple text/plain body
-        if mime_type == "text/plain":
-            body_data = payload.get("body", {}).get("data", "")
-            if body_data:
-                return GoogleGmailClient._decode_base64url(body_data)
-
-        # Base case: HTML body (convert to readable plain text)
-        if mime_type == "text/html":
-            body_data = payload.get("body", {}).get("data", "")
-            if body_data:
-                # One HTML → text for every provider (ADR-287).
-                return html_to_text(GoogleGmailClient._decode_base64url(body_data))
-
-        # Recursive case: Multipart message (with bounded depth)
-        if mime_type.startswith("multipart/"):
-            parts = payload.get("parts", [])
-            next_depth = _current_depth + 1
-
-            # Try text/plain first (preferred)
-            for part in parts:
-                if part.get("mimeType") == "text/plain":
-                    text = GoogleGmailClient._extract_body_recursive(part, max_depth, next_depth)
-                    if text:
-                        return text
-
-            # Fallback: Try HTML
-            for part in parts:
-                if part.get("mimeType") == "text/html":
-                    text = GoogleGmailClient._extract_body_recursive(part, max_depth, next_depth)
-                    if text:
-                        return text
-
-            # Fallback: Recurse into nested multipart
-            for part in parts:
-                if part.get("mimeType", "").startswith("multipart/"):
-                    text = GoogleGmailClient._extract_body_recursive(part, max_depth, next_depth)
-                    if text:
-                        return text
-
-        return ""
 
     @staticmethod
     def _encode_email_header(addresses: str) -> str:
@@ -360,16 +266,20 @@ class GoogleGmailClient(
     async def get_history(
         self,
         start_history_id: str,
-        max_results: int = 100,
+        max_results: int = GMAIL_HISTORY_PAGE_SIZE,
         page_token: str | None = None,
         history_types: tuple[str, ...] = ("messageAdded",),
         label_id: str = "INBOX",
     ) -> dict[str, Any]:
-        """List history changes since ``start_history_id`` (lot G; ADR-262).
+        """One page of history changes since ``start_history_id`` (lot G; ADR-262).
 
         Defaults to INBOX ``messageAdded`` — sent, spam and archived mail are
         not heartbeat signal. The mail RAG source reads label changes on its
         own label instead (``history_types``/``label_id``).
+
+        An internal read, never an agent's: pages of Gmail's own size, not the
+        agents' per-request ceiling, read through ``gmail_history.read_history``,
+        which drains them and never resumes past a page it did not read.
 
         Gmail 404s an expired history id — callers must fall back to a full
         query and re-anchor (see heartbeat/gmail_delta.py).
@@ -378,7 +288,7 @@ class GoogleGmailClient(
             "startHistoryId": start_history_id,
             "historyTypes": list(history_types),
             "labelId": label_id,
-            "maxResults": apply_max_items_limit(max_results),
+            "maxResults": min(max_results, GMAIL_HISTORY_PAGE_SIZE),
         }
         if page_token:
             params["pageToken"] = page_token
@@ -450,7 +360,8 @@ class GoogleGmailClient(
         # Normalize: extract common headers to top-level fields.
         # Apple and Microsoft normalizers already set top-level from/subject/to/cc/body.
         # This brings Google Gmail in line for a unified message format across providers.
-        self._normalize_message_fields(response, format)
+        # Off the event loop: reading a layout parses it (about 0.1 ms per KB).
+        await asyncio.to_thread(self._normalize_message_fields, response, format)
 
         # Cache result (normalized format so cache hits are also normalized)
         if scope is not None:

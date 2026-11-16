@@ -266,6 +266,12 @@ dix minutes : c'est un détecteur de blocage, pas un objectif de performance. Da
 le job, `faulthandler_timeout` borne chaque test : au-delà, la pile de chaque thread
 est écrite et le test échoue au lieu de geler la suite.
 
+Relevé du 16 novembre 2026 sur les six derniers CI réussis de `main` : jusqu’à
+[83,2 minutes pour les unités backend](https://github.com/jgouviergmail/LIA-Assistant/actions/runs/42728956027),
+[77,6 minutes pour l’intégration et 26,7 minutes pour le frontend](https://github.com/jgouviergmail/LIA-Assistant/actions/runs/43653811680).
+Les budgets correspondants dans [le workflow CI](../../.github/workflows/ci.yml)
+sont redimensionnés à environ deux fois ces durées, selon AC-033a.
+
 Les jobs archivent les rapports avec `actions/upload-artifact`, épinglée au
 commit déclaré dans le workflow : `backend-coverage` contient le
 `apps/api/coverage.xml` des deux suites ; `frontend-coverage` contient
@@ -866,6 +872,15 @@ as the Python locks. The portable `check_uv_version.py` precondition invokes the
 selected binary through an argument vector, enforces its exact version and a
 bounded timeout, and requires no `grep` or custom CA workaround.
 
+The 16 November 2026 release (v5.1.0) raises the Python security floors to
+`caldav>=3.3.2,!=3.4.0` ([GHSA-5h4q-xm57-3mh5](https://github.com/python-caldav/caldav/security/advisories/GHSA-5h4q-xm57-3mh5))
+and `soupsieve>=4.1.1` ([GHSA-98qm-p6jx-5wj2](https://github.com/facelessuser/soupsieve/security/advisories/GHSA-98qm-p6jx-5wj2)).
+The excluded CalDAV release is still affected by the same advisory. The
+targeted compile retains the CalDAV patch line and all unrelated pins;
+the sandbox lock receives the soupsieve fix as well. The expired CalDAV
+acceptance is removed. The pnpm override and lock move DOMPurify to 3.4.18
+for [GHSA-qm7q-q8h9-jg8q](https://github.com/cure53/DOMPurify/security/advisories/GHSA-qm7q-q8h9-jg8q).
+
 **Accepted advisories** — an advisory with no published fix, or a demonstrably
 unaffected dependency caught by an overbroad version range, is recorded with evidence.
 It is accepted by its GHSA in `pnpm.auditConfig.ignoreGhsas` (root `package.json`), never by
@@ -1204,6 +1219,11 @@ task security:scan:frontend # pnpm audit --audit-level=high
 task security:sbom:backend  # SBOM CycloneDX du lockfile runtime
 ```
 
+On Windows, the pytest, Black and MyPy tasks run through
+`.venv/Scripts/python -m <module>`, matching the pre-commit hook. This uses the
+selected interpreter directly when a newly generated console-script launcher is
+refused, while retaining the same command options and coverage policy.
+
 `task security:scan:docker` scanne les images construites, avec un échec sur les
 alertes HIGH/CRITICAL, y compris sans correctif publié. Ses valeurs par défaut
 correspondent à `task build:api` et `task build:web` (`lia-api:latest` et
@@ -1218,6 +1238,24 @@ Un audit des lockfiles ne remplace pas celui des composants embarqués par
 l'image : outils installés globalement, paquets système et dépendances vendored
 doivent aussi être examinés. Une alerte sans correctif reste un constat à traiter,
 pas une raison pour modifier silencieusement la politique du scan.
+
+Les gestionnaires de paquets possèdent leurs propres bibliothèques embarquées :
+mettre à jour le `urllib3` de l'application ne met pas à jour celui de pip. Les
+pins pip (avec le SHA-256 du wheel) et npm sont communs aux trois Dockerfiles API,
+contrôlés par `test_one_value_one_owner_guard.py`. Le binaire et l'image de Trivy
+lisent la même version dans `Taskfile.yml`, qui fixe aussi le SHA-256 de l'archive
+du binaire. Une mise à jour conserve les options et les seuils du scan.
+
+Une alerte d'inventaire demande aussi d'identifier le code effectivement livré.
+La [politique officielle de pip](https://github.com/pypa/pip/blob/26.3/src/pip/_vendor/README.rst#modifications)
+ne conserve que `pkg_resources` de setuptools, alors que
+[CVE-2025-47273](https://github.com/pypa/setuptools/security/advisories/GHSA-5rjg-fvgr-3xxf)
+concerne `setuptools.package_index.PackageIndex.download`. La qualification
+vérifie l'absence de `package_index.py` dans le wheel et l'image mesurée, avec
+leurs empreintes. De même, la présence d'un module Go ne prouve pas celle du
+package ou des symboles visés : l'analyse du binaire complète le scan. Ces
+preuves documentent la portée d'un constat ; elles ne créent aucune exclusion
+et ne rendent pas vert un scan qui reste en échec.
 
 ---
 

@@ -359,6 +359,9 @@ TABLE_RULES: dict[str, TableRule] = {
         ),
     ),
     "reminders": _PURGED_FULL,
+    # A fired reminder's occurrence, kept while it can be postponed (ADR-268
+    # amendment 2026-11-16): a copy of what rang, self-purging after the window.
+    "reminder_firings": _PURGED_FULL,
     "scheduled_actions": _PURGED_FULL,
     "open_loops": _PURGED_FULL,
     # Workboard (ADR-276). Two-sided like the peers tables: a row belongs to
@@ -556,6 +559,12 @@ TABLE_RULES: dict[str, TableRule] = {
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.EXCLUDED,
         reason="Push delivery credentials (FCM tokens) — device secrets.",
+    ),
+    "ntfy_subscriptions": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.EXCLUDED,
+        reason="ntfy delivery credentials (ADR-391): the topic is a password and the token a "
+        "credential — secrets, never exported.",
     ),
     "webhook_channels": TableRule(
         data_class=TableDataClass.USER_PURGED,

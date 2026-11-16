@@ -32,8 +32,8 @@ from pydantic import JsonValue
 
 from src.core.config import settings
 from src.core.constants import (
+    EXECUTION_ENGINES,
     EXECUTION_MODE_REACT,
-    EXECUTION_MODES_ALL,
     MCP_ITERATIVE_TASK_SUFFIX,
     MCP_REFERENCE_TOOL_NAME,
     MCP_USER_TOOL_NAME_PREFIX,
@@ -378,7 +378,7 @@ def _register_user_standard_server(
                 execution_modes=(
                     _READ_ME_MODES
                     if tool_data["name"] == MCP_REFERENCE_TOOL_NAME
-                    else EXECUTION_MODES_ALL
+                    else EXECUTION_ENGINES
                 ),
             )
             ctx.tool_manifests.append(manifest)
@@ -742,7 +742,7 @@ def _build_user_tool_manifest(
     annotations: dict | None = None,
     output_schema: dict | None = None,
     server_key: str | None = None,
-    execution_modes: frozenset[str] = EXECUTION_MODES_ALL,
+    execution_modes: frozenset[str] = EXECUTION_ENGINES,
     standing_approval: bool = False,
 ) -> ToolManifest:
     """Build a ToolManifest for a user MCP tool.

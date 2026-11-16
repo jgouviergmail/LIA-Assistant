@@ -138,7 +138,8 @@ when something had already gone wrong. All five now read the central tables.
   would make `trigger_at` nullable, add a state every reader must handle, and let dead
   rows accumulate with no purge.
 - **A snooze.** Not asked for; a schedule change already does it, and a snooze would
-  need to say which occurrence it moves.
+  need to say which occurrence it moves. (Reversed 2026-11-16 — see the last
+  amendment: the occurrence is now recorded, and a snooze names it.)
 - **Widening the cycle baseline** to admit `reminders<->users` because its twin is
   tolerated.
 
@@ -548,6 +549,31 @@ yearly rule naming it — because three languages juxtapose the day and the mont
 jour février". `day_sort_key` is now the package's single ordering rule, read by
 the canonical repair and by the sentence, so the two cannot disagree again.
 
+## Amendment, 2026-11-15 — « do I have a reminder that day? » is read through the engine
+
+The automatic mode's qualification (ADR-390, E08) asked « what is the ticket's
+deadline, and do I have a reminder that day? ». The reminder tool took no day, so the
+plan listed every pending reminder and left the response to compare dates: it
+answered « no reminder that day » above the very reminder of that day, on both draws.
+
+- **`list_reminders_tool(on_day=…)`** keeps the reminders that fire on the person's
+  local day of a date or an instant (`core/date_contract.local_day_bounds`: an instant
+  stands for the day it falls on). A plan chains a deadline it read into it; a value
+  it cannot read is refused, never replaced by « every reminder » (ADR-310).
+- **« Fires that day » is the engine's answer, for every reminder**:
+  `reminders/service.fires_within` asks `slots_between` from the reminder's NEXT
+  instant on. A daily reminder due tomorrow fires the day after too, which
+  `trigger_at` alone would not say; a one-shot reminder is `freq='once'`, so nothing
+  asks « is it recurring ». A stored schedule that no longer reads falls back on
+  `trigger_at`, the instant the poll reads.
+- **The window drains**: every pending reminder due before its end is read, page by
+  page (`firing_before`), so the agents' bounded page is no limit on one day.
+- **ONE day, never a span cut into days**: replayed, « my reminders of the next three
+  days » became one `on_day` call per day, today and the two following, and the
+  reminder three days ahead was never read (E05, 1.00 before the parameter, 0.75 on
+  both draws after it). The description says the filter is for one day and to leave
+  it out for a span: the soonest-first page reads a span whole.
+
 ## Amendment, 2026-10-30 — a routine's two caps are the operator's
 
 The owner wanted a routine every five minutes and met « L'intervalle minimum est
@@ -580,3 +606,51 @@ languages, and the copy could state one minimum while the API enforced another.
   fell meanwhile are skipped, never replayed.
 - **Cost, stated where the setting is**: every run is a full agent turn — every
   five minutes all day is 288 turns a day for one routine.
+
+## Amendment, 2026-11-16 — a reminder that rang can be postponed
+
+The owner reversed the refusal above on 2026-11-15: a reminder that rings while the
+person is busy is postponed in one press, where it rang, with no chat turn and no
+confirmation card. The refusal's objection — a snooze must say WHICH occurrence it
+moves — is answered by recording the occurrence.
+
+- **The occurrence is a row** (`reminder_firings`), written before the notification
+  leaves, in a session of its own (`ReminderFiringService.record`). It COPIES what rang
+  — the words, the person's request, when they first asked — because a one-shot
+  reminder is deleted the instant it fires (its `reminder_id` is SET NULL), and it
+  names the series while the series exists. Never a gate: an occurrence that cannot be
+  written rings anyway, with nothing to press, and is counted
+  (`reminder_firings_unrecorded_total`).
+- **A press names the occurrence, never the reminder**: `GET /reminders/firings/{id}`
+  reads what the bubble offers; `…/snooze` brings it back after the short or the long
+  delay (`REMINDER_SNOOZE_SHORT_MINUTES`, `REMINDER_SNOOZE_LONG_MINUTES`) or tomorrow
+  morning on the account's wall (`REMINDER_SNOOZE_MORNING_HOUR`, through `WallTime`;
+  pressed before 05:00 it is that same morning); `…/stop` deletes the series it came
+  from. A foreign or purged occurrence answers 404 alike.
+- **Once, whatever the number of presses**: the copy and the mark are written in ONE
+  transaction under the occurrence's row lock; a second press — another device, a
+  double tap — reads the first one's verdict (`already_snoozed`). Proved on PostgreSQL
+  with two sessions.
+- **The copy is an ordinary one-shot reminder** carrying `first_asked_at`: its message
+  says it is BACK as agreed (`reminder_origin_postponed.txt`), never that it was just
+  asked for, and a copy postponed again keeps the first request.
+- **A delay the series already covers is refused, with the instant** (`collides`): a
+  copy ringing at or after the series' next occurrence would say the same thing twice.
+  The person picks a shorter delay; the buttons stay.
+- **A window, then a purge**: an occurrence can be postponed for
+  `REMINDER_SNOOZE_WINDOW_HOURS` after it rang (`expired` past it); after its batch, each
+  scheduler tick deletes closed windows in a bounded batch, in a session of its own — a
+  failed purge never stops a reminder (measured: run inside the claim recovery, a missing
+  table silenced every reminder of the instance). It is user data: purged with the
+  account, exported in full.
+- **Every surface, one service**: the chat bubble (three delays, and « stop » behind a
+  confirmation when the reminder still has a future), the toast (the short delay), the
+  world's device, Telegram (inline buttons answered above the chat) and the web push
+  (two actions, the most a browser draws; the service worker posts with the person's
+  session and opens the chat when the press did not land). iOS's wake relay carries no
+  content (ADR-246) and native Android actions wait for the shell: both open the chat,
+  whose bubble offers every choice.
+- **A press is the person's own act**: no model, no register row (owner decision
+  2026-10-30). The copy's own ringing is an ordinary reminder's, billed as one.
+- **Still refused: an acknowledgement.** A reminder with no future is deleted, never
+  marked.

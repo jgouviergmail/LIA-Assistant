@@ -37,6 +37,7 @@ from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.effects.decision_recorder import record_decision_once
 from src.domains.agents.effects.decisions import out_of_turn_decision
 from src.domains.agents.effects.models import DecisionOutcome, EffectSource
+from src.domains.health_metrics.prompt_context import opted_in_health_context
 from src.domains.journals.consolidation_controls import (
     ConsolidationCompletionUnknown,
     ConsolidationControlRefused,
@@ -218,12 +219,11 @@ async def _stamp_last_consolidated(user_id: UUID) -> None:
 
 
 async def _maybe_build_health_signals_section(user_id: UUID) -> str:
-    """Return the Health Metrics block for the consolidation prompt.
+    """Return the opted-in Health Metrics block for the consolidation prompt.
 
-    Returns an empty string when the global feature flag is off, the user
-    has not opted into Health Metrics assistant integrations, or their
-    history is empty. The prompt template uses ``{health_signals_section}``
-    as an optional placeholder.
+    The gate is the one door's (``health_metrics.prompt_context``); this
+    surface only frames the block. The ``{health_signals_section}``
+    placeholder is optional, so nothing is framed when there is nothing.
 
     Args:
         user_id: Owner user UUID.
@@ -231,34 +231,8 @@ async def _maybe_build_health_signals_section(user_id: UUID) -> str:
     Returns:
         A "## HEALTH SIGNALS" section or an empty string.
     """
-    from src.core.config import settings as global_settings
-    from src.core.constants import HEALTH_METRICS_USER_TOGGLE_ATTR
-
-    if not getattr(global_settings, "health_metrics_enabled", False):
-        return ""
-
-    try:
-        from src.infrastructure.database.session import get_db_context
-
-        async with get_db_context() as db:
-            from src.domains.health_metrics.service import HealthMetricsService
-            from src.domains.users.repository import UserRepository
-
-            user = await UserRepository(db).get_by_id(user_id)
-            if user is None or not getattr(user, HEALTH_METRICS_USER_TOGGLE_ATTR, False):
-                return ""
-            service = HealthMetricsService(db)
-            block = await service.build_health_context_for_prompt(user_id)
-            if not block:
-                return ""
-            return render_health_signals_section(block)
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.warning(
-            "journal_consolidation_health_context_failed",
-            user_id=str(user_id),
-            error=str(exc),
-        )
-        return ""
+    block = await opted_in_health_context(user_id, surface="journal_consolidation")
+    return render_health_signals_section(block) if block else ""
 
 
 def _size_directives_for(total_chars: int, max_total_chars: int) -> tuple[str, str]:

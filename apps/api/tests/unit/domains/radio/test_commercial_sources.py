@@ -15,6 +15,7 @@ from sqlalchemy import select
 from src.domains.briefing import fetchers
 from src.domains.connectors import active_client
 from src.domains.connectors.active_client import ActiveClient
+from src.domains.connectors.clients.mail_moves import UnreadCounts
 from src.domains.connectors.models import ConnectorType
 from src.domains.radio import repository
 from src.domains.radio.editorial import NewsCandidate, shortlist
@@ -359,6 +360,11 @@ async def test_mail_reader_filters_raw_provider_signals_before_display_cap(
             calls.append(kwargs)
             return {"messages": mails[: kwargs["max_results"]]}
 
+        async def unread_counts(self, folders_max):
+            # The mailbox's own figure: more than any page lists (ADR-185).
+            assert folders_max == 0
+            return UnreadCounts(roles={"inbox": 40}, folders={}, complete=False)
+
     @asynccontextmanager
     async def opened(*args):
         yield ActiveClient(Client(), provider, None)
@@ -370,7 +376,7 @@ async def test_mail_reader_filters_raw_provider_signals_before_display_cap(
         user=user, user_tz=ZoneInfo("UTC"), language="en", exclude_commercial_mails=True
     )
     assert [item.subject for item in result.items] == ["Family dinner"]
-    assert result.total_unread_today == len(mails)
+    assert result.total_unread_today == 40
     assert calls[0]["max_results"] > 12
     ordinary = await fetchers.fetch_mails(user=user, user_tz=ZoneInfo("UTC"), language="en")
     assert [item.subject for item in ordinary.items] == ["Something for you"]

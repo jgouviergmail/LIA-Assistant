@@ -22,6 +22,7 @@ import pytest
 from fastapi import HTTPException
 
 from src.core.constants import GMAIL_FORMAT_FULL
+from src.domains.connectors.clients.gmail_message_text import decode_base64url
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 from src.domains.connectors.schemas import ConnectorCredentials
 from tests.helpers.oauth_refresh_io import ServedCredentials
@@ -86,7 +87,7 @@ def test_decode_base64url_valid():
     text = "Hello, World!"
     encoded = base64.urlsafe_b64encode(text.encode("utf-8")).decode("utf-8").rstrip("=")
 
-    decoded = GoogleGmailClient._decode_base64url(encoded)
+    decoded = decode_base64url(encoded)
     assert decoded == text
 
 
@@ -94,14 +95,14 @@ def test_decode_base64url_with_padding():
     """Test base64url decoding with missing padding."""
     # Test with no padding (Gmail format)
     encoded = "SGVsbG8sIFdvcmxkIQ"  # "Hello, World!" without padding
-    decoded = GoogleGmailClient._decode_base64url(encoded)
+    decoded = decode_base64url(encoded)
     assert decoded == "Hello, World!"
 
 
 def test_decode_base64url_invalid():
     """Test base64url decoding with invalid input."""
     # Should return empty string on decode error
-    decoded = GoogleGmailClient._decode_base64url("invalid!!!base64")
+    decoded = decode_base64url("invalid!!!base64")
     assert decoded == ""
 
 
@@ -114,7 +115,7 @@ def test_encode_base64url():
     assert "=" not in encoded
 
     # Verify roundtrip
-    decoded = GoogleGmailClient._decode_base64url(encoded)
+    decoded = decode_base64url(encoded)
     assert decoded == text
 
 
@@ -782,14 +783,10 @@ class TestNormalizeMessageFields:
         assert "from" not in msg
         assert "subject" not in msg
 
-    def test_multipart_body_extraction(self):
-        """Test body extraction from multipart message in full format."""
-        import base64
-
-        body_text = "Plain text body"
-        encoded = base64.urlsafe_b64encode(body_text.encode()).decode().rstrip("=")
-
-        msg = {
+    @staticmethod
+    def _alternative(text: bytes, html: bytes, html_charset: str = "utf-8") -> dict:
+        """A ``multipart/alternative`` message: a text part beside its layout."""
+        return {
             "id": "msg-6",
             "payload": {
                 "headers": [],
@@ -797,20 +794,59 @@ class TestNormalizeMessageFields:
                 "parts": [
                     {
                         "mimeType": "text/plain",
-                        "body": {"data": encoded},
+                        "body": {"data": base64.urlsafe_b64encode(text).decode()},
                     },
                     {
                         "mimeType": "text/html",
-                        "body": {"data": base64.urlsafe_b64encode(b"<p>HTML</p>").decode()},
+                        "headers": [
+                            {
+                                "name": "Content-Type",
+                                "value": f'text/html; charset="{html_charset}"',
+                            }
+                        ],
+                        "body": {"data": base64.urlsafe_b64encode(html).decode()},
                     },
                 ],
             },
         }
 
+    def test_a_reader_reads_the_layout_the_person_sees(self):
+        """The text part a mailer wrote beside its layout says nothing of the event in it
+        (ADR-287 amendment 2026-11-15): a reader reads the layout, as Graph's always did."""
+        msg = self._alternative(
+            b"To view this email, open it in a client that shows HTML.",
+            b"<h1>Board meeting</h1><p>Thursday 20 November, 14:00</p>",
+        )
+
         GoogleGmailClient._normalize_message_fields(msg, "full")
 
-        # text/plain preferred over text/html
+        assert msg["body"] == "Board meeting\n\nThursday 20 November, 14:00"
+
+    def test_a_layout_is_read_in_the_charset_its_part_names(self):
+        msg = self._alternative(b"-", "<p>Réunion à Orléans</p>".encode("latin-1"), "iso-8859-1")
+
+        GoogleGmailClient._normalize_message_fields(msg, "full")
+
+        assert msg["body"] == "Réunion à Orléans"
+
+    def test_a_layout_holding_no_words_leaves_the_text_part(self):
+        msg = self._alternative(b"Plain text body", b'<img src="https://example.org/a.png">')
+
+        GoogleGmailClient._normalize_message_fields(msg, "full")
+
         assert msg["body"] == "Plain text body"
+
+    def test_a_draft_is_read_as_the_text_the_person_wrote(self):
+        """A mailbox draft is read to be edited and written back (ADR-344): its text part,
+        never a layout's text carrying the model's link labels into the person's mail."""
+        msg = self._alternative(
+            b"My own words",
+            b'<p>My own words <a href="https://example.org/x">here</a></p>',
+        )
+
+        GoogleGmailClient._normalize_message_fields(msg, "full", keep_quoted=True)
+
+        assert msg["body"] == "My own words"
 
 
 @pytest.mark.asyncio

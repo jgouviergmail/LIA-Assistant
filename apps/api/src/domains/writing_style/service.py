@@ -1,14 +1,13 @@
 """The person's writing style, as the settings read and forget it (ADR-383).
 
-Learning it is the writers' door (``agents/emails/writing_style``): this service only
-shows what was learned — in clear, it is the person's own record — and forgets it at
-their word. A profile that can no longer be read back (a rotated key) reads as nothing
-learned: the next e-mail LIA writes learns it again.
+Learning it is the person's own act, through the assists' door
+(``tool_assists/style_learning``): this service only shows what was learned — in clear,
+it is the person's own record — and forgets it at their word. A profile that can no
+longer be read back (a rotated key) reads as nothing learned: the person learns it again.
 """
 
 from __future__ import annotations
 
-from datetime import timedelta
 from uuid import UUID
 
 import structlog
@@ -42,7 +41,8 @@ class WritingStyleService:
             user_id: The account.
 
         Returns:
-            The switch, and what was learned with when, if anything.
+            The switch, how many sent e-mails a learning reads, and what was learned with
+            when, if anything.
 
         Raises:
             BaseAPIException: The account does not exist.
@@ -51,26 +51,25 @@ class WritingStyleService:
         if stored is None:
             raise_user_not_found(user_id)
         assert stored is not None
+        nothing = WritingStyleResponse(
+            enabled=stored.enabled, mails_to_read=settings.writing_style_sent_mails
+        )
         row = stored.row
         if row is None:
-            return WritingStyleResponse(enabled=stored.enabled)
+            return nothing
         profile: str | None = None
         if row.profile_encrypted is not None:
             try:
                 profile = decrypt_data(row.profile_encrypted)
             except ValueError:
                 logger.warning("writing_style_unreadable", user_id=str(user_id))
-                return WritingStyleResponse(enabled=stored.enabled)
-        return WritingStyleResponse(
-            enabled=stored.enabled,
-            profile=profile,
-            mails_read=row.mails_read,
-            learned_at=row.built_at,
-            renews_at=row.built_at + timedelta(days=settings.writing_style_max_age_days),
+                return nothing
+        return nothing.model_copy(
+            update={"profile": profile, "mails_read": row.mails_read, "learned_at": row.built_at}
         )
 
     async def forget(self, user_id: UUID) -> bool:
-        """Remove what was learned; with the switch on, the next e-mail learns it again.
+        """Remove what was learned; nothing is learned again until the person asks.
 
         Args:
             user_id: The account.

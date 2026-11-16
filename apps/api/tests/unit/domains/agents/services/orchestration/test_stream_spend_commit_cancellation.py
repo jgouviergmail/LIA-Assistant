@@ -21,6 +21,7 @@ from src.domains.agents.services.orchestration import service as orchestration_m
 from src.domains.agents.services.orchestration import turn_input
 from src.domains.agents.services.orchestration.service import OrchestrationService
 from tests.fixtures.conversation_cases import conversation_target
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = pytest.mark.unit
 
@@ -67,7 +68,9 @@ def bare_stream(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         orchestration_module, "enrich_config_with_callbacks", lambda config, **_kw: config
     )
-    monkeypatch.setattr(orchestration_module, "build_runtime_context", lambda **_kw: object())
+    monkeypatch.setattr(
+        orchestration_module, "build_runtime_context", lambda **_kw: make_runtime_context()
+    )
     monkeypatch.setattr(orchestration_module, "with_current_extraction_revision", same_context)
     monkeypatch.setattr(turn_input, "prepare_graph_input", lambda *_a: {})
 

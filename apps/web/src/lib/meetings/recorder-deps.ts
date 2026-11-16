@@ -11,6 +11,7 @@ import {
   MEETING_STATUS_POLL_MS,
   VOICE_INPUT_SAMPLE_RATE,
 } from '@/lib/constants';
+import { chatDiscussionOnScreen } from '@/lib/chat-location';
 import { meetingsApi } from '@/lib/meetings/api';
 import { chooseMeetingAudioFormat, currentAudioEnvironment } from '@/lib/meetings/audio-format';
 import { createAudioSource } from '@/lib/meetings/audio-source';
@@ -59,6 +60,8 @@ export function createRecorderDeps(onProcessed?: (detail: MeetingDetail) => void
     position: bestEffortPosition,
     acquireWakeLock,
     timezone: deviceTimezone,
+    discussion: () =>
+      typeof window === 'undefined' ? null : chatDiscussionOnScreen(window.location),
     isOnline: () => (typeof navigator === 'undefined' ? true : navigator.onLine),
     now: () => Date.now(),
     store: useMeetingRecorderStore,

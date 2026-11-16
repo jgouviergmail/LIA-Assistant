@@ -1,4 +1,4 @@
-"""Consent-fenced native chart aggregates; bounded UTC windows, no future claims."""
+"""Consent-fenced native chart aggregates; bounded windows of local days, no future claims."""
 
 from datetime import timedelta
 
@@ -7,6 +7,7 @@ from sqlalchemy import select
 from src.core.config import settings
 from src.core.exceptions import ResourceConflictError
 from src.core.read_budget import mark_read_opened
+from src.core.time_utils import resolve_zone
 from src.domains.health_metrics.chart_read import read_chart_statistics
 from src.domains.health_metrics.discussion_projection import daily_evidence
 from src.domains.shared.discussion_sources import (
@@ -98,28 +99,33 @@ class HealthDiscussionSource:
         if end - scope.window_start > timedelta(days=RESEARCH_HISTORY_DAYS_MAX):
             return closed_source(request, disabled=False, reason="budget")
         async with get_db_context() as db:
-            enabled = await db.scalar(
-                select(User.health_metrics_agents_enabled)
-                .where(
-                    User.id == scope.owner_id,
-                    User.is_active.is_(True),
-                    User.deleted_at.is_(None),
+            owner = (
+                await db.execute(
+                    select(User.health_metrics_agents_enabled, User.timezone)
+                    .where(
+                        User.id == scope.owner_id,
+                        User.is_active.is_(True),
+                        User.deleted_at.is_(None),
+                    )
+                    .with_for_update(read=True)
                 )
-                .with_for_update(read=True)
-            )
-            if not enabled:
+            ).one_or_none()
+            if owner is None or not owner.health_metrics_agents_enabled:
                 return closed_source(scope, disabled=True, reason="consent")
             mark_read_opened(scope.owner_id)
+            # The person's days, cut at their midnight (ADR-148 amendment 2026-11-14).
+            zone = resolve_zone(owner.timezone)
             chart = await read_chart_statistics(
                 db,
                 scope.owner_id,
                 period="day",
+                zone=zone,
                 from_ts=scope.window_start,
                 to_ts=scope.window_end,
                 maximum_buckets=_MAXIMUM_DAILY_BUCKETS,
             )
         try:
-            items = daily_evidence(chart, scope)
+            items = daily_evidence(chart, scope, zone)
         except ValueError:
             return closed_source(scope, disabled=False, reason="budget")
         return _page_result(items, scope)

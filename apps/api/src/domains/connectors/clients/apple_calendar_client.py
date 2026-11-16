@@ -34,6 +34,7 @@ from src.domains.connectors.clients.event_bounds import (
     EventBounds,
     TimedSides,
 )
+from src.domains.connectors.clients.event_order import soonest_first, start_instant
 from src.domains.connectors.clients.normalizers.calendar_normalizer import (
     normalize_calendar,
     normalize_vevent,
@@ -271,12 +272,19 @@ class AppleCalendarClient(AppleCalendarActsMixin, BaseAppleClient):
         )
 
     async def list_events_window(
-        self, calendar_id: str, time_min: str, time_max: str, *, bound: int
+        self,
+        calendar_id: str,
+        time_min: str,
+        time_max: str,
+        *,
+        bound: int,
+        fields: list[str] | None = None,
     ) -> dict[str, Any]:
         """Every event of a window — occurrences expanded — up to ``bound`` (ADR-369).
 
         One REPORT; the server (or caldav) expands the recurrences, and the
-        answer is cut at ``bound`` in start order, saying so.
+        answer is cut at ``bound`` in start order, saying so. ``fields`` is
+        accepted for parity and unused: CalDAV projects nothing.
 
         Returns:
             ``{"events": [...], "truncated": bool}``.
@@ -373,7 +381,7 @@ class AppleCalendarClient(AppleCalendarActsMixin, BaseAppleClient):
                 normalized["primary"] = True
             items.append(normalized)
 
-        return {"items": items}
+        return {"items": items, "truncated": len(calendars) > max_results}
 
     async def _list_events_impl(
         self,
@@ -435,13 +443,10 @@ class AppleCalendarClient(AppleCalendarActsMixin, BaseAppleClient):
                     error=str(e),
                 )
 
-        # Sort by start time (most recent first)
-        items.sort(
-            key=lambda x: x.get("start", {}).get("dateTime", x.get("start", {}).get("date", "")),
-            reverse=False,  # Ascending chronological (matches Google Calendar API)
-        )
-
-        return {"items": items[:max_results]}
+        # The soonest first, compared as instants: two offsets spelled differently
+        # would sort wrong as text. The cut is said (ADR-185 amendment 2026-11-15).
+        items = soonest_first(items)
+        return {"items": items[:max_results], "truncated": len(items) > max_results}
 
     async def _events_window_impl(
         self, calendar_id: str, time_min: str, time_max: str, bound: int
@@ -460,7 +465,7 @@ class AppleCalendarClient(AppleCalendarActsMixin, BaseAppleClient):
                 events.append(normalize_vevent(event))
             except Exception as error:
                 logger.warning("apple_calendar_event_parse_error", error_type=type(error).__name__)
-        events.sort(key=_start_instant)
+        events.sort(key=start_instant)
         await self._mark_own_organizer(events)
         return {"events": events[:bound], "truncated": len(events) > bound}
 
@@ -755,24 +760,6 @@ def _drop_duration(vevent: Any) -> None:
     duration = getattr(vevent, "duration", None)
     if duration is not None:
         vevent.remove(duration)
-
-
-def _start_instant(event: dict[str, Any]) -> datetime:
-    """When a normalised event starts, as an instant (offsets compared, not spelled).
-
-    An all-day event starts at its day's midnight UTC; an unreadable start sorts last.
-    """
-    start = event.get("start") or {}
-    value = str(start.get("dateTime") or start.get("date") or "")
-    try:
-        moment = (
-            datetime.fromisoformat(value)
-            if "T" in value
-            else datetime.combine(date.fromisoformat(value), datetime.min.time())
-        )
-    except ValueError:
-        return datetime.max.replace(tzinfo=UTC)
-    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
 def _attendees_of(vevent: Any) -> list[Any]:

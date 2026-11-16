@@ -12,10 +12,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src.core.session_dependencies import get_current_active_session_for_stream
-from src.domains.auth import dependencies as auth_dependencies
 from src.domains.feature_switches import guard
 from src.domains.radio import router as radio_router
 from src.domains.voice import lia_voices_router
+from src.infrastructure.rate_limiting import user_limiter
 
 pytestmark = pytest.mark.unit
 PERSON = uuid4()
@@ -45,7 +45,7 @@ def calls(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, dict[str, Any]]]:
     monkeypatch.setattr(lia_voices_router, "sample_lia_voice", sample_chat, raising=False)
     monkeypatch.setattr(radio_router, "sample_radio_voice", sample_radio, raising=False)
     monkeypatch.setattr(guard, "is_capability_enabled", enabled)
-    monkeypatch.setattr(auth_dependencies, "get_rate_limiter", limiter)
+    monkeypatch.setattr(user_limiter, "get_rate_limiter", limiter)
     return seen
 
 
@@ -120,7 +120,7 @@ def test_both_surfaces_share_the_same_user_rate_limit(
 
         return SimpleNamespace(acquire=acquire)
 
-    monkeypatch.setattr(auth_dependencies, "get_rate_limiter", limiter)
+    monkeypatch.setattr(user_limiter, "get_rate_limiter", limiter)
     for _ in range(6):
         assert client.post("/voice/lia-voices/sample", json={"gender": "male"}).status_code == 200
         assert (

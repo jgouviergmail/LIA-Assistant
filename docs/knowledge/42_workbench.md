@@ -44,7 +44,7 @@ Yes. A file’s detail and a message’s attachments open in the page, on every 
 
 ## What does a contact’s detail show of our exchanges?
 
-Your latest exchanges with them: the five latest messages they sent you, the five latest you sent them, the five latest meetings they organised with you invited, and the five latest you organised with them invited. A line opens in its tool. The calendar is read back over the last two years, in your default calendar, and the screen says so. A meeting someone else organised answers neither list, and one that names no organiser stands in a list of its own. If your mailbox or your calendar could not be read, it says so rather than showing nothing.
+Your latest exchanges with them: the five latest messages they sent you, the five latest you sent them, the five latest meetings they organised with you invited, and the five latest you organised with them invited. A line opens in its tool. The calendar is read back over the last two years, in every calendar you own, and the screen says so. A meeting someone else organised answers neither list, and one that names no organiser stands in a list of its own. If your mailbox or your calendar could not be read, it says so rather than showing nothing.
 
 With their numbers come the five latest calls LIA placed to them, each saying when, how it went and what it was for, and the five latest texts they sent you: a contact with numbers alone has exchanges too. A call opens in your calls list, a text on the SMS page. These lists appear once LIA has calls or texts to show, and never show the number itself.
 

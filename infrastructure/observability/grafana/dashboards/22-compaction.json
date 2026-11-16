@@ -613,6 +613,32 @@
           "mode": "multi"
         }
       }
+    },
+    {
+      "id": 104,
+      "title": "Turns the window refused, by outcome (1h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 30
+      },
+      "description": "A turn the model's window refused (ContextOverflowError) is replayed once with its compaction forced, from the checkpoint it started from (lot 15). replayed = the replay ran; replay_overflowed = it was refused again; refused_* = no replay (compaction disabled, no checkpoint, nothing to compact, a question pending, or an act already claimed in the turn). A flat zero is the healthy state.",
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(compaction_overflow_replays_total[1h])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0"
+        }
+      }
     }
   ]
 }

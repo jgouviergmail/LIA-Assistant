@@ -371,7 +371,14 @@ class MailFolderClientProtocol(Protocol):
 class CalendarClientProtocol(Protocol):
     """Protocol for calendar clients (Google Calendar, Apple Calendar)."""
 
-    async def list_calendars(self, max_results: int = 100, show_hidden: bool = False) -> dict: ...
+    async def list_calendars(self, max_results: int = 100, show_hidden: bool = False) -> dict:
+        """The account's calendars, at most ``max_results``, and whether it holds more.
+
+        Returns:
+            ``{"items": [...], "truncated": bool}``: ``truncated`` says the listing
+            holds calendars past this answer (ADR-185).
+        """
+        ...
 
     async def list_events(
         self,
@@ -381,7 +388,18 @@ class CalendarClientProtocol(Protocol):
         calendar_id: str = "primary",
         query: str | None = None,
         fields: list[str] | None = None,
-    ) -> dict: ...
+    ) -> dict:
+        """The SOONEST events of a window, in start order, and whether it holds more.
+
+        ONE answer, bounded by ``max_results`` and by the agents' per-request
+        ceiling (``api_max_items_per_request``), whichever is smaller; ``truncated``
+        says the window holds events past it (ADR-185 amendment 2026-11-15). A
+        reader that needs EVERY event of a window reads ``list_events_window``.
+
+        Returns:
+            ``{"items": [...], "truncated": bool}``.
+        """
+        ...
 
     async def get_event(
         self,
@@ -432,9 +450,18 @@ class CalendarClientProtocol(Protocol):
         ...
 
     async def list_events_window(
-        self, calendar_id: str, time_min: str, time_max: str, *, bound: int
+        self,
+        calendar_id: str,
+        time_min: str,
+        time_max: str,
+        *,
+        bound: int,
+        fields: list[str] | None = None,
     ) -> dict:
         """Every event of a window, occurrences expanded, up to ``bound`` (ADR-369).
+
+        ``fields`` projects each event where the provider projects (Google); Graph
+        keeps its own selection and CalDAV has none, as for ``list_events``.
 
         Returns ``{"events": [...], "truncated": bool}``.
         """

@@ -18,13 +18,20 @@ import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.constants import MAX_UNREAD_BROADCASTS
+from src.core.constants import MAX_UNREAD_BROADCASTS, NTFY_BROADCAST_CONCURRENCY
 from src.core.exceptions import raise_invalid_input
 from src.core.exceptions_domains import raise_usage_limit_exceeded
 from src.core.i18n import _, get_language_name, normalize_language, resolve_language
 from src.core.i18n_types import Language
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.notifications.models import AdminBroadcast
+from src.domains.notifications.ntfy_delivery import (
+    NtfyNotice,
+    click_url,
+    deliver,
+    ntfy_available,
+)
+from src.domains.notifications.ntfy_repository import NtfySubscriptionRepository, NtfyTarget
 from src.domains.notifications.repository import BroadcastRepository
 from src.domains.notifications.schemas import BroadcastInfo
 from src.domains.notifications.service import FCMNotificationService
@@ -128,6 +135,7 @@ class BroadcastService:
         addressed = [user_id for group in users_by_language.values() for user_id in group]
         total_users = len(addressed)
         tokens_by_language = await self._tokens_by_language(users_by_language)
+        ntfy_by_language = await self._ntfy_targets_by_language(users_by_language)
 
         # Create broadcast (Archive-First: persist, audience included, before sending)
         broadcast = await self.broadcast_repo.create_broadcast(
@@ -169,6 +177,7 @@ class BroadcastService:
         fcm_sent, fcm_failed = await self._broadcast_to_users_by_language(
             users_by_language=users_by_language,
             tokens_by_language=tokens_by_language,
+            ntfy_by_language=ntfy_by_language,
             broadcast_id=broadcast.id,
             translations=translations,
         )
@@ -235,6 +244,22 @@ class BroadcastService:
         """
         return {
             language: await self.fcm_service.get_active_token_strings(group)
+            for language, group in users_by_language.items()
+        }
+
+    async def _ntfy_targets_by_language(
+        self, users_by_language: dict[str, list[UUID]]
+    ) -> dict[str, list[NtfyTarget]]:
+        """Each language group's ntfy topics, read with the tokens (ADR-304, ADR-391).
+
+        One query per language group, before the commit that ends the read; nothing when the
+        operator switched ntfy off.
+        """
+        if not await ntfy_available():
+            return {}
+        repository = NtfySubscriptionRepository(self.db)
+        return {
+            language: await repository.active_targets(group)
             for language, group in users_by_language.items()
         }
 
@@ -388,6 +413,7 @@ class BroadcastService:
         tokens_by_language: dict[str, list[str]],
         broadcast_id: UUID,
         translations: dict[str, str],
+        ntfy_by_language: dict[str, list[NtfyTarget]] | None = None,
     ) -> tuple[int, int]:
         """
         Send broadcast to users grouped by language.
@@ -398,6 +424,7 @@ class BroadcastService:
         Args:
             users_by_language: Dict mapping language to user IDs
             tokens_by_language: Dict mapping language to the group's FCM tokens
+            ntfy_by_language: Each group's ntfy topics, read with the tokens (ADR-391)
             broadcast_id: Broadcast UUID
             translations: Dict mapping language to translated message
 
@@ -431,8 +458,8 @@ class BroadcastService:
 
             # Send FCM batch for this language group
             fcm_tokens = tokens_by_language.get(language, [])
+            fcm_body = message[:100] + "..." if len(message) > 100 else message
             if fcm_tokens:
-                fcm_body = message[:100] + "..." if len(message) > 100 else message
                 fcm_sent, fcm_failed = await self.fcm_service.send_multicast(
                     tokens=fcm_tokens,
                     title=fcm_title,
@@ -445,6 +472,23 @@ class BroadcastService:
                 )
                 total_fcm_sent += fcm_sent
                 total_fcm_failed += fcm_failed
+
+            # The group's ntfy topics receive the same words, a burst bounded (ADR-391).
+            topics = (ntfy_by_language or {}).get(language, [])
+            if topics:
+                notice = NtfyNotice(
+                    title=fcm_title, body=fcm_body, click=click_url(None), language=language
+                )
+                batch = await deliver(
+                    [(topic, notice) for topic in topics], concurrency=NTFY_BROADCAST_CONCURRENCY
+                )
+                logger.info(
+                    "broadcast_ntfy_sent",
+                    broadcast_id=str(broadcast_id),
+                    language=language,
+                    sent=batch.sent,
+                    failed=batch.failed,
+                )
 
         return total_fcm_sent, total_fcm_failed
 

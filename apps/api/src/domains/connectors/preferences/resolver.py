@@ -25,6 +25,9 @@ from typing import Any, Generic, TypeVar
 
 import structlog
 
+from src.core.constants import TASK_LIST_NAMES_SCAN_MAX
+from src.domains.connectors.clients.task_lists import list_every_task_list
+
 logger = structlog.get_logger(__name__)
 
 T = TypeVar("T")
@@ -140,9 +143,8 @@ class GoogleTasksListNameResolver(NameResolverStrategy[Any]):
     """Resolver for Google Tasks list names."""
 
     async def fetch_items(self, client: Any) -> list[dict[str, Any]]:
-        """Fetch task lists from Google Tasks API."""
-        response = await client.list_task_lists(max_results=100)
-        return _extract_items(response)
+        """Fetch task lists from Google Tasks API, every page (ADR-185 amendment)."""
+        return (await list_every_task_list(client, bound=TASK_LIST_NAMES_SCAN_MAX)).lists
 
     def get_item_name(self, item: dict[str, Any]) -> str:
         """Task list name is in 'title' field."""
@@ -175,8 +177,7 @@ class MicrosoftTasksListNameResolver(NameResolverStrategy[Any]):
 
     async def fetch_items(self, client: Any) -> list[dict[str, Any]]:
         """Fetch task lists from Microsoft To Do API (normalized format)."""
-        response = await client.list_task_lists(max_results=100)
-        return _extract_items(response)
+        return (await list_every_task_list(client, bound=TASK_LIST_NAMES_SCAN_MAX)).lists
 
     def get_item_name(self, item: dict[str, Any]) -> str:
         """Task list name is in 'title' field (normalized from Microsoft)."""

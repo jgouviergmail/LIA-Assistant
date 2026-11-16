@@ -67,6 +67,7 @@ from .mcp import MCPSettings
 from .meetings import MeetingsSettings
 from .mfa import MFASettings
 from .notifications import NotificationSettings
+from .ntfy import NtfySettings
 from .observability import ObservabilitySettings
 from .open_loops import OpenLoopsSettings
 from .peers import PeersSettings
@@ -171,6 +172,7 @@ class Settings(
     DemoSettings,
     PushSettings,
     PushRelaySettings,
+    NtfySettings,
     WorldSettings,
     BaseSettings,
 ):
@@ -560,5 +562,6 @@ __all__ = [
     "SkillLibrarySettings",
     "WorkbenchSettings",
     "PushRelaySettings",
+    "NtfySettings",
     "PushSettings",
 ]

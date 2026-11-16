@@ -17,13 +17,14 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel
 
 from src.core.constants import (
+    EMAIL_HTML_TEXT_MAX_CHARS,
     TOOL_ASSIST_CARD_MAX_SIDE,
-    TOOL_ASSIST_CONTACT_HTML_MAX_CHARS,
     TOOL_ASSIST_CONTACT_MESSAGES_MAX,
     TOOL_ASSIST_CONTACT_VALUE_MAX_CHARS,
 )
 from src.core.exceptions import BaseAPIException
 from src.domains.connectors.clients.contact_photos import ContactPhoto
+from src.domains.connectors.clients.normalizers import html_text
 from src.domains.tool_assists import contact_card
 from src.domains.tool_assists.contact_card import (
     CardDraft,
@@ -282,13 +283,13 @@ async def test_a_vast_html_is_bounded_before_it_is_parsed(
         parsed.append(len(html))
         return "Acme Ltd"
 
-    monkeypatch.setattr(contact_card, "html_to_text", to_text)
-    mailbox.html = "x" * (TOOL_ASSIST_CONTACT_HTML_MAX_CHARS + 10)
+    monkeypatch.setattr(html_text, "html_to_text", to_text)
+    mailbox.html = "x" * (EMAIL_HTML_TEXT_MAX_CHARS + 10)
     _answers(monkeypatch, FoundValues(values=[_found("organization", "Acme Ltd")]))
 
     await complete_contact(_run(), "c1")
 
-    assert parsed == [TOOL_ASSIST_CONTACT_HTML_MAX_CHARS] * mailbox.hits
+    assert parsed == [EMAIL_HTML_TEXT_MAX_CHARS] * mailbox.hits
 
 
 async def test_a_contact_with_no_address_has_nothing_to_look_under(

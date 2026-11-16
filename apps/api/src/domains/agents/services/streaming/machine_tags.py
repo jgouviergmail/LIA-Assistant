@@ -17,9 +17,12 @@ ElevenLabs and Fish Audio alike (measured 2026-10-14, Docker dev and Loki).
 The stream removes what the final cleanup removes: a self-closing tag from its
 opening to its first ``>`` — to the end of the answer when none comes, as the
 former streaming patterns ``<tag[^>]*/?>?`` did — and a paired tag up to its
-closing tag. A paired tag that never closes is released as it was written,
-because the final cleanup keeps it too. Each character is read a bounded number
-of times, however the answer is cut into tokens (ADR-326).
+FIRST closing tag, whatever name the model gave it (a declaration holds ids,
+never a « < »; a garbled closing name once showed the whole selection to the
+person, 2026-11-15). A paired tag whose first « < » opens no closing tag never
+closes, and is released as it was written, because the final cleanup keeps it
+too. Each character is read a bounded number of times, however the answer is
+cut into tokens (ADR-326).
 
 A closed paired tag is kept whole for whoever reads it (``take_declarations``):
 the selection says which records the answer retained, and the spoken comment
@@ -34,10 +37,7 @@ from typing import Final
 
 from src.domains.agents.expressivity.annotation import TONE_TAG_MARKER
 from src.domains.agents.services.nothing_new import NOTHING_NEW_TAG_MARKER
-from src.domains.agents.utils.registry_filtering import (
-    RELEVANT_IDS_CLOSING,
-    RELEVANT_IDS_OPENING,
-)
+from src.domains.agents.utils.registry_filtering import RELEVANT_IDS_OPENING
 from src.domains.psyche.constants import PSYCHE_EVAL_TAG_MARKER
 
 #: Where a self-closing tag ends: its first « > », as the final cleanup reads it.
@@ -46,40 +46,37 @@ _SELF_CLOSING_END: Final = ">"
 
 @dataclass(frozen=True, slots=True)
 class _MachineTag:
-    """One tag the response model writes in band: its opening, and what ends it.
+    """One tag the response model writes in band: its opening, and how it ends.
 
-    Both are matched through ``re`` ignoring case, as the final cleanup's patterns
-    match them — never in a lower-cased copy, whose positions are not positions
-    in the text (« İ ».lower() is two characters).
+    The opening is matched through ``re`` ignoring case, as the final cleanup's
+    patterns match it — never in a lower-cased copy, whose positions are not
+    positions in the text (« İ ».lower() is two characters). A self-closing tag
+    ends at its first « > »; a paired tag wraps a declaration and ends at its
+    first closing tag, whatever name that carries (``MachineTagFilter._skip_paired``).
     """
 
     opening: re.Pattern[str]
-    end: re.Pattern[str]
     #: The opening lower-cased: what a possible start of it is compared with.
     prefix: str
-    #: How many characters of the text may already belong to the end.
-    tail: int
     #: A paired tag wraps text, released when it never closes.
     paired: bool
 
 
-def _machine_tag(opening: str, end: str) -> _MachineTag:
+def _machine_tag(opening: str, *, paired: bool) -> _MachineTag:
     return _MachineTag(
         opening=re.compile(re.escape(opening), re.IGNORECASE),
-        end=re.compile(re.escape(end), re.IGNORECASE),
         prefix=opening.lower(),
-        tail=len(end) - 1,
-        paired=end != _SELF_CLOSING_END,
+        paired=paired,
     )
 
 
 #: Every tag the response model writes in band. A tag the model is taught to
 #: write is declared here, or its reader sees it typed out.
 MACHINE_TAGS: Final[tuple[_MachineTag, ...]] = (
-    _machine_tag(RELEVANT_IDS_OPENING, RELEVANT_IDS_CLOSING),
-    _machine_tag(PSYCHE_EVAL_TAG_MARKER, _SELF_CLOSING_END),
-    _machine_tag(TONE_TAG_MARKER, _SELF_CLOSING_END),
-    _machine_tag(NOTHING_NEW_TAG_MARKER, _SELF_CLOSING_END),
+    _machine_tag(RELEVANT_IDS_OPENING, paired=True),
+    _machine_tag(PSYCHE_EVAL_TAG_MARKER, paired=False),
+    _machine_tag(TONE_TAG_MARKER, paired=False),
+    _machine_tag(NOTHING_NEW_TAG_MARKER, paired=False),
 )
 _LONGEST_OPENING: Final = max(len(tag.prefix) for tag in MACHINE_TAGS)
 
@@ -92,14 +89,15 @@ class MachineTagFilter:
     One instance per stream: it carries the state of the answer it reads.
     """
 
-    #: The tail of the answer that may still open a tag.
+    #: The tail of the answer that may still open a tag — inside a paired tag, a
+    #: « < » whose next character, « / » or not, is the next token's.
     _pending: str
     #: The tag being removed, until what ends it arrives.
     _open: _MachineTag | None
     #: What an open paired tag wraps, its opening included: released if it never closes.
     _held: list[str]
-    #: The last characters read inside the tag, where its end may be cut in two.
-    _tail: str
+    #: The closing tag of an open paired tag read so far, « </ » onwards (empty: none yet).
+    _closing: list[str]
     #: The paired tags removed and not yet taken, each whole.
     _declarations: list[str]
 
@@ -110,7 +108,7 @@ class MachineTagFilter:
         self._pending = ""
         self._open = None
         self._held = []
-        self._tail = ""
+        self._closing = []
         self._declarations = []
 
     def take_declarations(self) -> list[str]:
@@ -143,7 +141,7 @@ class MachineTagFilter:
         position = 0
         while position < len(data):
             if self._open is not None:
-                position = self._skip_inside(self._open, data, position)
+                position = self._skip_inside(self._open, data, position, emitted)
                 continue
             mark = data.find("<", position)
             if mark < 0:
@@ -165,7 +163,9 @@ class MachineTagFilter:
         Returns:
             The text to release, possibly empty.
         """
-        released = self._pending + "".join(self._held)
+        # Outside a tag only the possible opening is held; inside a paired one its
+        # text, its closing read so far, then a « < » the next token never came for.
+        released = "".join(self._held) + "".join(self._closing) + self._pending
         self._reset()
         return released
 
@@ -197,52 +197,91 @@ class MachineTagFilter:
         emitted.append("<")
         return mark + 1
 
-    def _skip_inside(self, tag: _MachineTag, data: str, position: int) -> int:
-        """Read inside ``tag`` up to what ends it, which may be cut in two.
+    def _skip_inside(self, tag: _MachineTag, data: str, position: int, emitted: list[str]) -> int:
+        """Read inside ``tag`` up to what ends it.
 
         Args:
             tag: The open tag.
             data: The text being read.
             position: Where the reading is in ``data``.
+            emitted: The answer's text read so far, extended when a paired tag
+                turns out never to close.
 
         Returns:
-            Where the reading resumes: after the tag's end, or at the end of
-            ``data`` when the tag is still open.
+            Where the reading resumes: after the tag's end, at a « < » to read
+            again, or at the end of ``data`` when the tag is still open.
         """
-        # An end cut in two starts in the carried tail: look there first, over a
-        # window no longer than the end itself — never over a copy of the token.
-        carried = len(self._tail)
-        seam = (
-            tag.end.search(self._tail + data[position : position + tag.tail]) if carried else None
-        )
-        if seam is not None:
-            return self._close(tag, data, position, position + seam.end() - carried)
-        end = tag.end.search(data, position)
-        if end is not None:
-            return self._close(tag, data, position, end.end())
         if tag.paired:
-            self._held.append(data[position:])
-        # The longest start of the end the text may close on: one character short of it.
-        recent = data[max(position, len(data) - tag.tail) :]
-        self._tail = (self._tail + recent)[-tag.tail :] if tag.tail else ""
-        return len(data)
+            return self._skip_paired(data, position, emitted)
+        end = data.find(_SELF_CLOSING_END, position)
+        if end < 0:
+            return len(data)
+        self._open = None
+        return end + 1
 
-    def _close(self, tag: _MachineTag, data: str, position: int, resume: int) -> int:
-        """The open tag ended at ``resume``: keep a paired one whole, then forget it.
+    def _skip_paired(self, data: str, position: int, emitted: list[str]) -> int:
+        """Read a declaration up to its first closing tag, whatever name that carries.
+
+        A declaration holds ids, never a « < »: its first « < » opens the closing
+        tag, which the next « > » ends — the final cleanup's ``</[^<>]*>``
+        (``registry_filtering``). Measured 2026-11-15: a closing name the model
+        garbled put the whole selection in front of the person's answer. A « < »
+        not followed by « / », or a second « < » before the « > », opens no
+        closing tag: the tag never closes, what it held is the answer's, released
+        at once, and that « < » is read again as the answer's.
 
         Args:
-            tag: The tag that ended.
             data: The text being read.
-            position: Where the reading was in ``data`` when its end was found.
-            resume: Where the reading resumes, just after its end.
+            position: Where the reading is in ``data``.
+            emitted: The answer's text read so far.
+
+        Returns:
+            Where the reading resumes in ``data``.
+        """
+        while position < len(data):
+            if not self._closing:
+                mark = data.find("<", position)
+                if mark < 0:
+                    self._held.append(data[position:])
+                    return len(data)
+                self._held.append(data[position:mark])
+                if mark + 1 == len(data):
+                    self._pending = "<"
+                    return len(data)
+                if data[mark + 1] != "/":
+                    return self._release(mark, emitted)
+                self._closing = ["</"]
+                position = mark + 2
+                continue
+            end = data.find(">", position)
+            stray = data.find("<", position, end if end >= 0 else len(data))
+            if stray >= 0:
+                self._closing.append(data[position:stray])
+                return self._release(stray, emitted)
+            if end < 0:
+                self._closing.append(data[position:])
+                return len(data)
+            self._closing.append(data[position : end + 1])
+            self._declarations.append("".join(self._held) + "".join(self._closing))
+            self._forget_open()
+            return end + 1
+        return position
+
+    def _release(self, resume: int, emitted: list[str]) -> int:
+        """A paired tag that never closes: what it held is the answer's, as written.
+
+        Args:
+            resume: The « < » the reading resumes at, read again as the answer's.
+            emitted: The answer's text read so far.
 
         Returns:
             ``resume``.
         """
-        if tag.paired:
-            # What it held so far, then the rest of it — its end included.
-            self._declarations.append("".join(self._held) + data[position:resume])
+        emitted.append("".join(self._held) + "".join(self._closing))
+        self._forget_open()
+        return resume
+
+    def _forget_open(self) -> None:
         self._open = None
         self._held = []
-        self._tail = ""
-        return resume
+        self._closing = []

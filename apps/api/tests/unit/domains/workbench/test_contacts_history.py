@@ -2,8 +2,9 @@
 
 The five latest mails each way and the five latest meetings each organised, by ADDRESS. A calendar
 answers a window oldest first, so the window walks back from now: reading two years at once would
-hand back the oldest meetings and cut the latest. A source says why it has nothing: « I could not
-look » is never « nothing », and nothing here reaches a model.
+hand back the oldest meetings and cut the latest. Every calendar the account owns is read, never the
+default alone. A source says why it has nothing: « I could not look » is never « nothing », and
+nothing here reaches a model.
 """
 
 from __future__ import annotations
@@ -100,14 +101,29 @@ def _by_me(event_id: str, days: int = 1) -> dict[str, Any]:
     )
 
 
-def _calendar(*spans: list[dict[str, Any]], truncated: bool = False) -> MagicMock:
-    """Each window answers its own events, oldest first: the most recent window first."""
-    answers = iter(spans)
+def _calendar(
+    *spans: list[dict[str, Any]],
+    truncated: bool = False,
+    others: dict[str, list[list[dict[str, Any]]]] | None = None,
+    listing: list[dict[str, Any]] | None = None,
+    listing_cut: bool = False,
+) -> MagicMock:
+    """Each window answers its own events, oldest first: the most recent window first.
 
-    async def window(*_: Any, **__: Any) -> dict[str, Any]:
-        return {"events": next(answers, []), "truncated": truncated}
+    ``spans`` are the default calendar's (``cal-1``), ``others`` another calendar's;
+    the listing names every one of them, owned, unless ``listing`` is given.
+    """
+    answers = {"cal-1": iter(spans), **{key: iter(value) for key, value in (others or {}).items()}}
 
-    return MagicMock(list_events_window=AsyncMock(side_effect=window))
+    async def window(calendar_id: str, *_: Any, **__: Any) -> dict[str, Any]:
+        held = answers.get(calendar_id)
+        return {"events": next(held, []) if held else [], "truncated": truncated}
+
+    listed = [{"id": key, "accessRole": "owner"} for key in answers] if listing is None else listing
+    return MagicMock(
+        list_calendars=AsyncMock(return_value={"items": listed, "truncated": listing_cut}),
+        list_events_window=AsyncMock(side_effect=window),
+    )
 
 
 def _door(mail: Any, calendar: Any) -> Any:
@@ -446,14 +462,74 @@ class TestTheMeetings:
         assert (await _history(_mail(), _refused_door())).calendar == "disabled"
 
     async def test_a_calendar_that_failed_is_never_read_as_empty(self) -> None:
-        calendar = MagicMock(
-            list_events_window=AsyncMock(side_effect=ConnectorAPIError("cal", 503, "down"))
-        )
+        calendar = _calendar()
+        calendar.list_events_window.side_effect = ConnectorAPIError("cal", 503, "down")
 
         history = await _history(_mail({f"from:{ANA}": [_message("r1")]}), calendar)
 
         assert history.calendar == "unavailable"
         assert [item.id for item in history.received] == ["r1"]
+
+    async def test_one_owned_calendar_failing_is_never_read_as_empty(self) -> None:
+        """Its own failure reaches the source's verdict, not the group around it."""
+        calendar = _calendar([_by_ana("seen")], others={"moi@x.org": []})
+        healthy = calendar.list_events_window.side_effect
+
+        async def window(calendar_id: str, *args: Any, **kwargs: Any) -> dict[str, Any]:
+            if calendar_id == "moi@x.org":
+                raise ConnectorAPIError("cal", 503, "down")
+            return await healthy(calendar_id, *args, **kwargs)
+
+        calendar.list_events_window.side_effect = window
+
+        assert (await _history(_mail(), calendar)).calendar == "unavailable"
+
+
+class TestEveryOwnedCalendar:
+    """The default says where events are created; an invitation sits in the main calendar."""
+
+    async def test_a_meeting_in_another_owned_calendar_is_found(self) -> None:
+        calendar = _calendar([], others={"moi@x.org": [[_by_ana("invited")]]})
+
+        row = (await _history(_mail(), calendar)).organized_by_them[0]
+
+        assert (row.id, row.calendar_id) == ("invited", "moi@x.org")
+
+    async def test_a_calendar_someone_else_shares_is_never_read(self) -> None:
+        calendar = _calendar(
+            [],
+            others={"team": [[_by_ana("theirs")]]},
+            listing=[
+                {"id": "cal-1", "accessRole": "owner"},
+                {"id": "team", "accessRole": "writer"},
+            ],
+        )
+
+        history = await _history(_mail(), calendar)
+
+        assert history.organized_by_them == []
+        assert {call.args[0] for call in calendar.list_events_window.await_args_list} == {"cal-1"}
+
+    async def test_a_meeting_two_calendars_hold_is_listed_once(self) -> None:
+        calendar = _calendar([_by_ana("both")], others={"moi@x.org": [[_by_ana("both")]]})
+
+        assert [row.id for row in (await _history(_mail(), calendar)).organized_by_them] == ["both"]
+
+    async def test_a_span_is_read_in_every_calendar_before_an_older_one(self) -> None:
+        theirs = [_by_ana(f"t{index}", index + 1) for index in range(FIVE)]
+        mine = [_by_me(f"m{index}", index + 1) for index in range(FIVE)]
+        calendar = _calendar(theirs, others={"moi@x.org": [mine]})
+
+        history = await _history(_mail(), calendar)
+
+        # Both lists filled by the latest span of the two calendars: no older span asked.
+        assert calendar.list_events_window.await_count == 2
+        assert [row.id for row in history.organized_by_you][0] == "m0"
+
+    async def test_calendars_left_unread_are_said(self) -> None:
+        history = await _history(_mail(), _calendar([], listing_cut=True))
+
+        assert history.meetings_cut is True
 
 
 class TestWhatItNeverDoes:

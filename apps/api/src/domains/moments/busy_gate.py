@@ -36,9 +36,10 @@ from uuid import UUID
 import structlog
 
 from src.core.config import settings
-from src.core.constants import REDIS_KEY_MOMENTS_AGENDA_PREFIX
+from src.core.constants import CALENDAR_WINDOW_READ_MAX, REDIS_KEY_MOMENTS_AGENDA_PREFIX
 from src.core.time_utils import resolve_user_timezone
 from src.domains.connectors.calendar_access import CalendarAccess, open_active_calendar
+from src.domains.connectors.clients.calendar_lists import read_owned_events
 from src.domains.moments.busy import is_in_meeting, next_event_start
 from src.domains.shared.consultation_surfaces import record_surface_consultations
 from src.infrastructure.cache.redis import get_redis_cache
@@ -164,11 +165,13 @@ async def _read_calendar(user_id: UUID, now: datetime) -> _CalendarRead:
             if not isinstance(access, CalendarAccess):
                 return _CalendarRead(None, user, int((perf_counter() - started) * 1000), False)
             asked = True
-            result = await access.client.list_events(
-                time_min=(now - window).isoformat(),
-                time_max=(now + window).isoformat(),
-                max_results=20,
-                calendar_id=access.calendar_id,
+            # Every calendar the account owns: a meeting in the main calendar is a
+            # meeting whichever one events are created in (owner rule 2026-11-15).
+            owned = await read_owned_events(
+                access.client,
+                access.calendar_id,
+                [((now - window).isoformat(), (now + window).isoformat())],
+                bound=CALENDAR_WINDOW_READ_MAX,
                 fields=_FIELDS,
             )
     except Exception as exc:  # noqa: BLE001 — fail open
@@ -178,9 +181,7 @@ async def _read_calendar(user_id: UUID, now: datetime) -> _CalendarRead:
             error_type=type(exc).__name__,
         )
         return _CalendarRead(None, None, int((perf_counter() - started) * 1000), asked)
-    return _CalendarRead(
-        list(result.get("items") or []), user, int((perf_counter() - started) * 1000), True
-    )
+    return _CalendarRead(owned.events, user, int((perf_counter() - started) * 1000), True)
 
 
 async def agenda_verdict(

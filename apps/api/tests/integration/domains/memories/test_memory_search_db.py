@@ -10,6 +10,8 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import inspect
+from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.memories.models import MEMORY_EMBEDDING_DIMENSIONS, Memory
@@ -77,6 +79,66 @@ class TestCategoryNarrowing:
         )
 
         assert [memory.category for memory, _score in results] == ["preference", "procedural"]
+
+
+def _assert_vectors_not_loaded(memory: Memory) -> None:
+    """The row carries no vector, and reading one raises instead of reloading it."""
+    assert {"embedding", "keyword_embedding"} <= inspect(memory).unloaded
+    with pytest.raises(InvalidRequestError):
+        _ = memory.embedding
+
+
+class TestReadDoorsWithoutVectors:
+    """A read door ranks on the server and parses no vector in Python (latency lot 5).
+
+    pgvector hands each 1536-dimension vector to Python as text parsed float by
+    float on the event loop: 84.5 ms for 75 rows on the production host, 8.9 ms
+    once the two columns stay in the database.
+    """
+
+    async def test_a_search_without_vectors_ranks_the_same(
+        self, async_session: AsyncSession, owner: User
+    ) -> None:
+        repository = MemoryRepository(async_session)
+        query = _vector(1.0, 0.0)
+        async_session.expunge_all()
+        lean = await repository.search_by_relevance(
+            user_id=owner.id, query_embedding=query, limit=10, min_score=0.0, with_vectors=False
+        )
+        for memory, _score in lean:
+            _assert_vectors_not_loaded(memory)
+        lean_ranking = [(memory.content, score) for memory, score in lean]
+
+        async_session.expunge_all()
+        full = await repository.search_by_relevance(
+            user_id=owner.id, query_embedding=query, limit=10, min_score=0.0
+        )
+
+        assert lean_ranking == [(memory.content, score) for memory, score in full]
+        assert all(memory.embedding is not None for memory, _score in full)
+
+    async def test_the_relationship_lookup_without_vectors(
+        self, async_session: AsyncSession, owner: User
+    ) -> None:
+        async_session.expunge_all()
+        results = await MemoryRepository(async_session).get_relationships_for_user(
+            user_id=owner.id, query_embedding=_vector(0.1, 1.0), min_score=0.0, with_vectors=False
+        )
+
+        assert [memory.content for memory, _score in results] == ["Sister named Claire"]
+        _assert_vectors_not_loaded(results[0][0])
+
+    async def test_the_recent_fallback_without_vectors(
+        self, async_session: AsyncSession, owner: User
+    ) -> None:
+        async_session.expunge_all()
+        recent = await MemoryRepository(async_session).get_recent_for_user(
+            owner.id, limit=5, with_vectors=False
+        )
+
+        assert len(recent) == 3
+        for memory in recent:
+            _assert_vectors_not_loaded(memory)
 
     async def test_an_empty_category_set_narrows_nothing(
         self, async_session: AsyncSession, owner: User

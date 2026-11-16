@@ -53,6 +53,7 @@ def instruction_runtime(
         admission: RunAdmission | None,
         run_id: str | None,
         language: str | None,
+        cancellable: bool = False,
     ) -> AsyncIterator[RunAuthority]:
         authority = RunAuthority(replace(base, target=target, run_id=run_id or base.run_id))
         with run_authority_scope(authority):

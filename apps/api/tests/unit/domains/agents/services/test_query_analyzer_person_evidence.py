@@ -26,14 +26,14 @@ from src.domains.agents.services.query_analyzer_service import (
     QueryAnalysisResult,
     QueryAnalyzerService,
 )
+from tests.helpers.memory_resolution import resolver_answering
 
 QUERY = "comment aller chez mon frère en voiture demain pour 18h ?"
 
 
 def _make_service(memory_resolution: MemoryResolution) -> QueryAnalyzerService:
     """Build a QueryAnalyzerService whose memory phase yields `memory_resolution`."""
-    memory_resolver = MagicMock()
-    memory_resolver.retrieve_and_resolve = AsyncMock(return_value=memory_resolution)
+    memory_resolver = resolver_answering(memory_resolution)
     context_resolver = MagicMock()
     context_resolver.resolve_context = AsyncMock(return_value=(None, None))
     goal_inferrer = MagicMock()

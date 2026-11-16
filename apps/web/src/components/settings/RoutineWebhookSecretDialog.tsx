@@ -30,11 +30,10 @@ interface RoutineWebhookSecretDialogProps {
  * nowhere else, so this dialog is the only moment the person can copy it: it
  * says so, and closes on an explicit « copied » rather than on a stray click.
  *
- * Read whole on a phone: the dialog's one column may shrink below its content
- * (a grid track is otherwise as wide as its longest unbreakable line, and the
- * signed-call example pushed the dialog past the screen); the values and the
- * example wrap instead. Nothing here is offered to the selection assist: it
- * would hand a selected secret to a model.
+ * Read whole on a phone: every dialog's one column shrinks below its content
+ * (`ui/dialog.tsx`; the signed-call example once pushed this one past the
+ * screen); the values and the example wrap instead. Nothing here is offered to
+ * the selection assist: it would hand a selected secret to a model.
  */
 export function RoutineWebhookSecretDialog({ drawn, onClose }: RoutineWebhookSecretDialogProps) {
   const { t } = useTranslation();
@@ -42,7 +41,7 @@ export function RoutineWebhookSecretDialog({ drawn, onClose }: RoutineWebhookSec
   return (
     <Dialog open={drawn !== null} onOpenChange={open => !open && onClose()}>
       <DialogContent
-        className="grid-cols-[minmax(0,1fr)] sm:max-w-2xl"
+        className="sm:max-w-2xl"
         onInteractOutside={event => event.preventDefault()}
       >
         <DialogHeader>

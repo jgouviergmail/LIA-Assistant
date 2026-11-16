@@ -76,9 +76,9 @@
     },
     "t.channels": {
       "name": "Canali di messaggistica",
-      "role": "Parlare con LIA da Telegram e ricevere i suoi messaggi; il webhook del bot viene impostato soltanto dal leader dello scheduler.",
+      "role": "Scambiare con LIA su Telegram: testo formattato, file in entrambe le direzioni, note vocali, conferme e arresto; solo il leader dello scheduler imposta il webhook del bot.",
       "stack": ["Telegram", "python-telegram-bot"],
-      "src": "82a0c6699dba"
+      "src": "af11d59eaa52"
     },
     "t.edge": {
       "name": "Tunnel, CSP e rate limiting",
@@ -141,9 +141,9 @@
     },
     "t.router": {
       "name": "Router",
-      "role": "Classifica la richiesta e, da un solo embedding, assegna un punteggio ai domini per il pianificatore e ordina tutti gli strumenti per ReAct.",
+      "role": "Classifica la richiesta, ne sceglie il motore quando è selezionata la modalità automatica e, da un solo embedding, valuta gli ambiti per il pianificatore e ordina gli strumenti per ReAct.",
       "stack": ["Analisi della richiesta", "Embedding pivot", "Classifica degli strumenti"],
-      "src": "ffaa35f0abde"
+      "src": "caed1a3e0793"
     },
     "t.planner": {
       "name": "Pianificatore ed esecutore",
@@ -295,9 +295,9 @@
     },
     "t.push": {
       "name": "Notifiche push",
-      "role": "Raggiungere un browser o un telefono; su iOS, un relè trasporta solo un identificativo opaco e una frase senza contenuto.",
-      "stack": ["Firebase Cloud Messaging", "Relè di sveglia iOS", "Web Push"],
-      "src": "aa10ca425769"
+      "role": "Raggiungere un browser o un telefono, con o senza i servizi Google; su iOS, un relè trasporta solo un identificativo opaco e una frase senza contenuto.",
+      "stack": ["Firebase Cloud Messaging", "Relè di sveglia iOS", "Web Push", "ntfy"],
+      "src": "8dab9d58d4e3"
     },
     "t.scheduler": {
       "name": "Scheduler a leader unico",

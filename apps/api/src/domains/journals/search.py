@@ -121,6 +121,7 @@ async def search_journal(
             limit=limit,
             min_score=min_score,
             exclude_levels=JOURNAL_LOOKUP_EXCLUDE_LEVELS,
+            with_vectors=False,
         )
 
 

@@ -81,7 +81,7 @@ class TestHandlerForwardsPreferences:
     """The handler is the hop where the two parameters used to vanish."""
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_enabled_preferences_reach_the_agent_service(
         self,
@@ -103,6 +103,8 @@ class TestHandlerForwardsPreferences:
             user_memory_enabled=True,
             user_journals_enabled=True,
             user_psyche_enabled=True,
+            user_voice_enabled=False,
+            user_execution_mode="pipeline",
             conversation_id=None,
             pending_hitl=None,
         )
@@ -113,7 +115,7 @@ class TestHandlerForwardsPreferences:
         assert kwargs["user_memory_enabled"] is True
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_disabled_preferences_are_forwarded_too(
         self,
@@ -136,6 +138,8 @@ class TestHandlerForwardsPreferences:
             user_memory_enabled=False,
             user_journals_enabled=False,
             user_psyche_enabled=False,
+            user_voice_enabled=False,
+            user_execution_mode="pipeline",
             conversation_id=None,
             pending_hitl=None,
         )
@@ -143,6 +147,41 @@ class TestHandlerForwardsPreferences:
         kwargs = mock_agent.stream_chat_response.call_args.kwargs
         assert kwargs["user_journals_enabled"] is False
         assert kwargs["user_psyche_enabled"] is False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("mode", ["pipeline", "react", "auto"])
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
+    @patch(_PATCH_AGENT_SERVICE)
+    async def test_the_person_s_execution_mode_reaches_the_turn(
+        self,
+        mock_agent_cls: MagicMock,
+        _mock_md_html: MagicMock,
+        handler: InboundMessageHandler,
+        text_message: ChannelInboundMessage,
+        mode: str,
+    ) -> None:
+        """A turn on Telegram runs in the mode the person chose, « auto » included
+        (owner decision 2026-11-15): it always ran in the pipeline before."""
+        mock_agent = mock_agent_cls.return_value
+        mock_agent.stream_chat_response = MagicMock(
+            return_value=_mock_stream(_make_chunk("token", "ok"), _make_chunk("done", ""))
+        )
+
+        await handler.handle(
+            message=text_message,
+            user_id=_OWNER,
+            user_language="fr",
+            user_timezone="Europe/Paris",
+            user_memory_enabled=True,
+            user_journals_enabled=False,
+            user_psyche_enabled=False,
+            user_voice_enabled=False,
+            user_execution_mode=mode,
+            conversation_id=None,
+            pending_hitl=None,
+        )
+
+        assert mock_agent.stream_chat_response.call_args.kwargs["user_execution_mode"] == mode
 
 
 @pytest.mark.unit
@@ -156,7 +195,7 @@ class TestPsycheTagNeverLeaksToTheChannel:
     """
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_content_replacement_wins_over_tagged_tokens(
         self,
@@ -183,6 +222,8 @@ class TestPsycheTagNeverLeaksToTheChannel:
             user_memory_enabled=True,
             user_journals_enabled=True,
             user_psyche_enabled=True,
+            user_voice_enabled=False,
+            user_execution_mode="pipeline",
             conversation_id=None,
             pending_hitl=None,
         )
@@ -211,6 +252,7 @@ class TestPreferenceResolver:
             memory_enabled=True,
             journals_enabled=True,
             psyche_enabled=True,
+            voice_enabled=True,
             full_name="Alex Martin",
             email="alex@example.com",
         )
@@ -221,6 +263,37 @@ class TestPreferenceResolver:
         assert prefs.timezone == "Europe/Berlin"
         assert prefs.journals_enabled is True
         assert prefs.psyche_enabled is True
+        assert prefs.voice_enabled is True
+
+    @pytest.mark.parametrize(
+        ("stored", "expected"),
+        [
+            ("auto", "auto"),
+            ("react", "react"),
+            ("pipeline", "pipeline"),
+            (None, "pipeline"),
+            ("loop", "pipeline"),
+        ],
+    )
+    def test_the_execution_mode_is_read_from_the_row(
+        self, stored: str | None, expected: str
+    ) -> None:
+        """A value no choice names reads as the default, like everywhere else."""
+        from src.domains.channels.preferences import resolve_channel_preferences
+
+        user = SimpleNamespace(
+            language="fr",
+            timezone="Europe/Paris",
+            memory_enabled=True,
+            journals_enabled=False,
+            psyche_enabled=False,
+            voice_enabled=False,
+            execution_mode=stored,
+            full_name=None,
+            email=None,
+        )
+
+        assert resolve_channel_preferences(user).execution_mode == expected
 
     def test_opted_out_user_stays_opted_out(self) -> None:
         from src.domains.channels.preferences import resolve_channel_preferences
@@ -231,6 +304,7 @@ class TestPreferenceResolver:
             memory_enabled=False,
             journals_enabled=False,
             psyche_enabled=False,
+            voice_enabled=False,
             full_name=None,
             email=None,
         )
@@ -240,6 +314,7 @@ class TestPreferenceResolver:
         assert prefs.memory_enabled is False
         assert prefs.journals_enabled is False
         assert prefs.psyche_enabled is False
+        assert prefs.voice_enabled is False
 
     def test_language_fallback_is_configured_not_hardcoded(self) -> None:
         """A hardcoded "fr" was the D6 defect on the callback route."""

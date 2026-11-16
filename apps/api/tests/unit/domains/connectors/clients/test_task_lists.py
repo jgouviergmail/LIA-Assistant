@@ -22,6 +22,7 @@ from src.domains.connectors.clients.task_lists import (
     EveryTaskList,
     TaskListing,
     TaskListRead,
+    list_every_task_list,
     read_every_task_list,
     read_task_lists,
 )
@@ -361,3 +362,44 @@ class TestEveryList:
         await self._every(client, guard=seam)
 
         assert seen == ["in", "in"]
+
+
+class TestEveryTaskList:
+    """The account's lists, page after page: one request stopped at the agents' ceiling."""
+
+    @staticmethod
+    def _paged(*pages: list[str]) -> MagicMock:
+        answers = [
+            {
+                "items": [{"id": list_id, "title": list_id} for list_id in page],
+                "next_page_token": f"p{index + 1}" if index + 1 < len(pages) else None,
+            }
+            for index, page in enumerate(pages)
+        ]
+        client = MagicMock()
+        client.list_task_lists = AsyncMock(side_effect=answers)
+        return client
+
+    async def test_every_page_is_read(self) -> None:
+        client = self._paged(["l1", "l2"], ["l3"])
+        read = await list_every_task_list(client, bound=100)
+
+        assert [entry["id"] for entry in read.lists] == ["l1", "l2", "l3"]
+        assert read.cut is False
+        assert client.list_task_lists.await_args_list[1].kwargs["page_token"] == "p1"
+
+    async def test_past_the_bound_the_read_is_said_cut(self) -> None:
+        client = self._paged(["l1", "l2"], ["l3", "l4"])
+        read = await list_every_task_list(client, bound=3)
+
+        assert [entry["id"] for entry in read.lists] == ["l1", "l2", "l3"]
+        assert read.cut is True
+
+    async def test_a_list_without_an_id_is_no_list(self) -> None:
+        client = MagicMock()
+        client.list_task_lists = AsyncMock(
+            return_value={"items": [{"title": "ghost"}, {"id": "l1"}], "next_page_token": None}
+        )
+        read = await list_every_task_list(client, bound=10)
+
+        assert [entry["id"] for entry in read.lists] == ["l1"]

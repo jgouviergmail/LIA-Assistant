@@ -194,6 +194,44 @@ class TestPanicModeNoThreshold:
         assert set(result.domains_included) == {"contact", "event", "email"}
 
 
+class TestPanicSeatsByRelevance:
+    """ADR-293 amendment 2026-11-15: no threshold in panic mode, but its cap cuts
+    the least relevant tools, never a domain's reader registered after its writer."""
+
+    def test_each_domain_is_seated_by_its_most_relevant_tool(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from src.domains.agents.services.catalogue.strategies import panic_filtering
+
+        manifests = [
+            MockManifest(name="get_current_weather_tool", agent="weather_agent"),
+            MockManifest(name="get_weather_forecast_tool", agent="weather_agent"),
+            MockManifest(name="create_reminder_tool", agent="reminder_agent"),
+            MockManifest(name="list_reminders_tool", agent="reminder_agent"),
+        ]
+        strategy = PanicFilteringStrategy(
+            service=_build_mock_service(manifests), normal_strategy=MagicMock()
+        )
+        monkeypatch.setattr(panic_filtering, "_panic_max_tools", lambda: 2)
+
+        result = strategy.filter(
+            MockIntelligence(domains=["weather", "reminder"]),
+            {
+                "all_scores": {
+                    "get_current_weather_tool": 0.2,
+                    "get_weather_forecast_tool": 0.5,
+                    "create_reminder_tool": 0.001,
+                    "list_reminders_tool": 0.004,
+                }
+            },
+        )
+
+        assert [tool["name"] for tool in result.tools] == [
+            "get_weather_forecast_tool",
+            "list_reminders_tool",
+        ]
+
+
 # =============================================================================
 # Test: ContextVar per-request isolation (CORRECTION 5)
 # =============================================================================

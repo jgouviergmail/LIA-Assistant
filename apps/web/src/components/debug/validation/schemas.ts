@@ -491,6 +491,9 @@ export const RegistersSchema = z.object({
       run_id: z.string(),
       source: z.string(),
       execution_mode: z.string(),
+      // ADR-390 — optional: a payload persisted before the automatic mode.
+      requested_mode: z.string().nullable().optional(),
+      resolution_reason: z.string().nullable().optional(),
       route: z.string().nullable(),
       plan_step_count: z.number().nullable(),
       outcome: z.string(),

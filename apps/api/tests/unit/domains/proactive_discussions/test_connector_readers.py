@@ -187,6 +187,27 @@ async def test_calendar_retains_partial_coverage(native_clients) -> None:
     assert result.status == "truncated"
 
 
+async def test_a_calendar_cut_without_a_token_is_still_said(native_clients, monkeypatch) -> None:
+    """Graph and CalDAV carry no page token: the door's ``truncated`` says the cut."""
+
+    async def listing(**kwargs):
+        return {
+            "items": [
+                {
+                    "id": "event",
+                    "summary": "Fictional recital",
+                    "start": {"dateTime": "2026-10-21T10:00:00Z"},
+                    "end": {"dateTime": "2026-10-21T11:00:00Z"},
+                }
+            ],
+            "truncated": True,
+        }
+
+    monkeypatch.setattr(native_clients, "list_events", listing)
+    result = await CalendarDiscussionSource().read(request(SourceKey.CALENDAR))
+    assert result.status == "truncated"
+
+
 async def test_email_task_and_contact_reads_use_native_shapes_without_implicit_sources(
     native_clients,
 ) -> None:

@@ -301,7 +301,13 @@ class MailsData(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     items: list[MailItem]
-    total_unread_today: int
+    total_unread_today: int | None = Field(
+        default=None,
+        description=(
+            "The inbox's exact unread figure, as the mailbox counts it; None when it "
+            "could not tell — a count is exact or absent, never a page's length (ADR-185)."
+        ),
+    )
 
 
 class BirthdaysData(BaseModel):

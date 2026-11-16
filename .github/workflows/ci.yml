@@ -194,7 +194,8 @@ jobs:
   test-backend:
     name: Test Backend
     runs-on: ubuntu-24.04
-    timeout-minutes: 140
+    # Re-measured 2026-11-16: up to 83.2 min across six successful main runs.
+    timeout-minutes: 170
     needs: lint-backend
 
     services:
@@ -302,7 +303,8 @@ jobs:
   test-backend-integration:
     name: Test Backend Integration
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    # Re-measured 2026-11-16: up to 77.6 min across six successful main runs.
+    timeout-minutes: 160
     needs: lint-backend
 
     services:
@@ -559,7 +561,8 @@ jobs:
   test-frontend:
     name: Test Frontend
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    # Re-measured 2026-11-16: up to 26.7 min across six successful main runs.
+    timeout-minutes: 60
     needs: lint-frontend
 
     steps:

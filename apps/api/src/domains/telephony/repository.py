@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -13,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.repository import BaseRepository
 from src.domains.shared.aggregates import NameActivity
 from src.domains.telephony.models import (
+    CallKind,
     NotificationStatus,
     PhoneCall,
     PhoneCallOutcome,
@@ -23,6 +25,35 @@ from src.infrastructure.database.keyset import Keyset, older_than
 
 # Statuses that count as an in-flight call (mirrors the model's partial-index predicate).
 _ACTIVE_STATUSES = (PhoneCallStatus.DIALING, PhoneCallStatus.IN_PROGRESS)
+
+
+@dataclass(frozen=True, slots=True)
+class ClosedCall:
+    """A call a sweep closed without its return — what telling its owner needs.
+
+    Attributes:
+        id: The ``phone_calls`` row.
+        user_id: Its owner.
+        callee_display: How the call names its callee (never the number).
+        call_kind: Which mandate it ran under.
+        call_mode: How an owner call ran (``direct`` or ``delegated``).
+    """
+
+    id: UUID
+    user_id: UUID
+    callee_display: str
+    call_kind: CallKind
+    call_mode: str
+
+
+#: The columns a closing sweep returns, in ``ClosedCall`` order.
+_CLOSED_COLUMNS = (
+    PhoneCall.id,
+    PhoneCall.user_id,
+    PhoneCall.callee_display,
+    PhoneCall.call_kind,
+    PhoneCall.call_mode,
+)
 
 
 class TelephonyRepository(BaseRepository[PhoneCall]):
@@ -407,11 +438,16 @@ class TelephonyRepository(BaseRepository[PhoneCall]):
         )
         return list((await self.db.scalars(stmt)).all())
 
-    async def expire_stale_returns(self, *, max_age_cutoff: datetime) -> int:
+    async def expire_stale_returns(self, *, max_age_cutoff: datetime) -> list[ClosedCall]:
         """Give up on inbox rows whose synthesis never completed within max-age.
 
         Retires ``RECEIVED`` → ``FAILED``, marks the call FAILED and PURGES the
-        encrypted transcript (D-8). Returns the number of rows retired.
+        encrypted transcript (D-8). The caller commits: the owner's notice is
+        armed in the same transaction (``closing_notices``), so a call is never
+        closed in silence.
+
+        Returns:
+            The calls retired.
         """
         stmt = (
             update(PhoneCall)
@@ -424,12 +460,34 @@ class TelephonyRepository(BaseRepository[PhoneCall]):
                 return_webhook_encrypted=None,
                 status=PhoneCallStatus.FAILED,
                 error="return_synthesis_gave_up",
+                completed_at=func.coalesce(PhoneCall.completed_at, func.now()),
+            )
+            .returning(*_CLOSED_COLUMNS)
+            .execution_options(synchronize_session=False)
+        )
+        rows = (await self.db.execute(stmt)).all()
+        return [ClosedCall(*row) for row in rows]
+
+    async def arm_closing_notice(self, call_id: UUID, *, content: str, title: str) -> bool:
+        """Arm the return outbox of a call a sweep closed (``PENDING`` + its words).
+
+        Only a call whose return was never armed: the notification reaper then
+        delivers it, past its grace window, like any other return (T1).
+
+        Returns:
+            Whether the notice was armed.
+        """
+        result = await self.db.execute(
+            update(PhoneCall)
+            .where(PhoneCall.id == call_id, PhoneCall.notification_status.is_(None))
+            .values(
+                notification_status=NotificationStatus.PENDING,
+                notification_payload={"content": content, "title": title},
+                notification_attempts=0,
             )
             .execution_options(synchronize_session=False)
         )
-        result = await self.db.execute(stmt)
-        await self.db.commit()
-        return int(result.rowcount)  # type: ignore[attr-defined]
+        return bool(getattr(result, "rowcount", 0))
 
     async def mark_notification_delivered(self, call_id: UUID) -> None:
         """Flip a PENDING return notification to DELIVERED after a successful dispatch.
@@ -548,11 +606,17 @@ class TelephonyRepository(BaseRepository[PhoneCall]):
         count: int = result.rowcount  # type: ignore[attr-defined]
         return count > 0
 
-    async def recover_stale(self, timeout_minutes: int) -> int:
+    async def recover_stale(self, timeout_minutes: int) -> list[ClosedCall]:
         """Mark in-flight calls with no terminal webhook as failed (crash recovery).
 
-        Returns the number of rows transitioned. Server-side UPDATE — no
-        SELECT-then-write race.
+        Server-side UPDATE — no SELECT-then-write race; a webhook landing after
+        it loses ``mark_completed``'s conditional transition. The call is
+        closed now (``completed_at``), so the notice its owner is owed — armed
+        by the caller in the same transaction — passes the notification
+        reaper's grace window.
+
+        Returns:
+            The calls closed.
         """
         cutoff = datetime.now(UTC) - timedelta(minutes=timeout_minutes)
         stmt = (
@@ -566,12 +630,16 @@ class TelephonyRepository(BaseRepository[PhoneCall]):
                 # keeps ordinary no-webhook calls, whose return_status IS NULL, eligible).
                 PhoneCall.return_status.is_distinct_from(ReturnSynthesisStatus.RECEIVED),
             )
-            .values(status=PhoneCallStatus.FAILED, error="stale_no_webhook")
+            .values(
+                status=PhoneCallStatus.FAILED,
+                error="stale_no_webhook",
+                completed_at=func.coalesce(PhoneCall.completed_at, func.now()),
+            )
+            .returning(*_CLOSED_COLUMNS)
             .execution_options(synchronize_session=False)
         )
-        result = await self.db.execute(stmt)
-        count: int = result.rowcount  # type: ignore[attr-defined]
-        return count
+        rows = (await self.db.execute(stmt)).all()
+        return [ClosedCall(*row) for row in rows]
 
     async def purge_expired(self) -> int:
         """Purge summary/structured_data/debrief past their retention TTL (D-8).

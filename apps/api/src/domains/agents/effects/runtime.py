@@ -426,7 +426,10 @@ def _build_request(
         The request, or None when no run context names a user — nothing can be
         written to a ledger whose every row belongs to someone.
     """
-    from src.domains.agents.context.runtime_context import runtime_context_if_running
+    from src.domains.agents.context.runtime_context import (
+        executed_mode_of,
+        runtime_context_if_running,
+    )
 
     context = runtime_context_if_running()
     if context is None:
@@ -440,7 +443,7 @@ def _build_request(
         thread_id=context.thread_id,
         run_id=scope.run_id if scope else context.thread_id,
         source=source,
-        execution_mode=context.execution_mode,
+        execution_mode=executed_mode_of(context),
         tool_name=tool_name,
         mutation_policy=policy,
         idempotency_key=(scope.idempotency_key if scope else f"unscoped:{uuid.uuid4().hex}"),

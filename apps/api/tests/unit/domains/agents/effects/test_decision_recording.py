@@ -273,6 +273,103 @@ class TestTheCollectorIsAROUNDTheTurn:
 
         assert current_turn() is None
 
+    async def test_the_engine_is_filed_beside_what_was_asked(self) -> None:
+        """An automatic turn files the engine the router chose AND the request:
+        « auto » alone would say nothing of what ran, the engine alone nothing
+        of what the person asked for (ADR-390)."""
+        from src.domains.agents.effects.decisions import note_engine, turn_decision
+
+        decision = turn_decision(
+            run_id="r", user_id=uuid.uuid4(), thread_id="t", execution_mode="auto", automated=False
+        )
+
+        async def the_router() -> None:
+            note_engine("pipeline", "direct")
+
+        with patch("src.domains.agents.effects.decision_recorder._write_shielded", AsyncMock()):
+            async with decision_recorder(decision):
+                await asyncio.create_task(the_router())
+
+        assert (decision.execution_mode, decision.requested_mode, decision.resolution_reason) == (
+            "pipeline",
+            "auto",
+            "direct",
+        )
+
+    @pytest.mark.parametrize(
+        ("requested", "settled", "badge"),
+        [
+            ("auto", "pipeline", "pipeline"),
+            ("auto", "react", "react"),
+            ("auto", None, None),  # a conversation: no engine planned it
+            ("react", "react", None),  # an explicit choice needs no badge
+            ("pipeline", "pipeline", None),
+        ],
+    )
+    async def test_only_an_automatic_turn_names_its_engine(
+        self, requested: str, settled: str | None, badge: str | None
+    ) -> None:
+        """The answer's badge (ADR-390) says what « auto » chose, and only that."""
+        from src.domains.agents.effects.decisions import (
+            automatic_turn_engine,
+            note_engine,
+            turn_decision,
+        )
+
+        decision = turn_decision(
+            run_id="r",
+            user_id=uuid.uuid4(),
+            thread_id="t",
+            execution_mode=requested,
+            automated=False,
+        )
+        with patch("src.domains.agents.effects.decision_recorder._write_shielded", AsyncMock()):
+            async with decision_recorder(decision):
+                if settled is not None:
+                    note_engine(settled, "requested")
+                answered = automatic_turn_engine()
+
+        assert answered == badge
+        assert automatic_turn_engine() is None, "outside a turn there is nothing to name"
+
+    async def test_a_resumed_turn_names_the_engine_it_started_with(self) -> None:
+        """A resumed segment never meets the router: the builder settles its engine
+        from the state, and its answer keeps the badge — the reason stays the first
+        segment's, never invented."""
+        from src.domains.agents.context.runtime_context_builder import build_runtime_context
+        from src.domains.agents.effects.decisions import automatic_turn_engine, turn_decision
+        from tests.fixtures.conversation_cases import conversation_target
+
+        decision = turn_decision(
+            run_id="r", user_id=uuid.uuid4(), thread_id="t", execution_mode="auto", automated=False
+        )
+        with patch("src.domains.agents.effects.decision_recorder._write_shielded", AsyncMock()):
+            async with decision_recorder(decision):
+                build_runtime_context(
+                    state={"messages": [], "execution_mode": "react"},  # type: ignore[arg-type]
+                    target=conversation_target(uuid.uuid4(), uuid.uuid4()),
+                    user_execution_mode="auto",
+                    resuming=True,
+                )
+                answered = automatic_turn_engine()
+
+        assert answered == "react"
+        assert decision.resolution_reason is None
+
+    async def test_a_turn_no_engine_planned_keeps_what_was_asked(self) -> None:
+        """A conversation, or a turn that stopped before the router."""
+        from src.domains.agents.effects.decisions import turn_decision
+
+        decision = turn_decision(
+            run_id="r", user_id=uuid.uuid4(), thread_id="t", execution_mode="auto", automated=False
+        )
+
+        assert (decision.execution_mode, decision.requested_mode, decision.resolution_reason) == (
+            "auto",
+            "auto",
+            None,
+        )
+
     async def test_a_missing_pointer_never_BLANKS_one_already_known(self) -> None:
         decision = _turn()
         known = uuid.uuid4()

@@ -29,7 +29,7 @@ export async function LandingFooter({ lng }: LandingFooterProps) {
     {
       title: t('landing.footer.resources'),
       links: [
-        { label: t('landing.nav.maps'), href: buildLocalizedPath('/maps', lang) },
+        { label: t('landing.nav.maps'), href: buildLocalizedPath('/maps', lang), prefetch: false },
         { label: t('landing.footer.story'), href: buildLocalizedPath('/story', lang) },
         { label: t('landing.footer.philosophy'), href: buildLocalizedPath('/why', lang) },
         { label: t('landing.footer.technical'), href: buildLocalizedPath('/how', lang) },
@@ -101,6 +101,7 @@ export async function LandingFooter({ lng }: LandingFooterProps) {
                     <li key={label}>
                       <Link
                         href={href}
+                        prefetch={'prefetch' in rest ? rest.prefetch : undefined}
                         className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                       >
                         {label}

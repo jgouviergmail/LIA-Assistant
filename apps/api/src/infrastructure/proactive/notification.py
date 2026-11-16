@@ -20,9 +20,11 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import PROACTIVE_MESSAGE_TYPE_PREFIX
-from src.core.conversation_publication import CurrentPrimaryPublication
+from src.core.constants import CHAT_DISCUSSION_LINK_TEMPLATE, PROACTIVE_MESSAGE_TYPE_PREFIX
+from src.core.conversation_publication import return_publication
+from src.core.conversation_target import ConversationOrigin
 from src.core.field_names import (
+    FIELD_CONVERSATION_ID,
     FIELD_FEEDBACK_ENABLED,
     FIELD_RUN_ID,
     FIELD_TARGET_ID,
@@ -30,7 +32,6 @@ from src.core.field_names import (
 from src.core.i18n import normalize_language
 from src.domains.agents.display.plain_text import (
     markdown_links_to_plain,
-    markdown_to_plain_text,
     strip_html_if_markup,
 )
 from src.domains.shared.markdown_literal import read_as_markdown
@@ -87,6 +88,25 @@ def plain_text_for_notification(text: str) -> str:
         return text
     flat = read_as_markdown(text, lambda part: markdown_links_to_plain(strip_html_if_markup(part)))
     return _WHITESPACE_RE.sub(" ", flat).strip()
+
+
+def with_discussion(metadata: dict[str, Any], discussion: UUID | None) -> dict[str, Any]:
+    """The live event's metadata, naming the annex the notification went to.
+
+    Main is never named: a view of Main opened without coordinates reads
+    every notification that names no discussion as its own, and would ignore
+    one that named Main by id (``useChatServerSync.syncNotification``).
+
+    Args:
+        metadata: The notification's metadata.
+        discussion: The annex it was archived in, or None for Main.
+
+    Returns:
+        The metadata, with ``conversation_id`` only for an annex.
+    """
+    if discussion is None:
+        return metadata
+    return {**metadata, FIELD_CONVERSATION_ID: str(discussion)}
 
 
 @dataclass
@@ -156,6 +176,9 @@ async def send_notification_to_channels(
     body: str,
     task_type: str,
     target_id: str,
+    *,
+    language: str | None = None,
+    reply_markup: dict | None = None,
 ) -> int:
     """
     Send notification to all active external channels (Telegram, etc.) for a user.
@@ -169,9 +192,15 @@ async def send_notification_to_channels(
     Args:
         user_id: User UUID
         title: Notification title
-        body: Full notification body (channel senders handle splitting)
+        body: The full content, as the chat shows it: each channel's sender
+            draws it and splits it (Telegram lot 3 — flattened here, it lost
+            its bold, its quotes and its links)
         task_type: Task type for data payload (e.g., "interest", "reminder")
         target_id: Target ID for tracking
+        language: The person's language (default: the declared language)
+        reply_markup: The buttons the notification carries on a channel that
+            draws an inline keyboard (Telegram), e.g. a fired reminder's
+            « later » (ADR-268 amendment 2026-11-16); None for none
 
     Returns:
         Number of successfully sent channel messages
@@ -195,6 +224,8 @@ async def send_notification_to_channels(
                 body=body,
                 task_type=task_type,
                 target_id=target_id,
+                language=language,
+                reply_markup=reply_markup,
             )
             if success:
                 sent += 1
@@ -225,6 +256,8 @@ async def _send_to_channel(
     body: str,
     task_type: str,
     target_id: str,
+    language: str | None = None,
+    reply_markup: dict | None = None,
 ) -> bool:
     """
     Send notification to a specific channel binding.
@@ -246,6 +279,8 @@ async def _send_to_channel(
                 "type": task_type,
                 FIELD_TARGET_ID: target_id,
             },
+            language=language,
+            reply_markup=reply_markup,
         )
 
     logger.warning(
@@ -316,6 +351,7 @@ class NotificationDispatcher:
         push_enabled: bool = True,
         require_durable: bool = False,
         archive_conversation_id: UUID | None = None,
+        origin: ConversationOrigin | None = None,
     ) -> NotificationResult:
         """
         Dispatch notification via all enabled channels.
@@ -339,6 +375,10 @@ class NotificationDispatcher:
                 on an external channel (``NotificationResult.durably_delivered``).
             archive_conversation_id: A conversation already established by an atomic
                 caller. Avoids get-or-create's internal commit inside its transaction.
+            origin: The discussion generation the act this notification
+                returns from began in (a call, a meeting import): it is archived
+                there while that generation lives, else in Main, and the live
+                event and the push name the annex. None: the current Main.
 
         Returns:
             NotificationResult with dispatch status for each channel
@@ -379,6 +419,7 @@ class NotificationDispatcher:
                     metadata=full_metadata,
                     db=db,
                     conversation_id=archive_conversation_id,
+                    origin=origin,
                 )
 
                 # CRITICAL: Commit BEFORE sending external notifications
@@ -404,6 +445,10 @@ class NotificationDispatcher:
                     error_type=type(e).__name__,
                 )
 
+        # The annex the notification returns to, when it is not Main: named by
+        # the live event and opened by the push.
+        discussion = await self._annex_of(db, user.id, origin)
+
         # 2. Send FCM Push (external notification) — skip if push_enabled=False
         if self.fcm_enabled and push_enabled:
             try:
@@ -415,6 +460,7 @@ class NotificationDispatcher:
                     target_id=target_id,
                     db=db,
                     run_id=run_id,
+                    discussion=discussion,
                 )
                 result.fcm_success = fcm_result.get("success", 0)
                 result.fcm_failed = fcm_result.get("failed", 0)
@@ -435,7 +481,7 @@ class NotificationDispatcher:
                     title=title,
                     task_type=task_type,
                     target_id=target_id,
-                    metadata=full_metadata,
+                    metadata=with_discussion(full_metadata, discussion),
                 )
                 result.sse_sent = True
             except Exception as e:
@@ -452,12 +498,12 @@ class NotificationDispatcher:
                 channel_result = await self._send_channels(
                     user_id=user.id,
                     title=title,
-                    # A channel's body is escaped text (``format_notification``):
-                    # it renders neither Markdown nor HTML, so it is flattened by
-                    # the one door for such a surface, lines kept.
-                    body=markdown_to_plain_text(content),
+                    # The content as the chat shows it: each channel draws it
+                    # (Telegram's one door, ``telegram_answer_html``).
+                    body=content,
                     task_type=f"{PROACTIVE_MESSAGE_TYPE_PREFIX}{task_type}",
                     target_id=target_id,
+                    language=normalize_language(getattr(user, "language", None)),
                 )
                 result.channel_sent = channel_result
             except Exception as e:
@@ -494,6 +540,7 @@ class NotificationDispatcher:
         target_id: str,
         db: AsyncSession,
         run_id: str | None = None,
+        discussion: UUID | None = None,
     ) -> dict[str, int]:
         """
         Send FCM push notification.
@@ -516,6 +563,8 @@ class NotificationDispatcher:
                 only that card. Omitted from the payload when absent rather
                 than sent empty: an empty string is a value the client would
                 forward as a run_id.
+            discussion: The annex the notification went to: the push opens
+                it (``url``, followed by the service worker). None: the chat.
 
         Returns:
             Dict with success/failed counts
@@ -536,6 +585,10 @@ class NotificationDispatcher:
         }
         if run_id:
             data[FIELD_RUN_ID] = run_id
+        if discussion is not None:
+            # The card's metadata names its annex on both halves (with_discussion).
+            data[FIELD_CONVERSATION_ID] = str(discussion)
+            data["url"] = CHAT_DISCUSSION_LINK_TEMPLATE.format(conversation_id=discussion)
 
         fcm_result = await fcm_service.send_to_user(
             user_id=user.id,
@@ -609,6 +662,7 @@ class NotificationDispatcher:
         body: str,
         task_type: str,
         target_id: str,
+        language: str,
     ) -> int:
         """Delegate to module-level send_notification_to_channels()."""
         return await send_notification_to_channels(
@@ -617,6 +671,7 @@ class NotificationDispatcher:
             body=body,
             task_type=task_type,
             target_id=target_id,
+            language=language,
         )
 
     async def _archive_message(
@@ -626,6 +681,7 @@ class NotificationDispatcher:
         metadata: dict[str, Any],
         db: AsyncSession,
         conversation_id: UUID | None = None,
+        origin: ConversationOrigin | None = None,
     ) -> dict[str, Any]:
         """
         Archive notification message in conversation.
@@ -636,6 +692,7 @@ class NotificationDispatcher:
             metadata: Message metadata
             db: Database session
             conversation_id: Existing conversation, when the caller owns atomicity.
+            origin: The generation the act began in; None for the current Main.
 
         Returns:
             Dict with archived status, conversation_id, message_id
@@ -655,14 +712,27 @@ class NotificationDispatcher:
             if existing is None or existing.id != conversation_id:
                 raise ValueError("The archive conversation must belong to the notification owner")
 
-        # Archive the proactive message
+        # Archive the proactive message: in the generation its act began in
+        # while it lives, else in the current Main.
         message = await conv_service.archive_message(
-            conversation_id=CurrentPrimaryPublication(user.id),
+            conversation_id=return_publication(user.id, origin),
             role="assistant",
             content=content,
             metadata=metadata,
             db=db,
         )
+        conversation_id = message.conversation_id
+        run_id = metadata.get(FIELD_RUN_ID)
+        if isinstance(run_id, str) and run_id:
+            # The run's bill joins the discussion its words were just written
+            # in, when its spend began outside any (a call's lookups and
+            # synthesis, a meeting's processing): its bubble shows the cost
+            # there, and that discussion's totals count it.
+            from src.domains.conversations.run_bills import attach_run_bill
+
+            await attach_run_bill(
+                db, owner_id=user.id, run_id=run_id, conversation_id=conversation_id
+            )
 
         # Commit is handled by caller (ProactiveTaskRunner)
 
@@ -678,6 +748,18 @@ class NotificationDispatcher:
             "conversation_id": conversation_id,
             "message_id": message.id,
         }
+
+    async def _annex_of(
+        self, db: AsyncSession, owner_id: UUID, origin: ConversationOrigin | None
+    ) -> UUID | None:
+        """The annex a notification returns to, while its generation lives; else None."""
+        if origin is None:
+            return None
+        from src.domains.conversations.publication_repository import (
+            ConversationPublicationRepository,
+        )
+
+        return await ConversationPublicationRepository(db).secondary_origin(owner_id, origin)
 
     def _get_localized_title(self, task_type: str, language: str) -> str:
         """

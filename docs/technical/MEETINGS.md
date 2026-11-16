@@ -29,6 +29,15 @@ compte rendu selon **la structure de l'utilisateur** (modèle par utilisateur),
 l'indexe dans l'espace de connaissances « Réunions », le notifie dans le chat,
 l'envoie par e-mail si demandé et le propose en PDF.
 
+Le compte rendu revient dans la discussion où l'enregistrement ou l'import a
+commencé. La requête transporte `conversation_id` ; `annex_origin_columns`
+garde la révision seulement si elle désigne une annexe vivante du compte, sinon
+aucune origine. La notification transmet `meeting.origin` à la porte de
+publication : cette génération tant qu'elle existe, sinon Principale
+([ADR-378](../architecture/ADR-378-Permanent-Main-And-Isolated-Discussion-Runtimes.md)).
+Un événement proposé comme contexte provient de tous les agendas possédés, lus
+par `read_owned_events` ; le calendrier par défaut reste celui des créations.
+
 ## Domaine backend — `apps/api/src/domains/meetings/`
 
 | Module | Rôle |

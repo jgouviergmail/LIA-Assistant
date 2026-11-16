@@ -774,7 +774,9 @@ def drop_current_turn_responses(messages: list[BaseMessage]) -> list[BaseMessage
     being answered. The synthesis LLM then sees the turn as already complete and emits
     a dismissive or minimal reply ("you already got the answer") instead of formatting
     the data — dropping the initiative enrichment and HTML directive. The answer stays
-    available to it through the AUTHORITATIVE ``agent_results`` block, so nothing is lost.
+    available to it through the AUTHORITATIVE ``agent_results`` block, and when the
+    answer is withheld (ADR-336) or cut (ADR-248), the turn's reads reach it through
+    the same block (``react_turn_tool_data``), so nothing is lost.
 
     Removing everything after the last user message yields history = strictly prior turns
     plus the current user query, matching the planner path (where the current turn has no

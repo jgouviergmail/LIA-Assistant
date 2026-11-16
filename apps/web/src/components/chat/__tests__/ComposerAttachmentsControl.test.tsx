@@ -58,8 +58,14 @@ vi.mock('@/components/chat/BookmarkPickerDialog', () => ({
 vi.mock('@/components/chat/GeneratedFilePickerDialog', () => ({
   GeneratedFilePickerDialog: (props: PickerProps) => <PickerDialog {...props} />,
 }));
+const meetingImport = vi.hoisted((): { conversationId: string | null | undefined } => ({
+  conversationId: undefined,
+}));
 vi.mock('@/components/meetings/MeetingImportDialog', () => ({
-  MeetingImportDialog: (props: PickerProps) => <PickerDialog {...props} />,
+  MeetingImportDialog: (props: PickerProps & { conversationId?: string | null }) => {
+    meetingImport.conversationId = props.conversationId;
+    return <PickerDialog {...props} />;
+  },
 }));
 vi.mock('@/lib/native/shell', () => ({ isAndroidShell: () => false }));
 
@@ -113,4 +119,27 @@ describe.each([
       await waitFor(() => expect(trigger).toHaveFocus());
     }
   );
+});
+
+// ADR-378 amendment 2026-11-14: a meeting imported from an annex's « + »
+// returns its minutes to that annex; from Main, to Main.
+it.each([
+  ['annex-1', 'annex-1'],
+  [null, null],
+] as const)('hands the meeting import the discussion the composer writes in (%s)', (id, named) => {
+  meetingImport.conversationId = undefined;
+  renderWithProviders(
+    <ComposerAttachmentsControl
+      t={key => key}
+      attachmentsEnabled
+      meetingImportEnabled
+      discussionId={id}
+      disabled={false}
+      onPickFile={vi.fn()}
+      onTakePhoto={vi.fn()}
+      remaining={5}
+      onAttached={() => ({ ok: true })}
+    />
+  );
+  expect(meetingImport.conversationId).toBe(named);
 });

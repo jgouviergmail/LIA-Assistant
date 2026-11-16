@@ -331,3 +331,61 @@ def test_default_fetchers_require_the_flattener() -> None:
 
     with pytest.raises(TypeError):
         default_fetchers(uuid4(), language="fr", timezone="UTC", memory_fetcher=_memories)  # type: ignore[call-arg]
+
+
+@pytest.mark.unit
+async def test_the_agenda_reads_every_owned_calendar_soonest_first(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The default says where events are created; an invitation sits in the main one."""
+    from contextlib import asynccontextmanager
+    from datetime import UTC, datetime, timedelta
+    from typing import Any
+    from unittest.mock import AsyncMock, MagicMock
+
+    from src.domains.connectors import calendar_access
+
+    soon = datetime.now(UTC) + timedelta(hours=1)
+
+    def event(event_id: str, hours: int) -> dict[str, Any]:
+        start = soon + timedelta(hours=hours)
+        return {
+            "id": event_id,
+            "summary": event_id,
+            "start": {"dateTime": start.isoformat()},
+            "end": {"dateTime": (start + timedelta(minutes=30)).isoformat()},
+        }
+
+    held = {
+        "famille": [event(f"famille-{index}", index + 1) for index in range(30)],
+        "me@example.com": [event("invitation", 0)],
+        "team@example.com": [event("not-mine", 0)],
+    }
+    client = MagicMock()
+    client.list_calendars = AsyncMock(
+        return_value={
+            "items": [
+                {"id": "me@example.com", "accessRole": "owner", "primary": True},
+                {"id": "famille", "accessRole": "owner"},
+                {"id": "team@example.com", "accessRole": "reader"},
+            ]
+        }
+    )
+
+    async def window(calendar_id: str, *_: Any, **__: Any) -> dict[str, Any]:
+        return {"events": held.get(calendar_id, []), "truncated": False}
+
+    client.list_events_window = AsyncMock(side_effect=window)
+
+    @asynccontextmanager
+    async def opened(_user_id: Any) -> Any:
+        yield calendar_access.CalendarAccess(client, "famille", "google_calendar")
+
+    monkeypatch.setattr(calendar_access, "open_active_calendar", opened)
+
+    lines = await ctx._fetch_agenda(uuid4(), timezone="Europe/Paris", language="en")
+
+    assert lines is not None
+    assert "invitation" in lines[0] and "famille-0" in lines[1]
+    assert len(lines) == ctx._MAX_LINES_PER_SECTION
+    assert not any("not-mine" in line for line in lines)

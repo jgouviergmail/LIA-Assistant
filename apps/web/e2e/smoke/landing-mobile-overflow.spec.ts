@@ -1,14 +1,14 @@
 /**
  * Landing page mobile horizontal-overflow guard.
  *
- * Flex/grid children must never widen the page past the viewport. The
- * functional constellation deliberately scrolls within its own stage, so
- * its dense labels remain readable while the surrounding page still fits.
+ * Flex/grid children must never widen the page past the viewport. Below `lg`
+ * the comparison arena stacks its criteria one per card, every fact shown, and
+ * its challenger tiles keep their three choices on one line down to a 320px
+ * phone.
  *
- * The guard covers the map's family filter, keyboard detail, journey player
- * and search at 375px and 320px, every revealed section, and all six locales.
- * The rest of the landing keeps its decorative animations enabled; the
- * map journey is also exercised with reduced motion and manual steps.
+ * The guard covers the comparison's duels at 375px and 320px, every revealed
+ * section, and all six locales. The rest of the landing keeps its decorative
+ * animations enabled.
  *
  * The product demonstration lives on `/demo` (`InteractiveChatMockup`). Its
  * six scenes keep text inside FIXED-height cards, which page bounds alone
@@ -67,11 +67,12 @@ async function expectUnclippedScene(scene: Locator, label: string): Promise<void
   expect(clipped, `${label}: text clipped inside its illustration`).toEqual([]);
 }
 
-/** Poll the stable list: WebKit's locator polling can wait on the paused fake RAF. */
+/** Read the present list without WebKit's RAF-backed locator-presence polling. */
 async function currentStep(steps: Locator): Promise<string> {
-  return steps.evaluate(
-    root => root.querySelector('[aria-current="step"]')?.textContent?.trim() ?? ''
-  );
+  return steps.evaluateAll(roots => {
+    if (roots.length !== 1) throw new Error('The demonstration must keep exactly one step list');
+    return roots[0].querySelector('[aria-current="step"]')?.textContent?.trim() ?? '';
+  });
 }
 /**
  * Let the player's own timers carry it to `expected`, in small steps, so no
@@ -133,6 +134,9 @@ async function exerciseDemoScenes(page: Page, width: number): Promise<void> {
     expect(await currentStep(steps)).toBe(demo.steps_result);
     await expectUnclippedScene(scene, `${width}px ${title}: retained result`);
   }
+  // The timed scene assertions are complete. Restore RAF before a native
+  // disclosure click: WebKit waits for two stable frames before scrolling it.
+  await page.clock.resume();
   const difference = player.locator('details');
   await difference.locator('summary').click();
   await expect(difference).toHaveJSProperty('open', true);
@@ -140,89 +144,43 @@ async function exerciseDemoScenes(page: Page, width: number): Promise<void> {
   await expectUnclippedScene(player, `${width}px demo difference`);
 }
 
-/** The map remains usable without letting its SVG expand the page. */
-async function exerciseFunctionalMap(page: Page, width: number): Promise<void> {
-  const overview = page.locator('.landing-constellation');
-  const constellation = overview.getByRole('group', {
-    name: 'Constellation des briques fonctionnelles',
-  });
-  const conversation = constellation.getByRole('button', {
-    name: 'Conversation — Converser et comprendre',
-    exact: true,
-  });
-  const diagramScroll = overview.locator('.lm-scroll-x');
-  await waitForHydration(page, '.landing-constellation');
-  await expect(constellation).toBeVisible();
-  await expect(overview.getByRole('heading', { name: 'Parcours', exact: true })).toBeVisible();
-  await expect(overview.getByRole('heading', { name: 'Familles', exact: true })).toBeVisible();
+/** The comparison arena stays readable on a phone: stacked criteria, every fact shown. */
+async function exerciseComparison(page: Page, width: number): Promise<void> {
+  const words = fr.landing.comparison;
+  const caption = (name: string) => words.caption.replace('{{name}}', name);
+  const section = page.locator('section#comparison');
+  await section.scrollIntoViewIfNeeded();
+  await waitForHydration(page, '#comparison [role="group"] button');
+  // One structure at every width: below `lg` each criterion stacks in a card.
+  const agentic = (rival: string) =>
+    section
+      .getByRole('list', { name: caption(rival) })
+      .getByRole('listitem')
+      .filter({ has: page.getByRole('heading', { level: 3, name: words.rows.agentic.label }) });
+  let item = agentic('OpenClaw');
+  await expect(item.getByText(words.rows.agentic.openclaw.head)).toBeVisible();
+  // Every fact and punchline is shown, never folded (owner, 2026-11-15).
+  await expect(item.getByText(words.rows.agentic.lia.b1)).toBeVisible();
+  await expect(item.getByText(words.rows.agentic.lia.punch)).toBeVisible();
+  await expectNoOverflow(page, `${width}px comparison, LIA facing OpenClaw`);
 
-  // The deliberate local overflow must remain scrollable, never hidden by
-  // the hero's clip boundary or propagated to the document itself.
-  const bounds = await diagramScroll.evaluate(element => ({
-    width: element.clientWidth,
-    scrollWidth: element.scrollWidth,
-    overflowX: getComputedStyle(element).overflowX,
-  }));
-  expect(bounds.width).toBeLessThanOrEqual(width);
-  expect(bounds.scrollWidth).toBeGreaterThan(bounds.width);
-  expect(bounds.overflowX).toBe('auto');
-  await diagramScroll.evaluate(element => {
-    element.scrollLeft = element.scrollWidth;
-  });
-  await expect.poll(() => diagramScroll.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
-  await expectNoOverflow(page, `${width}px constellation scrolled`);
+  const challengers = section.getByRole('group', { name: words.view_label });
+  const tops = await challengers
+    .getByRole('button')
+    .evaluateAll(buttons => buttons.map(button => Math.round(button.getBoundingClientRect().top)));
+  expect(tops).toHaveLength(3);
+  expect(new Set(tops).size, `${width}px: one line of three challenger tiles`).toBe(1);
 
-  const family = overview.getByRole('button', { name: /^Converser et comprendre\s/ });
-  await family.click();
-  await expect(family).toHaveAttribute('aria-pressed', 'true');
-  await expect(conversation).toHaveClass(/is-on/);
-  await expectNoOverflow(page, `${width}px family isolated`);
-  await family.click();
-  await expect(family).toHaveAttribute('aria-pressed', 'false');
-
-  await conversation.focus();
-  await conversation.press('Enter');
-  const detail = page.getByRole('dialog', { name: 'Conversation', exact: true });
-  await expect(detail).toBeVisible();
-  await expect(page).toHaveURL(/#f\.chat$/);
-  await expect(detail.getByRole('button', { name: 'Fermer le détail' })).toBeFocused();
-  await expectNoOverflow(page, `${width}px brick detail`);
-  await page.keyboard.press('Escape');
-  await expect(detail).not.toBeVisible();
-  await expect(conversation).toBeFocused();
-
-  // Reduced motion starts paused. The same real player controls advance
-  // its highlighted step and return to the overview without autoplay.
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  const flows = overview.getByRole('list', { name: 'Scénarios', exact: true });
-  const journey = flows.getByRole('button', {
-    name: 'Une demande devient une action',
-    exact: true,
-  });
-  await journey.click();
-  await expect(journey).toHaveAttribute('aria-pressed', 'true');
+  const muse = challengers.getByRole('button', { name: 'Muse', exact: true });
+  await muse.click();
+  await expect(muse).toHaveAttribute('aria-pressed', 'true');
   await expect(
-    overview.getByRole('button', { name: 'Lire le parcours', exact: true })
-  ).toBeVisible();
-  const steps = overview.locator('.lm-steps').getByRole('button');
-  await expect(steps.first()).toHaveAttribute('aria-current', 'step');
-  await overview.getByRole('button', { name: 'Étape suivante', exact: true }).click();
-  await expect(steps.nth(1)).toHaveAttribute('aria-current', 'step');
-  await expect(steps.first()).not.toHaveAttribute('aria-current', 'step');
-  await expectNoOverflow(page, `${width}px journey second step`);
-  await overview.getByRole('button', { name: 'Quitter le parcours', exact: true }).click();
-  await expect(journey).toHaveAttribute('aria-pressed', 'false');
-  await expect(steps).toHaveCount(0);
-
-  const search = overview.getByRole('searchbox', { name: 'Chercher une brique', exact: true });
-  await search.fill('Conversation');
-  await search.press('Enter');
-  await expect(detail).toBeVisible();
-  await expectNoOverflow(page, `${width}px searched brick detail`);
-  await page.keyboard.press('Escape');
-  await expect(search).toBeFocused();
-  await search.fill('');
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
+    section.getByRole('group', { name: words.contenders_label }).getByRole('article')
+  ).toHaveCount(2);
+  item = agentic('Meta Muse');
+  await expect(item.getByText(words.rows.agentic.muse.head)).toBeVisible();
+  await expect(item.getByText(words.rows.agentic.muse.b1)).toBeVisible();
+  await expectNoOverflow(page, `${width}px comparison duel`);
 }
 
 /**
@@ -242,14 +200,12 @@ test.describe('landing page — no horizontal overflow on mobile (fr)', () => {
   });
 
   for (const width of [375, 320]) {
-    test(`keeps the functional map usable without page overflow at ${width}px`, async ({
-      page,
-    }) => {
+    test(`keeps the comparison usable without page overflow at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 812 });
       await page.goto('/');
-      await awaitStyledPage(page, `${width}px functional map`);
+      await awaitStyledPage(page, `${width}px comparison`);
       await expectNoOverflow(page, `${width}px initial render`);
-      await exerciseFunctionalMap(page, width);
+      await exerciseComparison(page, width);
     });
 
     test(`keeps all six /demo scenes readable through every phase at ${width}px`, async ({

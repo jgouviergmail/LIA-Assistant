@@ -15,6 +15,8 @@ route module. Two entry points:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from src.core.config import settings
 from src.core.constants import CONVERSATION_RUN_ID_MAX_LENGTH
 from src.core.conversation_target import ConversationRef
@@ -27,6 +29,11 @@ from src.domains.agents.api.error_messages import SSEErrorMessages
 from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.utils import hitl_cache
 from src.infrastructure.observability.logging import get_logger
+
+if TYPE_CHECKING:
+    from redis.asyncio import Redis
+
+    from src.core.conversation_execution import RunAdmission
 
 logger = get_logger(__name__)
 
@@ -169,6 +176,28 @@ async def check_pending_hitl(conversation_id: str) -> dict | None:
     data = await check_pending_hitl_uncached(conversation_id)
     hitl_cache.set_cached(conversation_id, data)
     return data
+
+
+async def forget_question_of_run(admission: RunAdmission, *, redis: Redis) -> bool:
+    """Clear the pending question only when THIS invocation asked it — a stopped run's.
+
+    A run stopped by the person must not leave a question behind to read their
+    next message as its answer; a question saved since by another invocation
+    is kept (``HITLStore.clear_interrupt_for_run``).
+
+    Args:
+        admission: The stopped invocation.
+        redis: The cache client the engine keeps questions in.
+
+    Returns:
+        True when that run's question was there and is gone.
+    """
+    from src.domains.agents.utils import HITLStore
+
+    store = HITLStore(redis, settings.hitl_pending_data_ttl_seconds)
+    return await store.clear_interrupt_for_run(
+        str(admission.target.runtime_id), admission.run_id, activity_id=admission.activity_id
+    )
 
 
 async def clear_completed_interrupt(target: ConversationRef) -> None:

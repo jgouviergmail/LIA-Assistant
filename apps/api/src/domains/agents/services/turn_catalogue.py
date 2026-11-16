@@ -15,11 +15,17 @@ withholds:
    its routes alone (workboard, peers, MCP, skills) names none;
 3. minus the tools no connector of the account would run (RC2.1);
 4. minus the application operations the account may not use.
+
+What it knows about a source it keeps is said there too: a category tool no
+provider of the account serves is offered as a COPY carrying that category
+(``ToolManifest.unserved_category``), which the planner's catalogue entry
+publishes (ADR-390 qualification).
 """
 
 from __future__ import annotations
 
 from collections.abc import Collection
+from dataclasses import replace
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -56,11 +62,26 @@ async def build_turn_catalogue(
     from src.domains.agents.services.planner_capability_filter import (
         without_disabled_capability_tools,
     )
-    from src.domains.agents.tools.connector_requirements import without_unconnected_tools
+    from src.domains.agents.tools.connector_requirements import (
+        unserved_category_tools,
+        without_unconnected_tools,
+    )
 
     offered = await without_disabled_capability_tools(
         build_request_tool_manifests(registry), registry
     )
     connected = without_unconnected_tools(offered, active_connector_types)
     consented = await without_unconsented_sms(connected, user_id)
-    return await filter_application_manifests(consented, user_id)
+    allowed = await filter_application_manifests(consented, user_id)
+    # A category tool nothing of the account serves stays offered (its « no provider
+    # is connected » is the honest answer); the turn's COPY says so, the registry's
+    # manifest being every account's.
+    unserved = unserved_category_tools(active_connector_types)
+    return [
+        (
+            replace(manifest, unserved_category=unserved[manifest.name])
+            if manifest.name in unserved
+            else manifest
+        )
+        for manifest in allowed
+    ]

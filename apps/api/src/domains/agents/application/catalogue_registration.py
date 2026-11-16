@@ -184,6 +184,7 @@ from src.domains.agents.application.memory_catalogue import (
     MEMORY_READ_MANIFEST,
     MEMORY_UPDATE_MANIFEST,
 )
+from src.domains.agents.application.memory_import_manifest import MEMORY_IMPORT_MANIFEST
 from src.domains.agents.application.notification_catalogue import (
     NOTIFICATION_DEVICE_REMOVE_MANIFEST,
     NOTIFICATION_DEVICES_READ_MANIFEST,
@@ -328,6 +329,7 @@ from src.domains.agents.application.skill_library_read_spec import (
     SKILL_LIBRARY_READ_MANIFEST,
 )
 from src.domains.agents.application.skill_read_spec import SKILL_READ_MANIFEST
+from src.domains.agents.application.skill_restore_manifest import SKILL_RESTORE_MANIFEST
 from src.domains.agents.application.skill_update_manifest import SKILL_UPDATE_MANIFEST
 from src.domains.agents.application.skill_url_import_manifest import (
     SKILL_URL_IMPORT_MANIFEST,
@@ -344,6 +346,11 @@ from src.domains.agents.application.space_read_spec import SPACE_UI_READ_MANIFES
 from src.domains.agents.application.space_update_manifest import SPACE_UPDATE_MANIFEST
 from src.domains.agents.application.workboard_read_spec import (
     WORKBOARD_UI_READ_MANIFEST,
+)
+from src.domains.agents.application.writing_style_catalogue import (
+    WRITING_STYLE_FORGET_MANIFEST,
+    WRITING_STYLE_LEARN_MANIFEST,
+    WRITING_STYLE_READ_MANIFEST,
 )
 from src.domains.agents.registry.catalogue import (
     AgentManifest,
@@ -407,6 +414,8 @@ SETTING_MANIFESTS = (
     LIBRARY_UPDATE_MANIFEST,
     SKILL_UPDATE_MANIFEST,
     SKILL_DELETE_MANIFEST,
+    SKILL_RESTORE_MANIFEST,
+    MEMORY_IMPORT_MANIFEST,
     SKILL_FILE_UPLOAD_MANIFEST,
     SKILL_URL_IMPORT_MANIFEST,
     SKILL_DOWNLOAD_MANIFEST,
@@ -474,6 +483,9 @@ SETTING_MANIFESTS = (
     HABIT_DELETE_MANIFEST,
     HABIT_DETAIL_MANIFEST,
     HABIT_READ_MANIFEST,
+    WRITING_STYLE_READ_MANIFEST,
+    WRITING_STYLE_LEARN_MANIFEST,
+    WRITING_STYLE_FORGET_MANIFEST,
     OPEN_LOOP_CLOSE_MANIFEST,
     OPEN_LOOP_UPDATE_MANIFEST,
     OPEN_LOOP_READ_MANIFEST,

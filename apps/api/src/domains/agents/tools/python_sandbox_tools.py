@@ -33,7 +33,11 @@ from langchain_core.tools import InjectedToolArg
 
 from src.core.config import get_settings
 from src.core.constants import EXECUTION_MODE_REACT, PYTHON_SANDBOX_AGENT_NAME
-from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.context.runtime_context import (
+    LiaRuntimeContext,
+    executed_mode_of,
+    tool_runtime_context,
+)
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.tool_registry import registered_tool
@@ -115,8 +119,8 @@ def set_turn_data(items: dict[str, Any]) -> None:
     _turn_data.set(items or {})
 
 
-async def _refuse_if_not_runnable(context: Any) -> UnifiedToolOutput | None:
-    """The three refusals every run meets first: the switch, the mode, the budget.
+async def _refuse_if_not_runnable(context: LiaRuntimeContext | None) -> UnifiedToolOutput | None:
+    """The three refusals every run meets first: the switch, the engine, the budget.
 
     Args:
         context: The typed runtime context, or None outside a graph run.
@@ -137,7 +141,7 @@ async def _refuse_if_not_runnable(context: Any) -> UnifiedToolOutput | None:
             message="Ephemeral Python execution is disabled on this instance.",
             error_code=ToolErrorCode.CONFIGURATION_ERROR,
         )
-    if getattr(context, "execution_mode", "") != EXECUTION_MODE_REACT:
+    if context is None or executed_mode_of(context) != EXECUTION_MODE_REACT:
         # The pipeline plans ahead and cannot read a traceback to repair a
         # script; it uses skills and plugins instead (ADR-249).
         return UnifiedToolOutput(
@@ -198,8 +202,8 @@ async def run_python_tool(
     Returns:
         The script's stdout, or the failure with its traceback so it can be fixed.
     """
-    context = getattr(runtime, "context", None)
-    user_id = getattr(context, "user_id", None)
+    context = tool_runtime_context(runtime)
+    user_id = context.user_id if context is not None else None
     refusal = await _refuse_if_not_runnable(context)
     if refusal is not None:
         return refusal

@@ -36,7 +36,7 @@ If you travel, LIA will offer to update your timezone when it detects a mismatch
 
 ## How do I manage my stored memories?
 
-You control your memories from **Settings › Memory**: read, edit, pin, export or delete them individually or in bulk. **Import** brings an export back, CSV or JSON: what the account already holds is left alone, and the screen says exactly how many memories were imported, were already there or were refused. The form counts your characters and states each field's limit before you save, and clearing the **Usage nuance** or the **Trigger topic** removes it.
+You control your memories from **Settings › Memory**: read, edit, pin, export or delete them individually or in bulk. The form counts your characters and states each field’s limit before you save, and clearing the **Usage nuance** or the **Trigger topic** removes it. **Import** brings an export back, CSV or JSON: what your account already holds is left alone, and LIA tells you exactly how many memories were imported, were already there or were refused. In the chat, attach the export file and ask LIA to import it: it shows you these counts before creating anything, and creates nothing without your confirmation.
 
 **📌 Pinning:** a pinned memory is protected from automatic edits and cleanup. New **standing instructions** — how LIA should work for you — are pinned as soon as they are stored. You may edit them, unpin them or delete them yourself. Even when unpinned, an instruction is protected from automatic deletion; an automatic correction must preserve a successor.
 
@@ -347,15 +347,9 @@ View, edit, pin or delete your memories in **Settings › Features › Identity 
 
 ## Can LIA write my e-mails the way I write them?
 
-Yes. The first time LIA writes an e-mail for you — a reply, a draft or a new message — it reads your latest sent e-mails and learns **how** you write: your greeting, your sign-off, whether and how you sign, your usual length, your tone, your emojis. Never **what** you wrote about: no name, place or project is kept.
+Yes, once you ask. In **Settings › Features › Writing style**, choose **Learn my style** (or ask LIA in a conversation): LIA reads your latest sent e-mails and learns **how** you write: your greeting, your sign-off, whether and how you sign, your usual length, your tone, your emojis. Never **what** you wrote about: no name, place or project is kept. Learning costs one model call, shown when it ends.
 
-**✍️ Where it is used:**
-• every reply LIA writes, including the one you confirm before it leaves — when you say what to answer rather than the exact words, LIA writes it from the received e-mail
-• every new e-mail it writes for you, in the chat and in the Tools
-• not a note sent to your own mailbox, which keeps its plain form, and never words you dictated exactly
-
-**🛡️ Your control:**
-In **Settings › Features › Identity & Memory › Writing style** you read what LIA learned, from how many e-mails and when, and when it will learn it again. Switch it off and nothing is read or used any more (what was learned is kept until you forget it); **Forget** deletes it. It is kept encrypted, deleted with your account and included in your data export.
+What it learned is shown there, kept encrypted until you learn it again or make LIA forget it; nothing is learned without you asking. You can switch it off there (nothing is read or used any more). Words you dictate exactly, in quotes or after a colon, are sent as they are; any other e-mail LIA writes for you follows your style. A note to your own mailbox keeps its plain form.
 
 ## How do I choose whether my documents are illustrated or animated?
 In **Settings › Documents**. **Illustrations**: *LIA judges* (the default — a picture only where it serves the document, never in a short note), *On request* or *Never*; each illustration is an image generation counted in your costs, and needs image generation turned on for your account. **Animations** of PowerPoint presentations: *Presented decks* (the default), *Always* or *Never*. Charts, tables and the colour palette do not depend on these choices. See the document generation page for what each choice does.

@@ -20,6 +20,9 @@ from langchain_core.runnables import RunnableConfig
 
 from src.core.config import settings
 from src.core.constants import (
+    EXECUTION_MODE_AUTO,
+    EXECUTION_MODE_CHOICES,
+    EXECUTION_MODE_JUDGEMENT_CANCEL_GRACE_SECONDS,
     EXECUTION_MODE_PIPELINE,
     STATE_KEY_INITIATIVE_FOLLOWUPS,
     STATE_KEY_INITIATIVE_ITERATION,
@@ -29,6 +32,7 @@ from src.core.constants import (
 )
 from src.core.exchange_rhythm import effective_exchange_rhythm
 from src.core.run_config import run_id_of
+from src.domains.agents.analysis.query_intelligence import QueryIntelligence
 from src.domains.agents.constants import (
     INTENTION_ACTION,
     INTENTION_CONVERSATION,
@@ -49,15 +53,22 @@ from src.domains.agents.constants import (
     STATE_KEY_TURN_TYPE,
     STATE_KEY_VALIDATION_RESULT,
 )
-from src.domains.agents.context.runtime_context import runtime_context_if_running
+from src.domains.agents.context.runtime_context import (
+    executed_mode_of,
+    runtime_context_if_running,
+)
 from src.domains.agents.domain_schemas import RouterOutput
+from src.domains.agents.effects.decisions import note_engine
 from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.draft_sequence import draft_turn_reset
 from src.domains.agents.nodes.router_tool_scoring import score_tools_for_turn
+from src.domains.agents.services.analysis.jev_execution_mode import judge_request_shape
+from src.domains.agents.services.engine_resolution import EngineReason, resolve_engine
 from src.domains.agents.sms.state_policy import guard_sms_state
 from src.domains.agents.utils.react_budget import react_turn_reset
 from src.domains.agents.utils.state_tracking import track_state_updates
 from src.domains.agents.utils.turn_type import normalize_turn_type
+from src.infrastructure.async_utils import cancel_and_wait
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.logging import get_logger
@@ -71,6 +82,7 @@ from src.infrastructure.observability.metrics_agents import (
     router_fallback_total,
     router_latency_seconds,
 )
+from src.infrastructure.observability.metrics_langgraph import execution_mode_resolutions_total
 from src.infrastructure.observability.tracing import trace_node
 
 logger = get_logger(__name__)
@@ -80,8 +92,8 @@ logger = get_logger(__name__)
 STATE_KEY_QUERY_INTELLIGENCE = "query_intelligence"
 
 
-def _resolve_execution_mode() -> str:
-    """The run's execution mode (ADR-070), from the typed context.
+def _requested_execution_mode() -> str:
+    """What the run was asked to run in (ADR-070), from the typed context.
 
     Read through the run-scoped context rather than ``config["configurable"]``
     (ADR-231): the mode is a user preference the chokepoint owns, not LangGraph
@@ -90,10 +102,81 @@ def _resolve_execution_mode() -> str:
     the key was absent.
 
     Returns:
-        ``"pipeline"`` or ``"react"``.
+        The requested mode, as stored.
     """
     context = runtime_context_if_running()
-    return context.execution_mode if context is not None else EXECUTION_MODE_PIPELINE
+    return context.requested_execution_mode if context is not None else EXECUTION_MODE_PIPELINE
+
+
+def _start_shape_judgement(query: str) -> asyncio.Task[EngineReason] | None:
+    """The decision provider's judgement of the request's shape (ADR-390).
+
+    Started beside the analysis (~0.2 s against ~3 s), and only where a choice is
+    left to make — an « auto » turn on an instance that runs the loop — so nothing
+    else is judged, and nothing else is billed.
+
+    Args:
+        query: The person's words.
+
+    Returns:
+        The owned task, or None when no judgement is needed.
+    """
+    if _requested_execution_mode() != EXECUTION_MODE_AUTO or not settings.react_agent_enabled:
+        return None
+    return asyncio.create_task(judge_request_shape(query), name="execution_mode_shape")
+
+
+async def _abandon_shape_judgement(judgement: asyncio.Task[EngineReason] | None) -> None:
+    """Cancel a judgement nothing will read, and wait for it to close."""
+    if judgement is not None and not judgement.done():
+        await cancel_and_wait(
+            judgement, timeout_seconds=EXECUTION_MODE_JUDGEMENT_CANCEL_GRACE_SECONDS
+        )
+
+
+async def _settle_turn_engine(
+    intelligence: QueryIntelligence, judgement: asyncio.Task[EngineReason] | None
+) -> str:
+    """The mode the turn's state carries, settling its engine when one plans it.
+
+    A turn the router sends to planning gets ONE engine, published twice: into the
+    state, which the routing edge reads, and on the context's holder, which tools,
+    registers and metric labels read (``executed_mode_of``). The engine comes from
+    ``resolve_engine``; the shape judgement is awaited only when the rule needs it.
+    A turn that already runs (a resumed one, a compacted replay) keeps its engine.
+    A conversation turn has no engine: its state says what the door answers.
+
+    Args:
+        intelligence: The turn's analysis.
+        judgement: The shape judgement an « auto » turn started, if any.
+
+    Returns:
+        The engine in force for a planned turn, else what the door answers.
+    """
+    requested = _requested_execution_mode()
+    context = runtime_context_if_running()
+    if not intelligence.requires_planner():
+        return executed_mode_of(context) if context is not None else requested
+    loop_enabled = settings.react_agent_enabled
+    resolution = resolve_engine(
+        requested, intelligence, EngineReason.NO_DECISION, loop_enabled=loop_enabled
+    )
+    if resolution.reason is EngineReason.NO_DECISION and judgement is not None:
+        resolution = resolve_engine(
+            requested, intelligence, await judgement, loop_enabled=loop_enabled
+        )
+    if context is not None:
+        in_force = context.turn_engine.settle(resolution.engine)
+        if in_force != resolution.engine:
+            logger.info("turn_engine_kept", engine=in_force, proposed=resolution.engine)
+            return in_force
+        note_engine(in_force, resolution.reason.value)
+    execution_mode_resolutions_total.labels(
+        requested=requested if requested in EXECUTION_MODE_CHOICES else "other",
+        engine=resolution.engine,
+        reason=resolution.reason.value,
+    ).inc()
+    return resolution.engine
 
 
 def _resolve_exchange_rhythm() -> str:
@@ -221,15 +304,22 @@ async def router_node_v3(
     # The English query (better domain detection against English descriptions)
     # is awaited inside analyze_full; original_query is preserved for the
     # debug panel display (user's actual input in their language).
+    # ADR-390: an « auto » turn's shape is judged meanwhile; the judgement is read
+    # when the engine is settled, or cancelled and awaited — never left running.
+    shape_judgement = _start_shape_judgement(query)
     analyzer_service = get_query_analyzer_service()
-    intelligence = await analyzer_service.analyze_full(
-        query=query,
-        messages=messages,
-        state=state,
-        config=config,
-        original_query=query,  # Preserve user's original query for debug panel
-        english_query_task=english_query_task,
-    )
+    try:
+        intelligence = await analyzer_service.analyze_full(
+            query=query,
+            messages=messages,
+            state=state,
+            config=config,
+            original_query=query,  # Preserve user's original query for debug panel
+            english_query_task=english_query_task,
+        )
+        execution_mode = await _settle_turn_engine(intelligence, shape_judgement)
+    finally:
+        await _abandon_shape_judgement(shape_judgement)
 
     from dataclasses import replace
 
@@ -380,8 +470,10 @@ async def router_node_v3(
         "_query_intelligence_obj": intelligence,
         # Store tool selection result for debug panel (semantic similarity of domain tools)
         "tool_selection_result": tool_scores_dict,
-        # ADR-070: publish the run's execution mode into the state for routing
-        "execution_mode": _resolve_execution_mode(),
+        # ADR-070: the engine that plans the turn, for the routing edge (and, on
+        # the context's holder, for every other reader); the request for a turn
+        # no engine plans.
+        "execution_mode": execution_mode,
         # ADR-311: what the ReAct loop shapes its prompt for, fixed for the turn.
         "exchange_rhythm": _resolve_exchange_rhythm(),
     }

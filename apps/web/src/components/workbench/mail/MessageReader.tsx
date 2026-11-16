@@ -47,7 +47,6 @@ import {
   X,
   type LucideIcon,
 } from '@/lib/icons';
-import dynamic from 'next/dynamic';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -65,7 +64,6 @@ import type { Language } from '@/i18n/settings';
 import { cn } from '@/lib/utils';
 import type { ProposedEvent, ProposedTask } from '@/lib/workbench/assist';
 import { workbenchRefusal } from '@/lib/workbench/errors';
-import { isAndroidShell, shellCapability } from '@/lib/native/shell';
 import {
   addressLabel,
   initials,
@@ -78,7 +76,6 @@ import type {
   MailAttachment,
   MailFolder,
   MailHtml,
-  MailInlineImage,
   MailInlineImages,
   MailMessage,
   MailUnsubscribe,
@@ -88,17 +85,8 @@ import { askAct, BarAct, type AssistOffer, type DetailDeed } from '../DetailBar'
 import { useAssistBounds } from '../WorkbenchShell';
 import { AttachmentList } from './AttachmentList';
 import { LabelMenu } from './LabelMenu';
+import { OriginalLayout } from './OriginalLayout';
 import type { MailBulkAct } from './MailSelectionBar';
-
-// The original-layout reader parses an inert document with browser DOM APIs.
-const AuthoredHtmlFrame = dynamic(
-  () => import('../AuthoredHtmlFrame').then(module => module.AuthoredHtmlFrame),
-  {
-    ssr: false,
-  }
-);
-
-const NO_IMAGES: readonly MailInlineImage[] = [];
 
 /** Which act of the reader is on its way, if any. */
 export type ReaderAct = MailBulkAct;
@@ -776,18 +764,6 @@ interface MessageBodyProps extends BodyView {
   inline: MailInlineImages | undefined;
 }
 
-/**
- * Whether the reader says the links open from the text: measured, an Android shell older than
- * its `frameLinks` capability opens nothing from a sandboxed frame.
- */
-function useLinksInText(): boolean {
-  const [frameLinks, setFrameLinks] = useState(false);
-  useEffect(() => {
-    void shellCapability('frameLinks').then(setFrameLinks);
-  }, []);
-  return isAndroidShell() && !frameLinks;
-}
-
 /** The original layout when the message has one, else (or on demand) its text. */
 function MessageBody({
   lng,
@@ -802,7 +778,6 @@ function MessageBody({
   const { t } = useTranslation(lng);
   // Above the frame, so a look at the text does not take back what the reader asked for.
   const [images, setImages] = useState(false);
-  const linksInText = useLinksInText();
   const html = original?.html ?? null;
   const swap = (label: string, next: boolean, place?: string) => (
     <Button
@@ -814,34 +789,16 @@ function MessageBody({
       {label}
     </Button>
   );
-  if (html !== null && !asText) {
+  if (original && html !== null && !asText) {
     return (
-      <div className="space-y-2">
-        {linksInText && (
-          <p className="text-xs text-muted-foreground">{t('workbench.mail.links_in_text')}</p>
-        )}
-        {original?.truncated && (
-          <p className="text-xs text-muted-foreground">{t('workbench.mail.html_truncated')}</p>
-        )}
-        <AuthoredHtmlFrame
-          lng={lng}
-          html={html}
-          title={t('workbench.mail.html_frame_title')}
-          images={images}
-          onShowImages={() => setImages(true)}
-          inline={inline?.images ?? NO_IMAGES}
-          lead={swap(
-            t('workbench.mail.show_text'),
-            true,
-            'col-start-1 justify-self-start text-left'
-          )}
-        />
-        {Boolean(inline?.skipped) && (
-          <p className="text-xs text-muted-foreground">
-            {t('workbench.mail.inline_skipped', { count: inline?.skipped })}
-          </p>
-        )}
-      </div>
+      <OriginalLayout
+        lng={lng}
+        original={{ ...original, html }}
+        inline={inline}
+        images={images}
+        onShowImages={() => setImages(true)}
+        lead={swap(t('workbench.mail.show_text'), true, 'col-start-1 justify-self-start text-left')}
+      />
     );
   }
   return (

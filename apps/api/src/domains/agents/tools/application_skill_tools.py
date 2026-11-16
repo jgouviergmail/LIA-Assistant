@@ -18,6 +18,8 @@ from src.domains.agents.application.skill_file_upload import prepare_skill_file_
 from src.domains.agents.application.skill_file_upload_schemas import SkillFileUploadInput
 from src.domains.agents.application.skill_read import read_skills
 from src.domains.agents.application.skill_read_schemas import SkillReadInput
+from src.domains.agents.application.skill_restore import prepare_skill_restore
+from src.domains.agents.application.skill_restore_schemas import SkillRestoreInput
 from src.domains.agents.application.skill_update import prepare_skill_update
 from src.domains.agents.application.skill_update_schemas import SkillUpdateInput
 from src.domains.agents.application.skill_url_import import prepare_skill_url_import
@@ -183,5 +185,29 @@ async def delete_lia_skill_tool(
         name="delete_lia_skill_tool",
         model=SkillDeleteInput,
         prepare=prepare_skill_deletion,
+        sessions=get_db_context,
+    )
+
+
+@write_tool(name="restore_lia_skill_previous_version", agent_name="setting_agent")
+async def restore_lia_skill_previous_version_tool(
+    request: SkillRestoreInput,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, object] | None, InjectedToolArg] = None,
+) -> UnifiedToolOutput:
+    """Propose putting back the previous version of one of the person's own skills, confirmed.
+
+    Args:
+        request: Exact owned skill id whose previous version is put back.
+        runtime: Injected authenticated account context.
+
+    Returns:
+        A draft for exact before/after approval, without changing state yet.
+    """
+    return await prepare_native_tool(
+        request,
+        runtime,
+        name="restore_lia_skill_previous_version_tool",
+        model=SkillRestoreInput,
+        prepare=prepare_skill_restore,
         sessions=get_db_context,
     )

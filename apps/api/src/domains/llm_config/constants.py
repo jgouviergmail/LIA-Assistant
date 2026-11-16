@@ -1313,6 +1313,7 @@ for _slot, _name in (
     ("jev_parameter_kind", "Guarded parameter values (Jev)"),
     ("jev_email_classification", "Email category, priority and expected reply (Jev)"),
     ("jev_event_classification", "Appointment category (Jev)"),
+    ("jev_execution_mode", "Automatic execution engine (Jev)"),
 ):
     LLM_TYPES_REGISTRY[_slot] = LLMTypeMetadata(
         llm_type=_slot,

@@ -47,7 +47,7 @@ def test_all_five_targets_exist() -> None:
 def test_targets_use_platform_correct_venv_paths() -> None:
     body = _taskfile()
     install_block = body.split("\n  test:install:", 1)[1]
-    assert ".venv/Scripts/pytest" in install_block
+    assert ".venv/Scripts/python -m pytest" in install_block
     assert ".venv/bin/pytest" in install_block
 
 

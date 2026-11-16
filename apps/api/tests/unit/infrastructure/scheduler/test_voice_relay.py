@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from typing import Any
+from uuid import UUID
 
 import pytest
 
@@ -205,11 +206,24 @@ async def test_the_relay_holds_no_session_across_the_turn(monkeypatch: pytest.Mo
 
     async def _stream(_request):  # noqa: ANN001
         seen["turn_open"] = seen["open"]
+        seen["attached_before_turn"] = "attached" in seen
         return RunResult(outcome=RunOutcome.SUCCESS, text="ok", attempts=1)
+
+    async def _attach(
+        _db: object,
+        *,
+        owner_id: UUID,
+        run_id: str,
+        conversation_id: UUID,
+        revision: int | None = None,
+    ) -> bool:
+        seen["attached"] = (owner_id, run_id, conversation_id, revision, seen["open"])
+        return True
 
     monkeypatch.setattr(relay, "get_db_context", _db_context)
     monkeypatch.setattr(relay, "resolve_run_context", _context)
     monkeypatch.setattr(relay, "stream_instruction", _stream)
+    monkeypatch.setattr(relay, "attach_run_bill", _attach)
     session = VoiceSession.browser(
         session_id="s" * 32,
         run_id="live_session_" + "s" * 32,
@@ -229,6 +243,180 @@ async def test_the_relay_holds_no_session_across_the_turn(monkeypatch: pytest.Mo
     assert seen["sessions"] == 1  # one session for account preferences
     assert seen["turn_open"] == 0  # and it was closed before the turn
     assert seen["open"] == 0
+    # The session's bill joins the discussion the turn writes in, on that same
+    # short session, before the turn (2026-11-14).
+    assert seen["attached"] == (
+        session.user_id,
+        session.run_id,
+        session.conversation_id,
+        None,
+        1,
+    )
+    assert seen["attached_before_turn"] is True
+
+
+@pytest.mark.unit
+async def test_a_phone_relay_names_its_bill_in_the_annex_generation_it_returns_to(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A call placed from an annex: its lookups and synthesis were billed with
+    no discussion; the relayed turn writes in the annex, so the bill joins it
+    there — only while that generation lives (the revision travels)."""
+    import contextlib
+    from uuid import uuid4
+
+    from src.domains.voice_sessions.session import VoiceSession
+    from src.infrastructure.scheduler.out_of_turn_run import RunContext, RunOutcome, RunResult
+
+    attached: list[tuple[str, UUID, int | None]] = []
+
+    @contextlib.asynccontextmanager
+    async def _db_context():  # noqa: ANN202
+        yield object()
+
+    async def _context(_db: object, _user_id: UUID) -> RunContext:
+        return RunContext(
+            user=SimpleNamespace(id=uuid4()),
+            language="fr",
+            timezone="Europe/Paris",
+            display_name="Alex",
+            display_mode="cards",
+            execution_mode="pipeline",
+            memory_enabled=False,
+            journals_enabled=False,
+            psyche_enabled=False,
+        )
+
+    async def _stream(_request: object) -> RunResult:
+        return RunResult(outcome=RunOutcome.SUCCESS, text="ok", attempts=1)
+
+    async def _attach(
+        _db: object,
+        *,
+        owner_id: UUID,
+        run_id: str,
+        conversation_id: UUID,
+        revision: int | None = None,
+    ) -> bool:
+        del owner_id
+        attached.append((run_id, conversation_id, revision))
+        return True
+
+    monkeypatch.setattr(relay, "get_db_context", _db_context)
+    monkeypatch.setattr(relay, "resolve_run_context", _context)
+    monkeypatch.setattr(relay, "stream_instruction", _stream)
+    monkeypatch.setattr(relay, "attach_run_bill", _attach)
+    call_id, annex = uuid4(), uuid4()
+    session = VoiceSession.phone(
+        call_id=call_id,
+        mode="direct",
+        user_id=uuid4(),
+        conversation_id=annex,
+        language="fr",
+        timezone="Europe/Paris",
+        conversation_revision=8,
+    )
+    outcome = await relay.run_voice_relay(
+        relay.VoiceRelayRequest(
+            session=session,
+            relay=SelfCallRelay(owner_confirmed=True, relay_message="Remind me.", summary="s"),
+        )
+    )
+    assert outcome is relay.RelayOutcome.ANSWERED
+    assert attached == [(f"phone_call_{call_id.hex}", annex, 8)]
+
+
+@pytest.mark.unit
+async def test_a_browser_relay_names_its_bill_under_the_generation_its_reservation_pins(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A Live session pinned to an annex carries that annex's generation in its
+    RESERVATION, not in ``conversation_revision``: the bill reads the generation
+    the turn's admission reads, so a reset or deleted annex never collects the
+    spend of a session its previous generation held (2026-11-15)."""
+    import contextlib
+    from uuid import uuid4
+
+    from src.core.conversation_execution import (
+        ExecutionKind,
+        ReservedWork,
+        RunAdmission,
+    )
+    from src.core.conversation_target import ConversationKind, ConversationRef
+    from src.domains.voice_sessions.session import VoiceSession
+    from src.infrastructure.scheduler.out_of_turn_run import RunContext, RunOutcome, RunResult
+
+    attached: list[tuple[str, UUID, int | None]] = []
+
+    @contextlib.asynccontextmanager
+    async def _db_context():  # noqa: ANN202
+        yield object()
+
+    async def _context(_db: object, _user_id: UUID) -> RunContext:
+        return RunContext(
+            user=SimpleNamespace(id=uuid4()),
+            language="fr",
+            timezone="Europe/Paris",
+            display_name="Alex",
+            display_mode="cards",
+            execution_mode="pipeline",
+            memory_enabled=False,
+            journals_enabled=False,
+            psyche_enabled=False,
+        )
+
+    async def _stream(_request: object) -> RunResult:
+        return RunResult(outcome=RunOutcome.SUCCESS, text="ok", attempts=1)
+
+    async def _attach(
+        _db: object,
+        *,
+        owner_id: UUID,
+        run_id: str,
+        conversation_id: UUID,
+        revision: int | None = None,
+    ) -> bool:
+        del owner_id
+        attached.append((run_id, conversation_id, revision))
+        return True
+
+    monkeypatch.setattr(relay, "get_db_context", _db_context)
+    monkeypatch.setattr(relay, "resolve_run_context", _context)
+    monkeypatch.setattr(relay, "stream_instruction", _stream)
+    monkeypatch.setattr(relay, "attach_run_bill", _attach)
+    user_id, annex, session_id = uuid4(), uuid4(), "b" * 32
+    admission = RunAdmission(
+        uuid4(),
+        ConversationRef(user_id, annex, ConversationKind.SECONDARY, 7, uuid4()),
+        ExecutionKind.LIVE,
+        f"live_session_{session_id}",
+        session_id,
+        uuid4(),
+        uuid4(),
+        1,
+        False,
+    )
+    session = VoiceSession.browser(
+        session_id=session_id,
+        run_id=f"live_session_{session_id}",
+        mode="direct",
+        user_id=user_id,
+        conversation_id=annex,
+        language="fr",
+        timezone="Europe/Paris",
+        reservation=ReservedWork(admission, uuid4(), uuid4(), uuid4(), "relay"),
+    )
+    assert session.conversation_revision is None  # the generation is the reservation's
+
+    outcome = await relay.run_voice_relay(
+        relay.VoiceRelayRequest(
+            session=session,
+            relay=SelfCallRelay(owner_confirmed=True, relay_message="Remind me.", summary="s"),
+        )
+    )
+
+    assert outcome is relay.RelayOutcome.ANSWERED
+    assert attached == [(f"live_session_{session_id}", annex, 7)]
 
 
 @pytest.mark.unit

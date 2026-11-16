@@ -19,6 +19,7 @@ set and assert the outcome for each exit: sent, retried, dropped, or deferred.
 
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
@@ -28,10 +29,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from prometheus_client import REGISTRY
 
 from src.core.config import settings
+from src.core.i18n_reminder_snooze import snooze_delay_label
 from src.core.recurrence import RecurrenceSpec
+from src.domains.reminders.firings import FiringOffer
 from src.domains.reminders.models import ReminderStatus
+from src.infrastructure.scheduler import reminder_notification
 from src.infrastructure.scheduler.reminder_notification import (
     MAX_RETRIES,
     process_pending_reminders,
@@ -84,6 +89,8 @@ def _reminder(**overrides: Any) -> SimpleNamespace:
         "status": ReminderStatus.PROCESSING.value,
         "retry_count": 0,
         "notification_error": None,
+        # NULL on every reminder a person created; set on a postponed copy.
+        "first_asked_at": None,
     }
     base.update(overrides)
     return SimpleNamespace(**base)
@@ -126,6 +133,16 @@ class _Harness:
 
         self.blocked = False
 
+        # The occurrence record (ADR-268 amendment 2026-11-16): stubbed, its
+        # database behaviour is proved on PostgreSQL.
+        self.offer: FiringOffer | None = None
+        self.firings = MagicMock()
+        self.firings.purge_expired = AsyncMock(return_value=0)
+        self.firings.record = AsyncMock(side_effect=lambda *a, **k: self.offer)
+        self.channels = AsyncMock(return_value=None)
+        self.redis: _Redis | None = None
+        self.generated: list[dict[str, Any]] = []
+
     async def _still_claimed(self, reminder_id: Any) -> SimpleNamespace | None:
         """The settlement's read: the row, only while its claim stands."""
         reminder = self.claimed.get(reminder_id)
@@ -148,8 +165,9 @@ class _Harness:
 
         return _session
 
-    async def _generate(self, **_kwargs: Any) -> SimpleNamespace:
+    async def _generate(self, **kwargs: Any) -> SimpleNamespace:
         self.open_at_generation.append(self.open_sessions)
+        self.generated.append(kwargs)
         return SimpleNamespace(
             message="N'oublie pas le pain",
             tokens_in=0,
@@ -172,17 +190,34 @@ class _Harness:
                 "src.domains.usage_limits.service.UsageLimitService.is_user_blocked_for_llm",
                 AsyncMock(side_effect=lambda *a, **k: self.blocked),
             ),
-            patch("src.infrastructure.cache.redis.get_redis_cache", AsyncMock(return_value=None)),
+            patch(
+                "src.infrastructure.cache.redis.get_redis_cache",
+                AsyncMock(side_effect=lambda: self.redis),
+            ),
+            patch(
+                "src.domains.reminders.firing_service.ReminderFiringService",
+                return_value=self.firings,
+            ),
             patch(f"{module}.get_relevant_memories", AsyncMock(return_value=[])),
             patch(f"{module}.generate_reminder_message", AsyncMock(side_effect=self._generate)),
             # Delivery and lease settlement stay real; these two notification sinks
             # belong to their own tests, not this scheduler's in-memory sessions.
             patch(
                 "src.infrastructure.proactive.notification.send_notification_to_channels",
-                AsyncMock(return_value=None),
+                self.channels,
             ),
             patch(f"{module}._archive", AsyncMock(return_value=None)),
         ]
+
+
+class _Redis:
+    """The person's real-time channel, recording what is published on it."""
+
+    def __init__(self) -> None:
+        self.published: list[tuple[str, str]] = []
+
+    async def publish(self, channel: str, payload: str) -> None:
+        self.published.append((channel, payload))
 
 
 async def _run(harness: _Harness) -> dict[str, Any]:
@@ -452,3 +487,153 @@ class TestNoTransactionWhileNotifying:
 
         assert stats["processed"] == REMINDER_NOTIFICATION_BATCH_LIMIT
         assert harness.repo.claim_next_due.await_count == REMINDER_NOTIFICATION_BATCH_LIMIT
+
+
+class TestTheOccurrenceTravelsWithTheNotification:
+    """ADR-268 amendment 2026-11-16: every surface names the occurrence that rang."""
+
+    @staticmethod
+    def _offer(*, stoppable: bool = False) -> FiringOffer:
+        return FiringOffer(
+            firing_id=uuid4(),
+            snoozable_until=datetime.now(UTC) + timedelta(hours=1),
+            stoppable=stoppable,
+        )
+
+    async def test_each_tick_purges_closed_windows(self) -> None:
+        harness = _Harness([], _user())
+
+        await _run(harness)
+
+        harness.firings.purge_expired.assert_awaited_once()
+
+    async def test_a_failing_purge_never_keeps_a_reminder_from_ringing(self) -> None:
+        """Measured 2026-11-16: in the recovery's transaction, a missing table
+        stopped every reminder of the instance at every tick."""
+        reminder = _reminder()
+        harness = _Harness([reminder], _user(id=reminder.user_id))
+        harness.firings.purge_expired = AsyncMock(side_effect=RuntimeError("no such table"))
+
+        stats = await _run(harness)
+
+        assert stats["notified"] == 1
+        harness.repo.delete.assert_awaited_once_with(reminder)
+
+    async def test_the_push_and_the_live_event_name_the_recorded_occurrence(self) -> None:
+        reminder = _reminder()
+        harness = _Harness([reminder], _user(id=reminder.user_id))
+        harness.offer = self._offer()
+        harness.redis = _Redis()
+
+        await _run(harness)
+
+        firing = str(harness.offer.firing_id)
+        snooze = harness.fcm.send_reminder_notification.await_args.kwargs["snooze"]
+        assert snooze["firing_id"] == firing
+        assert snooze["snooze_url"] == (
+            f"{settings.api_url.rstrip('/')}{settings.api_prefix}"
+            f"/reminders/firings/{firing}/snooze"
+        )
+        assert snooze["snooze_short_label"] == snooze_delay_label(
+            settings.reminder_snooze_short_minutes, "fr"
+        )
+        assert snooze["snooze_long_label"] == snooze_delay_label(
+            settings.reminder_snooze_long_minutes, "fr"
+        )
+        ((_channel, payload),) = harness.redis.published
+        event = json.loads(payload)
+        assert event["firing_id"] == firing
+        assert event["snooze_short_minutes"] == settings.reminder_snooze_short_minutes
+
+    @pytest.mark.parametrize("stoppable", [False, True])
+    async def test_telegram_carries_the_buttons_of_the_occurrence(
+        self, stoppable: bool, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(settings, "channels_enabled", True)
+        reminder = _reminder()
+        harness = _Harness([reminder], _user(id=reminder.user_id))
+        harness.offer = self._offer(stoppable=stoppable)
+
+        await _run(harness)
+
+        kwargs = harness.channels.await_args.kwargs
+        assert kwargs["language"] == "fr"
+        rows = kwargs["reply_markup"]["inline_keyboard"]
+        pressed = [button["callback_data"] for row in rows for button in row]
+        assert all(str(harness.offer.firing_id) in data for data in pressed)
+        assert any(data.startswith("rmd:stop:") for data in pressed) is stoppable
+
+    async def test_an_unrecorded_occurrence_still_rings_with_nothing_to_press(self) -> None:
+        reminder = _reminder()
+        harness = _Harness([reminder], _user(id=reminder.user_id))
+        harness.firings.record = AsyncMock(side_effect=RuntimeError("database unreachable"))
+        before = REGISTRY.get_sample_value("reminder_firings_unrecorded_total") or 0.0
+
+        stats = await _run(harness)
+
+        assert stats["notified"] == 1
+        assert harness.fcm.send_reminder_notification.await_args.kwargs["snooze"] == {}
+        harness.repo.delete.assert_awaited_once_with(reminder)
+        after = REGISTRY.get_sample_value("reminder_firings_unrecorded_total") or 0.0
+        assert after == before + 1
+
+    async def test_a_postponed_copy_is_announced_as_coming_back(self) -> None:
+        asked = datetime.now(UTC) - timedelta(days=2)
+        reminder = _reminder(first_asked_at=asked)
+        harness = _Harness([reminder], _user(id=reminder.user_id))
+
+        await _run(harness)
+
+        (generation,) = harness.generated
+        assert generation["postponed"] is True
+        assert generation["created_at"] == asked
+
+    async def test_a_reminder_the_person_created_is_not_announced_as_postponed(self) -> None:
+        reminder = _reminder()
+        harness = _Harness([reminder], _user(id=reminder.user_id))
+
+        await _run(harness)
+
+        (generation,) = harness.generated
+        assert generation["postponed"] is False
+        assert generation["created_at"] == reminder.created_at
+
+
+class TestTheArchivedBubbleNamesItsOccurrence:
+    async def test_the_metadata_carries_the_occurrence_and_its_window(self) -> None:
+        reminder = _reminder()
+        offer = FiringOffer(
+            firing_id=uuid4(),
+            snoozable_until=datetime.now(UTC) + timedelta(hours=24),
+            stoppable=True,
+        )
+        conversations = MagicMock()
+        conversations.get_or_create_conversation = AsyncMock(
+            return_value=SimpleNamespace(id=uuid4())
+        )
+        conversations.archive_message = AsyncMock()
+        harness = _Harness([], None)
+        result = SimpleNamespace(run_id="reminder-run", tokens_in=0, tokens_out=0)
+
+        with (
+            patch("src.infrastructure.database.session.get_db_context", harness._db_context()),
+            patch(
+                "src.domains.conversations.service.ConversationService",
+                return_value=conversations,
+            ),
+            patch.object(
+                reminder_notification, "_account_reminder_spend", AsyncMock(return_value=0.0)
+            ),
+        ):
+            await reminder_notification._archive(
+                reminder,
+                message="🔔 x",
+                result=result,
+                language="fr",
+                offer=offer,
+            )
+
+        metadata = conversations.archive_message.await_args.kwargs["metadata"]
+        assert metadata["firing_id"] == str(offer.firing_id)
+        assert metadata["snoozable_until"] == offer.snoozable_until.isoformat()
+        assert metadata["reminder_id"] == str(reminder.id)

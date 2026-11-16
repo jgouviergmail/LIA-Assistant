@@ -13,6 +13,8 @@ Best Practices:
 - Error codes for programmatic handling
 """
 
+from langchain_core.exceptions import ContextOverflowError
+
 from src.core.card_composition import CardCompositionUnavailable
 from src.core.i18n import resolve_language
 from src.core.i18n_types import SupportedLanguage
@@ -190,6 +192,11 @@ class SSEErrorMessages:
         Returns:
             Error category string.
         """
+        if isinstance(exception, ContextOverflowError):
+            # Before the status: a provider's overflow is ALSO its SDK's 400,
+            # which reads as « unknown » and tells the person to try again —
+            # the turn the window refused fails the same way (lot 15).
+            return "context_overflow"
         status = SSEErrorMessages._extract_status_code(exception)
         if status is not None:
             by_status = {
@@ -337,7 +344,45 @@ class SSEErrorMessages:
             return SSEErrorMessages._quota_error(language)
         if category == "not_found":
             return SSEErrorMessages._model_not_found_error(language)
+        if category == "context_overflow":
+            return SSEErrorMessages._context_overflow_error(language)
         return None
+
+    @staticmethod
+    def _context_overflow_error(language: SupportedLanguage | None = None) -> str:
+        """The model's window refused the turn, and its one compacted replay did not help.
+
+        Retrying cannot make it fit: the person is told what can (``/resume``
+        compacts the discussion, a new one starts empty).
+        """
+        messages = {
+            "fr": (
+                "Cette discussion est devenue trop longue pour que le modèle la lise d’un "
+                "seul tenant. Tape /resume pour la résumer, ou continue dans une nouvelle "
+                "discussion."
+            ),
+            "en": (
+                "This discussion has grown too long for the model to read in one go. "
+                "Type /resume to summarise it, or continue in a new discussion."
+            ),
+            "es": (
+                "Esta conversación se ha vuelto demasiado larga para que el modelo la lea "
+                "de una vez. Escribe /resume para resumirla o continúa en una nueva "
+                "conversación."
+            ),
+            "de": (
+                "Diese Unterhaltung ist zu lang geworden, als dass das Modell sie auf "
+                "einmal lesen könnte. Gib /resume ein, um sie zusammenzufassen, oder setze "
+                "sie in einer neuen Unterhaltung fort."
+            ),
+            "it": (
+                "Questa conversazione è diventata troppo lunga perché il modello la legga "
+                "tutta in una volta. Scrivi /resume per riassumerla, oppure continua in "
+                "una nuova conversazione."
+            ),
+            "zh-CN": "这段对话已经太长，模型无法一次读完。输入 /resume 将其总结，或在新的对话中继续。",
+        }
+        return messages[resolve_language(language)]
 
     @staticmethod
     def _auth_error(language: SupportedLanguage | None = None) -> str:

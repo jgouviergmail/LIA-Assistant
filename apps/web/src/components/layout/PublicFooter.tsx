@@ -24,7 +24,7 @@ export async function PublicFooter({ lng }: PublicFooterProps) {
 
   const navLinks = [
     { href: buildLocalizedPath('/', lang), label: t('public_footer.home') },
-    { href: buildLocalizedPath('/maps', lang), label: t('landing.nav.maps') },
+    { href: buildLocalizedPath('/maps', lang), label: t('landing.nav.maps'), prefetch: false },
     { href: buildLocalizedPath('/story', lang), label: t('public_footer.story') },
     { href: buildLocalizedPath('/why', lang), label: t('public_footer.philosophy') },
     { href: buildLocalizedPath('/how', lang), label: t('public_footer.technical') },
@@ -58,8 +58,13 @@ export async function PublicFooter({ lng }: PublicFooterProps) {
 
         {/* Navigation links */}
         <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground mb-4">
-          {navLinks.map(({ href, label }) => (
-            <Link key={href} href={href} className="hover:text-foreground transition-colors">
+          {navLinks.map(({ href, label, ...rest }) => (
+            <Link
+              key={href}
+              href={href}
+              prefetch={'prefetch' in rest ? rest.prefetch : undefined}
+              className="hover:text-foreground transition-colors"
+            >
               {label}
             </Link>
           ))}

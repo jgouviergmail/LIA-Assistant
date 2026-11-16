@@ -2334,6 +2334,22 @@
       ],
       "fieldConfig": { "defaults": { "noValue": "Unavailable", "unit": "s" }, "overrides": [] },
       "description": "Time since the scheduler last read both cleanup and recovery successfully. A gap can signal missing measurements."
+    },
+    {
+      "id": 121,
+      "title": "Returns to the discussion of origin (24h, by outcome)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 133 },
+      "targets": [
+        { "expr": "sum by (outcome) (increase(conversation_origin_returns_total[24h])) or vector(0)", "legendFormat": "{{outcome}}", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "decimals": 0, "noValue": "0", "custom": { "drawStyle": "bars", "fillOpacity": 60 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "description": "Returns of an act begun in a discussion, Main included (a call's synthesis, a meeting's minutes, a routine started from the chat, a peer delivery notice). origin: archived in the generation it was begun in. retired: that generation was reset or deleted meanwhile, so the return went to the current Main (ADR-378 amendment 2026-11-14). Acts begun outside any turn (scheduled ticks, proactive messages) are not counted."
     }
   ]
 }

@@ -37,6 +37,10 @@ PROVIDER_FAILURES: Final[tuple[type[Exception], ...]] = (
     TimeoutError,
 )
 
+#: Pages of lists asked at most: a provider handing out a next token with empty pages
+#: must cost a bounded read, which is then said cut.
+_LIST_PAGES_MAX: Final = 20
+
 
 @dataclass(frozen=True, slots=True)
 class TaskListing:
@@ -140,6 +144,53 @@ class EveryTaskList:
         return tasks
 
 
+@dataclass(frozen=True)
+class TaskListsRead:
+    """The account's task lists that carry an id, and whether the bound cut them."""
+
+    lists: list[dict[str, Any]] = field(default_factory=list)
+    cut: bool = False
+
+
+async def list_every_task_list(
+    client: TasksClientProtocol,
+    *,
+    bound: int,
+    guard: Callable[[], AbstractAsyncContextManager[None]] = nullcontext,
+) -> TaskListsRead:
+    """Every task list of the account, page after page, up to ``bound`` (ADR-185 amendment).
+
+    One request stops at the agents' per-request ceiling: an account holding more lists
+    than one page knew nothing of the rest — named, a list past it read « no list answers
+    to this name », searched, it was never asked. Each page runs under ``guard``.
+
+    Args:
+        client: The account's tasks client.
+        bound: The lists read at most; past it the read is cut, and says so.
+        guard: The seam one provider call runs under.
+
+    Returns:
+        The lists that carry an id, in the provider's order, and whether more exist.
+    """
+    lists: list[dict[str, Any]] = []
+    token: str | None = None
+    for _ in range(_LIST_PAGES_MAX):
+        wanted = max(1, bound - len(lists))
+        async with guard():
+            # The first page is asked as every reader always asked it; a token only
+            # travels to continue.
+            page = await (
+                client.list_task_lists(wanted, page_token=token)
+                if token
+                else client.list_task_lists(wanted)
+            )
+        lists.extend(entry for entry in page.get("items") or [] if entry.get("id"))
+        token = page.get("next_page_token") or None
+        if token is None or len(lists) >= bound:
+            break
+    return TaskListsRead(lists=lists[:bound], cut=token is not None or len(lists) > bound)
+
+
 async def read_every_task_list(
     client: TasksClientProtocol,
     listing: TaskListing,
@@ -164,13 +215,15 @@ async def read_every_task_list(
     Returns:
         The lists that carry an id and what each gave.
     """
-    async with guard():
-        listed = await client.list_task_lists(lists_max)
-    lists = [entry for entry in listed.get("items") or [] if entry.get("id")]
+    listed = await list_every_task_list(client, bound=lists_max, guard=guard)
     reads = await read_task_lists(
-        client, [str(entry["id"]) for entry in lists], listing, failures=failures, guard=guard
+        client,
+        [str(entry["id"]) for entry in listed.lists],
+        listing,
+        failures=failures,
+        guard=guard,
     )
-    return EveryTaskList(lists=lists, reads=reads, more_lists=bool(listed.get("next_page_token")))
+    return EveryTaskList(lists=listed.lists, reads=reads, more_lists=listed.cut)
 
 
 async def read_task_lists(
@@ -240,6 +293,8 @@ __all__ = [
     "EveryTaskList",
     "TaskListRead",
     "TaskListing",
+    "TaskListsRead",
+    "list_every_task_list",
     "read_every_task_list",
     "read_task_lists",
 ]

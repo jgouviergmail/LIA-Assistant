@@ -34,7 +34,7 @@ import { TasksCard } from '../cards/TasksCard';
 import { BirthdaysCard } from '../cards/BirthdaysCard';
 import { DocumentsCard } from '../cards/DocumentsCard';
 import { openCardActions, runCardAction } from '../cards/__tests__/card-actions-harness';
-import type { BriefingWindows, CardSection, SectionData } from '@/types/briefing';
+import type { BriefingWindows, CardSection, MailsData, SectionData } from '@/types/briefing';
 
 const push = vi.fn();
 
@@ -95,7 +95,7 @@ beforeEach(() => {
 });
 
 describe('mail actions (QW-24)', () => {
-  const MAIL_SECTION = section({
+  const MAIL_DATA: MailsData = {
     total_unread_today: 1,
     items: [
       {
@@ -105,7 +105,8 @@ describe('mail actions (QW-24)', () => {
         received_local: '09:12',
       },
     ],
-  });
+  };
+  const MAIL_SECTION = section(MAIL_DATA);
 
   it('summarize executes through ?intent=', async () => {
     const { user } = renderWithProviders(<MailsCard {...cardProps} section={MAIL_SECTION} />);
@@ -130,6 +131,23 @@ describe('mail actions (QW-24)', () => {
     await user.click(screen.getByRole('button', { name: /^dashboard\.briefing\.intents\.mail\|/ }));
 
     expect(lastUrl().startsWith('/fr/dashboard/chat?draft=')).toBe(true);
+  });
+
+  it("shows the mailbox's own unread figure, not the length of the page listed", () => {
+    renderWithProviders(
+      <MailsCard {...cardProps} section={section({ ...MAIL_DATA, total_unread_today: 312 })} />
+    );
+
+    expect(screen.getByText('312')).toBeInTheDocument();
+  });
+
+  it('shows no figure when the mailbox could not tell', () => {
+    renderWithProviders(
+      <MailsCard {...cardProps} section={section({ ...MAIL_DATA, total_unread_today: null })} />
+    );
+
+    expect(screen.queryByText(/dashboard\.briefing\.cards\.mails\.unread_label/)).toBeNull();
+    expect(screen.getByText('Point projet')).toBeInTheDocument();
   });
 });
 

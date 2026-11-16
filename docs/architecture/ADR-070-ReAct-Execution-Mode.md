@@ -107,6 +107,10 @@ A related cross-mode fix accompanies this change: optional MCP parameters left u
 
 This is an additive, behaviour-preserving change for admin/native tools and the pipeline; the ADR-070 decision (parent-graph nodes, shared infrastructure, user toggle) is unchanged. Related: ADR-062 (iterative MCP / ReAct sub-agent), ADR-044 (HITL approval flow).
 
+## Amendment (2026-11-15): A third choice, the automatic mode
+
+The person now chooses among THREE modes — Pipeline, ReAct and Automatic — in a header menu that replaced the two-state toggle; a ticket and a routine offer the same three. « auto » is a MODE, never an engine: the router settles each turn's ENGINE once (`TurnEngine`, first writer wins, a resumed turn keeping the engine it started in), from its analysis and a native JEV judgement of the request's shape, and only the engine reaches the registers, the tools and the metric labels (`executed_mode_of`). The two engines and their wiring described above are unchanged. See [ADR-390](ADR-390-The-Automatic-Mode-Chooses-The-Engine-Per-Request.md).
+
 ## Trade-offs
 
 ### ReAct Mode

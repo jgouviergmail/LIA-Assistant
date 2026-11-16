@@ -20,13 +20,14 @@ Compliance: LangGraph v1.0 + LangChain v1.0 best practices
 
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from functools import cache
 from zoneinfo import ZoneInfo
 
 import structlog
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n import get_language_name, resolve_language
-from src.core.prompt_store import parse_prompt_sections
+from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.analysis.resolved_references import (
     ResolvedReferenceEntry,
     render_reference_lines,
@@ -555,6 +556,29 @@ def _get_semantic_deps_fallback() -> str:
     return SEMANTIC_DEPS_NO_DEPENDENCIES
 
 
+@cache
+def _planner_lines() -> dict[str, str]:
+    """The planner prompt's one-line scaffolds, by key (ADR-284: never in a .py)."""
+    return dict(parse_prompt_sections(read_prompt_file("smart_planner_prompt_lines"), 2))
+
+
+def _multi_domain_section(primary_domain: str, *, is_multi_domain: bool) -> str:
+    """What a multi-domain plan reads after its request: the primary domain and the doctrine.
+
+    Args:
+        primary_domain: The analyzer's primary domain.
+        is_multi_domain: Whether the request spans several domains.
+
+    Returns:
+        The section, opening on a line break as the template places it, or
+        ``""`` for a single-domain request.
+    """
+    if not is_multi_domain:
+        return ""
+    section = load_prompt("planner_multi_domain_section").strip()
+    return "\n" + section.format(primary_domain=primary_domain)
+
+
 def _build_for_each_directive(
     for_each_detected: bool,
     for_each_collection_key: str | None,
@@ -585,18 +609,19 @@ def _build_for_each_directive(
 
     settings = get_settings()
     collection = for_each_collection_key or FOR_EACH_COLLECTION_DEFAULT
+    lines = _planner_lines()
 
     # Build cardinality hint for LLM understanding
     if cardinality_magnitude is None:
-        cardinality_hint = "unknown number of"
+        cardinality_hint = lines["for_each_cardinality_unknown"]
         for_each_max_value = settings.for_each_max_default
     elif cardinality_magnitude == CARDINALITY_ALL:
-        cardinality_hint = "ALL"
+        cardinality_hint = lines["for_each_cardinality_all"]
         for_each_max_value = (
             settings.for_each_max_default
         )  # Safety: use config default even for "all"
     else:
-        cardinality_hint = f"~{cardinality_magnitude}"
+        cardinality_hint = lines["for_each_cardinality_count"].format(count=cardinality_magnitude)
         # Cap at hard limit to ensure LLM generates valid schema
         for_each_max_value = min(cardinality_magnitude, settings.for_each_max_hard_limit)
 
@@ -702,20 +727,7 @@ def get_smart_planner_prompt(
     result_keys_list = ", ".join(sorted(ALL_RESULT_KEYS))
 
     # Build multi-domain section (empty for single-domain)
-    multi_domain_section = ""
-    if is_multi_domain:
-        multi_domain_section = (
-            f"\nPrimary domain: {primary_domain}\n"
-            "For multi-domain queries: gather ALL data from each domain, "
-            "let Response LLM cross-reference and analyze.\n\n"
-            "CROSS-DOMAIN WITH RESOLVED CONTEXT:\n"
-            "When CONTEXT contains resolved items from domain A and user wants domain B info:\n"
-            "- Use READY-TO-USE VALUES directly from CONTEXT\n"
-            "- Do NOT invent any 'resolve' tool\n"
-            "- Example: 'info about the restaurant of the second meeting'\n"
-            "  → CONTEXT: LOCATION: 'Restaurant La Table'\n"
-            "  → Plan: ONE step: get_places_tool(query='Restaurant La Table')"
-        )
+    multi_domain_section = _multi_domain_section(primary_domain, is_multi_domain=is_multi_domain)
 
     # Format the semantic filter hint for the planner.
     # Empty list/tuple → "(none)" placeholder makes the prompt cache-friendly

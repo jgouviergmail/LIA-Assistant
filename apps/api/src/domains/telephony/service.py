@@ -17,12 +17,14 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
+import httpx
 import structlog
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.conversation_source import current_origin
 from src.core.security import encrypt_data
 from src.core.time_utils import format_datetime_for_display
 from src.core.user_display import resolve_user_display_name
@@ -60,7 +62,9 @@ from src.domains.voice_sessions.expression import (
     palette_block,
 )
 from src.domains.voice_sessions.session import VoiceSessionMode
+from src.infrastructure.database.conversation_origin import origin_columns
 from src.infrastructure.observability.metrics_live import live_cue_palette_synced_total
+from src.infrastructure.utils.request_outcome import never_reached_the_server
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -84,9 +88,20 @@ _InitiateStatus = Literal[
     "not_configured",
     "failed",
     "rejected",
+    "refused",
+    "unknown",
     "auth_failed",
     "agent_sync_failed",
 ]
+
+#: Vendor statuses that may pass: a timeout and a rate limit (the 5xx too).
+_PASSING_CLIENT_STATUSES = frozenset({408, 429})
+
+
+def _is_definitive_refusal(status_code: int) -> bool:
+    """Whether a vendor HTTP status refuses the request itself (retrying cannot help)."""
+    return 400 <= status_code < 500 and status_code not in _PASSING_CLIENT_STATUSES
+
 
 #: The consultation surface the dial path records on (ADR-263): the calendar
 #: is opened from here, not from a tool, so the gate never sees it.
@@ -580,6 +595,9 @@ class TelephonyService:
                 "status": PhoneCallStatus.DIALING,
                 "initiated_at": now,
                 "expires_at": now + timedelta(days=settings.telephony_call_retention_days),
+                # The discussion the call was placed from: its return comes
+                # back there while that generation lives (ADR-378 amendment).
+                **origin_columns(current_origin()),
             },
         )
         if isinstance(created, InitiateCallResult):
@@ -721,29 +739,9 @@ class TelephonyService:
                 conversation_config_override=conversation_config_override,
             )
         except ElevenLabsAgentsError as exc:
-            # A credential rejection is NOT transient: "try again in a moment"
-            # is a lie until the connector key is replaced (prod 2026-08-15:
-            # the vendor stopped accepting the stored legacy credential and
-            # every call died behind the generic retry message).
-            if exc.is_auth_error:
-                await repo.mark_dial_failed(
-                    call_id, error=f"initiate_auth_failed:{exc.status_code}"
-                )
-                logger.warning(
-                    "telephony_initiate_call_auth_failed",
-                    user_id=str(user_id),
-                    call_id=str(call_id),
-                    status_code=exc.status_code,
-                )
-                return InitiateCallResult(status="auth_failed", call_id=call_id)
-            await repo.mark_dial_failed(call_id, error=f"initiate_failed:{exc.status_code}")
-            logger.warning(
-                "telephony_initiate_call_failed",
-                user_id=str(user_id),
-                call_id=str(call_id),
-                status_code=exc.status_code,
-            )
-            return InitiateCallResult(status="failed", call_id=call_id)
+            return await self._refused_dial(repo, exc, user_id=user_id, call_id=call_id)
+        except httpx.RequestError as exc:
+            return await self._lost_dial(repo, exc, user_id=user_id, call_id=call_id)
 
         # The vendor answers 200 even when it REFUSES to dial (unverified number,
         # exhausted credit, bad phone id): the rejection lives in the body, as
@@ -775,3 +773,89 @@ class TelephonyService:
             )
         logger.info("telephony_call_initiated", user_id=str(user_id), call_id=str(call_id))
         return InitiateCallResult(status="placed", call_id=call_id)
+
+    @staticmethod
+    async def _refused_dial(
+        repo: TelephonyRepository,
+        exc: ElevenLabsAgentsError,
+        *,
+        user_id: UUID,
+        call_id: UUID,
+    ) -> InitiateCallResult:
+        """Close the call the vendor refused, and say whether retrying can help.
+
+        A credential rejection is NOT transient: "try again in a moment" is a
+        lie until the connector key is replaced (prod 2026-08-15: the vendor
+        stopped accepting the stored legacy credential and every call died
+        behind the generic retry message). Neither is another 4xx: it refuses
+        THIS request (prod: ``initiate_failed:404`` and ``:400`` were told to
+        retry). A timeout, a rate limit or a vendor error may pass.
+
+        Args:
+            repo: Repository bound to the caller's session.
+            exc: The vendor's refusal.
+            user_id: Owner of the call (logging only).
+            call_id: The DIALING row to close.
+
+        Returns:
+            ``auth_failed``, ``refused`` or ``failed`` (transient).
+        """
+        status: _InitiateStatus
+        if exc.is_auth_error:
+            status, error = "auth_failed", f"initiate_auth_failed:{exc.status_code}"
+        elif _is_definitive_refusal(exc.status_code):
+            status, error = "refused", f"initiate_refused:{exc.status_code}"
+        else:
+            status, error = "failed", f"initiate_failed:{exc.status_code}"
+        await repo.mark_dial_failed(call_id, error=error)
+        logger.warning(
+            "telephony_initiate_call_failed",
+            user_id=str(user_id),
+            call_id=str(call_id),
+            status_code=exc.status_code,
+            outcome=status,
+        )
+        return InitiateCallResult(status=status, call_id=call_id)
+
+    @staticmethod
+    async def _lost_dial(
+        repo: TelephonyRepository,
+        exc: httpx.RequestError,
+        *,
+        user_id: UUID,
+        call_id: UUID,
+    ) -> InitiateCallResult:
+        """Settle a dial whose HTTP exchange failed, by whether the request left.
+
+        A request that never reached the vendor placed no call: the row closes
+        and retrying is right. One whose answer was lost may have placed the
+        call: the row STAYS active — a second call must not ring beside it —
+        and the post-call webhook or the stale sweep settles it, the sweep
+        telling the person (``closing_notices``). The outcome is said to be
+        unknown, never guessed (ADR-221 amendment, ``request_outcome``).
+
+        Args:
+            repo: Repository bound to the caller's session.
+            exc: The transport failure.
+            user_id: Owner of the call (logging only).
+            call_id: The DIALING row.
+
+        Returns:
+            ``failed`` when nothing left, ``unknown`` otherwise.
+        """
+        if never_reached_the_server(exc):
+            await repo.mark_dial_failed(call_id, error="initiate_unreachable")
+            logger.warning(
+                "telephony_initiate_call_unreachable",
+                user_id=str(user_id),
+                call_id=str(call_id),
+                error_type=type(exc).__name__,
+            )
+            return InitiateCallResult(status="failed", call_id=call_id)
+        logger.warning(
+            "telephony_initiate_call_outcome_unknown",
+            user_id=str(user_id),
+            call_id=str(call_id),
+            error_type=type(exc).__name__,
+        )
+        return InitiateCallResult(status="unknown", call_id=call_id)

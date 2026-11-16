@@ -65,8 +65,11 @@ ALLOWED: set[tuple[str, str]] = {
     # OWN published bound (WORKBENCH_CALENDAR_WINDOW_MAX_EVENTS, published as
     # `calendar_window_max_events`) and stated when it cuts (`truncated`). Never
     # an agent's read: at the agent ceiling a busy month shows its first days.
+    # Graph's paging lives in `_calendar_view` (2026-11-15), shared with
+    # `list_events`, which reads a window whole because `calendarView` orders
+    # nothing, then caps its ANSWER at the agent ceiling (ADR-185 amendment).
     ("google_calendar_client.py", "list_events_window"),
-    ("microsoft_calendar_client.py", "list_events_window"),
+    ("microsoft_calendar_client.py", "_calendar_view"),
     ("apple_calendar_client.py", "_list_calendars_impl"),
     ("microsoft_calendar_client.py", "list_calendars"),
     ("microsoft_outlook_client.py", "list_labels"),
@@ -96,6 +99,13 @@ ALLOWED: set[tuple[str, str]] = {
     # (OUTLOOK_MAIL_FOLDERS_WALK_MAX) and stated when it cuts. At the agent
     # ceiling (25) a folder past the 25th would read as « does not exist ».
     ("microsoft_outlook_client.py", "list_folders"),
+    # Gmail's history (heartbeat delta, push wake, a space's mail source): an
+    # internal read drained page by page by `gmail_history.read_history`, never
+    # handed to an agent, in Gmail's own page size (GMAIL_HISTORY_PAGE_SIZE) and
+    # bounded by its readers' page counts, the cut stated. At the agent ceiling
+    # its first page held 25 records, and the anchor the heartbeat kept from it
+    # skipped every page after (ADR-185 amendment 2026-11-15).
+    ("google_gmail_client.py", "get_history"),
 }
 
 

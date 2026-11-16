@@ -22,7 +22,7 @@ from langchain_core.tools import StructuredTool
 
 from src.core.config import settings
 from src.core.constants import (
-    EXECUTION_MODES_ALL,
+    EXECUTION_ENGINES,
     MCP_DISPLAY_EMOJI,
 )
 from src.domains.agents.constants import AGENT_MCP
@@ -390,7 +390,7 @@ def build_mcp_tool_manifest(
     *,
     mcp_origin: Literal["admin", "user"] | None = None,
     mcp_server_key: str | None = None,
-    execution_modes: frozenset[str] = EXECUTION_MODES_ALL,
+    execution_modes: frozenset[str] = EXECUTION_ENGINES,
     standing_approval: bool = False,
 ) -> ToolManifest:
     """Build a ToolManifest for an MCP tool (shared by admin and user MCP).

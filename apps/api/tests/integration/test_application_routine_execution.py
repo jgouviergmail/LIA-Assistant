@@ -316,7 +316,7 @@ async def test_deferred_native_job_uses_the_real_source_worker_and_persists_its_
         patch(
             "src.infrastructure.scheduler.scheduled_action_executor.stream_instruction", generation
         ),
-        patch("src.infrastructure.scheduler.scheduled_action_executor.notify_result", AsyncMock()),
+        patch("src.infrastructure.scheduler.scheduled_action_notices.notify_result", AsyncMock()),
     ):
         await _run_reserved(reservation)
     assert generation.await_count == int(intervention == "none")

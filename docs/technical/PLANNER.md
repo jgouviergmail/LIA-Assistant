@@ -2007,18 +2007,19 @@ class MemoryResolver:
        Phase 3: LLM resolves references using targeted facts
     """
 
-    async def retrieve_and_resolve(
+    def begin(
         self,
         query: str,
         user_id: str,
         config: RunnableConfig,
-    ) -> tuple[list[str] | None, ResolvedReferences | None]:
+    ) -> PendingMemoryResolution:
         """
-        Retrieve memory facts and resolve references.
+        Start the broad retrieval and, beside it, the reference chain.
 
         Returns:
-            - memory_facts: Broad memory facts for planner context (or None)
-            - resolved_references: ResolvedReferences with mappings (or None)
+            The running phase: ``facts()`` (the analyzer's memory input),
+            ``resolution()`` (facts, resolved and extracted references) and
+            ``close()`` (cancels and awaits what was not consumed).
         """
 ```
 
@@ -2027,19 +2028,18 @@ class MemoryResolver:
 ```python
 # In QueryAnalyzerService.analyze_full() — Step 1
 
-from src.domains.agents.services.analysis.memory_resolver import MemoryResolver
+pending = self.memory_resolver.begin(memory_search_query, user_id, config)
+try:
+    # The analyzer reads the broad facts alone (latency lot 1)
+    memory_facts = await pending.facts()
+    analysis_result = await self.analyze(..., memory_facts=memory_facts)
+    # The reference chain ran beside the analyzer call
+    memory_resolution = await pending.resolution()
+finally:
+    await pending.close()
 
-memory_resolver = MemoryResolver()
-
-# Broad retrieval + Phase 1 (reference extraction) run in parallel
-memory_facts, resolved_refs = await memory_resolver.retrieve_and_resolve(
-    query=user_message,
-    user_id=user_id,
-    config=config,
-)
-
-# memory_facts → injected into planner context
-# resolved_refs → enriched query + mappings available for plan generation
+# memory_facts → injected into the analyzer and planner context
+# memory_resolution.resolved → mappings available for plan generation
 ```
 
 ### Exemple Complet

@@ -12,6 +12,10 @@ from src.domains.agents.application.skill_file_upload_schemas import (
     SkillFileUploadPatch,
 )
 from src.domains.agents.application.skill_library_import_schemas import LibraryImportPatch
+from src.domains.agents.application.skill_restore_schemas import (
+    SkillRestoreInput,
+    SkillRestorePatch,
+)
 from src.domains.agents.application.skill_update_schemas import SkillUpdateInput, SkillUpdatePatch
 from src.domains.agents.application.skill_url_import_schemas import (
     SkillUrlImportInput,
@@ -20,6 +24,7 @@ from src.domains.agents.application.skill_url_import_schemas import (
 
 SKILL_EDITOR_MODELS: tuple[type[BaseModel], ...] = (
     SkillDeletePatch,
+    SkillRestorePatch,
     SkillFileUploadPatch,
     SkillDownloadPatch,
     SkillUpdatePatch,
@@ -43,6 +48,9 @@ def skill_editor_request(
     if model is SkillDeletePatch:
         removal = SkillDeletePatch.model_validate(intent).skill_to_delete
         return SkillDeleteInput, removal.request.model_dump(mode="json")
+    if model is SkillRestorePatch:
+        restore = SkillRestorePatch.model_validate(intent).skill_to_restore
+        return SkillRestoreInput, restore.request.model_dump(mode="json")
     if model is SkillDownloadPatch:
         download = SkillDownloadPatch.model_validate(intent).skill_to_download
         return SkillDownloadInput, download.request.model_dump(mode="json")

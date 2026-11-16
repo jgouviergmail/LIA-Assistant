@@ -24,6 +24,7 @@ no Redis cache, no log line carrying a subject or an address.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import partial
@@ -39,6 +40,7 @@ from src.core.constants import (
     RAG_MAIL_HISTORY_TYPES,
 )
 from src.core.exceptions import ConnectorAPIError
+from src.domains.connectors.clients.gmail_history import read_history
 from src.domains.rag_spaces.consultations import SECTION_MAIL, space_read
 from src.domains.rag_spaces.drive_ingest import (
     IngestResult,
@@ -122,7 +124,10 @@ async def ingest_thread(
                 lambda: client.get_thread(thread_id)
             )
             thread = fetched
-        rendered = render_thread(thread, max_chars=settings.rag_mail_max_thread_chars)
+        # Off the event loop: each message's layout is parsed (ADR-287 amendment 2026-11-15).
+        rendered = await asyncio.to_thread(
+            render_thread, thread, max_chars=settings.rag_mail_max_thread_chars
+        )
         existing = await doc_repo.get_by_mail_thread_id(space_id, thread_id)
         if existing is not None:
             unchanged = (
@@ -467,25 +472,20 @@ async def _history_pages(
     not the process. A truncated read is not a loss — the anchor only advances
     to what was actually read, so the next pass resumes there.
     """
-    records: list[dict[str, Any]] = []
-    token: str | None = None
-    new_id: int | None = None
-    for page_index in range(_MAX_PAGES):
-        page = await client.get_history(
-            str(source.last_history_id),
-            history_types=RAG_MAIL_HISTORY_TYPES,
-            label_id=source.label_id,
-            page_token=token,
-        )
-        records.extend(page.get("history", []))
-        token = page.get("nextPageToken")
-        if not token:
-            # The final page carries the id to resume from; a truncated read
-            # keeps the old anchor rather than skipping what it never saw.
-            return records, _history_id(page.get("historyId")) or new_id
-        if page_index == _MAX_PAGES - 1:
-            logger.warning("rag_mail_history_pages_capped", source_id=str(source.id))
-    return records, new_id
+    # The one history reader (gmail_history): a whole read resumes from the
+    # mailbox's id, a cut one AFTER its last record — never past what it did not
+    # see. Keeping the old anchor on a cut re-read the same pages every pass, and
+    # a backlog larger than the bound never drained (ADR-185 amendment 2026-11-15).
+    read = await read_history(
+        client,
+        str(source.last_history_id),
+        pages_max=_MAX_PAGES,
+        history_types=RAG_MAIL_HISTORY_TYPES,
+        label_id=source.label_id,
+    )
+    if not read.complete:
+        logger.warning("rag_mail_history_pages_capped", source_id=str(source.id))
+    return read.records, _history_id(read.resume_from)
 
 
 def threads_to_revisit(records: list[dict[str, Any]], label_id: str, indexed: set[str]) -> set[str]:
@@ -628,8 +628,12 @@ async def index_mail_sources_from_push(user_id: UUID) -> str:
             service = RAGMailSyncService(db)
             outcomes: list[str] = []
             try:
-                for source in sources:
-                    outcomes.append(await _serve_source(db, client, service, source, user_id))
+                # ONE consultation for the push, as the Drive push files its own:
+                # a push can open the mailbox at four in the morning, and an
+                # unrecorded read leaves the person no way to learn it was opened.
+                async with space_read(user_id=user_id, section=SECTION_MAIL):
+                    for source in sources:
+                        outcomes.append(await _serve_source(db, client, service, source, user_id))
             finally:
                 await client.close()
             outcome = _aggregate(outcomes)

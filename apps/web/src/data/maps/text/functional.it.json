@@ -49,9 +49,9 @@
     },
     "f.routing": {
       "name": "Comprensione della richiesta",
-      "role": "Legge ogni messaggio: semplice scambio o richiesta da eseguire, domini coinvolti (agenda, e-mail…), lingua, e ordina gli strumenti per pertinenza.",
+      "role": "Comprende la richiesta, i suoi ambiti e la lingua, poi ordina gli strumenti per pertinenza; in modalità automatica sceglie fra Pipeline e ReAct secondo la richiesta e i motori disponibili.",
       "goal": "Indirizzare ogni richiesta sulla strada giusta senza spendere più del necessario.",
-      "src": "d8835f003b0f"
+      "src": "e1a694fd08ce"
     },
     "f.planning": {
       "name": "Pianificazione (Pipeline)",
@@ -283,9 +283,9 @@
     },
     "f.reminders": {
       "name": "Promemoria",
-      "role": "Un promemoria che suona all'ora stabilita e può ripetersi, formulato da LIA nel momento in cui suona.",
+      "role": "Un promemoria che suona all'ora stabilita e può ripetersi, formulato da LIA al momento dovuto; la sua scheda permette di rinviare quello appena suonato o confermare l'interruzione delle ripetizioni future.",
       "goal": "Non dimenticare più, senza post-it.",
-      "src": "e681ab76106e"
+      "src": "b18d8ed7d964"
     },
     "f.workboard": {
       "name": "Bacheca di lavoro",
@@ -295,9 +295,9 @@
     },
     "f.notifications": {
       "name": "Notifiche e canali",
-      "role": "Notifiche web e mobile, e Telegram; una notifica inviata da LIA è un'azione annotata nel registro, e un annuncio dell'amministrazione arriva solo agli account a cui è rivolto.",
+      "role": "Notifiche web e mobili, abbonamenti ntfy e conversazioni Telegram; una notifica inviata da LIA è un'azione iscritta nel registro, e un annuncio dell'amministratore raggiunge solo gli account scelti.",
       "goal": "Raggiungerti dove sei, senza mai farlo in silenzio.",
-      "src": "bb532ffc6ada"
+      "src": "fa402fb5201b"
     },
     "f.activity": {
       "name": "Attività e proposte",

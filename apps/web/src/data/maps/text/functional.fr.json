@@ -40,7 +40,7 @@
     },
     "f.routing": {
       "name": "Compréhension de la demande",
-      "role": "Lit chaque message : simple échange ou demande à exécuter, domaines concernés (agenda, e-mail…), langue, et classe les outils par pertinence.",
+      "role": "Comprend la demande, ses domaines et sa langue, puis classe les outils par pertinence ; en mode automatique, choisit entre Pipeline et ReAct selon la demande et les moteurs disponibles.",
       "goal": "Envoyer chaque demande vers le bon chemin sans dépenser plus que nécessaire."
     },
     "f.planning": {
@@ -235,7 +235,7 @@
     },
     "f.reminders": {
       "name": "Rappels",
-      "role": "Un rappel qui sonne à l'heure dite et qui peut se répéter, formulé par LIA au moment où il sonne.",
+      "role": "Un rappel qui sonne à l'heure dite et peut se répéter, formulé par LIA au moment venu ; sa carte permet de reporter ce qui vient de sonner ou de confirmer l'arrêt des prochains déclenchements.",
       "goal": "Ne plus oublier, sans post-it."
     },
     "f.workboard": {
@@ -245,7 +245,7 @@
     },
     "f.notifications": {
       "name": "Notifications et canaux",
-      "role": "Notifications web et mobiles, et Telegram ; une notification envoyée par LIA est une action inscrite au registre, et une annonce d'administrateur ne va qu'aux comptes qu'elle vise.",
+      "role": "Notifications web et mobiles, abonnements ntfy et échanges Telegram ; une notification envoyée par LIA est une action inscrite au registre, et une annonce d'administrateur ne va qu'aux comptes visés.",
       "goal": "Te joindre là où tu es, sans jamais le faire en silence."
     },
     "f.activity": {

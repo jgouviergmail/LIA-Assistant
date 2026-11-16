@@ -27,6 +27,7 @@ from src.domains.health_metrics.kinds import (
     BaselineKind,
     HealthKindSpec,
     MergeStrategy,
+    OverlapRule,
     get_active_bounds,
     get_spec,
     kinds,
@@ -172,3 +173,19 @@ class TestEnums:
     def test_every_registered_baseline_kind_is_defined(self) -> None:
         for spec in HEALTH_KINDS.values():
             assert spec.baseline_kind in BaselineKind
+
+
+class TestOverlapRule:
+    """What overlapping samples count for is declared, never inferred (ADR-148 amendment)."""
+
+    def test_a_summed_kind_fuses_its_overlaps(self) -> None:
+        """A sum of overlapping samples counts one walk twice (23 309 for ~13 300, 2026-11-14)."""
+        for spec in HEALTH_KINDS.values():
+            if spec.aggregation_method is AggregationMethod.SUM:
+                assert spec.overlap_rule is OverlapRule.MAX_RATE, spec.kind
+
+    def test_readings_are_never_fused(self) -> None:
+        """An averaged kind's samples are observations: two readings stay two."""
+        for spec in HEALTH_KINDS.values():
+            if spec.aggregation_method is AggregationMethod.AVG_MIN_MAX:
+                assert spec.overlap_rule is OverlapRule.KEEP_ALL, spec.kind

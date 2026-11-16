@@ -4,7 +4,7 @@
 
 **Version**: 7.0
 **Datum**: 2026-11-14
-**Anwendung**: LIA v5.0.0
+**Anwendung**: LIA v5.1.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -37,7 +37,7 @@ Wie das funktioniert, erklärt [der technische Leitfaden](/de/how). Wie der Code
 
 Du sprichst ganz normal mit ihr, schriftlich oder mit der Stimme, eine Unterhaltung pro Thema, auch während sie antwortet. Die Oberfläche gibt es in sechs Sprachen (Französisch, Englisch, Deutsch, Spanisch, Italienisch, Chinesisch), und dein Diktat wird in der Sprache deines Kontos transkribiert. Rund zwanzig spezialisierte Agenten teilen sich die Arbeit: deine persönlichen Daten, das Web, das kreative Schaffen, das vernetzte Zuhause, das Navigieren auf Websites und die Vorausschau.
 
-Ein Schalter im Chat wählt, wie sie denkt. Der Modus **Pipeline**, der Standard, bereitet alle Schritte vor, prüft sie und führt sie dann parallel aus: Er ist vorhersehbar und verbraucht 4- bis 8-mal weniger Tokens. Der Modus **ReAct** geht Schritt für Schritt vor, autonomer und teurer, für eine offene Recherche; wenn ein Schritt eine echte Berechnung braucht, schreibt er ein paar Zeilen Python und startet sie in einer abgeschotteten Sandbox, die nur über einen einzigen Proxy und ohne deine Schlüssel ins Web gelangt ([Privatsphäre](/de/faq#faq-privacy), [der Weg einer Nachricht](/de/how#pipeline)).
+Das Chat-Menü bietet **Pipeline**, **ReAct** oder **Automatisch**, wobei LIA je nach Anfrage wählt. Der Modus **Pipeline**, der Standard, bereitet alle Schritte vor, prüft sie und führt sie dann parallel aus: Er ist vorhersehbar und verbraucht 4- bis 8-mal weniger Tokens. Der Modus **ReAct** geht Schritt für Schritt vor, autonomer und teurer, für eine offene Recherche; wenn ein Schritt eine echte Berechnung braucht, schreibt er ein paar Zeilen Python und startet sie in einer abgeschotteten Sandbox, die nur über einen einzigen Proxy und ohne deine Schlüssel ins Web gelangt ([Privatsphäre](/de/faq#faq-privacy), [der Weg einer Nachricht](/de/how#pipeline)).
 
 Wenn du die Anzeige als **Karten** wählst, kommen Antworten, die Daten enthalten, so an: Fotos eines Ortes, das Wetter Zeitfenster für Zeitfenster, eine Route, die Vorschau eines Dokuments. Eine Karte zeigt, was die Quelle geliefert hat, ohne etwas zu erfinden, und antwortest du von ihrer Karte aus auf eine E-Mail, wird die Anfrage vorbereitet, ohne dass etwas gesendet wird.
 
@@ -143,7 +143,7 @@ Sie spricht offene, öffentliche Standards (MCP, iCalendar, CalDAV, CardDAV, IMA
 
 Deine Konten verbinden sich über OAuth 2.1, ohne dass LIA ihr Passwort kennt, und ein Passkey meldet dich ganz ohne Passwort an. Jede Version veröffentlicht das genaue Verzeichnis dessen, was sie enthält, und wird auf frischen Maschinen installiert, bevor sie veröffentlicht wird ([Sicherheit](/de/faq#faq-privacy)). Jede Architekturentscheidung ist aufgeschrieben und auf [den Karten](/de/maps) eingeordnet. Der Code steht unter AGPL-3.0: Du kannst ihn prüfen, ihn ändern, und er muss offen bleiben.
 
-Du findest LIA im Browser, in der mobilen App mit ihren Push-Benachrichtigungen und auf Telegram, wo Bestätigungen über Schaltflächen laufen und wo sie auch auf deine Sprachnachrichten antwortet. Dasselbe Gedächtnis begleitet dich überall.
+Du findest LIA im Browser, in der mobilen App und auf Telegram, mit Texten, Dateien und Sprachnachrichten; ihre Benachrichtigungen können dich auch über ein ntfy-Abonnement erreichen, standardmäßig ohne ihren Inhalt. Dasselbe Gedächtnis begleitet dich überall.
 
 ## 9. Was LIA nicht ist und wohin sie geht
 

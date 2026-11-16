@@ -251,11 +251,14 @@ async def test_recover_stale_marks_old_active_failed(async_session, test_user):
     )
     await async_session.flush()
 
-    count = await repo.recover_stale(timeout_minutes=15)
-    assert count == 1  # the active + old row was matched and transitioned
+    closed = await repo.recover_stale(timeout_minutes=15)
+    # The active + old row was matched and transitioned, and is returned so its
+    # owner can be told (closing_notices).
+    assert [c.id for c in closed] == [call.id]
 
     await async_session.refresh(call)
     assert call.status == PhoneCallStatus.FAILED
+    assert call.completed_at is not None
 
 
 @pytest.mark.integration

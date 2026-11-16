@@ -12,6 +12,7 @@ crash.
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any, Final
@@ -73,11 +74,8 @@ def _voicemail_tool_called(payload: dict[str, object]) -> bool:
     Returns:
         Whether an agent actually called the voicemail detection system tool.
     """
-    turns = nested(payload, "data", "transcript")
-    if not isinstance(turns, list):
-        return False
-    for turn in turns:
-        if not isinstance(turn, dict) or turn.get("role") != "agent":
+    for turn in _turns(payload):
+        if turn.get("role") != "agent":
             continue
         tool_calls = turn.get("tool_calls")
         if not isinstance(tool_calls, list):
@@ -88,6 +86,78 @@ def _voicemail_tool_called(payload: dict[str, object]) -> bool:
             and call.get("tool_has_been_called") is True
             for call in tool_calls
         ):
+            return True
+    return False
+
+
+def _turns(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """The transcript's turns that are objects, in order (anything else is skipped)."""
+    turns = nested(payload, "data", "transcript")
+    if not isinstance(turns, list):
+        return []
+    return [turn for turn in turns if isinstance(turn, dict)]
+
+
+def _result_body(result: dict[str, Any]) -> dict[str, Any] | None:
+    """A tool result's body: its object, else its JSON text read back, else None."""
+    body = result.get("result")
+    if isinstance(body, dict):
+        return body
+    text = result.get("result_value")
+    if not isinstance(text, str):
+        return None
+    try:
+        decoded = json.loads(text)
+    except ValueError:
+        return None
+    return decoded if isinstance(decoded, dict) else None
+
+
+def voicemail_message_left(payload: dict[str, Any]) -> bool | None:
+    """Whether the provider left the voicemail message, read from the tool's RESULT.
+
+    The voicemail tool's result names the message the provider played (its
+    portal's message, its dynamic variables filled). Only the result is read:
+    a call of the tool says it was asked for, never that something was left.
+
+    Args:
+        payload: The post-call webhook payload.
+
+    Returns:
+        True when the result is a success carrying a message; False when the
+        tool failed or had no message to play; None when the transcript holds
+        no readable result of that tool.
+    """
+    for turn in _turns(payload):
+        results = turn.get("tool_results")
+        if not isinstance(results, list):
+            continue
+        for result in results:
+            if not isinstance(result, dict) or result.get("tool_name") != "voicemail_detection":
+                continue
+            body = _result_body(result)
+            if body is None:
+                continue
+            message = body.get("voicemail_message")
+            played = isinstance(message, str) and bool(message.strip())
+            return played and result.get("is_error") is not True and body.get("status") != "error"
+    return None
+
+
+def callee_spoke(payload: dict[str, Any]) -> bool:
+    """Whether anything at all was heard from the other side of the line.
+
+    A voicemail greeting counts: it is the callee's line speaking.
+
+    Args:
+        payload: The post-call webhook payload.
+
+    Returns:
+        True when at least one turn of the callee's side carries words.
+    """
+    for turn in _turns(payload):
+        message = turn.get("message")
+        if turn.get("role") == "user" and isinstance(message, str) and message.strip():
             return True
     return False
 
@@ -138,10 +208,12 @@ def current_datetime_line(user_timezone: str) -> str:
 
 
 __all__ = [
+    "callee_spoke",
     "current_datetime_line",
     "extract_call_seconds",
     "extract_transcript_summary",
     "extract_transcript_text",
     "map_status",
     "nested",
+    "voicemail_message_left",
 ]

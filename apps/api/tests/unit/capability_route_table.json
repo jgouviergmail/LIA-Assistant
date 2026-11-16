@@ -551,6 +551,68 @@
     "meetings"
    ]
   },
+  "/notifications/admin/broadcast": {
+   "POST": []
+  },
+  "/notifications/admin/broadcasts": {
+   "GET": []
+  },
+  "/notifications/broadcasts/unread": {
+   "GET": []
+  },
+  "/notifications/broadcasts/{broadcast_id}/read": {
+   "POST": []
+  },
+  "/notifications/hub-counts": {
+   "GET": []
+  },
+  "/notifications/ntfy": {
+   "GET": [
+    "ntfy"
+   ],
+   "POST": [
+    "ntfy"
+   ]
+  },
+  "/notifications/ntfy/{subscription_id}": {
+   "DELETE": [
+    "ntfy"
+   ],
+   "PATCH": [
+    "ntfy"
+   ]
+  },
+  "/notifications/ntfy/{subscription_id}/qr": {
+   "GET": [
+    "ntfy"
+   ]
+  },
+  "/notifications/ntfy/{subscription_id}/test": {
+   "POST": [
+    "ntfy"
+   ]
+  },
+  "/notifications/push-config": {
+   "GET": []
+  },
+  "/notifications/register-token": {
+   "POST": []
+  },
+  "/notifications/stream": {
+   "GET": []
+  },
+  "/notifications/test": {
+   "POST": []
+  },
+  "/notifications/tokens": {
+   "GET": []
+  },
+  "/notifications/tokens/{token_id}": {
+   "DELETE": []
+  },
+  "/notifications/unregister-token": {
+   "POST": []
+  },
   "/open-loops": {
    "GET": [
     "open_loops"

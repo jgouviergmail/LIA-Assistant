@@ -25,7 +25,9 @@ from langgraph.graph import END, START, StateGraph
 from src.domains.agents.models import MessagesState, create_initial_state
 from src.domains.agents.services.orchestration.turn_input import (
     LOADED_SNAPSHOT_KEY,
+    RESTORED_CHECKPOINT_KEY,
     appended_messages,
+    pop_restored_checkpoint,
     prepare_graph_input,
     snapshot_loaded_state,
     snapshot_restored_state,
@@ -226,6 +228,50 @@ class TestTheLoaderSnapshot:
         assert shaped["current_turn_id"] == 2
         assert shaped["oauth_scopes"] == ["calendar", "gmail"]
         assert "agent_results" not in shaped and LOADED_SNAPSHOT_KEY not in shaped
+
+    async def test_the_checkpoint_the_turn_starts_from_is_named_and_never_travels(self) -> None:
+        """A replay forks from it (lot 15); the graph never receives it as a channel."""
+        from types import SimpleNamespace
+        from unittest.mock import AsyncMock, patch
+
+        from src.domains.agents.models import CURRENT_SCHEMA_VERSION
+        from src.domains.agents.services.orchestration.service import OrchestrationService
+
+        restored = {
+            **create_initial_state(_USER, "session", "run-0", user_timezone="UTC"),
+            "messages": [HumanMessage("q1", id="h1"), AIMessage("a1", id="a1")],
+            "_schema_version": CURRENT_SCHEMA_VERSION,
+        }
+        before = {"configurable": {"thread_id": "t", "checkpoint_ns": "", "checkpoint_id": "cp-0"}}
+        graph = SimpleNamespace(
+            aget_state=AsyncMock(
+                return_value=SimpleNamespace(
+                    values=restored, tasks=[], created_at="2026-11-15T00:00:00+00:00", config=before
+                )
+            )
+        )
+        with patch.object(
+            OrchestrationService, "_inject_proactive_messages", AsyncMock(return_value=0)
+        ):
+            state = await OrchestrationService().load_or_create_state(
+                graph,
+                conversation_target(_USER, uuid.uuid4()),
+                "q2",
+                "session",
+                "run-1",
+                "UTC",
+                "fr",
+                [],
+            )
+
+        assert (
+            turn_input(state, state[LOADED_SNAPSHOT_KEY])
+            .keys()
+            .isdisjoint({RESTORED_CHECKPOINT_KEY})
+        )
+        assert pop_restored_checkpoint(state) == "cp-0"
+        assert RESTORED_CHECKPOINT_KEY not in state
+        assert pop_restored_checkpoint(state) is None, "popped once, never twice"
 
 
 # ---------------------------------------------------------------------------

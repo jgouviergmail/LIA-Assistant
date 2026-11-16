@@ -82,6 +82,14 @@ langgraph_conditional_edges_total = Counter(
     # Track routing logic: high confidence vs fallbacks
 )
 
+# ADR-390: the engine the router settles for a planned turn, by what was asked
+# (pipeline | react | auto | other) and why (EngineReason, a closed vocabulary).
+execution_mode_resolutions_total = Counter(
+    "execution_mode_resolutions_total",
+    "Engines settled for planned turns, by requested mode and reason",
+    ["requested", "engine", "reason"],
+)
+
 # ============================================================================
 # STATE MANAGEMENT METRICS
 # ============================================================================

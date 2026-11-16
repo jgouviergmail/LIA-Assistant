@@ -28,8 +28,9 @@ find_availability_catalogue_manifest = ToolManifest(
     description=(
         "**Tool: find_availability_tool** - Find FREE calendar slots in a time "
         "window ('find me a 30-min slot Thursday', 'when am I free next week?'). "
-        "Reads busy ranges only (never event details) via the calendar freeBusy "
-        "endpoint (Google) or a minimized start/end projection (other providers). "
+        "Reads busy ranges only (never event details) of every calendar the user "
+        "owns, via the calendar freeBusy endpoint (Google) or a minimized start/end "
+        "projection (other providers). "
         "Returns free gaps of at least `duration_minutes`, clamped to working "
         "hours unless `working_hours_only=false` (evenings/weekends requests). "
         "Use get_events_tool instead when the user wants to SEE their events."

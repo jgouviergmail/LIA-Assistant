@@ -24,10 +24,12 @@ class Heard:
 
     def __init__(self) -> None:
         self.releases: list[tuple[UUID, RunEnd]] = []
+        self.held: list[tuple[UUID, ...]] = []
         self.event = asyncio.Event()
 
-    async def __call__(self, owner_id: UUID, end: RunEnd) -> None:
+    async def __call__(self, owner_id: UUID, end: RunEnd, held: tuple[UUID, ...]) -> None:
         self.releases.append((owner_id, end))
+        self.held.append(held)
         self.event.set()
 
 
@@ -87,6 +89,8 @@ async def test_the_close_writes_the_declared_end_and_settles_what_waited(
     async with asyncio.timeout(5):
         await heard.event.wait()
     assert heard.releases == [(reserved.target.owner_id, written)]
+    # The message the close held is named to the listener (Telegram lot 34).
+    assert heard.held == [(waiting.id,) if after == WaitingStatus.HELD else ()]
 
 
 async def test_an_unstarted_release_gives_back_its_departure_and_holds_nothing(

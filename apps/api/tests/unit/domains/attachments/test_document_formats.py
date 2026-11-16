@@ -221,7 +221,7 @@ class TestATextWindowsMarkedAsUtf16:
         stored = tmp_path / "export.csv"
         stored.write_bytes(codecs.BOM_UTF16_LE + "Prénom;Ville\nZoé;Besançon\n".encode("utf-16-le"))
 
-        assert extract_text(stored, "text/csv") == "Prénom;Ville\nZoé;Besançon"
+        assert extract_text(stored, "text/csv", max_inflated_mb=100) == "Prénom;Ville\nZoé;Besançon"
 
     def test_a_mark_followed_by_no_letters_is_no_text(self) -> None:
         # A binary may open on the same two bytes: what follows must decode, and
@@ -274,7 +274,7 @@ class TestTheFormatsAreOneTable:
             stored = tmp_path / f"stored{extension_of(mime_type)}"
             stored.write_bytes(content)
 
-            assert expected in extract_text(stored, mime_type), name
+            assert expected in extract_text(stored, mime_type, max_inflated_mb=100), name
 
 
 class TestAnArchiveThatInflatesTooFar:
@@ -296,17 +296,27 @@ class TestAnArchiveThatInflatesTooFar:
     ) -> None:
         from src.core.config import settings
         from src.domains.attachments import document_formats
+        from src.domains.rag_spaces import processing
 
         monkeypatch.setattr(settings, "attachments_max_inflated_mb", 1)
-        started: list[str] = []
+        started: list[Path] = []
+        # The format's own reader is the spy: the door that refuses it is the real one.
         monkeypatch.setattr(
-            document_formats, "extract_text", lambda path, mime: started.append(mime) or "text"
+            processing, "extract_text_docx", lambda path: started.append(path) or "text"
         )
         stored = self._padded_docx(tmp_path, megabytes=2)
         assert stored.stat().st_size < 100 * 1024  # what was sent is small
 
         assert document_formats.extract_capped_text(stored, DOCX, 1000) is None
         assert started == []
+
+    def test_every_archive_format_it_detects_is_one_its_reader_measures(self) -> None:
+        """A zipped format the reader never measured would escape its ceiling in silence."""
+        from src.domains.attachments import document_formats
+        from src.domains.rag_spaces.inflation import ZIPPED_CONTENT_TYPES
+
+        assert document_formats._ARCHIVE_FORMATS <= ZIPPED_CONTENT_TYPES
+        document_formats.assert_document_formats_extractable()
 
     def test_under_the_ceiling_it_is_read_as_before(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

@@ -205,3 +205,16 @@ before both phases, and connector authority is rechecked before lookup. The exis
 consultation surface declares the actual provider, including failed/abandoned reads.
 The model's platform spend and a search service's personal-key billing remain distinct.
 The bubble presents source links without fetching them or executing their markup.
+
+## Amendment — a message is read as its reader shows it (2026-11-14)
+
+The reader draws a message in its original layout when it has one, and the person asks LIA about
+what they see. An assist on ONE message (summary, reply, translation, event, task, a contact card's
+latest messages) therefore reads its HTML turned to text by the converter every mailbox uses
+(ADR-287), whole, through one door (`tool_assists/shown_words.words_as_shown`), never the text part
+a sender wrote beside it; a message with no HTML keeps the mailbox's text, turned to text when it is
+markup sent as text. A page's triage and a conversation's summary keep the mailbox's text: many
+messages, each one's quoted history would repeat the others. Measured: three « make it an event » on
+HTML mail ended in `assist_not_found` in production on 2026-11-14, one on a body that said nothing;
+the same case reproduced on dev finds the whole event from the layout
+([TOOL_ASSISTS.md](../technical/TOOL_ASSISTS.md#what-lia-reads-of-a-message-what-its-reader-shows-2026-11-14)).

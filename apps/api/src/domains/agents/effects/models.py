@@ -628,7 +628,24 @@ class AgentDecision(Base, UUIDMixin):
         comment="Under whose authority the turn ran (user | scheduled | subagent).",
     )
     execution_mode: Mapped[str] = mapped_column(
-        String(20), nullable=False, comment="pipeline | react | subagent"
+        String(20),
+        nullable=False,
+        comment=(
+            "The engine the router settled (pipeline | react); until it did, what was "
+            "asked (auto included); outside the graph, how the run ran (subagent | direct)."
+        ),
+    )
+    requested_mode: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        comment="What the turn was asked to run in (pipeline | react | auto); NULL "
+        "outside the graph and for turns filed before ADR-390.",
+    )
+    resolution_reason: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+        comment="Why the router chose the engine (EngineReason, ADR-390); NULL for a "
+        "turn no engine planned.",
     )
     route: Mapped[str | None] = mapped_column(
         String(40),

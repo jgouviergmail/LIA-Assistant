@@ -18,8 +18,12 @@ Telegram est aujourd'hui le seul canal. Ce qui a été écrit pour en accueillir
 
 | Fonctionnalité | Description |
 |---------------|-------------|
-| Chat bidirectionnel | Messages texte Telegram ↔ pipeline agent LIA |
-| Notifications proactives | Intérêts, rappels, actions planifiées, [heartbeat autonome](./HEARTBEAT_AUTONOME.md) → Telegram |
+| Chat bidirectionnel | Messages texte, vocaux, photos, documents et positions Telegram ↔ pipeline agent LIA |
+| Notifications proactives | Intérêts, rappels, résultats des routines, [heartbeat autonome](./HEARTBEAT_AUTONOME.md) → Telegram |
+| Commandes | `/stop` arrête la réponse en cours, `/help` ; menu publié dans les 6 langues |
+| Messages en attente | Un message écrit pendant que LIA travaille attend son tour ([WAITING_MESSAGES.md](./WAITING_MESSAGES.md), ADR-384) |
+| Fichiers, dans les deux sens | Photos et documents reçus comme les pièces jointes du chat, albums regroupés ; fichiers produits par LIA envoyés |
+| Réponse vocale | Une note vocale reçoit aussi une réponse vocale quand les commentaires vocaux sont activés |
 | HITL (Human-in-the-Loop) | Boutons inline Telegram pour confirmer ou annuler un brouillon, une action, une boucle FOR_EACH ; réponse tapée pour une clarification |
 | Messages vocaux | OGG/Opus → PCM 16kHz → Sherpa STT → texte |
 | Liaison OTP | Code 6 chiffres via Redis, TTL 5min, single-use |
@@ -93,6 +97,7 @@ apps/web/src/
 | `TELEGRAM_WEBHOOK_SECRET` | — | Secret pour validation webhook |
 | `TELEGRAM_WEBHOOK_URL` | — | URL publique prod (si absent → long polling dev) |
 | `TELEGRAM_MESSAGE_MAX_LENGTH` | `4000` | Max avant split (100-4096) |
+| `TELEGRAM_LINK_PREVIEW_ENABLED` | `false` | Aperçu des liens sous les messages du bot |
 | `CHANNEL_OTP_TTL_SECONDS` | `300` | TTL OTP Redis |
 | `CHANNEL_OTP_LENGTH` | `6` | Longueur code OTP |
 | `CHANNEL_OTP_MAX_ATTEMPTS` | `5` | Tentatives de code avant blocage, par chat |
@@ -141,14 +146,17 @@ apps/web/src/
 
 1. `POST /channels/telegram/webhook` → secret vérifié avant toute lecture du corps (SEC-024 ; sans secret configuré, la requête est refusée) → une mise à jour déjà vue est écartée (`_claim_telegram_update()` : clé `telegram_update:{update_id}` posée une seule fois pour `TELEGRAM_UPDATE_DEDUP_TTL_SECONDS` ; si le cache ne répond pas, la mise à jour est traitée) → `return {"ok": True}`
 2. Background task: `process_telegram_update(payload)`
-3. `TelegramWebhookHandler.parse_update()` → `ChannelInboundMessage`
+3. `TelegramWebhookHandler.parse_update()` → `ChannelInboundMessage` (texte, voix, fichiers et album, position ou lieu, message cité) ; `/stop`, `/help` et `/start` sont répondus par `commands.handle_command()` AVANT toute réservation de tour
 4. `ChannelMessageRouter.route_message()`:
+   - `gather_album()` (`albums.py`) : les parties d'un album remettent leurs fichiers à la première par Redis ; un seul tour répond à l'album
    - `read_binding_and_person()` : le binding par `(channel_type, channel_user_id)`
      et la ligne `User` qu'il nomme, dans une session courte, comptes et bindings
      désactivés compris ; une lecture en échec reçoit `error`, un inconnu `unbound`,
      dans la langue déclarée — celle du client Telegram
-   - `resolve_channel_preferences(user)` : langue, fuseau, mémoire, journaux et
-     psyché, lus sur la ligne du compte
+   - `resolve_channel_preferences(user)` : langue, fuseau, mémoire, journaux,
+     psyché et mode d'exécution — `pipeline`, `react` ou `auto` (ADR-390), porté
+     par `ChannelAgentRequest.user_execution_mode`, champ obligatoire —, lus sur la
+     ligne du compte : un message Telegram tourne dans le mode du chat
    - Refus, dans cet ordre : `refusal_for()` (un compte désactivé reçoit
      `account_inactive`, un binding coupé `channel_disabled`), puis la limite de
      débit par personne (`busy`), dans la langue du compte, et rien ne tourne.
@@ -161,7 +169,9 @@ apps/web/src/
      au journal), comme le limiteur de débit laisse passer quand il ne peut pas
      compter
    - Verrou Redis `channel_msg_lock:{user_id}` à jeton de propriétaire
-     (`try_claim`) ; déjà pris → `busy`. Il est TENU pendant tout le tour
+     (`try_claim`) ; déjà pris → le message attend son tour (`keep_waiting`,
+     ADR-384 : gardé pour la discussion principale, réaction 👀), sans
+     compter de rejet. Il est TENU pendant tout le tour
      (`held_claim` : réarmé plusieurs fois par `CHANNEL_MESSAGE_LOCK_TTL_SECONDS`,
      qui n'est qu'une borne en cas de crash — un tour dure bien plus), et au
      plus `BACKGROUND_RUNS_STREAM_SAFETY_TTL_SECONDS` (la plus longue exécution
@@ -171,11 +181,13 @@ apps/web/src/
      tour ; lue à plat comme le chat la lit (`HITLStore.get_pending`), elle donne
      le run où la question a été posée (`run_id`), que la réponse reprend
 5. `InboundMessageHandler.handle()`:
-   - Si voice → download OGG → transcode → Sherpa STT → texte
+   - Les mots du message (`_words`) : son texte, la transcription de sa voix (download OGG → transcode → Sherpa STT), les mots de sa position ou de son lieu, ou les noms de ses fichiers — sous le message qu'il cite, sauf s'il répond à une question
    - Typing indicator continu (toutes les 4s)
-   - `AgentService.stream_chat_response()` → lu jusqu'à son terme (`_ChannelTurn`) : sa queue enregistre la question en attente et commite les jetons
-   - Si le tour s'est arrêté sur une question → la question (`hitl_question_token` / `generated_question`) + son clavier inline
-   - Sinon → `markdown_to_telegram_html()` → split → send
+   - Ses fichiers : `channel_files.receive_files()`, par la porte d'upload du chat, sous l'interrupteur `ATTACHMENTS`, tout ou rien ; un refus est dit et aucun tour ne part
+   - `AgentService.stream_chat_response()` par la passerelle → tour **annulable** (`/stop`, Stop du chat), position partagée en géolocalisation consentie, fichiers en pièces jointes ; lu jusqu'à son terme (`_ChannelTurn`) : sa queue enregistre la question en attente et commite les jetons
+   - Compte occupé (`ConversationBusy`) → les fichiers reçus sont oubliés ; les mots attendent leur tour, sauf une réponse à une question, une position ou des fichiers
+   - Si le tour s'est arrêté sur une question → les fichiers produits, puis la question (`hitl_question_token` / `generated_question`) + son clavier inline
+   - Sinon → `telegram_answer_html()` (la porte unique) → split → send ; puis les fichiers produits (`send_generated_files`, depuis leurs lignes) ; puis, pour une note vocale avec les commentaires vocaux activés, la réponse lue (`gateway.speak` → `send_voice`)
    - Le découpage HTML compte les unités UTF-16 et referme chaque balise dans
      chaque partie. Un lien dont les balises ne laissent pas de place au texte
      garde son libellé sans lien. Les coupures d'un bloc de code préservent ses
@@ -219,7 +231,8 @@ Chaque type d'interaction déclare sa réponse (`hitl_keyboard._HITL_TYPE_BUTTON
 **Point d'entrée public** : `send_notification_to_channels()` (fonction module-level dans `notification.py`) est réutilisable par tout système de notification (proactive, reminders, scheduled actions). Les canaux reçoivent le contenu intégral ; seul FCM est tronqué (preview mobile).
 
 **Callers** :
-- `NotificationDispatcher._send_channels()` → notifications proactives (intérêts, heartbeat)
+- `NotificationDispatcher._send_channels()` → notifications proactives (intérêts, heartbeat), avec le contenu tel que le chat le montre et la langue de la personne : `format_notification()` rend le corps par `telegram_answer_html()`
+- `scheduled_action_notices.notify_result()` → résultats des routines, servis aux canaux AVANT le push FCM (ADR-304)
 - `reminder_notification.py` → rappels utilisateur (si `CHANNELS_ENABLED=true`)
 - `discussion_delivery.py` → ouvertures des discussions proactives (si `CHANNELS_ENABLED=true`, pour une ouverture non sensible que `_may_send()` autorise)
 
@@ -228,6 +241,8 @@ Chaque type d'interaction déclare sa réponse (`hitl_keyboard._HITL_TYPE_BUTTON
 Pipeline : Telegram OGG/Opus → ffmpeg (sous-processus borné, `infrastructure/media/ffmpeg.transcode`) → PCM 16 kHz mono int16 → `SherpaSttService.transcribe_pcm_int16_async()` → texte
 
 **Prérequis** : `ffmpeg` installé dans le container Docker (`apt-get install -y ffmpeg`).
+
+**Réponse vocale** : avec `users.voice_enabled` (les commentaires vocaux du chat), la réponse à une note vocale part aussi en message vocal, après le texte. La passerelle (`gateway.speak`, côté assistant : les canaux n'importent pas le domaine voix, qui importe l'assistant) lit les mots de la réponse sans marques ni adresses de liens, ses `VOICE_CHAT_MODE_MAX_SENTENCES` premières phrases, par `synthesize_user_text` (run à part, facturé à la personne, plafonds demandés) ; le MP3 part tel quel (`send_voice`, Bot API 7.3).
 
 ---
 
@@ -338,7 +353,9 @@ Chacun de ces points doit être généralisé avant qu'un second canal fonctionn
 | Où | Ce qui est câblé |
 |----|------------------|
 | `router.py` | La seule route entrante est `/telegram/webhook`. Le traitement (`process_telegram_update()`, `_dispatch_update()`, `_handle_hitl_callback()`, `_handle_otp_verification()`) construit lui-même `TelegramWebhookHandler` et `TelegramSender`, et répond par `send_text()`, une méthode de `TelegramSender` que l'interface ne déclare pas. La déduplication porte sur l'`update_id` de Telegram |
-| `inbound_handler.py` | Le rendu du texte (`markdown_to_telegram_html()`, `strip_html_cards()`), le clavier des questions (`build_hitl_keyboard()`), la voix et l'intervalle de frappe viennent du paquet Telegram ; la métrique des questions HITL est étiquetée `telegram` en dur |
+| `inbound_handler.py` | Le rendu du texte (`telegram_answer_html()`), le clavier des questions (`build_hitl_keyboard()`), la voix et l'intervalle de frappe viennent du paquet Telegram ; la métrique des questions HITL est étiquetée `telegram` en dur |
+| `commands.py`, `waiting.py` | Les commandes et les avis d'un message retenu répondent par `TelegramSender` et `get_bot_message()` ; les boutons d'un message retenu sont ceux de `waiting_keyboard.py` ; le menu des commandes est posé par `ensure_telegram_commands()` |
+| `channel_files.py`, `albums.py` | Les fichiers sont téléchargés par l'API Bot (`telegram/files.py`, plafond de 20 Mo) ; un album est un `media_group_id` |
 | `message_router.py` | Les messages du bot (`busy`, `unbound`, `error`...) sont lus par `get_bot_message()` dans `TELEGRAM_BOT_MESSAGES`, la table du formateur Telegram |
 | `abstractions.py` | `ChannelOutboundMessage.parse_mode` vaut `"HTML"` par défaut, le format de Telegram |
 | `read_projection.py`, `schemas.py` | La liste des liaisons porte un champ `telegram_bot_username` |

@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterator
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -27,6 +26,7 @@ from src.domains.agents.effects.integrity import IntegrityKind
 from src.domains.agents.effects.runtime import ClaimTicket
 from src.domains.agents.effects.scope import EffectScope, effect_scope
 from src.infrastructure.observability import metrics_effects
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -52,7 +52,7 @@ def _attended_user() -> Any:
     gate_runtime.reset_policy_cache()
     with patch(
         "src.domains.agents.context.runtime_context.runtime_context_if_running",
-        return_value=SimpleNamespace(
+        return_value=make_runtime_context(
             user_id=uuid.uuid4(),
             thread_id="thread-metrics",
             execution_mode="pipeline",

@@ -14,6 +14,7 @@ import src.domains.telephony.history_queries as hq
 import src.domains.telephony.reapers as rp
 import src.domains.telephony.router as rt
 from src.core.config import settings
+from src.core.conversation_target import ConversationOrigin
 from src.domains.telephony.models import CallKind, PhoneCallOutcome, PhoneCallStatus
 from src.domains.telephony.spend import phone_call_run_id
 from tests.helpers.notifications import ScriptedChannels, scripted_dispatcher, sse_only
@@ -42,9 +43,9 @@ async def test_stale_reaper_uses_settings_threshold(monkeypatch) -> None:
         def __init__(self, db) -> None:  # noqa: ANN001
             pass
 
-        async def recover_stale(self, timeout_minutes: int) -> int:
+        async def recover_stale(self, timeout_minutes: int) -> list[object]:
             captured["timeout"] = timeout_minutes
-            return 2
+            return []
 
     db_captured = _install_reaper_db(monkeypatch, _FakeRepo)
     await rp.telephony_stale_call_reaper()
@@ -135,6 +136,7 @@ def _pending_call(call_id=None, user_id=None):
         user_id=user_id or uuid4(),
         notification_payload={"content": "She is free Tuesday.", "title": "Call back"},
         status=SimpleNamespace(value="completed"),
+        origin=None,
     )
 
 
@@ -152,6 +154,25 @@ async def test_notification_reaper_recovers_pending(monkeypatch) -> None:
     assert [sent.run_id for sent in actions["channels"].sent] == [phone_call_run_id(call.id)]
     assert actions["delivered"] == [call.id]
     assert actions["failed"] == []
+
+
+@pytest.mark.unit
+async def test_a_recovered_return_goes_where_the_call_was_placed(monkeypatch) -> None:
+    """A crash between the claim and the dispatch never sends the return to Main."""
+    annex = uuid4()
+    call = _pending_call()
+    call.origin = ConversationOrigin(annex, 2)
+    user = SimpleNamespace(id=call.user_id, language="fr")
+    channels = ScriptedChannels(annex=annex)
+    actions = _install_notification_reaper(
+        monkeypatch, pending=[call], user=user, channels=channels
+    )
+
+    await rp.telephony_notification_reaper()
+
+    assert channels.origins == [ConversationOrigin(annex, 2)]
+    assert [sent.discussion for sent in channels.sent] == [str(annex)]
+    assert actions["delivered"] == [call.id]
 
 
 @pytest.mark.unit
@@ -304,6 +325,7 @@ async def test_list_calls_carries_no_bill_for_a_call_that_spent_nothing(
         created_at=datetime.now(UTC),
         completed_at=None,
         call_kind=CallKind.SELF,
+        origin=None,
         call_mode="direct",
         notification_payload=None,
         callee_phone="ENCRYPTED_SECRET_BLOB",

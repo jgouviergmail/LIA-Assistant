@@ -14,6 +14,9 @@ import uuid
 
 import pytest
 
+from src.core.conversation_publication import OriginPublication
+from src.core.conversation_selection import ConversationSelection
+from src.core.conversation_target import ConversationOrigin
 from src.domains.telephony.spend import phone_call_run_id
 from src.domains.voice_sessions.session import (
     VoiceCarrier,
@@ -75,3 +78,33 @@ def test_the_mode_vocabulary_is_closed() -> None:
             language="fr",
             timezone="UTC",
         )
+
+
+def _phone(conversation_id: uuid.UUID, revision: int | None) -> VoiceSession:
+    return VoiceSession.phone(
+        call_id=uuid.uuid4(),
+        mode="delegated",
+        user_id=uuid.uuid4(),
+        conversation_id=conversation_id,
+        language="fr",
+        timezone="Europe/Paris",
+        conversation_revision=revision,
+    )
+
+
+def test_a_call_returning_to_main_keeps_main_by_omission() -> None:
+    """A reset of Main between the dial and a turn must refuse nothing (2026-11-14)."""
+    main = uuid.uuid4()
+    session = _phone(main, None)
+    assert session.publication == main
+    assert session.turn_selection == ConversationSelection()
+
+
+def test_a_call_placed_from_an_annex_returns_there_by_its_generation() -> None:
+    """Its turns run in the annex and its rows are archived there while it lives."""
+    annex = uuid.uuid4()
+    session = _phone(annex, 4)
+    assert session.turn_selection == ConversationSelection(
+        conversation_id=annex, conversation_revision=4
+    )
+    assert session.publication == OriginPublication(session.user_id, ConversationOrigin(annex, 4))

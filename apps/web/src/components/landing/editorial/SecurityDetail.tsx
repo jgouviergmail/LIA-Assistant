@@ -69,7 +69,7 @@ export function SecurityDetail({ t, lng }: { t: Translate; lng: string }) {
   return (
     <div className="mt-6 border-t border-dashed border-border pt-5">
       <h4 className="text-sm font-semibold">{t('landing.security.title')}</h4>
-      <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
         {t('landing.security.intro')}
       </p>
       <ul className="mt-4 grid list-none grid-cols-1 gap-4 md:grid-cols-2">

@@ -94,7 +94,10 @@ def _calendar(items: list[dict[str, Any]]) -> Any:
     from contextlib import asynccontextmanager
 
     client = MagicMock()
-    client.list_events = AsyncMock(return_value={"items": items})
+    client.list_calendars = AsyncMock(
+        return_value={"items": [{"id": "main", "accessRole": "owner", "primary": True}]}
+    )
+    client.list_events_window = AsyncMock(return_value={"events": items, "truncated": False})
     client.close = AsyncMock()
 
     @asynccontextmanager
@@ -152,7 +155,8 @@ class TestWhatTheRegisterIsTold:
 
     async def test_an_unreadable_calendar_is_named_never_silent(self) -> None:
         client = MagicMock()
-        client.list_events = AsyncMock(side_effect=RuntimeError("provider down"))
+        client.list_calendars = AsyncMock(return_value={"items": []})
+        client.list_events_window = AsyncMock(side_effect=RuntimeError("provider down"))
 
         @asynccontextmanager
         async def _broken(_user_id: Any):

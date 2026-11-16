@@ -368,20 +368,33 @@ list_tickets_catalogue_manifest = ToolManifest(
     agent="ticket_agent",
     description=(
         "Lists what is on the user's workboard, with the EXACT total beside "
-        "the page. Filter by column, by who holds it, by priority, by what is "
-        "overdue, by category, or by a fragment of the title. Use for 'what is "
-        "on my board', 'what is overdue', 'what LIA is working on', 'Marie's "
-        "tickets', 'my tickets in Home', 'what is not categorized yet'. Each "
-        "ticket carries the name of its category."
+        "the page. Filter by column, by what is still open, by who holds it, by "
+        "priority, by what is overdue, by category, or by words of the title or "
+        "description. Use for 'what is on my board', 'my open tickets', 'what is "
+        "overdue', 'what LIA is working on', 'Marie's tickets', 'my tickets in "
+        "Home', 'what is not categorized yet'. Each ticket carries the name of its "
+        "category."
     ),
     parameters=[
         ParameterSchema(
             name="status",
             type="string",
             required=False,
-            description=f"Only this column: {_COLUMNS}.",
+            description=(
+                f"Only this ONE column: {_COLUMNS}. For every ticket still open, use "
+                "open_only instead."
+            ),
             constraints=[ParameterConstraint(kind="enum", value=_COLUMNS.split(", "))],
             semantic_type="ticket_status",
+        ),
+        ParameterSchema(
+            name="open_only",
+            type="boolean",
+            required=False,
+            description=(
+                "true keeps only the tickets still open: every column but done. Use "
+                "for 'open', 'pending' or 'not finished' tickets."
+            ),
         ),
         ParameterSchema(
             name="assignee",
@@ -413,7 +426,10 @@ list_tickets_catalogue_manifest = ToolManifest(
             name="query",
             type="string",
             required=False,
-            description="Only tickets whose title contains this fragment.",
+            description=(
+                "Only tickets mentioning EVERY word of this, each in the title or "
+                "the description, in any order: 't-shirt voile'."
+            ),
             constraints=[
                 ParameterConstraint(kind="max_length", value=settings.workboard_title_max_chars)
             ],

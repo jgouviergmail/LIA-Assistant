@@ -16,7 +16,6 @@ where a tool call happens in production, inside the recorder's ``async with``.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -25,6 +24,7 @@ import pytest
 from src.domains.agents.effects import runtime as gate_runtime
 from src.domains.agents.effects.treatments import Treatment
 from tests.agents.test_agent_service_stream_characterization import Harness, _chunk, _router
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -102,7 +102,7 @@ async def _run_turn(recorded: _Recorded, monkeypatch: pytest.MonkeyPatch) -> lis
         patch.object(gate_runtime, "resolve_policy", lambda _n: "read"),
         patch(
             "src.domains.agents.context.runtime_context.runtime_context_if_running",
-            return_value=SimpleNamespace(
+            return_value=make_runtime_context(
                 user_id="11111111-1111-4111-8111-111111111111",
                 thread_id="thread-e2e",
                 execution_mode="pipeline",

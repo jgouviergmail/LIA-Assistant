@@ -105,6 +105,8 @@ class Question:
             non-interactive answers file may leave the key out.
         env_only: Private input consumed at environment generation, never
             re-prompted when resuming database bootstrap.
+        distinct_from: Earlier answers this one must differ from, ignoring
+            case — a name one proxy serves beside the others.
     """
 
     key: str
@@ -118,6 +120,7 @@ class Question:
     message_args: tuple[tuple[str, str], ...] = ()
     optional: bool = False
     env_only: bool = False
+    distinct_from: tuple[str, ...] = ()
 
     def applies_to(self, answers: Mapping[str, Any]) -> bool:
         """Whether this question is asked given the answers so far."""
@@ -161,6 +164,12 @@ class PublicAnswers:
     # person with no search key of their own. The wizard offers it ON; an install
     # recorded before the question keeps what it runs until it is asked again.
     web_search: bool = False
+    # The instance's own ntfy server (ADR-391): the `ntfy` profile, off unless the
+    # operator asks. Its name of its own behind a proxy (None on a LAN, reached on
+    # the host), and whether iPhones are woken through ntfy.sh — a privacy choice.
+    ntfy_server: bool = False
+    ntfy_domain: str | None = None
+    ntfy_ios_relay: bool = False
 
 
 @dataclass(frozen=True)

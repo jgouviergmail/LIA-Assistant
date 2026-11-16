@@ -216,6 +216,33 @@ JEV_GATES: Mapping[JevUsage, tuple[JevGate, ...]] = MappingProxyType(
                 excluded=frozenset({"unknown"}),
             ),
         ),
+        # A property is ABSENT when p <= margin; present or undecided sends the turn to
+        # the loop (ADR-390). Held-out corpus of 2026-11-15, two draws on jev-1.14.0: a
+        # computed figure scored >= 0.88 where labelled, <= 0.52 elsewhere; a cross-check
+        # 0.87-0.98 against <= 0.42; open work >= 0.88. At these margins no case needing
+        # the loop reached the pipeline, which kept 47 of 56 simple validation cases.
+        # The fourth, someone or something only an item's text names, was added the same
+        # day after the end-to-end replay (E07). Its first validation failed (0.48, third
+        # wording); on its second round, the wording stating what each kind of item
+        # records scored >= 0.55 where labelled and <= 0.28 on plannable calibration
+        # cases, then >= 0.78 against <= 0.67 (one sender) on held-out ones, no leak.
+        JevUsage.EXECUTION_MODE: tuple(
+            JevGate(
+                key,
+                GateKind.MARGIN,
+                Decimal(margin),
+                Decimal("0.02"),
+                Decimal("0.50"),
+                GateScope.EACH,
+                key,
+            )
+            for key, margin in (
+                ("computed", "0.20"),
+                ("cross_check", "0.50"),
+                ("open_ended", "0.50"),
+                ("named_in_text", "0.48"),
+            )
+        ),
     }
 )
 

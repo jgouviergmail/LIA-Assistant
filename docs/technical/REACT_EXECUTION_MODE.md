@@ -10,12 +10,14 @@
 | 1.5 | 2026-09-24 | [ADR-310](../architecture/ADR-310-ReAct-Turn-Judged-On-Its-Result.md) |
 | 1.6 | 2026-09-24 | [ADR-311](../architecture/ADR-311-Exchange-Rhythm-Is-The-Persons-Choice.md), [ADR-309](../architecture/ADR-309-One-Prompt-Layout-For-Every-Cache-Mechanism.md) amendment |
 | 1.8 | 2026-10-22 | [ADR-362](../architecture/ADR-362-Claude-Cross-Turn-Cache-History-Read-Point-Hour-Lifetime-And-Prior-Thinking.md) |
+| 1.9 | 2026-11-15 | [ADR-390](../architecture/ADR-390-The-Automatic-Mode-Chooses-The-Engine-Per-Request.md) |
 | 1.7 | 2026-10-12 | [ADR-336](../architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md), [ADR-337](../architecture/ADR-337-Checkpointed-ReAct-Read-Segments-And-Turn-Local-Reuse.md), [ADR-338](../architecture/ADR-338-Live-MCP-Contracts-And-Exact-Callable-Identity.md) |
 
 ## Table of Contents
 
 1. [Overview](#overview)
 2. [Pipeline vs ReAct](#pipeline-vs-react)
+   - [The automatic mode](#the-automatic-mode-adr-390)
 3. [Architecture](#architecture)
 4. [Graph Wiring](#graph-wiring)
 5. [Nodes](#nodes)
@@ -38,7 +40,7 @@
 
 ReAct (Reasoning + Acting, Yao et al. 2022) is an alternative execution mode to the pipeline. Instead of planning all steps upfront then executing them, the LLM iteratively reasons about each tool result and decides the next action autonomously.
 
-The user toggles between modes via a frontend toggle (Zap icon). The preference is persisted in the `users.execution_mode` column (`"pipeline"` or `"react"`).
+The person chooses in the chat header's menu — Pipeline, ReAct or Automatic — and the choice is persisted in `users.execution_mode` (`pipeline`, `react` or `auto`); a ticket and a routine carry their own. In the automatic mode the router picks the engine for each request ([The automatic mode](#the-automatic-mode-adr-390)). A turn's ENGINE — what actually runs — is read through ONE door, `executed_mode_of(context)`, never from the stored choice.
 
 ## Pipeline vs ReAct
 
@@ -52,6 +54,16 @@ The user toggles between modes via a frontend toggle (Zap icon). The preference 
 | **Best for** | Well-structured requests, multi-domain | Exploratory, research, ambiguous queries |
 | **HITL** | Plan-level approval + draft confirmation | Tool-level interrupt + draft confirmation (shared flow) |
 | **Initiative** | Dedicated `initiative_node` (post-execution LLM evaluation) | Same `initiative_node` on the nominal path when `INITIATIVE_REACT_ENABLED` (ADR-070 amendment 2026-05-21), in addition to the in-loop CROSS-CHECK step |
+
+### The automatic mode (ADR-390)
+
+« auto » is a MODE, never an engine: the router settles the turn's engine once (`TurnEngine.settle`, first writer wins; a resumed turn keeps the engine it started in) through the pure rule `services/engine_resolution.resolve_engine`:
+
+1. the loop switched off on the instance → the pipeline (`loop_disabled`);
+2. a shape the router's analysis reads that one plan cannot finish → the loop: an act (`act`), something to do for each item (`item_wise`), a skill (`skill`), a reference to what an earlier turn showed (`reference`), a calculation over another domain (`calculation`);
+3. otherwise the request's shape is judged by the native JEV usage `execution_mode` — a figure to work out (`computed`), results to cross-check (`cross_check`), open-ended work (`open_ended`), someone or something only an item's written text names (`named_in_text`: a plan's `$steps` reference passes a field, never a name read in a description) — and the pipeline plans the turn only when all four are JUDGED ABSENT (`direct`); a property present or no judgement at all (`no_decision`) → the loop.
+
+The judgement starts beside the analysis and is cancelled when the analysis already decided; it never raises. What « auto » does on an instance is published (`auto_resolution`: `decided`, `always_react` without a decision provider, `always_pipeline` without the loop), the turn's choice is recorded (`agent_decisions.requested_mode`, `resolution_reason`) and counted (`execution_mode_resolutions_total`), and an automatic answer names its engine under the bubble (`execution_engine`). The graph's recursion bound is the loop's whenever « auto » may run it (`recursion_limit_for`). Qualification and its open gap: [ADR-390](../architecture/ADR-390-The-Automatic-Mode-Chooses-The-Engine-Per-Request.md).
 
 ## Architecture
 
@@ -113,7 +125,7 @@ graph.add_conditional_edges(
 )
 ```
 
-Routing from router: when `execution_mode == "react"` and the router classifies the query as actionable, it routes to `NODE_REACT_SETUP` instead of `NODE_PLANNER`.
+Routing from router: when the turn's engine is the loop (the person chose ReAct, or the automatic mode resolved to it — `execution_mode == "react"` in the turn's state) and the router classifies the query as actionable, it routes to `NODE_REACT_SETUP` instead of `NODE_PLANNER`.
 
 ## Nodes
 
@@ -381,7 +393,11 @@ canonical result recovered.
 
 The verified coverage also reaches final synthesis. A known requested gap suppresses
 the model's completion claim so the response can synthesize from the actual tool
-results and their limits. The evidence is compact checkpoint state rather than a
+results and their limits — which it receives: `tool_data_projection.react_handover`
+hands it the turn's registry and the reads the loop made, as the loop read them
+(failures, acts and calls that never ran apart), through the data section the
+pipeline's response already reads; a budget exit takes the same path (ADR-336
+amendment 2026-11-16). The evidence is compact checkpoint state rather than a
 duplicate payload registry. Unverified totals across pages do not prove a requested
 minimum. See
 [ADR-336](../architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md)

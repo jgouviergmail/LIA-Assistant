@@ -351,6 +351,7 @@ async def extract_memories_background(
                     query_embedding=query_embedding,
                     limit=settings.memory_dedup_search_limit,
                     min_score=settings.memory_dedup_min_score,
+                    with_vectors=False,
                 )
 
                 # Relationship enrichment search
@@ -359,6 +360,7 @@ async def extract_memories_background(
                     query_embedding=query_embedding,
                     limit=MEMORY_RELATIONSHIP_SEARCH_LIMIT,
                     min_score=MEMORY_RELATIONSHIP_MIN_SCORE,
+                    with_vectors=False,
                 )
                 known_relationships = [m.content for m, _ in relationship_results if m.content]
 

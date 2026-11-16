@@ -22,12 +22,14 @@ from src.infrastructure.async_utils import safe_fire_and_forget
 class ReleaseListener(Protocol):
     """Told once an account's graph slot has been released and committed."""
 
-    def __call__(self, owner_id: UUID, end: RunEnd) -> Awaitable[None]:
+    def __call__(self, owner_id: UUID, end: RunEnd, held: tuple[UUID, ...]) -> Awaitable[None]:
         """React to one release.
 
         Args:
             owner_id: The released account.
             end: How the releasing run ended.
+            held: The waiting messages this release held: they now leave only on
+                the person's click, and a channel tells its person so (lot 34).
         """
 
 
@@ -49,7 +51,7 @@ def release_listener_installed() -> bool:
     return _listener is not None
 
 
-def announce_release(owner_id: UUID, end: RunEnd) -> None:
+def announce_release(owner_id: UUID, end: RunEnd, held: tuple[UUID, ...] = ()) -> None:
     """Hand one committed release to the listener, outside the run that ended.
 
     The listener starts new work for the account, so it inherits no graph
@@ -58,18 +60,21 @@ def announce_release(owner_id: UUID, end: RunEnd) -> None:
     Args:
         owner_id: The released account.
         end: How the releasing run ended.
+        held: The waiting messages the release held.
     """
     listener = _listener
     if listener is None:
         return
     with run_authority_scope(None):
         safe_fire_and_forget(
-            _call(listener, owner_id, end),
+            _call(listener, owner_id, end, held),
             name="account_release_listener",
             independent_of_graph=True,
         )
 
 
-async def _call(listener: ReleaseListener, owner_id: UUID, end: RunEnd) -> None:
+async def _call(
+    listener: ReleaseListener, owner_id: UUID, end: RunEnd, held: tuple[UUID, ...]
+) -> None:
     """Await the listener's own coroutine inside the background task."""
-    await listener(owner_id, end)
+    await listener(owner_id, end, held)

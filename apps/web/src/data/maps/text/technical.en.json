@@ -76,9 +76,9 @@
     },
     "t.channels": {
       "name": "Messaging channels",
-      "role": "Talk to LIA from Telegram and receive her messages; the bot's webhook is set by the scheduler leader alone.",
+      "role": "Exchange with LIA on Telegram: formatted text, files in both directions, voice notes, confirmations and stopping a turn; only the scheduler's leader installs the bot webhook.",
       "stack": ["Telegram", "python-telegram-bot"],
-      "src": "82a0c6699dba"
+      "src": "af11d59eaa52"
     },
     "t.edge": {
       "name": "Tunnel, CSP and rate limiting",
@@ -141,9 +141,9 @@
     },
     "t.router": {
       "name": "Router",
-      "role": "Classifies the request and, from a single embedding, scores the domains for the planner and ranks every tool for ReAct.",
+      "role": "Classifies the request, chooses its engine when automatic mode is selected and, from one embedding, scores domains for the planner and ranks tools for ReAct.",
       "stack": ["Query analysis", "Pivot embedding", "Tool ranking"],
-      "src": "ffaa35f0abde"
+      "src": "caed1a3e0793"
     },
     "t.planner": {
       "name": "Planner and executor",
@@ -291,9 +291,9 @@
     },
     "t.push": {
       "name": "Push notifications",
-      "role": "Reach a browser or a phone; on iOS, a relay carries only an opaque identifier and a contentless sentence.",
-      "stack": ["Firebase Cloud Messaging", "iOS wake relay", "Web Push"],
-      "src": "aa10ca425769"
+      "role": "Reach a browser or a phone, with or without Google services; on iOS, a relay carries only an opaque identifier and a contentless sentence.",
+      "stack": ["Firebase Cloud Messaging", "iOS wake relay", "Web Push", "ntfy"],
+      "src": "8dab9d58d4e3"
     },
     "t.scheduler": {
       "name": "Single-leader scheduler",

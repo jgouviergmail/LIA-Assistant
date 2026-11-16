@@ -137,6 +137,57 @@ services:
           cpus: '0.05'
           memory: 96M
 
+  # The instance's own ntfy server (ADR-391), as docker-compose.prod.yml runs it
+  # (see there): opt-in, `docker compose -f docker-compose.dev.yml --profile ntfy
+  # up -d ntfy` with NTFY_* set in .env (.env.example says how). Its own variables
+  # alone reach it, never LIA's `.env`.
+  ntfy:
+    image: binwiederhier/ntfy:v2.37.2@sha256:1875ddcf815c8a3c981d6d78c67a93452d0abba79b1ab9520b1f5f5238902bd7
+    container_name: lia-ntfy-dev
+    profiles: ["ntfy"]
+    command: ["serve"]
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - NTFY_BASE_URL=${NTFY_PUBLIC_URL:-}
+      - NTFY_BEHIND_PROXY=${NTFY_BEHIND_PROXY:-false}
+      - NTFY_UPSTREAM_BASE_URL=${NTFY_UPSTREAM_BASE_URL:-}
+      - NTFY_CACHE_FILE=/var/lib/ntfy/cache.db
+      - NTFY_AUTH_FILE=/var/lib/ntfy/user.db
+      - NTFY_AUTH_DEFAULT_ACCESS=deny-all
+      # `$$` is a literal `$`: the bcrypt prefix, then the generated characters.
+      - NTFY_AUTH_USERS=lia:$$2a$$10$$${NTFY_ACCOUNT_HASH:-}:user
+      - NTFY_AUTH_TOKENS=lia:${NTFY_PUBLISH_TOKEN:-}:LIA
+      - NTFY_AUTH_ACCESS=lia:lia_*:wo,*:lia_*:ro
+      - NTFY_ENABLE_LOGIN=false
+      - NTFY_ENABLE_SIGNUP=false
+      - NTFY_VISITOR_REQUEST_LIMIT_BURST=300
+      - NTFY_VISITOR_REQUEST_LIMIT_REPLENISH=1s
+    volumes:
+      - ntfy_data:/var/lib/ntfy
+    ports:
+      - "127.0.0.1:2586:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:80/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M  # measured ~17M after a burst of 150 publications
+        reservations:
+          cpus: '0.05'
+          memory: 16M
+
   # SSL Certificate Generator (runs at every start; the certificate is KEPT
   # while it is valid past SSL_RENEW_BEFORE_DAYS, covers SSL_DOMAIN and matches
   # its key — a renewal is what breaks a browser's trust, so it happens only
@@ -995,6 +1046,7 @@ volumes:
   minio_data:
   attachments_data:  # Persistent storage for file attachments (images, PDF)
   meetings_data:  # Meeting recordings (ADR-258): segments, normalized audio, kept audio
+  ntfy_data:  # The instance's ntfy server (ADR-391): its account file and message cache
   # ADR-298 — the egress proxy's three volumes. `name:` is explicit on each:
   # the API mounts the CA into every sandbox with a raw `docker run -v`, which
   # cannot see a Compose-prefixed volume name.

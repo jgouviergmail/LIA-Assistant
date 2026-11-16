@@ -266,9 +266,8 @@ def refresh_for_each_scope_claims(
     is a claim — exact, or absent).
 
     Deliberately touches CLAIMS only (reason, risk_level, is_mutation,
-    ``item_count`` stamp): membership of the HITL list was settled before
-    pre-execution and is never revisited here — a step whose measured count
-    falls below every threshold still asks, it just stops overstating.
+    ``item_count`` stamp): membership of the HITL list is decided again, on the
+    same measured counts, by :func:`still_requiring_approval`.
 
     Args:
         for_each_steps: The step dicts persisted in the HITL context (mutated
@@ -294,6 +293,84 @@ def refresh_for_each_scope_claims(
         step["is_mutation"] = scope.is_mutation
         step["risk_level"] = scope.risk_level.value
         step["reason"] = scope.reason
+
+
+def still_requiring_approval(
+    for_each_steps: list[dict[str, Any]],
+    item_counts: dict[str, int],
+) -> list[dict[str, Any]]:
+    """The steps whose MEASURED count still requires the person's approval.
+
+    Membership is decided before pre-execution, on the cap (``for_each_max``),
+    the only number known then. Measured 2026-11-15 (ADR-390 qualification, E13):
+    five tickets read one by one asked a « bulk operation » confirmation decided
+    on a cap of ten, while the published rule asks a READ for approval only from
+    ``for_each_warning_threshold`` items. Once the providers ran, the same rule
+    (``detect_for_each_scope``) decides again on the real count. A step nothing
+    measured keeps the decision its cap made, and so does a zero count, which
+    the orchestrator's « nothing to confirm » path handles.
+
+    Args:
+        for_each_steps: The steps the cap put on the approval list.
+        item_counts: Measured items per ``for_each`` source reference.
+
+    Returns:
+        The steps still to confirm, in their order.
+    """
+    from src.domains.agents.services.hitl.scope_detector import detect_for_each_scope
+
+    kept: list[dict[str, Any]] = []
+    for step in for_each_steps:
+        measured = item_counts.get(str(step.get("for_each_source")))
+        if isinstance(measured, int) and measured > 0:
+            scope = detect_for_each_scope(
+                iteration_count=measured,
+                tool_name=str(step.get("tool_name") or ""),
+                is_mutation=False,  # Auto-detected from tool_name
+                for_each_max=int(step.get("for_each_max") or 0) or measured,
+            )
+            if not scope.requires_approval:
+                continue
+        kept.append(step)
+    return kept
+
+
+def affected_count(for_each_steps: list[dict[str, Any]], item_counts: dict[str, int]) -> int:
+    """The items the approval question covers: its steps' measured sources, or their caps.
+
+    Args:
+        for_each_steps: The steps still to confirm.
+        item_counts: Measured items per ``for_each`` source reference.
+
+    Returns:
+        The measured items of those steps' sources; their caps when none was
+        measured; ``0`` when no step is left to confirm.
+    """
+    sources = {str(step.get("for_each_source")) for step in for_each_steps}
+    measured = [count for source, count in item_counts.items() if source in sources]
+    if measured:
+        return sum(measured)
+    return sum(int(step.get("for_each_max") or 0) for step in for_each_steps)
+
+
+def confirmed_hitl_steps(
+    ctx: dict[str, Any], for_each_steps: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """On a resumed approval, the plan's list narrowed to the steps the person confirmed.
+
+    The resume rebuilds the list from the caps, while the context persisted the
+    steps the MEASURED counts left to confirm (:func:`still_requiring_approval`);
+    the approved selection is checked against the steps it was given for.
+
+    Args:
+        ctx: The persisted FOR_EACH approval context.
+        for_each_steps: The list the plan's caps put on the approval list.
+
+    Returns:
+        Those of the steps the context names, in the plan's order.
+    """
+    confirmed = {step.get("step_id") for step in ctx.get("steps") or []}
+    return [step for step in for_each_steps if step.get("step_id") in confirmed]
 
 
 def _append_preview_index(indices: list[int] | None, index: int) -> None:

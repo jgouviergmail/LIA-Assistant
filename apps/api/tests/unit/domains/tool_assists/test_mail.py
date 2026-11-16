@@ -48,17 +48,22 @@ DIGEST = {
 
 
 class _Client:
-    """The provider: counts its reads."""
+    """The provider: counts its reads, and holds the message's HTML when it has one."""
 
     def __init__(self, raw: dict[str, Any]) -> None:
         self.raw = raw
         self.reads = 0
+        self.html: str | None = None
 
     async def get_message(self, message_id: str, *, use_cache: bool) -> dict[str, Any]:
         assert message_id == MESSAGE_ID
         assert use_cache is False
         self.reads += 1
         return self.raw
+
+    async def get_message_html(self, message_id: str) -> str | None:
+        assert message_id == MESSAGE_ID
+        return self.html
 
 
 class _Opened:
@@ -167,6 +172,66 @@ async def test_what_a_digest_could_not_do_is_a_refusal_never_an_empty_summary(
     assert refused.value.detail["code"] == code
 
 
+#: A mailer's layout, and the text part it wrote beside it: nothing of what the page shows.
+LAYOUT = (
+    "<html><body><h1>Budget 2027</h1>"
+    "<p>Send it before <b>Friday 21 November</b>.</p></body></html>"
+)
+TEXT_PART = "View this message in a browser."
+
+
+async def test_a_summary_is_condensed_from_the_original_layout_s_words(
+    client: _Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _no_cache(monkeypatch)
+    calls = _digest_stamps(monkeypatch, "computed")
+    client.raw["body"], client.html = TEXT_PART, LAYOUT
+
+    await summarize_message(_run(), MESSAGE_ID)
+
+    (email,) = calls[0]["emails"]
+    assert "Send it before Friday 21 November." in email["body"]
+    assert TEXT_PART not in email["body"]
+    assert client.raw["body"] == TEXT_PART, "the mailbox's own message is never rewritten"
+
+
+async def test_a_reply_answers_the_original_layout_s_words(
+    client: _Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: dict[str, Any] = {}
+
+    async def write(original: dict[str, Any], **fields: Any) -> str:
+        seen["original"] = original
+        return "Here it is."
+
+    monkeypatch.setattr(mail, "draft_reply_body", write)
+    client.raw["body"], client.html = TEXT_PART, LAYOUT
+
+    await propose_reply(_run(), MESSAGE_ID, None, None)
+
+    assert "Budget 2027" in seen["original"]["body"]
+    assert seen["original"]["subject"] == "Budget", "the rest of the message is the mailbox's"
+
+
+async def test_a_translation_translates_the_original_layout_s_words(
+    client: _Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: dict[str, str] = {}
+
+    async def translate(run: AssistRun, text: str, language: str) -> str:
+        seen["text"] = text
+        return "Budget 2027"
+
+    monkeypatch.setattr(mail, "translate_text", translate)
+    client.raw["body"], client.html = TEXT_PART, LAYOUT
+
+    await translate_message(_run(), MESSAGE_ID)
+
+    assert "Send it before Friday 21 November." in seen["text"]
+    assert TEXT_PART not in seen["text"]
+    assert "<b>" not in seen["text"]
+
+
 def test_every_mail_provider_has_the_word_the_digest_cache_is_keyed_on() -> None:
     assert set(PROVIDER_WORDS) == set(TOOL_PROVIDERS[WorkbenchTool.MAIL])
 
@@ -192,8 +257,8 @@ async def test_a_reply_is_written_from_the_message_read_and_the_person_s_instruc
     assert seen["user_language"] == "fr"
     assert seen["user_id"] == str(run.user_id)
     assert seen["config"] is run.config
-    # Should the person's writing style have to be learned, the assist files that read.
-    assert seen["style_reading"] == run.reading
+    # The person's voice is read, never learned while writing (ADR-383).
+    assert "style_reading" not in seen
     assert run.opened is True
 
 
@@ -248,9 +313,10 @@ async def test_a_whole_message_is_the_assistant_s_writer_on_the_person_s_words(
     assert seen["language"] == "fr"
     assert seen["sender_name"] == "Jean"
     assert seen["config"] is run.config
-    # The letter follows how the person writes (ADR-383), learned on this run if need be.
+    # The letter follows how the person writes (ADR-383): read, never learned here.
     assert seen["user_id"] == str(run.user_id)
-    assert seen["style_reading"] == run.reading
+    assert "style_reading" not in seen
+    assert run.opened is False
 
 
 async def test_a_message_with_no_words_is_a_failure(monkeypatch: pytest.MonkeyPatch) -> None:

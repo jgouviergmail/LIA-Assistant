@@ -242,6 +242,10 @@ DECISION_EXPORTED_COLUMNS: tuple[str, ...] = (
     "thread_id",
     "source",
     "execution_mode",
+    # What was asked and why the router chose the engine (ADR-390): bounded
+    # vocabularies, no content.
+    "requested_mode",
+    "resolution_reason",
     "route",
     "plan_step_count",
     "request_message_id",

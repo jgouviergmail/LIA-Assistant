@@ -288,3 +288,41 @@ observed gaps) ended `still_unresolved` on four dev turns of four and on 14 of
 21 production turns in seven days, two model calls each; and the initiative
 node runs before the response node, five to eight seconds ahead of the first
 token.
+
+## Amendment 2026-11-15 — the planner catalogue seats its tools by relevance
+
+Decision 4 left the planner catalogue as it was. Its assembly kept, in a smaller
+room, the defect decision 1 removed from the loop: both catalogue strategies
+(normal and panic) group the detected domains' tools by domain, give every
+domain ONE seat, its first tool, then fill the remaining seats domain by domain
+up to `planner_catalogue_max_tools` — and each domain's list was in
+REGISTRATION order. A domain was seated by whichever of its tools was registered
+first, and the cap cut by position.
+
+Measured during the qualification of the automatic mode
+([ADR-390](ADR-390-The-Automatic-Mode-Chooses-The-Engine-Per-Request.md), E06,
+« what day must I return the books to the library, and what weather that
+day? »), on the planner's own prompt captured during a pipeline turn on the
+proof account: five domains for ten seats; the reminder domain was seated by
+`create_reminder_tool` (calibrated score 0.001) while `list_reminders_tool`
+(0.004, the only tool able to answer) fell under the cap behind four weather
+tools; offered no reader of reminders, the planner read the tasks, which no
+connector served.
+
+**Decision.** ONE door for both strategies, `catalogue/seats.py::seat_tools`:
+within a domain the tools are taken by descending calibrated score — the
+router's scores, already paid for (decision 1) — the head of each domain takes
+its seat and the rest fill under the cap. A tie, or a turn the selector did not
+score (no English pivot, selector down), keeps registration order (a stable
+sort), so such a turn is seated exactly as before. The domains keep the
+analyzer's order: which domain is seated, and filled, first is unchanged. Panic
+mode still applies no threshold; its scores now order its seats too (its
+docstring, which claimed a delegation to the normal strategy it only makes
+once panic mode was spent, is corrected). No tool name and no domain name
+enters the rule.
+
+Proven on a unit reproduction of the turn's shape
+(`test_domain_coverage.py::TestADomainSeatGoesToItsMostRelevantTool`, panic in
+`test_panic_filtering.py`) and on the live prompt: the same request's catalogue
+now seats `list_reminders_tool`. What the planner then plans with it is
+ADR-390's qualification.

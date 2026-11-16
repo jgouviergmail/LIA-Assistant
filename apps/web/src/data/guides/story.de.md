@@ -4,7 +4,7 @@
 
 **Version**: 3.0
 **Datum**: 2026-11-14
-**Anwendung**: LIA v5.0.0
+**Anwendung**: LIA v5.1.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Fast der gesamte Code wurde von einer KI geschrieben. Meine Arbeit bestand darin
 | Indikator | Wert |
 | --- | --- |
 | Code, geschrieben von einer KI, die geführt, in einen Rahmen eingebunden und kontrolliert wurde | **≈ 100 %** |
-| Quellcodezeilen (ohne Tests), verteilt auf rund sechzig Backend-Domänenpakete | **1.219.354** |
-| Inventarisierte automatisierte Tests, in Suiten passend zu Commit und Release | **87.496** |
-| Dokumentierte Architekturentscheidungen (ADR) | **386** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **297** |
+| Quellcodezeilen (ohne Tests), verteilt auf rund sechzig Backend-Domänenpakete | **1.238.134** |
+| Inventarisierte automatisierte Tests, in Suiten passend zu Commit und Release | **89.335** |
+| Dokumentierte Architekturentscheidungen (ADR) | **389** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **298** |
 | Sprachen, mit automatisch geprüfter Parität | **6** |
 | Technisches Audit über 24 Bereiche | **7,9/10** |
 
@@ -64,11 +64,11 @@ Die gemeinsame Welt gibt der Assistentin Orte: eine Bibliothek für das Wissen, 
 
 Ein Assistent sollte auch Raum lassen, Dinge selbst zu erledigen. Werkzeuge nutzt dieselben verbundenen Dienste, doch was man dort von Hand tut, ruft kein Modell auf und zählt nicht als LIAs Handlung; worum ein Klick sie bittet, bleibt ein Vorschlag, nachverfolgt und dem berechnet, der darum gebeten hat. Delegation und direkte Kontrolle können eine Oberfläche teilen, solange erkennbar bleibt, wer entschieden, wer gehandelt und was genehmigt wurde.
 
-Hier sind drei strukturelle Entscheidungen, unter den 386 dokumentierten.
+Hier sind drei strukturelle Entscheidungen, unter den 389 dokumentierten.
 
 Die erste betrifft die **Souveränität**: Ich wollte keine irreversible Abhängigkeit von einem Anbieter. Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity und lokale Modelle über Ollama) laufen alle über dieselbe Abstraktion, sodass sich für jeden Einsatzzweck der Anbieter per einfacher Konfiguration wechseln lässt, mit Kostenvergleich. Bei den Diensten sind Google, Apple und Microsoft in jeder Kategorie austauschbar, ob E-Mail, Kalender oder Kontakte. Selbsthosting gibt die Kontrolle über den Server: Die Kontodaten liegen auf der Instanz, und die Zugangsdaten der Konnektoren sind verschlüsselt. Die externen Dienste, die die Person wählt, erhalten trotzdem die Daten, die sie für ihren Teil der Anfrage brauchen.
 
-Die zweite betrifft die **Ökonomie**: Ich habe die Kosten jeder Anfrage als Designkriterium behandelt. Zwei Ausführungsmodi bestehen nebeneinander. Eine deterministische, sparsame Pipeline bearbeitet die alltäglichen Anfragen, ein autonomer Agent übernimmt die explorativen. In Standardfällen, bei gleichwertiger Leistung, liegt der gemessene Verbrauchsunterschied bei 1 zu 4-8. Jeder Aufruf wird pro Token gezählt, in Euro bewertet, pro Nutzer und Modell aggregiert und Kontingenten unterworfen.
+Die zweite betrifft die **Ökonomie**: Ich habe die Kosten jeder Anfrage als Designkriterium behandelt. Ich lasse die Wahl zwischen zwei Abläufen, mit einem automatischen Modus, der für jede Anfrage einen auswählt. Eine deterministische, sparsame Pipeline bearbeitet die alltäglichen Anfragen, ein autonomer Agent übernimmt die explorativen. In Standardfällen, bei gleichwertiger Leistung, liegt der gemessene Verbrauchsunterschied bei 1 zu 4-8. Jeder Aufruf wird pro Token gezählt, in Euro bewertet, pro Nutzer und Modell aggregiert und Kontingenten unterworfen.
 
 Auch bei den Kosten kommt es auf die Details an: Eine Benachrichtigung von zwei Sätzen wird ohne Denkphase angefordert, weil ein Modell, das von Haus aus nachdenkt, sein Nachdenken im Budget seiner Antwort abrechnet. Standardmäßig nimmt der autonome Agent nur die Werkzeuge mit, die die Frage verlangt, nach Relevanz gewählt und nicht in der Reihenfolge ihres Eintreffens: Achtzig Werkzeugbeschreibungen machten den Großteil seines ersten Aufrufs aus, ohne gezählt zu werden. Schließlich wird jeder Aufruf zu dem Preis bewertet, den der Anbieter tatsächlich berechnet, mit Tarifen, die auf seinen Seiten nachgelesen wurden, mit dem echten Preis für das Schreiben in den Cache und mit den Nebenzeittarifen je nach Wochentag.
 

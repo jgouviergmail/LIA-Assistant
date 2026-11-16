@@ -56,8 +56,8 @@ async def test_a_letter_reads_the_style_before_the_language_rule() -> None:
     prompt = seen["prompt"]
     assert prompt.index("signs « Seb »") < prompt.index("LANGUAGE:")
     assert "in place of rules 3, 4 and 5" in prompt
-    assert seen["style"].args == ("user-1",)
-    assert seen["style"].kwargs["config"] is seen["config"]
+    # A read of the account's style, nothing learned while writing (ADR-383).
+    assert seen["style"].args == ("user-1",) and seen["style"].kwargs == {}
 
 
 async def test_without_a_style_the_prompt_is_what_it_was() -> None:

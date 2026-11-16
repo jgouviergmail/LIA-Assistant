@@ -34,6 +34,7 @@ from src.infrastructure.mcp.tool_adapter import MCPToolAdapter
 from src.infrastructure.mcp.user_context import _register_user_iterative_server
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 from tests.helpers.mcp_access import installed_shared_mcp_access
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -93,7 +94,7 @@ def _turn(monkeypatch: pytest.MonkeyPatch) -> Iterator[_UniqueKeyLedger]:
         installed_shared_mcp_access() as actor,
         patch(
             "src.domains.agents.context.runtime_context.runtime_context_if_running",
-            return_value=SimpleNamespace(
+            return_value=make_runtime_context(
                 user_id=actor.id,
                 thread_id="thread-replay",
                 execution_mode="pipeline",
@@ -231,7 +232,7 @@ class TestTheDraftExecutorTellsWhatHappened:
         ctx, personal = _personal()
         token = user_mcp_tools_ctx.set(ctx)
         offered = request_tool_manifests_ctx.set(list(ctx.tool_manifests))
-        run = SimpleNamespace(
+        run = make_runtime_context(
             user_id=uuid.uuid4(),
             thread_id="thread-replay",
             execution_mode="pipeline",

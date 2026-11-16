@@ -18,6 +18,7 @@ import pytest
 
 from src.domains.connectors.active_client import ClientUnavailable
 from src.domains.connectors.calendar_access import CalendarAccess
+from src.domains.telephony import availability as availability_module
 from src.domains.telephony.availability import build_availability, summarize_busy_periods
 
 # A timed event and an all-day event, each carrying detail fields that MUST NOT
@@ -80,35 +81,86 @@ def test_event_without_start_is_skipped() -> None:
 
 
 class _FakeCalendarClient:
-    """Minimal calendar client: records the list_events kwargs, returns _EVENTS."""
+    """A client without freeBusy (CalDAV: its listing names no role).
 
-    def __init__(self) -> None:
-        self.last_kwargs: dict = {}
+    Each calendar answers its own events; every window read is recorded.
+    """
 
-    async def list_events(self, **kwargs: object) -> dict:
-        self.last_kwargs = kwargs
-        return {"items": _EVENTS}
+    def __init__(
+        self,
+        calendars: dict[str, list[dict]] | None = None,
+        *,
+        truncated: bool = False,
+    ) -> None:
+        self.calendars = {"home": _EVENTS} if calendars is None else calendars
+        self.windows: list[tuple[str, str, str]] = []
+        self.last_bound: int | None = None
+        self.last_fields: list[str] | None = None
+        self.truncated = truncated
+
+    async def list_calendars(self, max_results: int = 100, show_hidden: bool = False) -> dict:
+        listed = [{"id": key, "primary": index == 0} for index, key in enumerate(self.calendars)]
+        return {"items": listed, "truncated": False}
+
+    async def list_events_window(
+        self,
+        calendar_id: str,
+        time_min: str,
+        time_max: str,
+        *,
+        bound: int,
+        fields: list[str] | None = None,
+    ) -> dict:
+        self.windows.append((calendar_id, time_min, time_max))
+        self.last_bound = bound
+        self.last_fields = fields
+        return {"events": self.calendars.get(calendar_id, []), "truncated": self.truncated}
+
+
+#: The account's main calendar, under the id Google lists it by.
+_MAIN = "moi@x.com"
+_NINE_TO_HALF_TEN = {"start": "2026-07-15T09:00:00+02:00", "end": "2026-07-15T10:30:00+02:00"}
 
 
 class _FakeFreeBusyClient:
-    """Calendar client exposing freeBusy: the fast-path must be preferred."""
+    """Calendar client exposing freeBusy: the fast-path must be preferred.
 
-    def __init__(self) -> None:
-        self.freebusy_called = False
+    It lists its calendars and echoes every calendar freeBusy is asked about,
+    as Google does — an unreadable one with ``errors`` and no busy block.
+    """
+
+    def __init__(
+        self,
+        busy: dict[str, list[dict]] | None = None,
+        *,
+        listing: list[dict] | None = None,
+        errors: tuple[str, ...] = (),
+    ) -> None:
+        self.busy = {_MAIN: [_NINE_TO_HALF_TEN]} if busy is None else busy
+        self.listing = (
+            [{"id": key, "accessRole": "owner", "primary": key == _MAIN} for key in self.busy]
+            if listing is None
+            else listing
+        )
+        self.errors = errors
+        self.asked: list[str] = []
         self.list_events_called = False
 
-    async def query_freebusy(self, **kwargs: object) -> dict:
-        self.freebusy_called = True
+    async def list_calendars(self, max_results: int = 100, show_hidden: bool = False) -> dict:
+        return {"items": self.listing, "truncated": False}
+
+    async def query_freebusy(
+        self, *, time_min: str, time_max: str, calendar_ids: list[str]
+    ) -> dict:
+        self.asked = list(calendar_ids)
         return {
             "calendars": {
-                "primary": {
-                    "busy": [
-                        {
-                            "start": "2026-07-15T09:00:00+02:00",
-                            "end": "2026-07-15T10:30:00+02:00",
-                        }
-                    ]
-                }
+                calendar_id: (
+                    {"errors": [{"reason": "notFound"}], "busy": []}
+                    if calendar_id in self.errors
+                    else {"busy": self.busy.get(calendar_id, [])}
+                )
+                for calendar_id in calendar_ids
             }
         }
 
@@ -129,8 +181,8 @@ def _door(opened: object) -> object:
     return _open
 
 
-def _access(client: object) -> CalendarAccess:
-    return CalendarAccess(client=client, calendar_id="primary", connector_type="google_calendar")
+def _access(client: object, default: str = "primary") -> CalendarAccess:
+    return CalendarAccess(client=client, calendar_id=default, connector_type="google_calendar")
 
 
 async def _read(monkeypatch: pytest.MonkeyPatch, opened: object, language: str = "fr"):
@@ -147,17 +199,34 @@ async def _read(monkeypatch: pytest.MonkeyPatch, opened: object, language: str =
 
 
 @pytest.mark.unit
-async def test_build_requests_only_start_end_and_projects(
+async def test_build_reads_the_whole_window_and_projects_busy_blocks_only(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The read asks the provider for start/end only and projects busy blocks."""
+    """Without freeBusy, every event of the window is read; only busy ranges are said."""
     fake_client = _FakeCalendarClient()
     read = await _read(monkeypatch, _access(fake_client))
 
-    assert fake_client.last_kwargs.get("fields") == ["start", "end"]
-    assert fake_client.last_kwargs.get("calendar_id") == "primary"
+    # ``primary`` names the main calendar the listing has: read under its own id.
+    ((calendar_id, time_min, time_max),) = fake_client.windows
+    assert calendar_id == "home"
+    assert time_min.startswith("2026-07-14")
+    assert time_max.startswith("2026-07-21")
+    assert fake_client.last_bound == availability_module._MAX_EVENTS
+    # Minimization by capability: start and end alone are asked for.
+    assert fake_client.last_fields == ["start", "end"]
     assert "09:00" in read.summary and _SECRET_TITLE not in read.summary
     assert (read.opened, read.failed) == (True, False)
+
+
+@pytest.mark.unit
+async def test_a_window_read_in_part_is_said_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A cut busy list would tell the voice a booked hour is free: never a guess."""
+    read = await _read(monkeypatch, _access(_FakeCalendarClient(truncated=True)))
+
+    assert read.summary.startswith("Disponibilités indisponibles")
+    assert (read.opened, read.failed) == (True, True)
 
 
 @pytest.mark.unit
@@ -183,6 +252,54 @@ async def test_build_prefers_freebusy_when_available(monkeypatch: pytest.MonkeyP
     fake_client = _FakeFreeBusyClient()
     read = await _read(monkeypatch, _access(fake_client))
 
-    assert fake_client.freebusy_called is True
+    assert fake_client.asked == [_MAIN]
     assert fake_client.list_events_called is False
     assert "09:00" in read.summary
+
+
+@pytest.mark.unit
+async def test_a_meeting_in_the_main_calendar_is_busy_for_the_voice(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The default says where events are created: an invitation sits in the main one."""
+    fake_client = _FakeFreeBusyClient(
+        {_MAIN: [_NINE_TO_HALF_TEN], "famille": []},
+        listing=[
+            {"id": _MAIN, "accessRole": "owner", "primary": True},
+            {"id": "famille", "accessRole": "owner"},
+            {"id": "collegue@x.com", "accessRole": "reader"},
+        ],
+    )
+    read = await _read(monkeypatch, _access(fake_client, "famille"))
+
+    assert fake_client.asked == ["famille", _MAIN]
+    assert "09:00" in read.summary
+    assert (read.opened, read.failed) == (True, False)
+
+
+@pytest.mark.unit
+async def test_a_calendar_google_could_not_read_is_said_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unreadable calendar comes back with no busy block: never a free hour."""
+    fake_client = _FakeFreeBusyClient({_MAIN: [], "famille": []}, errors=(_MAIN,))
+    read = await _read(monkeypatch, _access(fake_client, "famille"))
+
+    assert read.summary.startswith("Disponibilités indisponibles")
+    assert (read.opened, read.failed) == (True, True)
+
+
+@pytest.mark.unit
+async def test_two_calendars_holding_one_meeting_say_it_once_and_in_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    later = {
+        "start": {"dateTime": "2026-07-16T15:00:00+02:00"},
+        "end": {"dateTime": "2026-07-16T16:00:00+02:00"},
+    }
+    fake_client = _FakeCalendarClient({"home": [later, _EVENTS[0]], "work": [_EVENTS[0]]})
+    read = await _read(monkeypatch, _access(fake_client), language="en")
+
+    lines = read.summary.splitlines()[1:]
+    assert len(lines) == 2
+    assert "09:00" in lines[0] and "15:00" in lines[1]

@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
+    from src.core.conversation_target import ConversationOrigin
     from src.domains.users.models import User
     from src.infrastructure.proactive.notification import (
         NotificationDispatcher,
@@ -49,6 +50,7 @@ async def dispatch_call_notification(
     db: AsyncSession,
     require_durable: bool = False,
     push_enabled: bool = True,
+    origin: ConversationOrigin | None = None,
 ) -> NotificationResult:
     """Dispatch a call's notification under the call's own run id.
 
@@ -62,6 +64,8 @@ async def dispatch_call_notification(
         db: The caller's session.
         require_durable: Raise unless a durable channel took it (AC-003).
         push_enabled: Whether the push channels run.
+        origin: The discussion the call was placed from: its return goes
+            there while that generation lives, else to Main.
 
     Returns:
         What the dispatch reached.
@@ -77,6 +81,7 @@ async def dispatch_call_notification(
         run_id=phone_call_run_id(call_id),
         push_enabled=push_enabled,
         require_durable=require_durable,
+        origin=origin,
     )
 
 

@@ -37,6 +37,7 @@ from src.domains.shared.mcp_preapproval import (
 from src.infrastructure.mcp.user_context import _build_user_tool_manifest
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 from tests.helpers.mcp_access import installed_shared_mcp_access
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -55,7 +56,7 @@ def _routine_run() -> Iterator[None]:
         installed_shared_mcp_access() as actor,
         patch(
             "src.domains.agents.context.runtime_context.runtime_context_if_running",
-            return_value=SimpleNamespace(
+            return_value=make_runtime_context(
                 user_id=actor.id,
                 thread_id="thread-routine",
                 execution_mode="pipeline",

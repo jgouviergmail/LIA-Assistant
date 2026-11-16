@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 
 from src.core.config import settings
 from src.core.constants import RECURRENCE_REMINDER_LIMITS
+from src.core.date_contract import ISO_MOMENT_DESCRIPTION
 from src.domains.agents.registry.catalogue import (
     AgentManifest,
     CostProfile,
@@ -182,16 +183,37 @@ create_reminder_catalogue_manifest = ToolManifest(
 # Tool Manifest: list_reminders_tool
 # =============================================================================
 
+#: ONE text for the planner's manifest and the ReAct ``@tool`` schema (ADR-310).
+#: « That day » of a deadline a plan read: the instant stands for its local day.
+#: ONE day, never a span cut into days: measured 2026-11-15 (E05), « the next three
+#: days » became one call per day, today and the two following, and the reminder
+#: three days ahead was never read; the soonest-first page reads a span whole.
+ON_DAY_DESCRIPTION = (
+    "Only the reminders that fire on ONE day, in the user's timezone. "
+    f"{ISO_MOMENT_DESCRIPTION} An instant (a ticket's due_at, an event's start) stands "
+    "for the local day it falls on. Leave it out for a span of several days: the "
+    "pending reminders come soonest first."
+)
+
 list_reminders_catalogue_manifest = ToolManifest(
     name="list_reminders_tool",
     agent="reminder_agent",
     description=(
         "Lists a compact, source-bounded page of the user's pending reminders, "
-        "sorted by trigger time ascending. This page is not notification history "
+        "sorted by trigger time ascending, or every pending reminder that fires on "
+        "one day (`on_day`). This page is not notification history "
         "and must not be called exhaustive. For full management settings and "
         "continuation use get_lia_reminders_tool."
     ),
-    parameters=[],  # No parameters needed
+    parameters=[
+        ParameterSchema(
+            name="on_day",
+            type="string",
+            required=False,
+            description=ON_DAY_DESCRIPTION,
+            semantic_type="datetime",
+        ),
+    ],
     outputs=[
         OutputFieldSchema(
             path="reminders",

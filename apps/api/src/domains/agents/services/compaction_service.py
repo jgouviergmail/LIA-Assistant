@@ -22,9 +22,10 @@ import asyncio
 import json
 import re
 import time
-from dataclasses import dataclass
-from datetime import tzinfo
-from typing import TYPE_CHECKING, Literal
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from datetime import datetime, tzinfo
+from typing import TYPE_CHECKING, Any, Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
@@ -39,6 +40,7 @@ from tenacity import (
 from src.core.config import settings
 from src.core.constants import (
     COMPACTION_EXTERNAL_PROVENANCE_BANNER,
+    COMPACTION_PERSON_WORDS_KEY,
     COMPACTION_SUMMARY_MARKER,
     COMPACTION_TOOL_OUTPUT_TRUNCATE_CHARS_DEFAULT,
     EXTERNAL_CONTENT_CLOSE_TAG,
@@ -62,6 +64,8 @@ from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metada
 from src.infrastructure.llm.message_view import (
     content_for_model,
     model_view_content,
+    stamped_now,
+    written_at,
     written_prefix,
 )
 from src.infrastructure.llm.usage_metadata import tokens_from_response
@@ -174,6 +178,81 @@ CompactionStrategy = Literal[
 ]
 
 
+def compactable_messages(messages: list[BaseMessage], preserve_recent_n: int) -> list[BaseMessage]:
+    """The messages a compaction summarises: every non-system one before the kept tail.
+
+    The tail keeps at least ``preserve_recent_n`` messages and begins on the person's
+    message of the exchange it would otherwise cut (lot 16): cut after the person's
+    request and before LIA's answer, the summary read the request as unanswered and
+    the next model read an answer without its question (measured 2026-11-15). One
+    rule for the summary, the messages the node removes, the truncation fallback and
+    the replay of a turn the model's window refused (lot 15).
+
+    Args:
+        messages: The conversation.
+        preserve_recent_n: How many recent non-system messages stay intact, at least.
+
+    Returns:
+        The messages to summarise, oldest first; empty when the tail keeps them all,
+        when no tail is kept at all, or when no person's message can begin one.
+    """
+    non_system = [m for m in messages if not isinstance(m, SystemMessage)]
+    if preserve_recent_n < 1 or len(non_system) <= preserve_recent_n:
+        return []
+    cut = len(non_system) - preserve_recent_n
+    while cut > 0 and not isinstance(non_system[cut], HumanMessage):
+        cut -= 1
+    return non_system[:cut]
+
+
+#: One quote of the person: the instant they wrote it, and the words.
+PersonWords = dict[str, str]
+
+
+def person_words(messages: list[BaseMessage]) -> list[PersonWords]:
+    """What the person wrote among these messages, oldest first.
+
+    The person's words are the human messages stamped with when they were written
+    (ADR-381); a scaffold the node writes as a human message carries no stamp and is
+    not theirs.
+
+    Args:
+        messages: The messages a compaction replaces.
+
+    Returns:
+        One quote per message: ``written_at`` (ISO 8601) and ``text``.
+    """
+    quotes: list[PersonWords] = []
+    for message in messages:
+        moment = written_at(message) if isinstance(message, HumanMessage) else None
+        if moment is not None:
+            quotes.append({"written_at": moment.isoformat(), "text": content_for_model(message)})
+    return quotes
+
+
+def _carried_words(messages: list[BaseMessage]) -> list[PersonWords]:
+    """The quotes earlier compaction summaries carry, oldest first."""
+    carried: list[PersonWords] = []
+    for message in messages:
+        if not isinstance(message, SystemMessage):
+            continue
+        for quote in message.additional_kwargs.get(COMPACTION_PERSON_WORDS_KEY) or []:
+            if isinstance(quote, dict) and {"written_at", "text"} <= quote.keys():
+                carried.append({"written_at": str(quote["written_at"]), "text": str(quote["text"])})
+    return carried
+
+
+def _quote_line(quote: PersonWords, zone: tzinfo) -> str:
+    """One quote as the model reads it: its stamp in the person's zone, the words as written."""
+    stamped = stamped_now(HumanMessage(""), datetime.fromisoformat(quote["written_at"]))
+    return f"- {written_prefix(stamped, zone)}{quote['text']}".replace("\n", "\n  ")
+
+
+def _without_quotes(summary: str) -> str:
+    """A summary without the person's words quoted under it: what a merge is given."""
+    return summary.split("\n\n" + _identifier_lines()["person_words"], 1)[0]
+
+
 @dataclass
 class CompactionResult:
     """Result of a compaction operation."""
@@ -200,6 +279,10 @@ class CompactionResult:
     # attacker-authored claims into a clean SystemMessage. Computed on BOTH
     # branches (LLM summary and truncation fallback).
     contains_external_content: bool = False
+    # Lot 16 (2026-11): the person's own words quoted under the summary, oldest
+    # first. The node carries them on the summary message, so a later compaction
+    # keeps them without a model merging them again.
+    person_words: list[PersonWords] = field(default_factory=list)
 
 
 @dataclass
@@ -297,22 +380,61 @@ class CompactionService:
         )
         return False
 
-    def is_safe_to_compact(self, state: MessagesState) -> SafetyCheckResult:
-        """
-        Verify no HITL state would be corrupted by compaction.
+    @staticmethod
+    def pending_question(state: Mapping[str, Any]) -> str | None:
+        """The HITL question a compaction would corrupt, named as its skip reason.
 
-        Checks 2 safety conditions:
         1. pending_draft_critique → mid-draft review, compaction would lose draft context
         2. pending_tool_confirmation → tool approval pending, context needed
+
+        Args:
+            state: The graph state, or the state a turn starts from.
+
+        Returns:
+            The reason, or None when no question is pending.
         """
         if state.get("pending_draft_critique"):
-            compaction_skipped_total.labels(reason="hitl_pending_draft").inc()
-            return SafetyCheckResult(safe=False, reason="hitl_pending_draft")
-
+            return "hitl_pending_draft"
         if state.get("pending_tool_confirmation"):
-            compaction_skipped_total.labels(reason="hitl_pending_tool_confirmation").inc()
-            return SafetyCheckResult(safe=False, reason="hitl_pending_tool_confirmation")
+            return "hitl_pending_tool_confirmation"
+        return None
 
+    def _quoted(self, quotes: list[PersonWords], zone: tzinfo) -> tuple[list[PersonWords], str]:
+        """The quotes the budget keeps, the most recent first, and the block they read as.
+
+        Args:
+            quotes: Every quote, oldest first.
+            zone: The person's display zone, for each quote's stamp.
+
+        Returns:
+            The quotes kept, oldest first, and their block (the header, one line per
+            quote, then how many earlier ones it leaves out); empty when the budget is
+            ``0`` or there is nothing to quote.
+        """
+        budget = settings.compaction_person_words_max_tokens if quotes else 0
+        if budget <= 0:
+            return [], ""
+        kept: list[tuple[PersonWords, str]] = []
+        used = 0
+        for quote in reversed(quotes):
+            line = _quote_line(quote, zone)
+            cost = self._token_counter.count_tokens(line)
+            if used + cost <= budget:
+                kept.append((quote, line))
+                used += cost
+        kept.reverse()
+        lines = _identifier_lines()
+        block = [lines["person_words"], *(line for _quote, line in kept)] if kept else []
+        if cut := len(quotes) - len(kept):
+            block.append(lines["person_words_cut"].format(count=cut))
+        return [quote for quote, _line in kept], "\n".join(block)
+
+    def is_safe_to_compact(self, state: MessagesState) -> SafetyCheckResult:
+        """Verify no HITL state would be corrupted by compaction (``pending_question``)."""
+        reason = self.pending_question(state)
+        if reason is not None:
+            compaction_skipped_total.labels(reason=reason).inc()
+            return SafetyCheckResult(safe=False, reason=reason)
         return SafetyCheckResult(safe=True)
 
     def _extract_identifiers(self, messages: list[BaseMessage]) -> list[str]:
@@ -575,7 +697,9 @@ class CompactionService:
                 message_count=len(messages),
             )
             compaction_global_timeouts_total.inc()
-            return self._truncation_fallback(messages, preserve_recent_n, reason="global_timeout")
+            return self._truncation_fallback(
+                messages, preserve_recent_n, reason="global_timeout", zone=zone
+            )
         except Exception as e:
             logger.exception(
                 "compaction_unexpected_failure_fallback_to_truncation",
@@ -583,7 +707,7 @@ class CompactionService:
             )
             compaction_errors_total.labels(error_type="unexpected").inc()
             return self._truncation_fallback(
-                messages, preserve_recent_n, reason=f"unexpected:{type(e).__name__}"
+                messages, preserve_recent_n, reason=f"unexpected:{type(e).__name__}", zone=zone
             )
 
     async def _compact_impl_llm(
@@ -606,9 +730,8 @@ class CompactionService:
         """
         start_time = time.monotonic()
 
-        non_system = [m for m in messages if not isinstance(m, SystemMessage)]
-
-        if preserve_recent_n < 1 or len(non_system) <= preserve_recent_n:
+        to_compact = compactable_messages(messages, preserve_recent_n)
+        if not to_compact:
             return CompactionResult(
                 summary="",
                 tokens_before=0,
@@ -617,8 +740,6 @@ class CompactionService:
                 identifiers_preserved=[],
                 strategy="noop",
             )
-
-        to_compact = non_system[:-preserve_recent_n]
 
         # v2 (Task 1.5): collect previous "compaction #N" SystemMessages so they
         # get folded into the merge step. This prevents the linear accumulation
@@ -664,7 +785,9 @@ class CompactionService:
             # we still merge with priors. Otherwise Grafana sees an artificial
             # multi_chunk inflation that does not reflect the LLM workload.
             if previous_summaries:
-                summaries = previous_summaries + summaries
+                # Without the person's words quoted under them: those are carried
+                # as written below, never re-summarised by the merge (lot 16).
+                summaries = [_without_quotes(s) for s in previous_summaries] + summaries
                 if strategy == "single_chunk":
                     strategy = "single_chunk_with_merge"
 
@@ -709,6 +832,12 @@ class CompactionService:
         final_summary = self._with_dropped_identifiers(
             final_summary, to_compact, previous_summaries if consolidated_previous else []
         )
+        # The person's own words, quoted as written under it (lot 16): those the
+        # consolidated summaries carried, then those of the messages it replaces.
+        carried = _carried_words(messages) if consolidated_previous else []
+        quoted, quotes_block = self._quoted([*carried, *person_words(to_compact)], zone)
+        if quotes_block:
+            final_summary = f"{final_summary}\n\n{quotes_block}"
         duration = time.monotonic() - start_time
         tokens_after = self._token_counter.count_tokens(final_summary)
         tokens_saved = tokens_before - tokens_after
@@ -727,6 +856,7 @@ class CompactionService:
             tokens_after=tokens_after,
             tokens_saved=tokens_saved,
             identifiers_count=len(identifiers),
+            person_words_quoted=len(quoted),
             chunks_used=len(chunks),
             cost_prompt=total_prompt_tokens,
             cost_completion=total_completion_tokens,
@@ -746,6 +876,7 @@ class CompactionService:
             duration_seconds=duration,
             consolidated_previous_summaries=consolidated_previous,
             contains_external_content=contains_external,
+            person_words=quoted,
         )
 
     def _with_dropped_identifiers(
@@ -790,6 +921,8 @@ class CompactionService:
         messages: list[BaseMessage],
         preserve_recent_n: int,
         reason: str,
+        *,
+        zone: tzinfo,
     ) -> CompactionResult:
         """
         Deterministic LLM-less fallback used when `_compact_impl_llm` fails or
@@ -798,8 +931,7 @@ class CompactionService:
         feed back into the conversation. Sets `consolidated_previous_summaries=False`
         so the node leaves any prior "compaction #N" summaries in place.
         """
-        non_system = [m for m in messages if not isinstance(m, SystemMessage)]
-        to_drop = non_system[:-preserve_recent_n] if preserve_recent_n > 0 else non_system
+        to_drop = compactable_messages(messages, preserve_recent_n)
         # Split by provenance: an identifier harvested from inside an
         # ``<external_content>`` span (an email body, a fetched page) is
         # attacker-writable and must not be presented as a plain key
@@ -814,6 +946,12 @@ class CompactionService:
         )
         if untrusted := _listed(external_ids):
             notice += "\n" + lines["external"].format(identifiers=untrusted)
+        # No summary was written, the person's words still are not lost (lot 16):
+        # measured, the notice alone kept none of them. The prior summaries stay in
+        # place with their own quotes, so only the dropped messages are quoted here.
+        quoted, quotes_block = self._quoted(person_words(to_drop), zone)
+        if quotes_block:
+            notice += "\n\n" + quotes_block
         tokens_after = self._token_counter.count_tokens(notice)
         compaction_executions_total.labels(strategy="truncation").inc()
         compaction_total_duration_seconds.observe(0.0)
@@ -828,4 +966,5 @@ class CompactionService:
             duration_seconds=0.0,
             consolidated_previous_summaries=False,
             contains_external_content=contains_external,
+            person_words=quoted,
         )

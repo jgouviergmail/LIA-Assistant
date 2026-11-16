@@ -110,3 +110,65 @@ Guards: on PostgreSQL `tests/integration/domains/conversations/test_discussion_s
 in the browser `useChatHistorySearch.test.ts`, `ChatSearchBar.test.tsx`,
 `discussion-jump.test.ts`, `discussion-leave.test.ts` and the journey
 `e2e/smoke/chat-history-search-discussions.spec.ts`.
+
+## Amendment 2026-11-14 — a return comes back to the discussion its act was begun in
+
+A call placed from an annex returned its synthesis to Main: every return door published to Main,
+and nothing remembered where the act began. Main stays the place of what LIA brings on its own;
+the RETURN of an act the person began in a discussion comes back to that discussion.
+
+- **What returns where** (owner decision 2026-11-14). To the discussion of origin: a third-party
+  call and an owner call, in every mode (direct relay, Live delegation, closing); a meeting
+  imported from the composer's « + »; a meeting recorded from the header while an annex is on
+  screen (the annex shown when the recording starts); a routine started by hand from the chat
+  (its result and its notice); the notice that a message reached a peer. Unchanged, to Main:
+  reminders, scheduled routine ticks, workboard tickets, messages received from peers, every
+  proactive message.
+- **One origin, recorded with the act.** `ConversationOrigin` (`core/conversation_target.py`) is
+  the discussion AND its revision, taken from the turn's bound source (`current_origin()`, the
+  `ConversationRef` that `owned_execution` binds). `phone_calls`, `meetings` and `peer_messages`
+  carry it in two nullable columns (`ConversationOriginMixin`, migration `a28ee9d98f8e`), with no
+  CHECK across them (ADR-276): an origin is a fact about the act, never trusted as a destination
+  by itself.
+- **Resolved at publication, under the lock.** `OriginPublication` (`return_publication`) is a
+  publication destination of its own. `publication_repository._origin_or_primary` takes the
+  account, then the discussion `FOR SHARE`, like Main: a reset or a deletion either commits first
+  and the return goes to Main (owner decision: an annex reset during the call has no previous
+  generation to receive it), or waits, and retires the generation with the return inside. Never
+  a late write into a retired generation, never a discussion of another account. Counted:
+  `conversation_origin_returns_total{outcome=origin|retired}` (Grafana « Returns to the
+  discussion of origin »).
+- **The dispatcher carries it.** `NotificationDispatcher.dispatch(origin=…)` archives in the
+  origin while it lives. Both halves of a notification name the annex, never Main: the live event's
+  metadata (`with_discussion`) and the push data (`conversation_id`, and `url` =
+  `/dashboard/chat?conversation=<id>`, followed by the service worker). A view of Main reads every
+  notification naming no discussion as its own.
+- **A phone session returns there too.** `VoiceSession.conversation_revision` makes the session's
+  rows publish through `OriginPublication` and its turns run in that discussion
+  (`turn_selection`), whatever the line (relay, delegation, closing).
+- **The toast says where.** A notification naming a discussion that is not on screen names it in
+  its toast (« Dans « titre » ») and offers « Ouvrir » through the switcher's door, only where
+  leaving cancels nothing, asked again at the click (`lib/notification-discussion.ts`,
+  `useChatServerSync`). A notification naming none went to Main: seen from an annex, its toast
+  says « Dans « Principale » » and opens Main, a reminder's included. The browser's live-event
+  boundary now accepts the whole `proactive_*` family it routes by prefix: listing three members
+  had refused since 2026-10-20 every other task's event (a call's return, a meeting's minutes, a
+  peer's message), with no toast.
+- **The bill follows the return.** A call's or a meeting's spend is filed before any discussion
+  is known, and a bill naming no discussion shows under Main alone: written in an annex, the
+  return's bubble showed no cost, and no discussion's totals counted it. The door writing a
+  run's words names the bill's discussion when none is named (`conversations/run_bills`, from
+  the notification dispatcher's archive and the voice relay, an annex only while its generation
+  lives: the relay reads the generation the turn's admission reads, `VoiceSession.turn_selection`,
+  a browser session's reservation as a call's annex). A bill already named keeps its discussion;
+  past bills are not rewritten, since a bill naming none may be legacy or detached by a reset.
+
+Guards: on PostgreSQL `tests/integration/domains/conversations/test_origin_publication.py` and
+`test_run_bills.py`; `tests/unit/domains/conversations/test_return_target.py`,
+`tests/unit/infrastructure/proactive/test_fcm_payload_contract.py`,
+`tests/unit/infrastructure/proactive/test_notification_run_bill.py`,
+`tests/unit/infrastructure/scheduler/test_voice_relay.py`,
+`tests/unit/infrastructure/scheduler/test_phone_relay_runner.py`,
+`tests/unit/infrastructure/scheduler/test_scheduled_action_notices.py`; in the browser
+`useChatServerSync.elsewhere.test.ts`, `notification-discussion.test.ts`,
+`useNotifications.helpers.test.ts` and the journey `e2e/smoke/chat-return-elsewhere.spec.ts`.

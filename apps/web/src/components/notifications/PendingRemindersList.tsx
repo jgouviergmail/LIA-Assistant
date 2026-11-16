@@ -3,11 +3,12 @@
 /**
  * The reminders that have not fired yet.
  *
- * Read-only, deliberately: a reminder is a temporary post-it, deleted the
- * moment it is notified, and the domain has no editing, snoozing or
- * acknowledging surface. The briefing card owns the one action there is —
- * cancelling — behind its own confirmation, and duplicating that here would
- * mean two dialogs for one deletion.
+ * Read-only, deliberately: this lists what is still COMING. Editing a reminder
+ * belongs to its settings screen, cancelling to the briefing card behind its
+ * own confirmation — duplicating that here would mean two dialogs for one
+ * deletion — and postponing to the reminder that RANG, from its bubble or its
+ * notification (ADR-268 amendment 2026-11-16): a reminder still pending has
+ * nothing to postpone yet.
  *
  * Soonest first, which is the order the backend returns and the order a reader
  * scans a "what is coming" list.

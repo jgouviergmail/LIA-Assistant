@@ -71,3 +71,28 @@ async def persist_runtime_targets(
         )
         await db.commit()
     return targets
+
+
+async def persist_annex_with_main(
+    engine: AsyncEngine, committed_user_ids: list[UUID]
+) -> tuple[ConversationRef, UUID]:
+    """One account holding an annex (revision 7) and its Main (revision 2).
+
+    Returns:
+        The annex, and the id of the account's Main.
+    """
+    (annex,) = await persist_runtime_targets(engine, committed_user_ids, count=1)
+    main_id = uuid4()
+    async with AsyncSession(engine) as db:
+        db.add(
+            Conversation(
+                id=main_id,
+                user_id=annex.owner_id,
+                kind=ConversationKind.MAIN,
+                revision=2,
+                runtime_id=uuid4(),
+                title="Main",
+            )
+        )
+        await db.commit()
+    return annex, main_id

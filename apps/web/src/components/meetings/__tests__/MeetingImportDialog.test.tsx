@@ -97,6 +97,8 @@ describe('MeetingImportDialog', () => {
       size_bytes: 500,
       language: 'auto',
       template_ref: null,
+      // Begun outside an annex: « minutes ready » returns to Main.
+      conversation_id: null,
     });
     // The file's write minus its length, to the minute the date field holds.
     expect(new Date(request.recorded_at).getTime()).toBe(
@@ -118,6 +120,17 @@ describe('MeetingImportDialog', () => {
     expect(mocks.remove).toHaveBeenCalledWith('m1');
     expect(mocks.push).not.toHaveBeenCalled();
   });
+});
+
+it('names the chat annex it was begun from, so the minutes return there', async () => {
+  mocks.upload.mockResolvedValue({ kind: 'complete' });
+  renderWithProviders(
+    <MeetingImportDialog lng="en" open onOpenChange={vi.fn()} conversationId="annex-1" />
+  );
+  chooseFile(500);
+  fireEvent.click(screen.getByRole('button', { name: /meetings\.import\.submit/ }));
+  await waitFor(() => expect(mocks.startImport).toHaveBeenCalledOnce());
+  expect(mocks.startImport.mock.calls[0][0]).toMatchObject({ conversation_id: 'annex-1' });
 });
 
 it('opens a completed import in its embedded host instead of leaving the world', async () => {

@@ -218,19 +218,28 @@ def normalize_graph_calendar(cal: dict[str, Any]) -> dict[str, Any]:
         "summary": cal.get("name", ""),
         "description": "",
         "primary": cal.get("isDefaultCalendar", False),
-        "accessRole": "writer" if cal.get("canEdit", False) else "reader",
+        "accessRole": _access_role(cal) or "reader",
         "removable": cal.get("isRemovable", False),
         "backgroundColor": _color_name_to_hex(cal.get("color", "")),
         "selected": True,
         "_provider": "microsoft",
-        FIELD_DISPLAY_ONLY: {
-            "access_role": (
-                "writer"
-                if cal.get("canEdit") is True
-                else "reader" if cal.get("canEdit") is False else None
-            )
-        },
+        FIELD_DISPLAY_ONLY: {"access_role": _access_role(cal)},
     }
+
+
+def _access_role(cal: dict[str, Any]) -> str | None:
+    """Graph's calendar rights in Google's words; None when Graph said nothing.
+
+    ``canShare`` belongs to the calendar's creator alone, so it is Google's
+    ``owner``: the calendar holds the person's own meetings (``calendar_lists``).
+    """
+    if cal.get("canShare") is True:
+        return "owner"
+    if cal.get("canEdit") is True:
+        return "writer"
+    if cal.get("canEdit") is False:
+        return "reader"
+    return None
 
 
 def _color_name_to_hex(color_name: str) -> str:

@@ -580,3 +580,51 @@ nom accentué en mots RFC 2047, Apple ne gardait que l'adresse. Un seul `name_ad
 courrier sortant, nom décodé et conservé ; une garde construit la charge de chaque fournisseur avec
 le vrai normaliseur et le vrai constructeur, et vérifie que chaque champ déclaré porte du texte
 (`tests/unit/domains/agents/context/test_reference_fields_carried.py`).
+
+## Amendement 2026-11-15 — un lecteur lit ce que la mise en page montre
+
+**Constat.** Gmail et IMAP prenaient la partie texte d'un message dès qu'elle existait ; Graph lisait
+la mise en page, son corps étant du HTML. Or une partie texte peut ne rien dire de ce que la mise en
+page montre. Mesuré en production le 2026-11-14 : trois « en faire un événement » sur un mail HTML
+finissaient en `assist_not_found`, l'un sur 556 jetons en tout, instructions comprises — une
+invitation dont la partie texte disait seulement « ouvrez ce mail dans un client HTML ». Le chat lisait
+le même corps, donc la même demande y échouait de la même façon. Depuis ADR-369 (D3) et ADR-332,
+chaque lecteur de LIA, les Outils comme la carte du chat, montre la mise en page.
+
+**Décision.**
+
+- Une porte de lecture, `normalizers/html_text.shown_words(text, html)` : le texte de la mise en page
+  quand elle porte des mots, coupée à `EMAIL_HTML_TEXT_MAX_CHARS` avant d'être analysée ; sinon la
+  partie texte, convertie elle aussi quand c'est du balisage envoyé comme texte.
+- La lisent : Gmail (`gmail_html_mixin.shown_body`, les parties portées en ligne, chacune lue dans
+  le jeu de caractères qu'elle nomme), IMAP, Graph (que seul le plafond change), les assistances des
+  Outils (`tool_assists/shown_words`, qui lit en plus la mise en page entière, parties volumineuses
+  comprises) et le repli du formateur d'agent. Niveaux de détail, condensés, recherche, espaces qui
+  suivent un libellé : tous lisent ce corps.
+- Ce qui repart vers une boîte garde le texte de l'expéditeur : un brouillon relu pour être modifié
+  (`keep_quoted=True`, ADR-344) et l'original cité sous une réponse ou un transfert Gmail
+  (`gmail_message_text.sender_text`, sorti du client avec le décodeur base64url pour tenir son
+  plafond de taille). IMAP et Graph citent le corps lu : `quoted_reply` et `forwarded_body`
+  réécrivent les étiquettes `[link](url)` du modèle en `<url>` (`links_for_people`). Cela ferme aussi
+  la fuite qu'Outlook avait déjà dans ses réponses HTML.
+- L'analyse coûte environ 0,1 ms par Ko (mesuré : 101 Ko → 9,8 ms, 338 Ko → 29 ms). Gmail normalise
+  donc hors de la boucle (`get_message`), et la synchronisation d'un espace rend un fil hors de la
+  boucle. IMAP l'était déjà, dans le thread d'`imap_tools`.
+- `EMAIL_DIGEST_SCHEMA_VERSION` passe à 3 : un condensé calculé sur l'ancienne partie texte (TTL de
+  30 jours) n'est plus servi.
+- Ce que lit le modèle reste borné comme avant : par parties (`emails_body_part_tokens`), et à
+  `emails_digest_input_max_tokens` pour un condensé. Une infolettre chargée de liens dit moins de mots
+  par partie, puisque chaque lien y porte son adresse.
+
+**Limite.** Une partie HTML trop volumineuse pour voyager en ligne chez Gmail porte un identifiant de
+pièce jointe : la normalisation ne fait pas cette requête, et la partie texte tient alors lieu de
+corps. Les Outils la lisent (`get_message_html`).
+
+**Transition.** Une entrée du cache de messages Gmail (5 minutes) garde son ancien corps jusqu'à son
+expiration. Le document d'un fil déjà rendu dans un espace reste tel quel jusqu'au prochain
+changement du fil.
+
+**Preuves.** `test_html_text.py` (la porte et son plafond), `test_google_gmail_client.py` (lecteur,
+jeu de caractères, brouillon), `test_email_normalizer.py` (IMAP),
+`test_email_message_contract.py::test_every_reader_reads_the_layout_over_a_text_part_that_says_nothing`
+(les trois fournisseurs disent les mêmes mots), `test_email_compose.py::TestNothingTheModelReadsLeavesInAMail`.

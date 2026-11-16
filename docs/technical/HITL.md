@@ -405,9 +405,15 @@ Planner génère ExecutionStep avec for_each
     → task_orchestrator détecte FOR_EACH pattern + évalue thresholds
     → Pré-exécute les providers UNE FOIS (for_each_hitl_prep.pre_execute_for_each_providers)
     → Réénonce les claims avec les comptes MESURÉS (refresh_for_each_scope_claims —
-      le payload dit le compte réel, jamais le plafond for_each_max ; la décision
-      de demander confirmation, elle, ne change pas)
-    → Persiste for_each_hitl_ctx dans le state (return → checkpoint)
+      le payload dit le compte réel, jamais le plafond for_each_max)
+    → Re-décide avec ces comptes (still_requiring_approval, même règle) : une
+      LECTURE mesurée sous FOR_EACH_WARNING_THRESHOLD ne demande plus rien
+      (mesuré 2026-11-15, E13 : 5 tickets lus un à un demandaient une
+      « opération en masse » décidée sur le plafond 10) ; une étape non mesurée
+      garde la décision de son plafond ; rien à confirmer → exécution directe
+    → Persiste for_each_hitl_ctx dans le state (return → checkpoint) ; à la
+      reprise, la liste des plafonds est réduite aux étapes confirmées
+      (confirmed_hitl_steps)
     → route_from_orchestrator → for_each_confirm (nœud dédié)
     → for_each_confirm : UN interrupt() par exécution de nœud
         ├── APPROVE → ctx.approved=True → retour task_orchestrator

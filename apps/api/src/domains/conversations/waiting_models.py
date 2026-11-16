@@ -20,8 +20,17 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.constants import CHAT_MESSAGE_MAX_LENGTH, CONVERSATION_RUN_ID_MAX_LENGTH
+from src.core.constants import (
+    CHANNEL_TYPE_TELEGRAM,
+    CHAT_MESSAGE_MAX_LENGTH,
+    CONVERSATION_RUN_ID_MAX_LENGTH,
+)
 from src.infrastructure.database.models import BaseModel
+
+#: The external channels a waiting message can be answered on; the app's own
+#: answer is NULL (Telegram lot 34). A channel added here needs a migration of
+#: ``ck_waiting_message_reply_channel``.
+REPLY_CHANNELS: tuple[str, ...] = (CHANNEL_TYPE_TELEGRAM,)
 
 
 class WaitingStatus(StrEnum):
@@ -99,6 +108,14 @@ class WaitingMessage(BaseModel):
         nullable=True,
         comment="The browser's display hints at the last send; never its location.",
     )
+    reply_channel: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        comment=(
+            "The external channel some of the words were written on, where the answer goes; "
+            "NULL: the app. Once set it stays set while the message waits."
+        ),
+    )
 
     __table_args__ = (
         Index("uq_waiting_messages_conversation", "conversation_id", unique=True),
@@ -120,4 +137,10 @@ class WaitingMessage(BaseModel):
         ),
         CheckConstraint("version > 0", name="ck_waiting_message_version"),
         CheckConstraint("conversation_revision >= 0", name="ck_waiting_message_revision"),
+        CheckConstraint(
+            "reply_channel IS NULL OR reply_channel IN ("
+            + ", ".join(f"'{channel}'" for channel in REPLY_CHANNELS)
+            + ")",
+            name="ck_waiting_message_reply_channel",
+        ),
     )

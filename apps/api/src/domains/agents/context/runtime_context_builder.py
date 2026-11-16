@@ -21,12 +21,24 @@ from typing import Any
 from langgraph.store.base import BaseStore
 
 from src.core.application_origin import ApplicationOrigin
+from src.core.constants import EXECUTION_ENGINES
 from src.core.conversation_target import ConversationRef
 from src.core.exchange_rhythm import effective_exchange_rhythm
+from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.effects.decisions import note_resumed_engine
 from src.domains.agents.models import MessagesState
 
 __all__ = ["build_runtime_context"]
+
+
+def _turn_request(state: MessagesState) -> str:
+    """The request a resumed turn began with: the router's record of the turn (pure).
+
+    A resumed turn never meets the router again, so the turn's ``query_intelligence``
+    is still the one the router wrote from the person's message that opened it.
+    """
+    return str(get_qi_attr(dict(state), "original_query", default="") or "")
 
 
 def build_runtime_context(
@@ -47,6 +59,7 @@ def build_runtime_context(
     user_exchange_rhythm: str | None = None,
     is_automated_source: bool = False,
     application_origin: ApplicationOrigin | None = None,
+    resuming: bool = False,
 ) -> LiaRuntimeContext:
     """Build the context of one conversation run.
 
@@ -72,24 +85,30 @@ def build_runtime_context(
         user_voice_enabled: User preference — spoken replies (the response
             node's HTML gate reads it beside the display mode).
         user_display_mode: Render mode; ``None`` keeps the context default.
-        user_execution_mode: Pipeline or ReAct; ``None`` keeps the default.
+        user_execution_mode: The mode the turn is asked to run in; ``None`` keeps
+            the default.
         user_exchange_rhythm: ``users.exchange_rhythm`` as stored; ``None`` (never
             chosen) or an unreadable value follows the instance default (ADR-311).
         is_automated_source: True for runs the user did not type.
         application_origin: Live authenticated HTTP session authority, withdrawn from
             automated or mismatched-actor runs. Never read from graph state or client hints.
+        resuming: True when the run resumes an interrupted turn. Such a turn never
+            meets the router again, so its engine is settled here from the state —
+            the engine it started with, whatever the person chose since — and so is
+            the request it began with (``turn_request``). A NEW turn's state still
+            carries the previous turn's mode and analysis: never read them then.
 
     Returns:
         A ready-to-inject :class:`LiaRuntimeContext`.
     """
     optional: dict[str, Any] = {
         "display_mode": user_display_mode,
-        "execution_mode": user_execution_mode,
+        "requested_execution_mode": user_execution_mode,
         "timezone": state.get("user_timezone"),
         "language": state.get("user_language"),
     }
 
-    return LiaRuntimeContext.for_conversation(
+    context = LiaRuntimeContext.for_conversation(
         target=target,
         store=memory_store,
         memory_enabled=user_memory_enabled,
@@ -109,6 +128,12 @@ def build_runtime_context(
         deps=tool_deps,
         browser_context=browser_context,
         user_message=user_message,
+        turn_request=_turn_request(state) if resuming else "",
         side_channel_queue=side_channel_queue,
         **{key: value for key, value in optional.items() if value is not None},
     )
+    resumed_engine = state.get("execution_mode") if resuming else None
+    if resumed_engine in EXECUTION_ENGINES:
+        # The turn's record learns it too: its answer's badge names the engine.
+        note_resumed_engine(context.turn_engine.settle(str(resumed_engine)))
+    return context

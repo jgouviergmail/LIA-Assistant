@@ -30,6 +30,9 @@ class TestTheColumnsAreTheContract:
             "run_id",
             "source",
             "execution_mode",
+            # ADR-390: what was asked and why the router chose the engine.
+            "requested_mode",
+            "resolution_reason",
             "route",
             "plan_step_count",
             "request_message_id",

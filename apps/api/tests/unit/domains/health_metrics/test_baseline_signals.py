@@ -2,111 +2,88 @@
 
 Covers:
 
-- Per-day aggregation via ``_daily_aggregate`` for every supported
-  ``BaselineKind``.
+- Per-day reduction via ``daily_values`` for every supported ``BaselineKind``.
 - Adaptive baseline mode selection (empty / bootstrap / rolling).
+- ``baseline_window_start`` — the person's midnight, every day whole.
 - ``_find_longest_trend_streak`` — boundary and direction cases.
-- ``detect_recent_variations`` — notable vs below-threshold scenarios.
-- ``detect_notable_events`` — inactivity streak detection for steps.
+- ``detect_recent_variations_from_stats`` — notable vs below-threshold.
+- ``detect_notable_events_from_stats`` — inactivity streaks for steps, read
+  against the person's local day.
 
-Fixtures build synthetic ``HealthSample`` lists in memory without DB.
+Every detector consumes the per-local-day series the repository rollup
+returns (ADR-148 amendment 2026-11-14); the series are built in memory.
 """
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
+from src.core.constants import HEALTH_METRICS_BASELINE_ROLLING_WINDOW_DAYS
 from src.domains.health_metrics.baseline import (
-    _daily_aggregate,
-    _group_samples_by_day,
+    DailyStat,
     baseline_window_start,
-    compute_baseline,
+    compute_baseline_from_stats,
+    daily_values,
 )
 from src.domains.health_metrics.kinds import HEALTH_KINDS, BaselineKind
-from src.domains.health_metrics.models import HealthSample
 from src.domains.health_metrics.signals import (
     _find_longest_trend_streak,
-    detect_notable_events,
-    detect_recent_variations,
+    detect_notable_events_from_stats,
+    detect_recent_variations_from_stats,
 )
 
 pytestmark = pytest.mark.unit
 
-
-# =============================================================================
-# Fixtures / helpers
-# =============================================================================
+TODAY = date(2026, 11, 14)
+PARIS = ZoneInfo("Europe/Paris")
 
 
-def _make_sample(
-    kind: str,
-    date_start: datetime,
-    value: int,
-) -> HealthSample:
-    """Build a detached HealthSample in memory (no DB session required)."""
-    return HealthSample(
-        id=uuid4(),
-        user_id=uuid4(),
-        kind=kind,
-        date_start=date_start,
-        date_end=date_start + timedelta(minutes=5),
-        value=value,
-        source="test",
+def _stat(days_ago: int, total: int, count: int = 1, minimum: int | None = None) -> DailyStat:
+    """One local day of the series, ``days_ago`` days before ``TODAY``."""
+    return DailyStat(
+        day=TODAY - timedelta(days=days_ago),
+        total=total,
+        count=count,
+        minimum=total if minimum is None else minimum,
     )
 
 
-def _days_ago(n: int) -> datetime:
-    """Return a UTC datetime at the start of the day N days before now."""
-    now = datetime.now(UTC).replace(hour=12, minute=0, second=0, microsecond=0)
-    return now - timedelta(days=n)
+def _series(*stats: DailyStat) -> list[DailyStat]:
+    """A day-ascending series, as the rollup returns it."""
+    return sorted(stats, key=lambda stat: stat.day)
 
 
 # =============================================================================
-# _daily_aggregate
+# daily_values
 # =============================================================================
 
 
-class TestDailyAggregate:
-    """Per-day aggregation respects the baseline kind."""
+class TestDailyValues:
+    """Per-day reduction respects the baseline kind."""
 
     def test_empty_returns_empty(self) -> None:
-        assert _daily_aggregate([], BaselineKind.DAILY_SUM) == []
+        assert daily_values([], BaselineKind.DAILY_SUM) == []
 
-    def test_daily_sum(self) -> None:
-        """Multiple steps samples on the same day sum to the daily total."""
-        day = _days_ago(1)
-        samples = [
-            _make_sample("steps", day, 100),
-            _make_sample("steps", day.replace(hour=14), 200),
-            _make_sample("steps", day.replace(hour=20), 300),
-        ]
-        result = _daily_aggregate(samples, BaselineKind.DAILY_SUM)
-        assert result == [600.0]
+    def test_daily_sum_is_the_counted_total(self) -> None:
+        assert daily_values([_stat(1, 600, count=3)], BaselineKind.DAILY_SUM) == [600.0]
 
-    def test_daily_avg(self) -> None:
-        """Multiple HR samples on the same day average into the daily mean."""
-        day = _days_ago(1)
-        samples = [
-            _make_sample("heart_rate", day, 60),
-            _make_sample("heart_rate", day.replace(hour=14), 80),
-            _make_sample("heart_rate", day.replace(hour=20), 100),
-        ]
-        result = _daily_aggregate(samples, BaselineKind.DAILY_AVG)
-        assert result == [80.0]
+    def test_daily_avg_divides_by_the_counted_rows(self) -> None:
+        """Three readings of 60, 80 and 100 average to 80."""
+        assert daily_values([_stat(1, 240, count=3)], BaselineKind.DAILY_AVG) == [80.0]
 
-    def test_multi_day_sorted(self) -> None:
-        """Output order is ascending by day regardless of input order."""
-        s_today = _make_sample("steps", _days_ago(0), 1000)
-        s_yesterday = _make_sample("steps", _days_ago(1), 500)
-        result = _daily_aggregate([s_today, s_yesterday], BaselineKind.DAILY_SUM)
-        assert result == [500.0, 1000.0]
+    def test_resting_reads_the_minimum(self) -> None:
+        assert daily_values([_stat(1, 240, count=3, minimum=55)], BaselineKind.RESTING) == [55.0]
+
+    def test_order_is_preserved(self) -> None:
+        series = _series(_stat(0, 1000), _stat(1, 500))
+        assert daily_values(series, BaselineKind.DAILY_SUM) == [500.0, 1000.0]
 
 
 # =============================================================================
-# compute_baseline — adaptive mode
+# compute_baseline_from_stats — adaptive mode
 # =============================================================================
 
 
@@ -114,40 +91,59 @@ class TestComputeBaseline:
     """Adaptive mode selection between bootstrap and rolling."""
 
     def test_empty_yields_empty_mode(self) -> None:
-        spec = HEALTH_KINDS["steps"]
-        result = compute_baseline([], spec)
+        result = compute_baseline_from_stats([], HEALTH_KINDS["steps"])
         assert result.mode == "empty"
         assert result.median_value is None
         assert result.days_available == 0
 
     def test_bootstrap_when_few_days(self) -> None:
         """Below the min-days threshold → bootstrap mode."""
-        spec = HEALTH_KINDS["steps"]
-        samples = [
-            _make_sample("steps", _days_ago(2), 5000),
-            _make_sample("steps", _days_ago(1), 7000),
-            _make_sample("steps", _days_ago(0), 9000),
-        ]
-        result = compute_baseline(samples, spec)
+        series = _series(_stat(2, 5000), _stat(1, 7000), _stat(0, 9000))
+        result = compute_baseline_from_stats(series, HEALTH_KINDS["steps"])
         assert result.mode == "bootstrap"
         assert result.median_value == 7000.0
         assert result.days_available == 3
 
     def test_rolling_when_enough_history(self) -> None:
         """At or above the min-days threshold (default 7) → rolling mode."""
-        spec = HEALTH_KINDS["heart_rate"]
-        samples = [_make_sample("heart_rate", _days_ago(i), 60 + i) for i in range(10)]
-        result = compute_baseline(samples, spec)
+        series = _series(*(_stat(i, 60 + i) for i in range(10)))
+        result = compute_baseline_from_stats(series, HEALTH_KINDS["heart_rate"])
         assert result.mode == "rolling"
         assert result.median_value is not None
         assert result.days_available == 10
 
-    def test_baseline_window_start_returns_utc(self) -> None:
-        now = datetime.now(UTC)
-        start = baseline_window_start(now)
-        assert start.tzinfo is not None
-        # Default is rolling_window + 1 day margin = 29 days
-        assert (now - start) >= timedelta(days=28)
+
+class TestBaselineWindowStart:
+    """The read starts at the person's midnight, the rolling window whole."""
+
+    @pytest.mark.parametrize("recent_days", [0, 7])
+    def test_it_is_a_local_midnight_that_many_days_back(self, recent_days: int) -> None:
+        now = datetime(2026, 11, 14, 15, 30, tzinfo=UTC)
+        start = baseline_window_start(now, PARIS, recent_days=recent_days)
+
+        local = start.astimezone(PARIS)
+        assert (local.hour, local.minute) == (0, 0)
+        expected_days = HEALTH_METRICS_BASELINE_ROLLING_WINDOW_DAYS + 1 + recent_days
+        assert local.date() == TODAY - timedelta(days=expected_days)
+        assert start.tzinfo is UTC
+
+    def test_a_day_a_clock_change_shortened_is_still_counted_whole(self) -> None:
+        """29 March 2026 lasts 23 hours in Paris; the read starts at its midnight."""
+        now = datetime(2026, 4, 27, 8, 0, tzinfo=UTC)  # 27 April, 29 days after
+        start = baseline_window_start(now, PARIS, recent_days=0)
+        assert start.astimezone(PARIS).replace(tzinfo=None) == datetime(2026, 3, 29)
+        # That midnight is still on winter time: 23:00 UTC the day before.
+        assert start == datetime(2026, 3, 28, 23, 0, tzinfo=UTC)
+
+    def test_the_day_is_the_person_s_not_the_server_s(self) -> None:
+        """At 00:30 in Auckland it is still yesterday in UTC."""
+        now = datetime(2026, 11, 14, 11, 30, tzinfo=UTC)  # 00:30 on the 15th in Auckland
+        auckland = ZoneInfo("Pacific/Auckland")
+        start = baseline_window_start(now, auckland, recent_days=0)
+        expected = date(2026, 11, 15) - timedelta(
+            days=HEALTH_METRICS_BASELINE_ROLLING_WINDOW_DAYS + 1
+        )
+        assert start.astimezone(auckland).date() == expected
 
 
 # =============================================================================
@@ -164,11 +160,10 @@ class TestFindLongestTrendStreak:
 
     def test_rising_streak(self) -> None:
         """Three consecutive days above +10% threshold → rising, 3, avg."""
-        today = _days_ago(0).date()
         deltas = [
-            (today - timedelta(days=2), 15.0),
-            (today - timedelta(days=1), 20.0),
-            (today, 25.0),
+            (TODAY - timedelta(days=2), 15.0),
+            (TODAY - timedelta(days=1), 20.0),
+            (TODAY, 25.0),
         ]
         trend, days, avg = _find_longest_trend_streak(deltas, min_daily_delta=10.0)
         assert trend == "rising"
@@ -177,11 +172,10 @@ class TestFindLongestTrendStreak:
 
     def test_falling_streak(self) -> None:
         """Three consecutive days below -10% threshold → falling."""
-        today = _days_ago(0).date()
         deltas = [
-            (today - timedelta(days=2), -15.0),
-            (today - timedelta(days=1), -20.0),
-            (today, -25.0),
+            (TODAY - timedelta(days=2), -15.0),
+            (TODAY - timedelta(days=1), -20.0),
+            (TODAY, -25.0),
         ]
         trend, days, avg = _find_longest_trend_streak(deltas, min_daily_delta=10.0)
         assert trend == "falling"
@@ -190,12 +184,11 @@ class TestFindLongestTrendStreak:
 
     def test_stable_day_breaks_streak(self) -> None:
         """A day within ±threshold resets the streak."""
-        today = _days_ago(0).date()
         deltas = [
-            (today - timedelta(days=3), 15.0),
-            (today - timedelta(days=2), 5.0),  # stable, breaks
-            (today - timedelta(days=1), 20.0),
-            (today, 25.0),
+            (TODAY - timedelta(days=3), 15.0),
+            (TODAY - timedelta(days=2), 5.0),  # stable, breaks
+            (TODAY - timedelta(days=1), 20.0),
+            (TODAY, 25.0),
         ]
         trend, days, avg = _find_longest_trend_streak(deltas, min_daily_delta=10.0)
         assert trend == "rising"
@@ -204,33 +197,28 @@ class TestFindLongestTrendStreak:
 
 
 # =============================================================================
-# detect_recent_variations — integration
+# detect_recent_variations_from_stats
 # =============================================================================
 
 
 class TestDetectRecentVariations:
-    """End-to-end detection on synthetic data."""
+    """End-to-end detection on synthetic series."""
 
     def test_no_data_returns_none(self) -> None:
-        spec = HEALTH_KINDS["steps"]
-        assert detect_recent_variations([], spec) is None
+        assert detect_recent_variations_from_stats([], HEALTH_KINDS["steps"]) is None
 
     def test_stable_data_returns_none(self) -> None:
         """All days near baseline → not notable."""
-        spec = HEALTH_KINDS["steps"]
-        # 14 days all ~8000 steps
-        samples = [_make_sample("steps", _days_ago(i), 8000) for i in range(14)]
-        assert detect_recent_variations(samples, spec, window_days=7) is None
+        series = _series(*(_stat(i, 8000) for i in range(14)))
+        assert detect_recent_variations_from_stats(series, HEALTH_KINDS["steps"], 7) is None
 
     def test_falling_trend_notable(self) -> None:
         """Clear 4-day drop → notable variation (above 20% avg threshold)."""
-        spec = HEALTH_KINDS["steps"]
         # 20 baseline days at 10 000 + 4 recent days at 5 000 (−50 %)
-        baseline = [_make_sample("steps", _days_ago(i), 10000) for i in range(10, 30)]
-        window = [_make_sample("steps", _days_ago(i), 5000) for i in range(4)]
-        samples = baseline + window
-
-        result = detect_recent_variations(samples, spec, window_days=7)
+        series = _series(
+            *(_stat(i, 10000) for i in range(10, 30)), *(_stat(i, 5000) for i in range(4))
+        )
+        result = detect_recent_variations_from_stats(series, HEALTH_KINDS["steps"], window_days=7)
         assert result is not None
         assert result["kind"] == "steps"
         assert result["trend"] == "falling"
@@ -240,52 +228,36 @@ class TestDetectRecentVariations:
 
 
 # =============================================================================
-# detect_notable_events — inactivity
+# detect_notable_events_from_stats — inactivity
 # =============================================================================
 
 
 class TestDetectNotableEvents:
-    """Structural event detection."""
+    """Structural event detection, read against the person's day."""
 
     def test_no_inactivity_returns_empty(self) -> None:
-        spec = HEALTH_KINDS["steps"]
-        samples = [_make_sample("steps", _days_ago(i), 5000) for i in range(7)]
-        assert detect_notable_events(samples, spec) == []
+        series = _series(*(_stat(i, 5000) for i in range(7)))
+        assert detect_notable_events_from_stats(series, HEALTH_KINDS["steps"], today=TODAY) == []
 
     def test_inactivity_streak_flagged(self) -> None:
         """Three consecutive days with 0 steps → inactivity event."""
-        spec = HEALTH_KINDS["steps"]
-        samples = [_make_sample("steps", _days_ago(i), 0) for i in range(3)]
-        events = detect_notable_events(samples, spec)
-        assert len(events) == 1
-        assert events[0]["event"] == "inactivity_streak"
-        assert events[0]["kind"] == "steps"
-        assert events[0]["days"] >= 3
+        series = _series(*(_stat(i, 0) for i in range(3)))
+        events = detect_notable_events_from_stats(series, HEALTH_KINDS["steps"], today=TODAY)
+        assert events == [{"event": "inactivity_streak", "kind": "steps", "days": 3}]
+
+    def test_days_older_than_the_window_are_not_read(self) -> None:
+        """The window is counted back from the person's today, not the server's."""
+        series = _series(*(_stat(i, 0) for i in range(8, 11)), _stat(0, 4000))
+        assert (
+            detect_notable_events_from_stats(
+                series, HEALTH_KINDS["steps"], today=TODAY, window_days=7
+            )
+            == []
+        )
 
     def test_inactivity_not_flagged_for_non_steps_kind(self) -> None:
-        """HR kind has no inactivity concept in v1.17.2."""
-        spec = HEALTH_KINDS["heart_rate"]
-        samples = [_make_sample("heart_rate", _days_ago(i), 70) for i in range(3)]
-        # HR inactivity event isn't defined — helper returns []
-        assert detect_notable_events(samples, spec) == []
-
-
-# =============================================================================
-# _group_samples_by_day
-# =============================================================================
-
-
-class TestGroupSamplesByDay:
-    """Grouping uses UTC-date of ``date_start``."""
-
-    def test_different_hours_same_day(self) -> None:
-        """Two samples at different hours on the same UTC day group together."""
-        day = _days_ago(1)
-        samples = [
-            _make_sample("steps", day.replace(hour=1), 100),
-            _make_sample("steps", day.replace(hour=23), 200),
-        ]
-        result = _group_samples_by_day(samples)
-        assert len(result) == 1
-        values = next(iter(result.values()))
-        assert sorted(values) == [100, 200]
+        """HR kind has no inactivity concept."""
+        series = _series(*(_stat(i, 0) for i in range(3)))
+        assert (
+            detect_notable_events_from_stats(series, HEALTH_KINDS["heart_rate"], today=TODAY) == []
+        )

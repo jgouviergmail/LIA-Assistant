@@ -97,10 +97,16 @@ interface Sent {
   answer: unknown;
 }
 
+/** The answer, its document named ``filename``. */
+function messageWithFile(filename: string): typeof MESSAGE {
+  const [file] = MESSAGE.message_metadata.generated_documents;
+  return { ...MESSAGE, message_metadata: { generated_documents: [{ ...file, filename }] } };
+}
+
 function routes(
   route: 'mailbox' | 'relay',
   sent: Sent,
-  { suggestions = false, asked = [] as string[] } = {}
+  { suggestions = false, asked = [] as string[], message = MESSAGE } = {}
 ): MockRoute[] {
   return [
     CONFIG,
@@ -112,7 +118,7 @@ function routes(
     {
       url: '**/api/v1/conversations/me/messages*',
       json: {
-        messages: [MESSAGE],
+        messages: [message],
         conversation_id: '00000000-0000-4000-8000-0000000000ff',
         total_count: 1,
         has_more: false,
@@ -265,6 +271,56 @@ test.describe('sending a file or an answer by e-mail', () => {
 
     const { blocking, summary } = await scanPage(page, testInfo, 'chat email share dialog');
     expect(blocking, `axe violations on the e-mail dialog:\n${summary}`).toHaveLength(0);
+  });
+
+  test('at 320 px a file named in one long word wraps inside the dialog', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    // A name as people write them, with no place to break (owner, 2026-11-15).
+    const filename = 'compte_rendu_du_comite_de_pilotage_du_quatorze_novembre_finale.pdf';
+    await page.setViewportSize({ width: 320, height: 640 });
+    await authenticate();
+    await mockApi(routes('mailbox', sentOk('mailbox'), { message: messageWithFile(filename) }));
+
+    await page.goto('/en/dashboard/chat');
+    await waitForHydration(page, DOC_CARD);
+    await page.getByRole('button', { name: `Send ${filename} by e-mail` }).click();
+    const dialog = page.getByRole('dialog', { name: 'Send by e-mail' });
+    await expect(dialog.getByLabel('To')).toBeVisible();
+
+    const geometry = await dialog.evaluate((element, name) => {
+      const line = Array.from(element.querySelectorAll('p')).find(p =>
+        p.textContent?.includes(name)
+      );
+      if (!line) throw new Error('the dialog names no file');
+      // The text's own line boxes, the icon beside it left out.
+      const rects: DOMRect[] = [];
+      const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        rects.push(...Array.from(range.getClientRects()).filter(rect => rect.width > 0));
+      }
+      const box = element.getBoundingClientRect();
+      return {
+        innerRight: box.right - parseFloat(getComputedStyle(element).borderRightWidth),
+        textRight: Math.max(...rects.map(rect => rect.right)),
+        lines: new Set(rects.map(rect => Math.round(rect.top))).size,
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+      };
+    }, filename);
+    const report = JSON.stringify(geometry);
+
+    expect(geometry.lines, `${report} — the name wraps`).toBeGreaterThan(1);
+    expect(geometry.textRight, `${report} — the name stays inside`).toBeLessThanOrEqual(
+      geometry.innerRight + 1
+    );
+    expect(geometry.scrollWidth, `${report} — nothing scrolls sideways`).toBeLessThanOrEqual(
+      geometry.clientWidth + 1
+    );
   });
 
   test('a contact is picked by name and its address is what is sent', async ({

@@ -12,6 +12,7 @@ from sqlalchemy import DateTime, Enum, ForeignKey, Index, Numeric, String, Text,
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+from src.infrastructure.database.conversation_origin import ConversationOriginMixin
 from src.infrastructure.database.models import BaseModel
 
 
@@ -103,13 +104,16 @@ class ReturnSynthesisStatus(str, enum.Enum):
 _ACTIVE_STATUSES_SQL = "status IN ('DIALING', 'IN_PROGRESS')"
 
 
-class PhoneCall(BaseModel):
+class PhoneCall(ConversationOriginMixin, BaseModel):
     """A single outbound call. PII (``callee_phone``) is encrypted by the service.
 
     Vendor call costs are the user's own (D-9) — ``call_seconds`` is factual
     metadata, never converted to money. The raw transcript is never stored (D-8):
     only ``summary`` + minimal ``structured_data`` survive, purged after
     ``expires_at`` by the retention reaper.
+
+    The call's return comes back to the discussion it was placed from while
+    that generation lives, else to Main (``ConversationOriginMixin``).
     """
 
     __tablename__ = "phone_calls"

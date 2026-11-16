@@ -1605,7 +1605,7 @@
     },
     "383": {
       "title": "Un brouillon parle avec la voix de la personne",
-      "summary": "Deux personnes qui répondaient au même mail recevaient la même réponse de LIA. La première fois que LIA écrit un mail pour toi, elle apprend désormais ta façon d'écrire dans tes derniers mails envoyés — formule d'appel, formule de fin, signature, ton, jamais ce dont tu parlais — et la suit dans chaque réponse et chaque nouveau message, y compris la réponse que tu confirmes, que LIA rédige maintenant elle-même quand tu n'en as pas dicté les mots. Tu la lis, la désactives ou la fais oublier dans les réglages. Mesuré sur des personnes fictives avant d'écrire le code : les réponses sont passées d'environ 42 à 63 marques du style de leur auteur sur 66, sans un seul fait recopié d'un ancien mail."
+      "summary": "Deux personnes qui répondaient au même mail recevaient la même réponse de LIA. LIA apprend désormais ta façon d'écrire dans tes derniers mails envoyés — formule d'appel, formule de fin, signature, ton, jamais ce dont tu parlais — quand tu le lui demandes, dans les réglages ou dans une conversation, et la suit dans chaque réponse et chaque nouveau message. Les mots que tu as dictés partent tels quels ; tout autre texte, même rédigé par l'assistant, passe par le rédacteur de LIA, qui l'écrit avec ta voix. Mesuré sur des personnes fictives avant d'écrire le code : les réponses sont passées d'environ 42 à 63 marques du style de leur auteur sur 66, sans un seul fait recopié d'un ancien mail."
     },
     "384": {
       "title": "Un message écrit pendant que LIA travaille attend son tour",
@@ -1626,6 +1626,18 @@
     "388": {
       "title": "Les documents utilisent ce que leurs formats savent faire",
       "summary": "Un document que LIA génère utilise désormais les mécanismes de son format : un tableur calcule avec de vraies formules, un graphique se modifie dans Excel ou PowerPoint, une présentation que tu vas projeter s'anime sobrement, un rapport s'ouvre sur une page de garde avec ses chiffres clés, ses figures et ses sources cliquables. Le modèle dit ce que les choses sont et le moteur les dessine, dans une palette au contraste vérifié qui suit le ton du document. Les illustrations sont des images générées : elles ne viennent que si tu les autorises dans Réglages › Documents, dans un budget, et chacune est comptée dans tes coûts."
+    },
+    "389": {
+      "title": "Telegram lit et répond comme le chat",
+      "summary": "Sur Telegram, LIA répondait moins bien que dans l'application : titres et tableaux arrivaient bruts, une photo, un document ou une position restaient sans réponse, et un message écrit pendant qu'elle travaillait était perdu. Désormais tout ce qui part vers Telegram est mis en forme par une seule porte, la commande /stop arrête la réponse en cours, un message écrit entre-temps attend son tour, une position devient la tienne pour la question posée et les fichiers passent dans les deux sens. Une note vocale reçoit une réponse vocale quand tes commentaires vocaux sont activés, et les résultats de tes routines y arrivent aussi."
+    },
+    "390": {
+      "title": "Le mode automatique choisit le moteur à chaque demande",
+      "summary": "À côté des modes Pipeline et ReAct, un troisième choix laisse LIA décider pour chaque demande. Ce qu'un seul plan ne peut pas mener au bout part dans la boucle ReAct ; sinon un modèle de décision juge en un appel si la demande attend un calcul, un recoupement, un travail ouvert ou quelqu'un que seul le texte d'un élément nomme, et le Pipeline ne prend la main que si rien de tout cela n'est là — dans le doute, la boucle, car une réponse complète passe avant une réponse rapide. Un petit badge sous la réponse dit quel moteur a répondu ; les tickets, les routines et Telegram suivent le même choix."
+    },
+    "391": {
+      "title": "ntfy apporte les notifications sur tout appareil",
+      "summary": "ntfy offre une autre voie aux notifications de LIA : chacun peut créer un abonnement sur le serveur de l'instance ou sur un serveur public dont l'adresse est vérifiée avant chaque envoi. Par défaut, seul un avis sans contenu sort ; le texte complet est un choix de la personne, les sujets sensibles restant masqués. Les sujets d'abonnement et les jetons restent chiffrés, parce qu'un sujet peut faire office de mot de passe."
     }
   }
 }

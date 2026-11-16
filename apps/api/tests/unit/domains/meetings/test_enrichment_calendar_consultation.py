@@ -35,9 +35,13 @@ def _door(opened: object) -> Any:
     return _open
 
 
-def _access(list_events: AsyncMock) -> CalendarAccess:
+def _access(
+    list_events_window: AsyncMock, *, listing: list[dict[str, Any]] | None = None
+) -> CalendarAccess:
+    """The account's calendar: one listing, every window asked of ``list_events_window``."""
     client = MagicMock()
-    client.list_events = list_events
+    client.list_calendars = AsyncMock(return_value={"items": listing or [], "truncated": False})
+    client.list_events_window = list_events_window
     return CalendarAccess(client=client, calendar_id="primary", connector_type="google_calendar")
 
 
@@ -68,7 +72,9 @@ async def test_a_calendar_read_is_filed_on_the_meeting_surface(
         "start": {"dateTime": STARTED.isoformat()},
         "end": {"dateTime": STOPPED.isoformat()},
     }
-    match = await _match(monkeypatch, _access(AsyncMock(return_value={"items": [event]})))
+    match = await _match(
+        monkeypatch, _access(AsyncMock(return_value={"events": [event], "truncated": False}))
+    )
 
     assert match is not None and match.event_id == "evt-1"
     (row,) = recorded
@@ -84,6 +90,39 @@ async def test_a_calendar_that_could_not_be_read_is_filed_failed(
     assert await _match(monkeypatch, _access(failing)) is None
     (row,) = recorded
     assert list(row["failed"]) == ["calendar"]
+
+
+async def test_the_meeting_recorded_is_found_in_the_main_calendar(
+    monkeypatch: pytest.MonkeyPatch, recorded: list[dict[str, Any]]
+) -> None:
+    """The default says where events are created; the meeting may sit in the main one."""
+    meeting = {
+        "id": "hotpot",
+        "summary": "Hotpot",
+        "start": {"dateTime": STARTED.isoformat()},
+        "end": {"dateTime": STOPPED.isoformat()},
+    }
+    held = {"famille": [], "me@example.com": [meeting]}
+
+    async def window(calendar_id: str, *_: object, **__: object) -> dict[str, Any]:
+        return {"events": held.get(calendar_id, []), "truncated": False}
+
+    access = _access(
+        AsyncMock(side_effect=window),
+        listing=[
+            {"id": "me@example.com", "accessRole": "owner", "primary": True},
+            {"id": "famille", "accessRole": "owner"},
+        ],
+    )
+    access = CalendarAccess(
+        client=access.client, calendar_id="famille", connector_type="google_calendar"
+    )
+
+    match = await _match(monkeypatch, access)
+
+    assert match is not None and match.event_id == "hotpot"
+    (row,) = recorded
+    assert list(row["opened"]) == ["calendar"]
 
 
 async def test_no_calendar_connected_opened_nothing_and_files_nothing(

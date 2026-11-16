@@ -29,6 +29,18 @@ interface Navigation {
 }
 const CardTarget = createContext<Navigation | null>(null);
 
+/**
+ * The signed source a card's own reads carry (owner, 2026-11-14): the token of the card of `kind`
+ * around the caller; else null, and the card reads nothing. A proof only constrains a read of its
+ * own family, so another family's card never lends one. Whether the Tools are offered is the
+ * reader's door to read, where it is mounted.
+ */
+export function useCardReadSource(kind: CardTargetPresentation['kind']): string | null {
+  const navigation = useContext(CardTarget);
+  if (navigation?.presentation.kind !== kind) return null;
+  return navigation.presentation.token;
+}
+
 /** The binding clears inherited identity, including unknown nested bindings. */
 export function CardToolBoundary({
   node,

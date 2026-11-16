@@ -8,6 +8,7 @@ import structlog
 from sqlalchemy import select
 
 from src.core.config import settings
+from src.core.constants import CHAT_DISCUSSION_LINK_TEMPLATE
 from src.core.exceptions import AuthorizationError
 from src.core.notification_privacy import (
     PRIVATE_NOTIFICATION_MARKER,
@@ -16,6 +17,7 @@ from src.core.notification_privacy import (
 )
 from src.domains.feature_switches.guard import require_capability_fresh
 from src.domains.feature_switches.registry import PlatformCapability
+from src.domains.notifications.ntfy_delivery import push_to_ntfy
 from src.domains.notifications.service import FCMNotificationService, FCMSendResult
 from src.domains.proactive_discussions.models import DiscussionOutbox
 from src.domains.proactive_discussions.outbox_repository import (
@@ -168,12 +170,24 @@ async def dispatch_pending_discussions() -> None:
 
 
 async def _send_pushes(envelope: DiscussionDelivery) -> bool:
+    """Every device, then every ntfy topic, with what the push shows.
+
+    Returns:
+        True when at least one device or one topic accepted the notification.
+    """
     privacy = (
         NotificationPrivacy.IN_APP_SENSITIVE if envelope.sensitive else NotificationPrivacy.NORMAL
     )
     title, body = notification_preview(
         privacy, envelope.language, "LIA", plain_text_for_notification(envelope.text)[:150]
     )
+    devices = await _push_to_devices(envelope, title, body)
+    topics = await _publish_to_ntfy(envelope, title, body, privacy)
+    return devices or topics
+
+
+async def _push_to_devices(envelope: DiscussionDelivery, title: str, body: str) -> bool:
+    """Each device while the opening may still go out, every status written after."""
     async with get_db_context() as db:
         service = FCMNotificationService(db)
         tokens = tuple(
@@ -210,3 +224,28 @@ async def _send_pushes(envelope: DiscussionDelivery) -> bool:
                 elif result.token_invalid:
                     await repository.deactivate_token(token, result.error)
     return any(result.success for _, _, result in sent)
+
+
+async def _publish_to_ntfy(
+    envelope: DiscussionDelivery, title: str, body: str, privacy: NotificationPrivacy
+) -> bool:
+    """ntfy receives what the push shows, opening the discussion it belongs to (ADR-391).
+
+    A topic that fails is said and never breaks the delivery: the devices' pushes stand.
+    """
+    if not await _may_send(envelope):
+        return False
+    try:
+        batch = await push_to_ntfy(
+            envelope.owner_id,
+            title=title,
+            body=body,
+            click_path=CHAT_DISCUSSION_LINK_TEMPLATE.format(
+                conversation_id=envelope.conversation_id
+            ),
+            privacy=privacy,
+        )
+    except Exception as error:
+        logger.warning("discussion_ntfy_failed", error_type=type(error).__name__)
+        return False
+    return batch.sent > 0

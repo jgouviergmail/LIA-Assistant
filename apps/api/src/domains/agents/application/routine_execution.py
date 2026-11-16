@@ -8,6 +8,7 @@ import structlog
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.conversation_source import current_origin
 from src.core.exceptions import ResourceConflictError, raise_scheduled_action_already_executing
 from src.domains.agents.application.action_preparation import build_action_content
 from src.domains.agents.application.authorization import load_actor
@@ -97,7 +98,11 @@ async def execute_routine_launch(
     )
     await commit_routine_change(db, actor_id, draft, receipt)
     reservation = RoutineExecutionReservation(
-        actor_id, selected.expected, draft.command_id, draft.expires_at
+        actor_id,
+        selected.expected,
+        draft.command_id,
+        draft.expires_at,
+        origin=current_origin(),
     )
     _start_reserved_run(reservation)
 
@@ -125,6 +130,7 @@ async def _run_reserved(reservation: RoutineExecutionReservation) -> None:
                 execution_token=reservation.token,
                 # Asked in the chat and confirmed: the person's run.
                 started_by_person=True,
+                origin=reservation.origin,
             )
     except SQLAlchemyError:
         logger.warning("routine_readiness_unavailable", action_id=str(reservation.expected.id))

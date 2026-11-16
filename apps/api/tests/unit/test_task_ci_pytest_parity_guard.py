@@ -37,7 +37,8 @@ PYPROJECT = REPO_ROOT / "apps" / "api" / "pyproject.toml"
 _TEST_ROOTS = ("unit", "agents", "integration")
 # How a pytest invocation starts in each of the three files: the literal binary
 # in Taskfile.yml/ci.yml, and the cross-platform ``$PYTEST_BIN`` the hook
-# resolves to ``.venv/Scripts/pytest`` or ``.venv/bin/pytest``.
+# resolves to ``.venv/Scripts/python -m pytest`` or ``.venv/bin/pytest``.
+# The pytest token also matches the module form; its interpreter -m is not a marker.
 _RUNNER = r"(?:pytest|\$PYTEST_BIN)"
 # ``pytest tests/<root>/ ... -m "<expr>"`` — CI splits the command across
 # backslash-continued lines, so continuations are joined first.
@@ -229,6 +230,25 @@ def _collection_identity(command: str) -> tuple[str, str] | None:
     paths = " ".join(sorted(paths_match.group(1).split()))
     marker = re.search(r'-m\s+"([^"]+)"', command)
     return paths, marker.group(1) if marker else ""
+
+
+def test_console_and_module_forms_select_the_same_contract() -> None:
+    """The interpreter's -m must not hide the marker, roots or coverage policy."""
+    flags = '-v --cov=src --cov-fail-under=0 -m "not integration and not slow"'
+    for runner in (
+        ".venv/Scripts/pytest",
+        ".venv/Scripts/python -m pytest",
+        ".venv/bin/pytest",
+        "$PYTEST_BIN",
+    ):
+        command = f"COVERAGE_FILE=.coverage-unit {runner} tests/unit/ {flags}"
+        assert _markers_by_root(command) == {"unit": {frozenset({"not integration", "not slow"})}}
+        assert _pytest_commands(command) == [("unit", f" {flags}")]
+        assert _collection_identity(command) == ("tests/unit/", "not integration and not slow")
+        assert _collection_identity(f"{runner} tests/unit/ tests/agents/") == (
+            "tests/agents/ tests/unit/",
+            "",
+        )
 
 
 def test_no_task_runs_the_same_collection_twice() -> None:

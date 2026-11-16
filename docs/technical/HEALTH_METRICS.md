@@ -29,11 +29,12 @@ service.ingest_batch()  ──▶  per-sample validation (mixed — reject one, 
 Settings UI
     │   GET /api/v1/health-metrics/aggregate?period=…
     ▼
-router.py  ─────────────▶  service.aggregate()
+router.py  ─────────────▶  service.aggregate()  (the account's zone)
                                 │
                                 ▼
-                          aggregator.aggregate_samples()
-                          (polymorphic buckets — HR avg/min/max + steps sum)
+                          chart_read.read_chart_statistics()
+                          (one SQL statement per kind through fusion.counted_samples,
+                           buckets at the person's clock — HR avg/min/max + steps sum)
 ```
 
 ## Database schema
@@ -126,6 +127,8 @@ This yields both counters (`inserted`, `updated`) without a separate `SELECT`. R
 
 Collapsed duplicates are reported as `updated` in the response, emit a `health_batch_duplicates_collapsed` warning log (with `user_id`, `kind`, `duplicates`, `received`), and increment `health_samples_batch_duplicates_total{kind}`.
 
+This merge only meets IDENTICAL intervals within one batch. Intervals that overlap without being identical — the usual shape when a phone and a watch measure the same walk — are stored as received and counted once where the history is read: see [Counting overlapping samples](#counting-overlapping-samples-adr-148-amendment-2026-11-14).
+
 ## Mixed per-sample validation
 
 `service._validate_sample(raw, kind)` returns a `_SampleValidation` dataclass:
@@ -146,28 +149,73 @@ It rejects naive (tz-less) datetimes, converts to UTC, and truncates microsecond
 
 ## Aggregation
 
-`aggregator.aggregate_samples()` takes the ascending-ordered list of samples in the window and emits one `HealthMetricAggregatePoint` per bucket slot — empty slots carry `has_data=False` so the frontend can render gaps without client-side gap detection.
+`chart_read.read_chart_statistics()` is the ONE chart reader: the Settings chart
+(`GET /health-metrics/aggregate`), the assistant's `health_chart.read` command and
+the proactive-discussion source all read it. It issues one SQL statement per kind
+over `fusion.counted_samples`, grouped by `date_trunc(period, timezone(<zone>, date_start))`,
+and draws one `HealthMetricAggregatePoint` per bucket slot — empty slots carry
+`has_data=False` so the frontend can render gaps without client-side gap detection.
+A window needing more than `HEALTH_METRICS_CHART_MAX_BUCKETS` buckets is refused
+before querying.
+
+Buckets are the person's (ADR-148 amendment 2026-11-14): a day starts at their
+midnight, an hour is an hour of their clock, and each point's `bucket` is the aware
+local start of its bucket in their zone. Where clocks repeat an hour, both readings
+share one hourly bucket; where they skip one, no bucket is drawn for it. A chart read
+without a start covers the period's default span, moved back to the start of its
+local bucket so the first bucket is whole (`default_chart_window`).
 
 Per-bucket fields:
 - `heart_rate_avg / min / max` — over the bucket's `kind="heart_rate"` samples (`None` if the bucket has no HR sample).
-- `steps_total` — sum of values over the bucket's `kind="steps"` samples (`None` if the bucket has no steps sample).
+- `steps_total` — the bucket's counted steps, overlaps fused (`None` if the bucket has no steps sample).
 - `has_data` — `False` if the bucket has no sample of any kind.
 
 Period-wide averages:
 - `heart_rate_avg` = arithmetic mean of every HR sample in the window.
 - `steps_per_day_avg` = `total_steps / total_days` (`None` when zero steps).
 
+## Counting overlapping samples (ADR-148 amendment 2026-11-14)
+
+Measured in production on 2026-11-14: an iPhone and an Apple Watch both reached the
+Shortcut, both labelled `iphone`, and their samples overlapped without being
+identical — 161 overlapping pairs in one day, 137 of them nested (a long phone sample
+holding short watch ones). LIA showed 23 212 steps where Apple Health showed 14 402;
+the overlap-free count was about 13 300.
+
+Every reader counts through ONE door, `fusion.counted_samples(user_id, kind, from_ts=, to_ts=)`,
+a SQL subquery shaped like samples (`date_start`, `date_end`, `value`). What overlaps
+count for is declared per kind in the registry (`HealthKindSpec.overlap_rule`):
+
+- `MAX_RATE` (`steps`) — a count spread evenly over its interval. The samples are
+  grouped into clusters (chains of overlapping intervals, in start order), each
+  cluster is cut at every sample boundary into slices, and each slice counts the
+  highest rate among the samples covering it, times its length. One walk measured
+  twice counts once; a sample that overlaps nothing comes out whole.
+- `KEEP_ALL` (`heart_rate`) — every sample is an observation of its own; the door
+  returns the samples as stored and they are averaged.
+
+A row belongs to the window of its START (the rule of samples, kept for slices). To
+cut every slice the same way whichever window reads it, the door reads the samples
+starting up to `HEALTH_METRICS_FUSION_HORIZON_HOURS` (24 h) before and after the
+window, so adjacent windows add up exactly. A sample whose end does not follow its
+start is read as one second long. The raw rows are never rewritten: the history is
+counted again by every read.
+
+A guard refuses any `func.<aggregate>(HealthSample.value)` outside the door
+(`tests/unit/domains/health_metrics/test_counted_samples_single_door_guard.py`).
+Proven on PostgreSQL by `tests/integration/test_health_daily_stats_rollup.py`.
+
 ## Read path: per-day rollup (ADR-148)
 
-Baselines, variation detection and the Heartbeat block never need a raw sample —
-they only ever reason **per day**. `HealthSampleRepository.fetch_daily_stats`
-returns one row per UTC day instead of one row per sample:
+Baselines, variation detection, the daily breakdown and the Heartbeat block never
+need a raw sample — they only ever reason **per day**.
+`HealthSampleRepository.fetch_daily_stats(user_id, kind=, zone=, from_ts=, to_ts=)`
+returns one row per LOCAL day of the person instead of one row per sample:
 
 ```sql
-SELECT (timezone('UTC', date_start))::date AS day,
-       sum(value), count(*), min(value)
-FROM health_samples
-WHERE user_id = … AND kind = … AND date_start >= … AND date_start < …
+SELECT (timezone(:zone, counted.date_start))::date AS day,
+       round(sum(counted.value)), count(*), round(min(counted.value))
+FROM (<fusion.counted_samples>) AS counted
 GROUP BY day ORDER BY day
 ```
 
@@ -176,26 +224,29 @@ GROUP BY day ORDER BY day
   `RESTING` → `minimum`), and `detect_notable_events` needs the raw daily **sum**
   whatever the kind's baseline aggregation says — a `BaselineKind → SQL function`
   mapping would silently misread a future `DAILY_AVG` kind.
-- **Bit-exact, provably.** `total` and `count` are exact integers, so
-  `total / count` is the same IEEE-754 operation Python performs over the sample
-  list. Casting to `float` matters: `avg(integer)` returns `numeric`, whose
-  rounding differs.
-- **UTC bucketing is explicit.** `timezone('UTC', …)` makes the day independent
-  of the session `TimeZone` — without it CI (UTC) stays green while a non-UTC
-  production session mis-buckets. Pinned by an integration test that replays the
-  query under a UTC+14 session.
+- **Exact for readings.** A `KEEP_ALL` kind's `total` and `count` are exact
+  integers, so `total / count` is the same IEEE-754 operation Python performs over
+  the sample list. A `MAX_RATE` kind's total is the rounded sum of its fused slices.
+- **The person's day, explicitly.** `timezone(<IANA zone>, …)` cuts the day at the
+  person's midnight and keeps it independent of the session `TimeZone` — without
+  it CI (UTC) stays green while a non-UTC production session mis-buckets. Until
+  2026-11-14 the zone was UTC: « today » ran from 01:00 to 01:00 in Paris in
+  winter. Pinned by integration tests on a Paris day, the 23-hour 29 March, the
+  25-hour 25 October and a UTC+14 session.
 - **Why it matters.** The Heartbeat block used to issue 6 queries / 30 662 rows
   per tick for ~74 numbers. PostgreSQL answered in 6.7 ms; the cost was the
   per-row client-side decode (~29 µs/row), a synchronous burst freezing the
   worker's event loop for 483 ms. Health signals were consequently dropped on
   **46.5 %** of ticks. Measured after: 353 ms → 7.0 ms, loop stall 124 → 1.1 ms.
 
-`baseline.py` / `signals.py` expose every computation twice over one
-implementation — a `*_from_stats` entry point consuming the rollup, and a
-raw-sample wrapper that groups first via `daily_stats_from_samples`. The 24-hour
-`summary_today` window deliberately stays on raw samples: a few hundred rows,
-and per-sample semantics (`_summary_value`, freshness of the last point) a
-per-day rollup cannot express.
+`baseline.py` / `signals.py` consume the rollup and nothing else: the former
+raw-sample wrappers grouped by UTC day over unfused samples, a second reading
+that would now disagree with every reader, and are gone. Every day window starts
+at a local midnight (`baseline_window_start(now, zone, recent_days=)`), and the
+inactivity detector reads the series against the person's today, handed by its
+caller. The 24-hour `summary_today` window of the Heartbeat block and the « today »
+of the chat tools and the briefing read `fetch_window_summary`: the counted
+aggregate, plus the count and latest of the samples received.
 
 ## Observability
 
@@ -261,13 +312,18 @@ Summary + overview tools use ISO 8601 bounds exactly like
 which the planner injects in its prompt. The planner then splits the
 two dates across the tool's two parameters. Defaults when omitted:
 
-- `time_min` → today 00:00 UTC (service: `compute_kind_summary`).
-- `time_max` → `datetime.now(UTC)`.
+- `time_min` → today from the person's midnight (service: `compute_kind_summary`).
+- `time_max` → now.
 
-The tool-side helper `_parse_iso_ts(value, *, param)` accepts bare
-dates (`"2026-04-20"` → midnight UTC), datetimes with Z suffix, and
-datetimes with explicit offset. Malformed inputs → `None` + warning
-log → service falls back to defaults.
+The tool reads both through the date contract (`_read_window` →
+`lookup_parameters.read_period`, ADR-318): a date is a WHOLE day in the
+person's timezone — « from the 20th to the 26th » covers the 26th too — and a
+datetime is the instant it names, read in that timezone when it carries no
+offset. An unreadable value is refused (`INVALID_INPUT`, the format, today's
+date), never replaced by the default window. The window said back
+(`from_ts`, `to_ts`, `last_sample_at`) is in the person's zone. The parameter
+wording is ONE constant read by the manifest and the `@tool` schema
+(`HEALTH_TIME_MIN_DESCRIPTION`, `HEALTH_TIME_MAX_DESCRIPTION`).
 
 ### Message-embedded figures
 
@@ -286,19 +342,26 @@ when `User.health_metrics_agents_enabled` is false. The toggle is
 exposed via `PATCH /api/v1/auth/me/health-metrics-agents-preference`
 and governs four integrations at once (tools, Heartbeat source,
 memory extractor, journal consolidation) — one interrupt for the
-user.
+user. The three model surfaces that read the history as context (the
+memory extractor, the journal extractor, the journal consolidation)
+pass ONE gate, `health_metrics/prompt_context.opted_in_health_context`:
+the instance switch, this toggle, the person's zone, and an empty block
+on failure, logged by its type alone (2026-11-14; it was three copies,
+two of them logging the error's text).
 
 ## Extending the kind taxonomy
 
 Adding a new kind (e.g. `spo2`, `sleep_duration`, `calories_burned`) is
 a single-file edit in the central registry plus adding a handful of
-hand-crafted tools — the service, repository, aggregator, heartbeat,
+hand-crafted tools — the service, repository, chart reader, heartbeat,
 memory, and journal pipelines iterate `HEALTH_KINDS` and pick up the
 new kind transparently.
 
 1. **`src/domains/health_metrics/kinds.py`** — add a new
    `HealthKindSpec(...)` entry to `HEALTH_KINDS`. Pick the correct
    `MergeStrategy` (MAX / AVG_ROUNDED / MIN / SUM / LAST_WINS),
+   `OverlapRule` (MAX_RATE for a count spread over its interval, KEEP_ALL
+   for readings — a summed kind must fuse, guarded by `test_kinds.py`),
    `AggregationMethod` (SUM / AVG_MIN_MAX / LAST_VALUE), and
    `BaselineKind` (DAILY_SUM / DAILY_AVG / RESTING). Declare the
    `legacy_response_fields` tuple only if you need backward-compat on
@@ -312,8 +375,8 @@ new kind transparently.
 4. **Add tools to `health_tools.py`** — two or three new hand-crafted
    `@tool` functions (typically a summary tool using `time_min` /
    `time_max` and a baseline-compare tool using `window_days`). Reuse
-   `_check_user_toggle_or_error`, `_parse_iso_ts`, and
-   `_format_delta_pct`. Inline factual figures in the `message`.
+   `_check_user_toggle_or_error`, `_read_window` (or `_zone` for a tool with
+   no window), and `_format_delta_pct`. Inline factual figures in the `message`.
 5. **Register the manifests** — declare
    `<kind>_summary_catalogue_manifest` in
    `src/domains/agents/health/catalogue_manifests.py` with

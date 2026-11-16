@@ -14,7 +14,7 @@
  * `src/__tests__/service-worker.test.ts`; bump it with every release.
  */
 
-const CACHE_VERSION = '5.0.0';
+const CACHE_VERSION = '5.1.0';
 const SHELL_CACHE = `lia-shell-v${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
 
@@ -159,6 +159,8 @@ self.addEventListener('push', event => {
       ...data,
       url: data.url || '/dashboard/chat',
     },
+    // A reminder that rang offers two « later » (ADR-268 amendment 2026-11-16).
+    actions: reminderActions(data),
     // Vibration pattern for mobile
     vibrate: [200, 100, 200],
   };
@@ -166,6 +168,69 @@ self.addEventListener('push', event => {
   // Show notification
   event.waitUntil(self.registration.showNotification(title, notificationOptions));
 });
+
+/** The two « later » a reminder notification offers, by action name. */
+const SNOOZE_ACTIONS = { snooze_short: 'short', snooze_long: 'long' };
+
+/**
+ * The address a « later » posts to: the snooze route of the occurrence the push
+ * names, on https (or a loopback host in development), and nothing else.
+ */
+function snoozeAddress(value, firingId) {
+  if (typeof value !== 'string' || typeof firingId !== 'string') return null;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(firingId)) return null;
+  try {
+    const target = new URL(value);
+    const loopback = target.hostname === 'localhost' || target.hostname === '127.0.0.1';
+    if (target.protocol !== 'https:' && !(target.protocol === 'http:' && loopback)) return null;
+    if (target.username || target.password || target.search || target.hash) return null;
+    if (!target.pathname.endsWith(`/reminders/firings/${firingId}/snooze`)) return null;
+    return target.href;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A reminder's actions, when its push names a recorded occurrence. A browser
+ * draws two at most: « tomorrow morning » and « stop » stay in the chat's
+ * bubble. The labels come with the push — this worker has no translation.
+ */
+function reminderActions(data) {
+  if (data.type !== 'reminder' || !snoozeAddress(data.snooze_url, data.firing_id)) return [];
+  const actions = [];
+  if (data.snooze_short_label)
+    actions.push({ action: 'snooze_short', title: data.snooze_short_label });
+  if (data.snooze_long_label)
+    actions.push({ action: 'snooze_long', title: data.snooze_long_label });
+  return actions;
+}
+
+/**
+ * Postpone the occurrence from its notification, with the person's own session.
+ * Anything but a postponement that landed (a refused delay, an expired window,
+ * no session, no network) opens the chat, whose bubble offers every choice.
+ */
+async function snoozeFromNotification(data, choice) {
+  const address = snoozeAddress(data?.snooze_url, data?.firing_id);
+  if (address) {
+    try {
+      const response = await fetch(address, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ choice, surface: 'push' }),
+      });
+      if (response.ok) {
+        const verdict = await response.json();
+        if (verdict?.outcome === 'snoozed' || verdict?.outcome === 'already_snoozed') return;
+      }
+    } catch {
+      /* The chat below says what happened. */
+    }
+  }
+  return focusOrOpen(data?.url);
+}
 
 /**
  * Handle notification click.
@@ -201,9 +266,21 @@ function notificationTarget(value, clientUrl) {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const destination = event.notification.data?.url;
+  const choice = Object.hasOwn(SNOOZE_ACTIONS, event.action)
+    ? SNOOZE_ACTIONS[event.action]
+    : undefined;
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async windowClients => {
+    choice
+      ? snoozeFromNotification(event.notification.data, choice)
+      : focusOrOpen(event.notification.data?.url)
+  );
+});
+
+/** Focus an app window on the destination, or open one. */
+function focusOrOpen(destination) {
+  return clients
+    .matchAll({ type: 'window', includeUncontrolled: true })
+    .then(async windowClients => {
       for (const client of windowClients) {
         let current;
         try {
@@ -230,9 +307,8 @@ self.addEventListener('notificationclick', event => {
         return client.focus();
       }
       if (clients.openWindow) return clients.openWindow(notificationTarget(destination));
-    })
-  );
-});
+    });
+}
 
 /**
  * Handle notification close.

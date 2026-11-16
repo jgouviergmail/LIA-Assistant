@@ -116,6 +116,16 @@ class Reminder(BaseModel):
         doc="Error log if failed",
     )
 
+    # A postponed copy remembers when the person first asked (ADR-268
+    # amendment 2026-11-16). NULL on every reminder a person created; set only
+    # on the one-shot copy a snooze created, which is also what tells the
+    # message it is a reminder coming back rather than a new request.
+    first_asked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When the person first asked; set only on a copy a snooze created.",
+    )
+
     # Relationship
     user = relationship("User", back_populates="reminders", lazy="selectin")
 
@@ -133,3 +143,62 @@ class Reminder(BaseModel):
 
     def __repr__(self) -> str:
         return f"<Reminder(id={self.id}, status={self.status}, trigger_at={self.trigger_at})>"
+
+
+class ReminderFiring(BaseModel):
+    """One occurrence of a reminder that rang, kept while it can be postponed.
+
+    ADR-268 first refused a snooze because a press could not say WHICH
+    occurrence it meant: a one-shot reminder is deleted the instant it fires,
+    and a series has already moved to its next instant. This row is that
+    occurrence (ADR-268 amendment 2026-11-16). The notification names it, a
+    press acts on it, and it is purged once ``REMINDER_SNOOZE_WINDOW_HOURS``
+    have passed since it rang.
+
+    It COPIES what rang rather than pointing at it: the reminder it came from
+    is usually gone already (``reminder_id`` is SET NULL by that deletion), and
+    a postponement must still know what to say.
+    """
+
+    __tablename__ = "reminder_firings"
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    reminder_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("reminders.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="The reminder that rang, while it exists: a series, or a one-shot not yet deleted.",
+    )
+    content: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        comment="What rang, copied: the reminder may already be gone.",
+    )
+    original_message: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        comment="The person's own request, copied for the postponed copy's message.",
+    )
+    asked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        comment="When the person first asked for it (carried to a postponed copy).",
+    )
+    fired_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        index=True,
+        comment="When it rang; the snooze window and the purge count from it.",
+    )
+    snoozed_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="The instant it was postponed to; NULL while it was not.",
+    )
+
+    def __repr__(self) -> str:
+        return f"<ReminderFiring(id={self.id}, fired_at={self.fired_at})>"

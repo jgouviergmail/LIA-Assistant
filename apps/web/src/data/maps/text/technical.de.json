@@ -76,9 +76,9 @@
     },
     "t.channels": {
       "name": "Messaging-Kanäle",
-      "role": "Mit LIA über Telegram sprechen und ihre Nachrichten empfangen; den Webhook des Bots setzt allein der Leader des Schedulers.",
+      "role": "Mit LIA über Telegram sprechen: formatierter Text, Dateien in beide Richtungen, Sprachnachrichten, Bestätigungen und Abbrechen; nur der Scheduler-Leader setzt den Bot-Webhook.",
       "stack": ["Telegram", "python-telegram-bot"],
-      "src": "82a0c6699dba"
+      "src": "af11d59eaa52"
     },
     "t.edge": {
       "name": "Tunnel, CSP und Rate-Limit",
@@ -141,9 +141,9 @@
     },
     "t.router": {
       "name": "Router",
-      "role": "Klassifiziert die Anfrage und bewertet aus einem einzigen Embedding die Domänen für den Planer und bringt alle Werkzeuge für ReAct in eine Rangfolge.",
+      "role": "Klassifiziert die Anfrage, wählt im automatischen Modus ihren Ablauf und bewertet aus einem einzigen Embedding die Bereiche für den Planer sowie die Werkzeuge für ReAct.",
       "stack": ["Anfrageanalyse", "Pivot-Embedding", "Werkzeug-Ranking"],
-      "src": "ffaa35f0abde"
+      "src": "caed1a3e0793"
     },
     "t.planner": {
       "name": "Planer und Executor",
@@ -300,9 +300,9 @@
     },
     "t.push": {
       "name": "Push-Benachrichtigungen",
-      "role": "Einen Browser oder ein Telefon erreichen; unter iOS transportiert ein Relais nur eine opake Kennung und einen inhaltslosen Satz.",
-      "stack": ["Firebase Cloud Messaging", "iOS-Weckrelais", "Web Push"],
-      "src": "aa10ca425769"
+      "role": "Einen Browser oder ein Telefon erreichen, mit oder ohne Google-Dienste; unter iOS transportiert ein Relais nur eine opake Kennung und einen inhaltslosen Satz.",
+      "stack": ["Firebase Cloud Messaging", "iOS-Weckrelais", "Web Push", "ntfy"],
+      "src": "8dab9d58d4e3"
     },
     "t.scheduler": {
       "name": "Scheduler mit einem Leader",

@@ -23,8 +23,9 @@ from uuid import UUID
 
 import structlog
 
-from src.core.constants import GMAIL_HISTORY_ANCHOR_TTL_SECONDS
+from src.core.constants import GMAIL_HISTORY_ANCHOR_TTL_SECONDS, GMAIL_HISTORY_PAGES_MAX
 from src.core.exceptions import ConnectorAPIError
+from src.domains.connectors.clients.gmail_history import read_history
 
 logger = structlog.get_logger(__name__)
 
@@ -56,6 +57,8 @@ async def delta_messages_or_none(
     Owns the Redis access so the aggregator stays a thin caller. Returns
     ``[{"id": ...}, ...]`` capped at ``max_emails`` ([] = exactly no new
     mail), or None when the legacy query path must run (always fail-open).
+    The cap keeps the LATEST arrivals: a history reads oldest first, and the
+    first ``max_emails`` were the mail the person had longest, not the news.
     """
     try:
         from src.infrastructure.cache.redis import get_redis_cache
@@ -67,7 +70,8 @@ async def delta_messages_or_none(
     message_ids = await fetch_new_message_ids(client, redis, user_id)
     if message_ids is None:
         return None
-    return [{"id": message_id} for message_id in message_ids[:max_emails]]
+    latest = message_ids[-max_emails:] if max_emails > 0 else []
+    return [{"id": message_id} for message_id in latest]
 
 
 async def fetch_new_message_ids(client: Any, redis: Any, user_id: UUID) -> list[str] | None:
@@ -98,7 +102,9 @@ async def fetch_new_message_ids(client: Any, redis: Any, user_id: UUID) -> list[
 
     anchor_str = anchor.decode() if isinstance(anchor, bytes) else str(anchor)
     try:
-        response = await client.get_history(start_history_id=anchor_str)
+        # Every page: the first page's history id is the MAILBOX's current one,
+        # and keeping it skipped every page after (ADR-185 amendment 2026-11-15).
+        read = await read_history(client, anchor_str, pages_max=GMAIL_HISTORY_PAGES_MAX)
     except ConnectorAPIError as exc:
         # Gmail 404s an expired historyId: re-anchor and use the legacy path.
         logger.info(
@@ -112,16 +118,11 @@ async def fetch_new_message_ids(client: Any, redis: Any, user_id: UUID) -> list[
         logger.warning("gmail_delta_history_failed", user_id=str(user_id), error=str(exc))
         return None
 
-    seen: set[str] = set()
-    message_ids: list[str] = []
-    for entry in response.get("history", []):
-        for added in entry.get("messagesAdded", []):
-            message_id = (added.get("message") or {}).get("id")
-            if message_id and message_id not in seen:
-                seen.add(message_id)
-                message_ids.append(message_id)
+    message_ids = read.added_message_ids()
+    if not read.complete:
+        logger.info("gmail_delta_history_cut", user_id=str(user_id), records=len(read.records))
 
-    new_anchor = response.get("historyId")
+    new_anchor = read.resume_from
     if new_anchor:
         try:
             await _store_anchor(redis, user_id, str(new_anchor))

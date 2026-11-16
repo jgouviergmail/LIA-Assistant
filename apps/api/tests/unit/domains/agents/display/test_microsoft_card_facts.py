@@ -126,6 +126,26 @@ def test_editable_graph_calendar_does_not_claim_ownership_in_its_card() -> None:
     assert "Owner" not in markup
 
 
+@pytest.mark.parametrize(
+    ("rights", "role"),
+    [
+        # Only a calendar's creator may share it: Google's « owner ».
+        ({"canShare": True, "canEdit": True}, "owner"),
+        ({"canShare": False, "canEdit": True}, "writer"),
+        ({"canEdit": False}, "reader"),
+    ],
+)
+def test_graph_calendar_rights_read_as_google_s_roles(rights: dict[str, bool], role: str) -> None:
+    normalized = normalize_graph_calendar({"id": "calendar", "name": "Trips", **rights})
+    assert normalized["accessRole"] == role
+    assert normalized[FIELD_DISPLAY_ONLY]["access_role"] == role
+
+
+def test_graph_calendar_that_says_nothing_claims_no_role_on_its_card() -> None:
+    normalized = normalize_graph_calendar({"id": "calendar", "name": "Trips"})
+    assert normalized[FIELD_DISPLAY_ONLY]["access_role"] is None
+
+
 @pytest.mark.parametrize("text", ["2026-03-29T02:30:00", "2026-10-25T02:30:00"])
 def test_naive_gap_or_ambiguous_provider_time_is_not_guessed(text: str) -> None:
     assert parse_provider_datetime({"dateTime": text, "timeZone": "Europe/Paris"}) is None

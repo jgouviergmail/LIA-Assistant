@@ -19,12 +19,14 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.conversation_execution import ExecutionRevoked
 from src.core.conversation_target import ConversationRef
 from src.domains.attachments.file_contracts import FileWriteResult, UploadMetadata
 from src.domains.attachments.file_publication import publish_file
 from src.domains.attachments.models import Attachment
 from src.domains.attachments.publication_errors import raise_retired_file_source
+from src.domains.rag_spaces.inflation import InflatesTooFar
 from src.domains.rag_spaces.processing import extract_text
 from src.infrastructure.observability.metrics_attachments import attachments_uploaded_total
 
@@ -41,15 +43,28 @@ def copy_and_extract(
         max_chars: The attachments' text cap.
 
     Returns:
-        ``(capped text or None, copied size)``.
+        ``(capped text or None, copied size)``: a zipped document declaring more than the
+        attachments' inflation ceiling is copied with no text, as an upload is.
 
     Raises:
         Exception: Copy/extraction failure; the publisher retains the cleanup intent.
     """
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, target)
-    text = extract_text(target, content_type)[:max_chars] if content_type else None
-    return text, target.stat().st_size
+    return _capped_text(target, content_type, max_chars), target.stat().st_size
+
+
+def _capped_text(target: Path, content_type: str | None, max_chars: int) -> str | None:
+    """The copy's text under the attachments' caps; none for an image or an archive past them."""
+    if not content_type:
+        return None
+    try:
+        text = extract_text(
+            target, content_type, max_inflated_mb=settings.attachments_max_inflated_mb
+        )
+    except InflatesTooFar:
+        return None
+    return text[:max_chars]
 
 
 def write_text_copy(target: Path, text: str) -> int:

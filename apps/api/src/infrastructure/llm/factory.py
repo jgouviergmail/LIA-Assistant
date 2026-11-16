@@ -222,6 +222,7 @@ LLMType = Literal[
     "jev_parameter_kind",
     "jev_email_classification",
     "jev_event_classification",
+    "jev_execution_mode",
     # Relationship debrief — daily synthesis of one contact's file (personal CRM)
     "relation_debrief",
     "vision_analysis",

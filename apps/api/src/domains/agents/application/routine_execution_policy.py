@@ -11,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.conversation_target import ConversationOrigin
 from src.core.exceptions import AuthorizationError
 from src.domains.agents.application.authorization import load_actor
 from src.domains.agents.application.availability import require_application_tools
@@ -30,6 +31,9 @@ class RoutineExecutionReservation:
     expected: RoutineSnapshot
     token: UUID
     expires_at: datetime
+    #: The discussion the run was asked in: its turn and its notices return
+    #: there while that generation lives (ADR-378 amendment 2026-11-14).
+    origin: ConversationOrigin | None = None
 
 
 async def wait_for_routine_turn(owner_id: UUID, expires_at: datetime) -> bool:

@@ -20,7 +20,7 @@ from src.domains.agents.application.draft_models import ApplicationActionDraftCo
 from src.domains.agents.application.export_action import prepare_account_export
 from src.domains.agents.application.export_download import prepare_export_download
 from src.domains.agents.application.export_download_schemas import ExportDownloadRequest
-from src.domains.agents.application.habit_editing import rebuild_habit_draft
+from src.domains.agents.application.habit_editing import HABIT_EDITORS
 from src.domains.agents.application.habit_settings_editing import rebuild_habit_settings_draft
 from src.domains.agents.application.heartbeat_operations import prepare_heartbeat_content
 from src.domains.agents.application.heartbeat_schemas import HeartbeatPreferencePatch
@@ -94,6 +94,7 @@ from src.domains.agents.application.session_revocation_operations import prepare
 from src.domains.agents.application.session_revocation_schemas import DeviceSessionRevokeRequest
 from src.domains.agents.application.shared_mcp_operations import prepare_shared_mcp_content
 from src.domains.agents.application.shared_mcp_schemas import SharedMCPPreferenceUpdateRequest
+from src.domains.agents.application.writing_style_editing import WRITING_STYLE_EDITORS
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.auth.preference_commands import AssistantPreferencePatch
 from src.infrastructure.account_preferences import LayoutPreferencePatch
@@ -185,10 +186,8 @@ async def rebuild_application_draft(
             "psyche_settings.update": rebuild_psyche_settings_draft,
             **MANAGEMENT_EDITORS,
             "habit_settings.update": rebuild_habit_settings_draft,
-            "habits.status": rebuild_habit_draft,
-            "habits.delete": rebuild_habit_draft,
-            "habits.forget": rebuild_habit_draft,
-            "habits.recompute": rebuild_habit_draft,
+            **HABIT_EDITORS,
+            **WRITING_STYLE_EDITORS,
             "open_loops.update": rebuild_open_loop_draft,
             "open_loops.close": rebuild_open_loop_draft,
             "interests.export": rebuild_management_export_draft,

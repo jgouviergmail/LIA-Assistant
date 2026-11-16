@@ -24,7 +24,6 @@ from pydantic import BaseModel, Field
 
 from src.core.constants import (
     TOOL_ASSIST_CARD_MAX_SIDE,
-    TOOL_ASSIST_CONTACT_HTML_MAX_CHARS,
     TOOL_ASSIST_CONTACT_MESSAGE_MAX_CHARS,
     TOOL_ASSIST_CONTACT_MESSAGES_MAX,
     TOOL_ASSIST_CONTACT_VALUE_MAX_CHARS,
@@ -34,12 +33,12 @@ from src.core.i18n import get_language_name
 from src.core.validators import validate_email
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.utils.content_wrapper import wrap_external_content
-from src.domains.connectors.clients.normalizers.html_text import html_to_text
 from src.domains.connectors.clients.protocols import EmailClientProtocol
 from src.domains.shared.text_normalization import fold_name
 from src.domains.tool_assists.catalogue import SECTION_CONTACTS, SECTION_MAIL
 from src.domains.tool_assists.door import AssistRun
 from src.domains.tool_assists.llm import ask_slot, ask_slot_on_image
+from src.domains.tool_assists.shown_words import words_as_shown
 from src.domains.workbench.calls import provider_call
 from src.domains.workbench.clients import open_tool_client
 from src.domains.workbench.contacts_photos import prepared_photo
@@ -204,13 +203,10 @@ def proposed_values(
 
 
 async def _exchange(client: EmailClientProtocol, message_id: str) -> Exchange:
-    """A message whole: its HTML holds the signature the assistant's own text leaves out."""
+    """A message whole, as its reader shows it: its layout holds the signature the assistant's own
+    text leaves out (``shown_words``)."""
     message: dict[str, Any] = await client.get_message(message_id, use_cache=False)
-    html = await client.get_message_html(message_id)
-    words = str(message.get(FIELD_BODY) or "")
-    if html:
-        # A mailer's HTML can be large, and parsing it would hold every stream of the worker.
-        words = await asyncio.to_thread(html_to_text, html[:TOOL_ASSIST_CONTACT_HTML_MAX_CHARS])
+    words = await words_as_shown(client, message_id, str(message.get(FIELD_BODY) or ""))
     return Exchange(
         message_id=message_id,
         subject=str(message.get("subject") or ""),

@@ -179,3 +179,15 @@ Windows file, and an AST guard refusing a reader that decodes by itself),
 `test_document_upload.py`,
 `tests/unit/api/test_client_config_flags.py`, and on the web
 `src/lib/__tests__/attachment-formats.test.ts` and `ChatInput.test.tsx`.
+
+## Amendment — every reader is bounded, each by its own ceiling (2026-11-14)
+
+The inflation bound of the chat's attachments lived beside one caller; a knowledge space, a mail's
+attachment read by the assistant and a copy into the chat reached the same reader without it. The
+measure now lives in the reader's own door (`rag_spaces/processing.extract_text`, which raises
+`InflatesTooFar` before a zipped document's reader starts; the archive's declared size is read by
+`rag_spaces/inflation.py`, without inflating anything), and every caller declares its ceiling
+(the keyword `max_inflated_mb` has no default): the composer, a mail's attachment and a copy read
+`ATTACHMENTS_MAX_INFLATED_MB`; a space reads `RAG_SPACES_MAX_INFLATED_MB` (200, ten times its
+default upload) and says its refusal by the code `inflates_too_far`. A copy past its ceiling is kept
+without its text, as an upload is.

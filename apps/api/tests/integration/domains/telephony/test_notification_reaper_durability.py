@@ -19,6 +19,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from src.core.config import settings
+from src.core.conversation_target import ConversationOrigin
 from src.domains.telephony.models import NotificationStatus, PhoneCall, PhoneCallStatus
 from src.domains.telephony.reapers import telephony_notification_reaper
 from src.domains.users.models import User
@@ -127,6 +128,7 @@ class _ArchiveFailsInSQL(ScriptedDispatcher):
         metadata: Mapping[str, object],
         db: AsyncSession,
         conversation_id: UUID | None = None,
+        origin: ConversationOrigin | None = None,
     ) -> dict[str, object]:
         await db.execute(text("SELECT 1 / 0"))
         raise AssertionError("unreachable: the statement above raises")

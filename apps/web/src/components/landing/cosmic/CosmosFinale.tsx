@@ -28,7 +28,7 @@ export function CosmosFinale({ lng }: { lng: string }) {
       className="cosmos-finale landing-section relative overflow-clip pt-24 text-center"
     >
       <GhostWord wordKey="landing.cosmos.ghost.cta" direction={1} className="cosmos-ghost-high" />
-      <div className="relative z-10 max-w-3xl mx-auto px-4">
+      <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         {/* Signature device carried to the very end: LIA gets the last word */}
         <div className="mb-6 flex items-start justify-center gap-2.5" aria-hidden="true">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-card text-base leading-none">
@@ -44,7 +44,7 @@ export function CosmosFinale({ lng }: { lng: string }) {
         >
           {t('landing.home_cta.title')}
         </h2>
-        <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
+        <p className="mb-8 text-base leading-7 text-muted-foreground mobile:text-lg">
           {t('landing.home_cta.subtitle')}
         </p>
         <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:flex-wrap">

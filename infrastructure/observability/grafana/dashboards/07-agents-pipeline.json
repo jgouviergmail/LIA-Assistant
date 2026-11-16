@@ -3721,6 +3721,169 @@
           "description": "Data blocks of the pipeline's read steps the response model did not read whole: 'cut' when the projection paged a block at an item boundary, 'dropped' when the section left a block out to stay within the response slot's budget. Both are stated to the model. A steady rate on one tool means its data outgrows the budget (ADR-347)."
         }
       ]
+    },
+    {
+      "id": 4400,
+      "type": "row",
+      "title": "Automatic execution mode (ADR-390)",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 181
+      },
+      "panels": [
+        {
+          "id": 4401,
+          "type": "bargauge",
+          "title": "Engines settled for « auto » turns, by reason (range)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 182
+          },
+          "targets": [
+            {
+              "expr": "sum by (engine, reason) (increase(execution_mode_resolutions_total{requested=\"auto\"}[$__range])) > 0",
+              "legendFormat": "{{engine}} · {{reason}}",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "blue"
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "basic",
+            "showUnfilled": true,
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            }
+          },
+          "description": "Why each planned « auto » turn ran where it did: direct (every shape property judged absent, the pipeline), a shape the analysis reads (act, item_wise, skill, reference, calculation), a property the decision provider judged present or undecided (computed, cross_check, open_ended, named_in_text), no_decision (provider off, failed or timed out: the loop), loop_disabled (the instance runs no loop)."
+        },
+        {
+          "id": 4402,
+          "type": "stat",
+          "title": "« auto » turns with no decision (range)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 182
+          },
+          "targets": [
+            {
+              "expr": "sum(increase(execution_mode_resolutions_total{requested=\"auto\",reason=\"no_decision\"}[$__range])) or vector(0)",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "green"
+                  },
+                  {
+                    "value": 1,
+                    "color": "orange"
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "none",
+            "colorMode": "value",
+            "textMode": "auto",
+            "justifyMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            }
+          },
+          "description": "Planned « auto » turns sent to the loop because no judgement was available. Expected 0 while the decision provider is configured and its execution_mode usage is on: a rising count means the provider is down, refused or switched off, and « auto » behaves as ReAct (ADR-390)."
+        },
+        {
+          "id": 4403,
+          "type": "timeseries",
+          "title": "Engine of planned turns, by requested mode",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 182
+          },
+          "targets": [
+            {
+              "expr": "sum by (requested, engine) (rate(execution_mode_resolutions_total[$__rate_interval]))",
+              "legendFormat": "{{requested}} → {{engine}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "noValue": "0"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "description": "Every planned turn's engine, by what was asked: pipeline and react are obeyed (react falls back to the pipeline only when the instance runs no loop), « auto » splits between the two (ADR-390)."
+        }
+      ]
     }
   ]
 }

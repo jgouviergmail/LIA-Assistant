@@ -55,6 +55,7 @@ from src.domains.scheduled_actions.webhooks import (
 from src.domains.users.models import User
 from src.infrastructure.scheduler import routine_webhook_gate
 from src.infrastructure.scheduler import scheduled_action_executor as executor
+from src.infrastructure.scheduler import scheduled_action_notices as notices
 from src.infrastructure.scheduler.out_of_turn_run import RunOutcome, RunResult, StreamRequest
 
 pytestmark = pytest.mark.integration
@@ -514,8 +515,9 @@ def tick_world(
 
     monkeypatch.setattr("src.infrastructure.database.session.get_db_context", db_context)
     monkeypatch.setattr(executor, "_usage_ceiling_reached", _never)
-    monkeypatch.setattr(executor, "notify_result", _quiet)
-    monkeypatch.setattr(executor, "send_routine_notice", _quiet)
+    # A durable tick's end is told by the notices module (``tell_tick_end``).
+    monkeypatch.setattr(notices, "notify_result", _quiet)
+    monkeypatch.setattr(notices, "send_routine_notice", _quiet)
 
     def install(answer: RunResult | None) -> list[StreamRequest]:
         received: list[StreamRequest] = []

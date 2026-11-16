@@ -48,8 +48,11 @@ from src.domains.agents.data_registry.state import registry_as_dicts
 from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.execution_state import state_after_execution
 from src.domains.agents.nodes.for_each_hitl_prep import (
+    affected_count,
+    confirmed_hitl_steps,
     pre_execute_for_each_providers,
     refresh_for_each_scope_claims,
+    still_requiring_approval,
 )
 from src.domains.agents.nodes.for_each_preview_identity import (
     apply_filtered_source_items,
@@ -513,6 +516,11 @@ async def _handle_execution_plan(
 
             if ctx_matches and ctx.get("approved"):
                 # ── Approved: resume from the persisted context (no re-fetch) ──
+                # The caps rebuilt the list; the person confirmed what the
+                # measured counts left in it.
+                for_each_steps_requiring_hitl = confirmed_hitl_steps(
+                    ctx, for_each_steps_requiring_hitl
+                )
                 pre_executed_steps = ctx.get("pre_executed_steps") or {}
                 pre_exec_registry = ctx.get("pre_exec_registry") or {}
                 filtered_indices = original_selection_after_approval(
@@ -548,17 +556,18 @@ async def _handle_execution_plan(
                 # (not merged into initial_registry) so items are added to
                 # current_turn_touched_ids
 
-                # Calculate total_affected from real counts
-                if item_counts:
-                    total_affected = sum(item_counts.values())
-                else:
-                    # Fallback to for_each_max if pre-execution failed
-                    total_affected = sum(s["for_each_max"] for s in for_each_steps_requiring_hitl)
-
                 # The reasons above were computed from for_each_max (the only
                 # number known before pre-execution) — restate them with the
                 # measured counts before anything user-facing reads them.
                 refresh_for_each_scope_claims(for_each_steps_requiring_hitl, item_counts)
+                # And decide again: the published rule asks a READ for approval
+                # only from its threshold, and the cap was no count (E13).
+                for_each_steps_requiring_hitl = still_requiring_approval(
+                    for_each_steps_requiring_hitl, item_counts
+                )
+                # Measured items of the steps still asked, their caps when
+                # pre-execution measured none, 0 when nothing is left to ask.
+                total_affected = affected_count(for_each_steps_requiring_hitl, item_counts)
 
                 # FIX 2026-01-30: Extract item previews for "Informed HITL"
                 preview_context = prepare_preview_context(
@@ -578,14 +587,16 @@ async def _handle_execution_plan(
                 )
 
                 if total_affected == 0:
-                    # Skip HITL entirely when pre-execution yielded 0 items
-                    # (e.g. provider failed or returned empty) — historical
-                    # behaviour: continue execution with the pre-executed steps.
+                    # Skip HITL entirely when nothing is left to confirm: the
+                    # providers yielded 0 items, or every measured count fell
+                    # under the approval rule — continue execution with the
+                    # pre-executed steps.
                     logger.info(
                         "for_each_hitl_skipped_no_items",
                         run_id=run_id,
                         plan_id=execution_plan.plan_id,
-                        reason="total_affected is 0 after pre-execution",
+                        reason="nothing left to confirm after pre-execution",
+                        steps_left=len(for_each_steps_requiring_hitl),
                     )
                 else:
                     # ── Persist the context and hand off to the confirm node ──

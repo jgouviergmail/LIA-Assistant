@@ -638,6 +638,62 @@
           "description": "Total proactive notification send errors. Empty panel = zero events in the window (healthy)."
         }
       ]
+    },
+    {
+      "type": "row",
+      "id": 103,
+      "title": "ntfy",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      },
+      "panels": [
+        {
+          "id": 14,
+          "title": "ntfy Publications",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 44
+          },
+          "targets": [
+            {
+              "expr": "sum by (server_kind, outcome) (rate(ntfy_publications_total[$__rate_interval])) or vector(0)",
+              "legendFormat": "{{server_kind}} — {{outcome}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "noValue": "0",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Publications to ntfy servers (ADR-391), by whose server (instance | custom) and outcome (sent, auth_refused, rate_limited, unreachable, no_answer…). A rise of refusals on custom servers is people's own servers refusing; on the instance server, the operator's."
+        }
+      ]
     }
   ]
 }

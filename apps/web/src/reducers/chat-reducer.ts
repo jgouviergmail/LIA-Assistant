@@ -88,6 +88,9 @@ function doneMessageMetadata(
     // ADR-375: the habit proposal the answer shows, read through
     // `habitProposalOf` like a reloaded row.
     ...(metadata.habit_proposal ? { habit_proposal: metadata.habit_proposal } : {}),
+    // ADR-390: the engine an AUTOMATIC turn ran on, under the archived row's
+    // key; a chosen mode sends none, and the bubble then says nothing.
+    ...(metadata.execution_engine ? { execution_engine: metadata.execution_engine } : {}),
     // ADR-263: kept under the SAME key the archived row uses, so a reload
     // hydrates from the same shape the live turn carried.
     ...(metadata.performed_effects?.length

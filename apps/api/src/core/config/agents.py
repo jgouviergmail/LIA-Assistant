@@ -46,6 +46,7 @@ from src.core.constants import (
     COMPACTION_INCLUDE_PREVIOUS_SUMMARIES_DEFAULT,
     COMPACTION_MAX_RETRIES_DEFAULT,
     COMPACTION_MIN_MESSAGES_DEFAULT,
+    COMPACTION_PERSON_WORDS_MAX_TOKENS_DEFAULT,
     COMPACTION_PRESERVE_RECENT_MESSAGES_DEFAULT,
     COMPACTION_RETRY_BACKOFF_BASE_SECONDS_DEFAULT,
     COMPACTION_THRESHOLD_RATIO_DEFAULT,
@@ -1482,6 +1483,16 @@ class AgentsSettings(BaseSettings):
             "Most identifiers written back under a compaction summary that dropped "
             "them, per list (trusted, third-party); also bounds the truncation "
             "notice's lists. 0 = write none back."
+        ),
+    )
+    compaction_person_words_max_tokens: int = Field(
+        default=COMPACTION_PERSON_WORDS_MAX_TOKENS_DEFAULT,
+        ge=0,
+        le=20000,
+        description=(
+            "Token budget of the person's own words quoted as written under a "
+            "compaction summary and in the truncation notice, the most recent first, "
+            "the rest counted. 0 = quote none."
         ),
     )
 
@@ -3196,12 +3207,11 @@ class AgentsSettings(BaseSettings):
     semantic_pivot_enabled: bool = Field(
         default=SEMANTIC_PIVOT_ENABLED_DEFAULT,
         description=(
-            "Latency lot R3 (ships dark, default True = historical behaviour): "
-            "when False, skip the dedicated semantic-pivot LLM call — the query "
-            "analyzer receives the original query and its own english_query "
-            "output feeds the downstream English pattern matching (~-0.8 to -1s "
-            "and one fewer LLM call per turn). Flip only after A/B-validating "
-            "domain detection on non-English input."
+            "Latency lot R3, off by default since its A/B (2026-11-14, no routing "
+            "gain measured): the query analyzer receives the original query and "
+            "its own english_query output feeds the downstream English pattern "
+            "matching. True restores the dedicated semantic-pivot LLM call before "
+            "the analyzer (one more LLM call per turn)."
         ),
     )
     response_context_prefetch_max_entries: int = Field(

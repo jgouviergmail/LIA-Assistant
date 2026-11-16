@@ -221,3 +221,109 @@ du plus récent au plus ancien (`GET /relations/{name}/timeline`, et son alias
   avec la personne et les e-mails hors fenêtre — comme les sections de la fiche.
   Les index existants servent les cinq lectures (EXPLAIN sur la base de dev) :
   aucune migration.
+
+## Amendement 2026-11-15 — une lecture d'une seule requête dit sa coupure, une fenêtre se lit en entier
+
+**Le constat.** La section « Rendez-vous » de la fiche d'une relation est restée
+vide alors que la personne était invitée à une réunion du jour. La lecture
+demandait 250 événements à `list_events`, la porte d'UNE requête que chaque
+client plafonne au plafond des agents (`api_max_items_per_request`), sans page
+suivante et du plus ancien au plus récent depuis 90 jours : mesuré en
+production, 25 événements lus (du 18 août au 4 octobre) sur 88, la réunion en
+56ᵉ position ; les 12 lectures faites depuis une fiche en 30 heures avaient
+toutes rendu exactement 25. Le débrief et le point 360° lisent la même section.
+
+**La même classe ailleurs** (inventaire du 15/11, 84 appels de portes plafonnées) :
+créneaux libres hors Google (250 et 100 demandés), recherche d'agenda de
+l'assistant (les 25 premiers événements de la fenêtre), recherche d'événements
+des Outils (50 demandés, 25 rendus par agenda, coupure tue), radio (30), noms
+de listes de tâches (100), menu de la liste par défaut (20), historique Gmail du
+heartbeat et du réveil par push (une page de 25 enregistrements, puis l'ancre
+avancée à l'identifiant COURANT de la boîte : les pages suivantes perdues pour
+toujours), compteur de non-lus de l'accueil (la longueur d'une page), style
+d'écriture (50 mails configurés, 25 lus). Déjà sains et laissés tels quels :
+lecture des tâches, synchro mail des espaces, parcours Drive, export de
+contacts, conversations Outlook.
+
+**Décision.**
+
+- **Le plafond borne ce qu'UNE requête rend à un agent, jamais ce dont un
+  lecteur interne a besoin.** `list_events` dit sa coupure (`truncated`) chez
+  les trois fournisseurs ; chez Graph, dont `calendarView` ne promet aucun
+  ordre, la fenêtre est lue en entier puis triée avant d'être coupée
+  (`connectors/clients/event_order.py`, une seule clé d'ordre pour Apple et
+  Microsoft).
+- **Un lecteur d'une fenêtre ou d'un ensemble draine les pages, borné, et dit
+  sa coupure** : `list_events_window` (fiche, débrief, 360°, créneaux libres,
+  recherche de l'assistant, radio — `CALENDAR_WINDOW_READ_MAX`),
+  `connectors/clients/gmail_history.read_history` (une seule lecture de
+  l'historique ; une lecture complète reprend à l'identifiant de la boîte, une
+  lecture coupée après son dernier enregistrement, jamais au-delà),
+  `list_every_task_list`, une boucle `page_token` (style d'écriture). Une liste
+  de tâches introuvable dans une lecture coupée est dite non lue (`LISTS_CUT`),
+  jamais « aucune liste ne répond ». Un plafond d'éléments retenus garde les
+  plus récents (réveil, delta du heartbeat), jamais les plus anciens.
+- **Un compte affiché est celui du fournisseur** (`unread_counts(0)` : la boîte
+  de réception et les indésirables seuls, sans lister libellés ni dossiers),
+  ou rien ; il est dit « non lus » de la boîte de réception partout où il
+  apparaît (carte, synthèse `unread_in_inbox`, radio), jamais « d'aujourd'hui ».
+- **Une recherche par mots reste filtrée par le fournisseur** : chez Graph, le
+  `$filter` du sujet accompagne la lecture page par page de `calendarView`
+  plutôt que de relire toute la fenêtre pour filtrer localement.
+- **Une lecture déclenchée par une notification est enregistrée** : la synchro
+  mail d'un espace par push dépose sa consultation (`space_read`), comme celle
+  de Drive.
+- **Garde** `tests/unit/test_connector_ceiling_guard.py` : un appel à une porte
+  d'une requête ne demande jamais, par un littéral ou une constante, plus que
+  le plafond, sauf s'il draine ses pages ; passée sur les versions commitées,
+  elle refuse les dix appels d'origine.
+- **Les rendez-vous avec une personne se lisent dans TOUS les agendas que le
+  compte possède** (décision du propriétaire, même jour, comme les listes de
+  tâches le 10/11) : l'agenda par défaut dit où un événement se CRÉE, jamais où
+  une réunion se trouve. Mesuré en production : la fiche lisait un agenda nommé,
+  l'agenda principal, qui reçoit les invitations, n'était jamais lu.
+  `connectors/clients/calendar_lists.py` est la seule porte : l'agenda par
+  défaut d'abord, quel que soit son rôle, puis chaque agenda que le fournisseur
+  dit possédé (Google `accessRole: owner`, Graph `canShare`, normalisé en
+  `owner`) ; un agenda qu'un autre partage n'est jamais lu. La liste entière est
+  demandée (`CALENDAR_LIST_PAGE_MAX`) avant le tri, car son ordre est celui du
+  fournisseur ; les trois clients disent si leur liste est coupée
+  (`list_calendars` → `truncated`), et une liste coupée ou plus de
+  `CALENDARS_READ_MAX` agendas possédés est une coupure dite. Les fenêtres se
+  lisent `CALENDAR_READ_CONCURRENCY` à la fois sur le même client
+  (`read_calendar_windows`) ; un échec annule les autres et remonte tel quel,
+  jamais comme un groupe. Lecteurs : la fiche (débrief et 360° compris) et
+  l'historique d'un contact des Outils. La qualification reste UNE requête par
+  section, chaque événement portant l'agenda où il a été lu. Prouvé en
+  production le même soir (nouveau code chargé en mémoire, lecture seule) :
+  trois agendas listés, les deux possédés lus (le défaut d'abord), celui en
+  lecture seule écarté, 121 événements sur la fenêtre, aucune coupure.
+- **La même règle pour chaque lecteur de l'agenda de la personne** (décision du
+  propriétaire, même soir) : créneaux libres du chat et du téléphone, synthèse
+  du jour (et les routines qui la lisent), heartbeat, garde « en réunion » et
+  suivi d'une réunion terminée, radio, contexte d'un appel, rattachement d'un
+  enregistrement à son événement. Une seule porte de haut niveau,
+  `read_owned_events` (agendas possédés, fenêtres lues, chaque événement une
+  fois, l'agenda de chacun, la coupure). freeBusy de Google reçoit tous les
+  agendas en UNE requête, et un agenda qu'il rend avec `errors` (sans plage
+  occupée) n'est jamais lu comme libre (`unread_in_freebusy`) : la réponse est
+  dite incomplète (prouvé en production, lecture seule : les deux agendas
+  possédés demandés en une requête, chacun répondu sous son identifiant, aucune
+  erreur). Un moment de suivi garde une EMPREINTE de l'agenda où il a
+  été lu (`calendar_ref`), jamais son identifiant, que Google écrit comme une
+  adresse ; la relecture le retrouve parmi les agendas possédés. Restent sur
+  l'agenda par défaut, par décision : les outils d'agenda de l'assistant (leur
+  contrat est à part) et la lecture par un pair (son consentement nomme
+  l'agenda par défaut).
+
+**Limites dites.** La garde ne résout ni les tailles calculées ni les réglages :
+`BRIEFING_MAX_AGENDA_ITEMS`, `BRIEFING_MAX_MAILS_ITEMS` et
+`RELATIONS_PROVIDER_MAX_ITEMS` acceptent jusqu'à 50 mais valent 10 partout ; le
+seul réglage au-delà du plafond, `WRITING_STYLE_SENT_MAILS`, est désormais lu
+par pages. Les deux aides de pagination inutilisées des clients de base, dont
+le total était lui-même plafonné, restent à retirer. CalDAV ne publie aucun
+rôle dans sa liste : chez Apple, chaque agenda du compte est lu comme le sien,
+un agenda qu'un autre compte iCloud partage compris (aucune preuve réelle sur
+une boîte grand public). Une routine qui guette un événement à venir voit,
+au premier passage, ceux de l'agenda principal qu'elle n'avait jamais vus :
+un premier signalement unique, et juste, puisqu'ils n'avaient jamais été dits.

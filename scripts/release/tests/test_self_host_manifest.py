@@ -279,5 +279,6 @@ def test_dependency_catalogue_covers_the_compose_stack() -> None:
         "portainer",
         "caddy",
         "searxng",
+        "ntfy",
     }
     assert services == expected

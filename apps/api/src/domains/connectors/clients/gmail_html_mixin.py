@@ -12,6 +12,8 @@ the way out it names are read from the same payload (``mail_inline_images``,
 
 from __future__ import annotations
 
+import base64
+import binascii
 from email.message import Message
 from typing import Any, Protocol
 
@@ -19,10 +21,12 @@ from src.domains.connectors.clients.gmail_attachments_mixin import decode_gmail_
 from src.domains.connectors.clients.mail_html import (
     ATTACHED_MESSAGE_TYPE,
     HTML_TYPE,
+    TEXT_TYPE,
     decode_text,
 )
 from src.domains.connectors.clients.mail_inline_images import InlineBudget, content_id_of
 from src.domains.connectors.clients.mail_unsubscribe import Unsubscribe, read_unsubscribe
+from src.domains.connectors.clients.normalizers.html_text import shown_words
 
 
 class _GmailHtmlHost(Protocol):
@@ -39,8 +43,8 @@ class _GmailHtmlHost(Protocol):
     async def get_attachment(self, message_id: str, attachment_id: str) -> bytes: ...
 
 
-def html_body_parts(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    """The body's ``text/html`` parts, in document order (``mail_html``)."""
+def body_parts(payload: dict[str, Any], mime_type: str) -> list[dict[str, Any]]:
+    """The body's parts of one type, in document order (``mail_html``)."""
     found: list[dict[str, Any]] = []
     pending = [payload]
     while pending:
@@ -48,10 +52,43 @@ def html_body_parts(payload: dict[str, Any]) -> list[dict[str, Any]]:
         mime = str(part.get("mimeType") or "").lower()
         if part.get("filename") or mime == ATTACHED_MESSAGE_TYPE:
             continue
-        if mime == HTML_TYPE:
+        if mime == mime_type:
             found.append(part)
         pending.extend(reversed(part.get("parts") or []))
     return found
+
+
+def html_body_parts(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """The body's ``text/html`` parts, in document order (``mail_html``)."""
+    return body_parts(payload, HTML_TYPE)
+
+
+def _inline_text(part: dict[str, Any]) -> str:
+    """A part's bytes carried inline, read in the charset it names; "" when it carries none.
+
+    A normalisation never fails on a part: unreadable base64 reads as nothing, as the text
+    walker always did (the strict size check guards an attachment's downloaded bytes).
+    """
+    encoded = (part.get("body") or {}).get("data")
+    if not isinstance(encoded, str) or not encoded:
+        return ""
+    try:
+        data = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
+    except binascii.Error, ValueError:
+        return ""
+    return decode_text(data, part_charset(part))
+
+
+def shown_body(payload: dict[str, Any]) -> str:
+    """What a reader reads of a Gmail message: the words its layout shows (``shown_words``).
+
+    Its text part stands in when the layout holds none. Only the parts carried inline are
+    read: one too large to travel inline is read by ``get_message_html``, a request a
+    normalisation does not make.
+    """
+    text = "".join(_inline_text(part) for part in body_parts(payload, TEXT_TYPE))
+    html = "".join(_inline_text(part) for part in html_body_parts(payload))
+    return shown_words(text, html or None)
 
 
 def part_charset(part: dict[str, Any]) -> str | None:

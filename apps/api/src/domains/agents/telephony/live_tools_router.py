@@ -32,6 +32,10 @@ Steps 4 to 6 are the shared admission of every voice lookup
 (``voice_lookup.serve_voice_lookup``, the browser's session door runs the
 same); this door hands it the offered set under the telephony flag, the
 call's own budget, and says a refusal the vendor's way.
+
+Neither route holds a database session while it waits: the call, its owner
+and the run context are read on short sessions closed before the lookup, the
+budget or the delegated turn (ADR-304).
 """
 
 from __future__ import annotations
@@ -42,7 +46,7 @@ import uuid
 from collections.abc import Callable
 from typing import Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -51,7 +55,6 @@ from src.core.constants import (
     DEFAULT_USER_DISPLAY_TIMEZONE,
     LIVE_DELEGATION_TOOL_NAME,
 )
-from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_webhook_signature, raise_not_found_or_unauthorized
 from src.core.i18n import normalize_language
 from src.core.user_display import resolve_user_display_name
@@ -62,7 +65,7 @@ from src.domains.agents.telephony.live_tools import (
     result_lines,
 )
 from src.domains.agents.telephony.voice_lookup import LookupRefusal, serve_voice_lookup
-from src.domains.conversations.service import ConversationService
+from src.domains.conversations.return_target import return_target
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.telephony.delegation_tool import delegation_wait_seconds
@@ -77,6 +80,7 @@ from src.domains.users.models import User
 from src.domains.voice_sessions.mandate import bridge_lines
 from src.domains.voice_sessions.session import VoiceSession
 from src.infrastructure.cache.redis import get_redis_cache
+from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_telephony import (
     telephony_delegation_duration_seconds,
@@ -150,16 +154,17 @@ def _refuse_delegation(outcome: str) -> None:
     include_in_schema=False,
     summary="The Live mode's delegation call-back of an owner call (ADR-301)",
 )
-async def delegation_callback(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-) -> dict[str, str]:
+async def delegation_callback(request: Request) -> dict[str, str]:
     """Hand the person's request to LIA and answer what the voice can say.
+
+    Every read happens on a short session closed before the next wait: the
+    budget asks Redis, and the turn waits on a model for up to
+    ``delegation_wait_seconds`` — a request session would hold a pooled
+    connection through both (ADR-304).
 
     Args:
         request: The vendor's request (JSON body: ``call_id``, ``request``;
             the secret header).
-        db: Request session.
 
     Returns:
         ``{"result": <text>}`` plus ``"tone"`` when the answer carries a
@@ -169,8 +174,10 @@ async def delegation_callback(
     if body is None:
         _refuse_delegation("refused_call")
         raise_not_found_or_unauthorized(_RESOURCE)
-    call = await _authorized_call(db, body, request, counter=_refuse_delegation)
-    if call.call_mode != "delegated":
+    async with get_db_context() as db:
+        call = await _authorized_call(db, body, request, counter=_refuse_delegation)
+        call_id, owner_id, origin, call_mode = call.id, call.user_id, call.origin, call.call_mode
+    if call_mode != "delegated":
         # A direct call's agent never carries this tool; a stale attach
         # answers « not found » exactly as a switched-off lookup does.
         _refuse_delegation("refused_mode")
@@ -184,28 +191,30 @@ async def delegation_callback(
     # graph turn per iteration; the person's ceiling is the last net, not the first.
     admitted = await consume_live_tool_budget(
         await get_redis_cache(),
-        call.id,
+        call_id,
         limit=settings.telephony_live_tool_max_calls_per_call,
         ttl_seconds=settings.telephony_stale_call_timeout_minutes * 60,
     )
     if not admitted:
         _refuse_delegation("budget_exceeded")
-        logger.info("telephony_delegation_budget_exceeded", call_id=str(call.id))
+        logger.info("telephony_delegation_budget_exceeded", call_id=str(call_id))
         return {"result": bridge_lines()["budget_exhausted"]}
-    context = await resolve_run_context(db, call.user_id)
-    if context is None:
-        _refuse_delegation("refused_call")
-        raise_not_found_or_unauthorized(_RESOURCE)
-    conversation = await ConversationService().get_or_create_conversation(
-        call.user_id, db, language=context.language
-    )
+    async with get_db_context() as db:
+        context = await resolve_run_context(db, owner_id)
+        if context is None:
+            _refuse_delegation("refused_call")
+            raise_not_found_or_unauthorized(_RESOURCE)
+        # The request runs in the discussion the call was placed from while
+        # that generation lives, else in Main (ADR-378 amendment 2026-11-14).
+        target = await return_target(db, owner_id, origin, language=context.language)
     session = VoiceSession.phone(
-        call_id=call.id,
+        call_id=call_id,
         mode="delegated",
-        user_id=call.user_id,
-        conversation_id=conversation.id,
+        user_id=owner_id,
+        conversation_id=target.conversation_id,
         language=context.language,
         timezone=context.timezone,
+        conversation_revision=target.revision,
     )
     started = time.monotonic()
     result = await delegate(
@@ -222,7 +231,7 @@ async def delegation_callback(
     )
     telephony_delegation_duration_seconds.observe(time.monotonic() - started)
     telephony_delegations_total.labels(outcome=result.outcome.value).inc()
-    logger.info("telephony_delegation_answered", call_id=str(call.id), outcome=result.outcome.value)
+    logger.info("telephony_delegation_answered", call_id=str(call_id), outcome=result.outcome.value)
     answer = {"result": result.text}
     if result.note:
         answer["tone"] = result.note
@@ -232,17 +241,16 @@ async def delegation_callback(
 @router.post(
     "/{tool_name}", include_in_schema=False, summary="Live tool call-back of an owner call"
 )
-async def live_tool_callback(
-    tool_name: str,
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-) -> dict[str, str]:
+async def live_tool_callback(tool_name: str, request: Request) -> dict[str, str]:
     """Run one allow-listed read tool for the person on the line.
+
+    The call and its owner are read on a short session closed before the
+    lookup: a lookup reaches a provider (an agenda, a mailbox, a search) and
+    a request session would hold a pooled connection through it (ADR-304).
 
     Args:
         tool_name: The last segment of the route — the tool's registry name.
         request: The vendor's request (JSON body, secret header).
-        db: Request session.
 
     Returns:
         ``{"result": <text the voice agent reads>}``.
@@ -254,16 +262,22 @@ async def live_tool_callback(
     if body is None:
         _refuse("refused_call")
         raise_not_found_or_unauthorized(_RESOURCE)
-    call = await _authorized_call(db, body, request)
-    user = await db.get(User, call.user_id)
-    if user is None:
-        _refuse("refused_call")
-        raise_not_found_or_unauthorized(_RESOURCE)
+    async with get_db_context() as db:
+        call = await _authorized_call(db, body, request)
+        call_id, owner_id = call.id, call.user_id
+        user = await db.get(User, owner_id)
+        if user is None:
+            _refuse("refused_call")
+            raise_not_found_or_unauthorized(_RESOURCE)
+        disabled_domains = frozenset(user.phone_disabled_domains or ())
+        language = normalize_language(user.language)
+        timezone = user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE
+        display_name = resolve_user_display_name(user.full_name, user.email)
 
     async def _consume_budget() -> bool:
         return await consume_live_tool_budget(
             await get_redis_cache(),
-            call.id,
+            call_id,
             limit=settings.telephony_live_tool_max_calls_per_call,
             # The call's duration cap is the portal's (owner decision 2026-09-16):
             # the counter lives as long as a row may stay live before the reaper.
@@ -276,24 +290,22 @@ async def live_tool_callback(
     verdict = await serve_voice_lookup(
         tool_name,
         {key: value for key, value in body.items() if key != CALL_ID_VARIABLE},
-        offered=await available_live_tools(
-            disabled_domains=frozenset(user.phone_disabled_domains or ()), user_id=call.user_id
-        ),
+        offered=await available_live_tools(disabled_domains=disabled_domains, user_id=owner_id),
         consume_budget=_consume_budget,
-        user_id=call.user_id,
-        language=normalize_language(user.language),
-        timezone=user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE,
-        display_name=resolve_user_display_name(user.full_name, user.email),
-        host=VoiceToolHost.phone_call(call.id),
+        user_id=owner_id,
+        language=language,
+        timezone=timezone,
+        display_name=display_name,
+        host=VoiceToolHost.phone_call(call_id),
     )
     if verdict.refusal is LookupRefusal.NOT_OFFERED:
         _refuse(verdict.refusal.value)
-        logger.info("telephony_live_tool_refused", call_id=str(call.id), reason="tool")
+        logger.info("telephony_live_tool_refused", call_id=str(call_id), reason="tool")
         raise_not_found_or_unauthorized(_RESOURCE)
     if verdict.refusal is LookupRefusal.BUDGET:
         tool = verdict.spec.name if verdict.spec is not None else _UNKNOWN_TOOL
         _refuse(verdict.refusal.value, tool=tool)
-        logger.info("telephony_live_tool_budget_exceeded", call_id=str(call.id), tool=tool)
+        logger.info("telephony_live_tool_budget_exceeded", call_id=str(call_id), tool=tool)
         return {"result": result_lines()["budget_exhausted"]}
     return {"result": verdict.text}
 

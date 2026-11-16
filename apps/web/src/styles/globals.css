@@ -98,6 +98,9 @@
   /* A late ticket's inner frame breathes (ADR-276, D80): slow enough to be
      noticed at a glance and forgotten at the second, never a blink. */
   --animate-overdue-pulse: overdue-pulse 2.8s ease-in-out infinite;
+  /* The health card's pulse figure beats (owner, 2026-11-14): its caller sets the duration, sixty
+     seconds over the figure, and gates it on `motion-safe`. */
+  --animate-heart-beat: heart-beat 1s ease-out infinite;
 
   /* Color Palette - Professional Theme in OKLCH format for Tailwind 4.0 */
   /* Light mode colors - Soft & comfortable for eyes */
@@ -752,6 +755,23 @@
     }
     50% {
       border-color: var(--color-destructive);
+    }
+  }
+
+  /* A heartbeat, the two sounds of one beat then the rest that fills the period: a scale, never a
+     colour or a light that would flash. The figure grows from its centre, so nothing around moves. */
+  @keyframes heart-beat {
+    0%,
+    28%,
+    70%,
+    100% {
+      transform: scale(1);
+    }
+    14% {
+      transform: scale(1.12);
+    }
+    42% {
+      transform: scale(1.06);
     }
   }
 

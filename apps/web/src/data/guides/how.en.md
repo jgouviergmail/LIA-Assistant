@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Date**: 2026-11-14
-**Application**: LIA v5.0.0
+**Application**: LIA v5.1.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -100,7 +100,7 @@ flowchart TD
 
 In **Pipeline** mode, the default, the planner writes an `ExecutionPlan` before anything runs: a JSON plan whose steps are linked by their dependencies. A second model, separate from the planner, validates this plan, so that no model judges its own work. The orchestrator then runs the steps in parallel waves. **ReAct** mode, by contrast, lets the model call a tool, read the result and decide what comes next, step by step.
 
-I kept both because they meet two needs. The Pipeline plans, parallelizes, checks itself and forecasts its cost: one call to the planner and one for the response, against one call per iteration for ReAct, which means 4 to 8 times fewer tokens. ReAct adapts to each result, which is better for an exploratory search or an ambiguous request. Both modes share the tool registry, the confirmations, the response node and the observability.
+I kept both because they meet two needs. The Pipeline plans, parallelizes, checks itself and forecasts its cost: one call to the planner and one for the response, against one call per iteration for ReAct, which means 4 to 8 times fewer tokens. ReAct adapts to each result, better for exploratory or ambiguous requests. They share the tool registry, confirmations, response node and observability; the [automatic mode](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-390-The-Automatic-Mode-Chooses-The-Engine-Per-Request.md) picks one per request.
 
 Domains and tools are chosen by an embedding-based **semantic router** rather than by keywords or by the model alone: it costs less and makes fewer mistakes. Each tool declares a manifest (parameters, outputs, cost, permissions, keywords in several languages) read by the planner and the router, and each family of tools declares itself once in a central registry. Smart Services cut consumption further by caching query analysis and learning the plans that come back. After an actionable turn, an initiative node looks, read-only, at what the result implies elsewhere: forecast rain points to the outdoor activities in your calendar. Any other turn skips it and costs nothing.
 
@@ -161,7 +161,7 @@ Every model call, in the pipeline as in background jobs, is tracked and priced f
 
 ## 7. Connectors and tools
 
-Each connector category (email, calendar, contacts, tasks, files, home) is a Python protocol. Only one provider is active at a time per category, and OAuth consent is given once per Google or Microsoft account. Services that ask nothing of the person (Wikipedia, page reading, places, weather, web search where deployed) belong to the instance and are active for everyone. On the email side, each message is summarized once and then reused, a listed message says whether it was answered, a draft follows the person's writing, an attachment is read as text or by a vision model, and a send is never retried after a lost acknowledgment.
+Each connector category (email, calendar, contacts, tasks, files, home) is a Python protocol. Only one provider is active at a time per category, and OAuth consent is given once per Google or Microsoft account. Services that ask nothing of the person (Wikipedia, page reading, places, weather, web search where deployed) belong to the instance and are active for everyone. Email summaries are reused, reply status is shown, drafts follow a style learned on request or keep explicitly supplied wording, attachments are read as text or images, and an unacknowledged send is never repeated.
 
 Tools rest on five composable layers: a common connector base (OAuth, cache, injection), a decorator, per-domain formatters, the manifest the planner reads, and a catalogue loader. **MCP** tools are converted into ordinary LangChain tools and join the same catalogue, kept from one message to the next so that a message usually waits for no server; an MCP server must use HTTPS, its credentials are encrypted, and LIA believes an annotation that announces a modification, never one that claims to be read-only. **Plugins** in the Agent Plugins format install as a single block, with no local server. **Skills** following the agentskills.io standard can render a small app in the chat or run their own commands in a copy of their folder; a skill from elsewhere runs isolated and never receives a connector's token.
 
@@ -203,7 +203,7 @@ A meeting is recorded from the browser: the audio leaves in small segments, then
 
 LIA takes initiative in three forms. A periodic **heartbeat** looks at your sources and writes to you only if a signal warrants it, naming one or two verified facts. Being connected to a source and agreeing to be interrupted by it are two separate decisions. A push notification from Google can wake this heartbeat for a single person, and a **moment** (the end of a meeting, the arrival of an expected email) is served to the minute rather than at the next pass. **Proactive discussions**, finally, call for a reply, with their own policy: hours, a daily maximum, sensitive topics kept private, spend reserved before it happens.
 
-**Routines** have one clock: a schedule, a condition (a public web page among them, read without a model) or another system's signed call, and a week view shows what actually happened. A reminder can repeat. The **ticket board** gives a task a lifecycle, a holder and a result.
+**Routines** have one clock: a schedule, a condition (a public web page among them, read without a model) or another system's signed call, and a week view shows what actually happened. Reminders can repeat; their card snoozes an occurrence or stops the series after confirmation. The **ticket board** gives a task a lifecycle, a holder and a result.
 
 Two rules bound all of this. Initiative only reads: a write is proposed, never executed on its own. And a new attempt at the same run is refused as soon as the effect register shows the action already done. The Activity page shows in one place everything LIA undertook on her own, with exact totals.
 
@@ -241,7 +241,7 @@ The badge in the middle of the chat header opens **Main** and the named discussi
 
 The **Tools** workspace has its own REST endpoints, outside the conversation graph. It reuses the connector clients and publishes their supported controls and limits to the interface. Database sessions close before provider calls; submissions carry replay protection, and a lost answer is shown as an unknown outcome. HTML mail stays inside an isolated frame, with remote content blocked. This keeps a manual gesture separate from an action delegated to LIA; what a click asks of it from these screens goes through a door of its own, one call and one proposal, never a write at the provider.
 
-The web interface is a Next.js application that installs like an app (PWA). The chat updates the conversation without reloading, renders math formulas and syntax-highlighted code, keeps one draft per account, and can be searched; the settings have their own search, a pure black theme for OLED screens that can follow your hours, three icon styles and an adjustable text size. One selection layer serves every screen: selected text is explained, translated or handed to the usual form, never to a second one, and a replacement keeps the browser's undo.
+The web interface is a Next.js application that installs like an app (PWA). The chat updates the conversation without reloading, renders math formulas and syntax-highlighted code, keeps one draft per discussion, and can be searched; the settings have their own search, a pure black theme for OLED screens that can follow your hours, three icon styles and an adjustable text size. One selection layer serves every screen: selected text is explained, translated or handed to the usual form, never to a second one, and a replacement keeps the browser's undo.
 
 In the cards display, one of three modes to choose from along with plain HTML and Markdown, an answer that carries data is not formatted by the model: the server renders it as deterministic HTML **cards**, independent of the model and the mode, archived with the message. A card shows a received fact in full and invents nothing, and an action from a card prepares a request instead of acting. To keep the interface consistent, I wrote rules that tests check: a status takes its tone from a single table, an action has a level of importance, and a list row exposes its actions in a single way. Browser and accessibility tests target WCAG level AA, without certifying the rendering on a physical device or the accuracy of the translations.
 

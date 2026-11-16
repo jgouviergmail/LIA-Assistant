@@ -1,0 +1,10 @@
+Primary domain: {primary_domain}
+For multi-domain queries: gather ALL data from each domain, let Response LLM cross-reference and analyze.
+
+CROSS-DOMAIN WITH RESOLVED CONTEXT:
+When CONTEXT contains resolved items from domain A and user wants domain B info:
+- Use READY-TO-USE VALUES directly from CONTEXT
+- Do NOT invent any 'resolve' tool
+- Example: 'info about the restaurant of the second meeting'
+  → CONTEXT: LOCATION: 'Restaurant La Table'
+  → Plan: ONE step: get_places_tool(query='Restaurant La Table')

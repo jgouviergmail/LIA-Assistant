@@ -44,7 +44,7 @@ from langchain_core.tools import InjectedToolArg
 from pydantic import BaseModel
 
 from src.core.config import get_settings, settings
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.constants import CALENDAR_WINDOW_READ_MAX, DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n import get_locale_for_language
 from src.core.time_utils import normalize_to_rfc3339, now_utc
 from src.domains.agents.calendar.event_options import (
@@ -301,23 +301,21 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             resolved=calendar_id,
         )
 
-        # A search reads as much of the window as one call may (the connectors'
-        # per-request ceiling), then keeps what matches.
-        read_limit = settings.api_max_items_per_request if query else max_results
-        result = await client.list_events(
-            query=None,
-            time_min=time_min,
-            time_max=time_max,
-            max_results=read_limit,
-            calendar_id=calendar_id,
-            fields=fields_to_use,
-        )
-        window: list[dict[str, Any]] = result.get("items", [])
-
-        # Truncation signal: when a read fills its limit, more events may exist
-        # beyond it — stated downstream, never dropped in silence.
+        # A search reads the WHOLE window, pages drained and bounded, then keeps
+        # what matches: one request stops at the agents' ceiling, the OLDEST
+        # events first, and a meeting further on was never searched. A listing
+        # keeps the soonest events, and the door says whether the window holds
+        # more. Either cut is stated downstream (ADR-185 amendment 2026-11-15).
         search: dict[str, Any] | None = None
         if query:
+            read = await client.list_events_window(
+                calendar_id,
+                time_min,
+                time_max,
+                bound=CALENDAR_WINDOW_READ_MAX,
+                fields=fields_to_use,
+            )
+            window: list[dict[str, Any]] = read.get("events", [])
             matched = filter_events(window, query)
             events = matched[:max_results]
             search = {
@@ -325,12 +323,20 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
                 "fields": list(SEARCHED_FIELDS),
                 "matched": len(matched),
                 "searched": len(window),
-                "window_complete": len(window) < read_limit,
+                "window_complete": not read.get("truncated"),
             }
             truncated = not search["window_complete"] or len(matched) > max_results
         else:
-            events = window
-            truncated = len(events) >= max_results
+            result = await client.list_events(
+                query=None,
+                time_min=time_min,
+                time_max=time_max,
+                max_results=max_results,
+                calendar_id=calendar_id,
+                fields=fields_to_use,
+            )
+            events = result.get("items", [])
+            truncated = bool(result.get("truncated"))
 
         logger.info(
             "search_events_success",

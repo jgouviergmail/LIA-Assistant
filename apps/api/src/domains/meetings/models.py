@@ -32,6 +32,7 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+from src.infrastructure.database.conversation_origin import ConversationOriginMixin
 from src.infrastructure.database.models import BaseModel
 
 
@@ -124,12 +125,15 @@ ACTIVE_RECORDING_STATUS_SQL = "status = 'RECORDING'"
 ACTIVE_IMPORT_STATUS_SQL = "status = 'UPLOADING'"
 
 
-class Meeting(BaseModel):
+class Meeting(ConversationOriginMixin, BaseModel):
     """A recorded meeting and everything derived from it (ADR-258).
 
     PII policy: ``transcript_encrypted`` is Fernet-encrypted by the service;
     ``report_*`` hold the user's own minutes; ``location_*`` are the user's
     position at start. Logs carry ids, counts and codes — never these columns.
+
+    Its « minutes ready » comes back to the discussion the recording or the
+    import was begun from while it lives, else to Main.
     """
 
     __tablename__ = "meetings"

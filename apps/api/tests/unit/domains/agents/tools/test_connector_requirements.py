@@ -33,9 +33,11 @@ from src.domains.agents.tools.connector_requirements import (
     connector_categories,
     unconnected_tool_names,
     ungranted_scopes,
+    unserved_categories,
+    unserved_category_tools,
     without_unconnected_tools,
 )
-from src.domains.connectors.models import ConnectorType
+from src.domains.connectors.models import CONNECTOR_FUNCTIONAL_CATEGORIES, ConnectorType
 
 pytestmark = pytest.mark.unit
 
@@ -240,3 +242,41 @@ class TestATurnIsOfferedWhatItsConnectorsServe:
         self, _catalogue: list[ToolManifest]
     ) -> None:
         assert without_unconnected_tools(_catalogue, None) == _catalogue
+
+
+class TestASourceNobodyServesIsSaid:
+    """ADR-390 qualification (2026-11-15): a category tool stays offered — « no
+    provider is connected » is the honest answer when that source is asked for —
+    but the planner did not know it held nothing, and planned the tasks for « what
+    day must I return the books », which only a reminder could answer."""
+
+    def test_a_category_no_active_connector_serves_names_its_tools(self) -> None:
+        unserved = unserved_category_tools(frozenset({GMAIL}))
+
+        assert unserved["get_tasks_tool"] == "tasks"
+        assert unserved["get_events_tool"] == "calendar"
+        assert "get_emails_tool" not in unserved
+
+    def test_a_legacy_row_serves_its_category_as_the_resolver_reads_it(self) -> None:
+        assert "get_emails_tool" not in unserved_category_tools(
+            frozenset({ConnectorType.GMAIL.value})
+        )
+
+    def test_a_category_an_instance_default_may_serve_is_never_said_empty(self) -> None:
+        """Google Weather answers when the person configured nothing (ADR-307)."""
+        keyless = {
+            category
+            for category, members in CONNECTOR_FUNCTIONAL_CATEGORIES.items()
+            if any(member.is_keyless for member in members)
+        }
+
+        assert "weather" in keyless
+        assert not keyless & unserved_categories(frozenset())
+        assert {"tasks", "calendar", "email", "contacts"} <= unserved_categories(frozenset())
+
+    def test_a_tool_bound_to_one_provider_is_not_said_here(self) -> None:
+        """Such a tool leaves the catalogue altogether (``unconnected_tool_names``)."""
+        assert not _GMAIL_BOUND & unserved_category_tools(frozenset()).keys()
+
+    def test_without_knowing_the_account_s_connectors_nothing_is_said(self) -> None:
+        assert unserved_category_tools(None) == {}

@@ -46,6 +46,8 @@ class ReminderRepository(BaseRepository[Reminder]):
         user_id: UUID,
         limit: int = 50,
         offset: int = 0,
+        *,
+        firing_before: datetime | None = None,
     ) -> list[Reminder]:
         """Get pending reminders for a user, soonest first.
 
@@ -56,13 +58,17 @@ class ReminderRepository(BaseRepository[Reminder]):
                 primary key gives a TOTAL order, without which two reminders
                 sharing a trigger instant could repeat or vanish across a page
                 boundary.
+            firing_before: Only the reminders whose NEXT instant comes before it:
+                one due later cannot fire earlier, its instants only move forward.
 
         Returns:
             The page, soonest first.
         """
+        statement = pending_reminders(user_id)
+        if firing_before is not None:
+            statement = statement.where(Reminder.trigger_at < firing_before)
         stmt = (
-            pending_reminders(user_id)
-            .order_by(Reminder.trigger_at.asc(), Reminder.id.asc())
+            statement.order_by(Reminder.trigger_at.asc(), Reminder.id.asc())
             .limit(limit)
             .offset(offset)
         )

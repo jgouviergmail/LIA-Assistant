@@ -23,16 +23,17 @@ to send a different answer than the archive.
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
+from src.core.conversation_target import ConversationOrigin
 from src.core.field_names import (
     FIELD_FEEDBACK_ENABLED,
     FIELD_RUN_ID,
     FIELD_TARGET_ID,
 )
-from src.infrastructure.proactive.notification import NotificationDispatcher
+from src.infrastructure.proactive.notification import NotificationDispatcher, with_discussion
 
 pytestmark = pytest.mark.unit
 
@@ -44,10 +45,20 @@ def _user() -> MagicMock:
     return user
 
 
-async def _dispatch_and_capture(*, run_id: str | None, feedback_enabled: bool) -> dict[str, str]:
+async def _dispatch_and_capture(
+    *,
+    run_id: str | None,
+    feedback_enabled: bool,
+    origin: ConversationOrigin | None = None,
+    annex: UUID | None = None,
+) -> dict[str, str]:
     """Dispatch FCM only, and return the data payload that was sent."""
     dispatcher = NotificationDispatcher(
         fcm_enabled=True, sse_enabled=False, archive_enabled=False, channel_enabled=False
+    )
+
+    annex_lookup = AsyncMock(
+        side_effect=lambda _db, _owner, asked: annex if asked is not None else None
     )
     fcm_service = MagicMock()
     fcm_service.send_to_user = AsyncMock(return_value=MagicMock(success_count=1, failure_count=0))
@@ -61,6 +72,7 @@ async def _dispatch_and_capture(*, run_id: str | None, feedback_enabled: bool) -
             "src.infrastructure.proactive.notification.settings.proactive_feedback_enabled",
             feedback_enabled,
         ),
+        patch.object(dispatcher, "_annex_of", annex_lookup),
     ):
         await dispatcher.dispatch(
             user=_user(),
@@ -70,6 +82,7 @@ async def _dispatch_and_capture(*, run_id: str | None, feedback_enabled: bool) -
             metadata={},
             db=AsyncMock(),
             run_id=run_id,
+            origin=origin,
         )
 
     return dict(fcm_service.send_to_user.await_args.kwargs["data"])
@@ -112,3 +125,44 @@ class TestTheFcmPayloadMatchesTheArchivedCard:
         assert all(isinstance(value, str) for value in data.values())
         assert data[FIELD_FEEDBACK_ENABLED] == "true"
         assert data[FIELD_TARGET_ID]
+
+
+class TestThePushOpensTheDiscussionItReturnsTo:
+    """ADR-378 amendment 2026-11-14: a call placed from an annex returns there."""
+
+    async def test_a_return_to_an_annex_opens_it(self) -> None:
+        annex = uuid4()
+        data = await _dispatch_and_capture(
+            run_id="r", feedback_enabled=True, origin=ConversationOrigin(annex, 2), annex=annex
+        )
+
+        assert data["url"] == f"/dashboard/chat?conversation={annex}"
+
+    async def test_the_push_names_the_annex_as_the_live_event_does(self) -> None:
+        """Both halves describe ONE card: the toast reads its place from either."""
+        annex = uuid4()
+        data = await _dispatch_and_capture(
+            run_id="r", feedback_enabled=True, origin=ConversationOrigin(annex, 2), annex=annex
+        )
+
+        assert data["conversation_id"] == str(annex)
+        assert with_discussion({}, annex) == {"conversation_id": data["conversation_id"]}
+
+    async def test_a_return_to_main_opens_the_chat_as_before(self) -> None:
+        """No origin, or one since retired: the service worker's default chat route."""
+        retired = await _dispatch_and_capture(
+            run_id="r", feedback_enabled=True, origin=ConversationOrigin(uuid4(), 2), annex=None
+        )
+        unbound = await _dispatch_and_capture(run_id="r", feedback_enabled=True)
+
+        for data in (retired, unbound):
+            assert "url" not in data and "conversation_id" not in data
+
+
+def test_the_live_event_names_an_annex_and_never_main() -> None:
+    """A view of Main without coordinates reads every notification naming no discussion."""
+    annex = uuid4()
+    metadata = {"type": "proactive_phone_call"}
+
+    assert with_discussion(metadata, None) is metadata
+    assert with_discussion(metadata, annex) == {**metadata, "conversation_id": str(annex)}

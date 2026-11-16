@@ -87,8 +87,8 @@ You can also cancel several reminders in a single command:
 Before deleting, LIA shows a confirmation panel listing every reminder targeted — each row carries the reminder's content, the day of the week and the trigger time, so you can verify there is no false positive before approving. After approval, the summary recaps every deleted reminder by name and time (no more anonymous "Action completed successfully" lines).
 
 **⚠️ Important:**
-• Only pending reminders can be cancelled
-• Already sent reminders cannot be cancelled
+• For a repeating reminder, **Stop this reminder** removes its future dates after confirmation
+• A message already delivered is not withdrawn
 • Cancellation is immediate and permanent
 
 ## How do push notifications work?
@@ -146,8 +146,8 @@ In settings, you can see all your registered devices and remove them individuall
 Reminders and tasks have different uses:
 
 **🔔 LIA Reminders:**
-• **One-time notification** at a specific time
-• No persistence after sending
+• **One-time or repeating notification** at the chosen time
+• Delivered messages stay in the conversation
 • Ideal for: "*Remind me to call John at 3pm*"
 • Message personalized with your LIA personality
 • Push notification on all your devices
@@ -162,7 +162,7 @@ Reminders and tasks have different uses:
 • Organization in lists
 
 **💡 In summary:**
-• **Reminder** = "*Notify me at a specific time*" (one-shot notification)
+• **Reminder** = "*Notify me at a specific time*" (once or on a schedule)
 • **Task** = "*I need to do this*" (list of things to accomplish)
 
 **🔗 Possible combination:**
@@ -177,3 +177,41 @@ A notification permit is tied to **one browser or one installation**. Reinstalli
 • **Several devices can be registered at once** — each keeps its own permit, and retiring one does not affect the others.
 
 If notifications still do not arrive on a freshly enabled device, check that your browser has not blocked them at the system level.
+
+## How do I postpone a reminder that just rang?
+When a reminder rings, you can push it back in one tap, without writing to LIA:
+
+**⏰ In the conversation:**
+• Under the reminder's bubble: **In 10 min**, **In 1 h** or **Tomorrow morning** (9 am by default; in the middle of the night, it is the morning to come)
+• The message shown when the reminder arrives also offers the short delay
+
+**📱 Elsewhere:**
+• On a computer and on Android, the browser notification offers the two delays
+• On Telegram, the same buttons come with the reminder
+• On iPhone, the notification opens the conversation, where the bubble offers everything
+
+**🔁 A reminder that repeats:**
+• **Stop this reminder** removes all its next times, after a confirmation
+• Postponing keeps the series' schedule; a delay that reaches its next occurrence is refused
+
+**⏳ Good to know:**
+• A reminder can be postponed for 24 h after it rang
+• It is postponed only once, even if you tap on two devices
+• A postponed copy still rings even if you later stop the series
+• The tap itself costs nothing; the postponed reminder is written when it rings, like any reminder
+
+## How can I receive LIA's notifications without Google, with ntfy?
+
+ntfy is a free, open-source app (Android, iPhone, computer) that receives notifications from a server. In **Settings › Push Notifications › ntfy notifications**, add a subscription: on this LIA's own server if your administrator offers one, or on another ntfy server such as ntfy.sh. Then install the ntfy app and subscribe: scan the QR code, tap “Open in the ntfy app” on Android, or copy the server and the topic on iPhone. Every notification LIA sends you also reaches the ntfy app, and “Send a test” checks the whole route.
+
+## What does an ntfy notification show: just a notice, or the text?
+
+By default, only a notice that LIA has something for you: the server that relays it never sees your words, and you read the message in LIA. You can choose “Full text” for each subscription to read the notification itself on your phone; the server that relays it can then read it, which is why the notice is the default. A notification you keep private in LIA always leaves as a notice, whatever you chose.
+
+## Why do ntfy notifications arrive late on my iPhone?
+
+Apple only lets an app wake instantly through its own push service, and the ntfy app on iPhone receives it through ntfy.sh. A self-hosted ntfy server therefore delivers instantly only if its administrator lets it ask ntfy.sh to wake your phone — a short signal that carries no text. Otherwise the iPhone app checks for new notifications from time to time. Android and computers are not affected.
+
+## Can someone else read my ntfy notifications?
+
+The topic is the key: whoever knows it can read what LIA publishes there. LIA draws topics nobody can guess, shows them to you alone and keeps them encrypted. Do not share yours; if you think it leaked, remove the subscription and add a new one. With “Notice only”, even someone who knew the topic would read nothing but the fact that LIA has something for you.

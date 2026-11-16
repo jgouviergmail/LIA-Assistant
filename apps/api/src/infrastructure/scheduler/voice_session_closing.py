@@ -49,7 +49,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import LIVE_TURN_TEXT_MAX_CHARS
 from src.core.conversation_execution import ExecutionRevoked
-from src.core.conversation_publication import PinnedReservationPublication
+from src.core.conversation_publication import PublicationDestination
 from src.core.exceptions_domains import UsageLimitExceededError
 from src.core.field_names import FIELD_LIVE_SUMMARY
 from src.domains.agents.api.archive_metadata import (
@@ -664,7 +664,7 @@ async def _redraw_card(
 async def archive_row(
     db: AsyncSession,
     *,
-    conversation_id: uuid.UUID | PinnedReservationPublication,
+    conversation_id: PublicationDestination,
     role: str,
     content: str,
     metadata: dict[str, Any],

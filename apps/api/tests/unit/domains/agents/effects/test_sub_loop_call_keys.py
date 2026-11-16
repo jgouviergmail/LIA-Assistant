@@ -17,7 +17,6 @@ from __future__ import annotations
 import asyncio
 import uuid
 from collections.abc import Iterator
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -30,6 +29,7 @@ from src.domains.agents.tools.mcp_react_tools import _MCPReActWrapper
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 from tests.helpers.mcp_access import installed_shared_mcp_access
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -107,7 +107,7 @@ def _turn() -> Iterator[None]:
         installed_shared_mcp_access() as actor,
         patch(
             "src.domains.agents.context.runtime_context.runtime_context_if_running",
-            return_value=SimpleNamespace(
+            return_value=make_runtime_context(
                 user_id=actor.id,
                 thread_id="thread-sub-loop",
                 execution_mode="pipeline",

@@ -85,6 +85,7 @@ from src.domains.agents.application.meeting_template_spec import (
     TEMPLATE_UPDATE_OPERATION,
 )
 from src.domains.agents.application.meeting_transcript_spec import TRANSCRIPT_DELETE_OPERATION
+from src.domains.agents.application.memory_import_spec import MEMORY_IMPORT_OPERATION
 from src.domains.agents.application.memory_spec import (
     MEMORY_BULK_DELETE_OPERATION,
     MEMORY_CREATE_OPERATION,
@@ -181,6 +182,7 @@ from src.domains.agents.application.skill_library_import_spec import (
 )
 from src.domains.agents.application.skill_library_read_spec import SKILL_LIBRARY_READ_OPERATION
 from src.domains.agents.application.skill_read_spec import SKILL_READ_OPERATION
+from src.domains.agents.application.skill_restore_spec import SKILL_RESTORE_OPERATION
 from src.domains.agents.application.skill_update_spec import SKILL_UPDATE_OPERATION
 from src.domains.agents.application.skill_url_import_spec import SKILL_URL_IMPORT_OPERATION
 from src.domains.agents.application.sms_action_spec import SMS_NATIVE_OPERATIONS
@@ -198,6 +200,11 @@ from src.domains.agents.application.workboard_create_spec import WORKBOARD_CREAT
 from src.domains.agents.application.workboard_delete_spec import WORKBOARD_DELETE_OPERATION
 from src.domains.agents.application.workboard_read_spec import WORKBOARD_UI_READ_OPERATION
 from src.domains.agents.application.workboard_update_spec import WORKBOARD_UPDATE_OPERATION
+from src.domains.agents.application.writing_style_spec import (
+    WRITING_STYLE_FORGET_OPERATION,
+    WRITING_STYLE_LEARN_OPERATION,
+    WRITING_STYLE_READ_OPERATION,
+)
 
 NATIVE_OPERATIONS = (
     *DISCUSSION_OPERATIONS,
@@ -245,6 +252,8 @@ NATIVE_OPERATIONS = (
     LIBRARY_UPDATE_OPERATION,
     SKILL_UPDATE_OPERATION,
     SKILL_DELETE_OPERATION,
+    SKILL_RESTORE_OPERATION,
+    MEMORY_IMPORT_OPERATION,
     SKILL_FILE_UPLOAD_OPERATION,
     SKILL_URL_IMPORT_OPERATION,
     SKILL_DOWNLOAD_OPERATION,
@@ -316,6 +325,9 @@ NATIVE_OPERATIONS = (
     HABIT_DELETE_OPERATION,
     HABIT_FORGET_OPERATION,
     HABIT_RECOMPUTE_OPERATION,
+    WRITING_STYLE_READ_OPERATION,
+    WRITING_STYLE_LEARN_OPERATION,
+    WRITING_STYLE_FORGET_OPERATION,
     OPEN_LOOP_READ_OPERATION,
     OPEN_LOOP_CLOSE_OPERATION,
     OPEN_LOOP_UPDATE_OPERATION,

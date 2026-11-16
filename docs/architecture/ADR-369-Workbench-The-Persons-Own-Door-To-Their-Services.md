@@ -676,7 +676,10 @@ word, on the version the card was built on, bounded by what a card can show.
 A contact's exchanges (`contacts_history`) are the five latest messages each way and the five latest
 meetings each organised, by address. They reuse what `relations` knows of each provider and leave
 out its qualification, so no model runs. A calendar answers a window oldest first: the read walks
-back from now by spans, stops once both lists are full, and says how far it looked. `organizer.self`
+back from now by spans, stops once both lists are full, and says how far it looked. Each span is
+read in every calendar the account owns, never the default alone (`calendar_lists`, ADR-185
+amendment 2026-11-15): an invitation sits in the main calendar whichever one events are created
+in, and a calendar left unread is said like a cut window. `organizer.self`
 is Google's word; Graph's normaliser gives it, and iCloud's client reads it from the addresses the
 server knows the account by. A meeting naming no organiser stands in a list of its own rather than
 in a guessed one, and another person's meeting answers neither list. A failed source is said, never

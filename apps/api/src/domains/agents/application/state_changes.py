@@ -58,6 +58,7 @@ from src.domains.agents.application.meeting_template_schemas import (
     TemplateDeletePatch,
 )
 from src.domains.agents.application.meeting_transcript_schemas import TranscriptActionField
+from src.domains.agents.application.memory_import_schemas import MemoryImportField
 from src.domains.agents.application.memory_pin_schemas import MemoryField
 from src.domains.agents.application.notification_schemas import NotificationDeviceField
 from src.domains.agents.application.open_loop_fields import OpenLoopField
@@ -103,6 +104,7 @@ from src.domains.agents.application.shared_mcp_schemas import SharedMCPPreferenc
 from src.domains.agents.application.skill_delete_schemas import SkillDeleteField
 from src.domains.agents.application.skill_file_upload_schemas import SkillFileUploadField
 from src.domains.agents.application.skill_library_import_schemas import LibraryImportField
+from src.domains.agents.application.skill_restore_schemas import SkillRestoreField
 from src.domains.agents.application.skill_update_schemas import SkillUpdateField
 from src.domains.agents.application.skill_url_import_schemas import SkillUrlImportField
 from src.domains.agents.application.sms_action_schemas import SmsActionField
@@ -124,6 +126,7 @@ from src.domains.agents.application.workboard_comment_schemas import WorkboardCo
 from src.domains.agents.application.workboard_create_schemas import WorkboardCreateField
 from src.domains.agents.application.workboard_delete_schemas import WorkboardDeleteField
 from src.domains.agents.application.workboard_update_schemas import WorkboardUpdateField
+from src.domains.agents.application.writing_style_schemas import WritingStyleActionField
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.connectors.models import CONNECTOR_FUNCTIONAL_CATEGORIES
 from src.domains.users.preference_cas import PreferenceWriteReceipt
@@ -195,6 +198,8 @@ class ApplicationStateChange(BaseModel):
         | AssetRetentionField
         | AssetDeleteField
         | SkillDeleteField
+        | SkillRestoreField
+        | MemoryImportField
         | PluginDeleteField
         | PluginUrlImportField
         | PluginFileUploadField
@@ -229,6 +234,7 @@ class ApplicationStateChange(BaseModel):
         | WorkboardDeleteField
         | WorkboardUpdateField
         | HabitActionField
+        | WritingStyleActionField
     ] = Field(
         min_length=1,
         max_length=len(PreferenceField)
@@ -288,6 +294,8 @@ class ApplicationStateChange(BaseModel):
         + len(AssetRetentionField)
         + len(AssetDeleteField)
         + len(SkillDeleteField)
+        + len(SkillRestoreField)
+        + len(MemoryImportField)
         + len(PluginDeleteField)
         + len(PluginUrlImportField)
         + len(PluginFileUploadField)
@@ -321,7 +329,8 @@ class ApplicationStateChange(BaseModel):
         + len(WorkboardCommentField)
         + len(WorkboardDeleteField)
         + len(WorkboardUpdateField)
-        + len(HabitActionField),
+        + len(HabitActionField)
+        + len(WritingStyleActionField),
     )
     observed_at: datetime
 
@@ -437,6 +446,8 @@ def publish_preference_change(
                 *AssetRetentionField,
                 *AssetDeleteField,
                 *SkillDeleteField,
+                *SkillRestoreField,
+                *MemoryImportField,
                 *PluginDeleteField,
                 *PluginUrlImportField,
                 *PluginFileUploadField,
@@ -483,6 +494,7 @@ def publish_preference_change(
                 *HealthRemovalField,
                 *PsycheSummaryField,
                 *HabitActionField,
+                *WritingStyleActionField,
             )
             if field.value in draft.after
         ],

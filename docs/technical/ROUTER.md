@@ -46,6 +46,8 @@ graph LR
 ```
 
 > **ADR-070**: When `execution_mode == "react"` (user preference) and the query is actionable, the router routes to `react_setup` instead of `planner`. See [REACT_EXECUTION_MODE.md](./REACT_EXECUTION_MODE.md).
+>
+> **ADR-390**: In the automatic mode the router itself settles the turn's engine, once, before routing: `services/engine_resolution.resolve_engine` reads the analysis (an act, an item-wise request, a skill, a reference, a calculation over another domain → the loop) and, only when it decides nothing, the shape judgement it started beside the analysis (the JEV usage `execution_mode`: the pipeline only when a computed figure, a cross-check, open-ended work and someone or something only an item's text names are all judged absent). The engine is written into the turn's state (`execution_mode`), recorded with its reason and counted (`execution_mode_resolutions_total`). See [ADR-390](../architecture/ADR-390-The-Automatic-Mode-Chooses-The-Engine-Per-Request.md).
 
 **Inputs**:
 - `messages`: Historique conversationnel (windowed)
@@ -575,7 +577,7 @@ route_to="response" → intention="conversation"
 
 route_from_router
 ├─ confidence under router_confidence_low → "response", whatever the route
-└─ next_node="planner" → react_setup in ReAct mode (ADR-070)
+└─ next_node="planner" → react_setup when the turn's engine is the loop (ReAct chosen, ADR-070, or resolved by « auto », ADR-390)
 ```
 
 ---

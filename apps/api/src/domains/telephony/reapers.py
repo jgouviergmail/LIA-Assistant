@@ -3,7 +3,8 @@
 - ``telephony_stale_call_reaper``: sweeps ``dialing``/``in_progress`` calls that
   never received a terminal webhook (process crash / vendor never called back) to
   ``failed`` — so a user is never stuck behind a phantom "in progress" call and
-  the one-active-call slot (F12) is freed.
+  the one-active-call slot (F12) is freed — and arms the notice telling their
+  owners that no report came (``closing_notices``, 2026-11-14).
 - ``telephony_retention_reaper``: clears ``summary``/``structured_data`` past
   their retention TTL (D-8). The row is kept for audit; only its content is
   purged.
@@ -20,6 +21,7 @@ import structlog
 
 from src.core.config import settings
 from src.domains.telephony.call_notifications import dispatch_call_notification
+from src.domains.telephony.closing_notices import ClosingReason, arm_closing_notices
 from src.domains.telephony.repository import TelephonyRepository
 from src.infrastructure.database.session import get_db_context
 
@@ -33,14 +35,18 @@ _RETURN_REAP_BATCH = 25
 
 
 async def telephony_stale_call_reaper() -> None:
-    """Mark in-flight calls with no terminal webhook as failed (crash recovery)."""
+    """Close in-flight calls no terminal webhook ever reported, and tell their owners.
+
+    The close and the owner's notice commit together (``closing_notices``):
+    the notification reaper delivers it, so no call ends in silence.
+    """
     async with get_db_context() as db:
-        count = await TelephonyRepository(db).recover_stale(
-            settings.telephony_stale_call_timeout_minutes
-        )
+        repo = TelephonyRepository(db)
+        closed = await repo.recover_stale(settings.telephony_stale_call_timeout_minutes)
+        armed = await arm_closing_notices(db, repo, closed, ClosingReason.NO_REPORT)
         await db.commit()
-    if count:
-        logger.info("telephony_stale_calls_reaped", count=count)
+    if closed:
+        logger.info("telephony_stale_calls_reaped", count=len(closed), notices_armed=armed)
 
 
 async def telephony_retention_reaper() -> None:
@@ -91,7 +97,13 @@ async def telephony_notification_reaper() -> None:
         # Snapshot the fields needed before any commit (the dispatcher commits
         # mid-loop, which would expire the loaded ORM instances).
         jobs = [
-            (call.id, call.user_id, dict(call.notification_payload or {}), call.status.value)
+            (
+                call.id,
+                call.user_id,
+                dict(call.notification_payload or {}),
+                call.status.value,
+                call.origin,
+            )
             for call in pending
         ]
 
@@ -99,7 +111,7 @@ async def telephony_notification_reaper() -> None:
         return
 
     delivered = failed = skipped = 0
-    for call_id, user_id, payload, call_status in jobs:
+    for call_id, user_id, payload, call_status, origin in jobs:
         async with get_db_context() as db:
             repo = TelephonyRepository(db)
             user = await db.get(User, user_id)
@@ -119,6 +131,7 @@ async def telephony_notification_reaper() -> None:
                     db=db,
                     title=payload.get("title"),
                     require_durable=True,
+                    origin=origin,
                 )
             except Exception as exc:  # noqa: BLE001 — one failure must not stop the batch
                 # Counted on a session of its own: a database error in the
@@ -159,7 +172,8 @@ async def telephony_return_reaper() -> None:
     (single-instance under leader election + ``max_instances=1``):
 
     1. retires inbox rows past the max-age cutoff to ``FAILED`` (purging the
-       encrypted transcript), so a permanently-failing synthesis stops retrying;
+       encrypted transcript), so a permanently-failing synthesis stops retrying,
+       and arms the notice telling their owners (``closing_notices``);
     2. re-runs :func:`process_completed_call` for ``RECEIVED`` rows older than the
        grace window (so the live dispatch of a just-received webhook is not raced),
        decrypting the persisted payload. ``process_completed_call`` is idempotent
@@ -179,7 +193,11 @@ async def telephony_return_reaper() -> None:
 
     async with get_db_context() as db:
         repo = TelephonyRepository(db)
-        expired = await repo.expire_stale_returns(max_age_cutoff=max_age_cutoff)
+        retired = await repo.expire_stale_returns(max_age_cutoff=max_age_cutoff)
+        # The give-up and the owner's notice commit together: no call ends in silence.
+        await arm_closing_notices(db, repo, retired, ClosingReason.SYNTHESIS_GAVE_UP)
+        await db.commit()
+        expired = len(retired)
         recoverable = await repo.fetch_recoverable_returns(
             grace_cutoff=grace_cutoff, max_age_cutoff=max_age_cutoff, limit=_RETURN_REAP_BATCH
         )

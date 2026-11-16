@@ -49,9 +49,9 @@
     },
     "f.routing": {
       "name": "Understanding the request",
-      "role": "Reads each message: plain chat or a request to carry out, the domains involved (calendar, email…), the language; then ranks the tools by relevance.",
+      "role": "Understands the request, its domains and language, then ranks tools by relevance; in automatic mode, chooses between Pipeline and ReAct according to the request and the engines available.",
       "goal": "Send each request down the right path without spending more than needed.",
-      "src": "d8835f003b0f"
+      "src": "e1a694fd08ce"
     },
     "f.planning": {
       "name": "Planning (Pipeline mode)",
@@ -283,9 +283,9 @@
     },
     "f.reminders": {
       "name": "Reminders",
-      "role": "A reminder that goes off at the set time and can repeat, worded by LIA at the moment it goes off.",
+      "role": "A reminder that rings at the set time and can repeat, worded by LIA when due; its card lets you snooze the occurrence that just rang or confirm stopping future ones.",
       "goal": "Stop forgetting, no sticky notes needed.",
-      "src": "e681ab76106e"
+      "src": "b18d8ed7d964"
     },
     "f.workboard": {
       "name": "Workboard",
@@ -295,9 +295,9 @@
     },
     "f.notifications": {
       "name": "Notifications and channels",
-      "role": "Web and mobile notifications, and Telegram; a notification sent by LIA is an action recorded in the register, and an administrator's announcement goes only to the accounts it targets.",
+      "role": "Web and mobile notifications, ntfy subscriptions and Telegram exchanges; a notification sent by LIA is an action entered in the register, and an administrator's announcement only goes to the targeted accounts.",
       "goal": "Reach you where you are, without ever doing it silently.",
-      "src": "bb532ffc6ada"
+      "src": "fa402fb5201b"
     },
     "f.activity": {
       "name": "Activity and proposals",

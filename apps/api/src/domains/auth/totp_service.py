@@ -7,16 +7,13 @@ Redis pending token that bridges the two steps of a password+TOTP login.
 """
 
 import asyncio
-import base64
 import hashlib
-import io
 import secrets
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
 import pyotp
-import qrcode
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,6 +34,7 @@ from src.domains.auth.models import MFABackupCode, UserTOTP
 from src.domains.auth.totp_repository import TOTPRepository
 from src.domains.users.models import User
 from src.infrastructure.observability.metrics_mfa import track_totp_verification
+from src.infrastructure.utils.qr_code import render_qr_data_uri
 
 logger = structlog.get_logger(__name__)
 
@@ -142,7 +140,8 @@ class TOTPService:
         uri = pyotp.TOTP(
             secret, digits=TOTP_DIGITS, interval=TOTP_INTERVAL_SECONDS
         ).provisioning_uri(name=user.email, issuer_name=settings.webauthn_rp_name)
-        qr_data_uri = await asyncio.to_thread(self._render_qr_data_uri, uri)
+        # Drawing is CPU-bound: off the event loop.
+        qr_data_uri = await asyncio.to_thread(render_qr_data_uri, uri)
 
         row = UserTOTP(user_id=user.id, secret_encrypted=encrypt_data(secret))
         self.db.add(row)
@@ -393,19 +392,3 @@ class TOTPService:
         for raw in codes:
             self.db.add(MFABackupCode(user_id=user_id, code_hash=hash_backup_code(raw)))
         return codes
-
-    @staticmethod
-    def _render_qr_data_uri(uri: str) -> str:
-        """Render the provisioning URI as a PNG data-URI (CPU-bound, threaded).
-
-        Args:
-            uri: otpauth:// provisioning URI.
-
-        Returns:
-            ``data:image/png;base64,...`` string.
-        """
-        image = qrcode.make(uri)
-        buffer = io.BytesIO()
-        image.save(buffer, format="PNG")
-        encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
-        return f"data:image/png;base64,{encoded}"

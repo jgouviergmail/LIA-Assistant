@@ -1,7 +1,7 @@
 """Calendar availability / free-slot search tool (lot B, 2026-08).
 
-"Find me a 30-min slot Thursday" — computes free slots over the user's
-calendar window:
+"Find me a 30-min slot Thursday" — computes free slots over the window of every
+calendar the user owns (``calendar_lists``, owner rule 2026-11-15):
 
 - Google: through the freeBusy endpoint (busy ranges only — strictly less
   data than fetching events, minimization by capability);
@@ -26,6 +26,7 @@ from src.core.constants import (
     AVAILABILITY_DURATION_MAX_MINUTES,
     AVAILABILITY_DURATION_MIN_MINUTES,
     AVAILABILITY_PROJECTION_MAX_EVENTS,
+    CALENDARS_READ_MAX,
 )
 from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.constants import AGENT_EVENT, CONTEXT_DOMAIN_EVENTS
@@ -39,6 +40,11 @@ from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.decorators import connector_tool
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.connectors.clients.calendar_lists import (
+    calendars_to_read,
+    read_owned_events,
+    unread_in_freebusy,
+)
 from src.domains.connectors.clients.google_calendar_client import GoogleCalendarClient
 from src.domains.connectors.models import ConnectorType
 
@@ -132,31 +138,38 @@ class FindAvailabilityTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
         )
         working_hours_only = bool(kwargs.get("working_hours_only", True))
 
-        # The calendar the owner CONFIGURED, not `primary`. Both paths below
-        # used to ask for `primary` unconditionally, so a user whose agenda
-        # lives in a named calendar was reported FREE while booked — the
-        # 2026-07-30 defect `owner_defaults` cites, closed there for a peer's
-        # calendar and never wired for the account's own.
+        # The calendar the owner CONFIGURED, then every other one they own (owner
+        # rule 2026-11-15, ``calendar_lists``): a meeting in the main calendar makes
+        # them busy whichever calendar they create in. Reading `primary` alone once
+        # reported a user FREE while their named calendar held a meeting, reading
+        # the default alone did the same for an invitation in the main one.
         calendar_id = await _owner_calendar_id(client, user_id)
+        time_min = window_start.astimezone(UTC).isoformat()
+        time_max = window_end.astimezone(UTC).isoformat()
 
+        # A busy list read in part would offer a booked slot as free: the cut is
+        # carried to the model (ADR-185 amendment 2026-11-15).
         if hasattr(client, "query_freebusy"):
+            calendars = await calendars_to_read(client, calendar_id, bound=CALENDARS_READ_MAX)
             response = await client.query_freebusy(
-                time_min=window_start.astimezone(UTC).isoformat(),
-                time_max=window_end.astimezone(UTC).isoformat(),
-                calendar_ids=[calendar_id],
+                time_min=time_min, time_max=time_max, calendar_ids=calendars.ids
             )
             busy = busy_intervals_from_freebusy(response)
+            window_complete = not (calendars.cut or unread_in_freebusy(response, calendars.ids))
             source = "freebusy"
         else:
-            # Minimization by capability: start/end only, never event details.
-            result = await client.list_events(
-                time_min=window_start.astimezone(UTC).isoformat(),
-                time_max=window_end.astimezone(UTC).isoformat(),
-                max_results=AVAILABILITY_PROJECTION_MAX_EVENTS,
-                calendar_id=calendar_id,
+            # Every event of the windows, pages drained: the agents' one-request
+            # listing stops at its ceiling and would leave the rest of the window
+            # « free ». Start and end alone are asked for, where a provider projects.
+            owned = await read_owned_events(
+                client,
+                calendar_id,
+                [(time_min, time_max)],
+                bound=AVAILABILITY_PROJECTION_MAX_EVENTS,
                 fields=["start", "end"],
             )
-            busy = busy_intervals_from_events(result.get("items", []))
+            busy = busy_intervals_from_events(owned.events)
+            window_complete = not owned.cut
             source = "events_projection"
 
         slots = find_free_slots(
@@ -189,6 +202,7 @@ class FindAvailabilityTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
                 "start": window_start.isoformat(),
                 "end": window_end.isoformat(),
             },
+            "window_complete": window_complete,
             "source": source,
         }
 
@@ -199,11 +213,23 @@ class FindAvailabilityTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
                 message=result.get("message", "Availability request failed"),
                 error_code=result.get("error"),
             )
+        # A busy list read in part may offer a booked slot: said in the message the
+        # model reads first, never left to a flag it may skim (ADR-303).
+        message = f"{result['total']} free slots"
+        if not result.get("window_complete", True):
+            message += " (part of the calendars could not be read whole: a slot may be booked)"
         return UnifiedToolOutput.data_success(
-            message=f"{result['total']} free slots",
+            message=message,
             structured_data={
                 key: result[key]
-                for key in ("slots", "total", "busy_count", "duration_minutes", "window")
+                for key in (
+                    "slots",
+                    "total",
+                    "busy_count",
+                    "duration_minutes",
+                    "window",
+                    "window_complete",
+                )
             },
         )
 
@@ -239,10 +265,9 @@ async def find_availability_tool(
     """
     Find free calendar slots in a time window ("find me a 30-min slot Thursday").
 
-    Reads the busy ranges of the calendar the user configured as their default
-    (never event details, and `primary` when none is set) and
-    returns the free gaps of at least the requested duration, clamped to
-    working hours unless told otherwise.
+    Reads the busy ranges of every calendar the user owns, their default
+    included (never event details), and returns the free gaps of at least the
+    requested duration, clamped to working hours unless told otherwise.
 
     Returns:
         UnifiedToolOutput with free slots (ISO datetimes), exact totals and

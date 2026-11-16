@@ -4,7 +4,7 @@
 
 **Version**: 3.0
 **Date**: 2026-11-14
-**Application**: LIA v5.0.0
+**Application**: LIA v5.1.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI. My job was to direct it: a written 
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI that was directed, supervised and checked | **≈ 100%** |
-| Source lines (excluding tests), spread across some sixty backend domain packages | **1,219,354** |
-| Automated tests inventoried, in suites matched to commits and to releases | **87,496** |
-| Documented architecture decisions (ADR) | **386** |
-| Versions shipped at a steady pace | **297** |
+| Source lines (excluding tests), spread across some sixty backend domain packages | **1,238,134** |
+| Automated tests inventoried, in suites matched to commits and to releases | **89,335** |
+| Documented architecture decisions (ADR) | **389** |
+| Versions shipped at a steady pace | **298** |
 | Languages, with parity checked automatically | **6** |
 | Technical audit across 24 areas | **7.9/10** |
 
@@ -64,11 +64,11 @@ The shared world gives the assistant places: a library for knowledge, a multimed
 
 I also wanted using an assistant to leave room for doing things yourself. The Tools workspace uses the same connected services, but a gesture by hand there calls no model and is not recorded as LIA’s act; what a click asks of it stays a proposal, traced and billed to whoever asked. Delegation and direct control can share an interface while keeping clear who decided, who acted and what was approved.
 
-Here are three structural decisions, among the 386 documented.
+Here are three structural decisions, among the 389 documented.
 
 The first is about **sovereignty**: I did not want any irreversible dependency on a vendor. The AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity and local models through Ollama) all go through the same abstraction, so each use can switch provider through configuration alone, with costs compared. On the services side, Google, Apple and Microsoft are interchangeable in each category, whether mail, calendar or contacts. Self-hosting gives control of the server: account data is stored on the instance and connector credentials are encrypted. The remote services the person chooses still receive the data they need for their part of the request.
 
-The second is about **economics**: I treated the cost of every request as a design criterion. Two execution modes coexist. A deterministic, economical pipeline handles everyday requests, and an autonomous agent takes on exploratory ones. On standard cases, for the same service delivered, the measured consumption ratio between them is 1 to 4-8. Every call is counted to the token, valued in euros, aggregated per user and per model, and subject to quotas.
+The second is about **economics**: I treated the cost of every request as a design criterion. I keep a choice between two engines, with an automatic mode that selects one for each request. A deterministic, economical pipeline handles everyday requests, and an autonomous agent takes on exploratory ones. On standard cases, for the same service delivered, the measured consumption ratio between them is 1 to 4-8. Every call is counted to the token, valued in euros, aggregated per user and per model, and subject to quotas.
 
 Cost also comes down to the details: a two-sentence notification is requested without reasoning, because a model that thinks by default bills its thinking inside the budget of its answer. By default, the autonomous agent takes along only the tools the question calls for, chosen by relevance rather than by order of arrival: eighty tool descriptions made up most of its first call, without being counted. Finally, every call is valued at the price the provider actually bills, with rates re-read from its pages, cache writes billed at their true price and off-peak rates depending on the day.
 

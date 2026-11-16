@@ -93,7 +93,8 @@ async def http(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[tuple[AsyncClie
     )
     limiter = MagicMock(acquire=AsyncMock(return_value=True))
     monkeypatch.setattr(
-        "src.domains.auth.dependencies.get_rate_limiter", AsyncMock(return_value=limiter)
+        "src.infrastructure.rate_limiting.user_limiter.get_rate_limiter",
+        AsyncMock(return_value=limiter),
     )
     app = FastAPI()
     app.include_router(router_module.router)

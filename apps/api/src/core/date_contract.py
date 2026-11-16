@@ -17,7 +17,9 @@ contract lives here, once:
   « how many days » and « how many hours » are different questions;
 - :func:`unreadable_date_message` is the refusal every such tool returns;
 - :func:`period_bounds` turns two optional values into a period, a day being a
-  WHOLE day (from its local midnight to the next one).
+  WHOLE day (from its local midnight to the next one);
+- :func:`local_day_bounds` is « that day » for a date or an instant: the whole
+  local day it falls on.
 
 In ``core`` beside ``tool_outcome`` for the same reason: several packages read
 it and none of them should own it.
@@ -35,6 +37,7 @@ __all__ = [
     "ISO_MOMENT_DESCRIPTION",
     "InvertedPeriodError",
     "UnreadableDateError",
+    "local_day_bounds",
     "period_bounds",
     "read_moment",
     "unreadable_date_message",
@@ -125,6 +128,28 @@ def _end_of(moment: date | datetime, zone: tzinfo) -> datetime:
     if isinstance(moment, datetime):
         return moment
     return datetime.combine(moment + timedelta(days=1), time(), tzinfo=zone)
+
+
+def local_day_bounds(reference: str, zone: tzinfo) -> tuple[datetime, datetime]:
+    """The whole local day a date or an instant falls on, as ``[since, until)``.
+
+    « That day », when a plan passes a deadline: an instant stands for the day it
+    falls on in ``zone`` — 23:30 UTC may already be tomorrow where the person lives
+    (ADR-380) — and a date is that day. A day the clocks change lasts 23 or 25 hours.
+
+    Args:
+        reference: An ISO date or datetime.
+        zone: The person's timezone.
+
+    Returns:
+        The day's first instant and the next day's.
+
+    Raises:
+        UnreadableDateError: A value that is not ISO 8601.
+    """
+    moment = read_moment(reference, zone)
+    day = moment.astimezone(zone).date() if isinstance(moment, datetime) else moment
+    return _start_of(day, zone), _end_of(day, zone)
 
 
 def period_bounds(

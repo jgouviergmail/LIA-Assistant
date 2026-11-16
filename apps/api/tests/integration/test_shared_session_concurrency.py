@@ -18,6 +18,7 @@ mocks cannot reproduce.
 from __future__ import annotations
 
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 import pytest_asyncio
@@ -68,7 +69,7 @@ async def test_health_overview_survives_kind_fanout(pooled_sessionmaker) -> None
     async with pooled_sessionmaker() as session:
         service = HealthMetricsService(session)
 
-        overview = await service.compute_overview(uuid4())
+        overview = await service.compute_overview(uuid4(), zone=ZoneInfo("Europe/Paris"))
 
     assert set(overview.keys()) == set(HEALTH_KINDS.keys())
 

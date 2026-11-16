@@ -335,6 +335,43 @@ async def test_a_second_import_of_the_same_account_is_a_conflict(
     imports.meetings.db.rollback.assert_awaited()
 
 
+@pytest.mark.parametrize("live", [True, False], ids=["live-annex", "main-or-retired"])
+async def test_an_import_keeps_the_discussion_it_was_begun_from(
+    imports: MeetingImportService, monkeypatch: pytest.MonkeyPatch, live: bool
+) -> None:
+    """Its « minutes ready » returns there (2026-11-14); a stale one never refuses the file."""
+    from src.core.conversation_target import ConversationOrigin
+    from src.domains.conversations import return_target
+
+    annex = uuid.uuid4()
+    asked: dict[str, Any] = {}
+
+    async def _annex_origin(db: Any, owner_id: uuid.UUID, conversation_id: uuid.UUID | None):
+        asked["conversation_id"] = conversation_id
+        return ConversationOrigin(annex, 3) if live else None
+
+    admission = SimpleNamespace(
+        engine=SimpleNamespace(provider=MagicMock(), model=None, diarized=False),
+        language="auto",
+        template=None,
+    )
+    monkeypatch.setattr(imports.meetings, "admit", AsyncMock(return_value=admission))
+    # The door the import reads its origin through (``annex_origin_columns``).
+    monkeypatch.setattr(return_target, "annex_origin", _annex_origin)
+    # The row is refused once written: only what was written is under test.
+    imports.meetings.repo.create.side_effect = IntegrityError("insert", {}, Exception("unique"))
+
+    with pytest.raises(BaseAPIException):
+        await imports.create(
+            SimpleNamespace(id=uuid.uuid4(), language="en"), _import_request(conversation_id=annex)
+        )
+
+    data = imports.meetings.repo.create.await_args.args[0]
+    assert asked["conversation_id"] == annex
+    assert data["origin_conversation_id"] == (annex if live else None)
+    assert data["origin_conversation_revision"] == (3 if live else None)
+
+
 async def test_a_chunk_is_refused_once_the_import_is_no_longer_uploading(
     imports: MeetingImportService,
 ) -> None:

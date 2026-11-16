@@ -2,6 +2,7 @@
  * Chat types for LIA AI Assistant
  */
 
+import type { ExecutionEngine } from '@/lib/execution-mode';
 import type { SkillProposalCard } from '@/lib/skill-proposals/types';
 import type { PerformedEffect } from '@/types/performed-effects';
 import type { ExecutionTrace } from './execution-trace';
@@ -205,6 +206,10 @@ export interface DoneMetadata {
   // ADR-375: the habit proposal this answer shows, as facts; untyped on
   // purpose, read through `habitProposalOf` like the archived row.
   habit_proposal?: unknown;
+  // ADR-390: the engine an AUTOMATIC turn ran on — absent when the person
+  // chose the mode. Same key as the archived row, read through
+  // `executionEngineOf`.
+  execution_engine?: ExecutionEngine;
   // Token tracking metadata
   tokens_in?: number;
   tokens_out?: number;
@@ -1440,7 +1445,11 @@ export interface TreatmentEntry {
 export interface TurnDecisionMetrics {
   run_id: string;
   source: string; // user | scheduled | subagent
-  execution_mode: string;
+  execution_mode: string; // the ENGINE that ran: pipeline | react
+  // ADR-390: the mode asked for (pipeline | react | auto) and why the engine
+  // is the one it is — absent on a payload from before the automatic mode.
+  requested_mode?: string | null;
+  resolution_reason?: string | null;
   route: string | null;
   plan_step_count: number | null;
   outcome: string; // « so far »: the row is written after this is emitted

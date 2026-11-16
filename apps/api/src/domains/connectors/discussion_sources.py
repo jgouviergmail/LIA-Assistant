@@ -40,6 +40,9 @@ class ProviderPage(BaseModel):
     results: tuple[object, ...] = Field(default=(), max_length=101)
     nextPageToken: str | None = None
     next_page_token: str | None = None
+    #: The calendar door says the window holds more on every provider, Graph and
+    #: CalDAV included, which carry no token (ADR-185 amendment 2026-11-15).
+    truncated: bool = False
 
 
 class ContactHit(BaseModel):
@@ -148,7 +151,11 @@ class CalendarDiscussionSource:
                 )
                 page = ProviderPage.model_validate(raw)
                 result = _snapshot(
-                    request, page.items, account, calendar_evidence, more=bool(page.nextPageToken)
+                    request,
+                    page.items,
+                    account,
+                    calendar_evidence,
+                    more=bool(page.nextPageToken) or page.truncated,
                 )
             result = await enrich_calendar_series(request, opened, result)
             await _check_unchanged(request, opened, account, container=opened.calendar_id)

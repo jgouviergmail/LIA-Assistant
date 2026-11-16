@@ -2005,8 +2005,8 @@
     },
     "383": {
       "title": "Una bozza parla con la voce della persona",
-      "summary": "Due persone che rispondevano alla stessa e-mail ricevevano da LIA la stessa risposta. La prima volta che LIA scrive un'e-mail per te, ora impara come scrivi dalle tue ultime e-mail inviate — saluto, chiusura, firma, tono, mai di cosa scrivevi — e lo segue in ogni risposta e in ogni nuovo messaggio, compresa la risposta che confermi, che LIA ora scrive da sé quando non ne hai dettato le parole. Nelle impostazioni puoi leggerlo, disattivarlo o farlo dimenticare. Misurato su persone fittizie prima di scrivere il codice: le risposte sono passate da circa 42 a 63 tratti dello stile del loro autore su 66, senza copiare un solo fatto dalle vecchie e-mail.",
-      "src": "34665c9462e6"
+      "summary": "Due persone che rispondevano alla stessa e-mail ricevevano da LIA la stessa risposta. Ora LIA impara come scrivi dalle tue ultime e-mail inviate — saluto, chiusura, firma, tono, mai di cosa scrivevi — quando glielo chiedi, nelle impostazioni o in una conversazione, e lo segue in ogni risposta e in ogni nuovo messaggio. Le parole che hai dettato partono così come sono; ogni altro testo, anche uno scritto dall'assistente, passa dal redattore di LIA, che lo scrive con la tua voce. Misurato su persone fittizie prima di scrivere il codice: le risposte sono passate da circa 42 a 63 tratti dello stile del loro autore su 66, senza copiare un solo fatto dalle vecchie e-mail.",
+      "src": "bbbcacec799d"
     },
     "384": {
       "title": "Un messaggio scritto mentre LIA lavora aspetta il suo turno",
@@ -2032,6 +2032,21 @@
       "title": "I documenti usano ciò che i loro formati sanno fare",
       "summary": "Un documento che LIA genera usa ora i meccanismi del suo formato: un foglio di calcolo calcola con formule vere, un grafico si modifica in Excel o PowerPoint, una presentazione che proietterai si anima con sobrietà, un rapporto si apre su una copertina con le sue cifre chiave, le sue figure e le sue fonti cliccabili. Il modello dice che cosa sono le cose e il motore le disegna, in una tavolozza dal contrasto verificato che segue il tono del documento. Le illustrazioni sono immagini generate: arrivano solo se le autorizzi in Impostazioni › Documenti, entro un budget, e ognuna è conteggiata nei tuoi costi.",
       "src": "825ef1252ca8"
+    },
+    "389": {
+      "title": "Telegram legge e risponde come la chat",
+      "summary": "Su Telegram, LIA rispondeva peggio che nell'app: titoli e tabelle arrivavano grezzi, una foto, un documento o una posizione restavano senza risposta, e un messaggio scritto mentre lavorava andava perso. Ora un'unica porta dà forma a tutto ciò che parte verso Telegram, il comando /stop ferma la risposta in corso, un messaggio scritto nel frattempo aspetta il suo turno, una posizione diventa la tua per la domanda posta e i file viaggiano nei due sensi. Una nota vocale riceve una risposta a voce quando le risposte vocali sono attive, e anche i risultati delle tue routine arrivano lì.",
+      "src": "f4add347a30e"
+    },
+    "390": {
+      "title": "La modalità automatica sceglie il motore a ogni richiesta",
+      "summary": "Accanto alle modalità Pipeline e ReAct, una terza scelta lascia decidere LIA a ogni richiesta. Ciò che un solo piano non può portare a termine va al ciclo ReAct; altrimenti un modello decisionale giudica in una sola chiamata se la richiesta richiede un calcolo, un confronto, un lavoro aperto o qualcuno che solo il testo di un elemento nomina, e la Pipeline subentra solo quando non c'è nulla di tutto ciò — nel dubbio, il ciclo, perché una risposta completa viene prima di una rapida. Un piccolo badge sotto la risposta indica quale motore ha risposto; i ticket, le routine e Telegram seguono la stessa scelta.",
+      "src": "e080272fbb72"
+    },
+    "391": {
+      "title": "ntfy porta le notifiche su qualsiasi dispositivo",
+      "summary": "ntfy offre un'altra strada alle notifiche di LIA: ogni persona può abbonarsi sul server dell'istanza o su uno pubblico il cui indirizzo viene verificato prima di ogni invio. Per impostazione predefinita esce solo un avviso senza contenuto; il testo completo è una scelta della persona e gli argomenti sensibili restano nascosti. Temi degli abbonamenti e token rimangono cifrati, perché un tema può fungere da password.",
+      "src": "6854697b101e"
     }
   }
 }

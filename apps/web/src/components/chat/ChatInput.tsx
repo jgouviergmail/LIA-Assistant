@@ -90,6 +90,8 @@ export interface ChatInputProps {
   generatedFilesEnabled?: boolean;
   /** Whether the « + » also imports a recording file as a meeting (2026-10-24). */
   meetingImportEnabled?: boolean;
+  /** The annex this composer writes in (ADR-378 amendment): an imported meeting returns there. */
+  discussionId?: string | null;
   /**
    * ADR-258: the instance offers meeting recording. The composer only needs
    * it to keep hold-to-talk off the table while a meeting is being captured;
@@ -462,6 +464,7 @@ const ChatInputBody: React.FC<
   bookmarksEnabled,
   generatedFilesEnabled,
   meetingImportEnabled,
+  discussionId,
   meetingsEnabled = false,
   isGenerating = false,
   onStopGeneration,
@@ -984,6 +987,7 @@ const ChatInputBody: React.FC<
             bookmarksEnabled={bookmarksEnabled}
             generatedFilesEnabled={generatedFilesEnabled}
             meetingImportEnabled={meetingImportEnabled}
+            discussionId={discussionId}
             disabled={disabled || !apiAvailable || isUploading}
             onPickFile={() => fileInputRef.current?.click()}
             onTakePhoto={() => photoInputRef.current?.click()}

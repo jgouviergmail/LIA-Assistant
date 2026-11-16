@@ -24,7 +24,8 @@ from src.infrastructure.llm.typesafe_client import ChoiceAnswer, NoulAnswer, cho
 pytestmark = pytest.mark.unit
 
 # The values shipped before thresholds became settings (requalified on jev-1.14.0,
-# 2026-10-26), and the reply margin qualified with its question (lot F, 2026-11-08). A
+# 2026-10-26), the reply margin qualified with its question (lot F, 2026-11-08), and the
+# execution-mode margins qualified on the held-out corpus of 2026-11-15 (ADR-390). A
 # default changes only with a paid requalification.
 SHIPPED = {
     JevUsage.MEETING_TEMPLATE: {"template": "0.85"},
@@ -42,6 +43,12 @@ SHIPPED = {
         "reply_expected": "0.30",
     },
     JevUsage.EVENT_CLASSIFICATION: {"category": "0.80"},
+    JevUsage.EXECUTION_MODE: {
+        "computed": "0.20",
+        "cross_check": "0.50",
+        "open_ended": "0.50",
+        "named_in_text": "0.48",
+    },
 }
 
 

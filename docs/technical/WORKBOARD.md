@@ -316,11 +316,12 @@ le ticket pendant l'exécution GAGNE, et le solde tardif n'écrit rien.
 
 **Le mode d'exécution est une colonne de la LIGNE** (lot 10) : chaque ticket
 et chaque action planifiée porte le sien (`execution_mode`, NOT NULL, `react`
-par défaut), modifiable tout au long de la vie du ticket et lu à la PROCHAINE
+par défaut ; `pipeline`, `react` ou `auto`, où le routeur choisit le moteur du
+run comme pour un tour du chat — ADR-390), modifiable tout au long de la vie du ticket et lu à la PROCHAINE
 exécution — jamais au milieu d'un run. Le réglage d'instance qui décidait pour
 tout le monde a été supprimé, sa constante et ses lignes `.env` avec : deux
 autorités sur la même question, c'est une de trop, et celle qui reste est celle
-que la personne voit. Le commutateur de l'en-tête du chat ne parle que du chat,
+que la personne voit. Le menu de l'en-tête du chat ne parle que du chat,
 et ne lit rien de tout cela.
 
 ### Ce que le ticket dit à LIA
@@ -630,8 +631,8 @@ cadre** (lot 15) : données (titre et description pour le propriétaire),
 réglages — colonne, priorité, **qui détient le ticket** (la liste complète
 pour le propriétaire, un simple « le rendre » pour un pair qui le détient,
 parce que c'est la seule chose que le service lui permet), l'échéance, le
-**mode d'exécution** du prochain run (« Mode Pipeline » / « Mode ReAct », les
-mots de l'en-tête du chat) et « Notifier l'avancement dans le chat », tous
+**mode d'exécution** du prochain run (« Mode Pipeline » / « Mode ReAct » /
+« Mode automatique », les mots et les marques du menu de l'en-tête du chat) et « Notifier l'avancement dans le chat », tous
 modifiables à tout moment du cycle de vie (lot 12) —, puis dernière exécution
 (le VERDICT du run — répondu, en attente, à confirmer, en échec, reportée
 pour quota ou pour conversation en cours — jamais la colonne), coût, étapes,
@@ -769,6 +770,17 @@ diverger. Trois conséquences visibles :
 Chaque borne que le service applique est **publiée** dans le manifeste, lue
 depuis les réglages (ADR-184) : un `.env` modifié déplace la borne appliquée et
 la borne publiée ensemble.
+
+**L'assistant cherche par mots et lit l'ensemble « ouvert » du tableau**
+(qualification du mode automatique, ADR-390). Un plan s'écrit en un seul
+coup et ne peut pas réessayer sur une page vide : `list_tickets` lit donc
+`query` comme des MOTS, tous exigés, chacun dans le titre ou la description,
+dans n'importe quel ordre (`board_queries.search_words`, `mentions_word`) — un
+plan qui demandait « t-shirt voile » ne trouvait rien sous « Commander les
+t-shirts de l'équipe de voile », et la chaîne s'arrêtait là. `open_only` garde
+toutes les colonnes sauf les fermées (`CLOSED_STATUSES`) : « mes tickets
+ouverts » n'est plus lu comme la seule colonne `todo`. La recherche de l'écran
+(`q`) reste un fragment du titre, comme son contrat le dit.
 
 **L'assistant lit, filtre et classe par catégorie ; il n'en administre
 aucune.** Un ticket rendu par un outil porte le NOM de sa catégorie, jamais son

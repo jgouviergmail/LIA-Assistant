@@ -250,3 +250,110 @@ class TestDomainCoverageTopN:
             result = strategy.filter(intelligence, tool_selection_result=None)
 
         assert result.tool_count == 2
+
+
+# =============================================================================
+# Tests: a domain's seat goes to its most relevant tool
+# =============================================================================
+
+#: The E06 turn's domains, in the analyzer's order.
+_E06_DOMAINS = ["task", "weather", "event", "reminder", "contact"]
+
+
+def _e06_shape() -> tuple[list[MockManifest], dict[str, float]]:
+    """The catalogue E06 met: a write tool registered before its domain's reader.
+
+    Scores are read relative to the deployment threshold (never a literal): the
+    weather domain holds four tools above it; every other domain sits below it,
+    its two best kept by domain coverage — as measured on the turn, where the
+    reminder reader outscored the reminder writer four to one.
+    """
+    from src.core.config import get_settings
+
+    threshold = get_settings().v3_tool_calibrated_primary_min
+    registered = [
+        ("get_events_tool", "event_agent"),
+        ("find_availability_tool", "event_agent"),
+        ("get_tasks_tool", "task_agent"),
+        ("get_current_weather_tool", "weather_agent"),
+        ("get_weather_forecast_tool", "weather_agent"),
+        ("get_hourly_forecast_tool", "weather_agent"),
+        ("get_pollen_forecast_tool", "weather_agent"),
+        ("create_reminder_tool", "reminder_agent"),
+        ("list_reminders_tool", "reminder_agent"),
+        ("get_contacts_tool", "contact_agent"),
+        ("get_person_overview_tool", "contact_agent"),
+        ("get_open_loops_tool", "task_agent"),
+    ]
+    scores = {
+        "get_weather_forecast_tool": threshold * 7,
+        "get_hourly_forecast_tool": threshold * 3,
+        "get_current_weather_tool": threshold * 2,
+        "get_pollen_forecast_tool": threshold * 1.2,
+        "find_availability_tool": threshold / 12,
+        "get_events_tool": threshold / 14,
+        "list_reminders_tool": threshold / 18,
+        "get_tasks_tool": threshold / 35,
+        "get_open_loops_tool": threshold / 35,
+        "get_person_overview_tool": threshold / 35,
+        "create_reminder_tool": threshold / 70,
+        "get_contacts_tool": 0.0,
+    }
+    return [MockManifest(name=name, agent=agent) for name, agent in registered], scores
+
+
+def _catalogue(
+    manifests: list[MockManifest], scores: dict[str, float] | None, *, max_tools: int
+) -> list[str]:
+    strategy = NormalFilteringStrategy(service=_build_mock_service(manifests))
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(
+            "src.domains.agents.services.catalogue.strategies.normal_filtering.ToolFilter.from_intelligence",
+            lambda intel: MockToolFilter(domains=intel.domains, max_tools=max_tools),
+        )
+        result = strategy.filter(
+            MockIntelligence(domains=_E06_DOMAINS),
+            {"all_scores": scores} if scores is not None else None,
+        )
+    return [tool["name"] for tool in result.tools]
+
+
+class TestADomainSeatGoesToItsMostRelevantTool:
+    """ADR-390 qualification (2026-11-15, E06), ADR-293 amendment.
+
+    « What day must I return the books, and what weather that day? »: five
+    domains, a ten-seat cap, and each domain's seat went to its FIRST tool in
+    registration order. The reminder domain got its write tool; its reader, more
+    relevant by the router's own scores, fell under the cap behind four weather
+    tools. Offered no reader of reminders, the planner read the tasks.
+    """
+
+    def test_the_reader_a_question_needs_survives_the_cap(self) -> None:
+        manifests, scores = _e06_shape()
+
+        assert "list_reminders_tool" in _catalogue(manifests, scores, max_tools=10)
+
+    def test_each_domain_is_seated_by_its_most_relevant_tool(self) -> None:
+        """A cap of one tool per domain leaves the seats alone; a tie keeps
+        registration order (``get_tasks_tool`` before ``get_open_loops_tool``)."""
+        manifests, scores = _e06_shape()
+
+        assert _catalogue(manifests, scores, max_tools=len(_E06_DOMAINS)) == [
+            "get_tasks_tool",
+            "get_weather_forecast_tool",
+            "find_availability_tool",
+            "list_reminders_tool",
+            "get_person_overview_tool",
+        ]
+
+    def test_a_turn_nobody_scored_keeps_registration_order(self) -> None:
+        """No scores (no English pivot, selector down): exactly the previous order."""
+        manifests, _scores = _e06_shape()
+
+        assert _catalogue(manifests, None, max_tools=len(_E06_DOMAINS)) == [
+            "get_tasks_tool",
+            "get_current_weather_tool",
+            "get_events_tool",
+            "create_reminder_tool",
+            "get_contacts_tool",
+        ]

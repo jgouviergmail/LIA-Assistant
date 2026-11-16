@@ -12,6 +12,7 @@ from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.constants import TASK_LIST_NAMES_SCAN_MAX
 from src.core.demo_mode import forbid_account_linking_in_demo
 from src.core.dependencies import get_db
 from src.core.exceptions import (
@@ -32,6 +33,7 @@ from src.core.session_dependencies import (
     get_current_active_session_for_stream,
     get_current_superuser_session,
 )
+from src.domains.connectors.clients.task_lists import list_every_task_list
 from src.domains.connectors.error_handlers import handle_oauth_callback_error_redirect
 from src.domains.connectors.models import CONNECTOR_FUNCTIONAL_CATEGORIES, ConnectorType
 from src.domains.connectors.oauth_return import (
@@ -583,9 +585,10 @@ async def list_connector_task_lists(
     # Instantiate client (may raise BaseAPIException — let it propagate)
     client = await _get_client_for_connector(service, user_id, connector_id, connector_type)
 
-    # Fetch task lists from external provider
+    # Every list of the account, pages drained: one request stopped at the
+    # agents' per-request ceiling and the rest never reached the choice.
     try:
-        result = await client.list_task_lists()
+        listed = await list_every_task_list(client, bound=TASK_LIST_NAMES_SCAN_MAX)
     except Exception as e:
         logger.error(
             "task_list_fetch_failed",
@@ -596,7 +599,7 @@ async def list_connector_task_lists(
         raise_external_service_connection_error(connector_type.value)
 
     # Filter items with valid titles first, then enumerate for is_default
-    valid_items = [item for item in result.get("items", []) if item.get("title")]
+    valid_items = [item for item in listed.lists if item.get("title")]
     items = [
         TaskListItem(
             name=item.get("title", ""),

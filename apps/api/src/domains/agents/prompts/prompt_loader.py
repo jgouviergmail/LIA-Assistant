@@ -77,6 +77,10 @@ PromptName = Literal[
     "jev_email_priority_question",
     "jev_email_reply_expected_question",
     "jev_event_category_question",
+    "jev_execution_mode_computed_question",
+    "jev_execution_mode_cross_check_question",
+    "jev_execution_mode_open_ended_question",
+    "jev_execution_mode_named_in_text_question",
     "jev_hitl_rejection_question",
     "jev_radio_question",
     "response_system_prompt_base",
@@ -133,6 +137,8 @@ PromptName = Literal[
     "reminder_prompt",
     "reminder_origin_once",
     "reminder_origin_recurring",
+    # A copy the person postponed when it rang (ADR-268 amendment 2026-11-16)
+    "reminder_origin_postponed",
     # Live mode (ADR-299)
     "live_system_prompt",
     "live_lines",
@@ -151,6 +157,8 @@ PromptName = Literal[
     # How the person writes, learned from their sent mail, and the block the writers read (ADR-383)
     "writing_style_profile_prompt",
     "writing_style_lines",
+    # A text the agent drafted itself, handed to the writer as what to say (ADR-383)
+    "email_authorship_lines",
     # Fallback and HITL
     "fallback_response_prompt",
     "hitl_draft_critique_fallback_prompt",
@@ -254,6 +262,7 @@ PromptName = Literal[
     "query_analyzer_prompt",
     "smart_planner_prompt",
     "smart_planner_subagent_delegation_prompt",
+    "planner_multi_domain_section",
     "for_each_directive_prompt",
     "semantic_validator_prompt",
     "semantic_pivot_prompt",

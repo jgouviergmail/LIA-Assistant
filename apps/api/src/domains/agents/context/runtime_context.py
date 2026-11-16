@@ -37,6 +37,7 @@ from langgraph.store.base import BaseStore
 from src.core.application_origin import ApplicationOrigin
 from src.core.constants import (
     DEFAULT_TIMEZONE,
+    EXECUTION_ENGINES,
     EXECUTION_MODE_PIPELINE,
     RESPONSE_DISPLAY_MODE_DEFAULT,
 )
@@ -54,8 +55,10 @@ from src.core.tool_context_scope import ToolContextScope, tool_context_scope
 
 __all__ = [
     "LiaRuntimeContext",
+    "TurnEngine",
     "assert_runtime_context",
     "derive_sub_agent_context",
+    "executed_mode_of",
     "runtime_context_if_running",
     "runtime_source_conversation_id",
     "runtime_tool_context_scope",
@@ -64,6 +67,56 @@ __all__ = [
     "tool_runtime_context",
     "tool_user_id_str",
 ]
+
+
+class TurnEngine:
+    """The engine that plans one turn, learned after the context is built.
+
+    The context is frozen and built before the graph runs, when only the request
+    is known; the router settles the engine once it has analysed the turn, and the
+    context builder settles a resumed turn's from its state. A live holder, like
+    the context's other live dependencies (LangGraph never copies the context), so
+    every reader of the run — a derived sub-agent's context included — sees the
+    same engine. Read it through :func:`executed_mode_of`.
+    """
+
+    __slots__ = ("_executed",)
+
+    def __init__(self) -> None:
+        """Start unsettled: no engine plans a turn before the router has run."""
+        self._executed: str | None = None
+
+    @property
+    def executed(self) -> str | None:
+        """The settled engine, or None while nothing settled it."""
+        return self._executed
+
+    def settle(self, engine: str) -> str:
+        """Record the engine that plans the turn, unless one already does.
+
+        A turn never changes engine: the first settlement wins, and a later one —
+        a router meeting a resumed turn, a compacted replay deciding again — is
+        answered with the engine in force, the one its tools already ran in.
+
+        Args:
+            engine: ``pipeline`` or ``react``.
+
+        Returns:
+            The engine in force.
+
+        Raises:
+            ValueError: When ``engine`` is not an engine (a request such as a
+                choice to decide later is not).
+        """
+        if engine not in EXECUTION_ENGINES:
+            raise ValueError(f"not an execution engine: {engine!r}")
+        if self._executed is None:
+            self._executed = engine
+        return self._executed
+
+    def __repr__(self) -> str:
+        """Name the settled engine, the only state the holder has."""
+        return f"TurnEngine(executed={self._executed!r})"
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,7 +145,11 @@ class LiaRuntimeContext:
             TTS starts on it; the response node reads it to keep a conversational
             reply free of markup while a voice listens.
         display_mode: Render mode the user chose (cards / html / html_cards / markdown).
-        execution_mode: Pipeline or ReAct (ADR-070).
+        requested_execution_mode: What the turn was ASKED to run in (ADR-070): the
+            person's choice, or a routine's or a ticket's row. The router decides
+            from it; everything else reads the engine (:func:`executed_mode_of`).
+        turn_engine: The engine that plans the turn, settled by the router (a
+            new turn) or the builder (a resumed one). Shared, never copied.
         exchange_rhythm: What the ReAct loop shapes its prompt for — the person's
             choice, else the instance default (ADR-311). The router publishes it
             into the turn's state; the loop reads the state, never this field.
@@ -103,6 +160,10 @@ class LiaRuntimeContext:
             supplied them. Read by the location-aware tools.
         user_message: The original user message, kept for location-phrase
             detection that needs the raw wording rather than the planned params.
+        turn_request: On a resumed run, the request the interrupted turn began with
+            (``user_message`` is then the person's answer to a question); empty on a
+            new turn. Read with ``user_message`` by the e-mail authorship door, so
+            words the person dictated in their request stay theirs after the question.
         side_channel_queue: SSE side channel a tool can push progress onto. A
             live queue, passed by reference.
         timezone: The user's display timezone.
@@ -112,6 +173,10 @@ class LiaRuntimeContext:
         application_origin: Live transport session reader, never a model parameter,
             checkpoint, metadata field or remembered approval. Sensitive commands bind
             its opaque identity and recheck authority at execution.
+        compaction_forced: True only for the one replay of a turn the model's
+            window refused (lot 15): its entry node compacts whatever the
+            threshold says. A run-scoped instruction, never checkpointed, so it
+            cannot outlive the replay.
     """
 
     user_id: uuid.UUID
@@ -130,7 +195,8 @@ class LiaRuntimeContext:
     is_automated_source: bool = False
 
     display_mode: str = RESPONSE_DISPLAY_MODE_DEFAULT
-    execution_mode: str = EXECUTION_MODE_PIPELINE
+    requested_execution_mode: str = EXECUTION_MODE_PIPELINE
+    turn_engine: TurnEngine = field(default_factory=TurnEngine, compare=False)
     exchange_rhythm: ExchangeRhythm = field(default_factory=lambda: effective_exchange_rhythm(None))
     timezone: str = DEFAULT_TIMEZONE
     language: str = field(default_factory=resolve_language)
@@ -139,8 +205,10 @@ class LiaRuntimeContext:
     deps: Any = None
     browser_context: Any = None
     user_message: str = ""
+    turn_request: str = ""
     side_channel_queue: asyncio.Queue | None = None
     application_origin: ApplicationOrigin | None = field(default=None, repr=False)
+    compaction_forced: bool = False
 
     @property
     def delivery_runtime_id(self) -> str | None:
@@ -175,6 +243,23 @@ class LiaRuntimeContext:
             conversation_revision=target.revision,
             **overrides,
         )
+
+
+def executed_mode_of(context: LiaRuntimeContext) -> str:
+    """The engine that plans the turn: the ONE door to it (ADR-070).
+
+    The settled engine when the router (or, for a resumed turn, the builder)
+    settled one; otherwise the request, which for a turn asked to run in an engine
+    IS that engine, and for a turn no engine plans (a conversation) says what was
+    asked. Tools, registers and metric labels read this, never the request.
+
+    Args:
+        context: The run's context.
+
+    Returns:
+        ``pipeline`` or ``react`` once settled; the request before.
+    """
+    return context.turn_engine.executed or context.requested_execution_mode
 
 
 def runtime_tool_context_scope(

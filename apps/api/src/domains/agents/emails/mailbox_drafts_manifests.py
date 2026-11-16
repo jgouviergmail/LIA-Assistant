@@ -14,7 +14,16 @@ The handle every draft tool takes is ``mailbox_draft_id``.
 from src.core.config import settings
 from src.core.constants import GOOGLE_GMAIL_SCOPES
 from src.core.field_names import FIELD_MAILBOX_DRAFT_ID, FIELD_QUERY
-from src.domains.agents.emails.catalogue_manifests import MAIL_FILE_PARAMETERS
+from src.domains.agents.emails.catalogue_manifests import (
+    DICTATED_WORDS,
+    MAIL_FILE_PARAMETERS,
+    NEW_MAIL_BODY_DESCRIPTION,
+    NEW_MAIL_INSTRUCTION_DESCRIPTION,
+    REPLY_BODY_DESCRIPTION,
+    REPLY_INSTRUCTION_DESCRIPTION,
+    UPDATE_BODY_DESCRIPTION,
+    UPDATE_INSTRUCTIONS_DESCRIPTION,
+)
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -248,8 +257,9 @@ create_mailbox_draft_catalogue_manifest = ToolManifest(
         "Use for 'prepare / draft / write an e-mail to X and keep it as a draft'; for SENDING "
         "use send_email_tool.\n"
         "- `to` may be names of contacts, or empty: a draft may wait for its recipient\n"
-        "- The person dictated the text → `body` (+ `subject`); they said what it should say → "
-        "`content_instruction`; they asked for an empty draft → neither\n"
+        f"- `body` holds {DICTATED_WORDS}, exactly as given (+ `subject`); they said what it "
+        "should say → `content_instruction`, and LIA writes it in their voice; they asked "
+        "for an empty draft → neither\n"
         "- `file_names` and `drive_file_ids` attach files\n"
         "**RETURNS**: the saved draft, with its `mailbox_draft_id`."
     ),
@@ -265,8 +275,8 @@ create_mailbox_draft_catalogue_manifest = ToolManifest(
     parameters=[
         _recipients("to", "Recipient(s): addresses or contact names (optional)"),
         _text_param("subject", "Subject (optional)"),
-        _text_param("body", "The text, when dictated"),
-        _text_param("content_instruction", "What it should say, for LIA to write it"),
+        _text_param("body", NEW_MAIL_BODY_DESCRIPTION),
+        _text_param("content_instruction", NEW_MAIL_INSTRUCTION_DESCRIPTION),
         _recipients("cc", "Copies (optional)"),
         _recipients("bcc", "Blind copies (optional)"),
         ParameterSchema(name="is_html", type="boolean", required=False, description="HTML body"),
@@ -293,8 +303,9 @@ create_mailbox_reply_draft_catalogue_manifest = ToolManifest(
         "confirmation.\n"
         "Use for 'prepare / draft a reply to this e-mail'; for SENDING a reply use "
         "reply_email_tool.\n"
-        "- Without `body`, LIA writes the reply from the received e-mail; `content_instruction` "
-        "says what it should answer ('accept', 'ask for Friday')\n"
+        f"- `body` holds {DICTATED_WORDS}; without it LIA writes the reply from the received "
+        "e-mail, in the user's own voice; `content_instruction` says what it should answer "
+        "('accept', 'ask for Friday')\n"
         "- `reply_all` answers every recipient; `to` and `cc` replace who it would reach\n"
         "- `file_names` and `drive_file_ids` attach files\n"
         "**RETURNS**: the saved draft, with its `mailbox_draft_id`."
@@ -309,8 +320,8 @@ create_mailbox_reply_draft_catalogue_manifest = ToolManifest(
     ],
     parameters=[
         _RECEIVED_MESSAGE,
-        _text_param("body", "The reply's text, when dictated"),
-        _text_param("content_instruction", "What the reply should say, for LIA to write it"),
+        _text_param("body", REPLY_BODY_DESCRIPTION),
+        _text_param("content_instruction", REPLY_INSTRUCTION_DESCRIPTION),
         ParameterSchema(
             name="reply_all", type="boolean", required=False, description="Answer every recipient"
         ),
@@ -383,7 +394,8 @@ update_mailbox_draft_catalogue_manifest = ToolManifest(
         "nothing, asks no confirmation.\n"
         "- Fields given replace their value (empty string clears a recipient field); fields not "
         "given stay\n"
-        "- `instructions` applies a change to the text ('make it shorter', 'add that I am late')\n"
+        f"- `body` replaces the text with {DICTATED_WORDS}; `instructions` applies a change "
+        "to it ('make it shorter', 'add that I am late')\n"
         "- The message a reply quotes stays below the person's words\n"
         "**RETURNS**: the edited draft; its `mailbox_draft_id` may change (iCloud): use the "
         "returned one."
@@ -405,8 +417,8 @@ update_mailbox_draft_catalogue_manifest = ToolManifest(
         _recipients("cc", "New copies"),
         _recipients("bcc", "New blind copies"),
         _text_param("subject", "New subject"),
-        _text_param("body", "New text"),
-        _text_param("instructions", "A change to apply to the draft"),
+        _text_param("body", UPDATE_BODY_DESCRIPTION),
+        _text_param("instructions", UPDATE_INSTRUCTIONS_DESCRIPTION),
     ],
     outputs=_SAVED_DRAFT_OUTPUTS,
     cost=_DRAFT_COST,

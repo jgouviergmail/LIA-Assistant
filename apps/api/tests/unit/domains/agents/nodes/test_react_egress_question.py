@@ -39,7 +39,7 @@ from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.tool_registry import get_tool, register_external_tool
 from src.domains.agents.utils.message_filters import TOOL_CALL_NOT_RUN, tool_call_ran
-from tests.helpers.runtime_context import installed_runtime_context
+from tests.helpers.runtime_context import installed_runtime_context, make_runtime_context
 
 pytestmark = pytest.mark.unit
 
@@ -67,7 +67,7 @@ def _draft_info(**over: Any) -> dict[str, Any]:
 
 @pytest.fixture
 def context() -> Any:
-    ctx = SimpleNamespace(user_id=USER, thread_id="t", execution_mode="react")
+    ctx = make_runtime_context(user_id=USER, thread_id="t", execution_mode="react")
     with patch(f"{mod.__name__}.runtime_context_if_running", return_value=ctx):
         yield ctx
 

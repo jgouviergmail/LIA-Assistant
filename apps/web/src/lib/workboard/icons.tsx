@@ -43,8 +43,6 @@ import {
   Tags,
   User,
   Users,
-  Workflow,
-  Zap,
 } from '@/lib/icons';
 
 import { priorityInk } from '@/lib/status-tone';
@@ -139,22 +137,6 @@ export function priorityIcon(priority: string, className: string): React.ReactNo
     default:
       return <Minus {...shared} />;
   }
-}
-
-/**
- * The mark of an execution mode — the chat header toggle's own
- * (`execution-mode-toggle`): the same words, the same signs.
- *
- * Args:
- *   mode: `pipeline` or `react`.
- *   className: Sizing and colour, decided by the caller.
- *
- * Returns:
- *   Its glyph; the loop's for anything unknown, the loop being the default.
- */
-export function modeIcon(mode: string, className: string): React.ReactNode {
-  const shared = { className, 'aria-hidden': true } as const;
-  return mode === 'pipeline' ? <Workflow {...shared} /> : <Zap {...shared} />;
 }
 
 /**

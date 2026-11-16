@@ -11,7 +11,8 @@ Architecture:
     get_or_compute_embedding(message, ..., is_conversational=...)
         |--- is_conversational and is_trivial_message(message) -> None
         |--- Cache hit (text_hash in _cache) -> return cached vector
-        |--- Cache miss -> aembed_query(message[:500]) -> cache + return
+        |--- Cache miss -> ONE flight per text, concurrent callers join it
+        |                  -> aembed_query(message[:500]) -> cache + return
 
 The triviality heuristic only applies to text the user actually typed. It is
 pattern-based on short acknowledgements, and those patterns collide with real
@@ -60,11 +61,15 @@ from src.core.constants import (
     USER_MESSAGE_TRIVIAL_MAX_LENGTH,
 )
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.utils.single_flight import run_single_flight
 
 if TYPE_CHECKING:
     pass
 
 logger = get_logger(__name__)
+
+# The single-flight family of a message's embedding (keyed by its cache key).
+_FLIGHT_FAMILY = "user_message_embedding"
 
 
 # =============================================================================
@@ -263,25 +268,15 @@ async def get_or_compute_embedding(
         )
         return _cache[key][1]
 
-    # Cache miss -- compute embedding
+    # Cache miss -- one flight per text (latency lot 3): readers of the same
+    # message at once (the response-context prefetch and the analyzer's broad
+    # facts, at the router's entry) share ONE provider call. The flight runs in
+    # the first caller's context, so its spend is that turn's.
     try:
-        from src.infrastructure.llm.memory_embeddings import get_memory_embeddings
-
-        embeddings = get_memory_embeddings()
-        truncated = message[:USER_MESSAGE_EMBEDDING_TRUNCATION_LENGTH]
-        vector = await embeddings.aembed_query(truncated)
-
-        _cache[key] = (time.monotonic(), vector)
-
-        logger.info(
-            "user_message_embedding_computed",
-            user_id=user_id,
-            message_length=len(message),
-            truncated_length=len(truncated),
-            cache_size=len(_cache),
+        flight = await run_single_flight(
+            (_FLIGHT_FAMILY, key), lambda: _embed_and_cache(key, message, user_id)
         )
-
-        return vector
+        return flight.value
 
     except Exception as e:
         # Graceful degradation: consumers fallback to recent-only mode
@@ -292,6 +287,35 @@ async def get_or_compute_embedding(
             error_type=type(e).__name__,
         )
         return None
+
+
+async def _embed_and_cache(key: str, message: str, user_id: str | None) -> list[float]:
+    """Call the provider once for ``message`` and cache the vector: a flight's work.
+
+    Args:
+        key: The message's cache key.
+        message: Text to embed.
+        user_id: Optional user ID for logging.
+
+    Returns:
+        The embedding vector.
+    """
+    from src.infrastructure.llm.memory_embeddings import get_memory_embeddings
+
+    embeddings = get_memory_embeddings()
+    truncated = message[:USER_MESSAGE_EMBEDDING_TRUNCATION_LENGTH]
+    vector = await embeddings.aembed_query(truncated)
+
+    _cache[key] = (time.monotonic(), vector)
+
+    logger.info(
+        "user_message_embedding_computed",
+        user_id=user_id,
+        message_length=len(message),
+        truncated_length=len(truncated),
+        cache_size=len(_cache),
+    )
+    return vector
 
 
 def clear_cache() -> None:

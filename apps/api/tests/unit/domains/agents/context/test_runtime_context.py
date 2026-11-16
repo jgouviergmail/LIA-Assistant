@@ -207,7 +207,14 @@ def test_the_context_carries_every_value_the_chokepoint_builds() -> None:
     drop it — exactly the class of defect this work removes. The 17 keys of the
     bag, plus the preferences carried since (``voice_enabled``: the response
     node's HTML gate reads it beside the display mode; ``exchange_rhythm``: the
-    router publishes it into the turn's state, ADR-311).
+    router publishes it into the turn's state, ADR-311), and one run-scoped
+    instruction the chokepoint never sets (``compaction_forced``: the one replay of
+    a turn the model's window refused compacts first, lot 15), and the request a
+    resumed turn began with (``turn_request``: the e-mail authorship door reads it
+    beside the answer that resumed it, ADR-383 amendment 2026-11-16). The bag's
+    ``execution_mode`` became two facts: what the person asked for
+    (``requested_execution_mode``) and the engine the router settles for the turn
+    (``turn_engine``), read through one door, ``executed_mode_of``.
     """
     names = {f.name for f in dataclasses.fields(LiaRuntimeContext)}
     expected = {
@@ -223,17 +230,20 @@ def test_the_context_carries_every_value_the_chokepoint_builds() -> None:
         "psyche_enabled",
         "voice_enabled",
         "display_mode",
-        "execution_mode",
+        "requested_execution_mode",
+        "turn_engine",
         "exchange_rhythm",
         "is_automated_source",
         "deps",
         "browser_context",
         "user_message",
+        "turn_request",
         "side_channel_queue",
         "application_origin",
         "timezone",
         "language",
         "display_name",
+        "compaction_forced",
     }
 
     assert names == expected, (
@@ -259,6 +269,33 @@ def test_the_builder_carries_the_voice_preference() -> None:
         target=conversation_target(user_id, conversation_id),
     )
     assert without.voice_enabled is False
+
+
+@pytest.mark.unit
+def test_a_resumed_run_carries_the_request_its_turn_began_with() -> None:
+    """A resumed turn never meets the router again: its analysis is the turn's own.
+
+    A NEW turn's state still holds the previous turn's analysis, so nothing is read then.
+    """
+    from src.domains.agents.context.runtime_context_builder import build_runtime_context
+
+    state = {"messages": [], "query_intelligence": {"original_query": "Send Paul: « Late »"}}
+    user_id, conversation_id = uuid.uuid4(), uuid.uuid4()
+
+    resumed = build_runtime_context(
+        state=state,
+        target=conversation_target(user_id, conversation_id),
+        user_message="Paul Martin",
+        resuming=True,
+    )
+    fresh = build_runtime_context(
+        state=state,
+        target=conversation_target(user_id, conversation_id),
+        user_message="Another request",
+    )
+
+    assert (resumed.user_message, resumed.turn_request) == ("Paul Martin", "Send Paul: « Late »")
+    assert fresh.turn_request == ""
 
 
 @pytest.mark.unit

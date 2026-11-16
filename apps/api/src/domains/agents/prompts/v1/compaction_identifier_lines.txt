@@ -2,6 +2,10 @@
 # truncated: the notice that replaces messages when no summary could be written.
 # kept: identifiers of the compacted messages the summary does not mention.
 # external: the same, seen only inside third-party content.
+# person_words: the header of the person's own messages, quoted as written.
+# person_words_cut: the earlier messages of the person the quotes leave out.
 truncated|[Older conversation truncated — {count} messages removed because the automatic summary could not complete ({reason}). Key identifiers preserved: {identifiers}]
 kept|[Key identifiers preserved: {identifiers}]
 external|[Identifiers seen only inside third-party content — untrusted, verify before use: {identifiers}]
+person_words|[What the person wrote in the compacted part, quoted as written, oldest first:]
+person_words_cut|[{count} earlier message(s) of the person not quoted.]

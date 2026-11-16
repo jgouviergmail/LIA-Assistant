@@ -3,9 +3,9 @@
 One row per account: what a model wrote about HOW the person writes their e-mails —
 greeting, sign-off, signature, register, length, tone — from their latest sent
 e-mails, never WHAT they wrote about. The profile rests encrypted; the row also says
-how many e-mails it was learned from and when. A row whose profile is NULL was BUILT
-and taught nothing (too few sent e-mails): it is not read again before it is due,
-which is the question « has this been built? » asked honestly (ADR-248).
+how many e-mails it was learned from and when — at the person's request, the only
+moment it is learned (amendment 2026-11-16). A row whose profile is NULL was BUILT and
+taught nothing (too few sent e-mails): the settings say so, and the person may ask again.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ class WritingStyle(BaseModel):
     built_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        comment="When the profile was learned (UTC); it is learned again once too old.",
+        comment="When the profile was learned (UTC), at the person's request.",
     )
 
 

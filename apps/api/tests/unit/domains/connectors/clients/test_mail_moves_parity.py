@@ -277,6 +277,19 @@ class TestGmail:
         assert sorted(counts.folders) == ["Label_0", "Label_1"]
         assert counts.complete is False
 
+    async def test_no_label_asked_reads_the_roles_alone(self, client: GoogleGmailClient) -> None:
+        """The home card's exact unread figure costs two reads, never a label listing."""
+
+        def answer(request: httpx.Request) -> httpx.Response:
+            unread = {"INBOX": 312, "SPAM": 4}[request.url.path.rsplit("/", 1)[-1]]
+            return httpx.Response(200, json={"messagesUnread": unread})
+
+        recorder = _Recorder(answer)
+        counts = await _drive(client, recorder, lambda: client.unread_counts(0))
+
+        assert counts == UnreadCounts(roles={"inbox": 312, "spam": 4}, folders={}, complete=False)
+        assert not any(path.endswith("/labels") for _, path, _ in recorder.calls)
+
 
 class TestOutlook:
     @pytest.fixture
@@ -463,6 +476,21 @@ class TestOutlook:
         assert counts == UnreadCounts(
             roles={"inbox": 4, "spam": 1}, folders={"Projects": 2}, complete=True
         )
+
+    async def test_no_folder_asked_walks_no_folder(self, client: MicrosoftOutlookClient) -> None:
+        """The home card's exact unread figure: the two roles, never the folder walk."""
+
+        def answer(request: httpx.Request) -> httpx.Response:
+            if request.url.path.endswith("/mailFolders/inbox"):
+                return httpx.Response(200, json={"unreadItemCount": 312})
+            if request.url.path.endswith("/mailFolders/junkemail"):
+                return httpx.Response(200, json={"unreadItemCount": 4})
+            raise AssertionError(f"walked {request.url.path}")
+
+        recorder = _Recorder(answer)
+        counts = await _drive(client, recorder, lambda: client.unread_counts(0))
+
+        assert counts == UnreadCounts(roles={"inbox": 312, "spam": 4}, folders={}, complete=False)
 
 
 class TestApple:

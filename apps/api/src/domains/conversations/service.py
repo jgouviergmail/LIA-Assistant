@@ -15,11 +15,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.conversation_publication import (
-    CurrentPrimaryPublication,
-    PinnedReservationPublication,
-    PinnedRunPublication,
-)
+from src.core.conversation_publication import PublicationDestination
 from src.core.conversation_target import ConversationRef
 from src.core.exceptions import raise_conversation_not_found
 from src.core.field_names import (
@@ -108,9 +104,7 @@ class ConversationService:
 
     async def archive_message(
         self,
-        conversation_id: (
-            UUID | PinnedRunPublication | CurrentPrimaryPublication | PinnedReservationPublication
-        ),
+        conversation_id: PublicationDestination,
         role: str,
         content: str,
         metadata: dict[str, Any] | None,

@@ -93,7 +93,7 @@ class TestAWindowsFileKeepsItsLetters:
     def test_through_the_dispatcher_the_chat_and_the_spaces_share(self, tmp_path: Path) -> None:
         file = _written(tmp_path, "notes.md", "# Été\n\nDéjà vu.".encode(WINDOWS))
 
-        assert extract_text(file, "text/markdown") == "# Été\n\nDéjà vu."
+        assert extract_text(file, "text/markdown", max_inflated_mb=100) == "# Été\n\nDéjà vu."
 
 
 class TestAFilesLineEndsAreLineEnds:
@@ -111,7 +111,7 @@ class TestAFilesLineEndsAreLineEnds:
     def test_a_lone_carriage_return_is_a_line_end_too(self, tmp_path: Path) -> None:
         file = _written(tmp_path, "note.md", "# Été\rDéjà vu".encode())
 
-        assert extract_text(file, "text/markdown") == "# Été\nDéjà vu"
+        assert extract_text(file, "text/markdown", max_inflated_mb=100) == "# Été\nDéjà vu"
 
     def test_a_json_file_nothing_parses_keeps_no_carriage_return(self, tmp_path: Path) -> None:
         file = _written(tmp_path, "bad.json", b"{ville:\r\nBesan\xe7on")

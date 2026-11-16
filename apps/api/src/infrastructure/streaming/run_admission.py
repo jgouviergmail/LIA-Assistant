@@ -49,6 +49,7 @@ async def execution_for_turn(
     admission: RunAdmission | None,
     run_id: str | None,
     language: str | None,
+    cancellable: bool = False,
 ) -> AsyncIterator[RunAuthority]:
     """Legacy callers select Main; a prepared producer lends its exact admission.
 
@@ -58,6 +59,8 @@ async def execution_for_turn(
         admission: The producer's private authority, never parsed from a request.
         run_id: Billing correlation; a borrowed admission already owns it.
         language: Explicit account locale for first-use Main creation.
+        cancellable: Reserve an invocation the chat's Stop may end — its driver
+            watches the signal; a borrowed admission keeps what its owner reserved.
 
     Raises:
         ConversationBusy: Another invocation still occupies the account.
@@ -69,7 +72,7 @@ async def execution_for_turn(
     if admission is not None:
         _require_matching_admission(owner_id, target, admission, run_id)
     else:
-        admission = await _admit_legacy_turn(owner_id, target, run_id, language)
+        admission = await _admit_legacy_turn(owner_id, target, run_id, language, cancellable)
     async with owned_execution(admission) as authority:
         yield authority
 
@@ -85,7 +88,11 @@ def _require_matching_admission(
 
 
 async def _admit_legacy_turn(
-    owner_id: UUID, target: ConversationRef | None, run_id: str | None, language: str | None
+    owner_id: UUID,
+    target: ConversationRef | None,
+    run_id: str | None,
+    language: str | None,
+    cancellable: bool,
 ) -> RunAdmission:
     """Resolve Main only for an untargeted producer, then reserve its exact runtime."""
     if target is None:
@@ -95,7 +102,11 @@ async def _admit_legacy_turn(
     if target.owner_id != owner_id:
         raise ExecutionRevoked()
     result = await reserve_execution(
-        target, run_id=run_id or str(uuid4()), stream_id=str(uuid4()), relayed=False
+        target,
+        run_id=run_id or str(uuid4()),
+        stream_id=str(uuid4()),
+        relayed=False,
+        cancellable=cancellable,
     )
     if isinstance(result, RunBusy):
         raise ConversationBusy(result)
@@ -409,4 +420,4 @@ async def _close_execution(authority: RunAuthority, *, announce: bool = True) ->
         end=end.value,
     )
     if closed and announce:
-        announce_release(admission.target.owner_id, end)
+        announce_release(admission.target.owner_id, end, settled.held_ids)

@@ -1,6 +1,6 @@
 """Static Compose matrix proof (B04/B05) — renders EVERY scenario.
 
-For each (exposure x mode x observability x skill-sandbox x web-search) combination this
+For each (exposure x mode x observability x skill-sandbox x web-search x ntfy) combination this
 script generates the full artifact set into a temporary directory — private
 ``.env`` (rendered from ``.env.min.prod.example``), ``docker-compose.install.yml``,
 the Caddyfile when applicable, and a fixture digest lock for prebuilt — and
@@ -58,6 +58,7 @@ def _public(
     observability: bool,
     skill_sandbox: bool,
     web_search: bool,
+    ntfy_server: bool,
 ) -> PublicAnswers:
     return PublicAnswers(
         language="en",
@@ -69,6 +70,8 @@ def _public(
         observability=observability,
         skill_sandbox=skill_sandbox,
         web_search=web_search,
+        ntfy_server=ntfy_server,
+        ntfy_domain="ntfy.example.org" if ntfy_server and exposure is not Exposure.LAN else None,
         server_host="192.168.1.50" if exposure is Exposure.LAN else None,
         web_domain=None if exposure is Exposure.LAN else "lia.example.org",
         api_domain=None if exposure is Exposure.LAN else "api.example.org",
@@ -148,18 +151,19 @@ def main() -> int:
     failures: list[str] = []
     scenarios = list(
         itertools.product(
-            Exposure, InstallMode, (False, True), (False, True), (False, True)
+            Exposure, InstallMode, (False, True), (False, True), (False, True), (False, True)
         )
     )
-    for exposure, mode, observability, sandbox, web_search in scenarios:
+    for exposure, mode, observability, sandbox, web_search, ntfy_server in scenarios:
         label = (
             f"{exposure.value}/{mode.value}/obs={observability}"
-            f"/sandbox={sandbox}/web_search={web_search}"
+            f"/sandbox={sandbox}/web_search={web_search}/ntfy={ntfy_server}"
         )
         with tempfile.TemporaryDirectory(prefix="lia-matrix-") as tmp:
             root = Path(tmp)
             argv = _render_scenario(
-                root, _public(exposure, mode, observability, sandbox, web_search)
+                root,
+                _public(exposure, mode, observability, sandbox, web_search, ntfy_server),
             )
             result = subprocess.run(
                 argv, cwd=root, capture_output=True, text=True

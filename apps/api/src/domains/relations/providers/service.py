@@ -299,9 +299,14 @@ class RelationContextService:
             window_days=settings.relations_provider_window_days,
             now=_now(),
         )
-        if not found:
-            return _off(ContextStatus.EMPTY)
-        return ContextSection(status=ContextStatus.OK, generated_at=_now(), events=found)
+        # A cut read that found nothing is no « nothing »: the flag travels with
+        # either status, so the reader is told the window was read in part.
+        return ContextSection(
+            status=ContextStatus.OK if found.events else ContextStatus.EMPTY,
+            generated_at=_now(),
+            events=found.events,
+            truncated=found.cut,
+        )
 
     # ------------------------------------------------------------------
     # Cache + status mapping

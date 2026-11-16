@@ -16,7 +16,6 @@ from __future__ import annotations
 import asyncio
 import uuid
 from collections.abc import Iterator
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -27,6 +26,7 @@ from src.domains.agents.effects.gate import ERROR_CONFIRMATION_MISSING
 from src.domains.agents.effects.integrity import IntegrityKind
 from src.domains.agents.effects.scope import EffectScope, effect_scope
 from src.domains.agents.effects.treatments import collected_treatments, treatment_collector
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -61,7 +61,7 @@ def _reset() -> Any:
     """
     CALLS.clear()
     gate_runtime.reset_policy_cache()
-    context = SimpleNamespace(
+    context = make_runtime_context(
         user_id=uuid.uuid4(),
         thread_id="thread-A",
         execution_mode="react",

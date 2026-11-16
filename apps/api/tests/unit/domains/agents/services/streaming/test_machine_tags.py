@@ -203,6 +203,33 @@ class TestTheStreamSaysWhatTheFinalTextWillSay:
         text = "<relevant_ids>email_f56f4f Deux e-mails sont arrivés."
         assert _filtered(_chunked(text, 3)) == text
 
+    def test_a_selection_closed_under_another_name_is_removed(self) -> None:
+        """Measured 2026-11-15 (ADR-390 replay): a closing name the model garbled
+        put the whole selection in front of the person's answer. A selection holds
+        ids, never a « < »: its first closing tag closes it, whatever its name."""
+        text = "<relevant_ids>m_1,m_3</relevant_garbled>Deux réunions annulées."
+        for cut in range(len(text) + 1):
+            assert _filtered([text[:cut], text[cut:]]) == "Deux réunions annulées.", cut
+
+    def test_the_final_cleanup_removes_what_the_stream_removes(self) -> None:
+        from src.domains.agents.utils.registry_filtering import (
+            parse_relevant_ids_from_response,
+        )
+
+        for text in (
+            "<relevant_ids>m_1,m_3</relevant_garbled>Deux réunions annulées.",
+            '<relevant_ids>m_1<div class="lia-response"><p>Oui.</p></div>',
+            "<relevant_ids>email_f56f4f Deux e-mails sont arrivés.",
+        ):
+            assert parse_relevant_ids_from_response(text)[1] == _filtered(_chunked(text, 4))
+
+    def test_a_selection_never_closed_keeps_the_html_after_it(self) -> None:
+        """A « < » that opens no closing tag is the answer's: the selection never
+        closed, and nothing of the HTML that follows it is swallowed."""
+        text = '<relevant_ids>m_1<div class="lia-response"><p>Oui.</p></div>'
+        for size in (1, 3, len(text)):
+            assert _filtered(_chunked(text, size)) == text
+
     def test_a_lone_opening_mark_at_the_end_is_released(self) -> None:
         assert _filtered(["Plus de 3 ", "<"]) == "Plus de 3 <"
 
@@ -302,6 +329,11 @@ class TestTheSelectionIsHandedOverWhole:
         written = "<Relevant_IDS>a,b</RELEVANT_ids>"
         assert self._declared([written, "Ok."]) == [written]
 
+    def test_a_selection_closed_under_another_name_is_handed_over(self) -> None:
+        written = "<relevant_ids>a,b</relevant_garbled>"
+        for cut in range(len(written) + 1):
+            assert self._declared([written[:cut], written[cut:], "Ok."]) == [written], cut
+
     def test_a_selection_never_closed_declares_nothing(self) -> None:
         """Released as written at the end, as the final cleanup keeps it."""
         text = "<relevant_ids>email_f56f4f Deux e-mails sont arrivés."
@@ -324,6 +356,7 @@ SMALL = 6_000
 #: Each witness keeps the filter in one of its states for the whole text.
 HOSTILE: dict[str, Callable[[int], str]] = {
     "a selection never closed": lambda n: "<relevant_ids>" + "a" * n,
+    "a closing tag never ended": lambda n: "<relevant_ids>a</" + "x" * n,
     "a self-report never closed": lambda n: "<psyche_eval" + " a" * (n // 2),
     "opening marks": lambda n: "<" * n,
     "possible openings that diverge": lambda n: "<psy " * (n // 5),

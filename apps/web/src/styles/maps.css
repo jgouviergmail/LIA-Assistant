@@ -370,19 +370,6 @@ html:not(.dark) .lia-maps {
 }
 
 /* ---------- overview (diagram + side panel) ---------- */
-.landing-constellation {
-  width: 100%;
-  min-width: 0;
-  margin-top: clamp(16px, 3vw, 40px);
-  color: var(--lm-ink);
-  font-size: calc(15px * var(--lia-text-scale, 1));
-  line-height: 1.55;
-  text-align: left;
-}
-.landing-constellation :focus-visible {
-  outline: 2px solid var(--lm-accent);
-  outline-offset: 2px;
-}
 .lm-overview {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 380px;

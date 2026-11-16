@@ -146,7 +146,6 @@ from src.core.constants import (
     WIKIPEDIA_CACHE_ARTICLE_TTL,
     WIKIPEDIA_CACHE_SEARCH_TTL,
     WIKIPEDIA_SUMMARY_MAX_CHARS,
-    WRITING_STYLE_MAX_AGE_DAYS_DEFAULT,
     WRITING_STYLE_MIN_SENT_MAILS,
     WRITING_STYLE_SENT_MAILS_DEFAULT,
 )
@@ -801,7 +800,7 @@ class ConnectorsSettings(BaseSettings):
         ),
     )
 
-    # How the person writes, learned from their sent mail (ADR-383)
+    # How the person writes, learned from their sent mail when they ask (ADR-383)
     writing_style_sent_mails: int = Field(
         default=WRITING_STYLE_SENT_MAILS_DEFAULT,
         ge=WRITING_STYLE_MIN_SENT_MAILS,
@@ -809,15 +808,6 @@ class ConnectorsSettings(BaseSettings):
         description=(
             "Latest sent e-mails a writing-style profile is learned from "
             f"(default: {WRITING_STYLE_SENT_MAILS_DEFAULT}) (ADR-383)."
-        ),
-    )
-    writing_style_max_age_days: int = Field(
-        default=WRITING_STYLE_MAX_AGE_DAYS_DEFAULT,
-        ge=1,
-        le=365,
-        description=(
-            "Days after which a writing-style profile is learned again from the sent mail "
-            f"(default: {WRITING_STYLE_MAX_AGE_DAYS_DEFAULT}) (ADR-383)."
         ),
     )
 

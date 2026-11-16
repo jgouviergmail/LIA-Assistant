@@ -65,14 +65,6 @@
   },
   {
     "kind": "advisory",
-    "subject": "pip:caldav@3.3.1",
-    "ref": "GHSA-5h4q-xm57-3mh5",
-    "reason": "Low: `vcal.fix` normalisation is quadratic on a very large iCalendar object. Its only input is the calendar server of the person's own iCloud connector, read for that person alone; no third party reaches it. 3.3.2 lands at the next Python refresh, after its cooldown, rather than as a release-day lock change.",
-    "owner": "maintainer",
-    "review_by": "2026-11-15"
-  },
-  {
-    "kind": "advisory",
     "subject": "pip:fsspec@2025.3.0",
     "ref": "GHSA-27vj-qcqg-25rc",
     "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt): VoxCPM 2.0.3 requires datasets >=3,<4; the compatible lock selects datasets 3.6.0, which caps fsspec at 2025.3.0. It runs on the developer's machine, reads local audio and Hugging Face files, and never opens a ReferenceFileSystem; never in production. Lifted when voxcpm accepts a datasets that allows fsspec >= 2026.6.0.",

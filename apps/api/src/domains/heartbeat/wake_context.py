@@ -25,8 +25,9 @@ from uuid import UUID
 
 import structlog
 
-from src.core.constants import PUSH_WAKE_MAIL_MAX_MESSAGES
+from src.core.constants import GMAIL_HISTORY_PAGES_MAX, PUSH_WAKE_MAIL_MAX_MESSAGES
 from src.core.prompt_store import read_prompt_file
+from src.domains.connectors.clients.gmail_history import read_history
 from src.domains.push_channels.wake import WakePayload
 from src.domains.push_channels.wake_filter import (
     CalendarWakeRules,
@@ -54,30 +55,23 @@ async def gmail_delta_preview(client: Any, anchor: str) -> tuple[list[str], str 
         expired anchor (404) or any failure yields ``([], None)``.
     """
     try:
-        response = await client.get_history(start_history_id=anchor)
+        # Every page, the anchor never past what was read (gmail_history).
+        read = await read_history(client, anchor, pages_max=GMAIL_HISTORY_PAGES_MAX)
     except Exception as exc:  # noqa: BLE001 — fail-open, the tick keeps its own path
         logger.debug("push_wake_gmail_preview_failed", error=str(exc))
         return [], None
-    seen: set[str] = set()
-    ids: list[str] = []
-    for entry in response.get("history", []):
-        for added in entry.get("messagesAdded", []):
-            message_id = (added.get("message") or {}).get("id")
-            if message_id and message_id not in seen:
-                seen.add(message_id)
-                ids.append(message_id)
-    new_anchor = response.get("historyId")
-    return ids, str(new_anchor) if new_anchor else None
+    return read.added_message_ids(), read.resume_from
 
 
 async def fetch_mail_metadata(client: Any, message_ids: list[str]) -> list[dict[str, Any]]:
     """Metadata of at most ``PUSH_WAKE_MAIL_MAX_MESSAGES`` messages (best-effort).
 
     Read FRESH: the pre-filter asks whether a message is still unread, and a copy
-    cached when the mail arrived would answer for a message opened since.
+    cached when the mail arrived would answer for a message opened since. The
+    LATEST arrivals: a delta lists the oldest first, and a wake is about the news.
     """
     messages: list[dict[str, Any]] = []
-    for message_id in message_ids[:PUSH_WAKE_MAIL_MAX_MESSAGES]:
+    for message_id in message_ids[-PUSH_WAKE_MAIL_MAX_MESSAGES:]:
         try:
             message = await client.get_message(
                 message_id, format=GMAIL_METADATA_FORMAT, use_cache=False

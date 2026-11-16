@@ -59,7 +59,7 @@ export async function BlogPreviewSection({ lng }: BlogPreviewSectionProps) {
             <h2 className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4">
               {t('landing.blog_preview.title')}
             </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <p className="leading-7 text-muted-foreground">
               {t('landing.blog_preview.subtitle')}
             </p>
           </div>

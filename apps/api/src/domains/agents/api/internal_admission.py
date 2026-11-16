@@ -32,12 +32,17 @@ async def internal_turn(
     run_id: str | None,
     answer_pending: bool,
     admission: RunAdmission | None = None,
+    cancellable: bool = False,
 ) -> AsyncIterator[PreparedInternalTurn]:
     """Admit once, ask the runtime strictly, and keep ownership until all writers join.
 
     A non-answering job observes a pending question without touching it. A person
     answering it keeps its billing correlation on a new invocation. No database
     session is retained while reading Redis or running the graph.
+
+    ``cancellable`` reserves an invocation the chat's Stop may end (a channel
+    turn, which watches that signal itself); a lent ``admission`` keeps what its
+    owner reserved.
     """
     async with get_db_context() as db:
         target = await ConversationCatalogueService(db).resolve_target(
@@ -52,6 +57,7 @@ async def internal_turn(
         admission=admission,
         run_id=run_id,
         language=language,
+        cancellable=cancellable,
     ) as authority:
         pending = await pending_run_id(str(target.runtime_id))
         blocked = pending is not None and not answer_pending

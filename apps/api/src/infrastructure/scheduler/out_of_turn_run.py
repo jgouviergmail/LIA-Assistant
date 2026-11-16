@@ -64,6 +64,7 @@ from src.core.run_authority import current_run_authority, run_authority_scope
 from src.core.user_display import resolve_user_display_name
 from src.domains.agents.api.internal_admission import internal_turn
 from src.domains.agents.api.run_origin import RunOrigin, out_of_turn_origin_ctx
+from src.domains.agents.effects.replay_guard import run_may_have_acted as _run_acted
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
 from src.domains.agents.services.nothing_new import DONE_KEY as NOTHING_NEW_DONE_KEY
 from src.domains.agents.services.nothing_new import quiet_run_scope
@@ -247,7 +248,8 @@ class StreamRequest:
             the three registers, the token logs, the ticket and the question a
             stopped turn leaves on the thread all name the SAME run, across its
             attempts; None lets the graph mint its own.
-        execution_mode: ``pipeline`` or ``react`` — the CALLER's decision, never
+        execution_mode: ``pipeline``, ``react`` or ``auto`` (the router then
+            settles the engine, ADR-390) — the CALLER's decision, never
             the person's chat preference. Nothing here reads
             ``user.execution_mode``: a routine and a ticket each run in the
             mode their own row carries, and the chat header's toggle keeps
@@ -707,37 +709,6 @@ async def _may_have_started(run_id: str | None) -> bool:
     return bool(authority is not None and authority.external_work_started) or await _run_acted(
         run_id
     )
-
-
-async def _run_acted(run_id: str | None) -> bool:
-    """Whether an attempt of this run may have acted on the world (ADR-263).
-
-    The register answers: any action row of the run but a refusal says it may
-    have. A register that cannot be read answers yes — doubt never retries, an
-    action that may have happened must not happen twice. A caller that names no
-    run can read nothing, and keeps the retry it always had.
-
-    Args:
-        run_id: The run, or None when the graph minted its own per attempt.
-
-    Returns:
-        True when a retry could replay an action.
-    """
-    if not run_id:
-        return False
-    from src.domains.agents.effects.repository import EffectLedgerRepository
-    from src.infrastructure.database.session import get_db_context
-
-    try:
-        async with get_db_context() as db:
-            return await EffectLedgerRepository(db).acted_in_run(run_id)
-    except Exception as read_error:  # noqa: BLE001 — doubt never retries
-        logger.warning(
-            "out_of_turn_run_effects_unreadable",
-            run_id=run_id,
-            error_type=type(read_error).__name__,
-        )
-        return True
 
 
 async def _one_attempt(request: StreamRequest, attempt: int) -> _StreamReader:

@@ -36,6 +36,7 @@ import structlog
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 
+from src.core.config import settings
 from src.core.constants import (
     ATTACHMENTS_ALLOWED_IMAGE_TYPES_DEFAULT,
     EMAIL_ATTACHMENT_PDF_RENDER_SCALE,
@@ -142,7 +143,8 @@ def _write_temp(data: bytes, suffix: str) -> Path:
 def _extract_from_temp(data: bytes, mime_type: str) -> str:
     path = _write_temp(data, suffix="")
     try:
-        return extract_text(path, mime_type)
+        # An attachment is bounded as the chat's are: a zipped one declaring more is refused.
+        return extract_text(path, mime_type, max_inflated_mb=settings.attachments_max_inflated_mb)
     finally:
         path.unlink(missing_ok=True)
 
@@ -324,7 +326,8 @@ async def read_attachment(
         try:
             text = await extract_text_from_bytes(content.data, mime_type)
         except Exception as exc:  # noqa: BLE001 — a corrupt file is a refusal, not a crash
-            logger.warning("email_attachment_extraction_failed", error=str(exc)[:200])
+            # Facts only (ADR-317): a reader's message may quote the document.
+            logger.warning("email_attachment_extraction_failed", error_type=type(exc).__name__)
             return AttachmentReading(route, "failed", "", mime_type)
         if text.strip():
             return AttachmentReading(route, "ok", text.strip(), mime_type)

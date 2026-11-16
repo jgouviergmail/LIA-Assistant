@@ -76,9 +76,9 @@
     },
     "t.channels": {
       "name": "消息渠道",
-      "role": "在 Telegram 上与 LIA 交谈并接收她的消息；机器人的 webhook 只由调度器的领导者设置。",
+      "role": "在 Telegram 上与 LIA 交流：排版后的文字、双向文件、语音消息、确认和停止；机器人的 webhook 仅由调度器主节点设置。",
       "stack": ["Telegram", "python-telegram-bot"],
-      "src": "82a0c6699dba"
+      "src": "af11d59eaa52"
     },
     "t.edge": {
       "name": "隧道、CSP 与限流",
@@ -130,9 +130,9 @@
     },
     "t.router": {
       "name": "路由器",
-      "role": "对请求进行分类，并基于同一个嵌入向量，为规划器给各领域打分，为 ReAct 给所有工具排序。",
+      "role": "对请求分类，在选择自动模式时决定执行方式，并利用同一个嵌入向量为规划器评估领域、为 ReAct 排列工具。",
       "stack": ["请求分析", "枢纽嵌入向量", "工具排序"],
-      "src": "ffaa35f0abde"
+      "src": "caed1a3e0793"
     },
     "t.planner": {
       "name": "规划器与执行器",
@@ -275,9 +275,9 @@
     },
     "t.push": {
       "name": "推送通知",
-      "role": "送达浏览器或手机；在 iOS 上，中继只传送一个不透明的标识符和一句不含内容的话。",
-      "stack": ["Firebase Cloud Messaging", "iOS 唤醒中继", "Web Push"],
-      "src": "aa10ca425769"
+      "role": "送达浏览器或手机，无论有没有 Google 服务；在 iOS 上，中继只传送一个不透明的标识符和一句不含内容的话。",
+      "stack": ["Firebase Cloud Messaging", "iOS 唤醒中继", "Web Push", "ntfy"],
+      "src": "8dab9d58d4e3"
     },
     "t.scheduler": {
       "name": "单一领导者调度器",

@@ -39,9 +39,18 @@ async def test_calendar_qualifies_only_the_selected_shared_event(monkeypatch):
         }
         for index in range(3)
     ]
+    # The window is read in two halves: the coming one holds the rows, the past none.
     client = SimpleNamespace(
         credentials=SimpleNamespace(account_binding="actual-grant"),
-        list_events=AsyncMock(return_value={"items": rows}),
+        list_calendars=AsyncMock(
+            return_value={"items": [{"id": "named", "accessRole": "owner"}], "truncated": False}
+        ),
+        list_events_window=AsyncMock(
+            side_effect=[
+                {"events": rows, "truncated": False},
+                {"events": [], "truncated": False},
+            ]
+        ),
     )
 
     @asynccontextmanager
@@ -62,8 +71,62 @@ async def test_calendar_qualifies_only_the_selected_shared_event(monkeypatch):
     )
     assert len(native.call_args.kwargs["observations"]) == 1
     assert native.call_args.kwargs["timezone"] == "Europe/Paris"
-    assert result[0].classification == annotation
-    assert native.call_args.kwargs["observations"][0].item_id == result[0].id
+    assert result.events[0].classification == annotation
+    assert native.call_args.kwargs["observations"][0].item_id == result.events[0].id
+    assert native.call_args.kwargs["observations"][0].container_id == "named"
+
+
+@pytest.mark.asyncio
+async def test_meetings_of_several_calendars_are_qualified_in_one_request(monkeypatch):
+    """Each under the calendar it was read in, never one request per calendar."""
+    owner = uuid4()
+    UserPreferencesCache.set(str(owner), "Europe/Paris", "fr")
+    now = datetime.now(UTC)
+
+    def shared(event_id: str, hours: int) -> dict[str, object]:
+        return {
+            "id": event_id,
+            "summary": "Hotpot",
+            "start": {"dateTime": (now + timedelta(hours=hours)).isoformat()},
+            "attendees": [{"email": "peer@example.test"}],
+        }
+
+    held = {"named": [shared("booked", 2)], "me@example.test": [shared("invited", 3)]}
+
+    async def window(calendar_id: str, time_min: str, *_args, **_kwargs) -> dict[str, object]:
+        coming = datetime.fromisoformat(time_min) >= now
+        return {"events": held[calendar_id] if coming else [], "truncated": False}
+
+    client = SimpleNamespace(
+        credentials=SimpleNamespace(account_binding="actual-grant"),
+        list_calendars=AsyncMock(
+            return_value={
+                "items": [
+                    {"id": "me@example.test", "accessRole": "owner", "primary": True},
+                    {"id": "named", "accessRole": "owner"},
+                ],
+                "truncated": False,
+            }
+        ),
+        list_events_window=AsyncMock(side_effect=window),
+    )
+
+    @asynccontextmanager
+    async def opened(_owner):
+        yield CalendarAccess(client, "named", ConnectorType.GOOGLE_CALENDAR)
+
+    monkeypatch.setattr(events, "open_active_calendar", opened)
+    native = AsyncMock(return_value={})
+    monkeypatch.setattr(publication, "qualify_observations", native)
+    result = await events.fetch_shared_events(
+        owner, addresses=["peer@example.test"], limit=10, window_days=7, now=now
+    )
+    assert [event.id for event in result.events] == ["booked", "invited"]
+    native.assert_awaited_once()
+    containers = {
+        value.item_id: value.container_id for value in native.call_args.kwargs["observations"]
+    }
+    assert containers == {"booked": "named", "invited": "me@example.test"}
 
 
 @pytest.mark.asyncio

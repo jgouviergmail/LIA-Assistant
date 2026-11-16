@@ -82,9 +82,7 @@ export function ConversationRetirementConfirm({
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle className="wrap-anywhere">
-            {t(`chat.discussions.${action}_title`, { title })}
-          </AlertDialogTitle>
+          <AlertDialogTitle>{t(`chat.discussions.${action}_title`, { title })}</AlertDialogTitle>
           <AlertDialogDescription>
             {t(`chat.discussions.${action}_description`)}
           </AlertDialogDescription>

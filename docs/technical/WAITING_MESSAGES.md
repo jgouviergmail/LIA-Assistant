@@ -43,7 +43,10 @@ capability directive, a card composition, a one-click decision or a live session
 (`waiting` | `held` | `departing` | `joining`), `stream_id` (the run sending it or about to read
 it, set only while departing or joining — migration `a696c8a365f2`),
 `send_requested_at`, `version` (bumped on every change of the text), `rendering` (the browser's
-display hints: avatar voice and viewport, never the location). One row per discussion
+display hints: avatar voice and viewport, never the location), `reply_channel` (the channel the
+words were written on — `telegram` — or NULL for the app; once set it stays, so an edit from the
+app never moves the answer away from where the person waits for it; migration `5ad5dfadfe7a`,
+`ck_waiting_message_reply_channel`). One row per discussion
 (`uq_waiting_messages_conversation`). It is the person's content: exported with their account,
 gone with each discussion (`user_data_map`: `USER_CASCADE`, `FULL`).
 
@@ -77,7 +80,8 @@ and every keep take), close the execution with its end, then `settle_release`:
 
 Once committed, the release is announced (`infrastructure/streaming/release_listener.py`) to the
 departure (`agents/api/waiting_departure.py`), installed at import and proven at boot
-(`startup/registries._install_release_listener`).
+(`startup/registries._install_release_listener`), with the ids of the messages it held
+(`SettledRelease.held_ids`): those written on a channel are told there (see below).
 
 ## The departure
 
@@ -90,12 +94,32 @@ first whose discussion has no pending question:
 2. **claim the message on the version read**: an edit made meanwhile wins, and the queue is
    read again (at most `WAITING_DEPARTURE_ROUNDS` times);
 3. **start the person's turn** with their settings (`browser_chat_stream`, as a browser turn
-   would), without the browser's live authority, which is never persisted;
+   would), without the browser's live authority, which is never persisted — or, for words
+   written on a channel still linked and on (`channels/waiting.reply_route`), the person's
+   channel turn (`start_channel_turn`), reserved unrelayed: no browser waits for its chunks, and
+   the answer reaches the chat the words were written in (a channel switched off meanwhile
+   answers in the app);
 4. the **archive** of the person's message deletes the waiting message in its own transaction
    (`archive_first`): the words entered the discussion, or they are still waiting.
 
 A question pending in a discussion keeps its waiting message waiting: it was written before
 the question was seen, and is never sent as its answer.
+
+## On a channel (Telegram)
+
+Words written on Telegram while LIA works wait like the app's (`agents/api/waiting_channel.keep_from_channel`,
+reached through the channel gateway): kept for Main under the same owner lock, marked « seen » by a
+👀 reaction on the person's message (a sentence when Telegram refuses the reaction). A voice note
+waits as its transcription; a reply waits with the message it quotes.
+
+- An answer to a pending question never waits: it IS the answer (« answer again in a moment »).
+- A shared position or a file is not kept: kept, it would leave as words alone, the turn's
+  geolocation or file lost; the person is asked to send the message again.
+- A message a release held is told on the chat it was written in (`channels/waiting.tell_held`,
+  best effort: a notice that cannot be sent never undoes the release), quoting its words with the
+  two answers of the app's bubble as buttons — send it now, withdraw it
+  (`agents/api/waiting_channel.act_on_waiting`, refused like a question's button for an unknown
+  chat, a deactivated account or a channel switched off).
 
 ## The race with a release
 
@@ -183,11 +207,14 @@ exit; the pipeline mode, a routine, a ticket and a relay never do.
 `edited`, `withdrawn`, `joined`, `note_read`, `note_returned` — on the agents dashboard (panel
 « Waiting messages »). Held without departures means people are left deciding; kept without
 departures means releases do not reach the departure; joined without `note_read` means the loop
-is not reading its notes. Logs carry counts and lengths, never the words.
+is not reading its notes. Logs carry counts and lengths, never the words. On a channel:
+`channel_message_waits` (`outcome`), `channel_message_not_kept` (`reason`), `channel_waiting_held_told`,
+`channel_waiting_press` (`action`, `outcome`).
 
 ## Limits, said
 
-- Telegram still answers « busy » and drops the message (lot 34 of the channel programme).
+- A voice note that waited is answered in writing: what waits is its transcription.
+- A position or a file sent on Telegram while LIA works does not wait; the person sends it again.
 - A turn the person stops after a note was read keeps the note in the conversation they read,
   not in the model's memory of that turn — like the partial answer of a stopped turn (ADR-385).
 - The pipeline mode takes no note: its plan is decided before anything runs.

@@ -184,6 +184,8 @@ async def _handle(
             user_memory_enabled=True,
             user_journals_enabled=True,
             user_psyche_enabled=True,
+            user_voice_enabled=False,
+            user_execution_mode="pipeline",
             conversation_id=conversation_id,
             pending_hitl=pending_hitl,
             hitl_decision=hitl_decision,
@@ -206,7 +208,7 @@ class TestTextMessageHandling:
     """Tests for processing text messages through the agent pipeline."""
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)  # passthrough
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)  # passthrough
     @patch(_PATCH_AGENT_SERVICE)
     async def test_collects_tokens_and_sends_response(
         self,
@@ -231,7 +233,7 @@ class TestTextMessageHandling:
         assert _sent(mock_sender).text == "Hello world!"
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_the_stream_runs_on_a_plain_surface(
         self,
@@ -263,7 +265,7 @@ class TestTextMessageHandling:
         assert plain_surface_ctx.get() is False
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_empty_response_not_sent(
         self,
@@ -283,7 +285,7 @@ class TestTextMessageHandling:
         mock_sender.send_message.assert_not_called()
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_session_id_includes_channel_type_and_user_id(
         self,
@@ -307,6 +309,8 @@ class TestTextMessageHandling:
                 user_memory_enabled=False,
                 user_journals_enabled=True,
                 user_psyche_enabled=True,
+                user_voice_enabled=False,
+                user_execution_mode="pipeline",
                 conversation_id=None,
                 pending_hitl=None,
             )
@@ -318,7 +322,7 @@ class TestTextMessageHandling:
         assert call_kwargs["user_memory_enabled"] is False
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_the_stream_is_read_to_its_end_past_the_done_chunk(
         self,
@@ -339,7 +343,7 @@ class TestTextMessageHandling:
         assert _sent(mock_sender).text == "Hello"
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_a_refusal_s_technical_text_never_reaches_the_person(
         self,
@@ -369,7 +373,7 @@ class TestTextMessageHandling:
         assert "Usage limit exceeded" not in str(logged)
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_a_decision_its_question_no_longer_matches_is_told_expired(
         self,
@@ -432,7 +436,7 @@ class TestVoiceMessage:
         mock_sender.send_message.assert_not_called()
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_voice_transcription_success_calls_agent(
         self,
@@ -471,7 +475,7 @@ class TestHITLResponse:
     """Tests for handling messages when HITL is pending."""
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_hitl_response_passes_original_run_id(
         self,
@@ -504,7 +508,7 @@ class TestHITLResponse:
         assert call_kwargs["original_run_id"] == "run_xyz_123"
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_no_hitl_passes_none_run_id(
         self,
@@ -524,7 +528,7 @@ class TestHITLResponse:
         assert call_kwargs["original_run_id"] is None
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_an_answer_resumes_under_the_run_its_question_was_asked_on(
         self,
@@ -583,7 +587,7 @@ class TestHITLResponse:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("run_id", [None, "", 42], ids=["absent", "empty", "not_a_string"])
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_a_question_with_no_usable_run_refuses_without_running_a_model(
         self,
@@ -612,7 +616,7 @@ class TestHITLResponse:
         [None, {"message_id": _QUESTION_ID, "action": "confirm"}],
         ids=["typed_answer", "button"],
     )
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_a_button_s_decision_reaches_the_engine_as_the_card_s(
         self,
@@ -648,7 +652,7 @@ class TestHITLInterruptDetection:
     """A question reaches the person as the engine streams it (review 14)."""
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_the_question_is_what_the_person_reads(
         self,
@@ -672,7 +676,7 @@ class TestHITLInterruptDetection:
         assert _sent(mock_sender).text == "Shall I send it?"
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_the_completion_s_question_wins_over_its_deltas(
         self,
@@ -693,7 +697,7 @@ class TestHITLInterruptDetection:
         assert _sent(mock_sender).text == "Shall I send it?"
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_a_question_the_completion_left_empty_is_its_deltas(
         self,
@@ -713,7 +717,7 @@ class TestHITLInterruptDetection:
         assert _sent(mock_sender).text == "Shall I send it?"
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_a_question_the_stream_left_empty_is_the_engine_s_last_resort(
         self,
@@ -738,7 +742,7 @@ class TestHITLInterruptDetection:
         )
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_the_question_leaves_once_the_engine_saved_it(
         self,
@@ -777,7 +781,7 @@ class TestHITLInterruptDetection:
             ("entity_disambiguation", None),
         ],
     )
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_the_keyboard_is_the_one_its_interaction_draws(
         self,
@@ -809,7 +813,7 @@ class TestHITLInterruptDetection:
         )
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_the_keyboard_speaks_the_person_s_language(
         self,
@@ -839,7 +843,7 @@ class TestHITLInterruptDetection:
         [(None, _QUESTION_ID), ("conv-1", "")],
         ids=["no_conversation", "no_question_id"],
     )
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_no_keyboard_names_what_it_cannot(
         self,
@@ -866,7 +870,7 @@ class TestHITLInterruptDetection:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("sent_id", ["msg_1", None], ids=["taken", "refused"])
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_a_question_is_counted_once_telegram_took_it(
         self,
@@ -976,7 +980,7 @@ class TestContentReplacementAndErrors:
     """Tests for content_replacement deduplication, HTML stripping, and error handling."""
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_content_replacement_replaces_tokens(
         self,
@@ -1011,7 +1015,7 @@ class TestContentReplacementAndErrors:
         assert sent_msg.text.count("Hello world!") == 1
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_content_replacement_deduplicates_real_scenario(
         self,
@@ -1050,7 +1054,7 @@ class TestContentReplacementAndErrors:
         assert "</span>" not in sent_msg.text
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_content_replacement_fallback_when_no_tokens(
         self,
@@ -1077,7 +1081,58 @@ class TestContentReplacementAndErrors:
         assert "<div" not in sent_msg.text
 
     @pytest.mark.asyncio
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_AGENT_SERVICE)
+    async def test_a_turn_the_person_stopped_says_nothing_more(
+        self,
+        mock_agent_cls: MagicMock,
+        handler: InboundMessageHandler,
+        mock_sender: AsyncMock,
+        text_message: ChannelInboundMessage,
+    ) -> None:
+        """``/stop`` already answered « stopping »: the stopped turn sends neither
+        a partial answer nor an « error » (Telegram lot 33)."""
+        from src.core.stream_codes import RUN_STOPPED_ERROR_CODE
+
+        chunks = [
+            _make_chunk("token", "Je cherche"),
+            _make_chunk("error", "", {"error_code": RUN_STOPPED_ERROR_CODE}),
+        ]
+        mock_agent_cls.return_value.stream_chat_response = MagicMock(
+            return_value=_mock_stream(*chunks)
+        )
+
+        await _handle(handler, text_message, conversation_id=None)
+
+        mock_sender.send_message.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @patch(_PATCH_AGENT_SERVICE)
+    async def test_the_answer_is_drawn_in_the_person_s_language(
+        self,
+        mock_agent_cls: MagicMock,
+        handler: InboundMessageHandler,
+        mock_sender: AsyncMock,
+        text_message: ChannelInboundMessage,
+    ) -> None:
+        """The answer goes through Telegram's one door: a table becomes groups
+        whose labels take the PERSON's punctuation, its cards left out."""
+        answer = '| Day | Temp |\n|---|---|\n| Monday | 12° |\n\n<div class="card">x</div>'
+        chunks = [_make_chunk("content_replacement", answer), _make_chunk("done", "")]
+        mock_agent_cls.return_value.stream_chat_response = MagicMock(
+            return_value=_mock_stream(*chunks)
+        )
+        # Not the instance's language: the person's must win.
+        language = "zh-CN" if settings.default_language == "en" else "en"
+        separator = "：" if language == "zh-CN" else ": "
+
+        await _handle(handler, text_message, conversation_id=None, language=language)
+
+        sent = _sent(mock_sender)
+        assert sent.text == f"<b>Monday</b>\n• Temp{separator}12°"
+        assert sent.parse_mode == "HTML"
+
+    @pytest.mark.asyncio
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_html_stripped_from_token_stream(
         self,
@@ -1105,7 +1160,7 @@ class TestContentReplacementAndErrors:
 
     @pytest.mark.asyncio
     @patch(_PATCH_BOT_MESSAGE, return_value="Error message")
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_agent_error_sends_error_message(
         self,
@@ -1127,7 +1182,7 @@ class TestContentReplacementAndErrors:
 
     @pytest.mark.asyncio
     @patch(_PATCH_BOT_MESSAGE, return_value="Error message")
-    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda text, language=None: text)
     @patch(_PATCH_AGENT_SERVICE)
     async def test_a_stream_that_fails_after_its_error_chunk_is_told(
         self,

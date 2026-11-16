@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from html import escape
 
+from src.domains.connectors.clients.normalizers.html_text import links_for_people
 from src.infrastructure.email.recipients import name_addr, read_recipients
 
 #: The line that opens a forwarded message — Gmail's own wording.
@@ -112,10 +113,12 @@ def quoted_reply(body: str, original_body: str, *, date: str, sender: str, is_ht
     """The reply's words above the original, quoted the way mail clients quote.
 
     An original with no text quotes nothing. Under HTML words the original stays words:
-    what it holds is escaped, never run as a page.
+    what it holds is escaped, never run as a page. An original read off its layout carries
+    the model's link labels, written back as addresses people read (``links_for_people``).
     """
     if not original_body:
         return body
+    original_body = links_for_people(original_body)
     if is_html:
         intro = escape(f"On {date}, {sender} wrote:")
         return f"{body}<br><br>{intro}<blockquote>{_as_lines(original_body)}</blockquote>"
@@ -138,7 +141,9 @@ def forwarded_body(
     to: str,
     is_html: bool = False,
 ) -> str:
-    """The forward's words above the original message and its headers."""
+    """The forward's words above the original message and its headers, its links written
+    for people (``links_for_people``)."""
+    original_body = links_for_people(original_body)
     banner = f"{_FORWARD_BANNER}\nFrom: {sender}\nDate: {date}\nSubject: {subject}\nTo: {to}"
     if is_html:
         return f"{body or ''}<br><br>{_as_lines(banner)}<br><br>{_as_lines(original_body)}"

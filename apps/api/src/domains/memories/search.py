@@ -66,7 +66,8 @@ async def search_memories(
 
     Returns:
         ``(memory, similarity)`` pairs, best first — an empty list when the
-        search ran and nothing matched, None when it could not run.
+        search ran and nothing matched, None when it could not run. The rows
+        carry no vector: every reader of this door reads their text.
     """
     embedding = await embed_lookup(query, user_id=str(user_id))
     if not embedding:
@@ -78,6 +79,7 @@ async def search_memories(
             limit=limit,
             min_score=min_score,
             categories=categories,
+            with_vectors=False,
         )
 
 

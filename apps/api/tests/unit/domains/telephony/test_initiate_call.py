@@ -16,9 +16,12 @@ from typing import Any
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
+import httpx
 import pytest
 
 import src.domains.telephony.service as svc
+from src.core.conversation_source import conversation_source_scope
+from src.core.conversation_target import ConversationKind, ConversationRef
 from src.core.security import decrypt_data
 from src.domains.telephony.availability import AvailabilityRead
 from src.domains.telephony.client import ElevenLabsAgentsError
@@ -76,6 +79,7 @@ def _install_fakes(
     agent: dict[str, Any] | None = None,
     agent_read_error: bool = False,
     expression_error: bool = False,
+    dial_error: BaseException | None = None,
 ) -> tuple[dict, object]:
     captured: dict = {}
     conn = (
@@ -139,6 +143,8 @@ def _install_fakes(
                 raise ElevenLabsAgentsError(401, "invalid api key", auth_error=True)
             if client_error:
                 raise ElevenLabsAgentsError(502, "bad gateway")
+            if dial_error is not None:
+                raise dial_error
             return OutboundCallResult(
                 success=vendor_success,
                 conversation_id=conversation_id,
@@ -296,6 +302,33 @@ async def test_placed_call_wires_dynamic_variables_and_encrypts_phone(
     assert db.committed is True  # the dialing row is committed BEFORE the vendor call
     # The conversation id is persisted after the (out-of-transaction) dial succeeds.
     assert captured["conversation_id"] == "conv_1"
+
+
+@pytest.mark.unit
+async def test_a_call_placed_in_a_discussion_keeps_where_it_was_placed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Its return comes back there (production 2026-11-14: it came back to Main)."""
+    annex = ConversationRef(uuid4(), uuid4(), ConversationKind.SECONDARY, 5, uuid4())
+    captured, factory = _install_fakes(monkeypatch)
+    with conversation_source_scope(annex):
+        result = await _call(TelephonyService(_FakeDB(_user()), client_factory=factory))
+
+    assert result.status == "placed"
+    assert captured["create_data"]["origin_conversation_id"] == annex.id
+    assert captured["create_data"]["origin_conversation_revision"] == 5
+
+
+@pytest.mark.unit
+async def test_a_call_placed_outside_any_turn_keeps_no_origin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A number verification is placed from the settings: its return has no discussion."""
+    captured, factory = _install_fakes(monkeypatch)
+    await _call(TelephonyService(_FakeDB(_user()), client_factory=factory))
+
+    assert captured["create_data"]["origin_conversation_id"] is None
+    assert captured["create_data"]["origin_conversation_revision"] is None
 
 
 @pytest.mark.unit
@@ -599,6 +632,79 @@ async def test_successful_call_is_unaffected(monkeypatch: pytest.MonkeyPatch) ->
     assert result.status == "placed"
     assert captured["conversation_id"] == "conv_9"
     assert "dial_failed_error" not in captured
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("status_code", [400, 403, 404, 409, 422])
+async def test_a_request_the_vendor_refuses_is_said_to_be_no_passing_incident(
+    monkeypatch: pytest.MonkeyPatch, status_code: int
+) -> None:
+    """Production: initiate_failed:404 and :400 were told « try again in a moment ».
+
+    A 4xx other than a credential rejection, a timeout or a rate limit refuses
+    THIS request: nothing changes until something is fixed, so the person is
+    not told to retry (2026-11-14).
+    """
+    captured, factory = _install_fakes(
+        monkeypatch, dial_error=ElevenLabsAgentsError(status_code, "Provider request refused")
+    )
+    result = await _call(TelephonyService(_FakeDB(_user()), client_factory=factory))
+
+    assert result.status == "refused"
+    assert captured["dial_failed_error"] == f"initiate_refused:{status_code}"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("status_code", [408, 429, 500, 502, 503])
+async def test_a_passing_vendor_failure_keeps_its_retry_advice(
+    monkeypatch: pytest.MonkeyPatch, status_code: int
+) -> None:
+    captured, factory = _install_fakes(
+        monkeypatch, dial_error=ElevenLabsAgentsError(status_code, "Provider request refused")
+    )
+    result = await _call(TelephonyService(_FakeDB(_user()), client_factory=factory))
+
+    assert result.status == "failed"
+    assert captured["dial_failed_error"] == f"initiate_failed:{status_code}"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("error_type", [httpx.ConnectError, httpx.ConnectTimeout])
+async def test_a_dial_that_never_left_closes_the_call(
+    monkeypatch: pytest.MonkeyPatch, error_type: type[httpx.TransportError]
+) -> None:
+    """The request never reached the vendor: no call can be ringing."""
+    captured, factory = _install_fakes(
+        monkeypatch,
+        dial_error=error_type("ElevenLabs API transport failed", request=_dial_request()),
+    )
+    result = await _call(TelephonyService(_FakeDB(_user()), client_factory=factory))
+
+    assert result.status == "failed"
+    assert captured["dial_failed_error"] == "initiate_unreachable"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("error_type", [httpx.ReadTimeout, httpx.RemoteProtocolError])
+async def test_a_dial_whose_answer_was_lost_stays_open_and_says_so(
+    monkeypatch: pytest.MonkeyPatch, error_type: type[httpx.TransportError]
+) -> None:
+    """The request left: the call may be ringing. The row stays active (a
+    second call must not start beside it), the webhook or the stale sweep
+    settles it, and the person is told the outcome is unknown."""
+    captured, factory = _install_fakes(
+        monkeypatch,
+        dial_error=error_type("ElevenLabs API transport failed", request=_dial_request()),
+    )
+    result = await _call(TelephonyService(_FakeDB(_user()), client_factory=factory))
+
+    assert result.status == "unknown"
+    assert result.call_id is not None
+    assert "dial_failed_error" not in captured
+
+
+def _dial_request() -> httpx.Request:
+    return httpx.Request("POST", "https://api.elevenlabs.io/v1/convai/twilio/outbound-call")
 
 
 # =============================================================================

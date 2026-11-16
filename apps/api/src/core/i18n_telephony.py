@@ -138,6 +138,8 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
         "call_rejected": (
             "Le service de téléphonie a refusé l'appel : sa configuration doit être corrigée (numéro émetteur non vérifié, crédit épuisé…). Réessayer n'y changera rien tant que ce n'est pas réglé côté fournisseur."
         ),
+        "call_refused": "Le service de téléphonie a refusé cette demande d'appel : ce n'est pas un incident passager, réessayer tel quel n'y changera rien. Vérifie le connecteur ElevenLabs (agent, numéro émetteur) et le numéro appelé.",
+        "call_unknown": "Le service de téléphonie n'a pas répondu à ma demande d'appel : je ne sais pas si l'appel est parti. S'il a abouti, son compte rendu arrivera ici ; sinon, je te le dirai.",
         "call_failed": "Je n'ai pas pu passer l'appel pour le moment. Réessaie dans un instant.",
         "auth_failed": (
             "Le service de téléphonie a rejeté la clé API enregistrée : elle n'est plus valide. "
@@ -172,6 +174,8 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
         "call_rejected": (
             "The telephony provider declined the call: its configuration needs fixing (source number not verified, credit exhausted…). Retrying will not help until that is sorted out on the provider side."
         ),
+        "call_refused": "The telephony provider refused this call request: it is not a passing incident, and retrying as is will not help. Check the ElevenLabs connector (agent, caller number) and the number called.",
+        "call_unknown": "The telephony provider did not answer my call request, so I don't know whether the call went out. If it did, its summary will arrive here; if not, I'll tell you.",
         "call_failed": "I couldn't place the call right now. Please try again in a moment.",
         "auth_failed": (
             "The telephony provider rejected the stored API key: it is no longer valid. "
@@ -206,6 +210,8 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
         "call_rejected": (
             "Der Telefonie-Dienst hat den Anruf abgelehnt: seine Konfiguration muss korrigiert werden (Absendernummer nicht verifiziert, Guthaben aufgebraucht …). Ein erneuter Versuch hilft erst danach."
         ),
+        "call_refused": "Der Telefoniedienst hat diese Anrufanfrage abgelehnt: Das ist keine vorübergehende Störung, ein erneuter Versuch ändert daran nichts. Prüfe den ElevenLabs-Connector (Agent, Absendernummer) und die angerufene Nummer.",
+        "call_unknown": "Der Telefoniedienst hat auf meine Anrufanfrage nicht geantwortet, daher weiß ich nicht, ob der Anruf rausgegangen ist. Falls ja, kommt die Zusammenfassung hierher; falls nicht, sage ich es dir.",
         "call_failed": (
             "Ich konnte den Anruf gerade nicht tätigen. Bitte versuche es gleich noch einmal."
         ),
@@ -242,6 +248,8 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
         "call_rejected": (
             "El servicio de telefonía rechazó la llamada: su configuración debe corregirse (número emisor no verificado, crédito agotado…). Reintentar no servirá de nada hasta que se resuelva en el proveedor."
         ),
+        "call_refused": "El servicio de telefonía rechazó esta solicitud de llamada: no es un fallo pasajero y reintentarlo tal cual no servirá de nada. Revisa el conector de ElevenLabs (agente, número de origen) y el número llamado.",
+        "call_unknown": "El servicio de telefonía no respondió a mi solicitud de llamada, así que no sé si la llamada salió. Si fue así, su resumen llegará aquí; si no, te lo diré.",
         "call_failed": "No pude realizar la llamada ahora mismo. Inténtalo de nuevo en un momento.",
         "auth_failed": (
             "El servicio de telefonía rechazó la clave API guardada: ya no es válida. "
@@ -275,6 +283,8 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
         "call_rejected": (
             "Il servizio di telefonia ha rifiutato la chiamata: la sua configurazione va corretta (numero mittente non verificato, credito esaurito…). Riprovare non servirà finché non è risolto lato fornitore."
         ),
+        "call_refused": "Il servizio di telefonia ha rifiutato questa richiesta di chiamata: non è un problema passeggero e riprovare così com'è non servirà. Controlla il connettore ElevenLabs (agente, numero chiamante) e il numero chiamato.",
+        "call_unknown": "Il servizio di telefonia non ha risposto alla mia richiesta di chiamata, quindi non so se la chiamata sia partita. Se è così, il resoconto arriverà qui; altrimenti te lo dirò.",
         "call_failed": "Non sono riuscito a effettuare la chiamata al momento. Riprova tra poco.",
         "auth_failed": (
             "Il servizio di telefonia ha rifiutato la chiave API salvata: non è più valida. "
@@ -306,6 +316,8 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
         "call_rejected": (
             "电话服务拒绝了这次通话：其配置需要修正（主叫号码未验证、余额不足等）。在服务商侧解决之前，重试不会有帮助。"
         ),
+        "call_refused": "电话服务拒绝了这次通话请求：这不是暂时性故障，原样重试也没有用。请检查 ElevenLabs 连接器（代理、主叫号码）以及所拨打的号码。",
+        "call_unknown": "电话服务没有回应我的通话请求，所以我不知道电话有没有打出去。如果打出去了，通话结果会在这里出现；如果没有，我会告诉你。",
         "call_failed": "我暂时无法拨打这通电话，请稍后再试。",
         "auth_failed": (
             "电话服务拒绝了已保存的 API 密钥：它已失效。请在“偏好设置 → 我的连接器”中"
@@ -339,6 +351,36 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
         "fallback": (
             "J'ai passé ton appel mais je n'ai pas pu en tirer un résumé détaillé. "
             "Dis-moi si tu veux que je réessaie."
+        ),
+        "voicemail_left": (
+            "J'ai appelé {callee}, mais je suis tombé sur sa messagerie : j'y ai laissé un message. "
+            "Dis-moi si tu veux que je rappelle plus tard."
+        ),
+        "voicemail_not_left": (
+            "J'ai appelé {callee}, mais je suis tombé sur sa messagerie et je n'y ai laissé aucun "
+            "message : aucun message de répondeur n'est configuré dans le portail ElevenLabs. "
+            "Dis-moi si tu veux que je rappelle plus tard."
+        ),
+        "voicemail_unknown": (
+            "J'ai appelé {callee}, mais je suis tombé sur sa messagerie. "
+            "Dis-moi si tu veux que je rappelle plus tard."
+        ),
+        "no_answer": (
+            "J'ai appelé {callee}, mais personne n'a décroché. "
+            "Dis-moi si tu veux que je rappelle plus tard."
+        ),
+        "line_failed": (
+            "Mon appel vers {callee} n'a pas abouti : la ligne a échoué avant que quiconque parle. "
+            "Dis-moi si tu veux que je réessaie."
+        ),
+        "no_report": (
+            "Je n'ai reçu aucun compte rendu de mon appel vers {callee} : je ne sais pas "
+            "comment il s'est terminé. Dis-moi si tu veux que je rappelle."
+        ),
+        "relay_no_report": (
+            "Je n'ai reçu aucun compte rendu de notre appel : je ne sais pas comment il "
+            "s'est terminé, et je n'ai rien relayé dans le chat. Redemande-moi de t'appeler "
+            "quand tu veux."
         ),
         "appointment_suggestion": (
             "📅 Rendez-vous convenu : {datetime_local}{location_part}. "
@@ -379,6 +421,35 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
             "I placed your call but couldn't produce a detailed summary. "
             "Let me know if you'd like me to try again."
         ),
+        "voicemail_left": (
+            "I called {callee} but reached their voicemail, and left a message there. "
+            "Let me know if you'd like me to call back later."
+        ),
+        "voicemail_not_left": (
+            "I called {callee} but reached their voicemail, and left no message: no voicemail "
+            "message is set up in the ElevenLabs portal. Let me know if you'd like me to call "
+            "back later."
+        ),
+        "voicemail_unknown": (
+            "I called {callee} but reached their voicemail. "
+            "Let me know if you'd like me to call back later."
+        ),
+        "no_answer": (
+            "I called {callee}, but nobody picked up. "
+            "Let me know if you'd like me to call back later."
+        ),
+        "line_failed": (
+            "My call to {callee} did not go through: the line failed before anyone spoke. "
+            "Let me know if you'd like me to try again."
+        ),
+        "no_report": (
+            "I never received a report of my call to {callee}, so I don't know how it "
+            "ended. Let me know if you'd like me to call back."
+        ),
+        "relay_no_report": (
+            "I never received a report of our call, so I don't know how it ended, and I "
+            "relayed nothing to the chat. Ask me to call you again whenever you like."
+        ),
         "appointment_suggestion": (
             "📅 Appointment agreed: {datetime_local}{location_part}. "
             "Want me to add it to your calendar?"
@@ -415,6 +486,36 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
         "fallback": (
             "Ich habe deinen Anruf getätigt, konnte aber keine ausführliche "
             "Zusammenfassung erstellen. Sag Bescheid, wenn ich es erneut versuchen soll."
+        ),
+        "voicemail_left": (
+            "Ich habe {callee} angerufen, bin aber bei der Mailbox gelandet und habe dort eine "
+            "Nachricht hinterlassen. Sag Bescheid, wenn ich später noch einmal anrufen soll."
+        ),
+        "voicemail_not_left": (
+            "Ich habe {callee} angerufen, bin aber bei der Mailbox gelandet und habe keine "
+            "Nachricht hinterlassen: Im ElevenLabs-Portal ist keine Mailbox-Nachricht "
+            "eingerichtet. Sag Bescheid, wenn ich später noch einmal anrufen soll."
+        ),
+        "voicemail_unknown": (
+            "Ich habe {callee} angerufen, bin aber bei der Mailbox gelandet. "
+            "Sag Bescheid, wenn ich später noch einmal anrufen soll."
+        ),
+        "no_answer": (
+            "Ich habe {callee} angerufen, aber niemand hat abgenommen. "
+            "Sag Bescheid, wenn ich später noch einmal anrufen soll."
+        ),
+        "line_failed": (
+            "Mein Anruf bei {callee} ist nicht durchgekommen: Die Leitung ist ausgefallen, bevor "
+            "jemand gesprochen hat. Sag Bescheid, wenn ich es erneut versuchen soll."
+        ),
+        "no_report": (
+            "Zu meinem Anruf bei {callee} habe ich keinen Bericht erhalten, daher weiß ich "
+            "nicht, wie er ausgegangen ist. Sag mir, ob ich noch einmal anrufen soll."
+        ),
+        "relay_no_report": (
+            "Zu unserem Anruf habe ich keinen Bericht erhalten, daher weiß ich nicht, wie "
+            "er ausgegangen ist, und ich habe nichts in den Chat übertragen. Bitte mich "
+            "jederzeit, dich erneut anzurufen."
         ),
         "appointment_suggestion": (
             "📅 Termin vereinbart: {datetime_local}{location_part}. "
@@ -459,6 +560,35 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
             "Hice tu llamada pero no pude generar un resumen detallado. "
             "Dime si quieres que lo intente de nuevo."
         ),
+        "voicemail_left": (
+            "Llamé a {callee}, pero saltó su buzón de voz y le dejé un mensaje. "
+            "Dime si quieres que vuelva a llamar más tarde."
+        ),
+        "voicemail_not_left": (
+            "Llamé a {callee}, pero saltó su buzón de voz y no le dejé ningún mensaje: no hay "
+            "ningún mensaje de buzón configurado en el portal de ElevenLabs. Dime si quieres que "
+            "vuelva a llamar más tarde."
+        ),
+        "voicemail_unknown": (
+            "Llamé a {callee}, pero saltó su buzón de voz. "
+            "Dime si quieres que vuelva a llamar más tarde."
+        ),
+        "no_answer": (
+            "Llamé a {callee}, pero nadie contestó. "
+            "Dime si quieres que vuelva a llamar más tarde."
+        ),
+        "line_failed": (
+            "Mi llamada a {callee} no se completó: la línea falló antes de que nadie hablara. "
+            "Dime si quieres que lo intente de nuevo."
+        ),
+        "no_report": (
+            "No recibí ningún informe de mi llamada a {callee}, así que no sé cómo terminó. "
+            "Dime si quieres que vuelva a llamar."
+        ),
+        "relay_no_report": (
+            "No recibí ningún informe de nuestra llamada, así que no sé cómo terminó, y no "
+            "he trasladado nada al chat. Pídeme que te vuelva a llamar cuando quieras."
+        ),
         "appointment_suggestion": (
             "📅 Cita acordada: {datetime_local}{location_part}. "
             "¿Quieres que la añada a tu calendario?"
@@ -495,6 +625,35 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
         "fallback": (
             "Ho effettuato la tua chiamata ma non sono riuscito a produrre un "
             "riepilogo dettagliato. Dimmi se vuoi che riprovi."
+        ),
+        "voicemail_left": (
+            "Ho chiamato {callee}, ma ha risposto la segreteria e ci ho lasciato un messaggio. "
+            "Dimmi se vuoi che richiami più tardi."
+        ),
+        "voicemail_not_left": (
+            "Ho chiamato {callee}, ma ha risposto la segreteria e non ci ho lasciato alcun "
+            "messaggio: nel portale ElevenLabs non è configurato nessun messaggio di segreteria. "
+            "Dimmi se vuoi che richiami più tardi."
+        ),
+        "voicemail_unknown": (
+            "Ho chiamato {callee}, ma ha risposto la segreteria. "
+            "Dimmi se vuoi che richiami più tardi."
+        ),
+        "no_answer": (
+            "Ho chiamato {callee}, ma nessuno ha risposto. Dimmi se vuoi che richiami più tardi."
+        ),
+        "line_failed": (
+            "La mia chiamata a {callee} non è andata a buon fine: la linea è caduta prima che "
+            "qualcuno parlasse. Dimmi se vuoi che riprovi."
+        ),
+        "no_report": (
+            "Non ho ricevuto alcun resoconto della mia chiamata a {callee}, quindi non so "
+            "come sia finita. Dimmi se vuoi che richiami."
+        ),
+        "relay_no_report": (
+            "Non ho ricevuto alcun resoconto della nostra chiamata, quindi non so come sia "
+            "finita, e non ho riportato nulla nella chat. Chiedimi di richiamarti quando "
+            "vuoi."
         ),
         "appointment_suggestion": (
             "📅 Appuntamento concordato: {datetime_local}{location_part}. "
@@ -536,6 +695,20 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
     "zh-CN": {
         "title": "通话小结",
         "fallback": "我已为你拨打了电话，但无法生成详细小结。需要我再试一次的话告诉我。",
+        "voicemail_left": "我给{callee}打了电话，但转到了语音信箱，我在里面留了言。需要我稍后再打的话告诉我。",
+        "voicemail_not_left": (
+            "我给{callee}打了电话，但转到了语音信箱，我没有留言：ElevenLabs 门户中没有设置"
+            "语音信箱留言。需要我稍后再打的话告诉我。"
+        ),
+        "voicemail_unknown": "我给{callee}打了电话，但转到了语音信箱。需要我稍后再打的话告诉我。",
+        "no_answer": "我给{callee}打了电话，但没有人接听。需要我稍后再打的话告诉我。",
+        "line_failed": "我打给{callee}的电话没有接通：在任何人说话前线路就中断了。需要我再试一次的话告诉我。",
+        "no_report": (
+            "我没有收到给{callee}打电话的任何结果报告，所以不知道这通电话是怎么结束的。需要我再打一次的话告诉我。"
+        ),
+        "relay_no_report": (
+            "我没有收到我们这通电话的任何结果报告，所以不知道它是怎么结束的，也没有把任何内容转到聊天里。想让我再给你打电话时随时告诉我。"
+        ),
         "appointment_suggestion": "📅 已约定时间：{datetime_local}{location_part}。要我帮你加到日历里吗？",
         "appointment_location_part": "（{location}）",
         "self_call_title": ("我们的通话"),

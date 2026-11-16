@@ -4,7 +4,7 @@
 
 **Version** : 3.0
 **Date** : 2026-11-14
-**Application** : LIA v5.0.0
+**Application** : LIA v5.1.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi-totalité du code a été écrite par une IA. Mon travail a été de la
 | Indicateur | Valeur |
 | --- | --- |
 | Code écrit par une IA, dirigée, encadrée et contrôlée | **≈ 100 %** |
-| Lignes de source (hors tests), réparties en une soixantaine de paquets de domaines backend | **1 219 354** |
-| Tests automatisés inventoriés, en suites adaptées au commit et à la livraison | **87 496** |
-| Décisions d'architecture documentées (ADR) | **386** |
-| Versions livrées à rythme régulier | **297** |
+| Lignes de source (hors tests), réparties en une soixantaine de paquets de domaines backend | **1 238 134** |
+| Tests automatisés inventoriés, en suites adaptées au commit et à la livraison | **89 335** |
+| Décisions d'architecture documentées (ADR) | **389** |
+| Versions livrées à rythme régulier | **298** |
 | Langues, avec une parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **7,9/10** |
 
@@ -64,11 +64,11 @@ Le monde partagé donne à l'assistante des lieux : une bibliothèque pour les c
 
 Je voulais aussi qu’un assistant laisse la place à ce que l’on fait soi-même. L’espace Outils utilise les mêmes services connectés, mais un geste à la main n’y appelle aucun modèle et ne devient pas un acte de LIA ; ce qu’un clic lui demande reste une proposition, tracée et facturée à qui l’a demandée. Déléguer et garder la main peuvent partager une interface, à condition de savoir qui a décidé, qui a agi et ce qui a été approuvé.
 
-Voici trois décisions structurantes, parmi les 386 documentées.
+Voici trois décisions structurantes, parmi les 389 documentées.
 
 La première porte sur la **souveraineté** : je ne voulais aucune dépendance irréversible envers un fournisseur. Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity et des modèles locaux avec Ollama) passent tous par une même abstraction, si bien que chaque usage peut changer de fournisseur par simple configuration, coûts comparés. Côté services, Google, Apple et Microsoft sont interchangeables pour chaque catégorie, qu'il s'agisse de la messagerie, de l'agenda ou des contacts. L'auto-hébergement donne la maîtrise du serveur : les données du compte sont stockées sur l'instance et les identifiants des connecteurs sont chiffrés. Les services distants que la personne choisit reçoivent tout de même les données utiles à leur part de la demande.
 
-La deuxième porte sur l'**économie** : j'ai traité le coût de chaque requête comme un critère de conception. Deux modes d'exécution coexistent. Un pipeline déterministe et économe traite les demandes courantes, un agent autonome prend en charge les demandes exploratoires. Sur les cas standards, à service rendu équivalent, l'écart de consommation mesuré va de 1 à 4-8. Chaque appel est compté au token, valorisé en euros, agrégé par utilisateur et par modèle, et soumis à des quotas.
+La deuxième porte sur l'**économie** : j'ai traité le coût de chaque requête comme un critère de conception. Je laisse le choix entre deux moteurs, avec un mode automatique qui les départage à chaque demande. Un pipeline déterministe et économe traite les demandes courantes, un agent autonome prend en charge les demandes exploratoires. Sur les cas standards, à service rendu équivalent, l'écart de consommation mesuré va de 1 à 4-8. Chaque appel est compté au token, valorisé en euros, agrégé par utilisateur et par modèle, et soumis à des quotas.
 
 Le coût se joue aussi dans les détails : une notification de deux phrases est demandée sans réflexion, parce qu'un modèle qui réfléchit par défaut facture sa réflexion dans le budget de sa réponse. Par défaut, l'agent autonome n'emporte que les outils que la question appelle, choisis par pertinence et non dans leur ordre d'arrivée : quatre-vingts descriptions d'outils pesaient l'essentiel de son premier appel, sans être comptées. Enfin, chaque appel est valorisé au prix que le fournisseur facture réellement, avec des tarifs relus sur ses pages, l'écriture en cache facturée à son vrai prix et les tarifs d'heures creuses selon le jour.
 

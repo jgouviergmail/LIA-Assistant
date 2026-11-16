@@ -1,8 +1,8 @@
 """The listener's calendar, for the journal's « done » and « ahead » parts (ADR-324 decision 41).
 
 The day ahead comes from the Today Briefing's cache (``personal.py``); what the
-journal's noon and evening editions add is read here, live, from the listener's
-active calendar (the briefing's own door, ``open_active_calendar``): the appointments
+journal's noon and evening editions add is read here, live, from every calendar the
+listener owns (the briefing's own door, ``open_active_calendar``): the appointments
 that TOOK PLACE today — started today and over — and the week ahead, from tomorrow.
 An all-day event is never « done » before its day is; an appointment the day already
 tells keeps its key, so the week ahead never retells it (``personal_facts``).
@@ -20,11 +20,14 @@ from datetime import datetime, time, timedelta, tzinfo
 from typing import Any, Final
 from uuid import UUID
 
+from src.core.constants import CALENDAR_WINDOW_READ_MAX
 from src.domains.briefing.constants import ERROR_CODE_CONNECTOR_OAUTH_EXPIRED
 from src.domains.briefing.exceptions import ConnectorAccessError
 from src.domains.briefing.formatters import event_instant
 from src.domains.connectors.active_client import ClientUnavailable
 from src.domains.connectors.calendar_access import CalendarAccess, open_active_calendar
+from src.domains.connectors.clients.calendar_lists import read_owned_events
+from src.domains.connectors.clients.event_order import soonest_first
 from src.domains.radio.facts import FactKind, Sensitivity, local_day_text, local_time_text
 from src.domains.radio.personal import (
     MAX_PER_SOURCE,
@@ -175,13 +178,18 @@ async def _events(user_id: UUID, *, time_min: datetime, time_max: datetime) -> l
             )
         if not isinstance(access, CalendarAccess):
             return []  # no calendar connected: nothing to read
-        result = await access.client.list_events(
-            time_min=time_min.isoformat(),
-            time_max=time_max.isoformat(),
-            max_results=_SCAN_EVENTS,
-            calendar_id=access.calendar_id,
+        # The whole window of every calendar the account owns (an invitation sits
+        # in the main calendar, owner rule 2026-11-15), then the soonest
+        # ``_SCAN_EVENTS`` of it: one request stopped at the agents' ceiling (25,
+        # under this bound), and Graph orders no page — a week ahead lost its last
+        # days (ADR-185 amendment 2026-11-15).
+        owned = await read_owned_events(
+            access.client,
+            access.calendar_id,
+            [(time_min.isoformat(), time_max.isoformat())],
+            bound=CALENDAR_WINDOW_READ_MAX,
         )
-    return [item for item in (result.get("items") or []) if isinstance(item, dict)]
+    return soonest_first(owned.events)[:_SCAN_EVENTS]
 
 
 def _local_midnight(now: datetime, tz: tzinfo, *, days: int = 0) -> datetime:

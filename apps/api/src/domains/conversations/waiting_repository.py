@@ -27,14 +27,20 @@ _CHANGEABLE = (*_PENDING, WaitingStatus.JOINING)
 class SettledRelease:
     """What a release did to the account's waiting messages."""
 
-    #: Messages that will now leave only on the person's click.
-    held: int
+    #: Messages that will now leave only on the person's click — named, so a
+    #: channel can tell its person which one (Telegram lot 34).
+    held_ids: tuple[UUID, ...]
     #: Notes the closing run never read, given back to the waiting state.
     returned: int
 
+    @property
+    def held(self) -> int:
+        """How many messages this release held."""
+        return len(self.held_ids)
+
 
 #: A close that settled nothing (it did not close, or nothing waited).
-NOTHING_SETTLED = SettledRelease(held=0, returned=0)
+NOTHING_SETTLED = SettledRelease(held_ids=(), returned=0)
 
 
 class WaitingMessageTooLong(Exception):
@@ -79,17 +85,21 @@ class WaitingMessageRepository(BaseRepository[WaitingMessage]):
         *,
         rendering: dict[str, Any] | None,
         status: WaitingStatus,
+        reply_channel: str | None = None,
     ) -> tuple[WaitingMessage, bool]:
         """Keep new words, added after a blank line to what already waits.
 
         A note that joins the answer being written stays joining: the new words join
-        it too, until the loop reads them (ADR-385).
+        it too, until the loop reads them (ADR-385). Words written on a channel make
+        the answer go there, and words added from the app never take it back: the
+        person waits for it in that chat (Telegram lot 34).
 
         Args:
             target: The discussion and generation the words were written for.
             text: The person's new words.
             rendering: The browser's display hints, replacing earlier ones when given.
             status: ``WAITING`` or ``HELD``, as the caller decided from the account.
+            reply_channel: The channel the words were written on; None for the app.
 
         Returns:
             The row and whether the words were added to an existing one.
@@ -117,6 +127,7 @@ class WaitingMessageRepository(BaseRepository[WaitingMessage]):
                 status=status,
                 version=1,
                 rendering=rendering,
+                reply_channel=reply_channel,
             )
             self.db.add(row)
             await self.db.flush()
@@ -131,6 +142,8 @@ class WaitingMessageRepository(BaseRepository[WaitingMessage]):
         row.version += 1
         if rendering is not None:
             row.rendering = dict(rendering)
+        if reply_channel is not None:
+            row.reply_channel = reply_channel
         await self.db.flush()
         return row, True
 
@@ -331,7 +344,7 @@ class WaitingMessageRepository(BaseRepository[WaitingMessage]):
             end: How the run ended.
 
         Returns:
-            How many messages this release held, and how many notes it gave back.
+            The messages this release held, and how many notes it gave back.
         """
         started = end != RunEnd.UNSTARTED
         back = WaitingStatus.HELD if started else WaitingStatus.WAITING
@@ -348,7 +361,7 @@ class WaitingMessageRepository(BaseRepository[WaitingMessage]):
             .values(**values)
             .returning(WaitingMessage.id)
         )
-        held = len(returned.all()) if back == WaitingStatus.HELD else 0
+        held = list(returned.scalars()) if back == WaitingStatus.HELD else []
         unread = await self.db.execute(
             update(WaitingMessage)
             .where(
@@ -371,8 +384,35 @@ class WaitingMessageRepository(BaseRepository[WaitingMessage]):
                 .values(status=WaitingStatus.HELD)
                 .returning(WaitingMessage.id)
             )
-            held += len(waited.all())
-        return SettledRelease(held=held, returned=notes_back)
+            held.extend(waited.scalars())
+        return SettledRelease(held_ids=tuple(held), returned=notes_back)
+
+    async def held_on_channels(self, owner_id: UUID, ids: tuple[UUID, ...]) -> list[WaitingMessage]:
+        """Of the messages a release held, those still held and written on a channel.
+
+        A channel shows no bubble: its person is told which message did not leave
+        (Telegram lot 34). One sent or withdrawn since is not told.
+
+        Args:
+            owner_id: The account.
+            ids: The messages the release held.
+
+        Returns:
+            Those still held with a reply channel, oldest first.
+        """
+        if not ids:
+            return []
+        rows = await self.db.scalars(
+            select(WaitingMessage)
+            .where(
+                WaitingMessage.user_id == owner_id,
+                WaitingMessage.id.in_(ids),
+                WaitingMessage.status == WaitingStatus.HELD,
+                WaitingMessage.reply_channel.is_not(None),
+            )
+            .order_by(WaitingMessage.created_at, WaitingMessage.id)
+        )
+        return list(rows)
 
     async def departure_candidates(self, owner_id: UUID, end: RunEnd) -> list[WaitingMessage]:
         """What may leave after a release, in the order it leaves.

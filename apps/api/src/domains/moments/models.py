@@ -22,10 +22,12 @@ Two shapes are deliberate:
   enum invites the trap ADR-276 measured: a bare enum member as the RESULT of a
   SQL expression binds as ``NullType`` and sends its VALUE where the column
   stores its NAME.
-- ``payload`` carries what is needed to DEDUPLICATE and SCORE, never what is
-  needed to write the sentence. The claim revalidates the fact against its
-  source anyway, so storing the people involved would be personal data kept for
-  nothing.
+- ``payload`` carries what is needed to DEDUPLICATE and SCORE, and WHERE to
+  re-read the fact (a DIGEST of the calendar an event was read in when it is not
+  the default, since every calendar the account owns is read; never its id,
+  which Google spells as an address), never what is needed to write the
+  sentence. The claim revalidates the fact against its source anyway, so
+  storing the people involved would be personal data kept for nothing.
 
 See ``docs/superpowers/specs/2026-09-11-anticipated-moments-design.md``.
 """

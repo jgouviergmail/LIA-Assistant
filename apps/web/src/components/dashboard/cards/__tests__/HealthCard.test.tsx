@@ -81,14 +81,15 @@ describe('HealthCard dial', () => {
     );
 
     expect(screen.queryByTestId('health-dial-average')).toBeNull();
-    expect(screen.queryByTestId('health-average-key')).toBeNull();
     expect(screen.getByTestId('health-dial-today')).toBeInTheDocument();
   });
 
-  it('wears the notch of the dial beside the average it stands for', () => {
+  it('opens the average on its figure: the notch on the dial alone stands for it', () => {
     const row = renderMetric('steps', 4000);
 
-    expect(row.getByTestId('health-average-key').parentElement).toHaveTextContent('777');
+    const average = row.getByText('777');
+    expect(average.previousElementSibling).toBeNull();
+    expect(average.parentElement?.textContent?.trimStart().startsWith('777')).toBe(true);
   });
 
   it('keeps the dial out of the ear: the figures say it all', () => {
@@ -175,6 +176,42 @@ describe('HealthCard daily thresholds', () => {
       expect(row.getByText('777')).toBeInTheDocument();
     }
   );
+  it.each([
+    { value: 60, seconds: 1 },
+    { value: 75, seconds: 0.8 },
+    // The figure shown is the rounded one, and so is its rhythm.
+    { value: 72.4, seconds: 0.833 },
+  ])(
+    'beats the heart rate figure $value once every $seconds s, where motion is welcome',
+    ({ value, seconds }) => {
+      const row = renderMetric('heart_rate', value);
+      const figure = row.getByText(String(Math.round(value)), { normalizer: text => text });
+
+      expect(figure.className).toContain('motion-safe:animate-heart-beat');
+      expect(figure.className).not.toMatch(/(^|\s)animate-heart-beat/);
+      expect(figure.style.animationDuration).toMatch(/^\d+(\.\d+)?s$/);
+      expect(Number.parseFloat(figure.style.animationDuration)).toBeCloseTo(seconds, 3);
+    }
+  );
+
+  it.each([
+    { kind: 'steps', value: 72 },
+    { kind: 'heart_rate', value: null },
+    { kind: 'heart_rate', value: 0 },
+    { kind: 'heart_rate', value: 25 },
+    { kind: 'heart_rate', value: 230 },
+  ] satisfies { kind: HealthSummaryItem['kind']; value: number | null }[])(
+    'keeps $kind=$value still: no rhythm is invented where no heartbeat can be told',
+    ({ kind, value }) => {
+      const row = renderMetric(kind, value);
+      const shown = value === null ? '—' : String(value);
+      const figure = row.getByText(shown, { normalizer: text => text });
+
+      expect(figure.className).not.toContain('animate-heart-beat');
+      expect(figure.style.animationDuration).toBe('');
+    }
+  );
+
   it('keeps a missing window average unknown while daily zero remains a real red value', () => {
     const item = { ...metric('steps', 0), value_avg_window: null };
     renderWithProviders(

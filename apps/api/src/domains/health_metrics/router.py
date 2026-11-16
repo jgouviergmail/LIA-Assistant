@@ -28,6 +28,7 @@ from src.core.constants import HEALTH_METRICS_KINDS
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_input
 from src.core.session_dependencies import get_current_active_session
+from src.core.time_utils import resolve_user_timezone
 from src.domains.health_metrics.removal_commands import remove_health_samples
 from src.domains.health_metrics.schemas import (
     HealthMetricAggregateResponse,
@@ -86,10 +87,14 @@ async def aggregate_metrics_endpoint(
     current_user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> HealthMetricAggregateResponse:
-    """Return aggregated bucketed points + period averages for charts."""
+    """Return aggregated bucketed points + period averages for charts.
+
+    Buckets are cut at the account's clock (ADR-148 amendment 2026-11-14).
+    """
     service = HealthMetricsService(db)
     return await service.aggregate(
         user_id=current_user.id,
+        zone=resolve_user_timezone(current_user),
         period=period,
         from_ts=from_ts,
         to_ts=to_ts,

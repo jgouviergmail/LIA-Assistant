@@ -216,8 +216,19 @@ for (const theme of ['light', 'dark'] as const) {
         page.locator('.lia-card .lia-symbol-icon > svg[data-icon-name="Mail"]')
       ).toHaveAttribute('data-icon-style', style);
       const header = page.locator('header');
+      // ADR-390: the menu's trigger names the chosen mode, as the toggle did.
+      await expectControlIcon(
+        header.getByRole('button', {
+          name: label('executionMode.menu.trigger').replace(
+            '{{mode}}',
+            label('executionMode.modes.react')
+          ),
+          exact: true,
+        }),
+        'Zap',
+        style
+      );
       for (const [key, name] of [
-        ['executionMode.toggle.enable_pipeline', 'Zap'],
         ['meetings.header.record', 'Disc'],
         ['radio.header.start', 'RadioSet'],
         ['voice.toggle.enable', 'VolumeX'],

@@ -51,6 +51,7 @@ from src.domains.agents.constants import (
     STATE_KEY_VALIDATION_RESULT,
 )
 from src.domains.agents.context.runtime_context import (
+    executed_mode_of,
     runtime_context_if_running,
     runtime_user_id_str,
 )
@@ -540,7 +541,7 @@ async def planner_node_v3(
             )
 
             execution_mode = (
-                _c.execution_mode
+                executed_mode_of(_c)
                 if (_c := runtime_context_if_running()) is not None
                 else EXECUTION_MODE_PIPELINE
             )

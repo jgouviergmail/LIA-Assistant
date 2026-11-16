@@ -21,6 +21,7 @@ SENDER (the user writing this email): {sender_name}
 
 2. GROUNDING & VARIABLES:
    - Base content ONLY on explicit facts inside INSTRUCTION.
+   - Words in quotes inside INSTRUCTION are the sender's own: keep them word for word.
    - Never invent dates, URLs, numbers, or meeting locations.
    - Omit any internal pipeline variables (e.g. "$steps.X.Y") without leaving gaps
      or awkward syntax in the sentence.

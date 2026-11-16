@@ -13,7 +13,6 @@ the `run_id` filter are exactly what a mock would paper over.
 from __future__ import annotations
 
 import uuid
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -24,6 +23,7 @@ from src.domains.agents.effects import runtime as gate_runtime
 from src.domains.agents.effects.scope import EffectScope, effect_scope
 from src.domains.agents.services.streaming.followup_metadata import NO_TURN_EXTRAS
 from src.domains.users.models import User
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = pytest.mark.integration
 
@@ -96,7 +96,7 @@ async def _run_gated_tool(user: Any, run_id: str, *, succeeds: bool = True) -> A
     with (
         patch(
             "src.domains.agents.context.runtime_context.runtime_context_if_running",
-            return_value=SimpleNamespace(
+            return_value=make_runtime_context(
                 user_id=user.id,
                 thread_id=f"thread-{run_id}",
                 execution_mode="pipeline",

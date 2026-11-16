@@ -115,6 +115,9 @@ def test_live_bundle_inventory_excludes_tests_and_bytecode() -> None:
     # step (v1.30.1 qualification matrix). A runtime dependency of the
     # wizard lives inside the wizard's shipped tree.
     assert "scripts/install/self_host_dependencies.json" in files
+    # The wizard READS it too when an install behind Caddy runs the instance's
+    # ntfy server (ADR-391): left out, that install stops on FileNotFoundError.
+    assert "infrastructure/caddy/Caddyfile.ntfy.template" in files
     # The API mounts ./docs/runbooks read-only for the diagnostician (ADR-266):
     # a bundle without them ships an empty mount and diagnoses with no runbook.
     assert "docs/runbooks/alerts/EmbeddingOperationsFailing.md" in files

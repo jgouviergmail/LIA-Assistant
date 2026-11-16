@@ -1,7 +1,7 @@
 # Guide API REST - LIA
 
 **Version** : 2.1
-**Dernière mise à jour** : 2026-11-01
+**Dernière mise à jour** : 2026-11-16
 **Statut** : ✅ Stable
 
 > **Documentation complète de l'API REST FastAPI v1**
@@ -72,6 +72,18 @@ FastAPI (async/await)
 - Semantic versioning dans headers: `X-API-Version: 1.0.0`
 - URL versioning pour breaking changes (`/v1` → `/v2`)
 - Backward compatibility dans v1 (additive changes OK)
+
+### Contrats de domaine
+
+Les routes et leurs schémas détaillés restent dans leur documentation de domaine :
+
+| Surface | Référence |
+|---|---|
+| Rappels à venir et actions sur une occurrence déclenchée (`/reminders/firings/{id}`) | [Rappels](../technical/REMINDERS.md) |
+| Abonnements ntfy, contenu, test et QR (`/notifications/ntfy`) | [ntfy](../technical/NTFY.md) |
+| Apprentissage explicite et oubli du style d'écriture | [Style d'écriture](../technical/WRITING_STYLE.md) |
+| Principale, annexes et destination des retours différés | [Discussions](../technical/SECONDARY_CONVERSATIONS.md) |
+| Mots en attente et réponse sur leur canal d'origine | [Messages en attente](../technical/WAITING_MESSAGES.md) |
 
 ### Response Format Standard
 
@@ -373,6 +385,16 @@ Content-Type: application/json
 ### POST /agents/chat/stream
 
 **Stream chat response with SSE (Server-Sent Events)**
+
+Le chat lit le choix du compte, réglé par
+`PATCH /auth/me/execution-mode-preference` (`execution_mode` : `pipeline`, `react`
+ou `auto`) et consultable par `GET` sur la même route. La réponse publie aussi
+`auto_resolution`, qui indique ce que l'instance peut réellement décider. En
+automatique, le routeur fixe le moteur de la demande une fois ; une reprise HITL
+garde celui de son tour. La métadonnée `execution_engine` de la réponse nomme le
+moteur d'un tour automatique (`pipeline` ou `react`) pour son badge. Le registre
+garde séparément `execution_mode`, `requested_mode` et `resolution_reason`.
+Voir [ADR-390](../architecture/ADR-390-The-Automatic-Mode-Chooses-The-Engine-Per-Request.md).
 
 **Request:**
 

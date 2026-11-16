@@ -9,7 +9,6 @@ still performs the act once.
 from __future__ import annotations
 
 import uuid
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -25,6 +24,7 @@ from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.users.models import User
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 from tests.helpers.mcp_access import installed_shared_mcp_access
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = pytest.mark.integration
 
@@ -101,7 +101,7 @@ class TestTwoActsOfOneTaskAreTwoRows:
             installed_shared_mcp_access(actor_id=user.id),
             patch(
                 "src.domains.agents.context.runtime_context.runtime_context_if_running",
-                return_value=SimpleNamespace(
+                return_value=make_runtime_context(
                     user_id=user.id,
                     thread_id=f"thread-{uuid.uuid4().hex[:8]}",
                     execution_mode="pipeline",

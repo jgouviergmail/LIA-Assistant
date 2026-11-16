@@ -246,6 +246,10 @@ def mailbox(monkeypatch: pytest.MonkeyPatch) -> list[str]:
             reads.append(message_id)
             return MESSAGE
 
+        async def get_message_html(self, message_id: str) -> str | None:
+            reads.append(f"{message_id} layout")
+            return None
+
         async def get_own_address(self) -> str | None:
             reads.append("own address")
             return "jean@example.org"
@@ -275,12 +279,58 @@ async def test_an_event_is_read_from_the_message_as_it_stands(
     event = await event_from_message(run, "m1", CLOCK, None)
 
     assert event.summary == "Lunch"
-    assert mailbox == ["m1", "own address"]
+    assert mailbox == ["m1", "m1 layout", "own address"]
     assert run.opened is True
     data = _data(asked[0])
     assert "Shall we meet Thursday at noon?" in data
     assert "2026-11-04" in data and "Europe/Paris" in data
     assert "external_content" in data, "a stranger's words are marked as what they are"
+
+
+#: An invitation as a mailer lays it out, and the text part it wrote beside it.
+INVITATION = (
+    "<html><body><table><tr><td><h1>Board meeting</h1>"
+    "<p>Thursday 20 November 2026, 14:00</p><p>Room Galilée, Lyon</p></td></tr></table>"
+    "</body></html>"
+)
+
+
+@pytest.mark.parametrize("read", [event_from_message, task_from_message])
+async def test_a_message_is_read_as_its_original_layout_shows_it(
+    asked: list[str], monkeypatch: pytest.MonkeyPatch, read: Any
+) -> None:
+    class _Laid:
+        async def get_message(self, message_id: str, *, use_cache: bool) -> dict[str, Any]:
+            return {**MESSAGE, "body": "To view this email, open it in a browser."}
+
+        async def get_message_html(self, message_id: str) -> str | None:
+            return INVITATION
+
+        async def get_own_address(self) -> str | None:
+            return "jean@example.org"
+
+    class _Opened:
+        client = _Laid()
+        connector_type = ConnectorType.GOOGLE_GMAIL
+
+    @asynccontextmanager
+    async def opening(tool: WorkbenchTool, user_id: object) -> AsyncIterator[_Opened]:
+        yield _Opened()
+
+    monkeypatch.setattr(actions, "open_tool_client", opening)
+    run = _run()
+
+    if read is event_from_message:
+        await read(run, "m1", CLOCK, None)
+    else:
+        await read(run, "m1", CLOCK, [], None)
+
+    data = _data(asked[0])
+    assert "Board meeting" in data and "Thursday 20 November 2026, 14:00" in data
+    assert "Room Galilée, Lyon" in data
+    assert "To view this email" not in data
+    assert "<td>" not in data
+    assert run.opened is True
 
 
 async def test_an_event_never_invites_the_reader_s_own_mailbox(
@@ -306,6 +356,9 @@ async def test_an_event_is_still_read_when_the_mailbox_cannot_say_its_own_addres
     class _Mute:
         async def get_message(self, message_id: str, *, use_cache: bool) -> dict[str, Any]:
             return MESSAGE
+
+        async def get_message_html(self, message_id: str) -> str | None:
+            return None
 
         async def get_own_address(self) -> str | None:
             raise RuntimeError("profile unreadable")
@@ -350,7 +403,7 @@ async def test_a_task_is_read_from_the_message(asked: list[str], mailbox: list[s
     task = await task_from_message(_run(), "m1", CLOCK, [], None)
 
     assert task.title == "Pay"
-    assert mailbox == ["m1"]
+    assert mailbox == ["m1", "m1 layout"]
 
 
 async def test_a_form_reads_whom_the_message_went_to_and_what_it_carries(

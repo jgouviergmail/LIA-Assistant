@@ -114,14 +114,7 @@ Yes, when the administrator has switched the capability on. A space can follow o
 In the space you see the label, its state, how many threads are indexed, and two actions: sync now, or stop following it — keeping the documents or deleting them with it.
 
 ## Why is a document "in error", and what about a scanned PDF?
-Under the document's row, LIA tells you why it could not be indexed, in your
-language: file gone from the server, text impossible to extract, no text found,
-document too long for the space's passage limit, or indexing abandoned after
-repeated failures (an unavailable embedding service, for example — delete the
-document and upload it again).
 
-The most frequent case is the **scanned PDF**: page images with no text layer.
-LIA runs no character recognition, says so, and gives you the remedy: put the
-file on **Google Drive**, open it with **Google Docs** (the text is recognised
-automatically), then add that Google Doc to the space through its **Drive
-source**, which imports it as text.
+Under the document's row, LIA now tells you why it could not be indexed, in your language: file gone from the server, text impossible to extract, file too large once unzipped (an Office, OpenDocument or EPUB document declaring more than a space reads), no text found, document too long for the space's passage limit, or indexing abandoned after repeated failures (for example an unavailable embedding service — delete the document and upload it again).
+
+The most frequent case is the **scanned PDF**: page images with no text layer. LIA runs no character recognition, says so, and gives you the remedy: put the file on **Google Drive**, open it with **Google Docs** (the text is recognised automatically), then add that Google Doc to the space through its **Drive source**, which imports it as text.

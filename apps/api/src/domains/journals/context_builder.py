@@ -194,6 +194,7 @@ async def _semantic_entries(
             exclude_levels=excluded,
             operational_only=True,
             observed_scores=observed,
+            with_vectors=False,
         )
         if observed:
             await observe_score(user_id, JOURNAL_INJECTION_PERIMETER, max(observed))
@@ -223,6 +224,7 @@ async def _recent_entries(
         limit=count,
         exclude_levels=excluded,
         operational_only=True,
+        with_vectors=False,
     )
     semantic_ids = {entry.id for entry, _ in scored}
     return [(entry, None) for entry in raw if entry.id not in semantic_ids]

@@ -51,6 +51,9 @@ def _public() -> PublicAnswers:
         speaking_avatar=True,
         world=True,
         web_search=True,
+        ntfy_server=True,
+        ntfy_domain="ntfy.example.org",
+        ntfy_ios_relay=True,
         server_host=None,
         web_domain="lia.example.org",
         api_domain="api.example.org",
@@ -137,6 +140,9 @@ def test_older_state_keeps_new_capabilities_disabled(tmp_path: Path) -> None:
         "speaking_avatar",
         "world",
         "web_search",
+        "ntfy_server",
+        "ntfy_domain",
+        "ntfy_ios_relay",
     ):
         payload["public_answers"].pop(key)
     path.write_text(json.dumps(payload), encoding="utf-8")
@@ -149,6 +155,10 @@ def test_older_state_keeps_new_capabilities_disabled(tmp_path: Path) -> None:
     assert not loaded.public_answers.world
     # An install made before the question keeps what it runs until it is asked.
     assert not loaded.public_answers.web_search
+    # An install made before its ntfy question runs no ntfy server.
+    assert not loaded.public_answers.ntfy_server
+    assert loaded.public_answers.ntfy_domain is None
+    assert not loaded.public_answers.ntfy_ios_relay
 
 
 def test_atomic_save_survives_a_failed_replace(

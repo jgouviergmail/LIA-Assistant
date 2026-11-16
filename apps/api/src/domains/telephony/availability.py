@@ -1,17 +1,19 @@
 """Availability pre-fetch for agentic calls (spec D-5).
 
-Builds a compact free/busy summary from the user's active calendar, projecting
+Builds a compact free/busy summary from every calendar the user owns on their
+active calendar connector (``calendar_lists``), projecting
 events to busy time ranges ONLY — never titles, attendees, or locations. This is
 minimization *by capability*, not by prompt: the projection reads solely the
-``start``/``end`` of each event (and asks the provider for just those fields), so
-meeting details are never even fetched. The summary is injected as the
-``{{availability_summary}}`` dynamic variable so the agent can answer availability
-questions on the call without ever seeing what the user is actually doing.
+``start``/``end`` of each event, and asks the provider for those fields alone where
+it projects (Graph and CalDAV answer whole events, of which nothing else is read).
+The summary is injected as the ``{{availability_summary}}`` dynamic variable so the
+agent can answer availability questions on the call without ever seeing what the
+user is actually doing.
 
 Since lot B (2026-08) the Google client exposes ``query_freebusy``: when the
 resolved client offers it, busy ranges come from the freeBusy endpoint (even
-less data than the projection). Other providers keep the ``list_events``
-start/end projection.
+less data than the projection). Other providers keep the start/end projection of
+every event of the window.
 
 The pre-fetch is best-effort: any resolution/HTTP failure (or no calendar
 connector) yields the localized "unavailable" line and NEVER raises — a missing
@@ -31,9 +33,16 @@ from uuid import UUID
 import httpx
 import structlog
 
+from src.core.constants import CALENDARS_READ_MAX
 from src.core.i18n import resolve_language
 from src.core.i18n_telephony import get_availability_phrases
 from src.core.time_utils import format_datetime_for_display
+from src.domains.connectors.clients.calendar_lists import (
+    calendars_to_read,
+    read_owned_events,
+    unread_in_freebusy,
+)
+from src.domains.connectors.clients.event_order import soonest_first
 
 if TYPE_CHECKING:
     from src.domains.connectors.calendar_access import CalendarAccess
@@ -89,11 +98,14 @@ def summarize_busy_periods(
         block, or the "all free" line when there are no busy blocks.
     """
     phrases = get_availability_phrases(user_language)
-    lines = [
-        line
-        for event in events
-        if (line := _busy_line(event, user_timezone, user_language)) is not None
-    ]
+    # One line per busy range: two calendars holding one meeting say it once.
+    lines = list(
+        dict.fromkeys(
+            line
+            for event in events
+            if (line := _busy_line(event, user_timezone, user_language)) is not None
+        )
+    )
     if not lines:
         return phrases["all_free"]
     return phrases["header"] + "\n" + "\n".join(lines)
@@ -101,34 +113,44 @@ def summarize_busy_periods(
 
 async def _busy_events(
     access: CalendarAccess, window_start: datetime, window_end: datetime
-) -> list[dict[str, Any]]:
-    """The busy blocks of the open calendar, in the Google event shape."""
+) -> tuple[list[dict[str, Any]], bool]:
+    """The busy blocks of every calendar the account owns, soonest first, and whether whole.
+
+    The configured default says where an event is created, never where a
+    meeting is (``calendar_lists``, owner rule 2026-11-15): an invitation in the
+    main calendar makes the person busy too. A busy list read in part would tell
+    the voice a booked hour is free: the caller says « unavailable » instead
+    (ADR-185 amendment 2026-11-15).
+    """
     client = access.client
-    calendar_id = access.calendar_id
+    time_min, time_max = window_start.isoformat(), window_end.isoformat()
     if hasattr(client, "query_freebusy"):
         # Lot B (2026-08): the freeBusy endpoint returns busy ranges only —
         # even less data than the start/end projection, so it wins when
         # the provider offers it. Projected to the Google event shape so
         # summarize_busy_periods stays the single rendering path.
+        calendars = await calendars_to_read(client, access.calendar_id, bound=CALENDARS_READ_MAX)
         freebusy = await client.query_freebusy(
-            time_min=window_start.isoformat(),
-            time_max=window_end.isoformat(),
-            calendar_ids=[calendar_id],
+            time_min=time_min, time_max=time_max, calendar_ids=calendars.ids
         )
-        return [
+        blocks = [
             {"start": {"dateTime": block.get("start")}, "end": {"dateTime": block.get("end")}}
             for calendar in (freebusy.get("calendars") or {}).values()
             for block in calendar.get("busy", [])
         ]
-    result = await client.list_events(
-        time_min=window_start.isoformat(),
-        time_max=window_end.isoformat(),
-        max_results=_MAX_EVENTS,
-        calendar_id=calendar_id,
-        # Minimization by capability: never fetch titles/attendees/locations.
+        whole = not (calendars.cut or unread_in_freebusy(freebusy, calendars.ids))
+        return soonest_first(blocks), whole
+    # Every event of the window, pages drained: the agents' one-request listing
+    # stopped at its ceiling and left the rest of the window « free ».
+    owned = await read_owned_events(
+        client,
+        access.calendar_id,
+        [(time_min, time_max)],
+        bound=_MAX_EVENTS,
+        # Minimization by capability: never ask for titles, attendees, locations.
         fields=["start", "end"],
     )
-    return list(result.get("items", []) or [])
+    return soonest_first(owned.events), not owned.cut
 
 
 @dataclass(frozen=True)
@@ -159,10 +181,11 @@ async def build_availability(
 ) -> AvailabilityRead:
     """Build the free/busy summary injected as the ``{{availability_summary}}`` var.
 
-    Resolves the user's active calendar connector, pulls events over
-    ``[window_start, window_end]`` requesting only ``start``/``end``, and projects
-    them to a compact busy summary. Best-effort: returns the localized
-    "unavailable" line on any failure and never raises.
+    Resolves the user's active calendar connector, reads the busy ranges over
+    ``[window_start, window_end]`` (freeBusy where the provider has it, every
+    event of the window otherwise), and projects them to a compact busy summary.
+    Best-effort: returns the localized "unavailable" line on any failure, and on
+    a window read in part, and never raises.
 
     Args:
         user_id: Owner of the calendar.
@@ -187,11 +210,15 @@ async def build_availability(
         async with open_active_calendar(user_id) as access:
             if not isinstance(access, CalendarAccess):
                 return not_opened
-            events = await _busy_events(access, window_start, window_end)
+            events, whole = await _busy_events(access, window_start, window_end)
     except (TimeoutError, httpx.HTTPError, ValueError, KeyError, AttributeError) as exc:
         logger.warning(
             "telephony_availability_prefetch_failed", user_id=str(user_id), error=str(exc)
         )
+        return AvailabilityRead(summary=phrases["unavailable"], opened=True, failed=True)
+    if not whole:
+        # Said, never guessed: a cut busy list is no free/busy answer.
+        logger.warning("telephony_availability_window_cut", user_id=str(user_id))
         return AvailabilityRead(summary=phrases["unavailable"], opened=True, failed=True)
 
     return AvailabilityRead(

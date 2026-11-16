@@ -44,6 +44,7 @@ from src.core.constants import (
     RESPONSE_FEEDBACK_JOURNAL_IDS_MAX,
 )
 from src.core.field_names import (
+    FIELD_EXECUTION_ENGINE,
     FIELD_INJECTED_JOURNAL_IDS,
     FIELD_INJECTED_JOURNAL_REVISIONS,
     FIELD_LIVE_SESSION_ID,
@@ -54,6 +55,7 @@ from src.core.field_names import (
 )
 from src.domains.agents.api.run_origin import with_origin_stamp
 from src.domains.agents.data_registry.message_widgets import with_persisted_widgets
+from src.domains.agents.effects import decisions as turn_record
 from src.domains.agents.expressivity.activity_summary import ActivitySnapshot
 from src.domains.agents.services.streaming.followup_metadata import (
     TurnExtras,
@@ -141,6 +143,26 @@ def with_performed_effects(
     return {**message_metadata, FIELD_PERFORMED_EFFECTS: effects}
 
 
+def with_execution_engine(metadata: dict[str, Any]) -> dict[str, Any]:
+    """Name the engine an « auto » turn ran in, for its answer's badge (ADR-390).
+
+    Read from the turn's live record, the one place both the router (a new turn)
+    and the context builder (a resumed one) settle it. An explicit choice and a
+    conversation carry nothing: the badge is the automatic mode's transparency.
+
+    Args:
+        metadata: The metadata assembled so far.
+
+    Returns:
+        The input unchanged (same object) when there is no engine to name,
+        otherwise a NEW dict carrying it.
+    """
+    engine = turn_record.automatic_turn_engine()
+    if engine is None:
+        return metadata
+    return {**metadata, FIELD_EXECUTION_ENGINE: engine}
+
+
 def with_archived_message_ids(
     done_metadata: dict[str, Any],
     *,
@@ -223,6 +245,7 @@ def build_assistant_metadata(
     metadata = with_habit_proposal(metadata, extras.habit_proposal)
     metadata = with_performed_effects(metadata, effects)
     metadata = with_companion_metadata(metadata, expressivity, activity)
+    metadata = with_execution_engine(metadata)
     metadata = {**metadata, **(card_metadata or {}), **(efficacy_envelope or {})}
     # ADR-276: an out-of-turn run archives its rows exactly like any turn — the
     # decision register points at them — and it is the READ that keeps them out

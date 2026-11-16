@@ -6,6 +6,16 @@ export function discussionSelection(target: ConversationSummary | null): Convers
   return { conversation_id: target.id, conversation_revision: target.revision };
 }
 
+/**
+ * The annex a view shows, or `null` for Main (and for a view not loaded yet).
+ *
+ * @param target - The discussion on screen.
+ * @returns The annex's id, or `null`.
+ */
+export function annexIdOf(target: ConversationSummary | null | undefined): string | null {
+  return target?.kind === 'secondary' ? target.id : null;
+}
+
 export function conversationParams(
   selection?: ConversationSelection
 ): Record<string, string | number> {

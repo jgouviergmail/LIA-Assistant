@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException
+from src.domains.conversations.return_target import annex_origin_columns
 from src.domains.meetings.audio_store import AudioStorageError
 from src.domains.meetings.models import Meeting, MeetingAudioFormat, MeetingStatus, is_import
 from src.domains.meetings.schemas import (
@@ -118,6 +119,10 @@ class MeetingImportService:
                     "last_segment_at": datetime.now(UTC),
                     "client_timezone": request.timezone,
                     **self.meetings.admitted_values(admission),
+                    # Its minutes come back to the discussion on screen (ADR-378).
+                    **await annex_origin_columns(
+                        self.meetings.db, user.id, request.conversation_id
+                    ),
                 }
             )
             await self.meetings.db.commit()

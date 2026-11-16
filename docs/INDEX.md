@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 48 |
-| ADRs | 386 ADR files (ADR-388 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
+| ADRs | 389 ADR files (ADR-391 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
 | Fiches knowledge (RAG système) | [Fichiers de la FAQ système](knowledge/) |
 
 ---
@@ -49,7 +49,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ARCHITECTURE_AGENT.md](./ARCHITECTURE_AGENT.md) | **Le manuel du domaine agents** : ajouter un connecteur, un agent, un tool ; manifestes, cache, DI, contexte, tests |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence (les reducers font autorité ici) |
 | [TELEPHONY.md](./technical/TELEPHONY.md) | Téléphonie agentique (appels sortants, ADR-127) ; le téléphone comme canal — numéro vérifié, appel du titulaire sans carte, relais en tour, outils en direct dérivés du catalogue avec projection vocale, une dépense par appel, domaines et personnalité de la personne, périmètre du portail (ADR-290) ; le mode Live du téléphone — la session Live du navigateur sur la ligne, chaque demande un tour de chat pendant l'appel par un pont serveur, Live / Live direct au choix de la personne, disponible seulement où le vendeur peut rappeler l'API (ADR-301) ; calcul, journal et activité offerts à la voix, pas les fichiers générés (ADR-318) |
-| [MEETINGS.md](./technical/MEETINGS.md) | Enregistrement de réunions et comptes rendus structurés (ADR-258), bibliothèque de modèles et changement de format (ADR-259) |
+| [MEETINGS.md](./technical/MEETINGS.md) | Enregistrement de réunions et comptes rendus structurés (ADR-258), bibliothèque de modèles (ADR-259), retour dans la discussion de départ (ADR-378) |
 | [WORKBOARD.md](./technical/WORKBOARD.md) | Le tableau de tickets (ADR-276) : sept colonnes, un porteur, un résultat ; LIA exécute les tickets qui lui sont affectés ; des catégories, et un couloir par catégorie |
 | [LIVE_MODE.md](./technical/LIVE_MODE.md) | Le mode Live vocal (ADR-299, ADR-300, ADR-301) : parole à parole sur la clé de la personne, Gemini Live, GPT-Live ET ElevenLabs Agents (catégorie additive, deux fils sous une couture — jeton ou offre SDP, fonction ou délégation native), la voix délègue toute demande au moteur du chat, la session DIRECTE qui tient les outils de lecture elle-même, une session par compte, silence et plafond par modèle, le compteur indicatif du fournisseur (facturation `vendor` : montrée, jamais enregistrée), la dépense de LIA sur la carte de clôture, le mode direct relayé à la fin comme au téléphone |
 | [RADIO.md](./technical/RADIO.md) | La radio personnelle (ADR-324) : une rédaction d'instance sans modèle et une antenne par auditeur qui ne tourne que pendant qu'il écoute ; grille déterministe, modèles qui n'écrivent que ce que des faits citent, voix et mixage, coût en direct ; routes et refus codés, réglages, tâches de fond, métriques et alerte |
@@ -62,7 +62,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (386 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (389 ADR files) |
 
 ### Pour les Product Managers
 
@@ -178,14 +178,15 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ROUTES.md](./technical/ROUTES.md) | Google Routes API, directions | ✅ |
 | [WEB_FETCH.md](./technical/WEB_FETCH.md) | Extraction contenu pages web (URL → Markdown), SSRF prevention | ✅ |
 | [WEB_SEARCH.md](./technical/WEB_SEARCH.md) | Recherche web : qui trouve les liens (clé de la personne, puis SearXNG de l'instance, ADR-382), la porte unique, l'exploitation et la mesure | ✅ |
-| [WRITING_STYLE.md](./technical/WRITING_STYLE.md) | Style d'écriture : le profil appris des mails envoyés (ADR-383), la porte unique lue par chaque rédacteur, l'interrupteur, l'oubli et la mesure | ✅ |
-| [WAITING_MESSAGES.md](./technical/WAITING_MESSAGES.md) | Message en attente : les mots écrits pendant que LIA travaille, gardés par le serveur, leur départ après une fin normale, leur retenue sinon, la bulle du chat (ADR-384) et la note jointe à la réponse en cours (ADR-385) | ✅ |
+| [WRITING_STYLE.md](./technical/WRITING_STYLE.md) | Style d'écriture : le profil appris des mails envoyés à la demande de la personne (réglages ou assistant, ADR-383 et son amendement du 2026-11-16), la porte d'auteur des outils qui écrivent à quelqu'un, la porte unique lue par chaque rédacteur, l'interrupteur, l'oubli et les mesures | ✅ |
+| [WAITING_MESSAGES.md](./technical/WAITING_MESSAGES.md) | Message en attente : les mots écrits pendant que LIA travaille, gardés par le serveur, leur départ après une fin normale, leur retenue sinon, la bulle du chat (ADR-384), sur Telegram aussi (amendement du 2026-11-15) et la note jointe à la réponse en cours (ADR-385) | ✅ |
 | [MODEL_OUTPUT_HEALTH.md](./technical/MODEL_OUTPUT_HEALTH.md) | Santé des sorties de modèle : boucles de répétition, flux figés et comptage des jetons de l'historique, mesurés en production avant tout détecteur (lot 26) | ✅ |
 | [BROWSER_CONTROL.md](./technical/BROWSER_CONTROL.md) | Browser automation (Playwright) — navigation, interaction, extraction JS, progressive screenshots (SSE side-channel) — evolution F7 | ✅ |
 | [MCP_INTEGRATION.md](./technical/MCP_INTEGRATION.md) | MCP (Model Context Protocol) — Serveurs d'outils externes, MCP Apps, Excalidraw; public server origin/called method and shared personal-server quota cooldown | ✅ |
-| [CHANNELS_INTEGRATION.md](./technical/CHANNELS_INTEGRATION.md) | Canaux de messagerie externes (Telegram) — evolution F3 | ✅ |
+| [NTFY.md](./technical/NTFY.md) | Notifications par ntfy (ADR-391) : une porte de publication pour chaque chemin d'une notification, serveur de l'instance ou serveur public vérifié, contenu minimal par défaut, routes des réglages, limites mesurées | ✅ |
+| [CHANNELS_INTEGRATION.md](./technical/CHANNELS_INTEGRATION.md) | Canaux de messagerie externes (Telegram) — evolution F3 ; commandes, messages en attente, fichiers et albums, position, réponse vocale (ADR-389) | ✅ |
 | [ATTACHMENTS_INTEGRATION.md](./technical/ATTACHMENTS_INTEGRATION.md) | Pièces jointes (images, PDF) avec analyse vision LLM — evolution F4 ; la galerie des fichiers produits (ADR-279), retrouvée depuis la conversation et montrée en cartes (`find_generated_files_tool`, ADR-318) ; conserver un fichier au-delà de son échéance, sous deux plafonds par compte, et des cartes du chat restituées depuis la ligne du fichier (ADR-319) ; l'envoi d'un fichier généré ou d'une réponse par e-mail (ADR-321) | ✅ |
-| [SECONDARY_CONVERSATIONS.md](./technical/SECONDARY_CONVERSATIONS.md) | Principale, discussions annexes, contexte isolé, comptabilité et reprise du nettoyage (ADR-378) | ✅ |
+| [SECONDARY_CONVERSATIONS.md](./technical/SECONDARY_CONVERSATIONS.md) | Principale, annexes, contexte isolé, comptabilité, retours différés dans la discussion de départ et reprise du nettoyage (ADR-378) | ✅ |
 | [IMAGE_GENERATION.md](./technical/IMAGE_GENERATION.md) | AI Image Generation — multi-provider (OpenAI GPT Image, Qwen Image 3.0) : une famille déclare l'offre d'un modèle, un client par fournisseur la sert, la préférence résolue comme intention, l'image de référence tarifée (ADR-305) ; amélioration facultative du prompt par un créneau dédié, jamais une barrière (ADR-315) ; partage d'une image avec une connexion, en copie dans sa galerie et son chat (ADR-316) ; un appel facturé partagé avec les illustrations des documents (ADR-388) ; cost tracking, attachment storage | ✅ |
 | [DOCUMENT_GENERATION.md](./technical/DOCUMENT_GENERATION.md) | AI Document Generation (ADR-226, ADR-274, ADR-388) — dedicated LLM slot, crafted renderers (csv/xlsx/docx/pptx/pdf/md/txt): live formulas, native charts, a palette by tone, decks that move when presented, reports with a cover, key figures and linked sources, illustrations the person allows (billed per picture); TTL attachment cards; the writer's paid measurement | ✅ |
 | [TABULAR_ADMIN_IO.md](./technical/TABULAR_ADMIN_IO.md) | Import/export tabulaire des administrations (ADR-228) — socle déclaratif, classeur Excel, aperçu obligatoire, verrou optimiste par ligne | ✅ |
@@ -346,7 +347,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_MIGRATION.md](./guides/GUIDE_MIGRATION.md) | Guide migrations Alembic | ✅ |
 | [GUIDE_PERFORMANCE_TUNING.md](./guides/GUIDE_PERFORMANCE_TUNING.md) | Optimisation performance LLM | ✅ |
 | [GUIDE_MCP_INTEGRATION.md](./guides/GUIDE_MCP_INTEGRATION.md) | Guide pratique MCP (admin + per-user + MCP Apps + Excalidraw) | ✅ |
-| [GUIDE_TELEGRAM_INTEGRATION.md](./guides/GUIDE_TELEGRAM_INTEGRATION.md) | Guide pratique Telegram (bot, webhook posé par le leader seul — ADR-304, OTP, HITL) | ✅ |
+| [GUIDE_TELEGRAM_INTEGRATION.md](./guides/GUIDE_TELEGRAM_INTEGRATION.md) | Guide pratique Telegram (bot, webhook posé par le leader seul — ADR-304, OTP, HITL, `/stop` et `/help`, rendu, messages en attente, position, fichiers, réponse vocale — ADR-389) | ✅ |
 | [GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md](./guides/GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md) | Guide pratique Heartbeat (ProactiveTask, ContextAggregator) | ✅ |
 | [GUIDE_IPHONE_SHORTCUTS_HEALTH.md](./guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md) | Guide pas-à-pas — configurer l'automatisation iPhone pour pousser FC + pas vers LIA | ✅ |
 | [GUIDE_SCHEDULED_ACTIONS.md](./guides/GUIDE_SCHEDULED_ACTIONS.md) | Guide pratique Actions Planifiees (recurrentes, timezone, retry) | ✅ |
@@ -392,6 +393,9 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| [ADR-391](./architecture/ADR-391-Ntfy-Brings-The-Notifications-To-Any-Device.md) | **ntfy apporte les notifications sur tout appareil** : une seule porte publie vers ntfy depuis chaque chemin d'une notification (push, discussion proactive, boîte d'envoi des SMS, diffusion) ; contenu minimal par défaut, texte complet au choix ; serveur de l'instance ou serveur public vérifié avant chaque envoi ; sujet tiré et chiffré ; capacité `ntfy` | 2026-11 |
+| [ADR-390](./architecture/ADR-390-The-Automatic-Mode-Chooses-The-Engine-Per-Request.md) | **Le mode automatique choisit le moteur à chaque demande** : un troisième choix « auto » ; le routeur fixe une fois le moteur du tour (pipeline ou boucle ReAct) à partir de son analyse et d'un jugement JEV de la forme de la demande, la boucle au moindre doute ; menu d'en-tête à trois choix, tickets, routines et Telegram ; un petit badge sous la réponse nomme le moteur | 2026-11 |
+| [ADR-389](./architecture/ADR-389-Telegram-Reads-And-Answers-Like-The-Chat.md) | **Telegram lit et répond comme le chat** : une seule porte de rendu, tour annulable (`/stop`), position et message cité transmis au tour, fichiers dans les deux sens par les portes du chat, albums regroupés, réponse vocale aux notes vocales ; chaque besoin est un port de la passerelle injectée | 2026-11 |
 | [ADR-388](./architecture/ADR-388-Documents-Use-What-Their-Formats-Can-Do.md) | **Les documents exploitent ce que leurs formats savent faire** : formules recalculées, graphiques natifs, chiffres clés, palette par ton, illustrations sur accord ; le rédacteur dit ce qu'une chose EST, le moteur de rendu la dessine | 2026-11 |
 | [ADR-387](./architecture/ADR-387-A-Watched-Page-Is-Read-Without-A-Model.md) | **Une page surveillée est lue sans modèle** : sixième condition `page_change`, lecture bornée par la porte publique, registre instantané par ligne ; une ligne qui revient est de nouveau une nouvelle | 2026-11 |
 | [ADR-386](./architecture/ADR-386-A-Signed-Call-Starts-A-Routine.md) | **Un appel signé démarre une routine** : troisième horloge, adresse et secret tenus par le serveur, signature HMAC-SHA256, appel écrit avant d'être acquitté et lu comme contenu externe | 2026-11 |
@@ -633,7 +637,7 @@ section ne référence.
 | [TESTING_AGENTS.md](./technical/TESTING_AGENTS.md) | Tests du cœur agentique : windowing, orchestration, plans, HITL |
 | [AGENT_API_MIXINS.md](./technical/AGENT_API_MIXINS.md) | Mixins `AgentService` : architecture (infrastructure seulement) et tests |
 | [GUIDE_BENCHMARKING.md](./guides/GUIDE_BENCHMARKING.md) | Mesurer les performances : latence SSE (mono-utilisateur) et charge HITL (concurrent) |
-| [REMINDERS.md](./technical/REMINDERS.md) | Système de rappels : modèle, planification, notification |
+| [REMINDERS.md](./technical/REMINDERS.md) | Rappels : planification, livraison, report d’une occurrence et arrêt de sa série (ADR-268) |
 
 ---
 

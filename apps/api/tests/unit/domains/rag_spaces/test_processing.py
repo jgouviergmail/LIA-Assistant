@@ -882,7 +882,7 @@ class TestExtractText:
         file = tmp_path / "note.txt"
         file.write_text("plain content", encoding="utf-8")
 
-        result = extract_text(file, "text/plain")
+        result = extract_text(file, "text/plain", max_inflated_mb=100)
 
         assert result == "plain content"
 
@@ -892,7 +892,7 @@ class TestExtractText:
         file = tmp_path / "readme.md"
         file.write_text("# Title\n\nBody", encoding="utf-8")
 
-        result = extract_text(file, "text/markdown")
+        result = extract_text(file, "text/markdown", max_inflated_mb=100)
 
         assert result == "# Title\n\nBody"
 
@@ -903,7 +903,7 @@ class TestExtractText:
         file.write_bytes(b"\x89PNG")
 
         with pytest.raises(ValueError, match="Unsupported content type"):
-            extract_text(file, "image/png")
+            extract_text(file, "image/png", max_inflated_mb=100)
 
     @pytest.mark.unit
     def test_dispatches_pdf(self, tmp_path: Path) -> None:
@@ -912,7 +912,7 @@ class TestExtractText:
             "src.domains.rag_spaces.processing.extract_text_pdf",
             return_value="pdf content",
         ) as mock_pdf:
-            result = extract_text(tmp_path / "doc.pdf", "application/pdf")
+            result = extract_text(tmp_path / "doc.pdf", "application/pdf", max_inflated_mb=100)
 
         assert result == "pdf content"
         mock_pdf.assert_called_once()
@@ -925,7 +925,7 @@ class TestExtractText:
             "src.domains.rag_spaces.processing.extract_text_docx",
             return_value="docx content",
         ) as mock_docx:
-            result = extract_text(tmp_path / "doc.docx", docx_mime)
+            result = extract_text(tmp_path / "doc.docx", docx_mime, max_inflated_mb=100)
 
         assert result == "docx content"
         mock_docx.assert_called_once()
@@ -938,7 +938,7 @@ class TestExtractText:
             "src.domains.rag_spaces.processing.extract_text_pptx",
             return_value="pptx content",
         ) as mock_pptx:
-            result = extract_text(tmp_path / "deck.pptx", pptx_mime)
+            result = extract_text(tmp_path / "deck.pptx", pptx_mime, max_inflated_mb=100)
 
         assert result == "pptx content"
         mock_pptx.assert_called_once()
@@ -951,7 +951,7 @@ class TestExtractText:
             "src.domains.rag_spaces.processing.extract_text_xlsx",
             return_value="xlsx content",
         ) as mock_xlsx:
-            result = extract_text(tmp_path / "data.xlsx", xlsx_mime)
+            result = extract_text(tmp_path / "data.xlsx", xlsx_mime, max_inflated_mb=100)
 
         assert result == "xlsx content"
         mock_xlsx.assert_called_once()
@@ -966,7 +966,7 @@ class TestExtractText:
             "src.domains.rag_spaces.processing.extract_text_csv",
             return_value="csv content",
         ) as mock_csv:
-            result = extract_text(file, "text/csv")
+            result = extract_text(file, "text/csv", max_inflated_mb=100)
 
         assert result == "csv content"
         mock_csv.assert_called_once()
@@ -978,7 +978,7 @@ class TestExtractText:
             "src.domains.rag_spaces.processing.extract_text_rtf",
             return_value="rtf content",
         ) as mock_rtf:
-            result = extract_text(tmp_path / "doc.rtf", "application/rtf")
+            result = extract_text(tmp_path / "doc.rtf", "application/rtf", max_inflated_mb=100)
 
         assert result == "rtf content"
         mock_rtf.assert_called_once()
@@ -990,7 +990,7 @@ class TestExtractText:
             "src.domains.rag_spaces.processing.extract_text_html",
             return_value="html content",
         ) as mock_html:
-            result = extract_text(tmp_path / "page.html", "text/html")
+            result = extract_text(tmp_path / "page.html", "text/html", max_inflated_mb=100)
 
         assert result == "html content"
         mock_html.assert_called_once()
@@ -1005,6 +1005,7 @@ class TestExtractText:
             result = extract_text(
                 tmp_path / "doc.odt",
                 "application/vnd.oasis.opendocument.text",
+                max_inflated_mb=100,
             )
 
         assert result == "odt content"
@@ -1020,6 +1021,7 @@ class TestExtractText:
             result = extract_text(
                 tmp_path / "data.ods",
                 "application/vnd.oasis.opendocument.spreadsheet",
+                max_inflated_mb=100,
             )
 
         assert result == "ods content"
@@ -1035,6 +1037,7 @@ class TestExtractText:
             result = extract_text(
                 tmp_path / "slides.odp",
                 "application/vnd.oasis.opendocument.presentation",
+                max_inflated_mb=100,
             )
 
         assert result == "odp content"
@@ -1047,7 +1050,9 @@ class TestExtractText:
             "src.domains.rag_spaces.processing.extract_text_epub",
             return_value="epub content",
         ) as mock_epub:
-            result = extract_text(tmp_path / "book.epub", "application/epub+zip")
+            result = extract_text(
+                tmp_path / "book.epub", "application/epub+zip", max_inflated_mb=100
+            )
 
         assert result == "epub content"
         mock_epub.assert_called_once()
@@ -1059,7 +1064,7 @@ class TestExtractText:
             "src.domains.rag_spaces.processing.extract_text_json",
             return_value="json content",
         ) as mock_json:
-            result = extract_text(tmp_path / "data.json", "application/json")
+            result = extract_text(tmp_path / "data.json", "application/json", max_inflated_mb=100)
 
         assert result == "json content"
         mock_json.assert_called_once()
@@ -1071,7 +1076,7 @@ class TestExtractText:
             "src.domains.rag_spaces.processing.extract_text_xml",
             return_value="xml content",
         ) as mock_xml:
-            result = extract_text(tmp_path / "data.xml", "application/xml")
+            result = extract_text(tmp_path / "data.xml", "application/xml", max_inflated_mb=100)
 
         assert result == "xml content"
         mock_xml.assert_called_once()
@@ -1083,7 +1088,7 @@ class TestExtractText:
             "src.domains.rag_spaces.processing.extract_text_xml",
             return_value="xml content",
         ) as mock_xml:
-            result = extract_text(tmp_path / "data.xml", "text/xml")
+            result = extract_text(tmp_path / "data.xml", "text/xml", max_inflated_mb=100)
 
         assert result == "xml content"
         mock_xml.assert_called_once()
@@ -1306,6 +1311,69 @@ class TestProcessDocument:
                 call_args = mock_mark_error.call_args
                 assert "No text content" in call_args[0][3]
                 assert call_args.kwargs["code"] is RAGDocumentErrorCode.NO_TEXT_CONTENT
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_an_archive_past_the_space_ceiling_ends_in_its_own_error(
+        self, ids, mock_document, tmp_path
+    ) -> None:
+        """A space reads a zipped document only within its own ceiling, and says why it did not
+        (2026-11-14): never a generic extraction failure, never its reader started."""
+        from tests.unit.domains.rag_spaces.test_reader_inflation import DOCX, padded_docx
+
+        patches = self._patch_processing()
+        storage_dir = tmp_path / str(ids["user_id"]) / str(ids["space_id"])
+        storage_dir.mkdir(parents=True)
+        padded_docx(storage_dir, megabytes=2).rename(storage_dir / "abc123.docx")
+
+        mock_db = AsyncMock()
+        mock_doc_repo = AsyncMock()
+        mock_doc_repo.get_by_id.return_value = mock_document
+
+        with (
+            patches["db_ctx"] as mock_get_db,
+            patches["set_ctx"],
+            patches["clear_ctx"],
+            patches["settings"] as mock_settings,
+            patches["storage_settings"],
+            patches["metrics_processed"],
+        ):
+            ctx_manager = AsyncMock()
+            ctx_manager.__aenter__ = AsyncMock(return_value=mock_db)
+            ctx_manager.__aexit__ = AsyncMock(return_value=False)
+            mock_get_db.return_value = ctx_manager
+
+            mock_settings.rag_spaces_storage_path = str(tmp_path)
+            mock_settings.rag_spaces_max_inflated_mb = 1
+
+            with (
+                patch(
+                    "src.domains.rag_spaces.processing.RAGDocumentRepository",
+                    return_value=mock_doc_repo,
+                ),
+                patch("src.domains.rag_spaces.processing.RAGChunkRepository"),
+                patch(
+                    "src.domains.rag_spaces.processing.extract_text_docx",
+                ) as reader,
+                patch(
+                    "src.domains.rag_spaces.processing._mark_document_error",
+                    new_callable=AsyncMock,
+                ) as mock_mark_error,
+            ):
+                await process_document(
+                    document_id=ids["document_id"],
+                    space_id=ids["space_id"],
+                    user_id=ids["user_id"],
+                    filename="abc123.docx",
+                    original_filename="padded.docx",
+                    content_type=DOCX,
+                )
+
+                reader.assert_not_called()
+                mock_mark_error.assert_awaited_once()
+                call_args = mock_mark_error.call_args
+                assert call_args.kwargs["code"] is RAGDocumentErrorCode.INFLATES_TOO_FAR
+                assert "2 MB" in call_args[0][3] and "1 MB" in call_args[0][3]
 
     @pytest.mark.asyncio
     @pytest.mark.unit

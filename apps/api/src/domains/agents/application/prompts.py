@@ -205,6 +205,12 @@ from src.domains.agents.application.shared_mcp_schemas import (
     SharedMCPPreferenceUpdateRequest,
 )
 from src.domains.agents.application.sms_editor_inputs import SMS_EDITOR_MODELS, sms_editor_request
+from src.domains.agents.application.writing_style_schemas import (
+    WritingStyleForgetPatch,
+    WritingStyleForgetRequest,
+    WritingStyleLearnPatch,
+    WritingStyleLearnRequest,
+)
 from src.domains.agents.prompts import load_prompt
 
 
@@ -446,6 +452,8 @@ def _safe_editor_request(
         HabitDeletePatch,
         HabitForgetPatch,
         HabitRecomputePatch,
+        WritingStyleLearnPatch,
+        WritingStyleForgetPatch,
         OpenLoopUpdatePatch,
         PsycheResetPatch,
         HealthTokenRevokePatch,
@@ -509,6 +517,8 @@ def _record_editor_request(
         JournalConsolidationPatch: (JournalConsolidationRequest, "current_account"),
         HabitRecomputePatch: (HabitRecomputeRequest, "current_account"),
         HabitForgetPatch: (HabitForgetRequest, "all_owned"),
+        WritingStyleLearnPatch: (WritingStyleLearnRequest, "current_account"),
+        WritingStyleForgetPatch: (WritingStyleForgetRequest, "current_account"),
     }
     if fixed := fixed_requests.get(model):
         model.model_validate(intent)

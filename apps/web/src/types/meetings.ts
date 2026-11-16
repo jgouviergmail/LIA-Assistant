@@ -232,6 +232,11 @@ export interface MeetingStartRequest {
   geolocation: MeetingGeolocation | null;
   /** Minutes template chosen for THIS meeting; absent = preference, then automatic. */
   template_ref?: string;
+  /**
+   * The chat annex on screen when the meeting began: its « minutes ready » comes
+   * back there while that discussion lives (ADR-378 amendment). Absent: Main.
+   */
+  conversation_id?: string | null;
 }
 
 export interface MeetingStopRequest {
@@ -291,6 +296,11 @@ export interface MeetingImportRequest {
   timezone: string;
   language: string;
   template_ref: string | null;
+  /**
+   * The chat annex on screen when the meeting began: its « minutes ready » comes
+   * back there while that discussion lives (ADR-378 amendment). Absent: Main.
+   */
+  conversation_id?: string | null;
 }
 
 export interface MeetingImportResponse {

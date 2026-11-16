@@ -23,15 +23,15 @@ export async function PromiseSection({ lng }: { lng: string }) {
       />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <FadeInOnScroll>
-          <div className="max-w-3xl">
+          <div>
             <p className="text-sm font-medium text-primary">{t('landing.promise.eyebrow')}</p>
             <h2
               id="landing-promise-title"
-              className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
+              className="mt-4 text-3xl font-bold tracking-tight text-foreground mobile:text-4xl"
             >
               {t('landing.promise.title')}
             </h2>
-            <p className="mt-5 max-w-[68ch] text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
+            <p className="mt-5 leading-7 text-muted-foreground">
               {t('landing.promise.lead')}
             </p>
           </div>

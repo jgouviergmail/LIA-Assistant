@@ -94,9 +94,11 @@ class TestWhatTheSurfaceOffers:
 
     This class asserted the opposite until that day: "no edit, no snooze, no
     acknowledgement — the design decision stands". The owner reversed the
-    first of those three, and it is now a first-class verb. The other two were
-    never asked for and are still absent, so the assertion narrows rather than
-    disappearing — a guard that only ever loosened would stop guarding.
+    first of those three, and it is now a first-class verb; the snooze followed
+    on 2026-11-16 (ADR-268 amendment), on the OCCURRENCE that rang. The
+    acknowledgement was never asked for and is still absent, so the assertion
+    narrows rather than disappearing — a guard that only ever loosened would
+    stop guarding.
     """
 
     def test_the_router_offers_reading_creating_changing_and_deleting(self) -> None:
@@ -114,10 +116,14 @@ class TestWhatTheSurfaceOffers:
         assert ("/reminders/{reminder_id}", "PATCH") in verbs
         assert ("/reminders/{reminder_id}", "DELETE") in verbs
 
-    def test_there_is_still_no_snooze_and_no_acknowledgement(self) -> None:
-        """Neither was asked for, and both would need state the row has not.
+    def test_a_snooze_names_the_occurrence_and_nothing_acknowledges(self) -> None:
+        """The snooze was asked for; the acknowledgement still was not.
 
-        A snooze is a schedule change (PATCH already does it); an
+        ADR-268 refused the snooze because a press could not say WHICH
+        occurrence it meant: a one-shot reminder is deleted when it fires and a
+        series has moved on. It is served on the record of the occurrence
+        (``/firings/{firing_id}``) and nowhere else — a snooze on the reminder
+        itself would bring back exactly the ambiguity the record removes. An
         acknowledgement would need a status the domain deliberately lacks,
         since a reminder with no future is deleted rather than marked.
         """
@@ -125,7 +131,8 @@ class TestWhatTheSurfaceOffers:
 
         paths = {route.path for route in served_routes(router)}
 
-        assert not any("snooze" in p or "acknowledge" in p for p in paths), paths
+        assert {p for p in paths if "snooze" in p} == {"/reminders/firings/{firing_id}/snooze"}
+        assert not any("acknowledge" in p for p in paths), paths
 
     def test_the_listing_is_still_never_a_history(self) -> None:
         """The one thing the reversal did NOT change.

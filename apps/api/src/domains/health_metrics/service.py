@@ -8,8 +8,10 @@ Responsibilities:
 - **Batch ingestion**: per-kind validation (physiological bounds, ISO 8601
   date parsing, UTC normalization, source slugification) and idempotent
   upsert into ``health_samples`` via the repository's bulk upsert.
-- **Aggregation**: delegates bucketing to ``aggregator.aggregate_samples``
-  after fetching the window of samples from the DB.
+- **Aggregation**: delegates the chart to ``chart_read.read_chart_statistics``
+  and every summary to the repository's SQL rollups, all counted through the
+  fusion door (``fusion.counted_samples``) and cut at the person's midnight
+  (ADR-148 amendment 2026-11-14).
 - **Deletion**: per-kind (DELETE WHERE kind=?) or full (DELETE all).
 
 The service layer raises centralized exceptions so the router stays thin.
@@ -25,20 +27,17 @@ import secrets
 import unicodedata
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any, Literal
+from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import (
     HEALTH_METRICS_AGENT_CONTEXT_MAX_CHARS,
     HEALTH_METRICS_AGENT_SUMMARY_WINDOW_DAYS,
+    HEALTH_METRICS_CHART_MAX_BUCKETS,
     HEALTH_METRICS_KINDS,
-    HEALTH_METRICS_PERIOD_DAY,
-    HEALTH_METRICS_PERIOD_HOUR,
-    HEALTH_METRICS_PERIOD_MONTH,
-    HEALTH_METRICS_PERIOD_WEEK,
-    HEALTH_METRICS_PERIOD_YEAR,
     HEALTH_METRICS_SOURCE_DEFAULT,
     HEALTH_METRICS_SOURCE_MAX_LENGTH,
     HEALTH_METRICS_TOKEN_DISPLAY_PREFIX_CHARS,
@@ -47,10 +46,16 @@ from src.core.constants import (
     HEALTH_METRICS_TOKEN_RANDOM_BYTES,
 )
 from src.core.exceptions import raise_invalid_input
-from src.domains.health_metrics.aggregator import PeriodLiteral, aggregate_samples
+from src.core.local_day import local_midnight, local_today
 from src.domains.health_metrics.baseline import (
     baseline_window_start,
     compute_kind_delta_from_stats,
+    daily_values,
+)
+from src.domains.health_metrics.chart_read import (
+    PeriodLiteral,
+    default_chart_window,
+    read_chart_statistics,
 )
 from src.domains.health_metrics.constants import (
     LOG_EVENT_BATCH_DUPLICATES_COLLAPSED,
@@ -436,40 +441,42 @@ class HealthMetricsService:
         self,
         *,
         user_id: UUID,
+        zone: ZoneInfo,
         period: PeriodLiteral,
         from_ts: datetime | None,
         to_ts: datetime | None,
     ) -> HealthMetricAggregateResponse:
-        """Compute bucketed aggregates for visualization.
+        """Compute bucketed aggregates for visualization, at the person's clock.
 
         Args:
             user_id: Owner user UUID.
+            zone: The person's zone, where buckets are cut.
             period: Requested bucket size.
-            from_ts: Inclusive window start (UTC); defaulted by period.
-            to_ts: Exclusive window end (UTC); defaults to ``now()``.
+            from_ts: Inclusive window start; defaults to the period's span back
+                from the end, moved to the start of its local bucket.
+            to_ts: Exclusive window end; defaults to ``now()``.
 
         Returns:
             :class:`HealthMetricAggregateResponse` ready for the frontend.
-        """
-        resolved_to = to_ts or datetime.now(UTC)
-        resolved_from = from_ts or (resolved_to - _default_window_for(period))
 
-        samples = await self.sample_repo.fetch_samples_asc(
-            user_id, from_ts=resolved_from, to_ts=resolved_to
+        Raises:
+            ValidationError: The window needs more buckets than a chart draws.
+        """
+        start, end = default_chart_window(
+            period, zone=zone, now=datetime.now(UTC), from_ts=from_ts, to_ts=to_ts
         )
-        points, averages = aggregate_samples(
-            samples,
-            period=period,
-            from_ts=resolved_from,
-            to_ts=resolved_to,
-        )
-        return HealthMetricAggregateResponse(
-            period=period,
-            from_ts=resolved_from,
-            to_ts=resolved_to,
-            points=points,
-            averages=averages,
-        )
+        try:
+            return await read_chart_statistics(
+                self.db,
+                user_id,
+                period=period,
+                zone=zone,
+                from_ts=start,
+                to_ts=end,
+                maximum_buckets=HEALTH_METRICS_CHART_MAX_BUCKETS,
+            )
+        except ValueError as exc:
+            raise_invalid_input(str(exc), field="period")
 
     # =========================================================================
     # Deletion
@@ -620,68 +627,63 @@ class HealthMetricsService:
         user_id: UUID,
         kind: str,
         *,
+        zone: ZoneInfo,
         time_min: datetime | None = None,
         time_max: datetime | None = None,
     ) -> dict[str, Any]:
-        """Summarize samples of a kind for an ISO 8601 time window.
+        """Summarize a kind over a time window, counted through the fusion door.
 
-        Mirrors the calendar-tools pattern (``time_min`` / ``time_max``):
-        the planner receives the pre-resolved temporal range from the
-        QueryAnalyzer's ``resolved_references`` (e.g. "this week" ->
-        "2026-04-20 to 2026-04-26") and splits it across the two params.
-
-        When both bounds are omitted the window defaults to "since
-        midnight UTC of the current day" — what the user means by "today".
+        Mirrors the calendar-tools pattern (``time_min`` / ``time_max``),
+        both read by the tool through the date contract in the person's zone.
+        When ``time_min`` is omitted the window starts at the person's
+        midnight — what they mean by "today" (ADR-148 amendment 2026-11-14).
 
         Args:
             user_id: Owner user UUID.
             kind: Registered kind discriminator.
-            time_min: Inclusive window start (UTC-aware). Defaults to
-                today's midnight UTC when omitted.
-            time_max: Exclusive window end (UTC-aware). Defaults to
-                ``datetime.now(UTC)`` when omitted.
+            zone: The person's zone: "today" and the instants said back.
+            time_min: Inclusive window start; defaults to the local midnight.
+            time_max: Exclusive window end; defaults to now.
 
         Returns:
-            A dict with keys ``kind``, ``unit``, ``from_ts``, ``to_ts``,
-            ``total`` (or ``avg``/``min``/``max`` for AVG kinds),
-            ``samples_count``, ``last_sample_at``, ``last_value``.
-            When no samples are found, ``samples_count`` is 0 and the
-            aggregate fields are ``None``.
+            A dict with keys ``kind``, ``unit``, ``from_ts``, ``to_ts`` (in the
+            person's zone), ``total`` (or ``avg``/``min``/``max`` for AVG
+            kinds), ``samples_count`` (samples received), ``last_sample_at``,
+            ``last_value``. When nothing counts in the window, the aggregate
+            fields are ``None``.
         """
         spec = get_spec(kind)
         now = datetime.now(UTC)
         resolved_to = time_max or now
-        resolved_from = time_min or now.replace(hour=0, minute=0, second=0, microsecond=0)
-        samples = await self.sample_repo.fetch_samples_kind(
+        resolved_from = time_min or local_midnight(local_today(now, zone), zone)
+        window = await self.sample_repo.fetch_window_summary(
             user_id, kind=kind, from_ts=resolved_from, to_ts=resolved_to
         )
-
-        last_sample_at: datetime | None = samples[-1].date_start if samples else None
-        last_value: int | None = int(samples[-1].value) if samples else None
-
         result: dict[str, Any] = {
             "kind": spec.kind,
             "unit": spec.unit,
-            "from_ts": resolved_from.isoformat(),
-            "to_ts": resolved_to.isoformat(),
-            "samples_count": len(samples),
-            "last_sample_at": last_sample_at.isoformat() if last_sample_at else None,
-            "last_value": last_value,
+            "from_ts": resolved_from.astimezone(zone).isoformat(),
+            "to_ts": resolved_to.astimezone(zone).isoformat(),
+            "samples_count": window.samples,
+            "last_sample_at": (
+                window.last_start.astimezone(zone).isoformat() if window.last_start else None
+            ),
+            "last_value": window.last_value,
         }
 
-        if not samples:
+        counted = window.counted
+        if counted is None:
             return {**result, "total": None, "avg": None, "min": None, "max": None}
 
-        values = [int(s.value) for s in samples]
         match spec.aggregation_method:
             case AggregationMethod.SUM:
-                result["total"] = sum(values)
+                result["total"] = round(counted.total)
             case AggregationMethod.AVG_MIN_MAX:
-                result["avg"] = round(sum(values) / len(values), 1)
-                result["min"] = min(values)
-                result["max"] = max(values)
+                result["avg"] = round(counted.total / counted.rows, 1)
+                result["min"] = round(counted.minimum)
+                result["max"] = round(counted.maximum)
             case AggregationMethod.LAST_VALUE:
-                result["last"] = values[-1]
+                result["last"] = window.last_value
         return result
 
     async def compute_kind_daily_breakdown(
@@ -689,36 +691,32 @@ class HealthMetricsService:
         user_id: UUID,
         kind: str,
         days: int = 7,
+        *,
+        zone: ZoneInfo,
     ) -> list[dict[str, Any]]:
-        """Per-day aggregated values for a kind over the last ``days`` days.
+        """Per-local-day values for a kind over the last ``days`` days and today.
 
         Args:
             user_id: Owner user UUID.
             kind: Registered kind discriminator.
-            days: Window length; defaults to 7.
+            days: Whole days before today; defaults to 7.
+            zone: The person's zone, where days are cut.
 
         Returns:
             A list of ``{"date": "YYYY-MM-DD", "value": float}`` dicts, one
-            per day that has at least one sample, sorted ascending.
+            per local day with something counted, sorted ascending.
             Missing days are not emitted (let the LLM phrase the gap).
         """
         spec = get_spec(kind)
         now = datetime.now(UTC)
-        resolved_from = (now - timedelta(days=days)).replace(
-            hour=0, minute=0, second=0, microsecond=0
+        start = local_midnight(local_today(now, zone) - timedelta(days=days), zone)
+        stats = await self.sample_repo.fetch_daily_stats(
+            user_id, kind=kind, zone=zone, from_ts=start, to_ts=now
         )
-        samples = await self.sample_repo.fetch_samples_kind(
-            user_id, kind=kind, from_ts=resolved_from, to_ts=now
-        )
-
-        from src.domains.health_metrics.baseline import _daily_aggregate, _group_samples_by_day
-
-        by_day = _group_samples_by_day(samples)
-        sorted_days = sorted(by_day.keys())
-        values = _daily_aggregate(samples, spec.baseline_kind)
+        values = daily_values(stats, spec.baseline_kind)
         return [
-            {"date": day.isoformat(), "value": round(val, 1)}
-            for day, val in zip(sorted_days, values, strict=True)
+            {"date": stat.day.isoformat(), "value": round(value, 1)}
+            for stat, value in zip(stats, values, strict=True)
         ]
 
     async def compute_kind_baseline_delta(
@@ -726,6 +724,8 @@ class HealthMetricsService:
         user_id: UUID,
         kind: str,
         window_days: int = HEALTH_METRICS_AGENT_SUMMARY_WINDOW_DAYS,
+        *,
+        zone: ZoneInfo,
     ) -> dict[str, Any]:
         """Compare the last ``window_days`` to the user's baseline for a kind.
 
@@ -737,6 +737,7 @@ class HealthMetricsService:
             user_id: Owner user UUID.
             kind: Registered kind discriminator.
             window_days: Recent window length; defaults to 7.
+            zone: The person's zone, where days are cut.
 
         Returns:
             A dict shaped for LLM consumption. When no data exists, returns
@@ -744,15 +745,14 @@ class HealthMetricsService:
         """
         spec = get_spec(kind)
         now = datetime.now(UTC)
-        # Fetch a window wide enough to split into:
-        #   - last ``window_days`` (the "recent" slice compared against baseline)
-        #   - the full rolling baseline window (28 days by default) before that
-        # so the rolling median sees the full 28-day span, not 28 - window_days.
-        from_ts = baseline_window_start(now) - timedelta(days=window_days)
+        # A window wide enough to split into the last ``window_days`` (the
+        # "recent" slice compared against baseline) and the full rolling
+        # baseline before it, every day whole at the person's midnight.
+        from_ts = baseline_window_start(now, zone, recent_days=window_days)
         # Per-day rollup, not raw samples: a 36-day heart-rate window is ~12 000
         # rows whose decode blocks the event loop, for ~36 aggregates.
         stats = await self.sample_repo.fetch_daily_stats(
-            user_id, kind=kind, from_ts=from_ts, to_ts=now
+            user_id, kind=kind, zone=zone, from_ts=from_ts, to_ts=now
         )
         return compute_kind_delta_from_stats(stats, spec, window_days)
 
@@ -760,6 +760,7 @@ class HealthMetricsService:
         self,
         user_id: UUID,
         *,
+        zone: ZoneInfo,
         time_min: datetime | None = None,
         time_max: datetime | None = None,
     ) -> dict[str, dict[str, Any]]:
@@ -771,10 +772,10 @@ class HealthMetricsService:
 
         Args:
             user_id: Owner user UUID.
-            time_min: Inclusive window start (UTC-aware). Defaults to
-                today's midnight UTC when omitted.
-            time_max: Exclusive window end (UTC-aware). Defaults to
-                ``datetime.now(UTC)`` when omitted.
+            zone: The person's zone: "today" and the instants said back.
+            time_min: Inclusive window start. Defaults to the person's
+                midnight when omitted.
+            time_max: Exclusive window end. Defaults to now when omitted.
 
         Returns:
             A dict keyed by kind, each value being the ``compute_kind_summary``
@@ -788,7 +789,7 @@ class HealthMetricsService:
         summaries: dict[str, dict[str, Any]] = {}
         for spec in HEALTH_KINDS.values():
             summaries[spec.kind] = await self.compute_kind_summary(
-                user_id, spec.kind, time_min=time_min, time_max=time_max
+                user_id, spec.kind, zone=zone, time_min=time_min, time_max=time_max
             )
         return summaries
 
@@ -796,6 +797,8 @@ class HealthMetricsService:
         self,
         user_id: UUID,
         window_days: int = HEALTH_METRICS_AGENT_SUMMARY_WINDOW_DAYS,
+        *,
+        zone: ZoneInfo,
     ) -> list[dict[str, Any]]:
         """Detect notable recent variations across every registered kind.
 
@@ -808,21 +811,21 @@ class HealthMetricsService:
         Args:
             user_id: Owner user UUID.
             window_days: Recent window length; defaults to 7.
+            zone: The person's zone, where days are cut.
 
         Returns:
             A list of event dicts (may be empty). Each dict has at least a
             ``kind`` key and an ``event`` or ``trend`` label.
         """
         now = datetime.now(UTC)
-        # Extend the fetch by ``window_days`` so the baseline split inside
-        # the variation detector sees the full 28-day rolling history
-        # *plus* the recent window on top of it (see ``compute_kind_baseline_delta``).
-        from_ts = baseline_window_start(now) - timedelta(days=window_days)
+        # The full rolling history *plus* the recent window on top of it
+        # (see ``compute_kind_baseline_delta``), at the person's midnight.
+        from_ts = baseline_window_start(now, zone, recent_days=window_days)
 
         variations: list[dict[str, Any]] = []
         for spec in HEALTH_KINDS.values():
             stats = await self.sample_repo.fetch_daily_stats(
-                user_id, kind=spec.kind, from_ts=from_ts, to_ts=now
+                user_id, kind=spec.kind, zone=zone, from_ts=from_ts, to_ts=now
             )
             if not stats:
                 continue
@@ -830,7 +833,9 @@ class HealthMetricsService:
             if variation is not None:
                 variations.append(variation)
             variations.extend(
-                detect_notable_events_from_stats(stats, spec, window_days=window_days)
+                detect_notable_events_from_stats(
+                    stats, spec, today=local_today(now, zone), window_days=window_days
+                )
             )
         return variations
 
@@ -838,6 +843,8 @@ class HealthMetricsService:
         self,
         user_id: UUID,
         max_chars: int = HEALTH_METRICS_AGENT_CONTEXT_MAX_CHARS,
+        *,
+        zone: ZoneInfo,
     ) -> str:
         """Build a short textual context block for prompt injection.
 
@@ -848,13 +855,14 @@ class HealthMetricsService:
         Args:
             user_id: Owner user UUID.
             max_chars: Upper bound on the returned string length.
+            zone: The person's zone, where days are cut.
 
         Returns:
             A plain-text block (never None). Returns an empty string if no
             kind has data.
         """
         lines: list[str] = []
-        variations = await self.detect_all_variations(user_id)
+        variations = await self.detect_all_variations(user_id, zone=zone)
         for variation in variations:
             if "trend" in variation:
                 lines.append(
@@ -876,31 +884,3 @@ class HealthMetricsService:
         if len(block) > max_chars:
             block = block[: max_chars - 1] + "…"
         return block
-
-
-# =============================================================================
-# Default windows
-# =============================================================================
-
-
-def _default_window_for(period: Literal["hour", "day", "week", "month", "year"]) -> timedelta:
-    """Return the default lookback window for each period granularity.
-
-    Args:
-        period: One of the supported period literals.
-
-    Returns:
-        A timedelta sized so the chart shows enough buckets without
-        overwhelming the response.
-    """
-    if period == HEALTH_METRICS_PERIOD_HOUR:
-        return timedelta(hours=24)
-    if period == HEALTH_METRICS_PERIOD_DAY:
-        return timedelta(days=7)
-    if period == HEALTH_METRICS_PERIOD_WEEK:
-        return timedelta(days=7 * 12)
-    if period == HEALTH_METRICS_PERIOD_MONTH:
-        return timedelta(days=365)
-    if period == HEALTH_METRICS_PERIOD_YEAR:
-        return timedelta(days=365 * 5)
-    return timedelta(days=7)

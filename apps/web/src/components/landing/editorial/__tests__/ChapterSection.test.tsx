@@ -29,6 +29,29 @@ beforeEach(() => {
   );
 });
 
+describe('ChapterSection benefits', () => {
+  it.each(CHAPTERS.map(chapter => [chapter.key, chapter] as const))(
+    'lists the benefits of %s as tiles, each titled, described and marked by its tone',
+    async (_key, chapter) => {
+      const i18n = createInstance();
+      await i18n.init({ lng: 'fr', resources: { fr: { translation: fr } } });
+      const t: Translate = (key, options) => i18n.t(key, options);
+      render(<ChapterSection t={t} chapter={chapter} reverse={false} visual={null} />);
+      const list = screen.getByText(t(`landing.chapters.${chapter.key}.b1_t`)).closest('ul');
+      expect(list).not.toBeNull();
+      const tiles = Array.from((list as HTMLElement).children);
+      expect(tiles).toHaveLength(chapter.benefits);
+      tiles.forEach((tile, index) => {
+        const n = index + 1;
+        expect(tile).toHaveTextContent(t(`landing.chapters.${chapter.key}.b${n}_t`));
+        expect(tile).toHaveTextContent(t(`landing.chapters.${chapter.key}.b${n}_d`));
+        // The chapter's tone marks the tile for the eye alone.
+        expect(tile.firstElementChild).toHaveAttribute('aria-hidden', 'true');
+      });
+    }
+  );
+});
+
 describe.each(['en', 'fr'] as const)('ChapterSection reading order (%s)', language => {
   it.each([false, true])(
     'keeps one introduction, proof and explanation in keyboard order (reverse: %s)',

@@ -1,6 +1,7 @@
-# Short scaffolds the planner service appends to its prompt, one `key|template`
-# per line; blank lines and #-comments are ignored (prompt audit 2026-09-12, lot B:
-# they were f-strings in smart_planner_service.py, unreadable by any prompt guard).
+# Short scaffolds of the planner prompt, one `key|template` per line; blank lines
+# and #-comments are ignored (prompt audit 2026-09-12, lot B: they were f-strings
+# in smart_planner_service.py, unreadable by any prompt guard). Read by
+# smart_planner_service.py and by domains/agents/prompts/__init__.py.
 #
 # Templates are str.format templates; the service joins lines with newlines.
 
@@ -9,3 +10,10 @@ preserved_intro|The following parameters were already set in a previous step. Yo
 preserved_line|- {name}: "{value}"
 preserved_footer|Do NOT modify or regenerate these values.
 mcp_truncated_marker|... (truncated)
+
+# The FOR_EACH directive's cardinality hint (the cardinality_hint placeholder of
+# for_each_directive_prompt.txt): no count stated, « all », or a stated count.
+# They were literals in prompts/__init__.py (found 2026-11-15, ADR-284).
+for_each_cardinality_unknown|unknown number of
+for_each_cardinality_all|ALL
+for_each_cardinality_count|~{count}

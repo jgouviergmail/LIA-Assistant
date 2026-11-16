@@ -17,9 +17,9 @@
 # Debian trixie ships Node 20, past its upstream end of life, whose `fetch`
 # ignores HTTPS_PROXY; the official image brings a supported major with its
 # own npm and npx, so Debian's `npm` (140 MB of node-* packages) is not needed.
-ARG PIP_VERSION=26.2.2
-ARG PIP_WHEEL_SHA256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70
-ARG NPM_VERSION=12.2.1
+ARG PIP_VERSION=26.3
+ARG PIP_WHEEL_SHA256=f3b60b20ffaadd4415ed7957212a38ac63fa4c5fa375bd0f4a797777940fad13
+ARG NPM_VERSION=12.2.2
 
 FROM node:26.10.0-bookworm-slim@sha256:3ffc19ea878019d9e9ae8971732ad4a03cda44f167107173174b60ed7c65bed3 AS node
 

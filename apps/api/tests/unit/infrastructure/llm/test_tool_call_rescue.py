@@ -202,6 +202,73 @@ def test_nulls_and_empty_undeclared_keys_are_counted_apart() -> None:
     assert both == AbsentValues(nulls=1, extras=1) and both.total == 2
 
 
+# ------------------------------------------- a blank where a structure is expected
+
+
+def test_a_blank_text_on_a_defaulted_list_is_dropped_so_the_default_applies() -> None:
+    """Production 2026-11-09 and 2026-11-14: five debrief lists came back blank."""
+    payload, absent = drop_absent_values(_Minutes, {"title": "t", "tags": ""})
+    assert payload == {"title": "t"} and absent == AbsentValues(blanks=1)
+    assert _Minutes.model_validate(payload).tags == []
+
+
+def test_an_empty_object_where_a_list_is_expected_is_absent_too() -> None:
+    payload, absent = drop_absent_values(_Minutes, {"title": "t", "tags": {}})
+    assert payload == {"title": "t"} and absent == AbsentValues(blanks=1)
+
+
+def test_an_empty_list_is_already_valid_and_nothing_is_counted() -> None:
+    payload, absent = drop_absent_values(_Minutes, {"title": "t", "tags": []})
+    assert payload == {"title": "t", "tags": []} and absent == AbsentValues()
+
+
+def test_a_blank_text_is_a_value_where_the_field_admits_text() -> None:
+    payload = {"title": "t", "sections": [{"key": "k", "paragraph": "  "}]}
+    kept, absent = drop_absent_values(_Minutes, payload)
+    assert kept == payload and absent == AbsentValues()
+
+
+class _Either(BaseModel):
+    value: str | list[str] = Field(default_factory=list)
+
+
+def test_a_blank_text_stays_where_a_union_admits_text() -> None:
+    kept, absent = drop_absent_values(_Either, {"value": ""})
+    assert kept == {"value": ""} and absent == AbsentValues()
+
+
+class _Needs(BaseModel):
+    items: list[str]
+
+
+def test_a_blank_text_on_a_required_list_stays_and_still_fails() -> None:
+    kept, absent = drop_absent_values(_Needs, {"items": ""})
+    assert kept == {"items": ""} and absent == AbsentValues()
+    with pytest.raises(ValidationError):
+        validate_without_absent_values(_Needs, {"items": ""})
+
+
+def test_a_text_that_says_something_on_a_list_stays_and_still_fails() -> None:
+    """Only an empty spelling is « nothing »: a word could be meant, never guessed."""
+    kept, absent = drop_absent_values(_Minutes, {"title": "t", "tags": "none"})
+    assert kept == {"title": "t", "tags": "none"} and absent == AbsentValues()
+
+
+def test_blanks_are_defaulted_recursively_through_nested_models() -> None:
+    payload = {"title": "t", "sections": [{"key": "k", "bullets": "", "topics": " "}]}
+    cleaned, absent = drop_absent_values(_Minutes, payload)
+    assert cleaned == {"title": "t", "sections": [{"key": "k"}]}
+    assert absent == AbsentValues(blanks=2) and absent.total == 2
+
+
+def test_a_blank_on_a_defaulted_nested_model_is_absent() -> None:
+    payload, absent = drop_absent_values(
+        _Minutes, {"title": "t", "sections": [{"key": "k", "summary": ""}]}
+    )
+    assert payload == {"title": "t", "sections": [{"key": "k"}]}
+    assert absent == AbsentValues(blanks=1)
+
+
 def test_rescue_payload_answers_only_for_what_it_changed() -> None:
     assert rescue_payload(_Goal, {"label": "l", "source_quote": "q"}) == (None, AbsentValues())
     assert rescue_payload(_Goal, {"label": "l", "source_quote": "", "x": ""}) == (

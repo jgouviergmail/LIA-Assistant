@@ -75,13 +75,22 @@
     "to_auto": "Cambiar al modo automático"
   },
   "executionMode": {
-    "toggle": {
-      "enable_react": "Cambiar al modo ReAct",
-      "enable_pipeline": "Cambiar al modo Pipeline",
-      "enabled": "Modo ReAct activado",
-      "disabled": "Modo Pipeline activado",
-      "tooltip_react": "Modo ReAct — Razonamiento autónomo con herramientas en tiempo real",
-      "tooltip_pipeline": "Modo Pipeline — Plan estructurado y luego ejecución"
+    "modes": {
+      "pipeline": "Modo Pipeline",
+      "react": "Modo ReAct",
+      "auto": "Modo automático"
+    },
+    "descriptions": {
+      "pipeline": "Planifica el trabajo y luego lo ejecuta — el más económico",
+      "react": "Avanza paso a paso con las herramientas — el más exhaustivo",
+      "auto": "LIA elige uno de los dos en cada petición",
+      "auto_always_react": "En este servidor: siempre ReAct — la elección automática no está configurada",
+      "auto_always_pipeline": "En este servidor: siempre Pipeline — ReAct está desactivado"
+    },
+    "menu": {
+      "trigger": "Ejecución: {{mode}}",
+      "title": "Modo de ejecución",
+      "saved": "{{mode}} activado"
     }
   },
   "voice": {
@@ -343,8 +352,8 @@
         "mails": {
           "title": "Correos sin leer",
           "empty": "Bandeja vacía 🎉",
-          "unread_label_one": "sin leer hoy",
-          "unread_label_other": "sin leer hoy"
+          "unread_label_one": "sin leer",
+          "unread_label_other": "sin leer"
         },
         "birthdays": {
           "title": "Cumpleaños",
@@ -814,6 +823,9 @@
       "cleanup_read_error": "No se pudo consultar el estado de la limpieza.",
       "cleanup_retry": "Reintentar la limpieza",
       "live_origin": "Sesión Live en «{{title}}»",
+      "notification_elsewhere": "En «{{title}}»",
+      "notification_elsewhere_untitled": "En otra conversación",
+      "notification_open": "Abrir",
       "live_return": "Abrir esa conversación",
       "draft_recovery": "Puedes recuperar el texto del borrador.",
       "draft_copy": "Copiar borrador",
@@ -1389,6 +1401,16 @@
       "title": "Acciones realizadas"
     },
     "phone_call_badge": "Dicho por teléfono",
+    "execution_engine": {
+      "name": {
+        "react": "ReAct",
+        "pipeline": "Pipeline"
+      },
+      "said": {
+        "react": "Modo automático: respuesta producida por el bucle ReAct",
+        "pipeline": "Modo automático: respuesta producida por un plan Pipeline"
+      }
+    },
     "debug_panel": {
       "jev": {
         "title": "Llamadas JEV",
@@ -3040,6 +3062,7 @@
           "jev_parameter_kind": "Antes de llamar a una herramienta, juzga qué es cada valor de dirección, lugar o correo electrónico. Solo un juicio seguro puede rechazar un valor de otro tipo (un nombre de persona, un número de teléfono, una fecha). Un juicio incierto o fallido deja la decisión a la protección existente, y JEV no puede aceptar ningún valor que esa protección rechace.",
           "jev_email_classification": "Clasifica la información de correo ya disponible con una categoría orientativa, un único nivel de atención y si se espera una respuesta. La incertidumbre no muestra insignia. No se consultan mensajes, enlaces ni adjuntos adicionales.",
           "jev_event_classification": "Clasifica la información de citas ya disponible como profesional o personal. La incertidumbre no muestra insignia; la cita no cambia.",
+          "jev_execution_mode": "Juzga, antes de planificar un turno automático, si la petición pide una cifra calculada, un cotejo, un trabajo abierto, o a alguien o algo que solo nombra el texto de un elemento. Ante cualquier duda, el turno va al bucle ReAct.",
           "world_message_translator": "Traduce los mensajes directos del mundo al idioma del destinatario, con las cuotas y la contabilidad LIA de quien solicita la traducción.",
           "tool_assist": "Lo que LIA hace desde las Herramientas con un clic: reformular, traducir, leer una fecha en una frase - una llamada estructurada breve"
         },
@@ -3371,6 +3394,7 @@
         "usageHelp": {
           "email_classification": "Califica cada correo ya recuperado con una categoría orientativa, un nivel de atención y, si pide una, una respuesta esperada, mostrados como insignias. Un juicio incierto no muestra ninguna insignia. No se lee ningún mensaje, enlace ni adjunto adicional.",
           "event_classification": "Califica cada cita ya recuperada como profesional o personal, mostrada como insignia. Un juicio incierto no muestra ninguna insignia; la cita no cambia.",
+          "execution_mode": "Para quienes eligieron el modo automático: planifica una petición en el pipeline solo cuando juzga con seguridad que no pide ninguna cifra calculada, ningún cotejo, ningún trabajo abierto ni a nadie que solo nombre el texto de un elemento. Ante cualquier duda, fallo o uso desactivado, el turno va al bucle ReAct. Las acciones, el trabajo elemento por elemento y las competencias usan siempre el bucle.",
           "meeting_template": "Elige una plantilla de acta; el modelo existente redacta el resumen.",
           "consultation_path": "Selecciona una consulta de lectura con parámetros fijos para listas sencillas. Las condiciones adicionales siguen a cargo del planificador existente.",
           "consultation_bounded": "Selecciona agendas de hoy/mañana y listas con cantidad explícita. El código calcula las fechas y respeta los límites; las demás restricciones pasan al planificador existente.",
@@ -3398,7 +3422,8 @@
           "hitl_rejection": "Rechazo completo de una confirmación",
           "parameter_kind": "Valores de parámetros protegidos",
           "email_classification": "Categoría, prioridad y respuesta esperada del correo",
-          "event_classification": "Categoría de citas"
+          "event_classification": "Categoría de citas",
+          "execution_mode": "Modo de ejecución automático"
         },
         "thresholds": {
           "toggle": "Umbrales de decisión — {{usage}}",
@@ -3444,6 +3469,12 @@
           },
           "event_classification": {
             "category": "Categoría"
+          },
+          "execution_mode": {
+            "computed": "Margen para decidir una cifra calculada",
+            "cross_check": "Margen para decidir un cotejo",
+            "open_ended": "Margen para decidir un trabajo abierto",
+            "named_in_text": "Margen para decidir un nombre que solo figura en el texto de un elemento"
           }
         },
         "statistics": {
@@ -3727,7 +3758,7 @@
       },
       "driver": {
         "legend": "Quién maneja este servidor",
-        "hint": "Un agente dedicado encadena las herramientas de este servidor para una tarea, a costa de más llamadas al modelo. Pipeline y ReAct son los dos modos del chat.",
+        "hint": "Un agente dedicado encadena las herramientas de este servidor para una tarea, a costa de más llamadas al modelo. Pipeline y ReAct son los dos motores del chat; el modo automático elige uno de ellos en cada petición.",
         "options": {
           "direct": {
             "label": "LIA usa sus herramientas directamente",
@@ -3881,6 +3912,7 @@
           "parallel": "Búsqueda web y lectura de páginas, búsqueda de imágenes y fuentes especializadas (PubMed, ensayos clínicos…).",
           "stewdio": "Tus archivos de motion design de Stewdio: páginas, composiciones, capas, recursos y comentarios.",
           "streamline": "La biblioteca de iconos e ilustraciones de Streamline: buscar colecciones y descargar iconos.",
+          "stripe": "Tu cuenta de Stripe: clientes, productos, facturas, pagos, suscripciones y reembolsos.",
           "todoist": "Tus tareas, proyectos y etiquetas de Todoist.",
           "trivago": "Búsqueda de hoteles en trivago: precios comparados para un destino y unas fechas.",
           "wolfram": "Wolfram|Alpha: cálculo exacto, matemáticas y datos de referencia."
@@ -3996,18 +4028,32 @@
       "title": "Estilo de escritura",
       "description": "LIA redacta tus correos como tú los escribes.",
       "enable": "Escribir con mi voz",
-      "enable_hint": "La primera vez que LIA escribe un correo por ti, aprende cómo escribes a partir de tus últimos correos enviados: saludo, despedida, firma, tono. Tu voz, nunca tus datos.",
+      "enable_hint": "Cuando lo pides, LIA aprende cómo escribes a partir de tus últimos {{mails}} correos enviados: saludo, despedida, firma, tono. Tu voz, nunca tus datos.",
       "learned_heading": "Lo que LIA aprendió",
-      "learned_meta_one": "A partir de {{count}} correo enviado, el {{date}}. Se vuelve a aprender desde el {{renews}}.",
-      "learned_meta_other": "A partir de {{count}} correos enviados, el {{date}}. Se vuelve a aprender desde el {{renews}}.",
-      "too_few_one": "Hay muy pocos correos enviados para aprender tu estilo ({{count}} leído el {{date}}). LIA lo volverá a intentar desde el {{renews}}.",
-      "too_few_other": "Hay muy pocos correos enviados para aprender tu estilo ({{count}} leídos el {{date}}). LIA lo volverá a intentar desde el {{renews}}.",
-      "nothing_yet": "Aún no ha aprendido nada: LIA lo aprende la primera vez que escribe un correo por ti.",
+      "learned_meta_one": "A partir de {{count}} correo enviado, el {{date}}.",
+      "learned_meta_other": "A partir de {{count}} correos enviados, el {{date}}.",
+      "too_few_one": "Hay muy pocos correos enviados para aprender tu estilo ({{count}} leído el {{date}}).",
+      "too_few_other": "Hay muy pocos correos enviados para aprender tu estilo ({{count}} leídos el {{date}}).",
+      "nothing_yet": "Aún no ha aprendido nada: LIA lo aprende de tus correos enviados cuando lo pides.",
       "off_nothing": "Desactivado: LIA no lee nada ni aprende nada.",
       "off_kept": "Desactivado: lo aprendido se conserva, pero no se usa.",
+      "learn": "Aprender mi estilo",
+      "learn_again": "Volver a aprender",
+      "learning": "Leyendo tus correos enviados…",
+      "relearn_hint": "Volver a aprender relee tus últimos correos enviados y sustituye lo que LIA aprendió.",
+      "outcome": {
+        "learned": "Hecho: LIA aprendió cómo escribes.",
+        "too_few": "No aprendió nada: envía algunos correos más e inténtalo de nuevo.",
+        "no_mailbox": "No hay ningún buzón conectado: conecta uno para que LIA pueda leer tus correos enviados.",
+        "reconnect": "Tu buzón ya no acepta el acceso de LIA: reconéctalo e inténtalo de nuevo.",
+        "switched_off": "El interruptor se desactivó mientras tanto: no se aprendió nada.",
+        "superseded": "Tu estilo de escritura se olvidó o se volvió a aprender mientras tanto: este aprendizaje no guardó nada."
+      },
+      "open_connectors": "Abrir conectores",
+      "learning_cost": "Aprendizaje",
       "forget": "Olvidar",
       "forget_title": "¿Olvidar tu estilo de escritura?",
-      "forget_description": "LIA borra lo que aprendió. Mientras el interruptor esté activado, lo volverá a aprender de tus correos enviados la próxima vez que escriba uno por ti.",
+      "forget_description": "LIA borra lo que aprendió. No se vuelve a aprender nada hasta que lo pidas.",
       "forgotten": "Estilo de escritura olvidado",
       "switched_on": "LIA ahora escribe con tu voz",
       "switched_off": "Estilo de escritura desactivado",
@@ -4271,6 +4317,97 @@
       "load_error": "No se pudieron actualizar todos los datos de conexión. Los datos ya cargados siguen visibles. Inténtalo de nuevo."
     },
     "notifications": {
+      "ntfy": {
+        "title": "Notificaciones ntfy",
+        "description": "Recibe las notificaciones de LIA en la aplicación gratuita ntfy — en Android, iPhone u ordenador, incluso sin los servicios de Google.",
+        "loading": "Cargando tus suscripciones ntfy",
+        "read_error": "No se pudieron leer tus suscripciones ntfy.",
+        "retry": "Reintentar",
+        "empty": "Todavía no hay ninguna suscripción ntfy.",
+        "nothing_offered": "Este LIA no ofrece servidor ntfy, y su administrador no permite otros servidores.",
+        "add": "Añadir una suscripción",
+        "limit_reached": "Has alcanzado el límite de {{max}} suscripciones.",
+        "server_instance": "Servidor de este LIA",
+        "content_minimal": "Solo un aviso",
+        "content_full": "Texto completo",
+        "paused": "En pausa",
+        "unreadable": "Esta suscripción ya no se puede leer: elimínala y vuelve a suscribirte.",
+        "last_sent": "Última entrega {{when}}",
+        "last_error": "Último intento: {{reason}}",
+        "active_label": "Recibir las notificaciones aquí",
+        "content_label": "Qué muestra la notificación",
+        "content_minimal_help": "Solo que LIA tiene algo para ti: el servidor nunca ve tus palabras.",
+        "content_full_help": "El texto de la notificación: el servidor que la transmite puede leerlo.",
+        "actions": "Acciones — {{name}}",
+        "test": "Enviar una prueba",
+        "subscribe": "Suscribir un dispositivo",
+        "remove": "Eliminar",
+        "remove_title": "¿Eliminar esta suscripción?",
+        "remove_description": "LIA dejará de publicar en este tema. Recuerda cancelar también la suscripción en la aplicación ntfy.",
+        "removed": "Suscripción eliminada.",
+        "saved": "Guardado.",
+        "test_sent": "Prueba enviada: mira la aplicación ntfy.",
+        "test_failed": "La prueba no llegó: {{reason}}.",
+        "outcome": {
+          "sent": "entregada",
+          "auth_refused": "el servidor rechazó el acceso",
+          "not_found": "el servidor no conoce esta dirección",
+          "too_large": "la notificación era demasiado larga para el servidor",
+          "rate_limited": "el servidor pide ir más despacio",
+          "refused": "el servidor rechazó la notificación",
+          "server_error": "el servidor tiene un problema",
+          "unreachable": "no se pudo contactar con el servidor",
+          "no_answer": "el servidor no respondió (puede que haya llegado)",
+          "url_refused": "esta dirección no está permitida",
+          "not_configured": "este servidor ya no está disponible en este LIA",
+          "unknown": "se desconoce la respuesta del servidor"
+        },
+        "refusal": {
+          "ntfy_instance_unavailable": "Este LIA no tiene servidor ntfy propio.",
+          "ntfy_custom_servers_disabled": "El administrador solo permite el servidor de este LIA.",
+          "ntfy_server_url_not_https": "La dirección del servidor debe empezar por https://.",
+          "ntfy_server_url_invalid": "No se puede leer esta dirección de servidor.",
+          "ntfy_server_url_refused": "Esta dirección lleva a una red privada: LIA no puede usarla.",
+          "ntfy_topic_invalid": "Un tema solo usa letras, cifras, - y _, 64 caracteres como máximo.",
+          "ntfy_token_invalid": "Un token de acceso de ntfy empieza por tk_ y tiene 32 caracteres.",
+          "ntfy_subscription_limit": "Has alcanzado el límite de {{max}} suscripciones.",
+          "ntfy_subscription_unreadable": "Esta suscripción ya no se puede leer: elimínala y vuelve a suscribirte.",
+          "unknown": "No se pudo guardar el cambio."
+        },
+        "form": {
+          "title": "Nueva suscripción ntfy",
+          "description": "Elige dónde publica LIA y luego suscríbete desde la aplicación ntfy.",
+          "server_label": "Servidor",
+          "server_instance": "Servidor de este LIA",
+          "server_instance_help": "Nada que configurar: LIA elige para ti un tema privado.",
+          "server_custom": "Otro servidor ntfy",
+          "server_custom_help": "ntfy.sh o tu propio servidor, por https.",
+          "server_url": "Dirección del servidor",
+          "topic": "Tema (opcional)",
+          "topic_help": "Déjalo vacío y LIA elige uno que nadie puede adivinar.",
+          "token": "Token de acceso (opcional)",
+          "token_help": "Solo si tu servidor exige uno para publicar (tk_…).",
+          "submit": "Suscribirse",
+          "cancel": "Cancelar"
+        },
+        "device": {
+          "title": "Suscribirse desde la aplicación ntfy",
+          "description": "Instala la aplicación gratuita ntfy y luego suscríbete a este tema.",
+          "qr_alt": "Código QR que suscribe la aplicación ntfy a este tema",
+          "qr_loading": "Dibujando el código QR",
+          "qr_error": "No se pudo dibujar el código QR: copia el servidor y el tema.",
+          "open_app": "Abrir en la aplicación ntfy",
+          "android": "En Android: escanea este código con la cámara o toca «Abrir en la aplicación ntfy» en el propio teléfono.",
+          "ios": "En iPhone o en un ordenador: en la aplicación ntfy, añade una suscripción con este servidor y este tema.",
+          "server": "Servidor",
+          "topic": "Tema",
+          "copy_server": "Copiar la dirección del servidor",
+          "copy_topic": "Copiar el tema",
+          "copied": "Copiado.",
+          "secret": "El tema es una contraseña: quien lo conoce puede leer tus notificaciones. No lo compartas nunca.",
+          "done": "Hecho"
+        }
+      },
       "title": "Notificaciones push",
       "description": "Gestionar las notificaciones en tus dispositivos",
       "status": "Estado de notificaciones",
@@ -5275,8 +5412,8 @@
         "my-shortcuts": "acceso directo, fijar, favorito, menú flotante, dock, acceso rápido, secciones, Mis accesos directos",
         "open-loops": "compromisos, asuntos pendientes, pendiente, seguimiento, promesas, sin terminar",
         "habits": "hábitos, ritmo, rutinas, horario, aprendido, ventanas de actividad, peticiones recurrentes, sugerencias de automatización, umbral de detección, por qué ningún hábito, racha, días seguidos, hito, récord, presencia de lectura, apertura de la aplicación, pulgares, presencia, necesidades recurrentes, momento del día, recalibración, pausar, bloquear, petición habitual, recalcular, interruptor de aprendizaje, propuestas, automatizar una petición, crear una rutina",
-        "notifications": "push, alertas, avisos, móvil, recordatorios, FCM, app nativa, aplicación Android, aplicación iOS, relé de despertar, APNs, app Android, app iPhone",
-        "channels": "whatsapp, telegram, sms, correo, mensajería, integraciones",
+        "notifications": "push, alertas, avisos, móvil, recordatorios, FCM, app nativa, aplicación Android, aplicación iOS, relé de despertar, APNs, app Android, app iPhone, ntfy, sin Google, código QR, solo aviso, texto completo, suscripción",
+        "channels": "whatsapp, telegram, sms, correo, mensajería, integraciones, fotos, archivos, álbumes, ubicación, notas de voz, respuestas habladas, /stop, mensaje pendiente",
         "security-auth": "2FA, MFA, TOTP, passkey, contraseña, seguridad, inicio de sesión, autenticación, doble factor",
         "security-devices": "sesiones, cerrar sesión, revocar, navegadores, dispositivos, seguridad",
         "security-export": "RGPD, GDPR, archivo, descarga, portabilidad, copia de seguridad, datos personales, privacidad, Exportar mis datos",
@@ -5292,13 +5429,13 @@
         "personality": "tono, estilo, carácter, comportamiento, persona, voz",
         "psyche": "emociones, estado de ánimo, sentimientos, afecto, emocional, autoeficacia, experiencia, pruebas, relación, rasgos, OCEAN, evolución, reinicio, Psyche Engine",
         "memories": "memoria, recuerdos, recordar, olvidar, hechos, exportar, reglas, directrices, instrucciones permanentes, procedimental, límite, longitud, caracteres, matiz de uso, tema desencadenante, importar, importación, CSV, JSON",
-        "writing-style": "estilo de escritura, voz, tono, firma, despedida, saludo, correos enviados, borradores, respuesta, olvidar",
+        "writing-style": "estilo de escritura, voz, tono, firma, despedida, saludo, correos enviados, borradores, respuesta, olvidar, aprender, volver a aprender",
         "interests": "temas, gustos, materias, curiosidad, preferencias, historial, notificaciones recientes, peso, explicación, decaimiento, exportar",
         "peer-connections": "contactos, amigos, familia, red, compartir calendario, disponibilidad, bloquear, descubrir usuarios, conectar, mi nombre, copiar mi nombre, solicitud de conexión, historial de accesos, transmitir mensaje, usuarios bloqueados, allegados, red social, peer, descubrimiento, visibilidad, compartir mi dirección, email visible, mi correo, resumen 360, solicitudes, compartir una imagen, imágenes compartidas compartir recibido remitente desactivado copia, presencia World, en casa, ausente, conectado, desconectado, bloquear mensajes World",
         "heartbeat": "proactivo, espontáneo, iniciativa, contacto, mensajes autónomos, temas de las notificaciones, fuentes, historial, notificaciones recientes, prioridad, urgencia, alta, media, baja, color, meteorología, frecuencia, franja horaria, propuestas, despertar por push, reaccionar a un correo, reaccionar a una invitación, disparador, momentos anticipados, después de una reunión, cómo fue, instante, momento, no conectada, catorce fuentes, fuente SMS, fuente hábitos, fuente tablero de trabajo, hora local, en reunión, Notificaciones proactivas",
         "scheduled-actions": "cron, programación, recurrente, automatización, temporizador, planificado, vista semanal, cronología, cuadrícula semanal, cada tres días, 2.º martes, intervalo, fin de serie, opciones avanzadas, vigilancia, vigilar, vigilar una respuesta, terminada, avísame cuando, se cierra sola, servidores MCP aprobación previa preaprobación intervalo regular ejecuciones diarias, avisarme cuando responda, webhook, llamada firmada, otro sistema, dirección, secreto, HMAC, plantilla, informe de la mañana, clasificación de la bandeja de entrada, revisión semanal, tarea atrasada, página web, cambio de página, vigilancia de precios, solo si hay novedades, omitida, perdida",
         "journals": "diario, bitácora, retrato, reflexiones, notas, configuración, consolidación, exportar, Diarios personales",
-        "health-metrics": "frecuencia cardíaca, pasos, sueño, iPhone, Apple Salud, forma física, actividad",
+        "health-metrics": "frecuencia cardíaca, pasos, sueño, iPhone, Apple Salud, forma física, actividad, Apple Watch, muestras solapadas, día local, zona horaria",
         "skills": "habilidades, capacidades, competencias, plugins, extensiones, biblioteca, skills.sh, buscar skills, GitHub, instalar, actualizar, auditoría, mercado, Competencias LIA, skills compartir recibido remitente desactivado copia, uso, usada, sin usar, inactiva, desactivar, conservar, restaurar, versión anterior",
         "rag-spaces": "espacios de conocimientos, documentos, archivos, subir, descargar, archivo, zip, mover, eliminar varios, indexación, búsqueda documental, drive, reuniones, etiqueta gmail, fuente de correo, seguir una etiqueta, conversaciones, hilos indexados, respuestas guardadas, documento con error, pdf escaneado, ocr, google docs, subcarpetas, árbol de carpetas, confirmación de sincronización, número de archivos, adjuntar un documento a un mensaje, RAG, onedrive, guardar en un espacio, favoritos, estrella, ordenar, buscar por nombre",
         "user-consumption-export": "CSV, consumo, tokens, coste, facturación, estadísticas, exportación, Exportar mi consumo",
@@ -5312,7 +5449,7 @@
         "admin-llm-pricing": "precios, precio, tarifa, tokens, modelos de texto, coste por token, Excel, hoja de cálculo, importar, exportar, actualización masiva, libro, razonamiento, profundidades aceptadas, escala, procedencia de capacidades, registros públicos, catálogo, franjas horarias, horas valle, horas punta, días de la semana, fin de semana, escritura de caché",
         "admin-google-api-pricing": "precios, API de Google, Maps, Places, rutas, coste de geocodificación",
         "admin-image-pricing": "precios, imágenes, generación de imágenes, coste por imagen, imagen de referencia, retoque, nivel, OpenAI, Qwen",
-        "admin-llm-config": "LLM, modelos, proveedor, configuración, temperatura, razonamiento, claves api, Ollama, modelos locales, ventana de contexto, resumen de correo, tokens de salida, voces fijadas, Fish Audio, latencia, WebSocket, tokens máx., límite de salida, límite del modelo, traductor World, mensajes traducidos, páginas interactivas, tiempo límite, timeout, Tool Assist, asistencias de Herramientas, Emails Agent",
+        "admin-llm-config": "LLM, modelos, proveedor, configuración, temperatura, razonamiento, claves api, Ollama, modelos locales, ventana de contexto, resumen de correo, tokens de salida, voces fijadas, Fish Audio, latencia, WebSocket, tokens máx., límite de salida, límite del modelo, traductor World, mensajes traducidos, páginas interactivas, tiempo límite, timeout, Tool Assist, asistencias de Herramientas, Emails Agent, modo automático, Pipeline, ReAct, modo de ejecución",
         "admin-voice-library": "voces, biblioteca de voces, clonar, clonación, diseño de voz, Fish Audio, grabaciones, consentimiento, síntesis de voz, TTS",
         "admin-personalities": "personalidades, estilos, tono, prompt de sistema, carácter del asistente, Administración de personalidades",
         "admin-skills": "habilidades, skills del sistema, importar, recargar, catálogo de capacidades, Administración de skills del sistema",
@@ -5324,12 +5461,12 @@
         "admin-diagnostics": "salud diagnóstico incidentes alertas supervisión autocomprobación estado plataforma prometheus loki conectividad salida red embeddings vectores cuota memoria idioma runbook evidencias registros diagnóstico versión",
         "meetings": "reunión, grabación, acta, transcripción, informe, micrófono, notas, resumen, acciones, plantilla, plantillas, biblioteca de plantillas, formato del acta, formato predeterminado, formato automático, cambiar el formato, secciones, instrucciones, correo del acta búsqueda texto completo acta reunión, grabar esta cita, ver el acta",
         "admin-registers": "registros, transparencia, acciones, consultas, exportar, diario, auditoría, admin, gráficos, estadísticas, cifras, vista general, iniciativa, proactivo, artículo 12, extracción completa, turnos",
-        "reminders": "recordatorio, recuérdame, alerta, notificación, recordatorio recurrente, repetir, nota, recurrencia, cada día, franja horaria, recordármelo",
+        "reminders": "recordatorio, recuérdame, alerta, notificación, recordatorio recurrente, repetir, nota, recurrencia, cada día, franja horaria, recordármelo, aplazar, detener recordatorio, mañana por la mañana, botones recordatorio",
         "generated-assets": "archivos imágenes documentos capturas descargas galería generados caducidad conservar conservados fijar marcadores bookmarks respuestas guardadas favoritos indexado espacio de conocimiento búsqueda compartir con una conexión compartida por",
         "sandbox-egress": "entorno aislado, sandbox, python, script, red, internet, proxy, hosts, permisos, autorizar, revocar, salida, API, integración, skill, comando, npm, git, pip, Red del entorno aislado",
         "live-mode": "live, tiempo real, voz, habla, Gemini Live, GPT-Live, OpenAI, ElevenLabs, agente, sesión directa, delegación, modelo, nivel de razonamiento, silencio, duración, techo de gasto, interrupciones, pulsar para hablar, conversación, micrófono, espera, poner en espera, despertar, dormida, Modo Live",
         "radio": "radio, emisora, pódcast, noticias, boletín, titulares, análisis, columna, voces, música, temporizador, fuentes, sitios, feeds, RSS, verificación, escucha, en compañía, comentaristas, debate, tertulia, discusión, voces de los comentaristas, reacciones, risita, risa, suspiro",
-        "admin-jev": "JEV, TypeSafe, interruptores, latencia, decisión, reunión, informe, alternativa clasificación phishing estafa crítico urgente, umbrales, umbral de decisión, estadísticas, fuera del registro cualificado, respuesta esperada",
+        "admin-jev": "JEV, TypeSafe, interruptores, latencia, decisión, reunión, informe, alternativa clasificación phishing estafa crítico urgente, umbrales, umbral de decisión, estadísticas, fuera del registro cualificado, respuesta esperada, modo automático, Pipeline, ReAct, modo de ejecución",
         "sms": "sms mensaje teléfono iphone atajos ingesta remitente token archivo mis sms acceso asistente consentimiento notificación push bloquear remitente actualizar nombres borrar exportar código de acceso"
       }
     },
@@ -5771,6 +5908,7 @@
     "event_upcoming": "Próxima",
     "events_window_one": "Se revisó el último día y el siguiente.",
     "events_window_other": "Se revisaron los últimos {{count}} días y los próximos {{count}}.",
+    "events_window_cut": "Tus calendarios contienen más de lo que cabe en una lectura: una parte no se ha leído, así que puede faltar una reunión.",
     "provider_none": "Conecta tu libreta de direcciones para ver la ficha de contacto, los correos intercambiados y las citas compartidas con esta persona.",
     "provider_no_address": "Sin dirección en esta ficha de contacto: no se han podido buscar correos ni citas.",
     "provider_error": "Algunas de tus cuentas conectadas no se han podido leer ahora mismo.",
@@ -5900,6 +6038,7 @@
       "errors": {
         "file_missing": "El archivo ya no está en el servidor. Súbalo de nuevo.",
         "extraction_failed": "No se pudo extraer el texto de este archivo.",
+        "inflates_too_far": "Este archivo es demasiado grande una vez descomprimido: un archivo Word, Excel, PowerPoint, OpenDocument o EPUB es un archivo comprimido, y este declara más de lo que un espacio lee. Divídelo en archivos más pequeños o pide a tu administrador que suba el límite.",
         "scanned_pdf_no_text_layer": "Este PDF es un documento escaneado sin capa de texto, y el reconocimiento de caracteres no está disponible aquí. Para indexarlo, súbelo a Google Drive, ábrelo con Documentos de Google (el texto se reconoce automáticamente) y añade ese documento de Google al espacio a través de su fuente de Drive.",
         "no_text_content": "No se encontró texto en este archivo.",
         "no_chunks": "No se pudo dividir en pasajes el texto de este archivo.",
@@ -6490,6 +6629,9 @@
       "delete_lia_habit": "Preparando la eliminación del hábito...",
       "delete_all_lia_habits": "Preparando el borrado de todos los hábitos...",
       "recompute_lia_habits": "Preparando el nuevo cálculo de hábitos...",
+      "get_lia_writing_style": "Consultando tu estilo de escritura...",
+      "learn_lia_writing_style": "Preparando el aprendizaje de tu estilo de escritura...",
+      "forget_lia_writing_style": "Preparando el borrado de tu estilo de escritura...",
       "get_lia_habit_details": "Consultando las pruebas de este hábito...",
       "update_lia_open_loop": "Preparando la corrección de tu compromiso...",
       "close_lia_open_loop": "Preparando el cierre de tu compromiso...",
@@ -6544,6 +6686,8 @@
       "update_lia_library_skill": "Prepara la actualización de una competencia de biblioteca",
       "update_lia_skill_settings": "Cambia la activación personal de una competencia",
       "delete_lia_skill": "Elimina una competencia personal",
+      "restore_lia_skill_previous_version": "Restaura la versión anterior de una competencia personal",
+      "import_lia_memories": "Importa recuerdos desde una exportación adjunta",
       "download_lia_skill": "Prepara la descarga de una competencia",
       "send_lia_email_share": "Prepara un envío por correo",
       "get_lia_generated_gallery": "Consultando su galería y las cuotas de conservación…",
@@ -6788,7 +6932,7 @@
         },
         "reminders": {
           "title": "🔔 Recordatorios y Notificaciones Push",
-          "description": "Recordatorios creados en lenguaje natural, enviados a todos tus dispositivos, con zonas horarias convertidas y referencias resueltas («el próximo», un número). Un recordatorio puede repetirse — cada día, los lunes y jueves, el 15, cada dos horas dentro de una franja — o sonar una vez y borrarse: un recordatorio sin futuro desaparece. Cada mensaje se escribe con la personalidad activa y tus recuerdos, en tu idioma, y nunca vacío; uno no entregado vuelve en la siguiente pasada."
+          "description": "Pide un recordatorio único o recurrente, en tu zona horaria. Su mensaje sigue tu idioma y la personalidad de LIA. Cuando suena, aplaza esa ocurrencia desde su mensaje o notificación, o confirma el fin de la serie. Dos pulsaciones no crean dos recordatorios. Una ocurrencia no entregada se reintenta; un recordatorio sin próxima fecha desaparece."
         },
         "personalities": {
           "title": "🎭 14 Personalidades Dinámicas",
@@ -6807,8 +6951,8 @@
           "description": "La pila completa: métricas Prometheus (tokens, latencia, errores, costes), 33 paneles Grafana, trazas Tempo, registros Loki recogidos por Alloy y alertas por correo que apuntan a su runbook — en versiones mantenidas, fijadas por huella. Las señales se responden: una línea de registro abre su traza, una traza sus registros y sus métricas, un punto de latencia su ejemplo. La cadena de observación se vigila a sí misma, y una medición nombra la ruta seguida, nunca a una persona ni una búsqueda."
         },
         "tools": {
-          "title": "🔧 340 herramientas tipadas",
-          "description": "340 herramientas nativas con esquemas JSON generados a partir de los tipos Python, ampliables sin límite mediante servidores MCP y habilidades. Cada una declara su manifiesto y sus límites publicados: lo que un validador puede rechazar, el planificador puede leerlo. El catálogo se filtra por dominio — por eso cada dominio lleva también sus capacidades de lectura, o un dominio con solo herramientas de escritura empujaría al planificador a escribir. Lo que debe ser exacto lo calcula una herramienta, nunca se estima: cálculos, fechas, divisas."
+          "title": "🔧 345 herramientas tipadas",
+          "description": "345 herramientas nativas con esquemas JSON generados a partir de los tipos Python, ampliables sin límite mediante servidores MCP y habilidades. Cada una declara su manifiesto y sus límites publicados: lo que un validador puede rechazar, el planificador puede leerlo. El catálogo se filtra por dominio — por eso cada dominio lleva también sus capacidades de lectura, o un dominio con solo herramientas de escritura empujaría al planificador a escribir. Lo que debe ser exacto lo calcula una herramienta, nunca se estima: cálculos, fechas, divisas."
         },
         "costTransparency": {
           "title": "💰 Transparencia de Costos",
@@ -6832,7 +6976,7 @@
         },
         "multichannel": {
           "title": "📲 Multi-Canal (Telegram)",
-          "description": "Una arquitectura multicanal genérica, con Telegram como primera implementación: vinculación por OTP, texto y voz (mensajes de audio transcritos) y un webhook asíncrono que reclama cada actualización una sola vez — una reentrega nunca se reproduce. Un canal externo no es un modo degradado: memoria a largo plazo, diarios y estado emocional se aplican allí igual, y una única resolución de preferencias sirve tanto a los mensajes entrantes como a las respuestas de botones, para que ninguna se olvide en un solo lado."
+          "description": "Telegram comparte tus herramientas, memoria y preferencias: texto, notas de voz, fotos, archivos o ubicación; respuestas con formato y archivos generados. Un mensaje puede esperar su turno, /stop detiene una respuesta y una nota de voz puede recibir una respuesta hablada. Al suscribirte, ntfy también recibe notificaciones: un aviso por defecto, el texto completo si lo eliges."
         },
         "heartbeatAutonome": {
           "title": "💓 Heartbeat Autónomo",
@@ -6904,7 +7048,7 @@
         },
         "healthMetrics": {
           "title": "📲 Salud y SMS desde tu iPhone",
-          "description": "Una automatización de Atajos de iPhone envía tus pasos, tu pulso y tus SMS, cada uno con un token revocable propio, guardado como hash y mostrado una vez. Las muestras de salud se fusionan entre Watch y teléfono sin contar dos veces, y una fuera de rango se rechaza sola; un SMS entra en un archivo cifrado con un recibo seguro ante reintentos, sin códigos de acceso. El asistente solo lee unos u otros tras un consentimiento aparte."
+          "description": "Atajos de iPhone envía muestras de salud y SMS con tokens revocables separados. Los pasos solapados del Watch y el teléfono se cuentan una vez por tramo; los días siguen tu zona horaria. Los SMS permanecen cifrados, sin códigos de acceso. El asistente solo lee salud o SMS tras el permiso separado que das para cada uno."
         },
         "imageGeneration": {
           "title": "🎨 Generación y Edición de Imágenes",
@@ -6919,8 +7063,8 @@
           "description": "Pide un juego, un cuestionario o una calculadora: LIA escribe la página y funciona en el chat, en un marco aislado que no alcanza ni tu cuenta ni ningún sitio de su elección, con su archivo .html debajo. Puede mostrar un mapa."
         },
         "reactMode": {
-          "title": "⚡ Modo de Ejecución ReAct",
-          "description": "La alternativa al pipeline: la asistente razona paso a paso — llamar a una herramienta, leer el resultado, decidir lo siguiente —, aprobaciones incluidas. El pipeline sigue siendo el modo por defecto y cuesta varias veces menos tokens; se cambia desde la cabecera del chat. El bucle se juzga por su resultado: comprueba que cada respuesta de herramienta responde a la pregunta, cambia de fuente ante un obstáculo y declara lo que no pudo obtener. Tu ritmo de intercambios decide si tiene todas sus herramientas a mano para que el turno siguiente relea el anterior desde la caché."
+          "title": "Pipeline, ReAct y modo automático",
+          "description": "Pipeline prepara un plan; ReAct lee cada resultado y decide el siguiente paso. Elige uno en la cabecera del chat o deja que Automático decida para cada petición e indique el motor usado. Pipeline sigue siendo la opción económica por defecto; las tareas inciertas o exploratorias van al bucle. Las confirmaciones son las mismas y ReAct dice qué no pudo obtener."
         },
         "proactiveInitiative": {
           "title": "🎯 Iniciativa Proactiva",
@@ -7014,6 +7158,30 @@
       "meta_title": "Historial de versiones — LIA, asistente IA de código abierto",
       "meta_description": "Cada versión de LIA contada con sencillez: novedades, mejoras y correcciones del asistente personal de IA de código abierto que alojas tú mismo.",
       "versions": {
+        "v5_1_0": {
+          "title": "v5.1.0 — 🧭 El modo adecuado, hables donde hables",
+          "date": "16 de noviembre de 2026",
+          "count": "17",
+          "items": {
+            "i1": "🧭 <b>Modo automático</b> — Elige <b>Automático</b> en la cabecera del chat: LIA escoge Pipeline o ReAct para cada petición, dando prioridad al bucle cuando hay que explorar o actuar. La respuesta indica el motor utilizado. Tickets, rutinas y Telegram ofrecen la misma elección; el menú avisa si la instancia no puede decidir automáticamente.",
+            "i2": "📎 <b>Telegram lee más</b> — Envía fotos, documentos, álbumes o tu ubicación y responde a un mensaje para darle su contexto a LIA. Las respuestas conservan títulos, listas, tablas y citas; las imágenes y los documentos generados llegan como archivos. Se aplican los mismos límites de archivos que en el chat.",
+            "i3": "⏯️ <b>Telegram guarda tu turno</b> — <b>/stop</b> detiene una respuesta; un texto enviado mientras LIA trabaja espera su turno. Si la respuesta falla o se detiene, puedes enviar o retirar el texto pendiente. Con las respuestas habladas activadas, una nota de voz recibe también una respuesta de voz. Los resultados de las rutinas llegan a Telegram.",
+            "i4": "📲 <b>Notificaciones por ntfy</b> — Suscribe la aplicación ntfy de tu móvil u ordenador al servidor de tu instancia o a otro permitido. Un código QR y un mensaje de prueba facilitan la conexión. Por defecto, solo sale un aviso de LIA; eliges el <b>Texto completo</b> para cada suscripción.",
+            "i5": "⏰ <b>Un recordatorio puede esperar</b> — Cuando suene, aplaza esa ocurrencia desde su mensaje o notificación, o confirma que quieres detener la serie. Las horas propuestas siguen tu zona horaria y pulsar dos veces desde dos dispositivos no crea dos recordatorios aplazados.",
+            "i6": "🖋️ <b>Tus palabras, tu elección</b> — El estilo de escritura solo se aprende cuando lo pides, desde Ajustes o tras confirmar en el chat. Puedes volver a enseñarlo u olvidarlo; ya no se renueva solo. Los correos que redacta LIA siguen ese estilo, mientras que las palabras que dictas expresamente se conservan tal como las diste.",
+            "i7": "💬 <b>Los resultados vuelven a su conversación</b> — Llamadas, reuniones iniciadas o importadas desde una conversación y rutinas ejecutadas a mano desde su chat vuelven a ella, o a Principal si se ha reiniciado o eliminado. Una notificación para otra conversación la nombra y ofrece abrirla.",
+            "i8": "✉️ <b>Lee el correo como se envió</b> — Abre su diseño original desde la tarjeta del chat, como en Herramientas, sin llamar a un modelo. Las imágenes remotas esperan tu clic. Cuando LIA resume el correo o lo convierte en un evento, lee las palabras que ese diseño realmente muestra.",
+            "i9": "💓 <b>Los datos de salud siguen tu día</b> — Los pasos del iPhone y del Apple Watch que se solapan se cuentan una sola vez por tramo de tiempo, también en el historial recibido. Gráficos, medias y periodos solicitados siguen la zona horaria de tu cuenta; un día sin muestras no se presenta como cero.",
+            "i10": "📅 <b>Leer todas tus listas</b> — La disponibilidad, el inicio y otros resúmenes de agenda leen todos los calendarios de tu propiedad. Las lecturas internas recorren las páginas del proveedor para calendarios, listas de tareas e historial de correo; una llamada de herramienta que alcanza su límite lo indica.",
+            "i11": "🧠 <b>Una conversación larga conserva sus referencias</b> — La compactación guarda tus palabras recientes y los identificadores importantes. Si un modelo rechaza una conversación demasiado larga, LIA la resume y lo intenta una vez más, solo si el turno aún no ha realizado ninguna acción.",
+            "i12": "🧩 <b>Restaurar desde el chat</b> — Adjunta una exportación de recuerdos y pide a LIA que la importe, o solicita la versión anterior de una habilidad. LIA muestra qué cambiará, espera tu confirmación y comprueba de nuevo que el contenido no haya cambiado mientras tanto.",
+            "i13": "📇 <b>Llamadas y SMS en la ficha de un contacto</b> — Aparecen llamadas recientes y SMS recibidos incluso si el contacto solo tiene teléfono. Tras una llamada, LIA distingue buzón de voz, falta de respuesta y fallo de línea, e indica si se dejó un mensaje cuando el proveedor lo registró.",
+            "i14": "🔌 <b>Stripe en los MCP conocidos</b> — Añade Stripe desde la galería de servidores. El descubrimiento OAuth también lee los metadatos publicados bajo la ruta de un servidor, permitiendo conexiones cuyo inicio de sesión fallaba.",
+            "i15": "📱 <b>Correcciones para pantallas pequeñas</b> — Diálogos y nombres largos de archivos o conversaciones caben en pantalla. La etiqueta de correos sin leer del inicio describe el recuento mostrado, y la insignia del motor salta de línea como un bloque en móviles estrechos.",
+            "i16": "🌐 <b>Una presentación más clara</b> — La página pública explica los servicios de LIA, el contexto personal y las formas de actuar con una presentación más centrada y una comparación con fuentes que distingue las funciones integradas de las que requieren una extensión.",
+            "i17": "⚙️ <b>Para administradores</b> — El instalador ofrece un servidor ntfy opcional, desactivado por defecto; su relé para despertar el iPhone se elige por separado. El modo automático tiene su propia configuración JEV e indica su alternativa. La lectura de documentos comprimidos se limita por su tamaño descomprimido; los espacios de conocimiento explican cuándo se supera."
+          }
+        },
         "v5_0_0": {
           "title": "v5.0.0 — 💬 Una conversación para cada tema",
           "date": "14 de noviembre de 2026",
@@ -10061,7 +10229,7 @@
           },
           "q1": {
             "question": "¿Puedo tener varias conversaciones al mismo tiempo?",
-            "answer": "Sí. Abre el botón del centro de la cabecera del chat. <strong>Principal</strong> recibe los mensajes automáticos. Si se permite la creación, elige <strong>Nueva conversación</strong> y escribe un título, o deja el campo vacío: la conversación tomará como título el comienzo de tu primer mensaje. Desde la lista puedes abrir una conversación adicional, cambiarle el nombre o eliminarla. Cada conversación, incluida la Principal, también se puede exportar desde esa lista como archivo Markdown. Cada una guarda su historial y borrador. El indicador de sesión muestra sus tokens, coste y ocupación del contexto."
+            "answer": "Sí. Abre el botón del centro de la cabecera del chat. <strong>Principal</strong> recibe recordatorios, resultados de rutinas programadas y mensajes proactivos. Si se permite la creación, elige <strong>Nueva conversación</strong> y escribe un título, o deja el campo vacío: la conversación tomará como título el comienzo de tu primer mensaje. Desde la lista puedes abrir una conversación adicional, cambiarle el nombre o eliminarla. Cada conversación, incluida la Principal, también se puede exportar desde esa lista como archivo Markdown. Cada una guarda su historial y borrador. El indicador de sesión muestra sus tokens, coste y ocupación del contexto. Las llamadas y reuniones iniciadas o importadas desde una conversación adicional, y las rutinas ejecutadas a mano desde su chat, vuelven a ella. Si se ha reiniciado o eliminado, el resultado llega a Principal. Si no está en pantalla, la notificación te lo dice y te propone abrirla. Una notificación para Principal se nombra igual mientras hay una conversación adicional abierta."
           },
           "q2": {
             "question": "¿Cómo reinicio una conversación?",
@@ -10093,11 +10261,11 @@
           },
           "q9": {
             "question": "¿Qué es el comando /resume?",
-            "answer": "El comando <strong>/resume</strong> activa la <strong>compactación inteligente del contexto</strong>:<br><br><strong>Qué hace:</strong><br>• Resume el historial antiguo de la conversación usando IA<br>• Preserva identificadores críticos (nombres, correos, IDs)<br>• Libera espacio en la ventana de contexto para conversaciones más largas<br><br><strong>Cuándo usarlo:</strong><br>• Cuando tu conversación lleva mucho tiempo<br>• Cuando LIA parece perder el hilo del contexto anterior<br>• Cuando quieras «reiniciar» el contexto sin perder información importante<br><br><strong>Cómo funciona:</strong><br>1. Escribe <strong>/resume</strong> en el chat<br>2. LIA resume los mensajes antiguos en un resumen conciso<br>3. Los mensajes recientes se conservan intactos<br>4. LIA confirma la compactación con un breve resumen<br><br><strong>💡 Mientras se ejecuta la compactación:</strong><br>• Aparece un <strong>toast</strong> en la parte superior de la pantalla con <em>«Resumiendo la conversación…»</em><br>• El área de entrada se <strong>bloquea</strong> automáticamente mientras se completa el resumen<br>• Al finalizar, el toast se transforma en una confirmación <em>«Conversación resumida — N tokens liberados»</em><br>• Si el resumen no puede completarse (caída del LLM, tiempo agotado), un <strong>repliegue explícito</strong> trunca limpiamente el historial antiguo con una nota visible en lugar de una pérdida silenciosa<br><br><strong>📊 Indicador permanente:</strong> Una pastilla discreta en la cabecera del chat (junto al cuadro de búsqueda) muestra de forma continua tu uso <em>tokens/umbral</em> en forma de anillo coloreado — puedes ver en todo momento cuándo se activará la próxima compactación.<br><br><strong>💡 Nota:</strong> La compactación también se activa automáticamente cuando la conversación se vuelve muy larga. El comando /resume te permite forzarla en cualquier momento."
+            "answer": "El comando <strong>/resume</strong> activa la <strong>compactación inteligente del contexto</strong>:<br><br><strong>Qué hace:</strong><br>• Resume el historial antiguo de la conversación usando IA<br>• Preserva identificadores críticos (nombres, correos, IDs)<br>• Conserva tus propios mensajes palabra por palabra (los más recientes, dentro de un límite)<br>• Libera espacio en la ventana de contexto para conversaciones más largas<br><br><strong>Cuándo usarlo:</strong><br>• Cuando tu conversación lleva mucho tiempo<br>• Cuando LIA parece perder el hilo del contexto anterior<br>• Cuando quieras «reiniciar» el contexto sin perder información importante<br><br><strong>Cómo funciona:</strong><br>1. Escribe <strong>/resume</strong> en el chat<br>2. LIA resume los mensajes antiguos en un resumen conciso<br>3. Los mensajes recientes se conservan intactos<br>4. LIA confirma la compactación con un breve resumen<br><br><strong>💡 Mientras se ejecuta la compactación:</strong><br>• Aparece un <strong>toast</strong> en la parte superior de la pantalla con <em>«Resumiendo la conversación…»</em><br>• El área de entrada se <strong>bloquea</strong> automáticamente mientras se completa el resumen<br>• Al finalizar, el toast se transforma en una confirmación <em>«Conversación resumida — N tokens liberados»</em><br>• Si el resumen no puede completarse (caída del LLM, tiempo agotado), un <strong>repliegue explícito</strong> trunca limpiamente el historial antiguo con una nota visible en lugar de una pérdida silenciosa<br><br><strong>📊 Indicador permanente:</strong> Una pastilla discreta en la cabecera del chat (junto al cuadro de búsqueda) muestra de forma continua tu uso <em>tokens/umbral</em> en forma de anillo coloreado — puedes ver en todo momento cuándo se activará la próxima compactación.<br><br><strong>💡 Nota:</strong> La compactación también se activa automáticamente cuando la conversación se vuelve muy larga. El comando /resume te permite forzarla en cualquier momento. Si el modelo rechaza una solicitud porque la conversación ya no cabe en su ventana de contexto, LIA resume los mensajes antiguos y vuelve a responder a tu solicitud — una sola vez, y nunca cuando ya se ha realizado una acción en ese turno, para que nada se haga dos veces. Si aun así no basta, LIA te propone escribir /resume o continuar en una nueva conversación."
           },
           "q10": {
-            "question": "¿Cuál es la diferencia entre el modo Pipeline (🔀) y el modo ReAct (⚡)?",
-            "answer": "LIA ofrece dos modos de ejecución, seleccionables mediante el toggle 🔀/⚡ en el encabezado del chat:<br><br><strong>🔀 Modo Pipeline (por defecto)</strong><br>LIA planifica todos los pasos por adelantado, los valida y ejecuta herramientas en paralelo. Es el modo más <strong>rápido y económico</strong>: consume 4 a 8 veces menos tokens que el modo ReAct.<br><br><strong>⚡ Modo ReAct</strong><br>LIA razona paso a paso: llama a una herramienta, analiza el resultado y decide autónomamente qué hacer después. Más <strong>adaptable y autónomo</strong>, pero consume significativamente más tokens.<br><br><strong>💡 ¿Cuándo usar cada modo?</strong><br>• <strong>Pipeline (🔀)</strong>: para la mayoría de solicitudes — emails, calendario, clima, contactos, tareas...<br>• <strong>ReAct (⚡)</strong>: para investigaciones exploratorias, preguntas complejas de múltiples pasos o cuando necesitas que LIA se adapte en tiempo real.<br><br><strong>⚠️ Aviso de costos:</strong> el modo ReAct consume 4 a 8× más tokens. Resérvalo para solicitudes donde el valor añadido justifique el costo adicional.<br><br><strong>🎯 Juzgado por su resultado:</strong> en ReAct, LIA comprueba que cada resultado responde de verdad a la pregunta — el día correcto, el lugar correcto, una lista completa —, cambia de fuente ante un obstáculo y luego te dice lo que no pudo obtener y lo que intentó. Un dato que viene de otra fuente lleva esa fuente."
+            "question": "¿Qué son los modos Pipeline (🔀), ReAct (⚡) y automático (🧭)?",
+            "answer": "LIA ofrece tres modos de ejecución, a elegir en el menú del encabezado del chat (su icono muestra el modo actual):<br><br><strong>🔀 Modo Pipeline (por defecto)</strong><br>LIA planifica todos los pasos por adelantado, los valida y ejecuta herramientas en paralelo. Es el modo más <strong>rápido y económico</strong>: consume 4 a 8 veces menos tokens que el modo ReAct.<br><br><strong>⚡ Modo ReAct</strong><br>LIA razona paso a paso: llama a una herramienta, analiza el resultado y decide autónomamente qué hacer después. Más <strong>adaptable y autónomo</strong>, pero consume significativamente más tokens.<br><br><strong>🧭 Modo automático</strong><br>LIA elige por ti, petición por petición. Una petición que un solo plan puede completar se ejecuta en Pipeline; todo lo que necesita razonar paso a paso se ejecuta en ReAct — una acción que confirmar, algo que hacer con cada elemento de una lista, una habilidad, una referencia a una respuesta anterior, una cifra que calcular a partir de tus datos, resultados que cotejar, un trabajo abierto, alguien a quien solo nombra el texto de uno de tus elementos (la persona a la que tu ticket dice que llames). En caso de duda elige ReAct: una respuesta completa va antes que una rápida. Una pequeña insignia bajo la respuesta, junto a la hora, indica qué modo respondió. Sin modelo de decisión en tu instancia, el modo automático usa siempre ReAct; si ReAct está desactivado, siempre Pipeline — el menú lo dice antes de que elijas.<br><br><strong>💡 ¿Cuándo usar cada modo?</strong><br>• <strong>Automático (🧭)</strong>: cuando prefieres no elegir — de media se sitúa entre los dos en rapidez y en coste.<br>• <strong>Pipeline (🔀)</strong>: para la mayoría de solicitudes — emails, calendario, clima, contactos, tareas...<br>• <strong>ReAct (⚡)</strong>: para investigaciones exploratorias, preguntas complejas de múltiples pasos o cuando necesitas que LIA se adapte en tiempo real.<br><br><strong>⚠️ Aviso de costos:</strong> el modo ReAct consume 4 a 8× más tokens. Resérvalo para solicitudes donde el valor añadido justifique el costo adicional.<br><br><strong>🎯 Juzgado por su resultado:</strong> en ReAct, LIA comprueba que cada resultado responde de verdad a la pregunta — el día correcto, el lugar correcto, una lista completa —, cambia de fuente ante un obstáculo y luego te dice lo que no pudo obtener y lo que intentó. Un dato que viene de otra fuente lleva esa fuente.<br><br><strong>🎫 Tickets, acciones programadas y Telegram:</strong> un ticket y una acción programada ofrecen los mismos tres modos, y un mensaje que envías por Telegram sigue el modo que elegiste."
           },
           "q11": {
             "question": "¿Cómo copio un mensaje o código, y las fórmulas matemáticas se muestran correctamente?",
@@ -10173,7 +10341,7 @@
           },
           "q29": {
             "question": "¿Qué muestran las tarjetas de las respuestas?",
-            "answer": "<p>Las tarjetas muestran los datos recibidos de la fuente; lo que falta permanece ausente. El detalle se abre con un clic o con el teclado sin otra llamada ni coste. Galerías, vistas previas de documentos, tiempo por franjas y rutas interactivas mantienen sus controles y costes anunciados.</p><p><strong>Responde, reenvía o elimina un correo</strong> desde su tarjeta: LIA prepara una petición vinculada al mensaje y buzón exactos y sigue la confirmación habitual. Cambiar de proveedor activo no permite dirigirla a otro buzón.</p><p>Las tarjetas MCP conservan listas y valores simples y muestran herramienta, método y URL de origen cuando se proporcionan. Los iconos del tiempo siguen la condición real y el día o la noche; fechas y números siguen el formato elegido. El modelo recibe los datos autorizados, no el marcado de la tarjeta.</p><p>Las tarjetas al final de una respuesta se agrupan bajo un único desplegable en los modos Tarjetas y HTML + tarjetas. Los detalles siguen legibles; las confirmaciones, los widgets interactivos y los mensajes sin texto mantienen sus controles.</p>"
+            "answer": "<p>Las tarjetas muestran los datos recibidos de la fuente; lo que falta permanece ausente. El detalle se abre con un clic o con el teclado sin otra llamada ni coste, salvo el contenido de un correo, que se vuelve a leer en tu buzón (más abajo). Galerías, vistas previas de documentos, tiempo por franjas y rutas interactivas mantienen sus controles y costes anunciados.</p><p><strong>Responde, reenvía o elimina un correo</strong> desde su tarjeta: LIA prepara una petición vinculada al mensaje y buzón exactos y sigue la confirmación habitual. Cambiar de proveedor activo no permite dirigirla a otro buzón.</p><p><strong>El contenido de un correo</strong> se abre con su diseño original, como en las Herramientas: LIA lo lee en tu buzón cuando despliegas su tarjeta, sin llamada al modelo ni coste, y solo en el buzón que mostró la tarjeta. Las imágenes remotas esperan tu clic, y «Mostrar el texto e interactuar» da su versión de texto. Sin las Herramientas, sin diseño o si no se puede leer, la tarjeta conserva el texto. Cuando LIA lee un correo para responderte, convertirlo en un evento o resumirlo, lee lo que muestra este diseño, no el breve texto de reserva que algunos remitentes añaden.</p><p>Las tarjetas MCP conservan listas y valores simples y muestran herramienta, método y URL de origen cuando se proporcionan. Los iconos del tiempo siguen la condición real y el día o la noche; fechas y números siguen el formato elegido. El modelo recibe los datos autorizados, no el marcado de la tarjeta.</p><p>Las tarjetas al final de una respuesta se agrupan bajo un único desplegable en los modos Tarjetas y HTML + tarjetas. Los detalles siguen legibles; las confirmaciones, los widgets interactivos y los mensajes sin texto mantienen sus controles.</p>"
           },
           "q30": {
             "question": "¿Cómo sé si una acción se realizó de verdad?",
@@ -10264,7 +10432,7 @@
           },
           "q10": {
             "question": "¿Cómo gestiono mis memorias almacenadas?",
-            "answer": "Controlas tus recuerdos en <strong>Ajustes › Memoria</strong>: leer, editar, fijar, exportar o eliminar individualmente o en grupo. El formulario cuenta tus caracteres e indica el límite de cada campo antes de guardar, y si vacías el <strong>Matiz de uso</strong> o el <strong>Tema desencadenante</strong>, se borra. <strong>Importar</strong> recupera una exportación, CSV o JSON: lo que tu cuenta ya contiene no se toca, y LIA te indica exactamente cuántos recuerdos se han importado, ya estaban presentes o se han rechazado.<br><br><strong>📌 Fijar:</strong> un recuerdo fijado está protegido de cambios y limpieza automáticas. Las nuevas <strong>instrucciones permanentes</strong> — cómo debe trabajar LIA para ti — se fijan al guardarlas. Puedes editarlas, desfijarlas o eliminarlas personalmente. Incluso sin fijar, una instrucción está protegida de la eliminación automática; una corrección automática debe conservar un sucesor.<br><br><strong>🔄 Limpieza:</strong> los demás recuerdos sin fijar se evalúan por importancia, actualidad y uso. Los que corren riesgo de olvidarse se señalan para que fijes lo importante a tiempo. Reiniciar la conversación no borra estos recuerdos."
+            "answer": "Controlas tus recuerdos en <strong>Ajustes › Memoria</strong>: leer, editar, fijar, exportar o eliminar individualmente o en grupo. El formulario cuenta tus caracteres e indica el límite de cada campo antes de guardar, y si vacías el <strong>Matiz de uso</strong> o el <strong>Tema desencadenante</strong>, se borra. <strong>Importar</strong> recupera una exportación, CSV o JSON: lo que tu cuenta ya contiene no se toca, y LIA te indica exactamente cuántos recuerdos se han importado, ya estaban presentes o se han rechazado. En el chat, adjunta el archivo de exportación y pide a LIA que lo importe: te muestra estos recuentos antes de crear nada y no crea nada sin tu confirmación.<br><br><strong>📌 Fijar:</strong> un recuerdo fijado está protegido de cambios y limpieza automáticas. Las nuevas <strong>instrucciones permanentes</strong> — cómo debe trabajar LIA para ti — se fijan al guardarlas. Puedes editarlas, desfijarlas o eliminarlas personalmente. Incluso sin fijar, una instrucción está protegida de la eliminación automática; una corrección automática debe conservar un sucesor.<br><br><strong>🔄 Limpieza:</strong> los demás recuerdos sin fijar se evalúan por importancia, actualidad y uso. Los que corren riesgo de olvidarse se señalan para que fijes lo importante a tiempo. Reiniciar la conversación no borra estos recuerdos."
           },
           "q11": {
             "question": "¿Cómo configuro mi geolocalización y dirección de domicilio?",
@@ -10352,7 +10520,7 @@
           },
           "q32": {
             "question": "¿Puede LIA escribir mis correos como yo los escribo?",
-            "answer": "Sí. La primera vez que LIA escribe un correo por ti (una respuesta, un borrador o un mensaje nuevo), lee tus últimos correos enviados y aprende <strong>cómo</strong> escribes: tu saludo, tu despedida, si firmas y cómo, tu extensión habitual, tu tono, tus emojis. Nunca <strong>de qué</strong> escribías: no se guarda ningún nombre, lugar ni proyecto.<br><br>Lo aprendido se muestra en <strong>Ajustes › Funcionalidades › Estilo de escritura</strong>, se guarda cifrado y se vuelve a aprender con regularidad. Allí puedes desactivarlo (ya no se lee ni se usa nada) o hacer que LIA lo olvide. Una nota a tu propio buzón conserva su forma sencilla, y las palabras que dictas exactamente se envían tal cual."
+            "answer": "Sí, en cuanto lo pidas. En <strong>Ajustes › Funcionalidades › Estilo de escritura</strong>, elige <strong>Aprender mi estilo</strong> (o pídeselo a LIA en una conversación): LIA lee tus últimos correos enviados y aprende <strong>cómo</strong> escribes: tu saludo, tu despedida, si firmas y cómo, tu extensión habitual, tu tono, tus emojis. Nunca <strong>de qué</strong> escribías: no se guarda ningún nombre, lugar ni proyecto. El aprendizaje cuesta una llamada al modelo, que se muestra al terminar.<br><br>Lo aprendido se muestra allí y se guarda cifrado hasta que lo vuelvas a aprender o hagas que LIA lo olvide; no se aprende nada sin que lo pidas. Allí puedes desactivarlo (ya no se lee ni se usa nada). Las palabras que dictas exactamente, entre comillas o tras dos puntos, se envían tal cual; cualquier otro correo que LIA escriba por ti sigue tu estilo. Una nota a tu propio buzón conserva su forma sencilla."
           }
         }
       },
@@ -10387,7 +10555,7 @@
           },
           "q6": {
             "question": "¿Puedo configurar preferencias por conector?",
-            "answer": "¡Sí! Algunos conectores tienen <strong>preferencias personalizables</strong>:<br><br><strong>📅 Google Calendar:</strong><br>• <strong>Calendario por defecto</strong>: dónde crear nuevos eventos<br>• Ejemplo: \"Trabajo\", \"Personal\", \"Familia\"<br>• LIA usará este calendario salvo indicación contraria<br><br><strong>✅ Google Tasks:</strong><br>• <strong>Lista de tareas por defecto</strong>: dónde crear nuevas tareas<br>• Ejemplo: \"Mi lista principal\", \"Proyectos\", \"Compras\"<br><br><strong>📍 Ubicación:</strong><br>• <strong>Dirección del domicilio</strong>: tu dirección por defecto para búsquedas \"cerca de mí\"<br>• <strong>Memoria de ubicación</strong> (opt-in): recuerda tu última posición para que LIA siga respondiendo desde donde estás cuando la posición en vivo no está disponible — siempre anunciada con su antigüedad, nunca presentada como actual, cifrada y borrada en cuanto desactivas la opción<br>• Configúrala una vez, se usará automáticamente<br><br><strong>🌐 Geolocalización del navegador:</strong><br>• <strong>Geolocalización automática</strong>: enviar tu posición con cada mensaje<br>• Ve a <strong>Ajustes > Preferencias > Ubicación</strong> — estos datos viven en tu cuenta, no en un conector<br>• Activa \"<em>Geolocalización automática</em>\" para uso continuo<br>• Tu navegador pedirá permiso la primera vez<br>• Posición usada para clima local y búsquedas \"cerca de mí\"<br>• En el móvil, la posición se refresca en silencio al volver a la aplicación; si el sistema retiró el permiso, un banner del chat propone reactivarlo<br><br><strong>Para configurar:</strong><br>1. Ve a <strong>Ajustes > Conectores</strong> (calendario, tareas)<br>2. Selecciona tus valores por defecto<br><br><strong>💡 Consejo:</strong><br>Estas preferencias te ahorran tiempo al no tener que especificar el calendario, lista o ciudad cada vez."
+            "answer": "¡Sí! Algunos conectores tienen <strong>preferencias personalizables</strong>:<br><br><strong>📅 Google Calendar:</strong><br>• <strong>Calendario por defecto</strong>: dónde crear nuevos eventos<br>• Ejemplo: \"Trabajo\", \"Personal\", \"Familia\"<br>• LIA usará este calendario salvo indicación contraria<br>• Para saber cuándo estás ocupado (huecos libres, tu día, las reuniones con una persona), LIA lee todos los calendarios que te pertenecen, no solo este<br><br><strong>✅ Google Tasks:</strong><br>• <strong>Lista de tareas por defecto</strong>: dónde crear nuevas tareas<br>• Ejemplo: \"Mi lista principal\", \"Proyectos\", \"Compras\"<br><br><strong>📍 Ubicación:</strong><br>• <strong>Dirección del domicilio</strong>: tu dirección por defecto para búsquedas \"cerca de mí\"<br>• <strong>Memoria de ubicación</strong> (opt-in): recuerda tu última posición para que LIA siga respondiendo desde donde estás cuando la posición en vivo no está disponible — siempre anunciada con su antigüedad, nunca presentada como actual, cifrada y borrada en cuanto desactivas la opción<br>• Configúrala una vez, se usará automáticamente<br><br><strong>🌐 Geolocalización del navegador:</strong><br>• <strong>Geolocalización automática</strong>: enviar tu posición con cada mensaje<br>• Ve a <strong>Ajustes > Preferencias > Ubicación</strong> — estos datos viven en tu cuenta, no en un conector<br>• Activa \"<em>Geolocalización automática</em>\" para uso continuo<br>• Tu navegador pedirá permiso la primera vez<br>• Posición usada para clima local y búsquedas \"cerca de mí\"<br>• En el móvil, la posición se refresca en silencio al volver a la aplicación; si el sistema retiró el permiso, un banner del chat propone reactivarlo<br><br><strong>Para configurar:</strong><br>1. Ve a <strong>Ajustes > Conectores</strong> (calendario, tareas)<br>2. Selecciona tus valores por defecto<br><br><strong>💡 Consejo:</strong><br>Estas preferencias te ahorran tiempo al no tener que especificar el calendario, lista o ciudad cada vez."
           },
           "q7": {
             "question": "¿Qué servicios de Google puedo conectar?",
@@ -10446,7 +10614,7 @@
           },
           "q2": {
             "question": "¿Cómo se desarrolla una llamada, paso a paso?",
-            "answer": "<strong>1. Lo pides en el chat</strong><br>• <em>Llama a la consulta del Dr. Martin y pide una cita para esta semana</em><br><br><strong>2. LIA pide tu confirmación</strong><br>Antes de marcar nada, LIA te muestra una tarjeta de confirmación: <strong>a quién</strong> va a llamar, <strong>qué número</strong> y <strong>por qué</strong>. Nada ocurre sin tu acuerdo explícito.<br><br><strong>3. La llamada tiene lugar</strong><br>El agente de voz de LIA hace la llamada desde tu número y trabaja hacia el objetivo. Mientras tanto puedes seguir chateando con LIA — o cerrar la aplicación.<br><br><strong>4. El resumen llega al chat</strong><br>Un resumen escrito se entrega de forma asíncrona, con una acción de seguimiento sugerida cuando queda algo por hacer. Tus llamadas recientes aparecen también en <strong>Ajustes › Preferencias › Llamadas recientes</strong>, con su estado, su resultado, su resumen y su coste."
+            "answer": "<strong>1. Lo pides en el chat</strong><br>• <em>Llama a la consulta del Dr. Martin y pide una cita para esta semana</em><br><br><strong>2. LIA pide tu confirmación</strong><br>Antes de marcar nada, LIA te muestra una tarjeta de confirmación: <strong>a quién</strong> va a llamar, <strong>qué número</strong> y <strong>por qué</strong>. Nada ocurre sin tu acuerdo explícito.<br><br><strong>3. La llamada tiene lugar</strong><br>El agente de voz de LIA hace la llamada desde tu número y trabaja hacia el objetivo. Mientras tanto puedes seguir chateando con LIA — o cerrar la aplicación.<br><br><strong>4. El resumen llega al chat</strong><br>Un resumen escrito se entrega de forma asíncrona, con una acción de seguimiento sugerida cuando queda algo por hacer. Tus llamadas recientes aparecen también en <strong>Ajustes › Preferencias › Llamadas recientes</strong>, con su estado, su resultado, su resumen y su coste.<br><br>El resumen vuelve a la conversación en la que pediste la llamada. Si la llamada llega a un buzón de voz, LIA te dice si dejó su mensaje; si nadie contesta o la línea falla, también te lo dice, sin inventar nada. Si el servicio de telefonía nunca informa de la llamada, o no responde a la solicitud de llamada, LIA te dice que no sabe cómo terminó en lugar de callar; un rechazo que no se resolverá solo nunca se presenta como pasajero."
           },
           "q3": {
             "question": "¿Qué necesito antes de empezar?",
@@ -10821,7 +10989,7 @@
       "rappels": {
         "title": "Recordatorios y Notificaciones",
         "description": "Crea recordatorios personales y recibe notificaciones push",
-        "count": "7",
+        "count": "12",
         "questions": {
           "q1": {
             "question": "¿Cómo creo un recordatorio?",
@@ -10833,7 +11001,7 @@
           },
           "q3": {
             "question": "¿Cómo cancelo un recordatorio?",
-            "answer": "Varias formas de cancelar un recordatorio:<br><br><strong>🗑️ Por referencia natural:</strong><br>• \"<em>Cancela mi próximo recordatorio</em>\"<br>• \"<em>Cancela el último recordatorio</em>\"<br>• \"<em>Cancela el primer recordatorio</em>\"<br><br><strong>🔢 Por número (después de listar):</strong><br>• \"<em>Cancela el recordatorio número 2</em>\"<br>• \"<em>Elimina el 3er recordatorio</em>\"<br><br><strong>📝 Por contenido:</strong><br>• \"<em>Cancela el recordatorio del médico</em>\"<br>• \"<em>Cancela el recordatorio sobre la reunión</em>\"<br><br><strong>✅ Confirmación:</strong><br>LIA confirma la cancelación mostrando el contenido del recordatorio eliminado.<br><br><strong>⚠️ Importante:</strong><br>• Solo se pueden cancelar recordatorios pendientes<br>• Los recordatorios ya enviados no se pueden cancelar<br>• La cancelación es inmediata y definitiva"
+            "answer": "Varias formas de cancelar un recordatorio:<br><br><strong>🗑️ Por referencia natural:</strong><br>• \"<em>Cancela mi próximo recordatorio</em>\"<br>• \"<em>Cancela el último recordatorio</em>\"<br>• \"<em>Cancela el primer recordatorio</em>\"<br><br><strong>🔢 Por número (después de listar):</strong><br>• \"<em>Cancela el recordatorio número 2</em>\"<br>• \"<em>Elimina el 3er recordatorio</em>\"<br><br><strong>📝 Por contenido:</strong><br>• \"<em>Cancela el recordatorio del médico</em>\"<br>• \"<em>Cancela el recordatorio sobre la reunión</em>\"<br><br><strong>✅ Confirmación:</strong><br>LIA confirma la cancelación mostrando el contenido del recordatorio eliminado.<br><br><strong>⚠️ Importante:</strong><br>• Para un recordatorio recurrente, <strong>Detener este recordatorio</strong> elimina sus próximas fechas tras confirmar<br>• Un mensaje ya recibido no se retira<br>• La cancelación es inmediata y definitiva"
           },
           "q4": {
             "question": "¿Cómo funcionan las notificaciones push?",
@@ -10845,11 +11013,31 @@
           },
           "q6": {
             "question": "¿Cuál es la diferencia entre recordatorios y Google Tasks?",
-            "answer": "Recordatorios y tareas tienen usos diferentes:<br><br><strong>🔔 Recordatorios LIA:</strong><br>• <strong>Notificación puntual</strong> a una hora específica<br>• Sin persistencia después del envío<br>• Ideal para: \"<em>Recuérdame llamar a Juan a las 15h</em>\"<br>• Mensaje personalizado con tu personalidad LIA<br>• Notificación push en todos tus dispositivos<br>• Sin seguimiento de estado (hecho/no hecho)<br><br><strong>✅ Google Tasks:</strong><br>• <strong>Lista de tareas persistente</strong><br>• Permanece visible hasta completarse<br>• Ideal para: \"<em>Añade 'Hacer las compras' a mi lista</em>\"<br>• Sincronizado con Google Tasks<br>• Seguimiento de estado (por hacer/completado)<br>• Organización en listas<br><br><strong>💡 En resumen:</strong><br>• <strong>Recordatorio</strong> = \"<em>Avísame en un momento específico</em>\" (notificación única)<br>• <strong>Tarea</strong> = \"<em>Necesito hacer esto</em>\" (lista de cosas por hacer)<br><br><strong>🔗 Combinación posible:</strong><br>Puedes usar ambos: crear una tarea para el seguimiento, y un recordatorio para no olvidar hacerla."
+            "answer": "Recordatorios y tareas tienen usos diferentes:<br><br><strong>🔔 Recordatorios LIA:</strong><br>• <strong>Notificación puntual o recurrente</strong> a la hora elegida<br>• Los mensajes recibidos quedan en la conversación<br>• Ideal para: \"<em>Recuérdame llamar a Juan a las 15h</em>\"<br>• Mensaje personalizado con tu personalidad LIA<br>• Notificación push en todos tus dispositivos<br>• Sin seguimiento de estado (hecho/no hecho)<br><br><strong>✅ Google Tasks:</strong><br>• <strong>Lista de tareas persistente</strong><br>• Permanece visible hasta completarse<br>• Ideal para: \"<em>Añade 'Hacer las compras' a mi lista</em>\"<br>• Sincronizado con Google Tasks<br>• Seguimiento de estado (por hacer/completado)<br>• Organización en listas<br><br><strong>💡 En resumen:</strong><br>• <strong>Recordatorio</strong> = \"<em>Avísame en un momento específico</em>\" (una vez o según un calendario)<br>• <strong>Tarea</strong> = \"<em>Necesito hacer esto</em>\" (lista de cosas por hacer)<br><br><strong>🔗 Combinación posible:</strong><br>Puedes usar ambos: crear una tarea para el seguimiento, y un recordatorio para no olvidar hacerla."
           },
           "q7": {
             "question": "Dejé de recibir notificaciones tras reinstalar la aplicación, ¿por qué?",
             "answer": "Un permiso de notificación está ligado a un navegador o a una instalación concreta. Reinstalar la aplicación, borrar los datos del sitio o cambiar de dispositivo genera un <strong>permiso nuevo</strong>, y el anterior deja de funcionar definitivamente.<br><br>• <strong>Vuelve a activar las notificaciones</strong> desde Ajustes, en el dispositivo donde quieras recibirlas. Así se registra el nuevo permiso.<br><br>• <strong>El dispositivo antiguo se retira automáticamente.</strong> Un permiso que el servicio de notificaciones declara definitivamente inválido se desactiva en su primer rechazo definitivo, en lugar de reintentarse durante días.<br><br>• <strong>Se pueden registrar varios dispositivos a la vez</strong>: cada uno conserva su permiso, y retirar uno no afecta a los demás.<br><br>Si aun así no llegan notificaciones a un dispositivo recién activado, comprueba que tu navegador no las esté bloqueando a nivel del sistema."
+          },
+          "q8": {
+            "question": "¿Cómo aplazo un recordatorio que acaba de sonar?",
+            "answer": "Cuando suena un recordatorio, puedes aplazarlo con un toque, sin escribir a LIA:<br><br><strong>⏰ En la conversación:</strong><br>• Bajo la burbuja del recordatorio: <strong>En 10 min</strong>, <strong>En 1 h</strong> o <strong>Mañana por la mañana</strong> (a las 9 por defecto; de madrugada, es la mañana que viene)<br>• El mensaje que aparece cuando llega el recordatorio también ofrece el plazo corto<br><br><strong>📱 En otros sitios:</strong><br>• En un ordenador y en Android, la notificación del navegador ofrece los dos plazos<br>• En Telegram, los mismos botones acompañan al recordatorio<br>• En iPhone, la notificación abre la conversación, donde la burbuja lo ofrece todo<br><br><strong>🔁 Un recordatorio que se repite:</strong><br>• <strong>Detener este recordatorio</strong> elimina todas sus próximas veces, tras una confirmación<br>• Aplazar conserva el calendario de la serie; se rechaza un plazo que alcance la siguiente repetición<br><br><strong>⏳ Conviene saber:</strong><br>• Un recordatorio se puede aplazar durante 24 h después de sonar<br>• Solo se aplaza una vez, aunque pulses desde dos dispositivos<br>• Una copia aplazada sigue sonando aunque después detengas la serie<br>• El toque en sí no cuesta nada; el recordatorio aplazado se redacta cuando suena, como cualquier recordatorio"
+          },
+          "q9": {
+            "question": "¿Cómo recibo las notificaciones de LIA sin Google, con ntfy?",
+            "answer": "ntfy es una aplicación gratuita y libre (Android, iPhone, ordenador) que recibe notificaciones desde un servidor. En <strong>Ajustes › Notificaciones push › Notificaciones ntfy</strong>, añade una suscripción: en el servidor de este LIA si tu administrador ofrece uno, o en otro servidor ntfy como ntfy.sh. Después instala la aplicación ntfy y suscríbete: escanea el código QR, toca «Abrir en la aplicación ntfy» en Android o copia el servidor y el tema en iPhone. Cada notificación que LIA te envía también llega a la aplicación ntfy, y «Enviar una prueba» comprueba todo el recorrido."
+          },
+          "q10": {
+            "question": "¿Qué muestra una notificación ntfy: solo un aviso o el texto?",
+            "answer": "Por defecto, solo un aviso de que LIA tiene algo para ti: el servidor que la transmite nunca ve tus palabras y lees el mensaje en LIA. Puedes elegir «Texto completo» en cada suscripción para leer la notificación en el teléfono; el servidor que la transmite puede entonces leerla, por eso el aviso es la opción por defecto. Una notificación que mantienes privada en LIA siempre sale como un simple aviso, elijas lo que elijas."
+          },
+          "q11": {
+            "question": "¿Por qué las notificaciones ntfy llegan con retraso a mi iPhone?",
+            "answer": "Apple solo deja que una aplicación se despierte al instante a través de su propio servicio de notificaciones, y la aplicación ntfy de iPhone lo recibe a través de ntfy.sh. Por eso un servidor ntfy propio solo entrega al instante si su administrador le permite pedir a ntfy.sh que despierte tu teléfono — una señal corta que no lleva ningún texto. Si no, la aplicación de iPhone comprueba de vez en cuando si hay novedades. Android y los ordenadores no se ven afectados."
+          },
+          "q12": {
+            "question": "¿Puede alguien más leer mis notificaciones ntfy?",
+            "answer": "El tema es la llave: quien lo conoce puede leer lo que LIA publica en él. LIA elige temas que nadie puede adivinar, solo te los muestra a ti y los guarda cifrados. No compartas el tuyo; si crees que se ha filtrado, elimina la suscripción y añade una nueva. Con «Solo un aviso», incluso quien conociera el tema no leería más que el hecho de que LIA tiene algo para ti."
           }
         }
       },
@@ -11160,7 +11348,7 @@
           },
           "q11": {
             "question": "¿Puedo hacer que se modifique una habilidad existente?",
-            "answer": "<p>Sí, conversando: «ajusta mi habilidad X», «añádele una sección», «corrige la redacción». LIA relee la habilidad completa — su manifiesto, sus scripts, sus documentos de referencia —, aplica tu petición y luego <strong>regenera el conjunto</strong> en lugar de retocar un punto concreto: eso es lo que garantiza que la descripción, los scripts y los recursos sigan siendo coherentes entre sí.</p><p>No se escribe nada directamente: LIA te propone la nueva versión en una tarjeta que muestra <strong>exactamente qué se reemplazará, añadirá y retirará</strong>. Solo tu clic en <strong>Instalar</strong> la aplica, y si tu habilidad ha cambiado entretanto, la tarjeta lo indica en lugar de sobrescribirla. <strong>Se conserva un paso atrás</strong>: la ficha de la habilidad, en Ajustes → Habilidades, ofrece <strong>Restaurar la versión anterior</strong>, y la versión que aparta pasa a ser la anterior, así que una restauración también se puede deshacer. Solo para tus propias habilidades, importadas desde tu archivo o escritas con LIA. La miniatura de la galería, en cambio, se conserva automáticamente.</p><p>Se rechazan tres casos: las habilidades del <strong>sistema</strong> (mantenidas por el administrador), las skills <strong>instaladas desde la biblioteca o aportadas por un plugin</strong> (siguen a su origen — actualízalas en su lugar) y las tuyas que estén <strong>desactivadas</strong> — reactívala primero en Ajustes → Habilidades.</p>"
+            "answer": "<p>Sí, conversando: «ajusta mi habilidad X», «añádele una sección», «corrige la redacción». LIA relee la habilidad completa — su manifiesto, sus scripts, sus documentos de referencia —, aplica tu petición y luego <strong>regenera el conjunto</strong> en lugar de retocar un punto concreto: eso es lo que garantiza que la descripción, los scripts y los recursos sigan siendo coherentes entre sí.</p><p>No se escribe nada directamente: LIA te propone la nueva versión en una tarjeta que muestra <strong>exactamente qué se reemplazará, añadirá y retirará</strong>. Solo tu clic en <strong>Instalar</strong> la aplica, y si tu habilidad ha cambiado entretanto, la tarjeta lo indica en lugar de sobrescribirla. <strong>Se conserva un paso atrás</strong>: la ficha de la habilidad, en Ajustes → Habilidades, ofrece <strong>Restaurar la versión anterior</strong>, y la versión que aparta pasa a ser la anterior, así que una restauración también se puede deshacer. También puedes pedírselo a LIA en el chat («vuelve a la versión anterior de mi habilidad X»): te muestra la propuesta para que la confirmes. Solo para tus propias habilidades, importadas desde tu archivo o escritas con LIA. La miniatura de la galería, en cambio, se conserva automáticamente.</p><p>Se rechazan tres casos: las habilidades del <strong>sistema</strong> (mantenidas por el administrador), las skills <strong>instaladas desde la biblioteca o aportadas por un plugin</strong> (siguen a su origen — actualízalas en su lugar) y las tuyas que estén <strong>desactivadas</strong> — reactívala primero en Ajustes → Habilidades.</p>"
           },
           "q12": {
             "question": "¿Puedo instalar plugins?",
@@ -11309,7 +11497,7 @@
           },
           "q12": {
             "question": "¿Por qué un documento está «en error», y qué hago con un PDF escaneado?",
-            "answer": "Bajo la línea del documento, LIA te dice ahora por qué no pudo indexarse, en tu idioma: archivo desaparecido del servidor, texto imposible de extraer, ningún texto encontrado, documento demasiado largo para el límite de pasajes del espacio, o indexación abandonada tras varios fallos (por ejemplo un servicio de embeddings no disponible — elimina el documento y súbelo de nuevo).<br><br>El caso más frecuente es el <strong>PDF escaneado</strong>: imágenes de páginas sin capa de texto. LIA no ejecuta reconocimiento de caracteres, lo dice y te da el remedio: sube el archivo a <strong>Google Drive</strong>, ábrelo con <strong>Documentos de Google</strong> (el texto se reconoce automáticamente) y añade ese documento de Google al espacio a través de su <strong>fuente de Drive</strong>, que lo importa como texto."
+            "answer": "Bajo la línea del documento, LIA te dice ahora por qué no pudo indexarse, en tu idioma: archivo desaparecido del servidor, texto imposible de extraer, archivo demasiado grande una vez descomprimido (un documento Office, OpenDocument o EPUB que declara más de lo que un espacio lee), ningún texto encontrado, documento demasiado largo para el límite de pasajes del espacio, o indexación abandonada tras varios fallos (por ejemplo un servicio de embeddings no disponible — elimina el documento y súbelo de nuevo).<br><br>El caso más frecuente es el <strong>PDF escaneado</strong>: imágenes de páginas sin capa de texto. LIA no ejecuta reconocimiento de caracteres, lo dice y te da el remedio: sube el archivo a <strong>Google Drive</strong>, ábrelo con <strong>Documentos de Google</strong> (el texto se reconoce automáticamente) y añade ese documento de Google al espacio a través de su <strong>fuente de Drive</strong>, que lo importa como texto."
           }
         }
       },
@@ -11745,7 +11933,7 @@
       "health_metrics": {
         "title": "Datos de salud",
         "description": "API de ingesta para enviar frecuencia cardíaca y pasos desde cualquier fuente",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "¿Qué es la sección «Datos de salud»?",
@@ -11765,7 +11953,7 @@
           },
           "q5": {
             "question": "¿Mi token es seguro si lo interceptan?",
-            "answer": "<p>Sí. El token se trata como una contraseña:</p><ul><li><strong>Hash SHA-256 almacenado</strong> — el valor bruto nunca se persiste. Nadie (ni un admin LIA) puede recuperarlo después de la creación.</li><li><strong>Mostrado una sola vez</strong>: solo un prefijo de 8 caracteres (<code>hm_xxxxxxxx…</code>) permanece visible para identificación.</li><li><strong>Revocable individualmente</strong> en cualquier momento desde la UI. Puedes emitir varios (uno por dispositivo) y gestionarlos de forma independiente.</li><li><strong>Con alcance a un único endpoint</strong>: un token solo autoriza el envío de datos de salud, nunca lecturas de la cuenta u otras acciones.</li><li><strong>Rate limit</strong>: 60 solicitudes por hora por token (Redis sliding window, configurable) para bloquear spam y a la vez absorber los bursts al desbloquear el iPhone. Tamaño máximo de lote: 1000 mediciones por solicitud (HTTP 413 por encima).</li></ul>"
+            "answer": "<p>No: quien obtenga el token puede enviar muestras de salud a tu cuenta hasta que lo revoques. Solo permite enviar datos de salud; no permite leer tu cuenta ni realizar otras acciones.</p><p>Crea y revoca tokens en <strong>Ajustes → Datos de salud → API de ingesta</strong>. El token completo se muestra una sola vez; después solo queda visible su prefijo de identificación. El servidor guarda su hash, no el token. Puedes crear tokens separados para tus dispositivos y revocarlos individualmente.</p><p>Si un token queda expuesto, revócalo y sustitúyelo en tu automatización. Guardar un hash en el servidor no protege un token copiado en otro lugar.</p>"
           },
           "q6": {
             "question": "¿Cómo le pregunto a LIA sobre mis datos de salud?",
@@ -11774,6 +11962,10 @@
           "q7": {
             "question": "¿Por qué mis gráficos de salud muestran huecos, y por qué las estadísticas no cambian con el periodo?",
             "answer": "Los gráficos dibujan <strong>una casilla por unidad</strong> del periodo que eliges: por hora en el último día, por día en la última semana, por semana en unos tres meses, por mes en el último año, por año en cinco años. Una casilla sin medición queda <strong>vacía</strong> — un hueco, nunca una línea inventada entre dos puntos.<br>• <strong>Frecuencia cardiaca</strong>: una línea con la media de cada casilla<br>• <strong>Pasos</strong>: una barra con el total de cada casilla<br>• una línea discontinua marca la media del periodo<br><br>Las <strong>Estadísticas</strong> — frecuencia cardiaca media, mínima y máxima, pasos medios al día, pasos totales — resumen el intervalo escrito bajo ellas como <strong>Ventana de agregación</strong>. Si todas tus mediciones caben en el intervalo más corto, las cifras siguen iguales sea cual sea el periodo: no pasa nada malo, simplemente no hay datos más antiguos. Sin nada que mostrar, el gráfico dice <strong>Sin datos en este periodo</strong>."
+          },
+          "q8": {
+            "question": "¿Se cuentan mis pasos dos veces si llevo un Apple Watch?",
+            "answer": "<p>No. El atajo envía las muestras de todos tus dispositivos: el iPhone en tu bolsillo y el Apple Watch en tu muñeca cuentan la misma caminata, en intervalos que se solapan. LIA cuenta cada tramo de tiempo una sola vez, al ritmo más alto medido por un dispositivo, incluido el historial ya recibido. No hay nada que ajustar.</p><p>Los días son los tuyos: hoy, las barras diarias, las medias y las comparaciones empiezan a medianoche en la zona horaria de tu cuenta. Puede quedar una pequeña diferencia con la app Salud: los pasos dados desde el último envío del atajo aún no están en LIA, y Salud conserva un dispositivo por periodo según su prioridad de fuentes.</p>"
           }
         }
       },
@@ -11914,7 +12106,7 @@
           },
           "q10": {
             "question": "¿Qué significan las dos cifras de la tarjeta Salud?",
-            "answer": "Cada medición, los pasos y la frecuencia cardíaca, tiene su dial, con la cifra del día en el centro y la media debajo:<br>• <strong>Hoy</strong>: el valor del día hasta ahora, el total de pasos o la media de la frecuencia cardíaca. La marca muestra dónde se sitúa, y la banda en la que cae se ilumina<br>• <strong>Med. N d</strong>: la media diaria de los últimos días, marcada por la muesca del dial; tu administrador fija el número de días<br><br>Un valor que supera el dial se queda en su extremo, y la cifra dice el resto. Un día sin medición no muestra ninguna marca, nunca un cero. Las curvas completas están en la sección <strong>Datos de salud</strong> de los ajustes."
+            "answer": "Cada medición, los pasos y la frecuencia cardíaca, tiene su dial, con la cifra del día en el centro y la media debajo:<br>• <strong>Hoy</strong>: el valor del día hasta ahora, el total de pasos o la media de la frecuencia cardíaca. La marca muestra dónde se sitúa, y la banda en la que cae se ilumina<br>• <strong>Med. N d</strong>: la media diaria de los últimos días, marcada por la muesca del dial; tu administrador fija el número de días<br><br>Un valor que supera el dial se queda en su extremo, y la cifra dice el resto. Un día sin medición no muestra ninguna marca, nunca un cero. La cifra de la frecuencia cardiaca late a su propio ritmo, una vez cada sesenta segundos divididos por la cifra: 75 lpm laten cada 0,8 s. Se queda quieta si tu dispositivo pide menos movimiento, y con un valor que ningún corazón mantiene (menos de 30 o más de 220 lpm), que se sigue mostrando tal como se leyó. Las curvas completas están en la sección <strong>Datos de salud</strong> de los ajustes."
           },
           "q11": {
             "question": "¿Qué muestra la tarjeta Clima?",
@@ -11925,7 +12117,7 @@
       "telegram": {
         "title": "Telegram",
         "description": "Chatea con LIA, responde a sus preguntas y recibe sus notificaciones desde Telegram.",
-        "count": "6",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "¿Cómo vinculo mi cuenta de Telegram a LIA?",
@@ -11933,7 +12125,7 @@
           },
           "q2": {
             "question": "¿Qué puedo hacer con LIA desde Telegram?",
-            "answer": "Escribe al bot como lo harías en el chat: LIA responde con las mismas herramientas — correos, calendario, contactos, búsqueda web, recordatorios… — en tu idioma.<br><br><strong>🎙️ Notas de voz:</strong><br>Envía una nota de voz y LIA la transcribe, y luego responde como si la hubieras escrito. Una nota más larga de lo que admite la transcripción se rechaza con un mensaje que indica la <strong>duración máxima en segundos</strong> — ese límite depende de cómo configuró tu administrador la transcripción. Si la nota no se entiende, el bot te pide que lo intentes de nuevo o que escribas.<br><br><strong>📝 Conviene saber:</strong><br>• LIA solo lee <strong>texto y notas de voz</strong>: las fotos, los archivos y los stickers no se leen, y editar un mensaje que ya enviaste no cambia nada<br>• las respuestas llegan como texto con formato; las tarjetas visuales (tiempo, mapas, imágenes, tarjetas de correo) se muestran en la app web, en la misma conversación<br>• mientras LIA sigue trabajando en tu mensaje anterior, uno nuevo recibe «Aún estoy procesando tu mensaje anterior» — vuelve a enviarlo cuando haya llegado la respuesta"
+            "answer": "Escribe al bot como lo harías en el chat: LIA responde con las mismas herramientas — correos, calendario, contactos, búsqueda web, recordatorios… — en tu idioma.<br><br><strong>🎙️ Notas de voz:</strong><br>Envía una nota de voz y LIA la transcribe, y luego responde como si la hubieras escrito. Una nota más larga de lo que admite la transcripción se rechaza con un mensaje que indica la <strong>duración máxima en segundos</strong> — ese límite depende de cómo configuró tu administrador la transcripción. Si la nota no se entiende, el bot te pide que lo intentes de nuevo o que escribas.<br><br><strong>📝 Conviene saber:</strong><br>• LIA lee <strong>texto, notas de voz, fotos, documentos y ubicaciones compartidas</strong>; los stickers y los vídeos no se leen, y editar un mensaje que ya enviaste no cambia nada<br>• las respuestas llegan como texto con formato, con títulos, tablas y citas; las tarjetas visuales (tiempo, mapas, tarjetas de correo) se muestran en la app web, en la misma conversación<br>• <strong>/help</strong> resume lo que sabe hacer el bot, <strong>/stop</strong> detiene la respuesta en curso"
           },
           "q3": {
             "question": "¿Cómo funcionan las confirmaciones y las notificaciones en Telegram?",
@@ -11941,7 +12133,7 @@
           },
           "q4": {
             "question": "¿Una conversación de Telegram es la misma que la de la app web?",
-            "answer": "Sí. Tu cuenta tiene <strong>una sola conversación</strong>, llegues a ella por donde llegues: un mensaje enviado desde Telegram y la respuesta de LIA aparecen también en el chat web — un chat abierto los recoge sin recargarse —, junto con las tarjetas que Telegram no puede mostrar.<br><br><strong>⚙️ Mismas preferencias, en todas partes:</strong><br>Telegram no es un modo reducido. Se aplican tu idioma, tu zona horaria y tu personalidad, y también la memoria a largo plazo, los diarios de LIA y su estado emocional — exactamente como los configuraste. Lo que desactivaste sigue desactivado también en Telegram.<br><br><strong>💡 Una consecuencia:</strong> cuando LIA espera tu respuesta a una pregunta, tu siguiente mensaje de Telegram se lee como esa respuesta, igual que en el chat."
+            "answer": "Telegram conversa en <strong>Principal</strong>: tus mensajes y las respuestas de LIA aparecen allí en la web una vez archivados, con las tarjetas que Telegram no puede mostrar. Las conversaciones secundarias conservan su historial; Telegram no sigue la que tengas abierta.<br><br><strong>Las mismas preferencias:</strong> idioma, zona horaria, personalidad, modo de ejecución, recuerdos y diarios siguen tu cuenta. Una capacidad que hayas desactivado sigue desactivada aquí.<br><br>Cuando LIA hace una pregunta en Telegram, tu siguiente mensaje la responde, como en el chat."
           },
           "q5": {
             "question": "¿Cómo pauso o desvinculo Telegram?",
@@ -11950,6 +12142,18 @@
           "q6": {
             "question": "¿Tiene el administrador que habilitar Telegram?",
             "answer": "Sí, de dos maneras:<br>• la instancia necesita su propio <strong>bot de Telegram</strong>: el administrador lo crea con @BotFather de Telegram y entrega su token a la configuración de la instancia (en producción, junto con la dirección del webhook y su secreto)<br>• la capacidad <strong>Canales externos</strong> debe estar activada en <strong>Ajustes › Administración › Capacidades de la plataforma</strong><br><br>Cuando los canales externos están desactivados, Telegram no puede vincularse ni usarse en la instancia. Los vínculos existentes se conservan y vuelven a funcionar en cuanto se reactiva la capacidad.<br><br>Si tu cuenta de LIA está desactivada, el bot solo responde que la cuenta está desactivada y que contactes con tu administrador."
+          },
+          "q7": {
+            "question": "¿Qué pasa si escribo mientras LIA sigue respondiendo?",
+            "answer": "Tu mensaje espera su turno, como en la app: el bot lo marca con 👀 y lo envía como tu siguiente mensaje en cuanto LIA termina — su respuesta vuelve a Telegram.<br><br><strong>⏹️ Detener la respuesta en curso:</strong><br>Envía <strong>/stop</strong> (también está en el menú del bot): LIA detiene la respuesta que está escribiendo, como con el botón de parada de la app. Cuando no hay nada en curso, o cuando lo que está en curso no se puede detener desde Telegram (otra conversación, una rutina), el bot te lo dice.<br><br><strong>📝 Conviene saber:</strong><br>• si la respuesta se detuvo o falló, tu mensaje en espera no sale solo: el bot te lo muestra con dos botones, <strong>Enviar</strong> y <strong>Retirar</strong><br>• una respuesta a una pregunta que LIA te hizo no espera — es la respuesta: vuelve a enviarla cuando LIA haya terminado<br>• una ubicación o un archivo enviados mientras tanto tampoco esperan: vuelve a enviarlos cuando haya llegado la respuesta"
+          },
+          "q8": {
+            "question": "¿Puedo enviar fotos, archivos o mi ubicación?",
+            "answer": "Sí.<br><br><strong>📎 Fotos y archivos:</strong><br>Envía una foto o un documento, con un pie de foto que diga lo que quieres — o sin él. LIA lo lee como un archivo adjunto en el chat: los mismos formatos, los mismos límites de tamaño, y un álbum de varias fotos se lee como un solo mensaje. Un archivo que no se puede recibir se rechaza indicando el motivo (demasiado grande, un tipo que LIA no lee, demasiados archivos a la vez). Las imágenes y los documentos que LIA crea para ti te llegan como archivos.<br><br><strong>📍 Ubicación:</strong><br>Comparte tu ubicación y LIA la usa para la pregunta que haces — <em>restaurantes cerca</em>, <em>el tiempo aquí</em>, una ruta desde donde estás. Después solo se guarda si la <strong>Memoria de ubicación</strong> está activada. Un lugar que compartes se lee como ese lugar, no como el sitio donde estás.<br><br><strong>↩️ Respuestas:</strong><br>Responde a uno de los mensajes de la conversación y LIA sabe de cuál hablas."
+          },
+          "q9": {
+            "question": "¿Puede LIA responder en voz alta a mis notas de voz?",
+            "answer": "Sí, cuando las <strong>Respuestas habladas</strong> están activadas (en el menú de voz del chat): la respuesta a una nota de voz llega como texto y luego como mensaje de voz. La voz lee el principio de la respuesta, como en el chat, sin las tarjetas ni las direcciones de los enlaces; el texto sigue completo.<br><br><strong>📝 Conviene saber:</strong><br>• un mensaje escrito solo recibe una respuesta escrita<br>• una pregunta de LIA (con sus botones) sigue escrita<br>• la voz cuenta en tus costes como la del chat; cuando alcanzas tu límite de uso, solo llega la respuesta escrita"
           }
         }
       },
@@ -12329,7 +12533,7 @@
       "self_hosting": {
         "title": "Autoalojamiento",
         "description": "Ejecutar LIA en tu propio servidor: el instalador guiado, lo que protege y lo que queda en tus manos.",
-        "count": "12",
+        "count": "13",
         "questions": {
           "q1": {
             "question": "¿Puedo ejecutar LIA en mi propio servidor?",
@@ -12378,6 +12582,10 @@
           "q12": {
             "question": "¿Cómo ofrezco búsqueda web a las cuentas sin clave de búsqueda?",
             "answer": "El instalador guiado lo hace por defecto: su pregunta <strong>web_search</strong> se responde que sí salvo que la rechaces, y arranca el servicio <strong>searxng</strong> incluido con LIA, con un secreto generado. A mano: añade <code>searxng</code> a <code>COMPOSE_PROFILES</code>, define <code>SEARXNG_SECRET</code> (por ejemplo <code>openssl rand -hex 32</code>) y <code>SEARXNG_URL=http://searxng:8080</code>, y reinicia. Consulta motores de búsqueda públicos (Google, el sitio de Brave, DuckDuckGo, Bing News…) desde la dirección de tu servidor, sin filtrar, y sirve a todas las cuentas que no tienen su propia clave de Brave. Nunca se expone a Internet; calcula unos 150 MB de memoria."
+          },
+          "q13": {
+            "question": "¿Cómo ofrezco las notificaciones de LIA sin Google, con ntfy?",
+            "answer": "Ejecuta el propio servidor ntfy de LIA: el instalador guiado lo propone (<strong>ntfy_server</strong>, <strong>no</strong> por defecto) y arranca el servicio <strong>ntfy</strong> incluido con LIA. Cada persona se suscribe después en <strong>Ajustes › Notificaciones push › Notificaciones ntfy</strong> y recibe las notificaciones de LIA en la aplicación gratuita ntfy, en Android o iPhone, sin cuenta de Google. Sin él, una persona puede suscribirse igualmente a través de un servidor público como ntfy.sh. Detrás de tu proxy o de Caddy, el servidor necesita un dominio propio (ntfy.example.org, por ejemplo); en una red local, los teléfonos lo alcanzan en el puerto 2586. Solo LIA publica en él, con un token que genera el instalador; el nombre aleatorio de un tema es lo que permite a un teléfono leerlo. Los iPhone las reciben al instante solo si dejas que tu servidor los despierte a través de ntfy.sh (la pregunta <strong>ntfy_ios_relay</strong>), que recibe entonces el identificador de cada mensaje y una huella de la dirección de su tema, nunca su texto; sin él, un iPhone puede recibirlas con horas de retraso. Calcula menos de 20 MB de memoria."
           }
         }
       },
@@ -12487,7 +12695,7 @@
           },
           "q8": {
             "question": "¿Qué muestra el detalle de un contacto de nuestros intercambios?",
-            "answer": "Tus últimos intercambios con esa persona: los cinco últimos mensajes que te envió, los cinco últimos que le enviaste, las cinco últimas reuniones que organizó contigo como invitado y las cinco últimas que organizaste con ella como invitada. Una línea se abre en su herramienta. El calendario se lee en los dos últimos años, en tu calendario predeterminado, y la pantalla lo dice. Una reunión organizada por otra persona no figura en ninguna lista, y una que no nombra organizador tiene su propia lista. Si tu correo o tu calendario no se han podido leer, lo dice en lugar de no mostrar nada.<br><br>Con sus números llegan las cinco últimas llamadas que LIA le hizo, cada una con su fecha, su resultado y su objetivo, y los cinco últimos SMS que te envió: un contacto que solo tiene números también tiene intercambios. Una llamada se abre en tu lista de llamadas, un SMS en la página de SMS. Estas listas aparecen en cuanto LIA tiene llamadas o SMS que mostrar, y nunca muestran el número en sí."
+            "answer": "Tus últimos intercambios con esa persona: los cinco últimos mensajes que te envió, los cinco últimos que le enviaste, las cinco últimas reuniones que organizó contigo como invitado y las cinco últimas que organizaste con ella como invitada. Una línea se abre en su herramienta. El calendario se lee en los dos últimos años, en todos los calendarios que te pertenecen, y la pantalla lo dice. Una reunión organizada por otra persona no figura en ninguna lista, y una que no nombra organizador tiene su propia lista. Si tu correo o tu calendario no se han podido leer, lo dice en lugar de no mostrar nada.<br><br>Con sus números llegan las cinco últimas llamadas que LIA le hizo, cada una con su fecha, su resultado y su objetivo, y los cinco últimos SMS que te envió: un contacto que solo tiene números también tiene intercambios. Una llamada se abre en tu lista de llamadas, un SMS en la página de SMS. Estas listas aparecen en cuanto LIA tiene llamadas o SMS que mostrar, y nunca muestran el número en sí."
           },
           "q9": {
             "question": "¿Qué puede hacer LIA desde las Herramientas?",
@@ -12875,7 +13083,7 @@
       },
       "alerts_hub": {
         "title": "Todo lo que se te ha dirigido",
-        "desc": "Mensajes retransmitidos, notificaciones, recordatorios y rutinas en una sola pantalla en vez de en otros tantos paneles. Cada sección llega plegada con su número ya visible — eliges qué abrir sin abrirlo para saberlo."
+        "desc": "Mensajes, notificaciones, recordatorios y rutinas en una pantalla, con recuentos en secciones plegadas. Activa ntfy en Ajustes si quieres: solo un aviso por defecto, texto completo si lo eliges."
       },
       "capability_map": {
         "title": "Tu constelación",
@@ -12971,7 +13179,7 @@
       },
       "phone_channel": {
         "title": "LIA te llama",
-        "desc": "A un número que declaraste y verificaste con un código leído en voz alta, LIA te llama sin tarjeta de confirmación — desde el chat o una rutina. Al teléfono lee lo que lee el chat y no actúa sobre nada; cuando cuelgas, lo que dijiste llega al chat como tu propio mensaje."
+        "desc": "En tu número verificado por código de voz, LIA te llama desde el chat o una rutina. Live directo lee sin actuar y luego pasa tus palabras al chat; Live confía tus peticiones a LIA durante la llamada, con sus confirmaciones habituales."
       },
       "wake_phrase": {
         "title": "«Dis LIA», y luego «LIA, stop»",
@@ -13027,7 +13235,7 @@
       },
       "card_compose": {
         "title": "Responder desde la tarjeta",
-        "desc": "Los botones Responder y Reenviar de un correo, o ajustar un recordatorio, preparan la petición en tu cuadro de mensaje con una etiqueta que recuerda de qué se trata. Nada sale sin ti, y LIA vuelve a comprobar que la cuenta y el mensaje de origen son tuyos."
+        "desc": "Responder y Reenviar preparan la petición en el cuadro de texto; tú decides cuándo enviarla. Cuando suene un recordatorio, aplázalo bajo su mensaje o confirma Detener este recordatorio para quitar las próximas fechas de la serie."
       },
       "voice_sample": {
         "title": "Escuchar antes de elegir",
@@ -14574,14 +14782,13 @@
       "badge_opensource": "Open Source",
       "cta_github": "Explorar el código e instalar",
       "cta_demo": "Demo guiada",
-      "intro_paragraph": "LIA es un asistente de IA personal de código abierto que orquesta 20+ agentes especializados para gestionar tus correos, agenda, contactos, archivos, tareas, recordatorios, búsqueda web, clima, rutas y hogar conectado. Compatible con Google Workspace, Apple iCloud y Microsoft 365, LIA funciona en lenguaje natural con validación humana de cada acción sensible.",
+      "intro_paragraph": "LIA es un asistente de IA personal de código abierto que orquesta 38 agentes especializados para gestionar tus correos, agenda, contactos, archivos, tareas, recordatorios, búsqueda web, clima, rutas y hogar conectado. Compatible con Google Workspace, Apple iCloud y Microsoft 365, LIA funciona en lenguaje natural con validación humana de cada acción sensible.",
       "cta_star": "Star",
       "proof_origin": "Diseñada en Francia",
       "proof_accounts": "Un servidor, cuentas independientes",
       "proof_control": "Tú apruebas las acciones sensibles",
       "home_cta_primary": "Crear mi cuenta",
       "home_access_note": "Registro por correo electrónico: confirmas tu dirección y luego el administrador activa tu cuenta (automáticamente en una instancia de demostración).",
-      "home_value": "LIA conecta tu correo, tu agenda y tus documentos. El software es gratuito; el alojamiento y los servicios que utilices pueden tener coste.",
       "home_code_link": "El código y la guía de instalación",
       "home_cta_demo": "Ver LIA en acción",
       "home_cta_presentation": "Presentación"
@@ -14714,10 +14921,10 @@
       },
       "natural_language": {
         "title": "Lenguaje natural",
-        "description": "Ningún comando que memorizar: pide lo que quieras, como a un asistente humano, y LIA entiende, elige sus herramientas y actúa. Eliges su forma de trabajar en la cabecera del chat. El modo Pipeline, económico y previsible, prepara un plan y luego lo ejecuta. En modo ReAct, razona paso a paso con sus herramientas, para las peticiones vagas o exploratorias."
+        "description": "Ningún comando que memorizar: pide lo que quieras, como a un asistente humano, y LIA entiende, elige sus herramientas y actúa. Eliges su forma de trabajar en la cabecera del chat. El modo Pipeline, económico y previsible, prepara un plan y luego lo ejecuta. En modo ReAct, razona paso a paso con sus herramientas, para las peticiones vagas o exploratorias. En modo automático, elige uno de los dos en cada petición."
       },
       "multi_agent": {
-        "title": "Más de 20 agentes especializados",
+        "title": "38 agentes especializados",
         "description": "Correo, agenda, contactos, archivos, tareas, tiempo, búsqueda web, lugares, rutas y recordatorios: LIA puede hacer trabajar juntos a los especialistas que necesita una misma petición. Los pasos independientes pueden avanzar en paralelo, y los que esperan un resultado mantienen su orden. Tú sigues en la conversación para preparar tu día o reunir las piezas de un expediente. Las capacidades disponibles dependen de tus accesos y de la instancia, y la duración depende del trabajo, de los modelos y de los servicios utilizados."
       },
       "proactive": {
@@ -14934,7 +15141,7 @@
       },
       "workboard_delegation": {
         "title": "Confía un ticket a LIA",
-        "description": "Confíale el ticket: lo toma, hace el trabajo en modo Pipeline o ReAct (a elegir, en el ticket), comenta lo que ha encontrado y te devuelve el resultado para que lo valides. Cuando se topa con algo que no puede hacer sola, no renuncia ni decide por ti: hace la pregunta en el ticket mostrando lo que va a hacer, y basta un comentario para responder: sí, no o lo que hay que cambiar. Reactiva lo que va con retraso o se ha quedado en espera, citando lo que de verdad está pendiente."
+        "description": "Confíale el ticket: lo toma, hace el trabajo en modo Pipeline, ReAct o automático (a elegir, en el ticket), comenta lo que ha encontrado y te devuelve el resultado para que lo valides. Cuando se topa con algo que no puede hacer sola, no renuncia ni decide por ti: hace la pregunta en el ticket mostrando lo que va a hacer, y basta un comentario para responder: sí, no o lo que hay que cambiar. Reactiva lo que va con retraso o se ha quedado en espera, citando lo que de verdad está pendiente."
       },
       "live_voice": {
         "title": "Habla con ella en directo, con tu propia clave",
@@ -15131,11 +15338,11 @@
     "tech": {
       "title": "Bajo el capó",
       "subtitle": "Una arquitectura pensada para el rendimiento y la escalabilidad",
-      "intro": "LIA relaciona el enrutamiento semántico, las herramientas y las fuentes útiles para tu petición. Para una tarea que hay que ejecutar, el modo Pipeline prepara un plan y lo comprueba; el modo ReAct avanza mediante búsquedas y ajustes. Eres tú quien elige el modo. Todo el recorrido se mide de extremo a extremo, del token al euro, con alertas por correo sobre las señales vitales.\n\nDetrás de la interfaz hay un aprendizaje bayesiano de los planes, una memoria semántica de doble vector, una búsqueda híbrida BM25 y embeddings sobre tus documentos, y una máquina de estados LangGraph en la que cada paso se guarda en PostgreSQL. Todo puede autoalojarse, incluso en una Raspberry Pi.\n\nLIA da al modelo la información que han obtenido sus herramientas, con instrucciones para distinguir los hechos, las fuentes y las lagunas. Cuando el modo ReAct declara que le falta algo, dispone de una recuperación limitada. Los registros permiten examinar lo que se ha consultado y lo que se ha hecho. Aun así, una respuesta puede ser incompleta o incorrecta: puedes comprobar sus fuentes y corregir sus conclusiones.\n\nLo que se ejecuta está aislado de lo que lo hace funcionar: el código de una skill se ejecuta en un contenedor creado para una sola llamada, sin socket, sin red fuera de los hosts autorizados, en solo lectura. Si este entorno aislado no puede construirse, no se ejecuta nada.\n\nEl chat puede leer las preferencias y preparar operaciones sobre los recursos de LIA, dentro de los límites del catálogo realmente ofrecido. Cada operación declara sus parámetros, sus resultados, las secciones de la interfaz afectadas, los derechos necesarios y su regla de confirmación. Los valores propuestos retoman las opciones y los nombres del formulario: el modelo no inventa una opción que no existe.",
+      "intro": "LIA relaciona el enrutamiento semántico, las herramientas y las fuentes útiles para tu petición. Para una tarea que hay que ejecutar, el modo Pipeline prepara un plan y lo comprueba; el modo ReAct avanza mediante búsquedas y ajustes. Elige el modo o deja que Automático decida para cada petición. Todo el recorrido se mide de extremo a extremo, del token al euro, con alertas por correo sobre las señales vitales.\n\nDetrás de la interfaz hay un aprendizaje bayesiano de los planes, una memoria semántica de doble vector, una búsqueda híbrida BM25 y embeddings sobre tus documentos, y una máquina de estados LangGraph en la que cada paso se guarda en PostgreSQL. Todo puede autoalojarse, incluso en una Raspberry Pi.\n\nLIA da al modelo la información que han obtenido sus herramientas, con instrucciones para distinguir los hechos, las fuentes y las lagunas. Cuando el modo ReAct declara que le falta algo, dispone de una recuperación limitada. Los registros permiten examinar lo que se ha consultado y lo que se ha hecho. Aun así, una respuesta puede ser incompleta o incorrecta: puedes comprobar sus fuentes y corregir sus conclusiones.\n\nLo que se ejecuta está aislado de lo que lo hace funcionar: el código de una skill se ejecuta en un contenedor creado para una sola llamada, sin socket, sin red fuera de los hosts autorizados, en solo lectura. Si este entorno aislado no puede construirse, no se ejecuta nada.\n\nEl chat puede leer las preferencias y preparar operaciones sobre los recursos de LIA, dentro de los límites del catálogo realmente ofrecido. Cada operación declara sus parámetros, sus resultados, las secciones de la interfaz afectadas, los derechos necesarios y su regla de confirmación. Los valores propuestos retoman las opciones y los nombres del formulario: el modelo no inventa una opción que no existe.",
       "deep_dive_link": "Inmersión técnica completa",
       "langgraph": {
         "title": "Dos maneras de llevar a cabo una petición",
-        "description": "Eliges el modo en la cabecera del chat. Para una petición estructurada, el modo Pipeline prepara un plan, comprueba su coherencia y luego ejecuta en paralelo los pasos independientes: es rápido, controlado y previsible. Para una pregunta abierta, el modo ReAct explora, lee los resultados y adapta lo siguiente. Para ser fiable, comprueba que los resultados responden de verdad a la pregunta, puede cambiar de fuente ante un obstáculo y dice lo que no ha encontrado, precisando lo que ha intentado. En ambos modos, las confirmaciones dependen de las acciones previstas. En ReAct, tu ritmo de intercambio puede dar prioridad a la caché si intercambias a menudo (el turno siguiente reutiliza el principio del anterior, durante una hora como máximo cuando esperas la respuesta, con los proveedores que lo permiten), o a la selección de herramientas si intercambias de forma puntual. El turno termina con el resultado y sus límites, sin anunciar un trabajo que no se va a hacer."
+        "description": "Eliges el modo en la cabecera del chat, o dejas que LIA lo elija en cada petición. Para una petición estructurada, el modo Pipeline prepara un plan, comprueba su coherencia y luego ejecuta en paralelo los pasos independientes: es rápido, controlado y previsible. Para una pregunta abierta, el modo ReAct explora, lee los resultados y adapta lo siguiente. Para ser fiable, comprueba que los resultados responden de verdad a la pregunta, puede cambiar de fuente ante un obstáculo y dice lo que no ha encontrado, precisando lo que ha intentado. En ambos modos, las confirmaciones dependen de las acciones previstas. En ReAct, tu ritmo de intercambio puede dar prioridad a la caché si intercambias a menudo (el turno siguiente reutiliza el principio del anterior, durante una hora como máximo cuando esperas la respuesta, con los proveedores que lo permiten), o a la selección de herramientas si intercambias de forma puntual. El turno termina con el resultado y sus límites, sin anunciar un trabajo que no se va a hacer."
       },
       "llm_providers": {
         "title": "Siete proveedores de modelos, a elegir",
@@ -15397,7 +15604,7 @@
         "b3_d": "Graba la reunión, revisa las decisiones y las acciones, y luego comparte el PDF. Una vez indexada el acta, puedes encontrarla en la conversación.",
         "b4_t": "Durante: habla e interrumpe con naturalidad.",
         "b4_d": "El Live, en el que LIA y tú podéis hablar a la vez, funciona con tu clave de Gemini Live, OpenAI o ElevenLabs. Las peticiones que la voz confía a LIA pasan por su motor habitual, con su contexto y sus controles. Los modelos, las voces y lo que la voz puede confiar varían según el proveedor.",
-        "how": "20+ agentes que trabajan en paralelo · sesiones de voz live con tu propia clave de Gemini, OpenAI o ElevenLabs · cinco motores de voz, Fish Audio incluido · llamadas telefónicas que hace LIA a través de tu conector ElevenLabs · control del navegador · Philips Hue · imágenes y diagramas a demanda.",
+        "how": "38 agentes que trabajan en paralelo · sesiones de voz live con tu propia clave de Gemini, OpenAI o ElevenLabs · cinco motores de voz, Fish Audio incluido · llamadas telefónicas que hace LIA a través de tu conector ElevenLabs · control del navegador · Philips Hue · imágenes y diagramas a demanda.",
         "catalog_hint": "{{count}} capacidades en detalle",
         "v_query": "«un recordatorio la víspera de cada cita»",
         "v_t1": "📅 Agenda",
@@ -16569,6 +16776,258 @@
         "terrace": "Un espacio exterior para encontrarse o descansar con asientos y ambiente según la hora.",
         "home": "Tu lugar privado: colores, espejo del personaje, Relaciones, Workboard, recordatorios y compromisos. Su contenido sigue siendo tuyo."
       }
+    },
+    "positioning": {
+      "title": "Deja de elegir entre la potencia de un asistente que actúa por su cuenta, la comodidad de un verdadero espacio de trabajo y el control de tu vida digital.",
+      "market_agents": "Los asistentes de IA personales siguen distintos enfoques. Agentes como OpenClaw y Hermes Agent son potentes para ejecutar comandos y automatizar tareas. Sus chats, consolas y perfiles compartidos ofrecen mucha libertad, con una configuración técnica que debes manejar.",
+      "market_cloud": "Asistentes para el público general como Meta Muse son fluidos y accesibles. Puedes seguir sus acciones y tomar el control, mientras tus datos permanecen en los servidores del proveedor, que administra el alojamiento.",
+      "thesis_title": "LIA reconcilia estos dos mundos y crea su propia categoría: una plataforma de IA personal, familiar y soberana de principio a fin, instalada en el servidor que tú elijas.",
+      "thesis_body": "Un entorno completo de {{count}}+ bloques bajo la licencia libre AGPL, que une una IA capaz de actuar por ti, herramientas del día a día que no consumen nada de IA cuando las usas tú mismo, y salvaguardas de nivel profesional.",
+      "stat_label": "bloques funcionales"
+    },
+    "arguments": {
+      "title": "Más allá de los agentes: una plataforma de IA personal, familiar y soberana",
+      "lede": "La potencia de un asistente que actúa por su cuenta y la comodidad de un verdadero espacio de trabajo, con el control de tus datos y un lugar para toda la familia.",
+      "items": {
+        "agentic": {
+          "title": "La potencia de un agente de IA, sin concesiones",
+          "body": "LIA sabe trabajar de dos maneras: seguir un plan verificado paso a paso (modo Pipeline) o buscar por sí misma, intento tras intento, cuando la petición es abierta (modo ReAct). Como OpenClaw y Hermes, también sabe actuar de verdad: manejar un navegador web, hacer cálculos exactos en un espacio aislado, conectarse a herramientas de terceros (servidores MCP y sus aplicaciones) y aprender nuevas habilidades con competencias y plugins, incluidos los que redacta para ti y que instalas con un clic."
+        },
+        "manual": {
+          "title": "El híbrido «Manual + IA»: la IA solo cuando tú la llamas",
+          "body": "¿Por qué pagar a una IA y esperar su respuesta para archivar un correo o mover una cita? LIA reúne tus herramientas del día a día en una sola interfaz: Gmail, Outlook, iCloud, calendarios, tareas, contactos, Google Drive, OneDrive e incluso tus luces Philips Hue. Cuando lo haces tú, tus gestos van directamente a tus proveedores: ninguna IA de por medio, ningún coste, ninguna respuesta que esperar. Y con un clic en una estrella amarilla, LIA toma el relevo."
+        },
+        "family": {
+          "title": "Una plataforma para toda la familia, con rostro y en 3D",
+          "body": "Un asistente no debería ser un programa solitario en el ordenador de un desarrollador. LIA acoge a tu familia y a tus seres queridos en un mismo servidor: cada uno con su cuenta, sus datos y sus límites de gasto, con lo que decidáis compartir y conexiones entre vuestras cuentas. Cobra vida con avatares animados y un mundo en 3D que exploráis juntos."
+        },
+        "voice": {
+          "title": "Más allá del texto: voz en directo, teléfono y medios",
+          "body": "LIA habla contigo en directo, en una verdadera conversación en la que puedes interrumpirla cuando quieras (dos modos en tiempo real: Live y Live directo). Puede llamarte, o llamar a alguien por ti tras tu validación, guardar el archivo de tus SMS, presentar una radio personal hecha para ti y crear imágenes."
+        },
+        "governance": {
+          "title": "Gobernanza, RGPD y supervisión de nivel profesional",
+          "body": "Instalable en tu casa con Docker y libre bajo la licencia AGPL, LIA incluye lo que a menudo les falta a los proyectos de código abierto experimentales: la administración de varias cuentas, límites de gasto por persona, el coste de cada intercambio mostrado al céntimo, tu validación antes de las acciones delicadas, las herramientas del RGPD (exportación completa de tus datos, derecho al olvido) y paneles de Grafana para seguir la actividad en tiempo real."
+        }
+      }
+    },
+    "comparison": {
+      "title": "Cara a cara: ¿por qué elegir LIA?",
+      "lede": "Seis criterios, tres duelos: elige contra quién se mide LIA.",
+      "contenders_label": "Los asistentes comparados",
+      "view_label": "LIA frente a",
+      "caption": "LIA frente a {{name}}, criterio por criterio",
+      "criterion_header": "Criterio",
+      "status": {
+        "yes": "Sí",
+        "mid": "En parte",
+        "no": "No"
+      },
+      "sources_title": "Fuentes",
+      "sources_body": "Las afirmaciones sobre otros asistentes proceden de su documentación y sus anuncios oficiales, consultados el {{date}}.",
+      "sources_note": "Estos proyectos evolucionan rápido.",
+      "sources_report": "Señalar un error",
+      "sources": {
+        "openclaw": "Documentación de OpenClaw",
+        "hermes": "Documentación de Hermes Agent",
+        "muse_announcement": "Anuncio de Muse por Meta",
+        "openclaw_multiplayer": "OpenClaw multiusuario",
+        "muse_spaces": "Spaces de Muse (Meta)",
+        "muse_voice": "Voz y avatares de Muse (Meta)",
+        "muse_design": "El diseño de Muse"
+      },
+      "contenders": {
+        "lia": {
+          "role": "El mayordomo soberano",
+          "quote": "«Hace el trabajo sucio, guarda tus datos en casa y no vacía tu tarjeta.»",
+          "meter": "Sobriedad: la IA no cuesta nada cuando lo haces tú"
+        },
+        "openclaw": {
+          "role": "El hacker con cafeína",
+          "quote": "«Vive en tu terminal, habla Bash con fluidez y nunca duerme.»",
+          "meter": "Apetito: la IA trabaja cuando le encargas una tarea"
+        },
+        "hermes": {
+          "role": "El aprendiz de brujo a todas horas",
+          "quote": "«Escribe sus propios hechizos a las tres de la mañana.»",
+          "meter": "Apetito: tareas programadas día y noche"
+        },
+        "muse": {
+          "role": "El mayordomo de Mark",
+          "quote": "«Muy educado, llave en mano, alojado en casa del tío Zuckerberg.»",
+          "meter": "Listo para usar… si te encaja el alojamiento de Meta"
+        }
+      },
+      "rows": {
+        "agentic": {
+          "label": "Actuar por su cuenta",
+          "lia": {
+            "head": "Dos formas de trabajar, herramientas de verdad",
+            "b1": "Un plan verificado paso a paso, o una búsqueda propia",
+            "b2": "Navegador controlado y cálculos exactos en un espacio aislado",
+            "b3": "Herramientas de terceros (MCP), competencias y plugins, incluso los que redacta",
+            "punch": "Tan musculosa como un agente de desarrollador, pero con riendas cuando hace falta."
+          },
+          "openclaw": {
+            "head": "Lanza comandos en tu máquina",
+            "b1": "Comandos del sistema y navegador controlado",
+            "b2": "Tareas programadas, competencias y plugins",
+            "punch": "Potente, pero cuidado con los comandos demasiado entusiastas."
+          },
+          "hermes": {
+            "head": "Un agente que funciona día y noche",
+            "b1": "Comandos en tu máquina, en Docker o a distancia",
+            "b2": "Crea y mejora por sí mismo sus competencias",
+            "punch": "El rey de la tarea programada a las tres de la mañana."
+          },
+          "muse": {
+            "head": "Un ordenador dedicado en la nube de Meta",
+            "b1": "Navega, rellena formularios y compra tras tu permiso",
+            "b2": "Avanza solo en las tareas largas",
+            "punch": "Fluido, con Meta al mando del alojamiento."
+          }
+        },
+        "daily": {
+          "label": "El día a día, y lo que cuesta",
+          "lia": {
+            "head": "Tus herramientas a mano, LIA como refuerzo",
+            "b1": "Correo, agenda, tareas, archivos y luces Hue, sin IA",
+            "b2": "Tus gestos van directamente a tus proveedores",
+            "b3": "Una estrella amarilla para pedir ayuda a LIA",
+            "punch": "No pagas a una IA para archivar tres correos."
+          },
+          "openclaw": {
+            "head": "Chat y consola web",
+            "b1": "WhatsApp, Telegram, Discord o su consola web",
+            "b2": "La IA realiza las tareas que le encargas por chat",
+            "punch": "Hablar con un bot para mover una cita acaba cansando."
+          },
+          "hermes": {
+            "head": "Terminal, aplicación de escritorio o mensajería",
+            "b1": "Una veintena de mensajerías, entre ellas Telegram y WhatsApp",
+            "b2": "Sin pantallas para gestionar correo y agenda a mano",
+            "punch": "Pensado ante todo para los amantes del terminal."
+          },
+          "muse": {
+            "head": "Chat y espacios a medida",
+            "b1": "App Muse, sitio web o WhatsApp",
+            "b2": "Spaces permite marcar, añadir notas y editar",
+            "punch": "Espacios prácticos, siempre alojados por Meta."
+          }
+        },
+        "family": {
+          "label": "Familia, seres queridos y 3D",
+          "lia": {
+            "head": "Toda la casa en un mismo servidor",
+            "b1": "Una cuenta por persona, activada por el administrador",
+            "b2": "Contenidos compartidos y conexiones entre cuentas",
+            "b3": "Avatares animados y un mundo 3D compartido",
+            "punch": "El asistente donde toda la casa tiene su sitio."
+          },
+          "openclaw": {
+            "head": "Varias personas, a configurar uno mismo",
+            "b1": "Accesos individuales, perfiles y roles",
+            "b2": "Confianza compartida entre participantes, sin mundo 3D",
+            "punch": "Piso compartido, sí. El contrato lo redactas tú."
+          },
+          "hermes": {
+            "head": "Varios agentes, uno por perfil",
+            "b1": "Otras personas pueden escribirle tras emparejarse",
+            "b2": "Ni cuentas que crear ni mundo 3D",
+            "punch": "Un lobo solitario… que acepta visitas."
+          },
+          "muse": {
+            "head": "Cada persona con su propio Muse",
+            "b1": "Avatares expresivos en despliegue en Estados Unidos",
+            "b2": "Ningún espacio familiar que instalar en casa",
+            "punch": "Cada uno con su Muse, y todos en casa de Meta."
+          }
+        },
+        "voice": {
+          "label": "Voz, teléfono y medios",
+          "lia": {
+            "head": "Te habla en directo y hace tus llamadas",
+            "b1": "Dos modos de voz en tiempo real",
+            "b2": "Llamadas tras tu validación, archivo de tus SMS",
+            "b3": "Radio personal, imágenes y actas de reuniones",
+            "punch": "Te habla, hace tus llamadas y presenta tu radio."
+          },
+          "openclaw": {
+            "head": "Voz en directo, teléfono opcional",
+            "b1": "Conversación de voz continua en sus aplicaciones",
+            "b2": "Llamadas mediante un plugin, imágenes y música generadas",
+            "punch": "También descuelga… una vez instalado el plugin."
+          },
+          "hermes": {
+            "head": "Voz, SMS y llamadas opcionales",
+            "b1": "Conversación de voz en el terminal y en Discord",
+            "b2": "SMS y llamadas mediante una competencia, imágenes generadas",
+            "punch": "Habla, escribe SMS y llama… pero nada de radio en el desayuno."
+          },
+          "muse": {
+            "head": "Voz en tiempo real, sin teléfono",
+            "b1": "Voz y avatares en despliegue en Estados Unidos",
+            "b2": "Ni llamadas telefónicas ni radio anunciadas",
+            "punch": "Bonita voz, pero sin línea."
+          }
+        },
+        "memory": {
+          "label": "Memoria y control",
+          "lia": {
+            "head": "Una memoria que ves y corriges",
+            "b1": "Recuerdos que puedes consultar y modificar",
+            "b2": "Seguimiento de tus seres queridos y de las promesas pendientes",
+            "b3": "Tu validación antes de lo importante, exportación y olvido",
+            "punch": "Nada importante sale sin tu luz verde. Y lo ves todo."
+          },
+          "openclaw": {
+            "head": "Memoria en archivos, salvaguardas por ajustar",
+            "b1": "Recuerdos escritos en archivos de texto legibles",
+            "b2": "Validación de comandos según el modo elegido",
+            "punch": "Gran libertad, gran responsabilidad."
+          },
+          "hermes": {
+            "head": "Una memoria de trabajo, validaciones ajustables",
+            "b1": "Notas sobre ti y búsqueda en sesiones anteriores",
+            "b2": "Validación de comandos, que se puede desactivar",
+            "punch": "Excelente memoria técnica, menos centrada en tus seres queridos."
+          },
+          "muse": {
+            "head": "Controles cuidados, datos en Meta",
+            "b1": "Permiso antes de enviar o comprar, historial completo",
+            "b2": "Datos y accesos guardados en un ordenador de Meta",
+            "punch": "Mantienes el control… en los servidores de Meta."
+          }
+        },
+        "admin": {
+          "label": "Administración y costes",
+          "lia": {
+            "head": "Todo se ajusta y se mide",
+            "b1": "Cuentas y límites de gasto por persona",
+            "b2": "Coste de cada intercambio mostrado al céntimo",
+            "b3": "Autodiagnóstico y paneles de Grafana incluidos",
+            "punch": "El sueño de un director de sistemas: todo se mide."
+          },
+          "openclaw": {
+            "head": "Una consola web, mediciones por conectar",
+            "b1": "Coste estimado de cada respuesta",
+            "b2": "Métricas exportables, Grafana a instalar uno mismo",
+            "punch": "Todo es medible… si montas el panel."
+          },
+          "hermes": {
+            "head": "Un panel para los ajustes",
+            "b1": "Consumo y coste mostrados por sesión",
+            "b2": "Límites de ejecución ajustables en cada perfil",
+            "punch": "Ideal para un aficionado solo, justo para toda una familia."
+          },
+          "muse": {
+            "head": "Un servicio sin servidor que mantener",
+            "b1": "Un servicio gestionado de principio a fin por Meta",
+            "b2": "Tú sigues la actividad; Meta gestiona la infraestructura",
+            "punch": "Pulsas el botón y Meta se encarga del resto."
+          }
+        }
+      }
     }
   },
   "maps": {
@@ -17020,7 +17479,7 @@
       "multi-agent-orchestration": {
         "title": "Un director de orquesta y especialistas: cómo trata LIA tu petición",
         "excerpt": "Detrás de cada mensaje, LIA no se limita a llamar a un modelo. Así clasifica tu petición, prepara un plan, moviliza las herramientas adecuadas en paralelo y te responde, y por qué decidí repartir el trabajo de esta manera.",
-        "body": "<h2>El problema</h2><p>Imagina que escribes: «envía la dirección del restaurante de mi cena del viernes a todos los invitados». Para conseguirlo, hay que leer tu agenda, encontrar la cena, sacar de ella el lugar, buscar a cada invitado en tus contactos y preparar un correo. Cinco gestos, tres servicios.</p><p>Dárselo todo de golpe a un solo modelo de lenguaje, con todas las herramientas a la vista, funciona mal. Cuantas más herramientas ve, más duda y más se equivoca de herramienta. Cada llamada cuesta más. Y cuando falla, es imposible saber dónde.</p><h2>Lo que quería</h2><p>Quería que LIA trabajara como un pequeño equipo bien organizado: alguien clasifica la petición, alguien prepara el plan, alguien lo comprueba, alguien lo ejecuta y alguien te responde. Cada papel hace una sola cosa. A su alrededor, cada dominio aporta sus propias herramientas y sus instrucciones de uso: correos, agenda, contactos, tareas, archivos, tiempo, lugares, itinerarios, búsqueda web, e incluso los servidores MCP que añades tú mismo.</p><p>Para enlazar esos papeles elegí <strong>LangGraph</strong>, una biblioteca que describe un procesamiento como un grafo: unos pasos y unas reglas que dicen cuál viene después. Tu mensaje recorre ese grafo de principio a fin.</p><h2>Cómo funciona</h2><ol><li><strong>La clasificación.</strong> El router lee tu mensaje y decide si se trata de una conversación o de una petición de acción, y qué dominios están implicados. «Gracias, ha sido perfecto» va directo a la respuesta. La cena del viernes va al planificador, con la agenda, los contactos y los correos.</li><li><strong>El plan.</strong> El planificador solo recibe las herramientas de esos dominios. Escribe un plan: qué pasos, con qué parámetros y cuáles esperan el resultado de otro.</li><li><strong>La comprobación.</strong> Antes de la menor llamada, LIA revisa ese plan: una herramienta inventada, un paso que espera a otro inexistente, un valor fuera de límites. Lo que se puede reparar se repara; lo que sigue siendo dudoso vuelve al planificador.</li><li><strong>La ejecución.</strong> Los pasos independientes salen a la vez; los demás esperan lo que necesitan. Aquí: primero la agenda, luego todos los invitados en paralelo, luego el borrador del correo, que validas antes del envío.</li><li><strong>El toque extra.</strong> Una vez que vuelven los resultados, LIA mira si falta una información que simplemente puede leer. Si un correo propone una reunión el jueves, puede echar un vistazo a tu agenda del jueves. También puede sugerirte una acción, sin ejecutarla.</li><li><strong>La respuesta.</strong> Un último papel reúne lo que ha pasado y te lo escribe, distinguiendo lo que ha salido bien de lo que ha fallado.</li></ol><h2>Dos formas de trabajar</h2><p>Este circuito es el <strong>modo Pipeline</strong>: planificar primero, ejecutar después. Es el más económico y el más previsible, y es el modo por defecto. Pero algunas preguntas no se pueden planificar de antemano. «¿Qué hacemos este fin de semana?» depende de lo que LIA vaya descubriendo por el camino. Para esas puedes pasar al <strong>modo ReAct</strong> con un clic en el botón de modo, en la parte superior de la pantalla: LIA avanza paso a paso, lee cada resultado y elige lo siguiente. Los dos modos comparten la misma memoria y las mismas confirmaciones, y confluyen en el mismo paso de respuesta.</p><h2>Un hilo que no se pierde</h2><p>Después de cada paso, el estado de la conversación se guarda en la base de datos (PostgreSQL). Cuando LIA espera tu validación, retoma exactamente donde se había quedado en cuanto respondes, mientras la pregunta no haya caducado. Si cierras la pestaña, la respuesta sigue en el servidor y te espera a tu vuelta. Y cuando una conversación se vuelve muy larga, LIA resume el principio para su propio uso, sin borrar nada del historial que ves.</p><h2>Los límites</h2><p>La clasificación puede equivocarse. Cuando el router duda de verdad, te responde sin actuar, y a menudo basta con reformular. El modo Pipeline fija su plan antes de haber visto los resultados: si un paso falla, te lo dice, sin improvisar otro camino. Y un dominio solo existe para LIA si el servicio está conectado: sin tu agenda, ningún plan puede leerla.</p><p>El circuito completo se describe en <a href=\"/es/how#pipeline\">la página técnica</a>.</p><p>Para profundizar: <a href=\"/es/blog/execution-plans\">Un plan antes de actuar: cómo prepara y comprueba LIA tus peticiones de varios pasos</a>; <a href=\"/es/blog/react-execution-mode\">Pipeline o ReAct: dos formas de llevar a cabo tu petición</a>.</p>"
+        "body": "<h2>El problema</h2><p>Imagina que escribes: «envía la dirección del restaurante de mi cena del viernes a todos los invitados». Para conseguirlo, hay que leer tu agenda, encontrar la cena, sacar de ella el lugar, buscar a cada invitado en tus contactos y preparar un correo. Cinco gestos, tres servicios.</p><p>Dárselo todo de golpe a un solo modelo de lenguaje, con todas las herramientas a la vista, funciona mal. Cuantas más herramientas ve, más duda y más se equivoca de herramienta. Cada llamada cuesta más. Y cuando falla, es imposible saber dónde.</p><h2>Lo que quería</h2><p>Quería que LIA trabajara como un pequeño equipo bien organizado: alguien clasifica la petición, alguien prepara el plan, alguien lo comprueba, alguien lo ejecuta y alguien te responde. Cada papel hace una sola cosa. A su alrededor, cada dominio aporta sus propias herramientas y sus instrucciones de uso: correos, agenda, contactos, tareas, archivos, tiempo, lugares, itinerarios, búsqueda web, e incluso los servidores MCP que añades tú mismo.</p><p>Para enlazar esos papeles elegí <strong>LangGraph</strong>, una biblioteca que describe un procesamiento como un grafo: unos pasos y unas reglas que dicen cuál viene después. Tu mensaje recorre ese grafo de principio a fin.</p><h2>Cómo funciona</h2><ol><li><strong>La clasificación.</strong> El router lee tu mensaje y decide si se trata de una conversación o de una petición de acción, y qué dominios están implicados. «Gracias, ha sido perfecto» va directo a la respuesta. La cena del viernes va al planificador, con la agenda, los contactos y los correos.</li><li><strong>El plan.</strong> El planificador solo recibe las herramientas de esos dominios. Escribe un plan: qué pasos, con qué parámetros y cuáles esperan el resultado de otro.</li><li><strong>La comprobación.</strong> Antes de la menor llamada, LIA revisa ese plan: una herramienta inventada, un paso que espera a otro inexistente, un valor fuera de límites. Lo que se puede reparar se repara; lo que sigue siendo dudoso vuelve al planificador.</li><li><strong>La ejecución.</strong> Los pasos independientes salen a la vez; los demás esperan lo que necesitan. Aquí: primero la agenda, luego todos los invitados en paralelo, luego el borrador del correo, que validas antes del envío.</li><li><strong>El toque extra.</strong> Una vez que vuelven los resultados, LIA mira si falta una información que simplemente puede leer. Si un correo propone una reunión el jueves, puede echar un vistazo a tu agenda del jueves. También puede sugerirte una acción, sin ejecutarla.</li><li><strong>La respuesta.</strong> Un último papel reúne lo que ha pasado y te lo escribe, distinguiendo lo que ha salido bien de lo que ha fallado.</li></ol><h2>Dos formas de trabajar</h2><p>Este circuito es el <strong>modo Pipeline</strong>: planificar primero, ejecutar después. Es el más económico y el más previsible, y es el modo por defecto. Pero algunas preguntas no se pueden planificar de antemano. «¿Qué hacemos este fin de semana?» depende de lo que LIA vaya descubriendo por el camino. El menú del chat permite elegir <strong>ReAct</strong>, que lee cada resultado antes de continuar, o <strong>Automático</strong>, que elige el motor para cada petición. Los dos modos comparten la misma memoria y las mismas confirmaciones, y confluyen en el mismo paso de respuesta.</p><h2>Un hilo que no se pierde</h2><p>Después de cada paso, el estado de la conversación se guarda en la base de datos (PostgreSQL). Cuando LIA espera tu validación, retoma exactamente donde se había quedado en cuanto respondes, mientras la pregunta no haya caducado. Si cierras la pestaña, la respuesta sigue en el servidor y te espera a tu vuelta. Y cuando una conversación se vuelve muy larga, LIA resume el principio para su propio uso, sin borrar nada del historial que ves.</p><h2>Los límites</h2><p>La clasificación puede equivocarse. Cuando el router duda de verdad, te responde sin actuar, y a menudo basta con reformular. El modo Pipeline fija su plan antes de haber visto los resultados: si un paso falla, te lo dice, sin improvisar otro camino. Y un dominio solo existe para LIA si el servicio está conectado: sin tu agenda, ningún plan puede leerla.</p><p>El circuito completo se describe en <a href=\"/es/how#pipeline\">la página técnica</a>.</p><p>Para profundizar: <a href=\"/es/blog/execution-plans\">Un plan antes de actuar: cómo prepara y comprueba LIA tus peticiones de varios pasos</a>; <a href=\"/es/blog/react-execution-mode\">Pipeline o ReAct: dos formas de llevar a cabo tu petición</a>.</p>"
       },
       "execution-plans": {
         "title": "Un plan antes de actuar: cómo prepara y comprueba LIA tus peticiones de varios pasos",
@@ -17075,12 +17534,12 @@
       "proactive-notifications": {
         "title": "Cuando LIA toma la iniciativa: notificaciones útiles, sin invadirte",
         "excerpt": "LIA puede avisarte por su cuenta: la lluvia antes de tu cita, la hora de salir, un correo que espera. Así decide hablarte, y sobre todo cuándo se calla.",
-        "body": "<h2>El problema</h2><p>Un asistente que siempre espera tu pregunta se pierde lo que no se te ocurre preguntar. Llueve a la hora en que sales, tu reunión de las 14:00 está a cuarenta minutos en coche, acaba de llegar un mensaje importante. Al revés, una aplicación que notifica por todo acaba enseguida silenciada. Quería una LIA que hable cuando sirve, y que se calle el resto del tiempo.</p><h2>Cómo decide</h2><p>Las notificaciones proactivas están apagadas mientras no las enciendas, en Ajustes › Funcionalidades › Notificaciones proactivas. Después, a intervalos regulares, LIA reúne lo que puede ver de tu día entre las fuentes que le dejas: tu agenda, tus correos del día, tus tareas, el tiempo, tus intereses, tus recuerdos, su diario y, según lo que tu administrador y tú hayáis activado, tus señales de salud, tus SMS, los cumpleaños, los compromisos en curso, la hora de salida para una cita, tus hábitos o tu tablero de trabajo.</p><p>Un modelo lee ese conjunto y responde a una sola pregunta: ¿hay algo que merezca molestarte ahora? La mayoría de las veces, la respuesta es no. Cuando es sí, un segundo paso escribe el mensaje, con la personalidad que has elegido y en tu idioma: «Tienes una cita a las 14:00 y la lluvia llega hacia las 13:30: sal un poco antes y llévate un paraguas.» LIA también relee sus últimas notificaciones: un tema, una actividad o un producto ya propuesto no vuelve, ni siquiera por otra fuente.</p><h2>Cuándo se calla</h2><p>No hay cuota diaria: es la decisión la que filtra, y algunos días LIA no envía nada. Las salvaguardas se aplican al momento.</p><ul><li><strong>Tu franja horaria</strong>: una ventana del día que tú ajustas, a tu hora local.</li><li><strong>Una pausa</strong> entre dos notificaciones, cuya duración fija el administrador.</li><li><strong>Tu actividad</strong>: si acabas de escribir a LIA, en la web, la aplicación o Telegram, la notificación espera.</li><li><strong>Tus reuniones</strong>: durante una reunión en curso, si tu agenda está conectada, no sale nada, ni siquiera un mensaje provocado por un correo nuevo.</li><li><strong>Tu ausencia</strong>: si no has abierto LIA desde hace varios días, deja de escribirte hasta que vuelvas.</li></ul><p>Cada fuente tiene también su interruptor. Estar conectado a un servicio y dejar que te interrumpa son dos decisiones separadas: puedes desactivar las notificaciones relacionadas con tus correos y dejar que LIA los lea cuando se lo pidas.</p><h2>Reaccionar al instante</h2><p>Un repaso periódico tiene un límite: lo que llega justo después espera al siguiente. Cuando el administrador activa esta capacidad, la llegada de un correo que Gmail marca como importante, o una cita cercana modificada por otra persona, despierta la decisión en pocos minutos. Este despertar adelanta el momento de la decisión; tu franja horaria, las pausas y tus elecciones de fuentes se siguen aplicando.</p><p>Si tu administrador la ha abierto, otra capacidad va un paso más allá, la de los <strong>momentos anticipados</strong>: poco después del final de una reunión importante, LIA puede preguntarte cómo fue. Una sola pregunta abierta, sin juicio. La reunión se vuelve a leer justo antes, y una reunión cancelada o movida entretanto no provoca nada.</p><h2>Durante la conversación, y más allá</h2><p>LIA también toma la iniciativa durante un intercambio. Después de atender tu petición, puede comprobar por su cuenta un dato relacionado, en modo solo lectura: preparas una salida el sábado, mira el tiempo y te avisa de la lluvia.</p><p>Si lo autorizas, también puede iniciar una <strong>conversación proactiva</strong>: interesarse por un proyecto, animarte, hacerte una pregunta abierta. Tú eliges sus horas, un máximo por día, las fuentes que puede leer y los temas sensibles que puede tener en cuenta. Una apertura que toca un tema sensible queda privada: su notificación se oculta y no sale por ningún canal externo.</p><h2>Lo que ves, lo que corriges</h2><p>Las notificaciones llegan a tus dispositivos si las notificaciones push están activadas, y a Telegram si lo has vinculado; cada una se queda también en la conversación. Cada notificación lleva un 👍 y un 👎, y tu opinión guía las decisiones siguientes. El historial de notificaciones recientes muestra lo que se envió y con qué fuentes, y cada repaso queda anotado en tus registros con lo que consultó.</p><p>Por último, dos límites. Si alcanzas una cuota de uso fijada por el administrador, las notificaciones se pausan hasta que se renueve. Y cuando LIA propone lanzar una petición que sueles hacer, es una pregunta: no ejecuta nada sin ti. Más detalles en <a href=\"/es/how#proactivity\">la proactividad, en el lado técnico</a>.</p><p>Para profundizar: <a href=\"/es/blog/reminders-scheduling\">Recordatorios y rutinas: deja que LIA se ocupe del momento</a>; <a href=\"/es/blog/personal-journals\">El diario de LIA: lo que aprende de ti, y cómo mantienes el control</a>.</p>"
+        "body": "<h2>El problema</h2><p>Un asistente que siempre espera tu pregunta se pierde lo que no se te ocurre preguntar. Llueve a la hora en que sales, tu reunión de las 14:00 está a cuarenta minutos en coche, acaba de llegar un mensaje importante. Al revés, una aplicación que notifica por todo acaba enseguida silenciada. Quería una LIA que hable cuando sirve, y que se calle el resto del tiempo.</p><h2>Cómo decide</h2><p>Las notificaciones proactivas están apagadas mientras no las enciendas, en Ajustes › Funcionalidades › Notificaciones proactivas. Después, a intervalos regulares, LIA reúne lo que puede ver de tu día entre las fuentes que le dejas: tu agenda, tus correos del día, tus tareas, el tiempo, tus intereses, tus recuerdos, su diario y, según lo que tu administrador y tú hayáis activado, tus señales de salud, tus SMS, los cumpleaños, los compromisos en curso, la hora de salida para una cita, tus hábitos o tu tablero de trabajo.</p><p>Un modelo lee ese conjunto y responde a una sola pregunta: ¿hay algo que merezca molestarte ahora? La mayoría de las veces, la respuesta es no. Cuando es sí, un segundo paso escribe el mensaje, con la personalidad que has elegido y en tu idioma: «Tienes una cita a las 14:00 y la lluvia llega hacia las 13:30: sal un poco antes y llévate un paraguas.» LIA también relee sus últimas notificaciones: un tema, una actividad o un producto ya propuesto no vuelve, ni siquiera por otra fuente.</p><h2>Cuándo se calla</h2><p>No hay cuota diaria: es la decisión la que filtra, y algunos días LIA no envía nada. Las salvaguardas se aplican al momento.</p><ul><li><strong>Tu franja horaria</strong>: una ventana del día que tú ajustas, a tu hora local.</li><li><strong>Una pausa</strong> entre dos notificaciones, cuya duración fija el administrador.</li><li><strong>Tu actividad</strong>: si acabas de escribir a LIA, en la web, la aplicación o Telegram, la notificación espera.</li><li><strong>Tus reuniones</strong>: durante una reunión en curso, si tu agenda está conectada, no sale nada, ni siquiera un mensaje provocado por un correo nuevo.</li><li><strong>Tu ausencia</strong>: si no has abierto LIA desde hace varios días, deja de escribirte hasta que vuelvas.</li></ul><p>Cada fuente tiene también su interruptor. Estar conectado a un servicio y dejar que te interrumpa son dos decisiones separadas: puedes desactivar las notificaciones relacionadas con tus correos y dejar que LIA los lea cuando se lo pidas.</p><h2>Reaccionar al instante</h2><p>Un repaso periódico tiene un límite: lo que llega justo después espera al siguiente. Cuando el administrador activa esta capacidad, la llegada de un correo que Gmail marca como importante, o una cita cercana modificada por otra persona, despierta la decisión en pocos minutos. Este despertar adelanta el momento de la decisión; tu franja horaria, las pausas y tus elecciones de fuentes se siguen aplicando.</p><p>Si tu administrador la ha abierto, otra capacidad va un paso más allá, la de los <strong>momentos anticipados</strong>: poco después del final de una reunión importante, LIA puede preguntarte cómo fue. Una sola pregunta abierta, sin juicio. La reunión se vuelve a leer justo antes, y una reunión cancelada o movida entretanto no provoca nada.</p><h2>Durante la conversación, y más allá</h2><p>LIA también toma la iniciativa durante un intercambio. Después de atender tu petición, puede comprobar por su cuenta un dato relacionado, en modo solo lectura: preparas una salida el sábado, mira el tiempo y te avisa de la lluvia.</p><p>Si lo autorizas, también puede iniciar una <strong>conversación proactiva</strong>: interesarse por un proyecto, animarte, hacerte una pregunta abierta. Tú eliges sus horas, un máximo por día, las fuentes que puede leer y los temas sensibles que puede tener en cuenta. Una apertura que toca un tema sensible queda privada: su notificación se oculta y no sale por ningún canal externo.</p><h2>Lo que ves, lo que corriges</h2><p>Las notificaciones llegan por los canales que activas: push, Telegram o una suscripción ntfy, que por defecto solo invita a abrir LIA; cada una queda también en la conversación. Cada notificación lleva un 👍 y un 👎, y tu opinión guía las decisiones siguientes. El historial de notificaciones recientes muestra lo que se envió y con qué fuentes, y cada repaso queda anotado en tus registros con lo que consultó.</p><p>Por último, dos límites. Si alcanzas una cuota de uso fijada por el administrador, las notificaciones se pausan hasta que se renueve. Y cuando LIA propone lanzar una petición que sueles hacer, es una pregunta: no ejecuta nada sin ti. Más detalles en <a href=\"/es/how#proactivity\">la proactividad, en el lado técnico</a>.</p><p>Para profundizar: <a href=\"/es/blog/reminders-scheduling\">Recordatorios y rutinas: deja que LIA se ocupe del momento</a>; <a href=\"/es/blog/personal-journals\">El diario de LIA: lo que aprende de ti, y cómo mantienes el control</a>.</p>"
       },
       "reminders-scheduling": {
         "title": "Recordatorios y rutinas: deja que LIA se ocupe del momento",
         "excerpt": "Un recordatorio te avisa en el momento justo; una rutina hace trabajar a LIA a una hora fija o cuando pasa algo. Aquí verás cómo funcionan los dos, cómo siguen tu hora, y lo que no hacen.",
-        "body": "<h2>El problema</h2><p>Olvidamos cosas. Llamar al fontanero, tomar un medicamento, volver a escribir a un cliente el viernes. Las aplicaciones de recordatorios existen, pero hay que abrir la correcta, elegir la fecha, la hora, la repetición. Y algunas cosas no son recordatorios: te gustaría que alguien hiciera la búsqueda por ti cada lunes, o te avisara en cuanto llegue un correo concreto.</p><h2>Lo que quería</h2><p>Quería que lo dijeras como se lo dirías a una persona, «recuérdame mañana a las 9 que llame a María», y que LIA se encargara del resto. También quería separar dos necesidades. Un <strong>recordatorio</strong> te avisa en un momento dado. Una <strong>rutina</strong> pone a trabajar a LIA: ejecuta una instrucción y te da el resultado.</p><h2>Los recordatorios</h2><p>Hablas con lenguaje corriente: «dentro de 30 minutos», «el viernes a las 14:30», «esta noche a las 20:00». LIA entiende la hora en tu zona horaria y te muestra la fecha exacta en una tarjeta: el recordatorio solo se crea después de tu aprobación. Un recordatorio también puede <strong>repetirse</strong>: todos los días a las 8, los lunes y los jueves, el día 15 de cada mes, cada dos horas entre las 9 y las 17, hasta una fecha o un número de veces. Después de cada notificación, LIA prepara la siguiente; cuando no queda ninguna, el recordatorio desaparece. Puedes listarlos, cancelar uno por su número o su tema, y LIA te muestra la lista antes de borrar varios de golpe.</p><p>Llegado el momento, LIA escribe una frase corta con la personalidad que le has elegido, apoyándose en lo que sabe de ti. Sale como notificación en tus dispositivos, incluso con la aplicación cerrada, y se queda en tu conversación. Si esa frase no se puede escribir, recibes igualmente tu recordatorio tal como lo pediste. Y si tu presupuesto de uso está agotado en ese momento, el recordatorio no se pierde: espera y sale en cuanto dejas de estar bloqueado.</p><h2>Las rutinas</h2><p>Una rutina tiene un título, una instrucción y un solo reloj. O bien un <strong>horario</strong>: «busca el tiempo del día» todas las mañanas a las 7, «resume las noticias de IA» los lunes, los miércoles y los viernes. O bien una <strong>condición</strong>: una tarea atrasada, un correo que coincide con un filtro, una cita que se acerca, un documento añadido, un cambio de tiempo, una página web que cambia. En ese caso, LIA comprueba la fuente por sí misma, día y noche, y solo lanza la rutina si aparece algo <strong>nuevo</strong>: el mismo correo no la dispara dos veces, y una comprobación que no encuentra nada no crea nada. O bien la <strong>llamada de otro sistema</strong>: la rutina recibe una dirección propia, y una llamada firmada con su secreto la pone en marcha.</p><p>En la página de inicio, un correo no leído te propone vigilar la respuesta de su remitente: LIA crea una rutina que te avisa en cuanto escriba, con un recordatorio de lo que se trataba. Cada rutina tiene un botón para probarla enseguida, y una vista de la semana muestra lo que se ejecutó, lo que falló y lo que espera.</p><h2>Cuando cambia la hora</h2><p>Todo se guarda en hora universal y se muestra en tu hora. Si cambias de zona horaria, tus recordatorios y tus rutinas siguen tu hora local: tu recordatorio de las 8 sigue sonando a las 8 allí donde estés. Los días de una repetición se calculan uno a uno, así que un cambio al horario de verano no se salta ninguno.</p><h2>Los límites</h2><ul><li>Una rutina funciona sin ti. Por eso rechaza cualquier acción que pediría tu confirmación, y lo dice. En cambio, puede escribirte a tu propia dirección o llamarte a tu número verificado.</li><li>Una rutina que falla varias veces seguidas se pone en pausa. La reactivas una vez corregido el problema.</li><li>Cuando se alcanza tu presupuesto de uso, las rutinas esperan, y se reanudan cuando se renueva.</li><li>Lo que una condición detecta de noche se anuncia de noche: las rutinas no tienen horas de silencio.</li><li>Pedir una rutina en el chat crea una rutina con horario. Para una vigilancia por condición, usa el editor o la tarjeta del correo.</li><li>El número de rutinas está limitado por tu instancia.</li></ul><p>Para profundizar: <a href=\"/es/blog/proactive-notifications\">Cuando LIA toma la iniciativa: notificaciones útiles, sin invadirte</a>; <a href=\"/es/blog/human-in-the-loop\">Mantener el control sin que te molesten: cómo te pide LIA tu aprobación</a>.</p>"
+        "body": "<h2>El problema</h2><p>Olvidamos cosas. Llamar al fontanero, tomar un medicamento, volver a escribir a un cliente el viernes. Las aplicaciones de recordatorios existen, pero hay que abrir la correcta, elegir la fecha, la hora, la repetición. Y algunas cosas no son recordatorios: te gustaría que alguien hiciera la búsqueda por ti cada lunes, o te avisara en cuanto llegue un correo concreto.</p><h2>Lo que quería</h2><p>Quería que lo dijeras como se lo dirías a una persona, «recuérdame mañana a las 9 que llame a María», y que LIA se encargara del resto. También quería separar dos necesidades. Un <strong>recordatorio</strong> te avisa en un momento dado. Una <strong>rutina</strong> pone a trabajar a LIA: ejecuta una instrucción y te da el resultado.</p><h2>Los recordatorios</h2><p>Hablas con lenguaje corriente: «dentro de 30 minutos», «el viernes a las 14:30», «esta noche a las 20:00». LIA entiende la hora en tu zona horaria y te muestra la fecha exacta en una tarjeta: el recordatorio solo se crea después de tu aprobación. Un recordatorio también puede <strong>repetirse</strong>: todos los días a las 8, los lunes y los jueves, el día 15 de cada mes, cada dos horas entre las 9 y las 17, hasta una fecha o un número de veces. Después de cada notificación, LIA prepara la siguiente; cuando no queda ninguna, el recordatorio desaparece. Puedes listarlos o cancelarlos; cuando acaba de sonar uno, su tarjeta permite posponer esa vez o confirmar que deje de repetirse.</p><p>Llegado el momento, LIA escribe una frase corta con la personalidad que le has elegido, apoyándose en lo que sabe de ti. Sale como notificación en tus dispositivos, incluso con la aplicación cerrada, y se queda en tu conversación. Si esa frase no se puede escribir, recibes igualmente tu recordatorio tal como lo pediste. Y si tu presupuesto de uso está agotado en ese momento, el recordatorio no se pierde: espera y sale en cuanto dejas de estar bloqueado.</p><h2>Las rutinas</h2><p>Una rutina tiene un título, una instrucción y un solo reloj. O bien un <strong>horario</strong>: «busca el tiempo del día» todas las mañanas a las 7, «resume las noticias de IA» los lunes, los miércoles y los viernes. O bien una <strong>condición</strong>: una tarea atrasada, un correo que coincide con un filtro, una cita que se acerca, un documento añadido, un cambio de tiempo, una página web que cambia. En ese caso, LIA comprueba la fuente por sí misma, día y noche, y solo lanza la rutina si aparece algo <strong>nuevo</strong>: el mismo correo no la dispara dos veces, y una comprobación que no encuentra nada no crea nada. O bien la <strong>llamada de otro sistema</strong>: la rutina recibe una dirección propia, y una llamada firmada con su secreto la pone en marcha.</p><p>En la página de inicio, un correo no leído te propone vigilar la respuesta de su remitente: LIA crea una rutina que te avisa en cuanto escriba, con un recordatorio de lo que se trataba. Cada rutina tiene un botón para probarla enseguida, y una vista de la semana muestra lo que se ejecutó, lo que falló y lo que espera.</p><h2>Cuando cambia la hora</h2><p>Todo se guarda en hora universal y se muestra en tu hora. Si cambias de zona horaria, tus recordatorios y tus rutinas siguen tu hora local: tu recordatorio de las 8 sigue sonando a las 8 allí donde estés. Los días de una repetición se calculan uno a uno, así que un cambio al horario de verano no se salta ninguno.</p><h2>Los límites</h2><ul><li>Una rutina funciona sin ti. Por eso rechaza cualquier acción que pediría tu confirmación, y lo dice. En cambio, puede escribirte a tu propia dirección o llamarte a tu número verificado.</li><li>Una rutina que falla varias veces seguidas se pone en pausa. La reactivas una vez corregido el problema.</li><li>Cuando se alcanza tu presupuesto de uso, las rutinas esperan, y se reanudan cuando se renueva.</li><li>Lo que una condición detecta de noche se anuncia de noche: las rutinas no tienen horas de silencio.</li><li>Pedir una rutina en el chat crea una rutina con horario. Para una vigilancia por condición, usa el editor o la tarjeta del correo.</li><li>El número de rutinas está limitado por tu instancia.</li></ul><p>Para profundizar: <a href=\"/es/blog/proactive-notifications\">Cuando LIA toma la iniciativa: notificaciones útiles, sin invadirte</a>; <a href=\"/es/blog/human-in-the-loop\">Mantener el control sin que te molesten: cómo te pide LIA tu aprobación</a>.</p>"
       },
       "sub-agents": {
         "title": "Los expertos efímeros de LIA: delegar un análisis sin perder el control",
@@ -17120,7 +17579,7 @@
       "react-execution-mode": {
         "title": "Pipeline o ReAct: dos formas de llevar a cabo tu petición",
         "excerpt": "LIA puede planificar toda tu petición de antemano, o avanzar paso a paso leyendo cada resultado. Aquí explico qué hace cada modo, por qué mantuve los dos, y cómo elegir el que te conviene.",
-        "body": "<h2>El problema</h2><p>Algunas peticiones tienen un camino conocido de antemano. «Pasa mi cita del jueves al viernes y avisa a los participantes»: se sabe qué hacer, y en qué orden. Otras no. «Búscame una salida para el sábado, si no llueve» depende del tiempo, luego de lo que pasa cerca de tu casa, y luego quizá de un trayecto. Cada paso depende de lo que haya encontrado el anterior.</p><p>Un plan fijado de antemano va muy bien para la primera petición, mucho menos para la segunda. Un bucle que reflexiona a cada paso va bien para la segunda, pero sale caro en la primera.</p><h2>Lo que quería</h2><p>No quería elegir por ti. Así que LIA mantiene dos modos, con las mismas garantías, y pasas de uno a otro con el botón de modo, en la parte superior de la pantalla. Tu elección se recuerda para los mensajes siguientes.</p><h2>El Pipeline: planificar, verificar, ejecutar</h2><p>Es el modo por defecto. LIA escribe primero un plan completo, lo verifica antes de cualquier llamada, y luego ejecuta en paralelo todo lo que se puede. El modelo no tiene que releer toda la conversación en cada paso, lo que hace este modo bastante más barato en <strong>tokens</strong>, las unidades de texto que cobran los proveedores de modelos. Su límite: el plan se escribe antes de ver los resultados. Si un paso falla, el Pipeline te lo dice, sin buscar por su cuenta otro camino.</p><h2>ReAct: avanzar leyendo cada resultado</h2><p>En modo <strong>ReAct</strong> (por «razonar y actuar»), el modelo llama a una herramienta, lee lo que vuelve y decide lo siguiente. Para tu salida del sábado: primero el tiempo; si hace bueno, los eventos de la zona; para el que te guste, el trayecto. Rodeé este bucle de varias salvaguardas.</p><ul><li><strong>Un presupuesto que se gana.</strong> El bucle empieza con un número de intentos, que se prolonga mientras obtiene resultados. Un fallo o un resultado vacío no le compra nada. Y el tiempo que pasas validando una acción no cuenta en su plazo.</li><li><strong>Juzgado por su resultado.</strong> LIA comprueba que cada respuesta de herramienta responde de verdad a tu pregunta: el día correcto, el lugar correcto, una lista completa. El tiempo de hoy cuando pedías el de mañana es un obstáculo, igual que un error. Entonces corrige su llamada, y luego prueba otra fuente, que señala como tal. Lo que sigue sin obtener, lo enumera al final, con lo que intentó.</li><li><strong>Sin dar vueltas.</strong> Una herramienta llamada varias veces con exactamente los mismos parámetros acaba siendo rechazada: un agente que se repite ya no avanza.</li><li><strong>Un final honesto.</strong> Si el presupuesto se agota, LIA responde con lo que ha obtenido, sin anunciarte lo que se disponía a hacer.</li><li><strong>Cálculos exactos.</strong> Los dos modos disponen de una calculadora exacta y de una herramienta de fechas. ReAct puede además escribir un script corto en Python y ejecutarlo en un contenedor aislado, que se desecha tras usarlo, para cruzar dos listas o hacer cuentas sobre muchas líneas. Si tu instalación lo permite, puede consultar un servicio en línea a través de un intermediario que solo abre las direcciones declaradas. Tus claves de acceso no entran en el contenedor, y para una dirección que nadie ha autorizado, LIA te pide tu opinión.</li></ul><h2>Lo que no cambia</h2><p>Los dos modos leen la misma memoria, el mismo perfil y los mismos espacios de conocimiento. Siguen las mismas reglas de confirmación y te dan el mismo informe de lo que salió bien o mal. Una rutina o un ticket tiene su propio modo, que eliges para cada uno.</p><h2>Tu ritmo de intercambios</h2><p>En ReAct, también puedes decirle a LIA cómo la usas, en <strong>Ajustes › Preferencias › Personalización › Preferencias de uso</strong>. Con <strong>intercambios frecuentes</strong>, mantiene todas tus herramientas a mano y prepara cada turno para que el proveedor relea el anterior desde su caché, a precio reducido: el primer mensaje cuesta un poco más, los siguientes mucho menos, mientras tus mensajes se sucedan y el modelo elegido tenga caché; si no, los intercambios puntuales siguen siendo más baratos. Con <strong>intercambios puntuales</strong>, elige las herramientas útiles para cada pregunta, con un coste que no depende del tiempo transcurrido entre dos mensajes. Una cuenta nueva empieza en intercambios puntuales.</p><h2>Cómo elegir</h2><p>Para una petición precisa, cuyos pasos conoces, el Pipeline es más rápido y más barato. Para una búsqueda abierta, una pregunta que se bifurca según lo que se encuentre o una herramienta que se usa en varias fases, ReAct lo hace mejor. Mi consejo: quédate en Pipeline en el día a día, y pasa a ReAct cuando notes que la respuesta pide explorar.</p><p>Para profundizar: <a href=\"/es/blog/execution-plans\">Un plan antes de actuar: cómo prepara y comprueba LIA tus peticiones de varios pasos</a>; <a href=\"/es/blog/mcp-react-agent\">Servidores MCP que se usan en varios pasos: el modo iterativo</a>.</p>"
+        "body": "<h2>El problema</h2><p>Algunas peticiones tienen un camino conocido de antemano. «Pasa mi cita del jueves al viernes y avisa a los participantes»: se sabe qué hacer, y en qué orden. Otras no. «Búscame una salida para el sábado, si no llueve» depende del tiempo, luego de lo que pasa cerca de tu casa, y luego quizá de un trayecto. Cada paso depende de lo que haya encontrado el anterior.</p><p>Un plan fijado de antemano va muy bien para la primera petición, mucho menos para la segunda. Un bucle que reflexiona a cada paso va bien para la segunda, pero sale caro en la primera.</p><h2>Lo que quería</h2><p>Quería que conservaras la elección. El menú de la parte superior del chat ofrece Pipeline, ReAct y <strong>Automático</strong>, que deja a LIA elegir el motor para cada petición. Este ajuste se recuerda para los mensajes siguientes.</p><h2>El Pipeline: planificar, verificar, ejecutar</h2><p>Es el modo por defecto. LIA escribe primero un plan completo, lo verifica antes de cualquier llamada, y luego ejecuta en paralelo todo lo que se puede. El modelo no tiene que releer toda la conversación en cada paso, lo que hace este modo bastante más barato en <strong>tokens</strong>, las unidades de texto que cobran los proveedores de modelos. Su límite: el plan se escribe antes de ver los resultados. Si un paso falla, el Pipeline te lo dice, sin buscar por su cuenta otro camino.</p><h2>ReAct: avanzar leyendo cada resultado</h2><p>En modo <strong>ReAct</strong> (por «razonar y actuar»), el modelo llama a una herramienta, lee lo que vuelve y decide lo siguiente. Para tu salida del sábado: primero el tiempo; si hace bueno, los eventos de la zona; para el que te guste, el trayecto. Rodeé este bucle de varias salvaguardas.</p><ul><li><strong>Un presupuesto que se gana.</strong> El bucle empieza con un número de intentos, que se prolonga mientras obtiene resultados. Un fallo o un resultado vacío no le compra nada. Y el tiempo que pasas validando una acción no cuenta en su plazo.</li><li><strong>Juzgado por su resultado.</strong> LIA comprueba que cada respuesta de herramienta responde de verdad a tu pregunta: el día correcto, el lugar correcto, una lista completa. El tiempo de hoy cuando pedías el de mañana es un obstáculo, igual que un error. Entonces corrige su llamada, y luego prueba otra fuente, que señala como tal. Lo que sigue sin obtener, lo enumera al final, con lo que intentó.</li><li><strong>Sin dar vueltas.</strong> Una herramienta llamada varias veces con exactamente los mismos parámetros acaba siendo rechazada: un agente que se repite ya no avanza.</li><li><strong>Un final honesto.</strong> Si el presupuesto se agota, LIA responde con lo que ha obtenido, sin anunciarte lo que se disponía a hacer.</li><li><strong>Cálculos exactos.</strong> Los dos modos disponen de una calculadora exacta y de una herramienta de fechas. ReAct puede además escribir un script corto en Python y ejecutarlo en un contenedor aislado, que se desecha tras usarlo, para cruzar dos listas o hacer cuentas sobre muchas líneas. Si tu instalación lo permite, puede consultar un servicio en línea a través de un intermediario que solo abre las direcciones declaradas. Tus claves de acceso no entran en el contenedor, y para una dirección que nadie ha autorizado, LIA te pide tu opinión.</li></ul><h2>Lo que no cambia</h2><p>Los dos modos leen la misma memoria, el mismo perfil y los mismos espacios de conocimiento. Siguen las mismas reglas de confirmación y te dan el mismo informe de lo que salió bien o mal. Una rutina o un ticket tiene su propio modo, que eliges para cada uno.</p><h2>Tu ritmo de intercambios</h2><p>En ReAct, también puedes decirle a LIA cómo la usas, en <strong>Ajustes › Preferencias › Personalización › Preferencias de uso</strong>. Con <strong>intercambios frecuentes</strong>, mantiene todas tus herramientas a mano y prepara cada turno para que el proveedor relea el anterior desde su caché, a precio reducido: el primer mensaje cuesta un poco más, los siguientes mucho menos, mientras tus mensajes se sucedan y el modelo elegido tenga caché; si no, los intercambios puntuales siguen siendo más baratos. Con <strong>intercambios puntuales</strong>, elige las herramientas útiles para cada pregunta, con un coste que no depende del tiempo transcurrido entre dos mensajes. Una cuenta nueva empieza en intercambios puntuales.</p><h2>Cómo elegir</h2><p>Para una petición precisa, cuyos pasos conoces, el Pipeline es más rápido y más barato. Para una búsqueda abierta, una pregunta que se bifurca según lo que se encuentre o una herramienta que se usa en varias fases, ReAct lo hace mejor. También puedes dejar la elección al modo Automático: el menú explica qué permite tu instalación y la respuesta indica el motor utilizado.</p><p>Para profundizar: <a href=\"/es/blog/execution-plans\">Un plan antes de actuar: cómo prepara y comprueba LIA tus peticiones de varios pasos</a>; <a href=\"/es/blog/mcp-react-agent\">Servidores MCP que se usan en varios pasos: el modo iterativo</a>.</p>"
       },
       "mcp-react-agent": {
         "title": "Servidores MCP que se usan en varios pasos: el modo iterativo",
@@ -17732,7 +18191,7 @@
   "story": {
     "meta": {
       "title": "Story — Dirigir una IA que programa | LIA",
-      "description": "Cómo construí LIA: cerca del 100 % del código escrito por IA bajo mi dirección, 87.496 tests, 386 ADRs, una auditoría técnica de 7,9/10. El informe completo."
+      "description": "Cómo construí LIA: cerca del 100 % del código escrito por IA bajo mi dirección, 89.335 tests, 389 ADRs, una auditoría técnica de 7,9/10. El informe completo."
     },
     "breadcrumb": "Informe",
     "hero": {
@@ -17892,6 +18351,7 @@
       "workboard": "Tablero de trabajo",
       "peers": "Conexiones LIA",
       "channels": "Canales",
+      "ntfy": "Notificaciones ntfy",
       "spaces": "Spaces",
       "journals": "Diarios",
       "skills": "Habilidades",
@@ -17952,6 +18412,7 @@
       "psyche": "Perfil psicológico",
       "psyche_description": "El perfil que adapta el tono de LIA. Apagarlo cierra la superficie del perfil.",
       "channels": "Canales externos",
+      "ntfy": "Notificaciones por ntfy",
       "channels_description": "Alcanzar a LIA desde Telegram y similares. Apagarlo cierra todas las vinculaciones.",
       "open_loops": "Hilos abiertos",
       "open_loops_description": "Hilos sin terminar que LIA sigue. Apagarlo cierra la superficie de hilos abiertos.",
@@ -19423,6 +19884,21 @@
     "advanced": "Opciones avanzadas"
   },
   "reminders": {
+    "firing": {
+      "actions_label": "Aplazar o detener este recordatorio",
+      "in_minutes": "En {{count}} min",
+      "in_hours": "En {{count}} h",
+      "tomorrow_morning": "Mañana por la mañana",
+      "stop": "Detener este recordatorio",
+      "stop_title": "¿Detener este recordatorio?",
+      "stop_description": "Se eliminan todas sus próximas fechas.",
+      "snoozed": "Aplazado al {{when}}.",
+      "expired": "Demasiado tarde para aplazarlo.",
+      "collides": "Ya vuelve el {{when}}: elige un aplazamiento más corto.",
+      "stopped": "Recordatorio detenido: se eliminan sus próximas fechas.",
+      "failed": "No se pudo aplazar este recordatorio por ahora.",
+      "stop_failed": "No se pudo detener este recordatorio por ahora."
+    },
     "settings": {
       "title": "Recordatorios",
       "description": "Lo que LIA le recordará, y cuándo.",
@@ -19736,10 +20212,6 @@
     },
     "notification": {
       "actions_label": "Acciones del ticket"
-    },
-    "execution_mode": {
-      "react": "Modo ReAct",
-      "pipeline": "Modo Pipeline"
     }
   },
   "moments": {

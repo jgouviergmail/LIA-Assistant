@@ -16,7 +16,11 @@ from typing import Any, Final
 import structlog
 
 from src.core.field_names import FIELD_MAIL_ANSWERED, FIELD_MAIL_ANSWERED_AT
-from src.domains.connectors.clients.normalizers.html_text import html_to_text, strip_html_to_line
+from src.domains.connectors.clients.normalizers.html_text import (
+    html_to_text,
+    shown_words,
+    strip_html_to_line,
+)
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
 from src.infrastructure.email.outgoing import OutgoingAttachment
 from src.infrastructure.email.recipients import name_addr, parse_recipients
@@ -181,6 +185,18 @@ def _build_snippet(body_content: str, body_type: str, body_preview: Any) -> str:
     return strip_html_to_line(preview, max_length=_SNIPPET_MAX_LENGTH) if preview else snippet
 
 
+def _body_text(content: str, body_type: str, *, keep_quoted: bool) -> str:
+    """Graph's one body as text, before its quoted history leaves.
+
+    A reader reads the words the layout shows (ADR-287 amendment 2026-11-15); a
+    mailbox draft, read to be edited and written back, is read whole (ADR-344).
+    """
+    layout = content if body_type == "html" else None
+    if keep_quoted:
+        return html_to_text(content) if layout else content
+    return shown_words("" if layout else content, layout)
+
+
 def normalize_graph_message(msg: dict[str, Any], *, keep_quoted: bool = False) -> dict[str, Any]:
     """
     Normalize a Microsoft Graph message to the provider-neutral vocabulary.
@@ -216,7 +232,7 @@ def normalize_graph_message(msg: dict[str, Any], *, keep_quoted: bool = False) -
     body_type = str(body_data.get("contentType", "html")).lower()
 
     snippet = _build_snippet(body_content, body_type, msg.get("bodyPreview"))
-    body_text = html_to_text(body_content) if body_type == "html" else body_content
+    body_text = _body_text(body_content, body_type, keep_quoted=keep_quoted)
     if not keep_quoted:
         body_text = clean_reply_body(body_text, subject=msg.get("subject"))
 

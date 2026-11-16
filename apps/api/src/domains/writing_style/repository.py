@@ -1,8 +1,9 @@
 """Reads and writes of the writing-style profile (ADR-383).
 
 One row per account. A profile is kept only while the person's switch is ON at the
-moment of writing: a learning started before they switched it off writes nothing,
-in the same statement, with no window between a check and the write.
+moment of writing, and only in place of the record the person asked to replace: a
+learning started before they switched it off, or before they forgot what was learned,
+writes nothing — in the same statement, with no window between a check and the write.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Integer, Text, delete, exists, literal, select
+from sqlalchemy import DateTime, Integer, Text, delete, exists, literal, select, update
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -71,19 +72,44 @@ class WritingStyleRepository(BaseRepository[WritingStyle]):
         profile_encrypted: str | None,
         mails_read: int,
         built_at: datetime,
+        replaces: datetime | None,
     ) -> bool:
-        """Keep the profile just learned, the last learning winning — if the switch is ON.
+        """Keep the profile just learned in place of the record the person asked on.
+
+        Both conditions sit in the write itself: the switch is ON, and the record the
+        learning replaces still stands — ``replaces`` names it, None when nothing was
+        learned. A record forgotten or learned again meanwhile is the person's later
+        act: it stands, and nothing is written (amendment 2026-11-16).
 
         Args:
             user_id: The account.
             profile_encrypted: The encrypted profile, or None when nothing was learned.
             mails_read: How many sent e-mails it was learned from.
             built_at: When it was learned (aware).
+            replaces: When the record it replaces was learned (aware), or None when the
+                person asked with nothing learned.
 
         Returns:
-            Whether it was kept (False: the switch was off when it arrived).
+            Whether it was kept (False: the switch was off, or the record had changed).
         """
         now = datetime.now(UTC)
+        switched_on = exists().where(User.id == user_id, User.writing_style_enabled.is_(True))
+        if replaces is not None:
+            replaced = await self.db.execute(
+                update(WritingStyle)
+                .where(
+                    WritingStyle.user_id == user_id,
+                    WritingStyle.built_at == replaces,
+                    switched_on,
+                )
+                .values(
+                    profile_encrypted=profile_encrypted,
+                    mails_read=mails_read,
+                    built_at=built_at,
+                    updated_at=now,
+                )
+            )
+            return bool(getattr(replaced, "rowcount", 0))
         source = select(
             literal(uuid4(), PG_UUID(as_uuid=True)),
             literal(user_id, PG_UUID(as_uuid=True)),
@@ -92,7 +118,7 @@ class WritingStyleRepository(BaseRepository[WritingStyle]):
             literal(built_at, DateTime(timezone=True)),
             literal(now, DateTime(timezone=True)),
             literal(now, DateTime(timezone=True)),
-        ).where(exists().where(User.id == user_id, User.writing_style_enabled.is_(True)))
+        ).where(switched_on)
         statement = pg_insert(WritingStyle).from_select(
             [
                 WritingStyle.id,
@@ -105,28 +131,27 @@ class WritingStyleRepository(BaseRepository[WritingStyle]):
             ],
             source,
         )
-        statement = statement.on_conflict_do_update(
-            index_elements=[WritingStyle.user_id],
-            set_={
-                "profile_encrypted": statement.excluded.profile_encrypted,
-                "mails_read": statement.excluded.mails_read,
-                "built_at": statement.excluded.built_at,
-                "updated_at": statement.excluded.updated_at,
-            },
+        # Asked with nothing learned: a record standing now was written since — kept.
+        inserted = await self.db.execute(
+            statement.on_conflict_do_nothing(index_elements=[WritingStyle.user_id])
         )
-        result = await self.db.execute(statement)
-        return bool(getattr(result, "rowcount", 0))
+        return bool(getattr(inserted, "rowcount", 0))
 
-    async def forget(self, user_id: UUID) -> bool:
+    async def forget(self, user_id: UUID, *, learned_at: datetime | None = None) -> bool:
         """Remove what was learned about how the account writes.
 
         Args:
             user_id: The account.
+            learned_at: When given, remove that very record only — the one a card showed —
+                in the same statement: a record learned since is another one, kept.
 
         Returns:
-            Whether there was a profile to remove.
+            Whether there was a profile to remove (the one named, when named).
         """
-        result = await self.db.execute(delete(WritingStyle).where(WritingStyle.user_id == user_id))
+        statement = delete(WritingStyle).where(WritingStyle.user_id == user_id)
+        if learned_at is not None:
+            statement = statement.where(WritingStyle.built_at == learned_at)
+        result = await self.db.execute(statement)
         return bool(getattr(result, "rowcount", 0))
 
 

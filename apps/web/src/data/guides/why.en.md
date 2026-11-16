@@ -4,7 +4,7 @@
 
 **Version**: 7.0
 **Date**: 2026-11-14
-**Application**: LIA v5.0.0
+**Application**: LIA v5.1.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -37,7 +37,7 @@ Open **Tools** when you want to do something yourself: mail, calendar, tasks, co
 
 You talk to her normally, in writing or by voice, one discussion per subject, even while she answers. The interface exists in six languages (French, English, German, Spanish, Italian, Chinese) and your dictation is transcribed in your account's language. Some twenty specialized agents share the work: your personal data, the web, creation, the smart home, browsing websites and anticipation.
 
-A switch in the chat chooses how she reasons. **Pipeline** mode, the default, prepares every step, checks them, then runs them in parallel: it is predictable and uses 4 to 8 times fewer tokens. **ReAct** mode moves step by step, more autonomous and more costly, for an open-ended search; when a step needs a real calculation, it writes a few lines of Python and runs them in a locked sandbox, which reaches the web only through a single proxy and without your keys ([privacy](/en/faq#faq-privacy), [the journey of a message](/en/how#pipeline)).
+The chat menu offers **Pipeline**, **ReAct** or **Automatic**, which lets LIA choose for each request. **Pipeline** mode, the default, prepares every step, checks them, then runs them in parallel: it is predictable and uses 4 to 8 times fewer tokens. **ReAct** mode moves step by step, more autonomous and more costly, for an open-ended search; when a step needs a real calculation, it writes a few lines of Python and runs them in a locked sandbox, which reaches the web only through a single proxy and without your keys ([privacy](/en/faq#faq-privacy), [the journey of a message](/en/how#pipeline)).
 
 If you choose the **cards** display, answers that carry data arrive this way: photos of a place, the weather slot by slot, a route, a preview of a document. A card shows what the source provided, inventing nothing, and replying to an email from its card prepares the request without sending anything.
 
@@ -143,7 +143,7 @@ She speaks open, public standards (MCP, iCalendar, CalDAV, CardDAV, IMAP, vCard)
 
 Your accounts connect through OAuth 2.1 without LIA knowing their password, and a passkey signs you in with no password at all. Each release publishes the exact inventory of what it contains and is installed on clean machines before it is published ([security](/en/faq#faq-privacy)). Every architecture decision is written down and filed on [the maps](/en/maps). The code is under AGPL-3.0: you can audit it, modify it, and it must stay open.
 
-You find LIA in the browser, in the mobile app with its push notifications, and on Telegram, where confirmations are made with buttons and where she also answers your voice messages. The same memory follows you everywhere.
+You find LIA in the browser, the mobile app and Telegram, with text, files and voice messages; her notifications can also reach you through an ntfy subscription, without their content by default. The same memory follows you everywhere.
 
 ## 9. What LIA is not, and where she is going
 

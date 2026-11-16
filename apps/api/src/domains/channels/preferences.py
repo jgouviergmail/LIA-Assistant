@@ -21,7 +21,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.constants import DEFAULT_EXECUTION_MODE, DEFAULT_USER_DISPLAY_TIMEZONE, ExecutionMode
+from src.core.execution_mode import is_execution_mode_choice
 from src.core.i18n import normalize_language
 from src.core.user_display import resolve_user_display_name
 
@@ -39,6 +40,10 @@ class ChannelUserPreferences:
         memory_enabled: User preference for long-term memory.
         journals_enabled: User preference for personal journals.
         psyche_enabled: User preference for the psyche engine.
+        voice_enabled: User preference for voice comments: a voice note is
+            answered aloud too (Telegram lot 25).
+        execution_mode: The mode the person chose (pipeline | react | auto,
+            ADR-390): a channel turn runs in it like a chat turn.
         display_name: Friendly name for sender/signature context, or None.
     """
 
@@ -47,7 +52,15 @@ class ChannelUserPreferences:
     memory_enabled: bool
     journals_enabled: bool
     psyche_enabled: bool
+    voice_enabled: bool
+    execution_mode: ExecutionMode
     display_name: str | None
+
+
+def _execution_mode_of(user: User) -> ExecutionMode:
+    """The person's execution mode; a value no choice names reads as the default."""
+    stored = getattr(user, "execution_mode", None)
+    return stored if is_execution_mode_choice(stored) else DEFAULT_EXECUTION_MODE
 
 
 def resolve_channel_preferences(user: User) -> ChannelUserPreferences:
@@ -70,6 +83,8 @@ def resolve_channel_preferences(user: User) -> ChannelUserPreferences:
         memory_enabled=getattr(user, "memory_enabled", True),
         journals_enabled=getattr(user, "journals_enabled", False),
         psyche_enabled=getattr(user, "psyche_enabled", False),
+        voice_enabled=getattr(user, "voice_enabled", False),
+        execution_mode=_execution_mode_of(user),
         display_name=resolve_user_display_name(
             getattr(user, "full_name", None), getattr(user, "email", None)
         ),

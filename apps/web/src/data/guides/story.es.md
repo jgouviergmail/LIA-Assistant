@@ -4,7 +4,7 @@
 
 **Versión**: 3.0
 **Fecha**: 2026-11-14
-**Aplicación**: LIA v5.0.0
+**Aplicación**: LIA v5.1.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Casi todo el código lo escribió una IA. Mi trabajo consistió en dirigirla: un
 | Indicador | Valor |
 | --- | --- |
 | Código escrito por una IA, dirigida, encuadrada y controlada | **≈ 100 %** |
-| Líneas de código fuente (sin tests), repartidas en unos sesenta paquetes de dominio backend | **1.219.354** |
-| Pruebas automatizadas inventariadas, en suites adaptadas al commit y a la entrega | **87.496** |
-| Decisiones de arquitectura documentadas (ADR) | **386** |
-| Versiones entregadas a ritmo regular | **297** |
+| Líneas de código fuente (sin tests), repartidas en unos sesenta paquetes de dominio backend | **1.238.134** |
+| Pruebas automatizadas inventariadas, en suites adaptadas al commit y a la entrega | **89.335** |
+| Decisiones de arquitectura documentadas (ADR) | **389** |
+| Versiones entregadas a ritmo regular | **298** |
 | Idiomas, con una paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **7,9/10** |
 
@@ -64,11 +64,11 @@ El mundo compartido le da a la asistente lugares: una biblioteca para el conocim
 
 También quería que un asistente dejara espacio para hacer las cosas uno mismo. Herramientas utiliza los mismos servicios conectados, pero un gesto a mano no llama a ningún modelo ni se registra como un acto de LIA; lo que un clic le pide sigue siendo una propuesta, registrada y facturada a quien la pidió. Delegar y mantener el control pueden compartir interfaz si queda claro quién decidió, quién actuó y qué se aprobó.
 
-Estas son tres decisiones estructurantes, entre las 386 documentadas.
+Estas son tres decisiones estructurantes, entre las 389 documentadas.
 
 La primera trata de la **soberanía**: no quería ninguna dependencia irreversible de un proveedor. Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity y modelos locales con Ollama) pasan todos por una misma abstracción, de modo que cada uso puede cambiar de proveedor con un simple cambio de configuración, comparando costes. En cuanto a los servicios, Google, Apple y Microsoft son intercambiables en cada categoría, ya se trate del correo, de la agenda o de los contactos. El autoalojamiento da el control del servidor: los datos de la cuenta se guardan en la instancia y las credenciales de los conectores están cifradas. Aun así, los servicios remotos que la persona elige reciben los datos útiles para su parte de la petición.
 
-La segunda trata de la **economía**: traté el coste de cada petición como un criterio de diseño. Conviven dos modos de ejecución. Un pipeline determinista y económico atiende las peticiones corrientes, y un agente autónomo se encarga de las exploratorias. En los casos estándar, con un servicio equivalente, la diferencia de consumo medida va de 1 a 4-8. Cada llamada se cuenta por token, se valora en euros, se agrega por usuario y por modelo, y está sujeta a cuotas.
+La segunda trata de la **economía**: traté el coste de cada petición como un criterio de diseño. Dejo elegir entre dos motores, con un modo automático que selecciona uno para cada petición. Un pipeline determinista y económico atiende las peticiones corrientes, y un agente autónomo se encarga de las exploratorias. En los casos estándar, con un servicio equivalente, la diferencia de consumo medida va de 1 a 4-8. Cada llamada se cuenta por token, se valora en euros, se agrega por usuario y por modelo, y está sujeta a cuotas.
 
 El coste también se juega en los detalles: una notificación de dos frases se pide sin razonamiento, porque un modelo que razona por defecto factura su razonamiento dentro del presupuesto de su respuesta. Por defecto, el agente autónomo solo lleva consigo las herramientas que la pregunta requiere, elegidas por relevancia y no por su orden de llegada: ochenta descripciones de herramientas ocupaban la mayor parte de su primera llamada, sin contabilizarse. Por último, cada llamada se valora al precio que el proveedor factura realmente, con tarifas releídas en sus páginas, la escritura en caché facturada a su precio real y las tarifas de horas valle según el día.
 

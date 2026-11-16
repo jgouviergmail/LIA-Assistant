@@ -66,24 +66,25 @@ def test_the_registry_step_calls_the_installation() -> None:
 async def test_a_release_is_heard_outside_the_run_that_ended(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    heard: list[tuple[UUID, RunEnd, RunAuthority | None]] = []
+    heard: list[tuple[UUID, RunEnd, tuple[UUID, ...], RunAuthority | None]] = []
     done = asyncio.Event()
 
-    async def listener(owner_id: UUID, end: RunEnd) -> None:
-        heard.append((owner_id, end, current_run_authority()))
+    async def listener(owner_id: UUID, end: RunEnd, held: tuple[UUID, ...]) -> None:
+        heard.append((owner_id, end, held, current_run_authority()))
         done.set()
 
     monkeypatch.setattr(release_listener, "_listener", listener)
-    owner = uuid4()
+    owner, kept = uuid4(), uuid4()
     target = ConversationRef(owner, uuid4(), ConversationKind.MAIN, 0, uuid4())
     admission = RunAdmission(
         uuid4(), target, ExecutionKind.GRAPH, "run", "stream", uuid4(), uuid4(), 1, False
     )
     with run_authority_scope(RunAuthority(admission)):
-        release_listener.announce_release(owner, RunEnd.NORMAL)
+        # The messages the close held travel with the release (Telegram lot 34).
+        release_listener.announce_release(owner, RunEnd.INTERRUPTED, held=(kept,))
     async with asyncio.timeout(5):
         await done.wait()
-    assert heard == [(owner, RunEnd.NORMAL, None)]
+    assert heard == [(owner, RunEnd.INTERRUPTED, (kept,), None)]
 
 
 def test_a_release_with_no_listener_is_a_no_op(monkeypatch: pytest.MonkeyPatch) -> None:

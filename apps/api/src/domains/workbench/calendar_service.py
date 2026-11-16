@@ -16,7 +16,7 @@ elsewhere a choice is refused, never silently ignored (ADR-184).
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Final
@@ -30,6 +30,7 @@ from src.core.markup_detection import looks_like_html
 from src.core.recurrence import RecurrenceSpec
 from src.core.validators import validate_timezone
 from src.domains.connectors.clients.calendar_answers import own_answer
+from src.domains.connectors.clients.calendar_lists import is_owned
 from src.domains.connectors.clients.calendar_options import EventOptions
 from src.domains.connectors.clients.event_bounds import BoundsChange, bounds_of, series_bounds
 from src.domains.connectors.clients.event_recurrence import first_day_of, is_series
@@ -130,22 +131,33 @@ async def search_events(user_id: UUID, zone: ZoneInfo, query: EventSearchQuery) 
         client: CalendarClientProtocol = opened.client
         gate = asyncio.Semaphore(WINDOW_CONCURRENCY)
 
-        async def bounded(calendar_id: str) -> tuple[list[CalendarEvent], BaseAPIException | None]:
+        async def bounded(calendar_id: str) -> _Found:
             async with gate:
                 return await _found(client, calendar_id, query.q, time_min, time_max)
 
         read = await asyncio.gather(*(bounded(calendar_id) for calendar_id in query.calendar_ids))
-    refusals = [refusal for _, refusal in read if refusal is not None]
+    return _search_answer(query.calendar_ids, read)
+
+
+def _search_answer(calendar_ids: Sequence[str], read: Sequence[_Found]) -> EventSearch:
+    """What the calendars found together, the earliest first, the cut and the failures said.
+
+    Raises:
+        BaseAPIException: Every calendar refused: the first refusal.
+    """
+    refusals = [each.refusal for each in read if each.refusal is not None]
     if len(refusals) == len(read):
         raise refusals[0]
-    found = sorted((event for events, _ in read for event in events), key=lambda item: item.start)
+    found = sorted((event for each in read for event in each.events), key=lambda item: item.start)
     return EventSearch(
         events=found[:WORKBENCH_EVENT_SEARCH_MAX],
-        truncated=len(found) > WORKBENCH_EVENT_SEARCH_MAX,
+        # Past the bound, or a calendar holding more matches than its one read
+        # answered: either way more exist than are shown (ADR-185 amendment).
+        truncated=len(found) > WORKBENCH_EVENT_SEARCH_MAX or any(each.cut for each in read),
         failed=[
             calendar_id
-            for calendar_id, (_, refusal) in zip(query.calendar_ids, read, strict=True)
-            if refusal is not None
+            for calendar_id, each in zip(calendar_ids, read, strict=True)
+            if each.refusal is not None
         ],
     )
 
@@ -345,27 +357,45 @@ async def _window(
     return window, None
 
 
+@dataclass(frozen=True)
+class _Found:
+    """What one calendar found, whether it held more, or the refusal that kept it unread."""
+
+    events: list[CalendarEvent]
+    cut: bool = False
+    refusal: BaseAPIException | None = None
+
+
 async def _found(
     client: CalendarClientProtocol, calendar_id: str, words: str, time_min: str, time_max: str
-) -> tuple[list[CalendarEvent], BaseAPIException | None]:
-    """What one calendar found, or the refusal that kept it unread."""
+) -> _Found:
+    """What one calendar found, or the refusal that kept it unread.
+
+    One request per calendar, each provider searching in its own way: an answer
+    stops at the agents' per-request ceiling, and the door says when the calendar
+    held more (``truncated``) — carried to the screen, never dropped.
+    """
     try:
         async with provider_call(_TOOL, "search", act=False):
+            # What one request answers: the ceiling, never the search's own bound
+            # (asked for 50, a calendar answered 25 and said nothing).
             raw = await client.list_events(
                 time_min=time_min,
                 time_max=time_max,
-                max_results=WORKBENCH_EVENT_SEARCH_MAX,
+                max_results=settings.api_max_items_per_request,
                 calendar_id=calendar_id,
                 query=words,
             )
     except BaseAPIException as refusal:
-        return [], refusal
+        return _Found(events=[], refusal=refusal)
     drawn = (
         _event(item, calendar_id)
         for item in raw.get("items") or []
         if item.get("status") != "cancelled"
     )
-    return [event for event in drawn if event is not None], None
+    return _Found(
+        events=[event for event in drawn if event is not None], cut=bool(raw.get("truncated"))
+    )
 
 
 async def _refuse_a_series(
@@ -434,7 +464,7 @@ def _manageable(raw: Mapping[str, Any]) -> bool:
         return False
     if "removable" in raw:
         return bool(raw["removable"])
-    return raw.get("accessRole") in (None, "owner")
+    return is_owned(raw)
 
 
 def _event(raw: Mapping[str, Any], calendar_id: str) -> CalendarEvent | None:

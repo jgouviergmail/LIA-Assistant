@@ -234,7 +234,12 @@ class EventSearch(BaseModel):
     """What a search found, in time order."""
 
     events: list[CalendarEvent] = Field(description="The events found, the earliest first.")
-    truncated: bool = Field(description="True when more were found than are shown.")
+    truncated: bool = Field(
+        description=(
+            "True when more exist than are shown: found past the bound, or a "
+            "calendar holding more matches than its one read answered."
+        )
+    )
     failed: list[str] = Field(description="The calendars that could not be read.")
 
 

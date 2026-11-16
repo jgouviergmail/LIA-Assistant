@@ -27,30 +27,40 @@ Fixture clock: samples are placed at 09:00 UTC of their day, before the frozen
 11:00 clock, so a ``days_ago=0`` entry IS visible — unlike the baseline
 characterization net, where the same-day entries deliberately fall after
 ``now``.
+
+Since the ADR-148 amendment of 2026-11-14 the builder reads its days at the
+person's midnight and its recent window through the fusion door. The net reads
+in UTC with samples that never overlap, where the new reading is the old one:
+the table generated before stays the oracle, unedited. The local day and the
+fusion are pinned against PostgreSQL by ``test_health_daily_stats_rollup.py``.
 """
 
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from unittest.mock import MagicMock
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import pytest
 
-from src.domains.health_metrics.baseline import DailyStat, daily_stats_from_samples
+from src.domains.health_metrics.baseline import DailyStat
 from src.domains.health_metrics.heartbeat_signals import (
     _summary_value,
     build_heartbeat_health_signals,
 )
 from src.domains.health_metrics.kinds import HEALTH_KINDS, AggregationMethod
 from src.domains.health_metrics.models import HealthSample
+from src.domains.health_metrics.repository import CountedAggregate, WindowSummary
 
 pytestmark = pytest.mark.unit
 
 USER_ID = UUID("00000000-0000-0000-0000-0000000000aa")
 FROZEN_NOW = datetime(2026, 6, 15, 11, 0, tzinfo=UTC)
+#: The zone the net reads in: where a local day is the UTC day of the table.
+ZONE = ZoneInfo("UTC")
 
 
 class _FrozenDatetime(datetime):
@@ -63,28 +73,55 @@ class _FrozenDatetime(datetime):
         return FROZEN_NOW.astimezone(tz)
 
 
+def _summary(samples: list[HealthSample]) -> WindowSummary:
+    """What the repository answers for a window whose samples never overlap."""
+    values = [int(sample.value) for sample in samples]
+    return WindowSummary(
+        counted=(
+            CountedAggregate(
+                rows=len(values),
+                total=float(sum(values)),
+                minimum=float(min(values)),
+                maximum=float(max(values)),
+            )
+            if values
+            else None
+        ),
+        samples=len(samples),
+        last_start=samples[-1].date_start if samples else None,
+        last_value=values[-1] if values else None,
+    )
+
+
 class _RecordingRepo:
     """In-memory repository that records every call it receives."""
 
     def __init__(self, samples: list[HealthSample]) -> None:
         self._samples = samples
         self.daily_calls: list[tuple[str, datetime, datetime]] = []
-        self.sample_calls: list[tuple[str, datetime, datetime]] = []
+        self.window_calls: list[tuple[str, datetime, datetime]] = []
 
     def _window(self, kind: str, from_ts: datetime, to_ts: datetime) -> list[HealthSample]:
         return [s for s in self._samples if s.kind == kind and from_ts <= s.date_start < to_ts]
 
-    async def fetch_samples_kind(
+    async def fetch_window_summary(
         self, user_id: UUID, *, kind: str, from_ts: datetime, to_ts: datetime
-    ) -> list[HealthSample]:
-        self.sample_calls.append((kind, from_ts, to_ts))
-        return self._window(kind, from_ts, to_ts)
+    ) -> WindowSummary:
+        self.window_calls.append((kind, from_ts, to_ts))
+        return _summary(self._window(kind, from_ts, to_ts))
 
     async def fetch_daily_stats(
-        self, user_id: UUID, *, kind: str, from_ts: datetime, to_ts: datetime
+        self, user_id: UUID, *, kind: str, zone: ZoneInfo, from_ts: datetime, to_ts: datetime
     ) -> list[DailyStat]:
         self.daily_calls.append((kind, from_ts, to_ts))
-        return daily_stats_from_samples(self._window(kind, from_ts, to_ts))
+        by_day: dict[date, list[int]] = {}
+        for sample in self._window(kind, from_ts, to_ts):
+            local_day = sample.date_start.astimezone(zone).date()
+            by_day.setdefault(local_day, []).append(int(sample.value))
+        return [
+            DailyStat(day=day, total=sum(values), count=len(values), minimum=min(values))
+            for day, values in sorted(by_day.items())
+        ]
 
 
 def _make_samples(entries: list[tuple[str, int, list[int], int]]) -> list[HealthSample]:
@@ -144,9 +181,8 @@ BUILDER_CASES: dict[str, list[tuple[str, int, list[int], int]]] = {
 
 @pytest.fixture(autouse=True)
 def _frozen_clock(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Pin the module clock of every module that branches on ``now()``."""
+    """Pin the clock the builder reads every window from."""
     monkeypatch.setattr("src.domains.health_metrics.heartbeat_signals.datetime", _FrozenDatetime)
-    monkeypatch.setattr("src.domains.health_metrics.signals.datetime", _FrozenDatetime)
 
 
 def _install_repo(monkeypatch: pytest.MonkeyPatch, samples: list[HealthSample]) -> _RecordingRepo:
@@ -184,7 +220,7 @@ async def test_payload_is_pinned(case_name: str, monkeypatch: pytest.MonkeyPatch
     """Payload must be byte-identical to the pre-extraction implementation."""
     _install_repo(monkeypatch, _make_samples(BUILDER_CASES[case_name]))
 
-    payload = await build_heartbeat_health_signals(MagicMock(), USER_ID)
+    payload = await build_heartbeat_health_signals(MagicMock(), USER_ID, zone=ZONE)
 
     assert repr(payload) == EXPECTED_PAYLOAD[case_name]
 
@@ -221,14 +257,14 @@ async def test_reads_one_rollup_and_one_fresh_window_per_kind(
     """
     repo = _install_repo(monkeypatch, _make_samples(BUILDER_CASES["both_kinds_rich"]))
 
-    await build_heartbeat_health_signals(MagicMock(), USER_ID)
+    await build_heartbeat_health_signals(MagicMock(), USER_ID, zone=ZONE)
 
     kinds = list(HEALTH_KINDS)
     assert [call[0] for call in repo.daily_calls] == kinds
-    assert [call[0] for call in repo.sample_calls] == kinds
+    assert [call[0] for call in repo.window_calls] == kinds
     # No window is ever fetched twice — the duplication that caused the defect.
     assert len(set(repo.daily_calls)) == len(repo.daily_calls)
-    assert len(repo.daily_calls) + len(repo.sample_calls) == 2 * len(kinds)
+    assert len(repo.daily_calls) + len(repo.window_calls) == 2 * len(kinds)
 
 
 async def test_every_window_derives_from_a_single_clock_reading(
@@ -242,14 +278,16 @@ async def test_every_window_derives_from_a_single_clock_reading(
     """
     repo = _install_repo(monkeypatch, _make_samples(BUILDER_CASES["both_kinds_rich"]))
 
-    await build_heartbeat_health_signals(MagicMock(), USER_ID)
+    await build_heartbeat_health_signals(MagicMock(), USER_ID, zone=ZONE)
 
-    upper_bounds = {call[2] for call in repo.daily_calls + repo.sample_calls}
+    upper_bounds = {call[2] for call in repo.daily_calls + repo.window_calls}
     assert upper_bounds == {FROZEN_NOW}
-    # The rollup window is the wider one: baseline span + recent window.
-    assert {call[1] for call in repo.daily_calls} < {call[1] for call in repo.sample_calls} or all(
-        daily[1] < fresh[1] for daily in repo.daily_calls for fresh in repo.sample_calls
-    )
+    # The rollup window is the wider one: baseline span + recent window, from
+    # the person's midnight.
+    assert all(daily[1] < fresh[1] for daily in repo.daily_calls for fresh in repo.window_calls)
+    assert {call[1].astimezone(ZONE).time().isoformat() for call in repo.daily_calls} == {
+        "00:00:00"
+    }
 
 
 async def test_freshness_window_is_the_configured_cutoff(
@@ -260,10 +298,10 @@ async def test_freshness_window_is_the_configured_cutoff(
 
     repo = _install_repo(monkeypatch, _make_samples(BUILDER_CASES["both_kinds_rich"]))
 
-    await build_heartbeat_health_signals(MagicMock(), USER_ID)
+    await build_heartbeat_health_signals(MagicMock(), USER_ID, zone=ZONE)
 
     expected_from = FROZEN_NOW - timedelta(minutes=HEALTH_METRICS_HEARTBEAT_FRESHNESS_MINUTES)
-    assert {call[1] for call in repo.sample_calls} == {expected_from}
+    assert {call[1] for call in repo.window_calls} == {expected_from}
 
 
 # =============================================================================
@@ -285,17 +323,22 @@ def test_summary_value_covers_every_aggregation_method(
     """``LAST_VALUE`` is unreachable from the registry but must stay correct."""
     spec = HEALTH_KINDS["steps"]
     spec_with_method = replace(spec, aggregation_method=aggregation_method)
-    samples = _make_samples([st(1, [10, 20, 30])])
+    window = _summary(_make_samples([st(1, [10, 20, 30])]))
 
-    assert _summary_value(spec_with_method, samples) == expected
+    assert _summary_value(spec_with_method, window) == expected
 
 
 def test_summary_value_handles_every_aggregation_method() -> None:
     """Completeness guard: a new method without a ``match`` arm returns None."""
     spec = HEALTH_KINDS["steps"]
-    samples = _make_samples([st(1, [10, 20, 30])])
+    window = _summary(_make_samples([st(1, [10, 20, 30])]))
 
     for aggregation_method in AggregationMethod:
         spec_with_method = replace(spec, aggregation_method=aggregation_method)
-        value: Any = _summary_value(spec_with_method, samples)
+        value: Any = _summary_value(spec_with_method, window)
         assert isinstance(value, int | float), aggregation_method
+
+
+def test_nothing_counted_has_no_summary_value() -> None:
+    """An empty window is no value, never a zero the card would show."""
+    assert _summary_value(HEALTH_KINDS["steps"], _summary([])) is None

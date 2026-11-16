@@ -194,7 +194,6 @@ Each server in `DEVOPS_SERVERS` supports:
   "disallowed_claude_tools": [
     "Read(.env*)", "Read(*secret*)",
     "Bash(cat *.env*)", "Bash(printenv *)",
-    "Bash(docker compose * down *)",
     "Bash(rm -rf *)", "Bash(reboot *)"
   ]
 }
@@ -213,7 +212,6 @@ Each server in `DEVOPS_SERVERS` supports:
     "Read", "Grep", "Glob",
     "Bash(docker logs *)", "Bash(docker ps *)",
     "Bash(docker stats --no-stream *)", "Bash(docker inspect *)",
-    "Bash(docker compose * ps *)", "Bash(docker compose * logs *)",
     "Bash(df *)", "Bash(free *)", "Bash(uptime *)",
     "Bash(journalctl *)", "Bash(curl *localhost*)", "Bash(ss *)"
   ],
@@ -234,6 +232,12 @@ Each server in `DEVOPS_SERVERS` supports:
 ### Local Mode (`host: "local"`)
 
 Claude CLI runs directly inside the API container via `asyncio.create_subprocess_exec`. No SSH involved. This is the default for both dev and prod.
+
+The mounted `infrastructure/claude-cli/CLAUDE.server.md` instructs the local agent
+to use Docker commands directly. Compose files and deployment configuration stay
+on the host; the API image contains the Docker CLI without Compose or Buildx
+plugins. Skills use that same CLI to start and remove their isolated containers.
+The deployment commands in this guide run on the host, where Compose is installed.
 
 ### SSH Mode (`host: "<your-server-ip>"`)
 

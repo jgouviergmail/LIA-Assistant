@@ -147,7 +147,11 @@ export interface MailItem {
 
 export interface MailsData {
   items: MailItem[];
-  total_unread_today: number;
+  /**
+   * The inbox's exact unread figure, as the mailbox counts it; null when it could
+   * not tell — never the length of the page in `items` (ADR-185).
+   */
+  total_unread_today: number | null;
 }
 
 export interface BirthdayItem {

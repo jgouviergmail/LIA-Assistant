@@ -125,3 +125,18 @@ nulle).
   `psyche/constants.py` ; le déplacement du bloc de délégation avant le
   marqueur de cache (~700 jetons par plan), qui demanderait une entrée
   `ALLOWED_BEFORE_MARKER` à deux variantes.
+
+## Amendement 2026-11-16 — la section multi-domaine du planificateur quitte le `.py`
+
+Relevé pendant la qualification du mode automatique (ADR-390) : la section que le
+planificateur lit sur chaque plan multi-domaine — la ligne « Primary domain »,
+« gather ALL data from each domain » et l'exemple inter-domaines — et les trois
+indices de cardinalité de la directive FOR_EACH (« unknown number of », « ALL »,
+« ~N ») étaient des littéraux de `domains/agents/prompts/__init__.py`, là où aucune
+garde des prompts ne lit. La section vit dans
+`prompts/v1/planner_multi_domain_section.txt` (chargée par `load_prompt`, son
+`{primary_domain}` produit par le module qui la charge), les indices dans
+`smart_planner_prompt_lines.txt`, le fichier de gabarits que le planificateur
+avait déjà. Le prompt rendu est identique à l'octet (vérifié : 499 octets des deux
+côtés) ; `test_planner_scaffolds_in_files.py` le tient. Aucune garde générique
+« pas de prose dans un `.py` » n'est ajoutée : elle serait une décision à part.

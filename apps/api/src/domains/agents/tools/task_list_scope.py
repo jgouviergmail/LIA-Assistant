@@ -32,7 +32,7 @@ from src.domains.agents.tools.last_lookup import last_lookup_items
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import validate_runtime_config
 from src.domains.connectors.clients.protocols import TasksClientProtocol
-from src.domains.connectors.clients.task_lists import PROVIDER_FAILURES
+from src.domains.connectors.clients.task_lists import PROVIDER_FAILURES, list_every_task_list
 from src.domains.connectors.preferences.owner_defaults import TASK_LIST, resolve_owner_task_list_id
 from src.domains.connectors.preferences.resolver import preference_key
 from src.domains.connectors.provider_resolver import resolve_active_connector
@@ -52,6 +52,11 @@ UNKNOWN_LIST: Final = (
 AMBIGUOUS_LIST: Final = (
     "Several task lists answer to this name. Pass the id of the one meant: "
     "list_task_lists_tool gives each list's id."
+)
+#: Not « no list answers »: past the read's bound, the lists left were never asked (ADR-303).
+LISTS_CUT: Final = (
+    "The account holds more task lists than one read takes, and none of those read "
+    "answers to this. Pass the list's id: list_task_lists_tool gives each list's id."
 )
 UNKNOWN_TASK: Final = (
     "No task list holds a task with this id. Read the tasks again with get_tasks_tool, "
@@ -81,8 +86,8 @@ async def named_task_list(client: TasksClientProtocol, given: str) -> dict[str, 
     Raises:
         ToolValidationError: No list answers to it, or several lists share that name.
     """
-    listed = await client.list_task_lists(max_results=TASK_LIST_NAMES_SCAN_MAX)
-    lists: list[dict[str, Any]] = [entry for entry in listed.get("items") or [] if entry.get("id")]
+    listed = await list_every_task_list(client, bound=TASK_LIST_NAMES_SCAN_MAX)
+    lists = listed.lists
     by_id = [entry for entry in lists if entry["id"] == given]
     exact = [entry for entry in lists if entry.get("title") == given]
     loose = [
@@ -92,7 +97,7 @@ async def named_task_list(client: TasksClientProtocol, given: str) -> dict[str, 
     ]
     matches = by_id or exact or loose
     if not matches:
-        raise ToolValidationError(UNKNOWN_LIST, field=LIST_PARAMETER)
+        raise ToolValidationError(LISTS_CUT if listed.cut else UNKNOWN_LIST, field=LIST_PARAMETER)
     if len(matches) > 1:
         raise ToolValidationError(AMBIGUOUS_LIST, field=LIST_PARAMETER)
     return matches[0]
@@ -244,10 +249,10 @@ async def find_task_lists(client: Any, user_id: UUID, task_ids: Sequence[str]) -
         Exception: A list could not be asked while a task is still not found: « no list
             holds it » is never told on a list nobody could look in (ADR-303).
     """
-    listed = await client.list_task_lists(max_results=TASK_LIST_NAMES_SCAN_MAX)
+    listed = await list_every_task_list(client, bound=TASK_LIST_NAMES_SCAN_MAX)
     default = await default_task_list_id(client, user_id)
     list_ids = sorted(
-        (str(entry["id"]) for entry in listed.get("items") or [] if entry.get("id")),
+        (str(entry["id"]) for entry in listed.lists),
         key=lambda list_id: list_id != default,
     )
     gate = asyncio.Semaphore(TASK_LISTS_READ_CONCURRENCY)
@@ -271,9 +276,32 @@ async def find_task_lists(client: Any, user_id: UUID, task_ids: Sequence[str]) -
                 found[task_id] = list_id
             elif isinstance(answer, Exception):
                 unasked = unasked or answer
-    if unasked is not None and any(task_id not in found for task_id in task_ids):
-        raise unasked
+    _refuse_an_unverified_absence(found, task_ids, unasked=unasked, cut=listed.cut)
     return found
+
+
+def _refuse_an_unverified_absence(
+    found: dict[str, str], task_ids: Sequence[str], *, unasked: Exception | None, cut: bool
+) -> None:
+    """Refuse « no list holds it » for a task some list was never asked about (ADR-303).
+
+    Args:
+        found: Task id to list id, for the tasks found.
+        task_ids: The tasks looked for.
+        unasked: The first failure that left a list unasked, if any.
+        cut: Whether the lists past the read's bound were left out.
+
+    Raises:
+        Exception: ``unasked``, when a task is still missing.
+        ToolValidationError: ``LISTS_CUT``, when a task is missing past the bound.
+    """
+    if all(task_id in found for task_id in task_ids):
+        return
+    if unasked is not None:
+        raise unasked
+    if cut:
+        # The lists past the read's bound were never asked: no « no list holds it ».
+        raise ToolValidationError(LISTS_CUT, field="task_id")
 
 
 async def task_list_id_of(
@@ -334,6 +362,7 @@ async def own_task_list_id(
 
 __all__ = [
     "AMBIGUOUS_LIST",
+    "LISTS_CUT",
     "LIST_PARAMETER",
     "UNKNOWN_LIST",
     "UNKNOWN_TASK",

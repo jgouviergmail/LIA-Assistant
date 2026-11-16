@@ -193,6 +193,7 @@ async def build_psychological_profile(
                         query_embedding=query_embedding,
                         limit=limit,
                         min_score=min_score,
+                        with_vectors=False,
                     )
                     # Lot 7-B4: calibration evidence for the CANDIDATE
                     # perimeter — aggregate only, no threshold effect.
@@ -205,7 +206,9 @@ async def build_psychological_profile(
                         clear_embedding_context()
             else:
                 # Fallback: no embedding → load recent memories for continuity
-                recent = await repo.get_recent_for_user(UUID(user_id), limit=min(limit, 10))
+                recent = await repo.get_recent_for_user(
+                    UUID(user_id), limit=min(limit, 10), with_vectors=False
+                )
                 results = [(m, 0.0) for m in recent]
 
             if not results:

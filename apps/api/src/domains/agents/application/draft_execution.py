@@ -60,6 +60,7 @@ from src.domains.agents.application.meeting_template_execution import (
 from src.domains.agents.application.meeting_transcript_removal import execute_transcript_deletion
 from src.domains.agents.application.memory_bulk_removal import execute_memory_bulk_removal
 from src.domains.agents.application.memory_creation import execute_memory_creation
+from src.domains.agents.application.memory_import import execute_memory_import
 from src.domains.agents.application.memory_pin import execute_memory_pin
 from src.domains.agents.application.memory_removal import execute_memory_removal
 from src.domains.agents.application.memory_update import execute_memory_update
@@ -103,6 +104,7 @@ from src.domains.agents.application.routine_update import execute_routine_update
 from src.domains.agents.application.secure_handoff import secure_handoff_outcome
 from src.domains.agents.application.skill_delete import execute_skill_deletion
 from src.domains.agents.application.skill_library_import import execute_library_import
+from src.domains.agents.application.skill_restore import execute_skill_restore
 from src.domains.agents.application.skill_update import execute_skill_update
 from src.domains.agents.application.skill_url_import import execute_skill_url_import
 from src.domains.agents.application.sms_execution import execute_sms_native_action
@@ -118,6 +120,10 @@ from src.domains.agents.application.workboard_comment import execute_workboard_c
 from src.domains.agents.application.workboard_create import execute_workboard_creation
 from src.domains.agents.application.workboard_delete import execute_workboard_delete
 from src.domains.agents.application.workboard_update import execute_workboard_update
+from src.domains.agents.application.writing_style_forgetting import (
+    execute_writing_style_forgetting,
+)
+from src.domains.agents.application.writing_style_learning import execute_writing_style_learning
 from src.domains.auth.session_commands import SessionRevocationCompletionUnknown
 from src.domains.users.preference_cas import PreferenceWriteReceipt
 from src.infrastructure.database.session import get_db_context
@@ -201,6 +207,8 @@ async def _apply_approved_action(
             "personal_mcp.connection.test": execute_personal_mcp_connection,
             "personal_mcp.oauth.disconnect": execute_personal_mcp_oauth_disconnect,
             "skill_settings.delete": execute_skill_deletion,
+            "skill_settings.restore_previous": execute_skill_restore,
+            "memories.import": execute_memory_import,
             "plugin.delete": execute_plugin_deletion,
             "skill_url.import": execute_skill_url_import,
             "plugin_url.import": execute_plugin_url_import,
@@ -265,6 +273,8 @@ async def _apply_approved_action(
             "habits.delete": execute_habit_action,
             "habits.forget": execute_habit_forgetting,
             "habits.recompute": execute_habit_recompute,
+            "writing_style.learn": execute_writing_style_learning,
+            "writing_style.forget": execute_writing_style_forgetting,
             "open_loops.update": execute_open_loop_action,
             "open_loops.close": execute_open_loop_action,
             "interests.feedback": execute_interest_feedback,

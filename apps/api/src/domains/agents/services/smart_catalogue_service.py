@@ -20,7 +20,7 @@ an expanded catalogue for a second attempt.
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 
 from src.core.constants import (
     V3_CATALOGUE_DOMAIN_FULL_TOKENS,
@@ -37,6 +37,11 @@ if TYPE_CHECKING:
     from src.domains.agents.registry.catalogue import ToolManifest
 
 logger = get_logger(__name__)
+
+#: The entry key saying a source holds nothing for this account (``false``): the
+#: turn's catalogue found no provider for the tool's category. Named by the planner
+#: prompt, which says what it means (``smart_planner_prompt.txt``).
+UNSERVED_SOURCE_KEY: Final = "connected"
 
 
 @dataclass
@@ -356,6 +361,9 @@ class SmartCatalogueService:
             "agent": manifest.agent if hasattr(manifest, "agent") else None,
             "result_key": result_key,  # Canonical key for $steps.STEP_ID.{result_key}
         }
+        # The turn's catalogue found no provider for this category tool's source.
+        if manifest.unserved_category is not None:
+            result[UNSERVED_SOURCE_KEY] = False
 
         # Compact outputs: "path:type" or "path:type:semantic_type" for cross-domain
         # This tells LLM what paths to reference without verbose descriptions

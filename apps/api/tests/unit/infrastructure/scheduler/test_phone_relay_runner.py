@@ -18,6 +18,8 @@ import pytest
 
 import src.infrastructure.scheduler.phone_relay_runner as runner
 from src.core.config import settings
+from src.core.conversation_target import ConversationOrigin
+from src.domains.conversations.return_target import ReturnTarget
 from src.domains.telephony.models import PhoneCallStatus
 from src.domains.telephony.schemas import SelfCallRelay
 from src.domains.telephony.spend import phone_call_run_id
@@ -92,18 +94,33 @@ def _install(
         async def dispatch(self, **kwargs: Any) -> None:
             captured["push"] = kwargs
 
-    class _Conversations:
-        async def get_or_create_conversation(self, _user_id, _db, *, language):  # noqa: ANN001
-            return SimpleNamespace(id=uuid4())
+    async def _target(db, owner_id, origin, *, language):  # noqa: ANN001
+        captured["target_origin"] = origin
+        captured["target"] = ReturnTarget(uuid4(), None)
+        return captured["target"]
+
+    async def _attach(
+        _db: object,
+        *,
+        owner_id: UUID,
+        run_id: str,
+        conversation_id: UUID,
+        revision: int | None = None,
+    ) -> bool:
+        captured["attached"] = (owner_id, run_id, conversation_id, revision)
+        captured["attached_in_session"] = captured.get("open", 0)
+        captured["attached_before_turn"] = "request" not in captured
+        return True
 
     # The phone wrapper resolves the account and the conversation; the TURN
     # runs on the shared voice relay (ADR-301), whose seams are patched there.
     monkeypatch.setattr(runner, "resolve_run_context", _context)
-    monkeypatch.setattr(runner, "ConversationService", _Conversations)
+    monkeypatch.setattr(runner, "return_target", _target)
     monkeypatch.setattr(runner, "NotificationDispatcher", _Dispatcher)
     monkeypatch.setattr(runner, "get_db_context", _db_context)
     monkeypatch.setattr(voice_relay, "get_db_context", _db_context)
     monkeypatch.setattr(voice_relay, "stream_instruction", _stream)
+    monkeypatch.setattr(voice_relay, "attach_run_bill", _attach)
     monkeypatch.setattr(settings, "telephony_relay_busy_retries", 2, raising=False)
     monkeypatch.setattr(settings, "telephony_relay_busy_delay_seconds", 0, raising=False)
     return captured
@@ -142,6 +159,17 @@ async def test_the_relay_runs_as_the_persons_own_turn(monkeypatch: pytest.Monkey
     assert captured["sessions"] == 3
     assert captured["open_during_turn"] == 0
     assert captured["open"] == 0
+    # The call's bill (its lookups, its synthesis) joins the discussion the
+    # relayed turn writes in — Main here, so no generation travels — on the
+    # relay's own short session, before the turn (2026-11-15).
+    assert captured["attached"] == (
+        request.user_id,
+        phone_call_run_id(request.call_id),
+        captured["target"].conversation_id,
+        None,
+    )
+    assert captured["attached_in_session"] == 1
+    assert captured["attached_before_turn"] is True
 
 
 @pytest.mark.unit
@@ -287,13 +315,16 @@ async def _settle(
     channels: ScriptedChannels,
     *,
     fallback_claimed: bool = True,
+    origin: ConversationOrigin | None = None,
 ) -> _SettleRepo:
     """Settle one owner call through the REAL dispatcher over scripted channels."""
     monkeypatch.setattr(runner, "NotificationDispatcher", scripted_dispatcher(channels))
     repo = _SettleRepo(fallback_claimed=fallback_claimed)
     await runner.settle_owner_call(
         repo=repo,  # type: ignore[arg-type]
-        call=SimpleNamespace(id=uuid4(), status=PhoneCallStatus.COMPLETED),  # type: ignore[arg-type]
+        call=SimpleNamespace(  # type: ignore[arg-type]
+            id=uuid4(), status=PhoneCallStatus.COMPLETED, origin=origin
+        ),
         user=SimpleNamespace(id=uuid4(), language="fr"),  # type: ignore[arg-type]
         relay=SelfCallRelay(owner_confirmed=False, relay_message="", summary="S"),
         outcome=outcome,
@@ -327,6 +358,21 @@ class TestSettleOwnerCall:
         # The fallback names the call's run: the chat meter joins the bill on it.
         assert sent.run_id == phone_call_run_id(UUID(sent.target_id))
 
+    async def test_a_fallback_goes_to_the_discussion_the_call_was_placed_from(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        annex = uuid4()
+        channels = ScriptedChannels(annex=annex)
+        await _settle(
+            monkeypatch,
+            RelayOutcome.UNANSWERED,
+            channels,
+            origin=ConversationOrigin(annex, 1),
+        )
+
+        assert channels.origins == [ConversationOrigin(annex, 1)]
+        assert [sent.discussion for sent in channels.sent] == [str(annex)]
+
     async def test_a_fallback_that_reached_nobody_stays_pending_for_the_reaper(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -342,3 +388,42 @@ class TestSettleOwnerCall:
 
         assert repo.transitions == ["fallback:unanswered"]
         assert channels.sent == []
+
+
+@pytest.mark.unit
+async def test_the_relay_runs_where_the_call_was_placed_and_its_push_opens_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Production 2026-11-14: the turn ran in Main, whatever discussion asked for the call."""
+    captured = _install(monkeypatch)
+    annex = uuid4()
+
+    async def _annex_target(db, owner_id, origin, *, language):  # noqa: ANN001
+        captured["target_origin"] = origin
+        return ReturnTarget(annex, 3)
+
+    monkeypatch.setattr(runner, "return_target", _annex_target)
+    origin = ConversationOrigin(annex, 3)
+
+    outcome = await run_relay(_request(origin=origin))
+
+    assert outcome is RelayOutcome.ANSWERED
+    assert captured["target_origin"] == origin
+    stream = captured["request"]
+    assert (stream.conversation_id, stream.conversation_revision) == (annex, 3)
+    assert captured["push"]["origin"] == origin
+    # The bill joins the annex, and only while generation 3 lives.
+    assert captured["attached"][2:] == (annex, 3)
+
+
+@pytest.mark.unit
+async def test_a_relay_back_to_main_selects_main_by_omission(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A reset of Main between the call and the relay refuses nothing."""
+    captured = _install(monkeypatch)
+
+    await run_relay(_request())
+
+    stream = captured["request"]
+    assert (stream.conversation_id, stream.conversation_revision) == (None, None)

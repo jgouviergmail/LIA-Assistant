@@ -10,7 +10,7 @@ from typing import Protocol
 from uuid import UUID, uuid4
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -28,6 +28,7 @@ from src.domains.ingestion.delivery_repository import (
     settle_delivery,
 )
 from src.domains.ingestion.delivery_types import (
+    NTFY_DESTINATION_KEY,
     DeliveryClaim,
     DeliveryDestination,
     DeliveryDisposition,
@@ -35,7 +36,7 @@ from src.domains.ingestion.delivery_types import (
 )
 from src.domains.ingestion.models import IngestionDelivery, IngestionReceipt
 from src.domains.ingestion.registry import IngestionResource
-from src.domains.notifications.models import UserFCMToken
+from src.domains.notifications.models import NtfySubscription, UserFCMToken
 from src.domains.sms.notifications import notice_for
 from src.infrastructure.observability.metrics_ingestion import ingestion_delivery_outcomes_total
 
@@ -59,6 +60,13 @@ class DeliveryEnvelope:
 
 class DeliveryTransport(Protocol):
     async def send(self, envelope: DeliveryEnvelope) -> DeliveryResult: ...
+
+
+def _destination_label(claim: DeliveryClaim) -> str:
+    """The destination a delivery outcome is counted under: the stream, a device or ntfy."""
+    if claim.destination_key == NTFY_DESTINATION_KEY:
+        return NTFY_DESTINATION_KEY
+    return "sse" if claim.device_id is None else "device"
 
 
 class IngestionDeliveryWorker:
@@ -128,8 +136,7 @@ class IngestionDeliveryWorker:
             await db.commit()
         if settled:
             ingestion_delivery_outcomes_total.labels(
-                destination="sse" if claim.device_id is None else "device",
-                outcome=result.disposition.value,
+                destination=_destination_label(claim), outcome=result.disposition.value
             ).inc()
 
     @staticmethod
@@ -155,7 +162,7 @@ class IngestionDeliveryWorker:
             await db.commit()
             if expired is not None:
                 ingestion_delivery_outcomes_total.labels(
-                    destination="device" if expired.device_id else "sse", outcome="unknown"
+                    destination=_destination_label(expired), outcome="unknown"
                 ).inc()
             return expired is not None
 
@@ -192,9 +199,20 @@ class IngestionDeliveryWorker:
                         )
                     )
                 ).all()
+                # Like a device, a subscription that existed when the message arrived (ADR-391).
+                subscribed = await db.scalar(
+                    select(
+                        exists().where(
+                            NtfySubscription.user_id == claim.user_id,
+                            NtfySubscription.is_active.is_(True),
+                            NtfySubscription.created_at <= receipt.created_at,
+                        )
+                    )
+                )
                 targets = (
                     DeliveryDestination("sse"),
                     *(DeliveryDestination(f"device:{d.id}", d.id) for d in devices),
+                    *((DeliveryDestination(NTFY_DESTINATION_KEY),) if subscribed else ()),
                 )
                 await db.flush()
                 await expand_fanout(db, claim, targets, now=now)

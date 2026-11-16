@@ -18,6 +18,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.exceptions import ConnectorAPIError
+from src.domains.heartbeat import gmail_delta as gmail_delta_module
 from src.domains.heartbeat.gmail_delta import fetch_new_message_ids
 
 pytestmark = pytest.mark.unit
@@ -73,8 +74,62 @@ class TestFetchNewMessageIds:
 
         assert result == ["m1", "m2"]
         client.get_history.assert_awaited_once()
-        assert client.get_history.await_args.kwargs.get("start_history_id") == "4000"
+        assert client.get_history.await_args.kwargs["start_history_id"] == "4000"
         assert redis.set.await_args.args[1] == "5000"
+
+    async def test_every_page_is_read_before_the_anchor_moves(self) -> None:
+        """The first page's id is the MAILBOX's current one: stored, it skipped page two."""
+        client = MagicMock()
+        client.get_history = AsyncMock(
+            side_effect=[
+                {
+                    "historyId": "9000",
+                    "nextPageToken": "next",
+                    "history": [{"id": "4100", "messagesAdded": [{"message": {"id": "m1"}}]}],
+                },
+                {
+                    "historyId": "9000",
+                    "history": [{"id": "8999", "messagesAdded": [{"message": {"id": "m2"}}]}],
+                },
+            ]
+        )
+        redis = _redis(anchor="4000")
+
+        result = await fetch_new_message_ids(client, redis, uuid4())
+
+        assert result == ["m1", "m2"]
+        assert redis.set.await_args.args[1] == "9000"
+
+    async def test_a_cut_read_resumes_after_its_last_record(self, monkeypatch) -> None:
+        """Past its page bound the read stops; the anchor never jumps what it skipped."""
+        monkeypatch.setattr(gmail_delta_module, "GMAIL_HISTORY_PAGES_MAX", 1)
+        client = MagicMock()
+        client.get_history = AsyncMock(
+            return_value={
+                "historyId": "9000",
+                "nextPageToken": "more",
+                "history": [{"id": "4100", "messagesAdded": [{"message": {"id": "m1"}}]}],
+            }
+        )
+        redis = _redis(anchor="4000")
+
+        result = await fetch_new_message_ids(client, redis, uuid4())
+
+        assert result == ["m1"]
+        assert redis.set.await_args.args[1] == "4100"
+
+    async def test_the_cap_keeps_the_latest_arrivals(self, monkeypatch) -> None:
+        """A history reads oldest first: the first N were the oldest mail, not the news."""
+        monkeypatch.setattr(
+            gmail_delta_module,
+            "fetch_new_message_ids",
+            AsyncMock(return_value=["m1", "m2", "m3", "m4"]),
+        )
+        monkeypatch.setattr(
+            "src.infrastructure.cache.redis.get_redis_cache", AsyncMock(return_value=MagicMock())
+        )
+        latest = await gmail_delta_module.delta_messages_or_none(MagicMock(), uuid4(), 2)
+        assert latest == [{"id": "m3"}, {"id": "m4"}]
 
     async def test_empty_delta_is_an_exact_empty_list_not_none(self) -> None:
         """No new mail is a real answer — the caller must NOT re-query."""

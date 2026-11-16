@@ -48,11 +48,15 @@ from src.domains.agents.context.runtime_context import (
     LiaRuntimeContext,
 )
 from src.domains.agents.context.schemas import ContextSaveMode
+from src.domains.agents.emails.authorship import person_words_of, settle_words
 from src.domains.agents.emails.catalogue_manifests import (
     MAIL_DRIVE_FILES_DESCRIPTION,
     MAIL_FILE_NAMES_DESCRIPTION,
+    NEW_MAIL_BODY_DESCRIPTION,
+    NEW_MAIL_INSTRUCTION_DESCRIPTION,
     REPLY_BODY_DESCRIPTION,
     REPLY_INSTRUCTION_DESCRIPTION,
+    SEND_SUBJECT_DESCRIPTION,
 )
 from src.domains.agents.emails.content_generation import resolve_email_content
 from src.domains.agents.emails.detail_levels import (
@@ -929,16 +933,9 @@ _send_email_draft_tool_instance = SendEmailDraftTool()
 )
 async def send_email_tool(
     to: Annotated[str, "Recipient email address (or comma-separated list)"],
-    subject: Annotated[
-        str | None, "Email subject (optional if content_instruction provided)"
-    ] = None,
-    body: Annotated[
-        str | None, "Email body content (optional if content_instruction provided)"
-    ] = None,
-    content_instruction: Annotated[
-        str | None,
-        "Creative content instruction for LLM generation. Use instead of subject/body for creative content (poem, story, etc.)",
-    ] = None,
+    subject: Annotated[str | None, SEND_SUBJECT_DESCRIPTION] = None,
+    body: Annotated[str | None, NEW_MAIL_BODY_DESCRIPTION] = None,
+    content_instruction: Annotated[str | None, NEW_MAIL_INSTRUCTION_DESCRIPTION] = None,
     cc: Annotated[str | None, "CC recipients (optional, comma-separated)"] = None,
     bcc: Annotated[str | None, "BCC recipients (optional, comma-separated)"] = None,
     is_html: Annotated[bool, "True if body is HTML, False for plain text (default False)"] = False,
@@ -947,45 +944,41 @@ async def send_email_tool(
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
-    Send an email via Gmail (with user confirmation).
+    Send an e-mail to someone; the user confirms it before it leaves.
 
-    IMPORTANT: This tool creates a DRAFT that requires user confirmation.
-    The email is NOT sent until the user confirms via HITL. An e-mail to the
-    user THEMSELVES goes through ``send_email_to_me_tool`` instead: no draft,
-    and it runs in a routine (ADR-314).
-
-    Data Registry LOT 5.4: Write operations with Draft/Critique/Execute flow.
-
-    Flow:
-    1. Tool creates draft with email content (or generates it via LLM if content_instruction provided)
-    2. User sees preview and can confirm/edit/cancel
-    3. On confirm, email is actually sent
+    Who writes it: `body` holds the user's own words, dictated in quotes or after a colon,
+    exactly as given; otherwise give `content_instruction` (what the e-mail must say)
+    and LIA's writer writes it in the user's own voice. An e-mail to the user
+    THEMSELVES goes through ``send_email_to_me_tool`` instead (ADR-314).
 
     Args:
-        to: Recipient email address (or comma-separated list)
-        subject: Email subject line (optional if content_instruction provided)
-        body: Email body content (optional if content_instruction provided)
-        content_instruction: Creative instruction for LLM to generate subject/body
-        cc: CC recipients (optional, comma-separated)
-        bcc: BCC recipients (optional, comma-separated)
-        is_html: True if body is HTML, False for plain text
-        file_names: Files LIA holds, by name, to attach
-        drive_file_ids: Files of the person's drive, by id, to attach
-        runtime: Tool runtime (injected)
+        to: Recipient email address (or comma-separated list).
+        subject: The subject, when the user gave it; otherwise LIA writes it.
+        body: The user's own words, dictated in quotes or after a colon.
+        content_instruction: What the e-mail must say when the user did not dictate it.
+        cc: CC recipients (optional, comma-separated).
+        bcc: BCC recipients (optional, comma-separated).
+        is_html: True if body is HTML, False for plain text.
+        file_names: Files LIA holds, by name, to attach.
+        drive_file_ids: Files of the person's drive, by id, to attach.
+        runtime: Tool runtime (injected).
 
     Returns:
-        UnifiedToolOutput with DRAFT registry item and requires_confirmation=True
-
-    Example response summary (written in the user's language):
-        "📄 **Draft created**: Email to john@example.com …
-         **Action required**: confirm, edit, or cancel."
+        UnifiedToolOutput with the e-mail's card, awaiting the user's confirmation.
     """
+    # The person's words, else LIA's writer's: never the agent's own (ADR-383).
+    words = settle_words(
+        tool="send_email_tool",
+        body=body,
+        instruction=content_instruction,
+        person_words=person_words_of(runtime),
+    )
     content = await resolve_email_content(
         runtime=runtime,
         recipient=to,
         subject=subject,
-        body=body,
-        content_instruction=content_instruction,
+        body=words.body,
+        content_instruction=words.instruction,
     )
     if isinstance(content, UnifiedToolOutput):
         return content
@@ -998,7 +991,7 @@ async def send_email_tool(
         body=content.body,
         cc=cc,
         bcc=bcc,
-        is_html=is_html,
+        is_html=is_html and not content.written,
         file_names=file_names,
         drive_file_ids=drive_file_ids,
     )
@@ -1164,17 +1157,15 @@ async def reply_email_tool(
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
-    Reply to an email in Gmail (with user confirmation).
+    Reply to an e-mail, in its thread; the user confirms the reply before it leaves.
 
-    IMPORTANT: This tool creates a DRAFT that requires user confirmation.
-    The reply is NOT sent until the user confirms via HITL.
-
-    Maintains the same thread as the original message.
+    Who writes it: `body` holds the user's own words, dictated in quotes or after a colon,
+    exactly as given; otherwise LIA's writer writes the reply from the received e-mail,
+    in the user's own voice, following `content_instruction` when given (ADR-383).
 
     Args:
         message_id: Original message ID to reply to (required)
-        body: The person's own words, exactly as they dictated them; absent, LIA writes
-            the reply from the received e-mail, in the person's voice (ADR-383)
+        body: The user's own words, dictated; absent, LIA writes the reply
         reply_all: Reply to all recipients (default False)
         file_names: Files LIA holds, by name, to attach
         drive_file_ids: Files of the person's drive, by id, to attach

@@ -71,6 +71,7 @@ AGENT_TICKET = "ticket_agent"  # The workboard of tickets (ADR-276)
 AGENT_DOCUMENT = "document_agent"  # User RAG spaces as active capability (ADR-141)
 AGENT_MEMORY = "memory_agent"  # Long-term memory as an active lookup (ADR-313)
 AGENT_CALCULATION = "calculation_agent"  # Exact arithmetic, dates, currency (ADR-318)
+DOMAIN_CALCULATION = "calculation"  # AGENT_CALCULATION's domain in the registry
 AGENT_JOURNAL = "journal_agent"  # LIA's own journal as an active lookup (ADR-318)
 AGENT_ACTIVITY = "activity_agent"  # What LIA did and read for the person (ADR-318)
 AGENT_GENERATED_FILE = "generated_file_agent"  # Files LIA produced, found again (ADR-318)

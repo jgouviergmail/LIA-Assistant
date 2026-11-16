@@ -32,6 +32,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Annotated, Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
@@ -42,8 +43,14 @@ from src.core.constants import (
     HEALTH_METRICS_BREAKDOWN_MAX_DAYS,
     HEALTH_METRICS_USER_TOGGLE_ATTR,
 )
+from src.core.time_utils import resolve_user_timezone
 from src.domains.agents.constants import AGENT_HEALTH
-from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.context.runtime_context import LiaRuntimeContext, tool_runtime_context
+from src.domains.agents.health.catalogue_manifests import (
+    HEALTH_TIME_MAX_DESCRIPTION,
+    HEALTH_TIME_MIN_DESCRIPTION,
+)
+from src.domains.agents.tools.lookup_parameters import read_period
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
     handle_tool_exception,
@@ -53,14 +60,10 @@ from src.domains.agents.tools.runtime_helpers import (
 from src.domains.users.repository import UserRepository
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.decorators import track_tool_metrics
-from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
     agent_tool_duration_seconds,
     agent_tool_invocations,
 )
-
-logger = get_logger(__name__)
-
 
 # ============================================================================
 # Shared helpers (private to this module)
@@ -99,51 +102,35 @@ async def _check_user_toggle_or_error(db: AsyncSession, user_id: UUID) -> Unifie
     return None
 
 
-def _parse_iso_ts(value: str | None, *, param: str) -> datetime | None:
-    """Parse an ISO 8601 string into a timezone-aware UTC datetime.
+def _zone(runtime: object) -> ZoneInfo:
+    """The user's timezone, where the health days are cut (ADR-148 amendment 2026-11-14)."""
+    return resolve_user_timezone(tool_runtime_context(runtime))
 
-    Mirrors the ``time_min`` / ``time_max`` handling in
-    :mod:`src.domains.agents.tools.calendar_tools`. The planner receives
-    the pre-resolved temporal range from the QueryAnalyzer's
-    ``resolved_references`` (e.g. "this week" -> "2026-04-20 to
-    2026-04-26") and splits the two dates across the two params.
 
-    Accepted shapes (``datetime.fromisoformat`` on Python 3.11+):
+def _read_window(
+    runtime: object, time_min: str | None, time_max: str | None
+) -> tuple[ZoneInfo, datetime | None, datetime | None] | UnifiedToolOutput:
+    """The zone and the window the planner asked for, read by the date contract.
 
-    - ``"2026-04-20"`` -> midnight UTC of that calendar day.
-    - ``"2026-04-20T00:00:00+00:00"`` -> datetime as-is.
-    - ``"2026-04-20T00:00:00Z"`` -> datetime as-is.
-
-    Naive datetimes are coerced to UTC. Malformed inputs return ``None``
-    (the caller then falls back to the service's own default window).
-
-    Timezone handling: samples are stored in UTC in the DB, so no
-    per-user timezone normalization is applied here (unlike
-    ``calendar_tools`` which uses ``normalize_user_datetime``). The
-    planner's resolved references already use user-local calendar
-    boundaries (e.g. Mon-Sun for "this week"), and UTC-anchored bounds
-    remain close enough for aggregate queries over hours-level samples.
+    A date is a whole day in the user's timezone: « from the 20th to the 26th »
+    covers both days. An omitted bound stays open — the service starts at the
+    user's midnight and ends now. An unreadable value is refused, never
+    replaced by a default window (ADR-318).
 
     Args:
-        value: Raw ISO string from the tool call, or ``None``.
-        param: Parameter name (for structured logging).
+        runtime: The tool runtime.
+        time_min: First day or instant, inclusive.
+        time_max: Last day (inclusive) or instant (exclusive).
 
     Returns:
-        A timezone-aware UTC datetime, or ``None`` when input is empty
-        or cannot be parsed.
+        ``(zone, since, until)``, or the refusal the tool returns as is.
     """
-    if not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(value.strip())
-    except ValueError:
-        logger.warning(
-            "health_metrics_time_bound_invalid", param=param, value_type=type(value).__name__
-        )
-        return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=UTC)
-    return parsed
+    zone = _zone(runtime)
+    period = read_period(time_min, time_max, zone, now=datetime.now(UTC), default_days=None)
+    if isinstance(period, UnifiedToolOutput):
+        return period
+    since, until = period
+    return zone, since, until
 
 
 def _format_delta_pct(delta_pct: float | None) -> str:
@@ -174,12 +161,8 @@ def _format_delta_pct(delta_pct: float | None) -> str:
     counter_metric=agent_tool_invocations,
 )
 async def get_steps_summary_tool(
-    time_min: Annotated[
-        str | None, "Start of search window (ISO 8601). Defaults to today 00:00 UTC."
-    ] = None,
-    time_max: Annotated[
-        str | None, "End of search window (ISO 8601). Defaults to now (UTC)."
-    ] = None,
+    time_min: Annotated[str | None, HEALTH_TIME_MIN_DESCRIPTION] = None,
+    time_max: Annotated[str | None, HEALTH_TIME_MAX_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Return the user's total step count over a time window.
@@ -194,8 +177,10 @@ async def get_steps_summary_tool(
     if isinstance(config, UnifiedToolOutput):
         return config
     user_id = parse_user_id(config.user_id)
-    parsed_min = _parse_iso_ts(time_min, param="time_min")
-    parsed_max = _parse_iso_ts(time_max, param="time_max")
+    window_read = _read_window(runtime, time_min, time_max)
+    if isinstance(window_read, UnifiedToolOutput):
+        return window_read
+    zone, parsed_min, parsed_max = window_read
     try:
         async with get_db_context() as db:
             gate = await _check_user_toggle_or_error(db, user_id)
@@ -205,7 +190,7 @@ async def get_steps_summary_tool(
 
             service = HealthMetricsService(db)
             summary = await service.compute_kind_summary(
-                user_id, "steps", time_min=parsed_min, time_max=parsed_max
+                user_id, "steps", zone=zone, time_min=parsed_min, time_max=parsed_max
             )
 
         total = summary.get("total")
@@ -255,7 +240,9 @@ async def get_steps_daily_breakdown_tool(
             from src.domains.health_metrics.service import HealthMetricsService
 
             service = HealthMetricsService(db)
-            breakdown = await service.compute_kind_daily_breakdown(user_id, "steps", days=window)
+            breakdown = await service.compute_kind_daily_breakdown(
+                user_id, "steps", days=window, zone=_zone(runtime)
+            )
 
         if not breakdown:
             return UnifiedToolOutput.data_success(
@@ -308,7 +295,7 @@ async def compare_steps_to_baseline_tool(
 
             service = HealthMetricsService(db)
             delta: dict[str, Any] = await service.compute_kind_baseline_delta(
-                user_id, "steps", window_days=window
+                user_id, "steps", window_days=window, zone=_zone(runtime)
             )
 
         if delta["mode"] == "empty":
@@ -343,12 +330,8 @@ async def compare_steps_to_baseline_tool(
     counter_metric=agent_tool_invocations,
 )
 async def get_heart_rate_summary_tool(
-    time_min: Annotated[
-        str | None, "Start of search window (ISO 8601). Defaults to today 00:00 UTC."
-    ] = None,
-    time_max: Annotated[
-        str | None, "End of search window (ISO 8601). Defaults to now (UTC)."
-    ] = None,
+    time_min: Annotated[str | None, HEALTH_TIME_MIN_DESCRIPTION] = None,
+    time_max: Annotated[str | None, HEALTH_TIME_MAX_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Return the user's average, min, and max heart rate over a time window.
@@ -362,8 +345,10 @@ async def get_heart_rate_summary_tool(
     if isinstance(config, UnifiedToolOutput):
         return config
     user_id = parse_user_id(config.user_id)
-    parsed_min = _parse_iso_ts(time_min, param="time_min")
-    parsed_max = _parse_iso_ts(time_max, param="time_max")
+    window_read = _read_window(runtime, time_min, time_max)
+    if isinstance(window_read, UnifiedToolOutput):
+        return window_read
+    zone, parsed_min, parsed_max = window_read
     try:
         async with get_db_context() as db:
             gate = await _check_user_toggle_or_error(db, user_id)
@@ -373,7 +358,7 @@ async def get_heart_rate_summary_tool(
 
             service = HealthMetricsService(db)
             summary = await service.compute_kind_summary(
-                user_id, "heart_rate", time_min=parsed_min, time_max=parsed_max
+                user_id, "heart_rate", zone=zone, time_min=parsed_min, time_max=parsed_max
             )
 
         if summary.get("avg") is None:
@@ -429,7 +414,7 @@ async def compare_heart_rate_to_baseline_tool(
 
             service = HealthMetricsService(db)
             delta: dict[str, Any] = await service.compute_kind_baseline_delta(
-                user_id, "heart_rate", window_days=window
+                user_id, "heart_rate", window_days=window, zone=_zone(runtime)
             )
 
         if delta["mode"] == "empty":
@@ -464,12 +449,8 @@ async def compare_heart_rate_to_baseline_tool(
     counter_metric=agent_tool_invocations,
 )
 async def get_health_overview_tool(
-    time_min: Annotated[
-        str | None, "Start of search window (ISO 8601). Defaults to today 00:00 UTC."
-    ] = None,
-    time_max: Annotated[
-        str | None, "End of search window (ISO 8601). Defaults to now (UTC)."
-    ] = None,
+    time_min: Annotated[str | None, HEALTH_TIME_MIN_DESCRIPTION] = None,
+    time_max: Annotated[str | None, HEALTH_TIME_MAX_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Return a kind-by-kind summary of the user's health data for a time window.
@@ -483,8 +464,10 @@ async def get_health_overview_tool(
     if isinstance(config, UnifiedToolOutput):
         return config
     user_id = parse_user_id(config.user_id)
-    parsed_min = _parse_iso_ts(time_min, param="time_min")
-    parsed_max = _parse_iso_ts(time_max, param="time_max")
+    window_read = _read_window(runtime, time_min, time_max)
+    if isinstance(window_read, UnifiedToolOutput):
+        return window_read
+    zone, parsed_min, parsed_max = window_read
     try:
         async with get_db_context() as db:
             gate = await _check_user_toggle_or_error(db, user_id)
@@ -494,7 +477,7 @@ async def get_health_overview_tool(
 
             service = HealthMetricsService(db)
             overview = await service.compute_overview(
-                user_id, time_min=parsed_min, time_max=parsed_max
+                user_id, zone=zone, time_min=parsed_min, time_max=parsed_max
             )
 
         kinds_with_data = [k for k, v in overview.items() if v.get("samples_count", 0) > 0]
@@ -567,7 +550,9 @@ async def detect_health_changes_tool(
             from src.domains.health_metrics.service import HealthMetricsService
 
             service = HealthMetricsService(db)
-            variations = await service.detect_all_variations(user_id, window_days=window)
+            variations = await service.detect_all_variations(
+                user_id, window_days=window, zone=_zone(runtime)
+            )
 
         if not variations:
             return UnifiedToolOutput.data_success(

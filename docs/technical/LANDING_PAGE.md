@@ -47,7 +47,16 @@ Principes non negociables :
 
 - **Zero perte d'information** : contrat executable `REQUIRED_FEATURE_KEYS` (voir §5).
 - **Zero survente** : chaque phrase mappe une fonctionnalite livree ; pas de superlatifs invérifiables ; la beta et les
-  abonnements a venir sont affiches (l'honnetete est le positionnement).
+  abonnements a venir sont affiches (l'honnetete est le positionnement). Ce que le comparatif dit d'un autre produit
+  vient de sa documentation et de ses annonces officielles, avec les sources et la date de lecture
+  (`COMPARISON_SOURCES_READ_ON`) affichées sous le tableau. Distinguer une fonction disponible d'une annonce,
+  et le contrôle des actions de l'administration de l'hébergement ; l'humour est permis, une affirmation fausse jamais.
+- **Public non expert** : le texte public se lit sans jargon ; un terme technique (Pipeline, ReAct, MCP) ne vient
+  qu'entre parenthèses, après ce qu'il fait pour la personne.
+- **Pleine largeur, une échelle** (décision du propriétaire, 2026-11-15) : un titre ou un paragraphe
+  occupe toute la largeur que sa section lui donne (aucun `max-w` de lecture sur le texte de l'accueil) ;
+  titres de section `text-3xl` puis `mobile:text-4xl`, chapeaux en taille de base `leading-7`, titres de
+  cartes `text-lg font-semibold`, textes de cartes `text-sm leading-6`.
 - **Regle d'or des chiffres** : toute statistique publique vit dans `constants.ts` (`LANDING_STATS`), source canonique
   documentee. Le score d'audit (`auditScore`) n'est affiche par aucune bande de la landing ; les textes qui le
   citent (README, guides story/how, reponse FAQ `getting_started.q7`, `story.meta.description` ×6) le suivent,
@@ -94,13 +103,15 @@ et l’ancien moteur du mockup ont été remplacés par ce rendu commun.
 | ------------------------------------------ | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `chapters-data.ts`                         | data             | Configuration des chapitres, association `scene` partagée avec les liens des cas d’usage, ordre éditorial des capacités, `BASICS_CATALOG`, `BASICS_CHIPS`, `FEATURE_ICONS` et inventaire `REQUIRED_FEATURE_KEYS`. Les capacités différenciantes précèdent les fonctions courantes ; le compte est dérivé du code. |
 | `EditorialChapters`                        | Server           | Orchestre les chapitres déclarés sous l’ancre historique `features`, avec leurs scènes ou captures (`CHAPTER_CAPTURES`). Le chapitre `tools` ouvre la série ; `connect` conserve le relais entre assistantes ; `world` présente la capture du Monde et son répertoire de lieux. |
-| `ChapterSection`                           | Server           | Titre, sous-titre, bénéfices courts, illustration partagée, explication « Ce qui rend cela possible » en `<details>`, puis catalogue dépliable. Les détails techniques restent disponibles dans le même dépliant.                                                                                                 |
+| `ChapterSection`                           | Server           | Titre du chapitre sur toute la largeur, au-dessus des deux colonnes (décision du propriétaire, 2026-11-15) ; puis sous-titre, bénéfices courts en tuiles (une par bénéfice, la couleur du chapitre sur une barre, mosaïque à deux colonnes dès `sm`, une dernière tuile impaire sur toute la rangée ; propriétaire, 2026-11-15), illustration partagée, explication « Ce qui rend cela possible » en `<details>`, puis catalogue dépliable. Les détails techniques restent disponibles dans le même dépliant. |
 | `FeatureCatalog`                           | Server           | Traduit les titres, descriptions complètes, légendes et noms de commandes avant de transmettre ces données sérialisables à `FeatureExplorer`. Réutilise les textes `landing.features.*`.                                                                                                                          |
 | `FeatureExplorer`                          | Client           | Index de titres iconisés en deux colonnes, de hauteur bornée et défilable ; un panneau détaillé visible à la fois, avec illustration, texte intégral et boutons précédent/suivant. L’ordre vient du catalogue du chapitre. Tous les panneaux textuels restent dans le DOM.                                        |
 | `FeatureScenes.ts` / `FeatureIllustration` | data / rendu SVG | Correspondance explicite entre chaque capacité et une famille d’illustration. Le SVG décoratif du panneau actif représente son usage ou son résultat ; sa légende est localisée séparément.                                                                                                                       |
 | `SecurityDetail`                           | Server           | Détails de sécurité et de vie privée conservés dans le catalogue du chapitre `control` (`landing.security.*`).                                                                                                                                                                                                    |
 | `CatalogDisclosure`                        | Client           | Catalogue replié à l’arrivée ; bouton natif, `aria-expanded`, contenu conservé dans le DOM via `grid-template-rows`, `inert` une fois replié. Une ancre `#chapter-…-detail` ouvre le catalogue ciblé.                                                                                                             |
 | `BasicsBand`                               | Server           | Fonctions courantes après les chapitres : chips et catalogue propre, avec le même explorateur visuel.                                                                                                                                                                                                             |
+| `PositioningSection`                       | Server           | Sous le hero, avant la vidéo : le titre, centré sous l'accroche centrée du hero (propriétaire, 2026-11-15), puis deux cartes l'une sous l'autre. La première pose le marché coupé en deux, chaque monde annoncé par les logos de ses produits (`comparison/ContenderMark`) : agents pour techniciens, assistants grand public fermés. La seconde, dans un cadre au dégradé cosmos, pose la thèse face à son chiffre : le « 60+ » en grand (`AnimatedCounter`, libellé `stat_label`) est le nombre de briques de la carte vivante arrondi à la dizaine inférieure (`comparison/brick-floor.ts`), jamais un chiffre tapé. |
+| `ArgumentsSection`                         | Server           | Après la vidéo : cinq tuiles titrées (agir, « Manuel + IA », famille et 3D, voix et téléphone, gouvernance) ; sur grand écran, trois sur la première rangée et deux à parts égales sur la seconde (`ARGUMENT_SPANS`), la cinquième sur toute la largeur en deux colonnes. Chaque tuile s'ouvre sur une vignette décorative de son idée (`editorial/ArgumentVignettes.tsx` : glyphes Lucide, étoiles jaunes des Outils, dégradé cosmos ; ni dessin à la main ni animation, `aria-hidden`). |
 | `PromiseSection`                           | Server           | Trois promesses entre le hero et les scénarios : écosystème, confiance, disponibilité sur les écrans.                                                                                                                                                                                                             |
 | `TransparencySection`                      | Server           | Preuves de confiance, coûts, audit public, open source, retour d’expérience et CTA intermédiaire (`#transparency`).                                                                                                                                                                                               |
 | `DayTimeline`                              | Client           | Journées par profil en onglets ; version verticale de repli pour `CosmosDay` sur mobile et en mouvement réduit.                                                                                                                                                                                                   |
@@ -134,8 +145,10 @@ la même constante d’ancre du Monde.
 
 | Composant                                                                                 | Type   | Notes                                                                                                                                                                                                                                            |
 | ----------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `cosmic/CosmosHero`                                                                       | Server | Hero Cosmos et démonstration partagée ; le planetarium ne l'entoure que si `LANDING_PLANETARIUM_ENABLED` (`landing/constants.ts`, ÉTEINT depuis le 2026-10-01, décision du propriétaire — composant, styles et tests conservés) ; CTA propre et lien vers `#features`. |
-| `TechSection`                                                                             | Server | Quatre principes lisibles — relier le contexte, organiser le travail, vérifier, rendre l’action lisible — puis choix d’ingénierie détaillés et schéma d’architecture dans le dépliant facultatif. Les chiffres restent issus de `LANDING_STATS`. |
+| `cosmic/CosmosHero`                                                                       | Server | Promesse centrée, phrase d'accroche seule, présentation, démonstration guidée selon le déploiement, lien vers le code et trois preuves ; l'indication de défilement mène à `#positioning`. La constellation des briques n'est plus sur l'accueil (décision du propriétaire, 2026-11-15) : elle vit dans la carte fonctionnelle (`/maps`). |
+| `comparison/ComparisonSection` / `ComparisonExplorer`                                     | Server / Client | Comparatif sur six critères (`#comparison`), toujours en duel : LIA face à OpenClaw (par défaut), Hermes Agent ou Meta Muse, un tableau à quatre colonnes étant illisible (décision du propriétaire, 2026-11-15). Trois tuiles « LIA face à » (`aria-pressed`, noms courts, une ligne jusqu'à 320 px) choisissent le duel ; la scène pose les deux cartes de part et d'autre d'un médaillon « VS ». Tout est affiché : statut en toutes lettres, ligne de tête, punchline et faits, sans filtre de lecture ni repli (propriétaire, 2026-11-15) ; les tuiles sont les seuls contrôles. Chaque produit porte son propre logo sur une pastille blanche (`ContenderMark`, `public/comparison-icons/`, NOTICE.md). Une seule structure à toutes les largeurs : une liste de critères titrés (h3), un groupe nommé par concurrent, mise en trois colonnes par CSS à partir de `lg` sous un en-tête décoratif (`aria-hidden`), empilée en dessous (à 768 px la colonne des critères laissait ~129 px et « Amministrazione e costi » débordait) ; aucune phrase n'est rendue deux fois. |
+| `comparison/comparison-data.ts`                                                           | data   | Concurrents (noms, noms courts, logos), critères, statuts, sources et date de lecture ; `pitchLocaleKeys()` énumère toutes les clés des trois sections. Un statut change avec ses phrases, dans les six langues, jamais seul. |
+| `TechSection`                                                                             | Server | Quatre principes lisibles — relier le contexte, organiser le travail, vérifier, rendre l’action lisible —, chacun en tuile, ouvert par son icône et son titre sur une même ligne (un numéro d'étape n'y disait rien, propriétaire 2026-11-15), puis choix d’ingénierie détaillés et schéma d’architecture dans le dépliant facultatif. Les chiffres restent issus de `LANDING_STATS`. |
 | `ArchitectureDiagram`                                                                     | Client | Comparaison lisible de Pipeline et ReAct : trois étapes par parcours, exemples concrets et garanties communes. Met en avant rapidité, contrôle et fiabilité, sans ratio de tokens ; rendue dans le dépliant facultatif de `TechSection`.         |
 | `LandingCarousel`                                                                         | Client | Carrousel partagé de la galerie : ratio de l’actif, fond ambiant, flèches visibles, vignettes à scroll-snap, clavier et swipe, légende `aria-live`, plein écran optionnel pour les captures.                                                     |
 | `cosmic/CosmosFinale`                                                                     | Server | CTA final dans l’horizon Cosmos.                                                                                                                                                                                                                 |
@@ -149,18 +162,24 @@ la même constante d’ancre du Monde.
 ```
 AuthRedirect | LandingHeader (fixed) | ChapterRail (fixed, xl+)
 <main>
-   1. CosmosHero           — démonstration partagée, choix parmi six scènes
-   1b. LandingVideoSection — vidéo de l'opérateur, montée seulement si LANDING_MEDIA_BASE_URL répond (§10)
-   2. PromiseSection       — trois promesses
-   3. EditorialChapters    — features ; chapter-{tools,act,know,anticipate,control,grow,connect,world}
-   4. BasicsBand           — basics
-   5. TransparencySection  — transparency, CTA intermédiaire
-   6. CosmosDay            — day, journées par profil
-   7. GallerySection       — gallery, captures réelles et présentation
-   8. TechSection          — technology, principes puis détails et architecture à la demande
-   9. ChangelogSection     — changelog
-  10. BlogPreviewSection   — blog
-  11. CosmosFinale         — CTA final
+   1. CosmosHero             — promesse, actions et preuves
+   2. PositioningSection     — positioning, le marché puis la thèse
+   3. LandingVideoSection    — vidéo de l'opérateur, montée seulement si LANDING_MEDIA_BASE_URL répond (§10)
+   4. ArgumentsSection       — arguments, cinq tuiles
+   5. ComparisonSection      — comparison, LIA face à OpenClaw, Hermes Agent et Meta Muse
+   6. GallerySection         — gallery, captures réelles et présentation
+   7. PromiseSection         — trois promesses
+   8. PersonalContextSection — personal-context
+   9. EditorialChapters      — features ; chapter-{tools,act,know,anticipate,control,grow,connect,world}
+  10. BasicsBand             — basics
+  11. TransparencySection    — transparency, CTA intermédiaire
+  12. CosmosDay              — day, journées par profil
+  13. PlatformSection        — platform, comptes, modèles et supervision ; quatre tuiles (icône et titre
+                                sur une ligne), puis la base d'entreprise en tuile pleine largeur
+  14. TechSection            — technology, principes puis détails et architecture à la demande
+  15. ChangelogSection       — changelog
+  16. BlogPreviewSection     — blog
+  17. CosmosFinale           — CTA final
 </main>
 ScrollScrub (transparency, gallery, changelog) | LandingFooter | LandingEyes
 ```
@@ -282,7 +301,10 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
 | **Démonstration partagée** | `landing/__tests__/InteractiveChatMockup.test.tsx`                         | Sélection clavier et focus, résultat conservé, pause/relecture, suspension hors écran, nettoyage au démontage, mouvement réduit sans minuterie, noms français/anglais, explications à la demande et rendu complet commun aux chapitres.                                                                                                                                                 |
 | **Catalogue visuel**       | `editorial/__tests__/FeatureCatalog.test.tsx`                              | Conservation de tous les textes, une fiche visible à la fois, index et navigation nommés en français/anglais, focus clavier, correspondance complète capacité/illustration et légendes dans les six langues.                                                                                                                                                                            |
 | **Routes publiques**       | `src/lib/__tests__/api-client.public-routes.test.ts`                       | Ejection des visiteurs anonymes vers /login.                                                                                                                                                                                                                                                                                                                                            |
-| **Overflow mobile**        | `e2e/smoke/landing-mobile-overflow.spec.ts`                                | Débordement horizontal sur mobile : rendu initial, progression de la démonstration, sections et catalogues ouverts, balayage des locales et reflow à 320 px. Une capture statique seule ne couvre pas les états révélés.                                                                                                                                                                |
+| **Contrat de l'argumentaire** | `comparison/__tests__/comparison-data.test.ts`                          | Une clé lue par le positionnement, les arguments ou le comparatif absente ou vide dans une des 6 locales ; un statut hors des trois mots publiés ; un logo absent de `public/` ; un nom de bouton trop long pour une ligne ; une légende qui ne nomme pas le duel ; un « 60+ » tapé en chiffres au lieu de `{{count}}`, ou un plancher qui dépasserait le nombre réel de briques. |
+| **Plancher du README** | `apps/api/tests/unit/test_readme_brick_claim_guard.py` | Un « N+ building blocks » de l'introduction du README supérieur au nombre de briques de la carte vivante (`functional.json`) ; une phrase supprimée sans la garde (une garde qui ne lit aucune affirmation ne garde rien). Le plancher ne se met pas à jour à la hausse : il reste vrai. |
+| **Comparatif interactif**  | `comparison/__tests__/ComparisonExplorer.test.tsx` + `editorial/__tests__/pitch-sections.test.tsx` | Un duel qui laisse une colonne, une carte ou une légende de l'adversaire précédent, une vue à quatre colonnes, une phrase rendue deux fois (une structure par largeur), un contrôle autre que les trois tuiles, un fait ou une punchline masqué, un statut dit par la couleur seule, un lien qui surchargerait les cellules, un logo non décoratif, une date de sources mal formatée ; l'ordre des cinq arguments et la thèse comptée depuis la carte. |
+| **Overflow mobile**        | `e2e/smoke/landing-mobile-overflow.spec.ts`                                | Débordement horizontal sur mobile : rendu initial, comparatif (duel, faits affichés, trois tuiles sur une ligne) à 375 et 320 px, sections et catalogues ouverts, balayage des locales et reflow à 320 px. Une capture statique seule ne couvre pas les états révélés. |
 | **Contenu FAQ groupee**    | `src/lib/__tests__/faq-answer-groups.test.ts`                              | La perte d'un mot lors du regroupement visuel de la reponse « Que puis-je demander ? » : egalite mot-a-mot prouvee sur les 6 locales reelles + repli tel-quel (zh a une q4 differente).                                                                                                                                                                                                 |
 | **Axe pages publiques**    | `e2e/a11y/axe-public-pages.spec.ts`                                        | Violations critical/serious (contraste inclus) sur `/faq` (reponse groupee ouverte), `/demo` et `/more` (scanne animee PUIS en pause via le bouton WCAG 2.2.2), en clair ET en sombre — le theme etant pilote par localStorage (`defaultTheme="light"`), emuler le scheme OS ne suffit pas.                                                                                             |
 | **Pause des animations**   | `landing/cosmic/__tests__/MotionToggle.test.tsx` + `lib/landing/__tests__/motion-pause.test.ts` | Le mécanisme WCAG 2.2.2 des pages cosmos : bouton natif au nom stable, `aria-pressed` porteur de l'état, clavier, toutes les instances sur l'unique état de `<html>`, choix retenu (et tenu quand le stockage refuse), scènes de `/more` sur le même interrupteur ; le canvas ne redessine plus en pause ni pour le pointeur ou le défilement. |
@@ -300,6 +322,18 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
   limites), `landing.editorial.*` (parcours et dépliants), `landing.chapters.*` (c1..c8, bénéfices et mécanismes),
   `landing.catalog_explorer.*` (navigation et légendes), `landing.engineering.*` (principes et bénéfices),
   `landing.tech.*` (choix techniques détaillés), `landing.features.<k>.*` (textes intégraux conservés).
+- L'argumentaire vit sous `landing.positioning.*` (marché et thèse), `landing.arguments.*` (cinq tuiles) et
+  `landing.comparison.*` (tuiles, statuts, cartes des concurrents, `rows.<critère>.<concurrent>.{head,b1…,punch}`,
+  sources). Les noms propres des concurrents restent dans `CONTENDER_NAMES`, jamais traduits.
+- Le sous-arbre `landing` ne part plus en entier vers chaque page (184 Ko en français, tableau de bord compris,
+  jusqu'au 15/11) : ce que le serveur rend n'atteint aucun navigateur (`LANDING_SERVER_ONLY_SCOPES`, 122 Ko), ce
+  que lisent les composants clients de l'accueil n'est porté que par l'accueil (`HOME_TRANSLATION_SCOPES`, un seul
+  `<ScopedTranslations>` autour de la page ; `/demo` reprend les deux démonstrations), et seul le chrome public
+  (`hero`, `nav`, `motion`, `cosmos`, `cta`, environ 3 Ko) reste dans le tronc commun. Déclaration dans
+  `i18n/scoped-translations.ts` ; la garde du graphe d'import refuse un lecteur navigateur sur une route qui ne
+  porte pas son sous-arbre. Mesuré le 15/11 (serveur de dev) : charge RSC de l'accueil −17 %, FAQ −22 %, blog −35 %.
+  Une clé passée en propriété échappe à la garde : seules `landing.cosmos` et `landing.nav` le sont, toutes deux
+  dans le tronc commun.
 - Les autres surfaces conservent `landing.basics.*`, `landing.transparency.*`, `landing.day.*`,
   `landing.gallery.*`, `landing.rail.*`, `landing.security.*`, `landing.proof.items.*` et `landing.cta.*`.
   `landing.how_it_works.*` n’existe plus : la section a quitté la landing, et des données structurées ne
@@ -553,8 +587,10 @@ Cloudflare ne met jamais en cache, et une image de partage de 8 Mo refusée par 
 `apps/web/scripts/build-article-images.mjs <masters>` écrit, par article, quatre WebP (`480, 768, 1024, 1536`) et
 un JPEG 1200×675 (`<slug>-og.jpg`) dans `public/articles/` ; `lib/blog/article-images.ts` est l'unique lieu des
 noms et des `sizes` (cartes de l'index, grille de la landing, hero de l'article) ; `ArticleIllustration` dessine un
-`<img srcset sizes>` (`loading`/`fetchpriority` selon la position) et la page d'article préannonce son hero par
-`preload` de React 19. Les masters ne sont pas versionnés (l'historique git garde les 28 d'origine : `git show
+`<img srcset sizes>` (`loading`/`fetchpriority` selon la position). Sa frontière client porte le `preload` de
+React 19 : le HTML initial préannonce toujours les images prioritaires, tandis qu'un préchargement RSC de lien
+ne les télécharge plus avant d'ouvrir la page. Les liens Cartes du header et des deux footers seuls portent
+`prefetch={false}` pour garder leur feuille dédiée jusqu'à la navigation. Les masters ne sont pas versionnés (l'historique git garde les 28 d'origine : `git show
 <commit>:apps/web/public/articles/<slug>.png`). La garde `data/__tests__/blog-article-images.guard.test.ts` refuse
 un slug sans son jeu complet, avec une liste en attente qui ne peut que rétrécir.
 
@@ -583,9 +619,19 @@ apps/web/src/components/landing/
     FeatureIllustration.tsx      # Illustrations SVG décoratives
     SecurityDetail.tsx
     CatalogDisclosure.tsx  Tabs.tsx  ChapterRail.tsx
+    PositioningSection.tsx       # Le marché, puis la thèse (« {{count}}+ » depuis la carte vivante)
+    ArgumentsSection.tsx         # Cinq tuiles d'argumentaire
+    ArgumentVignettes.tsx        # La vignette décorative de chaque tuile
     PromiseSection.tsx  BasicsBand.tsx  TransparencySection.tsx
     DayTimeline.tsx  GallerySection.tsx
     __tests__/                  # Contenu, i18n, catalogue et interactions
+  comparison/
+    comparison-data.ts           # Concurrents, logos, critères, statuts, sources datées
+    brick-floor.ts               # Plancher du compte de briques (« 60+ »)
+    ComparisonSection.tsx        # Titre et chapeau du comparatif
+    ComparisonExplorer.tsx       # Tuiles du duel, scène, critères (une structure, colonnes dès lg), sources
+    ContenderMark.tsx            # Logo d'un produit sur sa pastille blanche (décoratif)
+    __tests__/                  # Contrat de contenu ×6 locales et comportement du comparatif
   video/
     LandingVideoSection.tsx      # Libellés côté serveur (landing.video.*)
     LandingVideo.tsx             # Section montée sur le descripteur de /api/landing-media, commandes, pilule

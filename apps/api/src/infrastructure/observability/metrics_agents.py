@@ -498,6 +498,13 @@ conversation_message_archived_total = Counter(
     ["role"],  # user, assistant, system
 )
 
+conversation_origin_returns_total = Counter(
+    "conversation_origin_returns_total",
+    "Returns of an act published where it began: in its origin generation, or in Main "
+    "because that generation was retired (reset or deleted) meanwhile",
+    ["outcome"],  # origin, retired
+)
+
 # ============================================================================
 # CONVERSATION REPOSITORY MIGRATION METRICS (Phase 3 Refactoring)
 # ============================================================================

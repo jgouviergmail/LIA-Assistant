@@ -42,6 +42,7 @@ import type { DeviceNotice } from './device-inbox';
 import type { SceneActivity } from './activity-catalogue';
 import { useWorldPrivateSignals, type WorldPrivateSignalsControl } from './useWorldPrivateSignals';
 import { WorldSignalActions } from './WorldSignalActions';
+import { ReminderFiringButtons } from '@/components/chat/ReminderFiringActions';
 export interface WorldDeviceHandle {
   openNotice(key: string): boolean;
 }
@@ -420,9 +421,13 @@ function DeviceInboxContent({
           {current.kind === 'sms' && smsEnabled ? (
             <FocusedSms key={current.messageId} messageId={current.messageId} lng={lng} />
           ) : current.kind === 'reminder' ? (
-            <p className="whitespace-pre-wrap break-words" dir="auto">
-              {current.content}
-            </p>
+            <>
+              <p className="whitespace-pre-wrap break-words" dir="auto">
+                {current.content}
+              </p>
+              {/* The bubble's « later » and « stop », on the occurrence that rang. */}
+              {current.firingId && <ReminderFiringButtons firingId={current.firingId} />}
+            </>
           ) : null}
           <Button
             variant="outline"

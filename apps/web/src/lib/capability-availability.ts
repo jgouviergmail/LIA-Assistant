@@ -34,6 +34,7 @@ export const CAPABILITY_CEILING = {
   attachments: 'attachments_enabled',
   avatar: 'avatar_enabled',
   channels: 'channels_enabled',
+  ntfy: 'ntfy_enabled',
   habits: 'habits_enabled',
   heartbeat: 'heartbeat_enabled',
   image_generation: null,

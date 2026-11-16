@@ -165,3 +165,22 @@ responsive reflow, keyboard/focus, theme/contrast and media lifecycle checks are
 required for the implementation. This amendment records the architecture and
 behavior; it does not claim completed test runs, production deployment or physical
 WebView qualification.
+
+## Amendment — a mail opens as the Tools show it (2026-11-14, owner)
+
+A received mail's text, flattened from its sender's layout, read as a destructured
+list of lines in the chat, where the Tools draw the same message in its original
+layout. The mail card now keeps that text — the fallback of every surface that cannot
+open the layout (a channel, an export, a share, a reader with the Tools switched off)
+— inside a marker naming the message (`lia-email-original`, `data-message-id`). The
+web chat replaces it, once the card's details are seen, with the Tools' own view
+(`OriginalLayout`, ADR-369 D3): the layout read through
+`GET /workbench/mail/message/html`, drawn in the same sandboxed frame, remote images
+on a click, the message's own images read apart, the text a click away.
+
+This is the one exception to « no provider fetch is caused by opening a disclosure »:
+the read is the person's own, on opening, of a message the card already showed; it is
+sent only under the card's signed source (`X-LIA-Card-Source`, so a replacement
+mailbox is refused) and the Tools' door read where the reader is mounted, and a card
+with no source proof stays text. A layout that cannot be read is said, and the text
+stays. Nothing of the sender's markup enters the page or the conversation's record.

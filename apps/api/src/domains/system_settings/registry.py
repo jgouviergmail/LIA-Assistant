@@ -133,6 +133,7 @@ SETTING_SPECS: dict[SystemSettingKey, SettingSpec[Any]] = {
             SystemSettingKey.JEV_PARAMETER_KIND_THRESHOLDS,
             SystemSettingKey.JEV_EMAIL_CLASSIFICATION_THRESHOLDS,
             SystemSettingKey.JEV_EVENT_CLASSIFICATION_THRESHOLDS,
+            SystemSettingKey.JEV_EXECUTION_MODE_THRESHOLDS,
         )
     },
     **{
@@ -151,6 +152,7 @@ SETTING_SPECS: dict[SystemSettingKey, SettingSpec[Any]] = {
             SystemSettingKey.JEV_PARAMETER_KIND_ENABLED,
             SystemSettingKey.JEV_EMAIL_CLASSIFICATION_ENABLED,
             SystemSettingKey.JEV_EVENT_CLASSIFICATION_ENABLED,
+            SystemSettingKey.JEV_EXECUTION_MODE_ENABLED,
         )
     },
     SystemSettingKey.JEV_ENABLED: SettingSpec(

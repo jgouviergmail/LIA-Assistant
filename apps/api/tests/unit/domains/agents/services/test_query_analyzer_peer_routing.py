@@ -31,6 +31,7 @@ from src.domains.agents.services.query_analyzer_service import (
     QueryAnalysisResult,
     QueryAnalyzerService,
 )
+from tests.helpers.memory_resolution import resolver_answering
 from tests.helpers.runtime_context import installed_runtime_context
 
 _USER_ID = UUID("00000000-0000-4000-8000-0000000000b1")
@@ -42,8 +43,7 @@ PEER = "Jérôme G"
 def _make_service(memory_resolution: MemoryResolution | None = None) -> QueryAnalyzerService:
     """Build a service whose every collaborator is inert but the analysis."""
     resolution = memory_resolution or MemoryResolution(facts=None, resolved=None, references=[])
-    memory_resolver = MagicMock()
-    memory_resolver.retrieve_and_resolve = AsyncMock(return_value=resolution)
+    memory_resolver = resolver_answering(resolution)
     context_resolver = MagicMock()
     context_resolver.resolve_context = AsyncMock(return_value=(None, None))
     goal_inferrer = MagicMock()

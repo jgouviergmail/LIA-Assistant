@@ -386,7 +386,7 @@ class EmailCard(BaseComponent):
             content_parts.append(
                 render_section_header(email_content_label, Icons.DESCRIPTION, "indigo")
             )
-            content_parts.append(render_email_body(body, ctx))
+            content_parts.append(self._original_layout(data, render_email_body(body, ctx)))
         # The compact excerpt can be visually clamped at any length. Only omit its
         # full disclosure when the complete formatted body already contains it.
         snippet = scalar_text(data.get("snippet"))
@@ -400,6 +400,20 @@ class EmailCard(BaseComponent):
             content_parts.append(render_text_content(snippet))
 
         return "".join(content_parts)
+
+    @staticmethod
+    def _original_layout(data: dict[str, Any], text_html: str) -> str:
+        """The message's text in the marker the web chat opens as the Tools show it (owner,
+        2026-11-14): its original layout, read on demand under the card's own source proof. The
+        text stays inside, the fallback of every surface and every failure; a message with no id
+        has nothing to name and stays text."""
+        message_id = scalar_text(data.get("id"))
+        if not message_id:
+            return text_html
+        return (
+            f'<div class="lia-email-original" data-message-id="{escape_html(message_id)}">'
+            f"{text_html}</div>"
+        )
 
     # =========================================================================
     # Rendering Helpers

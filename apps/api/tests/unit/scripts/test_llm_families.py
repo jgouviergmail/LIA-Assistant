@@ -58,6 +58,29 @@ def test_another_family_keeps_every_setting_of_the_slot_but_its_model(
     assert config.max_tokens == slot.max_tokens
 
 
+def test_a_judge_samples_greedily_on_the_slot_s_own_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A judge sampled at the slot's temperature read the same answer two ways
+    (ADR-390 oracle, 2026-11-15): a bench may ask for temperature 0, and only that."""
+    built: dict[str, object] = {}
+
+    def fake_get_llm(slot: str, config_override: object | None = None) -> str:
+        built.update(slot=slot, config=config_override)
+        return "llm"
+
+    monkeypatch.setattr("scripts.llm_families.get_llm", fake_get_llm)
+    monkeypatch.setattr("scripts.llm_families.model_name_of", lambda _llm: "slot-model")
+
+    name, _llm, config = family_llm("response", None, temperature=0.0)
+
+    slot = get_llm_config_for_agent(settings, "response")
+    assert name == "slot-model"
+    assert built["config"] is config
+    assert config.temperature == 0.0
+    assert (config.provider, config.model) == (slot.provider, slot.model)
+
+
 def test_a_response_is_priced_from_its_own_usage_and_its_own_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

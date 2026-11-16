@@ -36,32 +36,44 @@ says why.
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, Final, TypedDict
 
 import structlog
+from langchain_core.messages import BaseMessage, ToolMessage
 
+from src.core.config import settings
 from src.core.field_names import FIELD_REACT_SYNTHESIS, FIELD_TOOL_DATA
 from src.domains.agents.registry.catalogue import (
     ACTING_POLICIES,
     DEFAULT_PIPELINE_DATA_CHANNEL,
     ToolManifest,
 )
+from src.domains.agents.semantic.manifest_semantics import available_manifest
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.react_tool_wrapper import (
     extract_data_block,
     is_item_list,
     mark_untrusted_data,
 )
+from src.domains.agents.utils.message_filters import TOOL_CALL_NOT_RUN, current_turn_responses
 from src.domains.agents.utils.react_budget import slot_tool_result_budget
+from src.domains.agents.utils.state_cleanup import cleanup_dict_by_turn_id
+from src.infrastructure.llm.message_text import coerce_content_to_text
 
 logger = structlog.get_logger(__name__)
 
 #: The slot whose window bounds a pipeline data block: the model that reads it.
 RESPONSE_SLOT: Final = "response"
 
+#: The slot whose window bounded the loop's own tool results (ADR-286).
+LOOP_SLOT: Final = "react_agent"
+
+#: The step payload list the response's data section reads (``formatters/tool_data``).
+STEP_RESULTS_KEY: Final = "step_results"
+
 #: The lists of step payloads an ``AgentResult``'s data carries (the mapper's).
-_STEP_PAYLOAD_LISTS: Final = frozenset({"step_results", "aggregated_results"})
+_STEP_PAYLOAD_LISTS: Final = frozenset({STEP_RESULTS_KEY, "aggregated_results"})
 
 
 class ToolDataRecord(TypedDict):
@@ -160,6 +172,7 @@ def merge_react_synthesis_result(
     react_message: str,
     current_turn: int,
     current_registry: dict[str, Any],
+    tool_data: Sequence[ToolDataRecord] = (),
 ) -> dict[str, Any]:
     """Merge the ReAct final answer into agent_results without overwriting entries.
 
@@ -173,23 +186,134 @@ def merge_react_synthesis_result(
 
     Args:
         agent_results: Existing agent_results map (possibly populated by Initiative).
-        react_message: The ReAct loop's final answer text.
+        react_message: The ReAct loop's final answer text — empty when the loop
+            delivered none (:func:`react_turn_tool_data`).
         current_turn: Current turn id (for the composite key).
         current_registry: Registry items for this turn (drives HTML cards / display).
+        tool_data: The turn's read results a withheld answer leaves to the
+            response, carried as one step payload the data section reads.
 
     Returns:
-        A new dict containing every existing entry plus the ``{turn}:react_agent`` one,
-        every OTHER turn's pipeline data blocks removed: this is the write the
-        checkpoint keeps on a ReAct turn, and a block serves its own turn alone.
+        A new dict holding the turn's entries, its ``{turn}:react_agent`` one
+        included, whole, beside the most recent complete earlier turns, their
+        pipeline data blocks removed, within what ``max_agent_results`` leaves —
+        the bound every pipeline writer already applies. This is the write the
+        checkpoint keeps on a ReAct turn: unbounded, each turn's answer and
+        registry items rode every later save of the thread. The bound trims the
+        history only: however small, it never drops the answer of the turn.
     """
     merged = dict(agent_results or {})
     react_key = f"{current_turn}:react_agent"
     if react_key not in merged:
-        merged[react_key] = {
-            "data": {FIELD_REACT_SYNTHESIS: react_message},
-            "registry_updates": current_registry,
-        }
-    return previous_turns_without_tool_data(merged, current_turn)
+        data: dict[str, Any] = {FIELD_REACT_SYNTHESIS: react_message}
+        if tool_data:
+            data[STEP_RESULTS_KEY] = [{FIELD_TOOL_DATA: list(tool_data)}]
+        merged[react_key] = {"data": data, "registry_updates": current_registry}
+    turn_prefix = f"{current_turn}:"
+    own = {key: value for key, value in merged.items() if key.startswith(turn_prefix)}
+    history = cleanup_dict_by_turn_id(
+        previous_turns_without_tool_data(
+            {key: value for key, value in merged.items() if key not in own}, current_turn
+        ),
+        max_results=max(settings.max_agent_results - len(own), 0),
+        label="agent_results",
+    )
+    return {**history, **own}
+
+
+def react_handover(
+    react_result: Mapping[str, Any] | None,
+    messages: Sequence[BaseMessage],
+    registry: Mapping[str, object],
+) -> tuple[str, list[ToolDataRecord]] | None:
+    """What a ReAct turn hands its response: its answer, or the reads a withheld one leaves.
+
+    Args:
+        react_result: The loop's ``react_agent_result``, ``None`` on another turn.
+        messages: The thread, the current turn last.
+        registry: The turn's registry items.
+
+    Returns:
+        ``(answer, reads)``: the answer the loop delivered with no reads beside
+        it, or an empty answer with the reads :func:`react_turn_tool_data`
+        finds; ``None`` when the turn ran no loop, or answered nothing and read
+        nothing a registry or a record could carry.
+    """
+    if not react_result:
+        return None
+    answer = str(react_result.get("final_message") or "")
+    reads = [] if answer else react_turn_tool_data(messages, registry)
+    if not (answer or registry or reads):
+        return None
+    return answer, reads
+
+
+def react_turn_tool_data(
+    messages: Sequence[BaseMessage], registry: Mapping[str, object]
+) -> list[ToolDataRecord]:
+    """The reads a ReAct turn leaves to the response when its answer is withheld.
+
+    A requested result the coverage proved missing (ADR-336) or a budget exit
+    (ADR-248, invariant 1) withholds the loop's answer so the response
+    synthesises « from the actual tool results ». Those are the ones the loop
+    itself read: this turn's tool messages (counted from the END, the reducer
+    trims the head) that returned a result, as the loop read them — the
+    message and its data block, already bounded and marked as external
+    content. Never a failure (the failures directive states it, ADR-303), a
+    call that never ran, or an act (stated by its own directive, ADR-263
+    §23); and never a read whose items the turn's registry already shows,
+    which the response reads through its own data section.
+
+    Args:
+        messages: The thread, the current turn last.
+        registry: The turn's registry items, models or their checkpoint dumps.
+
+    Returns:
+        One record per read the response would otherwise never see, in turn order.
+    """
+    shown = _registry_tool_names(registry)
+    records: list[ToolDataRecord] = []
+    for message in current_turn_responses(list(messages)):
+        if not _a_read_result(message) or message.name in shown:
+            continue
+        text = coerce_content_to_text(message.content).strip()
+        if text:
+            records.append(_message_record(str(message.name), text))
+    return records
+
+
+def _a_read_result(message: BaseMessage) -> bool:
+    """A tool message holding what a read returned: run, succeeded, a read tool's."""
+    if not isinstance(message, ToolMessage) or not message.name:
+        return False
+    if message.status == "error" or message.artifact == TOOL_CALL_NOT_RUN:
+        return False
+    manifest = available_manifest(message.name)
+    return manifest is not None and manifest.mutation_policy not in ACTING_POLICIES
+
+
+def _message_record(tool: str, text: str) -> ToolDataRecord:
+    """A read as the loop received it: its own cut, if any, is stated inside it."""
+    return ToolDataRecord(
+        tool=tool,
+        text=text,
+        shown=1,
+        total=1,
+        key=None,
+        truncated=False,
+        budget_tokens=slot_tool_result_budget(LOOP_SLOT),
+    )
+
+
+def _registry_tool_names(registry: Mapping[str, object]) -> set[str]:
+    """The tools whose items the registry shows, whether models or their dumps."""
+    names: set[str] = set()
+    for item in registry.values():
+        meta = item.get("meta") if isinstance(item, dict) else getattr(item, "meta", None)
+        name = meta.get("tool_name") if isinstance(meta, dict) else getattr(meta, "tool_name", None)
+        if isinstance(name, str) and name:
+            names.add(name)
+    return names
 
 
 def _result_without_tool_data(result: object) -> object:

@@ -50,9 +50,15 @@ Le **Memory Reference Resolution Service** résout les références implicites b
 
 ### 3-Phase Architecture (v2.0 — 2026-04-08)
 
-The resolution pipeline runs inside `MemoryResolver.retrieve_and_resolve()` during
+The resolution pipeline is started by `MemoryResolver.begin()` during
 `QueryAnalyzerService.analyze_full()` (Step 1). It replaces the previous regex-based
 pattern detection with an LLM-based extraction for language-agnostic reference detection.
+
+The analyzer's prompt reads the broad facts alone, so it waits for them only: the
+reference chain (phases 1 to 3) runs beside the analyzer call and is joined right
+after it (latency lot 1, 2026-11-14). `begin()` returns a `PendingMemoryResolution`
+that owns both tracks; the analysis closes it on every exit, a failure and a
+cancellation included, so no chain keeps spending model calls behind a dead turn.
 
 ```
 ┌───────────────────────────────────────────────────────────────────────────┐
@@ -100,9 +106,16 @@ yields higher similarity scores, allowing a higher threshold and less noise.
 
 ### Concurrency Model
 
-- Phase 1 (extraction) and broad retrieval run **in parallel** via `asyncio.gather`
-- Phase 2 per-reference searches run **in parallel** via `asyncio.gather`
-- Phase 3 (resolution) is sequential (single LLM call with all targeted facts)
+- Phase 1 (extraction) and broad retrieval run in the two tasks owned by `PendingMemoryResolution`.
+- The analyzer waits for the broad facts, then runs beside the reference chain; it joins the chain before returning the analysis.
+- Phase 2 per-reference searches run in parallel via `asyncio.gather`.
+- Phase 3 is a single resolution call with the targeted facts, or the broad facts when the targeted search found none.
+
+The message embedding starts earlier, while the turn prepares
+(`agents/api/message_embedding_prefetch.py`). Concurrent readers join the same
+`user_message_embedding.get_or_compute_embedding` flight on a cache miss. The
+turn owns this prefetch and awaits it before closing its accounting scope, so a
+late vector cannot leave its spend unrecorded; a resumed HITL turn starts none.
 
 ---
 
@@ -257,11 +270,12 @@ described above prevent a reference from being inherited by a later turn.
 The resolution runs inside the query analysis, not in a node of its own (each
 point below is read from the code):
 
-- **Query analysis** — `MemoryResolver.retrieve_and_resolve`
-  (`services/analysis/memory_resolver.py`) retrieves the memory facts, then calls
-  `resolve_pre_planner(query, memory_facts, config)`. The analysis LLM may add
-  references of its own (`QueryAnalyzerService`), never replacing one the memory
-  service resolved.
+- **Query analysis** — `MemoryResolver.begin`
+  (`services/analysis/memory_resolver.py`) starts the broad retrieval and the
+  reference chain, which ends in `resolve_pre_planner(query, memory_facts, config)`.
+  The analyzer awaits the facts, then joins the chain after its own call. The
+  analysis LLM may add references of its own (`QueryAnalyzerService`), never
+  replacing one the memory service resolved.
 - **State** — the references live in `QueryIntelligence.resolved_references`,
   typed (`person_name`, `postal_address`, `place`, `datetime`, `other`) and read
   through `turn_references`; the planner renders them one per line with their
@@ -297,31 +311,35 @@ Le service est conçu pour **ne jamais bloquer** la conversation.
 | Phase 3 (resolution) | LLM call fails | Return None → planner uses original query |
 | All phases | No references + no broad facts | Return (None, None) → no resolution |
 
-### Code (MemoryResolver.retrieve_and_resolve)
+### Code (MemoryResolver.begin and the analyzer's join)
 
 ```python
-async def retrieve_and_resolve(self, query, user_id, config):
-    # Parallel: broad retrieval + Phase 1 extraction
-    memory_facts, references = await asyncio.gather(
-        self._retrieve_memory_facts(query, user_id, config),
-        self._extract_references(query, config),
-    )
+def begin(self, query, user_id, config) -> PendingMemoryResolution:
+    # Two tracks started at once: broad retrieval, and the reference chain
+    facts = asyncio.create_task(self._retrieve_memory_facts(query, user_id, config))
+    chain = asyncio.create_task(self._reference_chain(query, user_id, config, facts))
+    return PendingMemoryResolution(facts, chain)
 
-    if references:
-        # Phase 2: targeted search per reference (parallel)
-        targeted_facts = await self._search_memories_targeted(references, user_id, config)
+async def _reference_chain(self, query, user_id, config, broad_facts):
+    references = await self._extract_references(query, config)  # Phase 1
+    if not references:
+        return references, None  # no reference, no resolution call (N-97)
+    targeted = await self._search_memories_targeted(references, user_id, config)  # Phase 2
+    if targeted:
+        return references, await self._resolve_memory_references(query, targeted, config)
+    facts = await broad_facts  # fallback: broad facts when targeted search found nothing
+    if not facts:
+        return references, None
+    return references, await self._resolve_memory_references(query, facts, config)
 
-        if targeted_facts:
-            # Phase 3: resolve using targeted facts
-            resolved = await self._resolve_memory_references(query, targeted_facts, config)
-        elif memory_facts:
-            # Fallback: broad facts if targeted search found nothing
-            resolved = await self._resolve_memory_references(query, memory_facts, config)
-    elif memory_facts:
-        # No references extracted → try resolution with broad facts anyway
-        resolved = await self._resolve_memory_references(query, memory_facts, config)
-
-    return memory_facts, resolved
+# In QueryAnalyzerService.analyze_full:
+pending = self.memory_resolver.begin(memory_search_query, user_id, config)
+try:
+    memory_facts = await pending.facts()          # the analyzer's only memory input
+    analysis = await self.analyze(..., memory_facts=memory_facts)
+    resolution = await pending.resolution()      # joined after the analyzer call
+finally:
+    await pending.close()                         # cancels and awaits what is left
 ```
 
 ---

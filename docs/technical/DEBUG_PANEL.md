@@ -116,6 +116,13 @@ tour vide. Deux conséquences énoncées plutôt que masquées : le résultat du
 est « à cet instant » et non un verdict (`settled: false`), et une consultation
 nomme la CAPACITÉ, jamais l'appel — aucun argument ne franchit cette frontière.
 
+Le bloc du tour dit aussi comment il a choisi son moteur (ADR-390) : « Mode » est le
+MOTEUR qui a tourné ; « Requested » (le mode demandé) et « Engine because » (la raison
+bornée d'`EngineReason`) n'apparaissent que lorsqu'ils disent autre chose — un tour
+en mode automatique, ou un mode choisi que l'instance n'a pas pu exécuter tel quel
+(`loop_disabled`). Un mode qui a tourné comme la personne l'a choisi n'ajoute rien,
+et une charge antérieure au mode automatique ne porte aucun des deux champs.
+
 ### 5. Les corrections silencieuses
 
 Six choses arrivent régulièrement en cours de tour et changent ce qui en sort :

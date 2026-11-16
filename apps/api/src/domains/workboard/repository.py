@@ -55,6 +55,7 @@ from src.domains.workboard.board_queries import (
     BoardFilters,
     apply_assignee,
     apply_category,
+    mentions_word,
     needs_me_stmt,
     priority_rank,
     visible_predicate,
@@ -146,6 +147,10 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
             # escaped them since it was written — one helper for both).
             needle = escape_like(filters.query)
             stmt = stmt.where(WorkboardTicket.title.ilike(f"%{needle}%", escape=LIKE_ESCAPE))
+        if filters.words:
+            # Every word, each in the title or the description: a ticket
+            # holding one word and another holding the next match neither.
+            stmt = stmt.where(*(mentions_word(word) for word in filters.words))
         if filters.include_closed_before is not None:
             # A CLOSED ticket is hidden once it has been closed a while; an
             # OPEN one is never hidden by this filter, however old it is.

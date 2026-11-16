@@ -136,6 +136,12 @@ Samples are deduplicated on `(user_id, kind, date_start, date_end)`. For the uni
 
 iOS's "format ISO 8601" option on the *Format de date* action already produces a compliant value when *Inclure le décalage horaire* is on.
 
+## iPhone and Apple Watch: one walk counted once
+
+*Obtenir des échantillons de santé* returns the samples of every device that recorded them: the iPhone in your pocket and the Apple Watch on your wrist both count the same walk, in intervals that overlap without being identical (measured on 14 November 2026: 161 overlapping pairs in one day). Send them all, as they come. LIA counts each slice of time once, at the highest rate a device recorded for it, so the day's total is not doubled; the history already received is counted the same way. Nothing to configure, and the `o` field plays no part in it.
+
+Days are yours: « today », the daily bars, the averages and the comparisons start at midnight in your account's timezone, never at midnight UTC.
+
 ## Troubleshooting
 
 - **No data appears on the charts**: the default period is *Jour*; switch to *Heure* if you pushed short-interval samples.
@@ -144,6 +150,7 @@ iOS's "format ISO 8601" option on the *Format de date* action already produces a
 - **Everything gets rejected with `malformed:not_a_dict`**: step 5 produced a string, not a JSON array. Wire the loop result into *Obtenir le contenu de* with output = **JSON**.
 - **Shortcut silently fails**: add the "Si statut ≠ 200" notification branch (step 7) — iOS otherwise swallows ingestion errors.
 - **Heart rate reads stale values**: Apple Shortcuts returns the recorded samples. If the Watch hasn't measured recently, the loop will emit nothing. Consider triggering after a Watch measurement.
+- **LIA shows fewer steps than Santé**: the steps walked since the Shortcut's last send are not in LIA yet. Santé also keeps one device per period by its source priority, where LIA keeps the highest rate: the difference stays small.
 
 ## Security notes
 

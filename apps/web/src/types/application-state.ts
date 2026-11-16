@@ -39,6 +39,7 @@ const applicationResource = z.enum([
   'workboard',
   'spaces',
   'generated_assets',
+  'writing_style',
 ]);
 
 /** Hints contain identities and field names only; values come from authenticated queries. */

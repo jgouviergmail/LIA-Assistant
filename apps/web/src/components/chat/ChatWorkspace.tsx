@@ -23,6 +23,8 @@ import { ResizableDebugPanel } from '@/components/debug/ResizableDebugPanel';
 import { useDebugMetrics } from '@/components/debug/hooks/useDebugMetrics';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { discussionReach } from '@/lib/discussion-leave';
+import { discussionTitleIn } from '@/lib/notification-discussion';
+import { annexIdOf } from '@/lib/conversation-selection';
 import { logger } from '@/lib/logger';
 import { sentHistoryOf } from '@/lib/sent-history';
 import {
@@ -461,6 +463,10 @@ function ChatWorkspaceView({
     onSelectedReset: refreshTarget,
     onCatalogueChange: refreshFirstMain,
     onMetadataChange: refreshCatalogue,
+    // A return that came back to another discussion is named in its toast,
+    // which opens it where leaving cancels nothing (ADR-378 amendment).
+    discussionTitle: id => discussionTitleIn(switcher?.page, id, t('chat.discussions.main')),
+    openDiscussion: reach.openById,
     refreshUsage,
     owner: user,
     signedIn: !!user,
@@ -1067,6 +1073,7 @@ function ChatWorkspaceView({
                   at this level). This wrapper is positioning only. */}
               <div className="shadow-sm">
                 <ChatInput
+                  discussionId={annexIdOf(target)}
                   uploadDraft={uploads}
                   observeAttachmentLink={!embedded}
                   initialMessage={initialComposerMessage}

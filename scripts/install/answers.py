@@ -66,11 +66,14 @@ def is_valid_domain(value: str) -> bool:
 
 
 def is_valid_host(value: str) -> bool:
-    """LAN hostname or IP address literal."""
+    """LAN hostname or IP address literal a browser can open.
+
+    A zoned IPv6 address (``fe80::1%eth0``) names an interface of this host
+    alone: no browser accepts it in an address.
+    """
     candidate = value.strip()
     try:
-        ipaddress.ip_address(candidate)
-        return True
+        return ipaddress.ip_address(candidate).version == 4 or "%" not in candidate
     except ValueError:
         return bool(_HOSTNAME_RE.fullmatch(candidate.lower()))
 
@@ -110,10 +113,11 @@ def load_answers_file(path: Path) -> Mapping[str, str]:
     return values
 
 
-def _parse(question: Question, raw: str) -> Any:
+def _parse(question: Question, raw: str, answers: Mapping[str, Any] | None = None) -> Any:
     """Convert a valid raw string to its typed value (None = invalid).
 
-    An optional question answered with nothing is skipped: ``""``.
+    An optional question answered with nothing is skipped: ``""``. A value that
+    repeats an earlier answer it must differ from (``distinct_from``) is invalid.
     """
     value = raw.strip()
     if not value and question.default is not None:
@@ -131,7 +135,14 @@ def _parse(question: Question, raw: str) -> Any:
         return None
     if question.validator is not None and not question.validator(value):
         return None
+    if _repeats_an_earlier_answer(question, value, answers or {}):
+        return None
     return value
+
+
+def _repeats_an_earlier_answer(question: Question, value: str, answers: Mapping[str, Any]) -> bool:
+    taken = {str(answers[key]).lower() for key in question.distinct_from if answers.get(key)}
+    return value.lower() in taken
 
 
 def _prompt(question: Question, language: str) -> str:
@@ -142,10 +153,15 @@ def _prompt(question: Question, language: str) -> str:
     return f"[{question.key}] {text}: "
 
 
-def _ask_interactive(question: Question, io: IOAdapter, language: str) -> Any:
+def _ask_interactive(
+    question: Question,
+    io: IOAdapter,
+    language: str,
+    answers: Mapping[str, Any] | None = None,
+) -> Any:
     read = io.getpass_fn if question.secret else io.input_fn
     for _attempt in range(_MAX_INTERACTIVE_ATTEMPTS):
-        parsed = _parse(question, read(_prompt(question, language)))
+        parsed = _parse(question, read(_prompt(question, language)), answers)
         if parsed is not None:
             return parsed
         io.print_fn(msg("error.invalid_value", language, key=question.key))
@@ -268,7 +284,7 @@ def collect_reconfiguration(
         if not question.applies_to(collected):
             continue
         language = str(collected.get("wizard_language", current.language))
-        parsed = _ask_interactive(question, io, language)
+        parsed = _ask_interactive(question, io, language, collected)
         if question.key == "exposure":
             parsed = Exposure(str(parsed))
         collected[question.key] = parsed
@@ -289,6 +305,9 @@ def collect_reconfiguration(
         speaking_avatar=bool(collected["speaking_avatar"]),
         world=bool(collected["world"]),
         web_search=bool(collected["web_search"]),
+        ntfy_server=bool(collected["ntfy_server"]),
+        ntfy_domain=_text("ntfy_domain"),
+        ntfy_ios_relay=bool(collected.get("ntfy_ios_relay", False)),
         server_host=_text("server_host"),
         web_domain=_text("web_domain"),
         api_domain=_text("api_domain"),
@@ -340,12 +359,12 @@ def collect_answers(
                 raw = ""
             if raw is None:
                 raise InstallInputError(f"missing_answer:{question.key}")
-            parsed = _parse(question, raw)
+            parsed = _parse(question, raw, collected)
             if parsed is None:
                 raise InstallInputError(f"invalid_answer:{question.key}")
         else:
             language = str(collected.get("wizard_language", "en"))
-            parsed = _ask_interactive(question, io, language)
+            parsed = _ask_interactive(question, io, language, collected)
         if question.key == "exposure":
             parsed = Exposure(str(parsed))
         collected[question.key] = parsed
@@ -366,6 +385,10 @@ def collect_answers(
         world=bool(collected.get("world", False)),
         # Always asked, so an answers file without it holds the default (on).
         web_search=bool(collected["web_search"]),
+        # Always asked too, its default off; the follow-ups only when it runs.
+        ntfy_server=bool(collected["ntfy_server"]),
+        ntfy_domain=(str(collected["ntfy_domain"]) if "ntfy_domain" in collected else None),
+        ntfy_ios_relay=bool(collected.get("ntfy_ios_relay", False)),
         skill_sandbox=bool(collected["skill_sandbox"]),
         server_host=(str(collected["server_host"]) if "server_host" in collected else None),
         web_domain=(str(collected["web_domain"]) if "web_domain" in collected else None),

@@ -4,9 +4,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.domains.meetings.costs import total_cost_eur
 from src.domains.meetings.models import Meeting
 from src.domains.meetings.processing import _cost_metadata
-from src.domains.meetings.service import total_cost_eur
 from src.domains.meetings.synthesis import SynthesisUsage
 from src.infrastructure.llm.decision_types import DecisionCharge
 

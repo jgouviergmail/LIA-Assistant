@@ -17,6 +17,10 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     REMINDER_PROCESSING_STALE_TIMEOUT_MINUTES_DEFAULT,
+    REMINDER_SNOOZE_LONG_MINUTES_DEFAULT,
+    REMINDER_SNOOZE_MORNING_HOUR_DEFAULT,
+    REMINDER_SNOOZE_SHORT_MINUTES_DEFAULT,
+    REMINDER_SNOOZE_WINDOW_HOURS_DEFAULT,
     ROUTINE_WEBHOOK_MAX_BODY_BYTES_DEFAULT,
     ROUTINE_WEBHOOK_MAX_PENDING_DEFAULT,
     ROUTINE_WEBHOOK_MAX_PER_RUN_DEFAULT,
@@ -257,6 +261,52 @@ class SchedulerSettings(BaseSettings):
         ),
     )
 
+    reminder_snooze_window_hours: int = Field(
+        default=REMINDER_SNOOZE_WINDOW_HOURS_DEFAULT,
+        ge=1,
+        le=168,
+        description=(
+            "How long a fired reminder can still be postponed from its "
+            "notification (ADR-268 amendment 2026-11-16). Each firing is kept "
+            "this long, then purged; a press after it answers « expired ». "
+            "Symptom if too low: a notification read in the morning can no "
+            "longer be postponed. Symptom if too high: firings are kept longer, "
+            "nothing else."
+        ),
+    )
+
+    reminder_snooze_short_minutes: int = Field(
+        default=REMINDER_SNOOZE_SHORT_MINUTES_DEFAULT,
+        ge=1,
+        le=720,
+        description=(
+            "The short postponement a fired reminder offers (« in 10 min »), on "
+            "every surface: the chat bubble, the toast, the web push and Telegram. "
+            "Must stay below REMINDER_SNOOZE_LONG_MINUTES."
+        ),
+    )
+
+    reminder_snooze_long_minutes: int = Field(
+        default=REMINDER_SNOOZE_LONG_MINUTES_DEFAULT,
+        ge=2,
+        le=1440,
+        description=(
+            "The long postponement a fired reminder offers (« in 1 h »), on the "
+            "same surfaces as the short one."
+        ),
+    )
+
+    reminder_snooze_morning_hour: int = Field(
+        default=REMINDER_SNOOZE_MORNING_HOUR_DEFAULT,
+        ge=0,
+        le=23,
+        description=(
+            "The hour « tomorrow morning » means, on the account's wall clock, "
+            "for a postponed reminder. Pressed before the end of the night it "
+            "is that same morning."
+        ),
+    )
+
     scheduled_actions_stale_timeout_minutes: int = Field(
         default=SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES,
         ge=1,
@@ -351,5 +401,20 @@ class SchedulerSettings(BaseSettings):
                 "SCHEDULED_ACTIONS_WEATHER_HORIZON_HOURS * 60 (got check="
                 f"{self.scheduled_actions_weather_check_minutes}, "
                 f"horizon={self.scheduled_actions_weather_horizon_hours} h)"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _snooze_offers_two_distinct_delays(self) -> SchedulerSettings:
+        """Refuse a short postponement that is not shorter than the long one.
+
+        The notification offers both side by side: equal or inverted, the two
+        buttons say the same thing or lie about which is « later ».
+        """
+        if self.reminder_snooze_short_minutes >= self.reminder_snooze_long_minutes:
+            raise ValueError(
+                "REMINDER_SNOOZE_SHORT_MINUTES must be < REMINDER_SNOOZE_LONG_MINUTES "
+                f"(got short={self.reminder_snooze_short_minutes}, "
+                f"long={self.reminder_snooze_long_minutes})"
             )
         return self

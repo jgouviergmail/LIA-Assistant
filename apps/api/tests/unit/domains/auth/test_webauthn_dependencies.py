@@ -43,7 +43,9 @@ class TestCreateUserRateLimiter:
         limiter.acquire = AsyncMock(return_value=True)
         dependency = create_user_rate_limiter("webauthn_enroll", max_calls=5)
 
-        with patch("src.domains.auth.dependencies.get_rate_limiter", return_value=limiter):
+        with patch(
+            "src.infrastructure.rate_limiting.user_limiter.get_rate_limiter", return_value=limiter
+        ):
             await dependency(user)
 
         kwargs = limiter.acquire.call_args.kwargs
@@ -56,7 +58,9 @@ class TestCreateUserRateLimiter:
         limiter.acquire = AsyncMock(return_value=False)
         dependency = create_user_rate_limiter("webauthn_enroll", max_calls=5)
 
-        with patch("src.domains.auth.dependencies.get_rate_limiter", return_value=limiter):
+        with patch(
+            "src.infrastructure.rate_limiting.user_limiter.get_rate_limiter", return_value=limiter
+        ):
             with pytest.raises(HTTPException) as exc_info:
                 await dependency(_make_user())
 
@@ -69,7 +73,7 @@ class TestCreateUserRateLimiter:
         dependency = create_user_rate_limiter("webauthn_enroll", max_calls=5)
 
         with patch(
-            "src.domains.auth.dependencies.get_rate_limiter",
+            "src.infrastructure.rate_limiting.user_limiter.get_rate_limiter",
             side_effect=Exception("Redis down"),
         ):
             await dependency(_make_user())

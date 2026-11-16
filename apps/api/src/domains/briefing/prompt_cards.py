@@ -87,10 +87,13 @@ def _project_mails(summary: dict[str, object], cards: CardsBundle, verbose: bool
 
     if cards.mails.status == CardStatus.OK and cards.mails.data is not None:
         items = getattr(cards.mails.data, "items", []) or []
-        total = getattr(cards.mails.data, "total_unread_today", 0)
+        total = getattr(cards.mails.data, "total_unread_today", None)
+        # The inbox's own figure, whenever the mail arrived — never « today » —
+        # and absent when the mailbox could not tell (ADR-185 amendment 2026-11-15).
+        counted: dict[str, object] = {} if total is None else {"unread_in_inbox": total}
         summary["mails"] = (
             {
-                "unread_today": total,
+                **counted,
                 "items": [
                     {
                         "from": (m.sender_name or m.sender_email or "(unknown)"),
@@ -102,7 +105,7 @@ def _project_mails(summary: dict[str, object], cards: CardsBundle, verbose: bool
                 ],
             }
             if verbose or any(classification_fields(m.classification) for m in items[:3])
-            else {"unread_today": total}
+            else counted
         )
 
 

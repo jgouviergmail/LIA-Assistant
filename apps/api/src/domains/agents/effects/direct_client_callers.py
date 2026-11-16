@@ -43,8 +43,9 @@ CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
     # (``IN_TURN_CAPABILITIES``).
     "domains/agents/services/knowledge_enrichment_service.py": "in-turn",
     "domains/agents/services/planner/hue_discovery.py": "in-turn",
-    # The sent folder, read to learn how the person writes (ADR-383): in a turn as
-    # ``writing_style:email``; in a Tools assist, filed by the assist's own reading.
+    # The sent folder, read to learn how the person writes at their request (ADR-383): in
+    # the assistant's turn as ``writing_style:email``; at their click in the settings,
+    # filed by the assists' door that runs it (``tool_assists/style_learning``).
     "domains/agents/emails/writing_style.py": "in-turn",
     "domains/briefing/fetchers.py": "briefing",
     # What a click on a tool asked LIA to read (ADR-372): through the Tools' own door,
@@ -61,6 +62,10 @@ CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
     "domains/rag_spaces/drive_push.py": "space",
     "domains/rag_spaces/drive_sync.py": "space",
     "domains/rag_spaces/mail_source_service.py": "space",
+    # A label source's history and threads: the full sync and the push-driven
+    # pass each file ONE read under ``space_read`` (the push one since 2026-11-15,
+    # when the shared history reader brought the module into this count).
+    "domains/rag_spaces/mail_sync.py": "space",
     "domains/users/geocoding.py": "profile",
     # The recipient suggestions open the contacts connector through the
     # door (ADR-304) and file a LIVE read of the book; a cache hit opens
@@ -74,7 +79,12 @@ CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
     # what the module opens.
     "domains/telephony/availability.py": "phone_call",
     "infrastructure/scheduler/heartbeat_wake_sweep.py": "wake",
+    # The wake's Gmail preview, read under the sweep's ``_wake_read``.
+    "domains/heartbeat/wake_context.py": "wake",
     "domains/heartbeat/context_aggregator.py": "heartbeat",
+    # The tick's Gmail history delta, read inside the mail section the
+    # aggregator files on the heartbeat surface.
+    "domains/heartbeat/gmail_delta.py": "heartbeat",
     "domains/heartbeat/context_sources.py": "heartbeat",
     # The pending tasks of every list of the account (owner rule, 2026-11-10).
     "domains/heartbeat/tasks_context.py": "heartbeat",
@@ -89,6 +99,8 @@ CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
     "domains/meetings/enrichment.py": "meeting",
     # The 360° calendar section, filed by the assembly that asked for it.
     "domains/relations/providers/events.py": "relation_debrief",
+    # The same section searched by name for a person with no address, filed alike.
+    "domains/relations/overview/fallback.py": "relation_debrief",
     "domains/interests/services/content_sources/brave_source.py": "interest",
     "domains/interests/services/content_sources/perplexity_source.py": "interest",
     "domains/interests/services/content_sources/wikipedia_source.py": "interest",

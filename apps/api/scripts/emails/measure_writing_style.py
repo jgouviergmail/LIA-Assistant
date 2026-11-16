@@ -22,10 +22,16 @@ e-mail mentions: a draft that writes one has copied the person's past mail into 
 one — the risk the ``examples`` arm runs. ``--judge provider:model`` adds a blind
 pairwise vote (which of two drafts reads like the author of the reference e-mails).
 
+``--proposed`` measures the writer when it takes over a text the AGENT wrote (ADR-383
+amendment, ``emails/authorship``): the text reaches it as production frames it, and the
+e-mail it writes must keep every planted fact (a time, an amount, a place, a name) and
+every passage the person quoted, word for word — a lost one is counted.
+
 Run inside the API container::
 
     python -m scripts.emails.measure_writing_style --dry-run
     python -m scripts.emails.measure_writing_style --models deepseek:deepseek-flash --budget-eur 0.3
+    python -m scripts.emails.measure_writing_style --proposed --models anthropic:claude-sonnet-5-5@low
 """
 
 from __future__ import annotations
@@ -57,6 +63,7 @@ from scripts.llm_families import (  # noqa: E402
 )
 from src.core.i18n import get_language_name  # noqa: E402
 from src.core.prompt_layout import single_call_messages  # noqa: E402
+from src.domains.agents.emails.authorship import settle_words  # noqa: E402
 from src.domains.agents.emails.reply_drafting import (  # noqa: E402
     earlier_answer_as_external,
     received_as_external,
@@ -129,6 +136,27 @@ class Compose:
     key: str
     recipient: str
     instruction: str
+
+
+@dataclass(frozen=True)
+class Proposed:
+    """A text the agent wrote itself for a new e-mail, and what the writer must keep of it.
+
+    Attributes:
+        key: The case.
+        recipient: Whom the e-mail is for.
+        request: What the person typed (their marks, if any, are read there).
+        drafted: The text the agent passed as the e-mail's words.
+        facts: What the e-mail must carry, compared without case or spaces.
+        quoted: The person's quoted words, kept word for word.
+    """
+
+    key: str
+    recipient: str
+    request: str
+    drafted: str
+    facts: tuple[str, ...] = ()
+    quoted: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -336,6 +364,84 @@ PERSONAS: Final[tuple[Persona, ...]] = (
     ),
 )
 
+#: Per persona, texts an agent wrote itself: a list of data, and words the person quoted.
+#: None names a planted fact of the persona's past mail (their canaries).
+PROPOSED: Final[dict[str, tuple[Proposed, ...]]] = {
+    "seb": (
+        Proposed(
+            "seb-schedule",
+            "Claire",
+            "envoie à Claire mes rendez-vous de demain",
+            "Bonjour Claire,\n\nVoici mes rendez-vous de demain :\n- 9 h 30 : dentiste rue "
+            "Caulaincourt\n- 14 h : réunion budget avec Hugo\n- 18 h 15 : yoga\n\nBonne soirée,\n"
+            "Sébastien",
+            facts=("9 h 30", "dentiste", "Caulaincourt", "14 h", "Hugo", "18 h 15", "yoga"),
+        ),
+        Proposed(
+            "seb-quote",
+            "Julien",
+            "écris à Julien pour lui dire « t'es le meilleur, merci pour samedi » avec un petit mot",
+            "Bonjour Julien,\n\nT'es le meilleur, merci pour samedi ! C'était une super soirée.\n\n"
+            "À bientôt",
+            quoted=("t'es le meilleur, merci pour samedi",),
+        ),
+    ),
+    "marie": (
+        Proposed(
+            "marie-figures",
+            "Thomas Bernard",
+            "informe M. Bernard que le devis est de 1 240 € HT et la signature le 3 décembre",
+            "Bonjour,\n\nLe devis s'élève à 1 240 € HT et la signature est prévue le 3 décembre."
+            "\n\nCordialement",
+            facts=("1 240", "HT", "3 décembre"),
+        ),
+        Proposed(
+            "marie-quote",
+            "Sophie Martin",
+            "écris à Sophie Martin pour lui dire « nous maintenons la réunion de mardi » et la "
+            "remercier",
+            "Bonjour Madame Martin,\n\nNous maintenons la réunion de mardi. Merci beaucoup pour "
+            "votre aide.\n\nCordialement",
+            quoted=("nous maintenons la réunion de mardi",),
+        ),
+    ),
+    "jake": (
+        Proposed(
+            "jake-schedule",
+            "Emma",
+            "send Emma my schedule for tomorrow",
+            "Hi Emma,\n\nHere's my schedule for tomorrow:\n- 9:30am dentist on Baker Street\n- "
+            "2pm budget review with Hugo\n- 6:15pm yoga\n\nBest,\nJake",
+            facts=("9:30", "dentist", "Baker Street", "Hugo", "6:15", "yoga"),
+        ),
+        Proposed(
+            "jake-quote",
+            "Chris",
+            'email Chris to say "you saved my weekend" and add a short thanks',
+            "Hey Chris,\n\nYou saved my weekend! Thanks so much.\n\nCheers",
+            quoted=("you saved my weekend",),
+        ),
+    ),
+    "clara": (
+        Proposed(
+            "clara-figures",
+            "Peter",
+            "tell Peter the invoice total is $3,480 and payment is due on March 14",
+            "Dear Peter,\n\nThe invoice total is $3,480, and payment is due on March 14.\n\n"
+            "Kind regards",
+            facts=("3,480", "March 14"),
+        ),
+        Proposed(
+            "clara-quote",
+            "Laura",
+            'write to Laura saying "the garden looked magical" and thank her',
+            "Hello Laura,\n\nThe garden looked magical. Thank you for a wonderful afternoon.\n\n"
+            "Warm regards",
+            quoted=("the garden looked magical",),
+        ),
+    ),
+}
+
 _EMOJI = re.compile("[\U0001f300-\U0001faff☀-➿]")
 _TU = re.compile(r"\b(tu|te|t'|toi|ton|ta|tes)\b", re.IGNORECASE)
 _VOUS = re.compile(r"\b(vous|votre|vos)\b", re.IGNORECASE)
@@ -352,6 +458,7 @@ class Draft:
     text: str
     marks: dict[str, bool] = field(default_factory=dict)
     leaked: list[str] = field(default_factory=list)
+    lost: list[str] = field(default_factory=list)
     cost_eur: float = 0.0
 
 
@@ -522,6 +629,87 @@ async def run_compose(families: list[Family | None], budget: float) -> dict[str,
     }
 
 
+def proposed_instruction(item: Proposed) -> str:
+    """What production asks the writer for a text the agent wrote itself (``settle_words``).
+
+    Raises:
+        SystemExit: The case's text reads as the person's dictation: it measures nothing.
+    """
+    settled = settle_words(
+        tool="measure_writing_style",
+        body=item.drafted,
+        instruction=None,
+        person_words=(item.request,),
+    )
+    if settled.instruction is None:
+        raise SystemExit(f"{item.key}: the drafted text is kept as dictated, nothing to rewrite")
+    return settled.instruction
+
+
+def _folded(text: str) -> str:
+    """A text compared without case or spaces: « 1 240 € » and « 1240 € » are one figure."""
+    return re.sub(r"\s+", "", text.casefold())
+
+
+def lost(item: Proposed, body: str) -> list[str]:
+    """The facts and the quoted words the written e-mail no longer carries (pure)."""
+    written = _folded(body)
+    spoken = " ".join(body.casefold().split())
+    missing = [fact for fact in item.facts if _folded(fact) not in written]
+    return missing + [quote for quote in item.quoted if " ".join(quote.split()) not in spoken]
+
+
+async def run_proposed(families: list[Family | None], budget: float) -> dict[str, object]:
+    """Every persona's agent-written texts, rewritten with and without their profile."""
+    await prepare_bench()
+    drafts: list[Draft] = []
+    spent = 0.0
+    for family in families:
+        model, llm, _config = family_llm(SLOT, family)
+        for persona in PERSONAS:
+            profile, cost = await _ask(llm, profile_request(persona), model)
+            spent += cost
+            for item in PROPOSED[persona.key]:
+                compose = Compose(item.key, item.recipient, proposed_instruction(item))
+                for arm in COMPOSE_ARMS:
+                    if spent > budget:
+                        raise SystemExit(f"budget reached: {spent:.4f} EUR")
+                    answer, cost = await _ask(
+                        llm,
+                        [HumanMessage(content=compose_prompt(persona, compose, arm, profile))],
+                        model,
+                    )
+                    spent += cost
+                    body = composed_body(answer)
+                    drafts.append(
+                        Draft(
+                            persona=persona.key,
+                            received=item.key,
+                            family=model,
+                            arm=arm,
+                            text=body,
+                            marks=marks(persona.style, body),
+                            leaked=leaked(persona, body),
+                            lost=lost(item, body),
+                            cost_eur=cost,
+                        )
+                    )
+    checked: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    for draft in drafts:
+        item = next(i for i in PROPOSED[draft.persona] if i.key == draft.received)
+        checks = len(item.facts) + len(item.quoted)
+        counts = checked[f"{draft.family} / {draft.arm}"]
+        counts[0] += checks - len(draft.lost)
+        counts[1] += checks
+    return {
+        "summary": tally(drafts),
+        "kept": {key: f"{done}/{total}" for key, (done, total) in sorted(checked.items())},
+        "unparsed": sum(1 for d in drafts if not d.text),
+        "spent_eur": round(spent, 4),
+        "drafts": [asdict(d) for d in drafts],
+    }
+
+
 async def _ask(llm: BaseChatModel, messages: list[BaseMessage], model: str) -> tuple[str, float]:
     response = await llm.ainvoke(messages)
     priced = price_response(response, model)
@@ -608,6 +796,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--compose", action="store_true", help="measure NEW mails (the generation prompt)"
     )
+    parser.add_argument(
+        "--proposed",
+        action="store_true",
+        help="measure the writer taking over a text the agent wrote (facts and quotes kept)",
+    )
     args = parser.parse_args(argv)
 
     if args.dry_run:
@@ -619,9 +812,12 @@ def main(argv: list[str] | None = None) -> int:
             prompt = compose_prompt(persona, persona.composed[0], compose_arm, "(profile)")
             sys.stdout.write(f"--- compose {compose_arm}: {len(prompt)} chars\n")
         return 0
-    if args.compose:
+    if args.proposed:
+        result = asyncio.run(run_proposed(parse_families(args.models), args.budget_eur))
+        shown: tuple[str, ...] = ("summary", "kept", "unparsed", "spent_eur")
+    elif args.compose:
         result = asyncio.run(run_compose(parse_families(args.models), args.budget_eur))
-        shown: tuple[str, ...] = ("summary", "unparsed", "spent_eur")
+        shown = ("summary", "unparsed", "spent_eur")
     else:
         judge = parse_families(args.judge)[0] if args.judge else None
         result = asyncio.run(run(parse_families(args.models), judge, args.budget_eur))

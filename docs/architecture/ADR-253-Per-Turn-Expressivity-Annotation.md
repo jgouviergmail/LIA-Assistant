@@ -201,3 +201,21 @@ découpé caractère par caractère au nettoyeur final. Le même filtre retire
 `<relevant_ids>…</relevant_ids>`, troisième balise en bande, que le flux ne
 filtrait pas du tout ; une sélection jamais fermée est rendue telle quelle, comme
 le nettoyeur final la garde.
+
+## Amendement 2026-11-16 — une sélection se ferme à sa première balise fermante
+
+Relevé pendant la qualification du mode automatique (ADR-390, rejeu du 15/11) : une
+réponse s'ouvrait sur la sélection, suivie d'une balise fermante au nom déformé par
+le modèle. Ni le flux ni le nettoyeur final ne la reconnaissaient comme fermée : la
+personne a lu la balise entière en tête de sa réponse.
+
+Une sélection ne contient que des identifiants, jamais un `<`. Elle se ferme donc à
+sa PREMIÈRE balise fermante, quel que soit le nom que le modèle lui a donné : le
+nettoyeur final lit `<relevant_ids>([^<]*)</[^<>]*>`
+(`apps/api/src/domains/agents/utils/registry_filtering.py`), et le flux applique la
+même règle (`MachineTagFilter._skip_paired`). Un premier `<` qui n'ouvre pas une
+balise fermante — le `<div>` d'une réponse HTML — signifie que la sélection ne s'est
+jamais fermée : elle est rendue telle quelle, des deux côtés, et rien du HTML qui la
+suit n'est avalé. Chaque caractère reste lu un nombre borné de fois (ADR-326 ;
+témoin « a closing tag never ended » dans `test_machine_tags.py`). La constante
+`RELEVANT_IDS_CLOSING`, devenue sans lecteur, est supprimée.

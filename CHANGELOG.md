@@ -5,6 +5,133 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.0] - 2026-11-16
+
+**The right engine, wherever you talk.**
+Automatic mode chooses how to handle each request, Telegram carries files and readable answers,
+and ntfy brings notifications to another device without requiring Google. A reminder that rang can
+be postponed, or its series stopped; learning your writing style is now your explicit choice. Results return
+to the discussion that started them, calendars are read across your own agendas, and long
+conversations keep more of your words when their history is condensed.
+
+### Added
+
+- 🧭 **Automatic execution mode** (ADR-390): choose **Automatic** alongside Pipeline and ReAct in
+  the chat, routines and Workboard tickets. For a request requiring planned work, the router settles
+  the engine once, keeps it through a confirmation, and shows it beneath the answer. Work that needs the loop goes
+  there; otherwise a native JEV decision checks computation, cross-checking, open-ended work and
+  information named only in text. An uncertain or unavailable decision chooses ReAct; disabling the
+  loop leaves Pipeline. Administrators can inspect readiness and the decision's recorded reasons.
+- 📲 **Telegram as a fuller conversation** (ADR-389): send photos, documents and albums through the
+  same attachment checks as the chat, and receive generated files. Replies render headings, lists,
+  tables and quotations for Telegram; link previews stay off by default. `/stop` uses the chat's
+  cancellation authority, `/help` and `/start` explain the channel in six languages, quoted replies
+  and locations reach the request, and optional voice replies use LIA's configured spoken voice.
+  Messages written while LIA works can wait, be withdrawn or sent next from either surface; a
+  scheduled result follows the channel chosen for it.
+- 🔔 **ntfy notifications** (ADR-391): subscribe a device in **Settings › Notifications**, on a
+  public ntfy server or the instance's own. A notice carries no message content by default; full
+  text is an explicit choice. Topics and credentials are encrypted, custom destinations are validated
+  against SSRF, and the notification opens its discussion. The installer offers an optional,
+  digest-pinned ntfy service and an explicit iOS wake-relay choice, without adding a core dependency.
+- ⏰ **Act on a reminder that rang** (ADR-268 amendment): **Postpone** the occurrence from its
+  chat card or Telegram keyboard without moving the recurring series. **Stop** ends that series
+  and prevents future occurrences. The action names the recorded ringing and is settled under
+  the corresponding lock.
+- 🧠 **Import memories and restore a skill from the chat**: attach a CSV or JSON memory export and
+  ask LIA to import it, or ask to restore a skill's previous version. The confirmation names the
+  file or version and the exact counts; its sealed content is checked again before the existing
+  import or restore operation runs. No import is inferred from merely attaching a file.
+- ✉️ **Original e-mail layout in chat cards**: the chat and Tools share the same isolated reader,
+  including inline images, an explicit choice to load remote images, a text view and visible notices
+  when the layout or an image could not be read.
+- 🧩 **Stripe in Known MCPs**: OAuth discovery reads authorization-server metadata at the issuer's
+  path as well as the root, enabling servers that publish there while keeping PKCE requirements.
+
+### Changed
+
+- 🖋️ **Writing-style learning happens only when requested** (ADR-383 amendment): **Learn** in the
+  settings or a confirmed request to LIA reads the latest sent mail and replaces the encrypted style
+  profile. Automatic first-use learning and periodic relearning are removed. The assistant can
+  inspect, learn and forget the profile through the same operations as the settings. Explicitly
+  dictated words are preserved; eligible mail text passes through one writing service that keeps
+  its facts and uses the selected style. A failed learning keeps the existing profile; too few
+  usable sent messages produces no profile. Stale confirmations cannot erase a newer one.
+- 💬 **Requested results return to their originating discussion** (ADR-378 amendment): calls,
+  meeting recordings, routines launched manually from the chat and peer-message acknowledgements
+  retain the discussion generation they came from. Delivery falls back to Main if it was reset or
+  deleted; the notification and the call's bill follow the delivered result. Opening a notification
+  selects that discussion. Reminders, scheduled routine runs, tickets, received messages and
+  proactive messages continue to arrive in Main.
+- 🗓️ **Read the whole relevant calendar window** (ADR-185 amendment): relationship cards, briefing,
+  availability, radio, meeting follow-up and call context read the person's owned calendars through
+  one shared reader, with explicit partial-result signals. The default agenda still decides where
+  a new event is created. Provider pagination is drained where a complete window or set is needed;
+  a one-request tool continues to publish its cut.
+- 🩺 **Health readings share one aggregation rule** (ADR-148 amendment): overlapping step samples
+  from a phone and watch are fused by their highest rate over each shared interval, while heart-rate
+  observations remain distinct. Charts, daily figures, comparisons and proactive context read the
+  same SQL aggregation in the person's timezone, including daylight-saving changes. Raw samples are
+  retained; figures are estimates from the measurements received, not a copy of a vendor's totals.
+- 🌐 **A clearer, lighter public presentation**: the landing explains the platform and its building
+  blocks with a comparison explorer and balanced feature sections. Server-rendered wording stays
+  out of browser translation payloads; interactive sections receive their own scoped translations.
+  The FAQ, guides, living maps and generated help corpus describe the same capabilities in six
+  languages, with release notes kept in their dedicated history.
+
+### Fixed
+
+- 🧵 **Long-conversation continuity** (ADR-086 amendment): compaction retains whole recent
+  exchanges and a bounded, verbatim record of the person's earlier words, including the truncation
+  fallback. A provider refusal caused by a full context can compact and replay once from the
+  original checkpoint only when no action may have happened and no question is pending. A second
+  refusal gives actionable guidance instead of asking the person to retry indefinitely.
+- 📬 **Complete mailbox and task-list reads**: Gmail history follows every page before advancing
+  its anchor, unread counts come from the provider's inbox total, and task-list selection distinguishes
+  an incomplete read from a missing list. Sent-mail learning reads its configured sample by pages.
+  E-mail HTML/text normalisation preserves useful layout and avoids duplicated quoted material.
+- 🔎 **Relevant context and tools**: catalogue selection reserves places for each requested domain,
+  planner bounds describe what each request can return, and tool data beyond cards reaches the
+  response. Memory lookup starts earlier, concurrent readers share one message embedding, and
+  reference resolution overlaps query analysis. Text-only readers no longer load unused vectors.
+- 📞 **Honest phone outcomes**: returns distinguish a message left on voicemail, voicemail without
+  a known message, no answer, a failed line and an unavailable report, in six languages. Reapers
+  queue a closing notice instead of silently ending a call. A refused dial is not presented as a
+  transient failure; an answer lost after sending remains uncertain and is not redialled. Voicemail
+  instructions leave message delivery to the provider's voicemail tool.
+- 📦 **Bounded archive extraction everywhere**: one extraction boundary checks the declared inflated
+  size of Office, OpenDocument and EPUB archives for uploads, copied knowledge documents, mail
+  attachments and knowledge-space indexing. Knowledge-space indexing records an explicit refusal;
+  a kept chat file remains available when its text cannot be read.
+- 👤 **Contact and meeting context**: contact cards list upcoming meetings before past ones, omit
+  cancelled events, merge duplicates and state an incomplete read. A meeting recording remembers
+  the discussion on screen when it starts. Saved answers and discussion exports preserve mixed
+  Markdown instead of treating the whole answer as an HTML document.
+- 🗂️ **Workboard lookup**: the assistant searches ticket words beyond the title, and **open** includes
+  every non-closed status rather than only the initial column.
+- 🛡️ **Runtime and presentation consistency**: shared rate-limit pauses retain their exact remaining
+  duration, and translation boundaries retain the keys their components read. Dialogs, headings and
+  landing illustrations fit a narrow phone; notification warnings use accessible theme colors.
+  Blog illustrations preload when their article renders, and map data is fetched when its page opens.
+- 🔒 **Dependency security patches**: CalDAV 3.3.2, soupsieve 4.1.1 and DOMPurify 3.4.18 close
+  their published advisories; the affected CalDAV 3.4.0 release is explicitly excluded. Image tooling
+  uses pip 26.3 and npm 12.2.2. The API retains the Docker CLI needed by its sandbox and operations;
+  unused Compose and Buildx plugins are excluded. Trivy is pinned to 0.76.2 with its verified digest.
+
+### Tests and operations
+
+- 🧪 Behavioral coverage for automatic engine selection and resumptions, Telegram files and waiting
+  messages, reminder occurrence races, writing-style consent and concurrent replacement, notification
+  targets, compaction replay, provider pagination and health aggregation on PostgreSQL.
+- 🌍 Six-language parity, FAQ and guide length budgets, generated map freshness and public browser
+  journeys remain release gates; test and catalogue figures are remeasured from this snapshot.
+- 🪟 Windows test, formatter and type-checker tasks launch their installed Python modules directly,
+  matching the commit hook while preserving the same arguments and checks.
+- 🏗️ Eight migrations cover action origins, waiting-message channels, automatic mode, ntfy,
+  reminder occurrences and explicit writing-style learning. Installer tests exercise generated
+  defaults against the composed backend Settings, with optional ntfy configurations included.
+
+
 ## [5.0.0] - 2026-11-14
 
 **A discussion for every subject.**

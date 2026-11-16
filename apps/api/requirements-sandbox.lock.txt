@@ -1482,9 +1482,9 @@ six==1.17.0 \
     #   -c requirements-dev.lock.txt
     #   markdownify
     #   python-dateutil
-soupsieve==4.1 \
-    --hash=sha256:ca9abf7126667010d8f6e9b39bfc1bc3b23c8aed9bcb0f54a754dde969bb8aab \
-    --hash=sha256:e4d667b3974ce6e038e7390486b8093369854a1d345ffdd4c121dfc4a782e809
+soupsieve==4.1.1 \
+    --hash=sha256:8ff3422dab0b720fb667ee79864d80531a0e57994a13eb701697719ffcb751f6 \
+    --hash=sha256:b296bd2d2f65b1a78149f3d7bf6736a147d2c9e2dfbde0e4404639d748a02e03
     # via
     #   -c requirements-dev.lock.txt
     #   beautifulsoup4

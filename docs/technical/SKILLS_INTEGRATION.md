@@ -270,6 +270,7 @@ see — the runner's `UserLocation` context existed for exactly that request.
 | `domains/skills/previous_version.py` | The ONE previous version a replacement keeps (the person's own words only), settled after every commit (lot 14) |
 | `domains/skills/restore.py` | Restoring that version through the import pipeline, itself reversible (lot 14) |
 | `domains/skills/lifecycle_router.py` | `POST /skills/dormant-decision`, `POST /skills/{name}/restore-previous` (lot 14) |
+| `domains/agents/application/skill_restore.py` | The same restoration proposed by the assistant (`restore_lia_skill_previous_version_tool`, ADR-339 exact confirmation): the proposal seals the skill and a digest of every file of the version put aside, compared again under the account's file lock and the owner's row lock before `restore_previous` runs (2026-11-14) |
 | `domains/skills/trust.py` | What a third-party skill may do: `is_third_party`, the isolated runner's scope ([ADR-327](../architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md)) |
 | `domains/skill_library/` | The skill library: portal search, GitHub origin, install and update ([ADR-327](../architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md)) |
 | `core/config/skills.py` | SkillsSettings |

@@ -16,6 +16,7 @@ last. The historical false positives are pinned as regression cases.
 from __future__ import annotations
 
 import pytest
+from langchain_core.exceptions import ContextOverflowError
 
 from src.domains.agents.api.error_messages import SSEErrorMessages
 
@@ -191,3 +192,25 @@ class TestMessagesForNewCategories:
 
         assert auth != generic
         assert "key" in auth or "credentials" in auth or "configuration" in auth
+
+
+class _RefusedForLength(_WithStatus, ContextOverflowError):
+    """Provider-shaped overflow: the SDK's 400 AND LangChain's overflow type."""
+
+
+class TestAWindowThatRefusedTheTurn:
+    """Lot 15: « try again » fails again; the person is told what helps."""
+
+    @pytest.mark.parametrize("lang", LANGS)
+    @pytest.mark.parametrize(
+        "refusal",
+        [ContextOverflowError("too long"), _RefusedForLength("too long", 400)],
+        ids=["langchain", "provider-400"],
+    )
+    def test_the_overflow_is_named_with_the_command_that_helps(
+        self, lang: str, refusal: Exception
+    ) -> None:
+        said = SSEErrorMessages.stream_error(refusal, language=lang)
+
+        assert "/resume" in said
+        assert said != SSEErrorMessages.stream_error(ValueError("boom"), language=lang)

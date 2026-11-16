@@ -9,7 +9,6 @@ must perform nothing — the draft's key ``draft:{id}`` and the step's key
 from __future__ import annotations
 
 import uuid
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -24,6 +23,7 @@ from src.domains.agents.nodes.draft_sequence import decision_entry
 from src.domains.agents.orchestration.plan_schemas import ExecutionPlan, ExecutionStep, StepType
 from src.domains.agents.orchestration.tool_data_projection import without_tool_data
 from src.domains.users.models import User
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = pytest.mark.integration
 
@@ -121,7 +121,7 @@ class TestAResumedPlanActsOnce:
         _register("resume_probe_delete_tool", _delete, "note_id", "confirm")
         _register("resume_probe_label_tool", _label, "note_id", "reversible")
         thread = f"thread-{uuid.uuid4().hex[:8]}"
-        run = SimpleNamespace(
+        run = make_runtime_context(
             user_id=user.id,
             thread_id=thread,
             execution_mode="pipeline",

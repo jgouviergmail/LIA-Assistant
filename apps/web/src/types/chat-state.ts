@@ -22,6 +22,7 @@ import {
   GeneratedDocument,
 } from './chat';
 import { HitlCardState, NormalizedHitlPayload, initialHitlCardState } from './hitl';
+import type { ExecutionEngine } from '@/lib/execution-mode';
 import type { SkillProposalCard } from '@/lib/skill-proposals/types';
 import type { ExecutionTrace } from './execution-trace';
 import type { CardActionsProjection } from './card-actions';
@@ -240,6 +241,9 @@ export type ChatAction =
           initiative_motivation?: string;
           // ADR-375: the habit proposal card (mirror of DoneMetadata.habit_proposal).
           habit_proposal?: unknown;
+          // ADR-390: the engine of an automatic turn (mirror of
+          // DoneMetadata.execution_engine).
+          execution_engine?: ExecutionEngine;
           tokens_in?: number;
           tokens_out?: number;
           tokens_cache?: number;

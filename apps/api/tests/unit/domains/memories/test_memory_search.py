@@ -58,6 +58,8 @@ class TestSearchMemories:
         assert kwargs["query_embedding"] == _VECTOR
         assert kwargs["limit"] == 7 and kwargs["min_score"] == 0.6
         assert kwargs["categories"] == {"preference"}
+        # Every reader of the door reads text: the vectors stay in the database.
+        assert kwargs["with_vectors"] is False
 
     async def test_no_vector_means_could_not_look_and_opens_nothing(self) -> None:
         with (

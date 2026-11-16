@@ -71,7 +71,11 @@ ROLE (`rag_spaces.kind = 'bookmarks'`, created on first use in the person's
 language — `core/i18n_bookmarks.py`), as a Markdown document of
 `source_type = 'bookmark'`: a dated title, the request quoted (or the
 notification line), the answer's date, the answer — an HTML `lia-response`
-converted by the pipeline's own `html_to_markdown`. The document then
+converted by the pipeline's own `html_to_markdown`, and only an answer that IS
+an HTML document (`core/html_markdown.is_html_document`, the one predicate the
+export of a discussion reads too): a Markdown answer that merely carries an HTML
+block is kept as written, since converting it would escape its Markdown and fold
+its paragraphs (2026-11-14). The document then
 follows the durable pipeline every space uses (`process_document`:
 chunking, embedding counted and priced in `token_usage_logs`, the reaper's
 recovery, the generational reindex).

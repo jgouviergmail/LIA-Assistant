@@ -22,6 +22,7 @@ import { createStore } from 'zustand/vanilla';
 import { useStore } from 'zustand';
 import { useSmsNotificationSignals } from '@/hooks/useSmsNotificationSignals';
 import type { SmsReceivedSignal } from '@/lib/sms/notification';
+import type { ReminderSnoozeOffer } from '@/lib/reminder-firing';
 import { z } from '@/lib/zod';
 import { logger } from '@/lib/logger';
 import { redirectToLogin } from '@/lib/api-client';
@@ -32,15 +33,20 @@ import {
   useCompanionEnvironmentStore,
 } from '@/stores/companionEnvironmentStore';
 
+/**
+ * A proactive notification's type: the dispatcher prefixes the task that sent
+ * it (`proactive_interest`, `proactive_phone_call`, `proactive_meeting`…). The
+ * family is open — a new task is a new member — and is routed by its prefix.
+ */
+export type ProactiveNotificationType = `proactive_${string}`;
+
 export type NotificationType =
   | 'reminder'
   | 'system'
   | 'message'
   | 'oauth_health_warning'
   | 'oauth_health_critical'
-  | 'proactive_interest'
-  | 'proactive_heartbeat'
-  | 'proactive_discussion'
+  | ProactiveNotificationType
   | 'scheduled_action'
   | 'subagent_result'
   | 'admin_broadcast';
@@ -71,6 +77,10 @@ export interface Notification {
   type: NotificationType;
   content: string;
   reminder_id?: string;
+  /** A reminder's recorded occurrence, which its toast may postpone (ADR-268). */
+  firing_id?: string;
+  /** The short delay that toast offers, in minutes. */
+  snooze_short_minutes?: number;
   target_id?: string;
   action_id?: string;
   connector_id?: string;
@@ -95,16 +105,24 @@ export interface UseNotificationsOptions {
   isAuthenticated?: boolean;
   /** Callback when notification received */
   onNotification?: (notification: Notification) => void;
-  /** Callback when reminder received */
-  onReminder?: (content: string, reminderId: string) => void;
+  /** Callback when reminder received; `offer` when its occurrence can be postponed */
+  onReminder?: (content: string, reminderId: string, offer?: ReminderSnoozeOffer) => void;
   /** Callback when proactive notification received (interest, heartbeat, etc.) */
   onProactiveNotification?: (
     content: string,
     targetId: string,
     metadata?: Record<string, unknown>
   ) => void;
-  /** Callback when scheduled action execution completes */
-  onScheduledAction?: (content: string, actionId: string, title: string) => void;
+  /**
+   * Callback when scheduled action execution completes. The metadata names
+   * the annex a run asked there answered in (`conversation_id`), else nothing.
+   */
+  onScheduledAction?: (
+    content: string,
+    actionId: string,
+    title: string,
+    metadata?: Record<string, unknown>
+  ) => void;
   /** Callback when OAuth health warning received (expiring soon) */
   onOAuthWarning?: (notification: Notification) => void;
   /** Callback when OAuth health critical received (expired/error) */
@@ -141,13 +159,18 @@ export interface UseNotificationsReturn {
 
 /** Type-specific side-effect callbacks a notification can trigger. */
 export interface NotificationRouteHandlers {
-  onReminder?: (content: string, reminderId: string) => void;
+  onReminder?: (content: string, reminderId: string, offer?: ReminderSnoozeOffer) => void;
   onProactiveNotification?: (
     content: string,
     targetId: string,
     metadata?: Record<string, unknown>
   ) => void;
-  onScheduledAction?: (content: string, actionId: string, title: string) => void;
+  onScheduledAction?: (
+    content: string,
+    actionId: string,
+    title: string,
+    metadata?: Record<string, unknown>
+  ) => void;
   onSubagentResult?: (
     content: string,
     targetId: string,
@@ -159,16 +182,23 @@ export interface NotificationRouteHandlers {
 
 type NotificationRoute = (notification: Notification, h: NotificationRouteHandlers) => void;
 
+/** What a reminder event offers to postpone, when its occurrence was recorded. */
+function reminderSnoozeOffer(n: Notification): ReminderSnoozeOffer | undefined {
+  return n.firing_id && n.snooze_short_minutes
+    ? { firingId: n.firing_id, shortMinutes: n.snooze_short_minutes }
+    : undefined;
+}
+
 /** Exact-type routes (proactive_* is prefix-matched separately in
  * routeNotification). Each guards on the entity id it needs. */
 const NOTIFICATION_ROUTES: Record<string, NotificationRoute> = {
   reminder: (n, h) => {
-    if (n.reminder_id) h.onReminder?.(n.content, n.reminder_id);
+    if (n.reminder_id) h.onReminder?.(n.content, n.reminder_id, reminderSnoozeOffer(n));
   },
   scheduled_action: (n, h) => {
     if (n.action_id) {
       const title = (n.metadata?.title as string) || n.action_id;
-      h.onScheduledAction?.(n.content, n.action_id, title);
+      h.onScheduledAction?.(n.content, n.action_id, title, n.metadata);
     }
   },
   subagent_result: (n, h) => {
@@ -197,6 +227,14 @@ export function routeNotification(notification: Notification, h: NotificationRou
   }
 }
 
+/**
+ * The annex a pushed notification went to, as the SSE half names it: present
+ * for an annex only, absent (never empty) for Main (ADR-378 amendment).
+ */
+function fcmDiscussion(d: Record<string, string>): { conversation_id?: string } {
+  return d.conversation_id ? { conversation_id: d.conversation_id } : {};
+}
+
 /** Rebuild proactive/scheduled metadata from the flat FCM data fields. */
 function buildFcmMetadata(
   fcmType: NotificationType | undefined,
@@ -217,10 +255,16 @@ function buildFcmMetadata(
       ...(d.run_id ? { run_id: d.run_id } : {}),
       ...(d.message_id ? { message_id: d.message_id } : {}),
       ...(d.sensitive_in_app_only === 'true' ? { sensitive_in_app_only: true } : {}),
+      ...fcmDiscussion(d),
     };
   }
   if (fcmType === 'scheduled_action') {
-    return { type: 'scheduled_action', action_id: d.action_id, title: d.title };
+    return {
+      type: 'scheduled_action',
+      action_id: d.action_id,
+      title: d.title,
+      ...fcmDiscussion(d),
+    };
   }
   return undefined;
 }
@@ -242,6 +286,7 @@ export function buildNotificationFromFcm(payload: MessagePayload): Notification 
     type: fcmType || 'system',
     content: payload.notification?.body || d.body || d.message || '',
     reminder_id: d.reminder_id,
+    firing_id: d.firing_id,
     target_id: d.target_id,
     action_id: d.action_id,
     connector_id: d.connector_id,
@@ -268,25 +313,34 @@ export function buildNotificationFromFcm(payload: MessagePayload): Notification 
  * });
  * ```
  */
+const PROACTIVE_TYPE = /^proactive_[a-z0-9_]+$/;
 const sseNotice = z.object({
+  // The proactive family is matched by its prefix, as `routeNotification`
+  // routes it: listing its members refused every task nobody had added here
+  // (a call's return, a meeting's minutes, a peer's message), and the
+  // notification died at this boundary with no toast.
   type: z
-    .enum([
-      'reminder',
-      'system',
-      'message',
-      'oauth_health_warning',
-      'oauth_health_critical',
-      'proactive_interest',
-      'proactive_heartbeat',
-      'proactive_discussion',
-      'scheduled_action',
-      'subagent_result',
-      'admin_broadcast',
+    .union([
+      z.enum([
+        'reminder',
+        'system',
+        'message',
+        'oauth_health_warning',
+        'oauth_health_critical',
+        'scheduled_action',
+        'subagent_result',
+        'admin_broadcast',
+      ]),
+      z.custom<ProactiveNotificationType>(
+        value => typeof value === 'string' && PROACTIVE_TYPE.test(value)
+      ),
     ])
     .default('system'),
   content: z.string().optional(),
   message: z.string().optional(),
   reminder_id: z.string().optional(),
+  firing_id: z.string().optional(),
+  snooze_short_minutes: z.number().int().positive().optional(),
   target_id: z.string().optional(),
   action_id: z.string().optional(),
   connector_id: z.string().optional(),
@@ -307,9 +361,11 @@ export function buildNotificationFromSse(payload: unknown): Notification {
         Boolean
       ) ?? `notif-${Date.now()}`,
     content: data.content ?? data.message ?? '',
+    // A routine's event carries its identity flat; its metadata names the
+    // annex a run asked there answered in, and is kept beside it.
     metadata:
       data.type === 'scheduled_action'
-        ? { type: data.type, action_id: data.action_id, title: data.title }
+        ? { ...data.metadata, type: data.type, action_id: data.action_id, title: data.title }
         : data.metadata,
     timestamp: new Date(),
     read: false,

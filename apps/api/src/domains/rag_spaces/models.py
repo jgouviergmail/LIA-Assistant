@@ -99,6 +99,8 @@ class RAGDocumentErrorCode(StrEnum):
 
     FILE_MISSING = "file_missing"
     EXTRACTION_FAILED = "extraction_failed"
+    # A zipped document that declares more, once unzipped, than the space reads (2026-11-14).
+    INFLATES_TOO_FAR = "inflates_too_far"
     SCANNED_PDF_NO_TEXT_LAYER = "scanned_pdf_no_text_layer"
     NO_TEXT_CONTENT = "no_text_content"
     NO_CHUNKS = "no_chunks"

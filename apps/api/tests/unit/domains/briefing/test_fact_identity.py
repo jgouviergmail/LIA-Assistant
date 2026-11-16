@@ -297,7 +297,8 @@ class TestTheAgendaWindow:
         from src.domains.connectors.calendar_access import CalendarAccess
 
         client = MagicMock()
-        client.list_events = AsyncMock(return_value={"items": []})
+        client.list_calendars = AsyncMock(return_value={"items": []})
+        client.list_events_window = AsyncMock(return_value={"events": [], "truncated": False})
         access = CalendarAccess(client=client, calendar_id="primary", connector_type=None)
 
         @asynccontextmanager
@@ -310,9 +311,7 @@ class TestTheAgendaWindow:
                 user=SimpleNamespace(id=uuid4()), user_tz=PARIS, language="fr", lookahead_hours=4
             )
 
-        kwargs = client.list_events.await_args.kwargs
-        window = datetime.fromisoformat(kwargs["time_max"]) - datetime.fromisoformat(
-            kwargs["time_min"]
-        )
+        _, time_min, time_max = client.list_events_window.await_args.args
+        window = datetime.fromisoformat(time_max) - datetime.fromisoformat(time_min)
         assert window == timedelta(hours=4)
-        assert datetime.fromisoformat(kwargs["time_min"]) >= before
+        assert datetime.fromisoformat(time_min) >= before

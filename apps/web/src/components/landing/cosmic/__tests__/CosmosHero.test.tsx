@@ -6,9 +6,8 @@
  * overpromise: the link must be absent from the DOM, not merely hidden.
  */
 
-import { render, within } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BrickMapView } from '@/lib/maps/types';
 
 vi.mock('@/i18n', () => ({
   initI18next: async () => ({ t: (key: string) => key }),
@@ -16,50 +15,40 @@ vi.mock('@/i18n', () => ({
 vi.mock('../../InteractiveChatMockup', () => ({
   InteractiveChatMockup: () => <div data-testid="chat-mockup" />,
 }));
-vi.mock('../LandingConstellation', () => ({
-  LandingConstellation: ({ map }: { map: BrickMapView }) => (
-    <div data-testid="functional-constellation">
-      {map.bricks.map(brick => (
-        <span key={brick.id}>{brick.name}</span>
-      ))}
-    </div>
-  ),
-}));
 vi.mock('@/lib/showroom-config', () => ({
   getPublicShowroomVariant: vi.fn(() => 'legacy'),
 }));
 
 import { getPublicShowroomVariant } from '@/lib/showroom-config';
-import { mapsData } from '@/lib/maps/data';
-import { buildBrickMap } from '@/lib/maps/model';
 import { CosmosHero } from '../CosmosHero';
 
 const variantMock = vi.mocked(getPublicShowroomVariant);
 
-describe('CosmosHero — functional overview', () => {
-  it.each(['fr', 'en'] as const)(
-    'shows the %s functional bricks after the promise and actions',
-    async lng => {
-      const { queryByTestId, getByTestId, container } = render(await CosmosHero({ lng }));
-      expect(queryByTestId('chat-mockup')).not.toBeInTheDocument();
-      expect(container.querySelector('.cosmos-orbit-zone')).not.toBeInTheDocument();
-      const overview = getByTestId('functional-constellation');
-      for (const brick of buildBrickMap(mapsData(lng), 'functional').bricks) {
-        expect(within(overview).getByText(brick.name)).toBeInTheDocument();
-      }
-      expect(getByTestId('hero-cta-presentation').compareDocumentPosition(overview)).toBe(
-        Node.DOCUMENT_POSITION_FOLLOWING
-      );
-    }
-  );
+describe('CosmosHero — a promise, then the positioning (owner, 2026-11-15)', () => {
+  it('leaves the bricks to the living map: no constellation, no demo on the home hero', async () => {
+    const { queryByRole, queryByTestId, container } = render(await CosmosHero({ lng: 'fr' }));
+    expect(queryByTestId('chat-mockup')).not.toBeInTheDocument();
+    expect(container.querySelector('.cosmos-orbit-zone')).not.toBeInTheDocument();
+    expect(container.querySelector('.landing-constellation')).not.toBeInTheDocument();
+    expect(queryByRole('searchbox')).not.toBeInTheDocument();
+  });
+
+  it('points its scroll hint at the positioning that follows it', async () => {
+    const { getByRole } = render(await CosmosHero({ lng: 'fr' }));
+    expect(getByRole('link', { name: 'landing.hero.scroll_hint' })).toHaveAttribute(
+      'href',
+      '#positioning'
+    );
+  });
 });
 
-describe('CosmosHero — promise and registration note (owner layout, 2026-10-30)', () => {
-  it('groups the tagline and the value line in one paragraph, so they share one typography', async () => {
-    const { getByText } = render(await CosmosHero({ lng: 'fr' }));
+describe('CosmosHero — promise and registration note', () => {
+  it('states the tagline alone under the title (owner, 2026-11-15)', async () => {
+    const { getByText, queryByText } = render(await CosmosHero({ lng: 'fr' }));
     const tagline = getByText('landing.hero.subtitle_top').closest('p');
     expect(tagline).not.toBeNull();
-    expect(getByText('landing.hero.home_value').closest('p')).toBe(tagline);
+    expect(tagline).toHaveTextContent(/^landing\.hero\.subtitle_top$/);
+    expect(queryByText('landing.hero.home_value')).not.toBeInTheDocument();
   });
 
   it('states the registration conditions under the three proof items', async () => {

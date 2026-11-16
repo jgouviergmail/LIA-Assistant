@@ -101,7 +101,7 @@ export function KeepDialog({ lng, what, onClose }: KeepDialogProps) {
     <Dialog open onOpenChange={open => !open && onClose()}>
       <DialogContent aria-describedby={undefined} className="sm:max-w-md">
         <ToolDialogHeader>
-          <DialogTitle className="break-words pr-8">
+          <DialogTitle className="pr-8">
             {t('workbench.assist.keep.title', { name: what.name })}
           </DialogTitle>
         </ToolDialogHeader>

@@ -11,6 +11,8 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from src.core.constants import (
     NATIVE_HANDOFF_VERIFIER_MAX_LENGTH,
     NATIVE_HANDOFF_VERIFIER_MIN_LENGTH,
+    AutoModeResolution,
+    ExecutionMode,
 )
 from src.domains.auth.password_reset_policy import PasswordRecovery
 from src.domains.shared.schemas import (
@@ -495,18 +497,29 @@ class HealthMetricsAgentsPreferenceResponse(BaseModel):
 
 
 class ExecutionModePreferenceRequest(BaseModel):
-    """Schema for updating user execution mode preference (pipeline vs react)."""
+    """Schema for updating user execution mode preference (pipeline, react or auto)."""
 
-    execution_mode: Literal["pipeline", "react"] = Field(
+    execution_mode: ExecutionMode = Field(
         ...,
-        description="Execution mode: 'pipeline' (classic planner) or 'react' (ReAct agent loop)",
+        description=(
+            "Execution mode: 'pipeline' (classic planner), 'react' (ReAct agent loop) "
+            "or 'auto' (the router picks the engine turn by turn)"
+        ),
     )
 
 
 class ExecutionModePreferenceResponse(BaseModel):
-    """Schema for execution mode preference update response."""
+    """The execution mode preference, and what « auto » does on this instance."""
 
-    execution_mode: str = Field(..., description="Current execution mode preference")
+    execution_mode: ExecutionMode = Field(..., description="Current execution mode preference")
+    auto_resolution: AutoModeResolution = Field(
+        ...,
+        description=(
+            "What « auto » does on this instance (ADR-390): 'decided' (the engine is "
+            "chosen turn by turn), 'always_react' (no decision provider: every planned "
+            "turn loops) or 'always_pipeline' (the instance runs no ReAct loop)."
+        ),
+    )
     message: str = Field(
         default="Execution mode preference updated",
         description="Confirmation message",

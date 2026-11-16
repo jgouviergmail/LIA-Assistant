@@ -95,23 +95,33 @@ def named_families(spec: str) -> list[Family]:
     return families
 
 
-def family_llm(slot: LLMType, family: Family | None) -> tuple[str, BaseChatModel, LLMAgentConfig]:
+def family_llm(
+    slot: LLMType, family: Family | None, *, temperature: float | None = None
+) -> tuple[str, BaseChatModel, LLMAgentConfig]:
     """The slot's model, or another family on the slot's own settings.
 
     Args:
         slot: The LLM slot whose settings are kept.
         family: The family to ask, or None for the slot as configured.
+        temperature: The one setting a bench may replace besides the family —
+            a JUDGE samples greedily (0.0), or it reads the same answer two ways.
 
     Returns:
         The model's name, the model, and the configuration it was built from.
     """
     config = get_llm_config_for_agent(settings, slot)
+    update: dict[str, object] = {} if temperature is None else {"temperature": temperature}
     if family is None:
-        llm = get_llm(slot)
-        return model_name_of(llm) or slot, llm, config
+        if not update:
+            llm = get_llm(slot)
+            return model_name_of(llm) or slot, llm, config
+        override = config.model_copy(update=update)
+        llm = get_llm(slot, config_override=override)
+        return model_name_of(llm) or slot, llm, override
     provider, model, level = family
     override = config.model_copy(
         update={
+            **update,
             "provider": provider,
             "model": model,
             "reasoning_effort": ReasoningIntent(level=level),

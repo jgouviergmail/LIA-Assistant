@@ -6,6 +6,8 @@ dotenv:
 
 # Global variables
 vars:
+  # Windows Python tools run through python -m, as in the pre-commit hook,
+  # so fresh venv console-script launchers need no separate execution trust.
   API_DIR: ./apps/api
   WEB_DIR: ./apps/web
   PYTHON: python
@@ -23,8 +25,8 @@ vars:
   # digest of its Linux x86-64 archive (security:trivy:install), and the image of
   # security:scan:docker. The version and its digest move together and by hand:
   # Dependabot reads no Taskfile, and a bump changes the engine of a blocking scan.
-  TRIVY_VERSION: 0.74.0
-  TRIVY_SHA256: 2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a
+  TRIVY_VERSION: 0.76.2
+  TRIVY_SHA256: bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf
   # Memory cap of one wake-word toolbox run (ADR-329): the Docker VM is shared
   # with the dev stack. Raise it with `task wake:train WAKE_MEMORY=24g -- fr`.
   WAKE_MEMORY: 14g
@@ -685,6 +687,15 @@ tasks:
     cmds:
       - cmd: docker exec lia-api-dev python -m scripts.react.measure_recovery {{.CLI_ARGS}}
 
+  react:authorship:measure:
+    desc: Measure who writes an e-mail when the ReAct loop calls a writing tool (dev API; PAID, on demand — ADR-383)
+    # A MEASUREMENT, never a gate: one first call per request (intents, dictations,
+    # a mixed one) with production's ReAct prompt and the real schemas of the
+    # writing tools as stubs, classified by production's own dictation rule, on the
+    # models passed (`--models provider:model@level,...`), stopping past `--budget` USD.
+    cmds:
+      - cmd: docker exec lia-api-dev python -m scripts.react.measure_email_authorship {{.CLI_ARGS}}
+
   react:notes:measure:
     desc: Measure how the ReAct loop takes a note the person adds mid-turn on real models (dev API; PAID, on demand — ADR-385)
     # A MEASUREMENT, never a gate: three scenarios of deterministic stub tools
@@ -796,6 +807,32 @@ tasks:
     # asks other families with the slot's own settings; it stops past `--budget-eur`.
     cmds:
       - cmd: docker exec lia-api-dev python -m scripts.agents.measure_message_timestamps {{.CLI_ARGS}}
+
+  agents:compaction:measure:
+    desc: Measure what a compaction keeps of what was said (dev API; PAID, on demand — lot 16)
+    # A MEASUREMENT, never a gate, on FICTIONAL discussions: facts planted where the
+    # compaction summarises (the person's words, a tool's result, an identifier, a
+    # decision), the production entry node forced on the instance's compaction slot,
+    # then each fact read in the response model's view before and after; `--answer`
+    # asks every question (paid), `--models provider:model@level,...` names the
+    # answering families, it stops past `--budget-eur`, and `--dry-run` asks no model
+    # (docs/technical/COMPACTION_v2.md § The recall bench).
+    cmds:
+      - cmd: docker exec lia-api-dev python -m scripts.agents.measure_compaction_recall {{.CLI_ARGS}}
+
+  agents:execution-mode:measure:
+    desc: Measure the automatic mode's shape judgement on its held-out corpus (dev API; PAID, on demand — ADR-390)
+    # A MEASUREMENT, never a gate, on the PROOF account: every case of
+    # scripts/agents/execution_mode_corpus.py asked through the production door
+    # (usage `execution_mode`, the versioned questions, the instance's margins) and
+    # read by the production verdict; leaks (a needs-loop case judged plannable),
+    # the pipeline's lane and the draws that disagree, each property's lowest
+    # labelled and highest plannable score, then the corpus's declared acceptance.
+    # `--draws N`, `--split`, it stops past `--budget-eur`, `--rows-out PATH`
+    # keeps every judgement as a line of facts (calibration), and `--dry-run`
+    # asks nothing. Re-run it before moving a margin's default.
+    cmds:
+      - cmd: docker exec lia-api-dev python -m scripts.agents.measure_execution_mode {{.CLI_ARGS}}
 
   journals:portrait:measure:
     desc: Seed a synthetic persona into the PROOF account on dev and measure what the portrait publishes (NETWORK, billed, on demand)
@@ -1553,20 +1590,22 @@ tasks:
         tests/helpers/calendar_providers.py tests/unit/core/test_wall_time.py
         tests/unit/domains/connectors/clients/test_event_bounds.py
         tests/unit/domains/connectors/clients/test_event_time_round_trip.py
+        tests/unit/core/test_execution_mode_frontend_sync.py
+        tests/unit/scripts/test_execution_mode_measure.py
     cmds:
       - cmd: .venv/Scripts/ruff check src tests
         platforms: [windows]
       - cmd: .venv/bin/ruff check src tests
         platforms: [linux, darwin]
-      - cmd: .venv/Scripts/black --check src tests
+      - cmd: .venv/Scripts/python -m black --check src tests
         platforms: [windows]
       - cmd: .venv/bin/black --check src tests
         platforms: [linux, darwin]
-      - cmd: .venv/Scripts/mypy src --config-file=pyproject.toml
+      - cmd: .venv/Scripts/python -m mypy src --config-file=pyproject.toml
         platforms: [windows]
       - cmd: .venv/bin/mypy src --config-file=pyproject.toml
         platforms: [linux, darwin]
-      - cmd: .venv/Scripts/mypy --strict --config-file=pyproject.toml --no-warn-unused-configs --follow-imports=silent {{.TYPED_TESTS}}
+      - cmd: .venv/Scripts/python -m mypy --strict --config-file=pyproject.toml --no-warn-unused-configs --follow-imports=silent {{.TYPED_TESTS}}
         platforms: [windows]
       - cmd: .venv/bin/mypy --strict --config-file=pyproject.toml --no-warn-unused-configs --follow-imports=silent {{.TYPED_TESTS}}
         platforms: [linux, darwin]
@@ -1597,7 +1636,7 @@ tasks:
     desc: Format backend code
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/black src tests
+      - cmd: .venv/Scripts/python -m black src tests
         platforms: [windows]
       - cmd: .venv/bin/black src tests
         platforms: [linux, darwin]
@@ -1626,7 +1665,7 @@ tasks:
     desc: Run backend tests
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/pytest tests/ --cov=src --cov-report=term-missing --cov-report=html
+      - cmd: .venv/Scripts/python -m pytest tests/ --cov=src --cov-report=term-missing --cov-report=html
         platforms: [windows]
       - cmd: .venv/bin/pytest tests/ --cov=src --cov-report=term-missing --cov-report=html
         platforms: [linux, darwin]
@@ -1635,7 +1674,7 @@ tasks:
     desc: Run backend unit tests only (all, including slow)
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/pytest tests/unit/ -v
+      - cmd: .venv/Scripts/python -m pytest tests/unit/ -v
         platforms: [windows]
       - cmd: .venv/bin/pytest tests/unit/ -v
         platforms: [linux, darwin]
@@ -1654,7 +1693,7 @@ tasks:
       # `_fallback_socketpair` — asyncio building the Windows proactor
       # self-pipe as pytest-asyncio creates an event loop. The suite completes
       # at -n 4 and -n 8; a cap keeps the gate deterministic.
-      - cmd: .venv/Scripts/pytest tests/unit/ -v --no-cov -m "not integration and not slow and not e2e and not benchmark and not multiprocess" -n 8 --dist loadscope
+      - cmd: .venv/Scripts/python -m pytest tests/unit/ -v --no-cov -m "not integration and not slow and not e2e and not benchmark and not multiprocess" -n 8 --dist loadscope
         platforms: [windows]
       - cmd: .venv/bin/pytest tests/unit/ -v --no-cov -m "not integration and not slow and not e2e and not benchmark and not multiprocess" -n 8 --dist loadscope
         platforms: [linux, darwin]
@@ -1675,7 +1714,7 @@ tasks:
       # AC-030b: the suite measures into ITS data file, half of what
       # test:backend:coverage floors; the --cov-fail-under=0 sentinel keeps
       # pyproject's floor off this partial subset (F022).
-      - cmd: LIA_REQUIRE_DB=1 COVERAGE_FILE=.coverage-integration .venv/Scripts/pytest tests/integration/ -v --tb=short --cov=src --cov-fail-under=0 -m "not e2e and not benchmark and not multiprocess"
+      - cmd: LIA_REQUIRE_DB=1 COVERAGE_FILE=.coverage-integration .venv/Scripts/python -m pytest tests/integration/ -v --tb=short --cov=src --cov-fail-under=0 -m "not e2e and not benchmark and not multiprocess"
         platforms: [windows]
       - cmd: LIA_REQUIRE_DB=1 COVERAGE_FILE=.coverage-integration .venv/bin/pytest tests/integration/ -v --tb=short --cov=src --cov-fail-under=0 -m "not e2e and not benchmark and not multiprocess"
         platforms: [linux, darwin]
@@ -1686,7 +1725,7 @@ tasks:
       # false premise that this one was missing, and ran the whole collection
       # twice here AND in CI (which now calls this task). It APPENDS to the
       # file the collection above started fresh.
-      - cmd: LIA_REQUIRE_DB=1 COVERAGE_FILE=.coverage-integration .venv/Scripts/pytest tests/unit/ tests/agents/ -v --tb=short --cov=src --cov-append --cov-fail-under=0 -m "integration and not e2e and not benchmark and not multiprocess"
+      - cmd: LIA_REQUIRE_DB=1 COVERAGE_FILE=.coverage-integration .venv/Scripts/python -m pytest tests/unit/ tests/agents/ -v --tb=short --cov=src --cov-append --cov-fail-under=0 -m "integration and not e2e and not benchmark and not multiprocess"
         platforms: [windows]
       - cmd: LIA_REQUIRE_DB=1 COVERAGE_FILE=.coverage-integration .venv/bin/pytest tests/unit/ tests/agents/ -v --tb=short --cov=src --cov-append --cov-fail-under=0 -m "integration and not e2e and not benchmark and not multiprocess"
         platforms: [linux, darwin]
@@ -1696,7 +1735,7 @@ tasks:
     dir: "{{.API_DIR}}"
     cmds:
       - echo "=== Running EXHAUSTIVE test suite (this may take several minutes) ==="
-      - cmd: .venv/Scripts/pytest tests/ -v --tb=short --cov=src --cov-report=term-missing --durations=20
+      - cmd: .venv/Scripts/python -m pytest tests/ -v --tb=short --cov=src --cov-report=term-missing --durations=20
         platforms: [windows]
       - cmd: .venv/bin/pytest tests/ -v --tb=short --cov=src --cov-report=term-missing --durations=20
         platforms: [linux, darwin]
@@ -1706,7 +1745,7 @@ tasks:
     desc: Run ONLY slow tests (integration, slow, e2e, benchmark, multiprocess)
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/pytest tests/ -v -m "integration or slow or e2e or benchmark or multiprocess" --tb=short
+      - cmd: .venv/Scripts/python -m pytest tests/ -v -m "integration or slow or e2e or benchmark or multiprocess" --tb=short
         platforms: [windows]
       - cmd: .venv/bin/pytest tests/ -v -m "integration or slow or e2e or benchmark or multiprocess" --tb=short
         platforms: [linux, darwin]
@@ -1720,7 +1759,7 @@ tasks:
     desc: Backend unit tests with coverage data (mirrors the CI job step; floored by test:backend:coverage)
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: COVERAGE_FILE=.coverage-unit .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=term-missing --cov-fail-under=0
+      - cmd: COVERAGE_FILE=.coverage-unit .venv/Scripts/python -m pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=term-missing --cov-fail-under=0
         platforms: [windows]
       - cmd: COVERAGE_FILE=.coverage-unit .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=term-missing --cov-fail-under=0
         platforms: [linux, darwin]
@@ -1777,7 +1816,7 @@ tasks:
       # global --cov-fail-under gate belongs to the exhaustive run, not this
       # partial subset (otherwise the command exits 1 despite all tests passing);
       # same marker filter as CI so the local suite equals the gated suite.
-      - cmd: .venv/Scripts/pytest tests/agents/ -v --tb=short -m "not slow and not e2e and not benchmark and not multiprocess" --no-cov
+      - cmd: .venv/Scripts/python -m pytest tests/agents/ -v --tb=short -m "not slow and not e2e and not benchmark and not multiprocess" --no-cov
         platforms: [windows]
       - cmd: .venv/bin/pytest tests/agents/ -v --tb=short -m "not slow and not e2e and not benchmark and not multiprocess" --no-cov
         platforms: [linux, darwin]
@@ -1802,7 +1841,7 @@ tasks:
   test:install:
     desc: Hermetic installer wizard tests (ADR-215) — stdlib wizard, no Docker
     cmds:
-      - cmd: apps/api/.venv/Scripts/pytest scripts/install/tests -q
+      - cmd: apps/api/.venv/Scripts/python -m pytest scripts/install/tests -q
         platforms: [windows]
       - cmd: apps/api/.venv/bin/pytest scripts/install/tests -q
         platforms: [linux, darwin]
@@ -1810,7 +1849,7 @@ tasks:
   test:release:self-host:
     desc: Self-host release artifact tests (manifest, bundle, SBOM — ADR-215)
     cmds:
-      - cmd: apps/api/.venv/Scripts/pytest scripts/release/tests -q
+      - cmd: apps/api/.venv/Scripts/python -m pytest scripts/release/tests -q
         platforms: [windows]
       - cmd: apps/api/.venv/bin/pytest scripts/release/tests -q
         platforms: [linux, darwin]
@@ -1895,7 +1934,7 @@ tasks:
     desc: Focused backend contracts of the installer chain (Tasks 2/7/8/9 + CI parity)
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/pytest tests/unit/test_validate_settings_script.py tests/unit/test_reference_seed_bundle_contract.py tests/unit/test_bootstrap_install_contract.py tests/unit/test_verify_installation_script.py tests/unit/test_installer_wizard_backend_alignment.py tests/unit/test_installer_ci_contract.py -q --no-cov
+      - cmd: .venv/Scripts/python -m pytest tests/unit/test_validate_settings_script.py tests/unit/test_reference_seed_bundle_contract.py tests/unit/test_bootstrap_install_contract.py tests/unit/test_verify_installation_script.py tests/unit/test_installer_wizard_backend_alignment.py tests/unit/test_installer_ci_contract.py -q --no-cov
         platforms: [windows]
       - cmd: .venv/bin/pytest tests/unit/test_validate_settings_script.py tests/unit/test_reference_seed_bundle_contract.py tests/unit/test_bootstrap_install_contract.py tests/unit/test_verify_installation_script.py tests/unit/test_installer_wizard_backend_alignment.py tests/unit/test_installer_ci_contract.py -q --no-cov
         platforms: [linux, darwin]
@@ -3040,7 +3079,7 @@ tasks:
     desc: Run semantic business scenarios and model-harness guards without provider calls
     dir: apps/api
     cmds:
-      - cmd: .venv/Scripts/pytest tests/unit/domains/agents/semantic/test_semantic_native_scenarios.py tests/unit/domains/agents/semantic/test_semantic_reasoning_scenarios.py tests/unit/domains/agents/semantic/test_semantic_batch_execution.py tests/unit/infrastructure/mcp/test_mcp_semantic_scenarios.py tests/unit/semantic -q --no-cov {{.CLI_ARGS}}
+      - cmd: .venv/Scripts/python -m pytest tests/unit/domains/agents/semantic/test_semantic_native_scenarios.py tests/unit/domains/agents/semantic/test_semantic_reasoning_scenarios.py tests/unit/domains/agents/semantic/test_semantic_batch_execution.py tests/unit/infrastructure/mcp/test_mcp_semantic_scenarios.py tests/unit/semantic -q --no-cov {{.CLI_ARGS}}
         platforms: [windows]
       - cmd: .venv/bin/pytest tests/unit/domains/agents/semantic/test_semantic_native_scenarios.py tests/unit/domains/agents/semantic/test_semantic_reasoning_scenarios.py tests/unit/domains/agents/semantic/test_semantic_batch_execution.py tests/unit/infrastructure/mcp/test_mcp_semantic_scenarios.py tests/unit/semantic -q --no-cov {{.CLI_ARGS}}
         platforms: [linux, darwin]

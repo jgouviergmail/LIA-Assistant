@@ -190,6 +190,12 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 |---------|-------|------|
 | **SearXNG** | `searxng/searxng` | Métamoteur sans clé pour qui n'a pas de clé de recherche, sans filtrage (profil `searxng`, actif par défaut ; ADR-382, [WEB_SEARCH.md](./WEB_SEARCH.md)) |
 
+### Notifications sans Google
+
+| Service | Image | Role |
+|---------|-------|------|
+| **ntfy** | `binwiederhier/ntfy` | Serveur ntfy de l'instance : les notifications de LIA dans l'application ntfy, Android ou iPhone, sans compte Google (profil `ntfy`, désactivé par défaut, proposé par l'installateur ; ADR-391, [NTFY.md](./NTFY.md)) |
+
 ### Observabilite Stack
 
 | Service | Image | Role |

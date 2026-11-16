@@ -38,6 +38,12 @@ from src.domains.rag_spaces.bookmark_processing_guard import (
     settle_stopped_bookmark,
 )
 from src.domains.rag_spaces.embedding import get_rag_embeddings
+from src.domains.rag_spaces.inflation import (
+    MIB,
+    ZIPPED_CONTENT_TYPES,
+    InflatesTooFar,
+    declared_inflated_bytes,
+)
 from src.domains.rag_spaces.jobs_repository import RAGJobsRepository
 from src.domains.rag_spaces.models import (
     RAGChunk,
@@ -404,26 +410,51 @@ def _extractors() -> dict[str, Callable[[Path], str]]:
 EXTRACTABLE_CONTENT_TYPES: Final[frozenset[str]] = frozenset(_extractors())
 
 
-def extract_text(file_path: Path, content_type: str) -> str:
-    """
-    Extract text from a file based on its MIME type.
+def extract_text(file_path: Path, content_type: str, *, max_inflated_mb: int) -> str:
+    """Extract text from a file based on its MIME type — the one door every reader takes.
+
+    A zipped document that declares more than ``max_inflated_mb`` once inflated is refused
+    before its reader starts (2026-11-14): a file sent small can inflate large. Each caller
+    declares its own ceiling — the chat's attachments, a knowledge space, a mail's attachment,
+    a copy — so no reader is left unbounded.
 
     Args:
-        file_path: Path to the file on disk
-        content_type: MIME type of the file
+        file_path: Path to the file on disk.
+        content_type: MIME type of the file.
+        max_inflated_mb: The most a zipped document may declare once inflated.
 
     Returns:
-        Extracted text content
+        Extracted text content.
 
     Raises:
-        ValueError: If content type is not supported
+        ValueError: If content type is not supported.
+        InflatesTooFar: A zipped document declares more than the ceiling.
     """
     extractor = _extractors().get(content_type)
     if not extractor:
         msg = f"Unsupported content type: {content_type}"
         raise ValueError(msg)
-
+    if content_type in ZIPPED_CONTENT_TYPES:
+        declared = declared_inflated_bytes(file_path)
+        if declared is not None and declared > max_inflated_mb * MIB:
+            raise InflatesTooFar(declared // MIB, max_inflated_mb)
     return extractor(file_path)
+
+
+def _extraction_failure(error: Exception) -> tuple[str, RAGDocumentErrorCode]:
+    """What a document whose text could not be read is marked with.
+
+    A ceiling is not a fault of the reader: the person is told which (2026-11-14).
+
+    Args:
+        error: What the extraction raised.
+
+    Returns:
+        The stored message and the error code the screen translates.
+    """
+    if isinstance(error, InflatesTooFar):
+        return f"Text extraction refused: {error}", RAGDocumentErrorCode.INFLATES_TOO_FAR
+    return f"Text extraction failed: {error}", RAGDocumentErrorCode.EXTRACTION_FAILED
 
 
 # ============================================================================
@@ -569,19 +600,22 @@ async def process_document(
 
             try:
                 text = await source_worker_external(
-                    lambda: asyncio.to_thread(extract_text, file_path, content_type),
+                    lambda: asyncio.to_thread(
+                        partial(
+                            extract_text,
+                            file_path,
+                            content_type,
+                            max_inflated_mb=settings.rag_spaces_max_inflated_mb,
+                        )
+                    ),
                     renewal=partial(renew_source_document, document_id, worker_id),
                 )
             except SourceLeaseLost:
                 raise
             except Exception as e:
+                message, code = _extraction_failure(e)
                 await _mark_document_error(
-                    doc_repo,
-                    document,
-                    db,
-                    f"Text extraction failed: {e}",
-                    code=RAGDocumentErrorCode.EXTRACTION_FAILED,
-                    worker_id=worker_id,
+                    doc_repo, document, db, message, code=code, worker_id=worker_id
                 )
                 return False
 

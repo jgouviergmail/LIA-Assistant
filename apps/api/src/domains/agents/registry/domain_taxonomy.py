@@ -261,10 +261,15 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
     "reminder": DomainConfig(
         name="reminder",
         display_name="Reminders",
+        # The user's own dated commitments, readable as well as settable: described
+        # only as an alert to set, it was never consulted for « when must I take
+        # care of the car? » while the answer was one of them (ADR-390, E14).
         description=(
-            "Set one-time push notification at a specific date and time. "
-            "List or cancel pending reminders. "
-            "NOT for persistent tasks (use task) or meetings (use event)."
+            "The user's reminders: what they asked LIA to remind them of, and WHEN. "
+            "Set one (a one-time push at a date and time), list the pending ones, or "
+            "cancel one. The pending ones answer 'when must I…' and 'what did I plan "
+            "for…' questions. NOT for persistent to-do lists (use task) or meetings "
+            "(use event)."
         ),
         agent_names=["reminder_agent"],
         result_key="reminders",  # $steps.step_N.reminders

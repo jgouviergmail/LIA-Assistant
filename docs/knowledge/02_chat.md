@@ -1,20 +1,8 @@
 # Conversations
 
 ## Can I have multiple conversations at the same time?
-Yes. Open the discussion badge in the middle of the chat header:
 
-• **Main** is always there, and it receives reminders, notifications and automatic openings
-• When creation is enabled, choose **New discussion** and enter a title, or leave it empty: the discussion then takes the beginning of your first message as its title
-• From the list you can open, rename or delete a side discussion
-• From the same list you can export any discussion, Main included, as a Markdown file: every message you see, oldest first, dated on your own clock
-• Each discussion keeps its own history and draft, and LIA remembers the whole of the one you are in; ask it what was said in another one and it searches them all, word for word
-• The session badge shows the tokens, cost and context of the selected discussion
-
-**To start fresh:**
-Use **Reset** in the chat header and confirm the discussion shown. It clears that
-discussion's messages and working context, and its title stays. A file you uploaded
-goes once its last use is released; files LIA generated stay in **My generated files**
-until their own expiry, or longer when you keep them.
+Yes. Open the discussion badge in the middle of the chat header. **Main** receives reminders, scheduled routine results and proactive messages. When creation is enabled, choose **New discussion** and enter a title, or leave it empty: the discussion then takes the beginning of your first message as its title. From the list you can open, rename or delete a side discussion. Each discussion, Main included, can also be exported from that list as a Markdown file. Each discussion keeps its own history and draft. The session badge shows the tokens, cost and context of the selected discussion. Calls and meetings started or imported from a side discussion, and routines run manually from its chat, return there. If that discussion was reset or deleted, the result goes to Main. When it is not on screen, the notification says so and offers to open it. A notification for Main is named the same way while a side discussion is open.
 
 ## Which item does LIA use when I refer to a sender, a title or a position?
 
@@ -227,11 +215,13 @@ Yes. The **+** button of the composer opens a menu when your knowledge spaces ar
 **When to use it:** to ask about one precise document without activating a whole space, or to read a document of a space you keep paused.
 
 ## What is the /resume command?
+
 The **/resume** command triggers **intelligent context compaction**:
 
 **What it does:**
 • Summarizes old conversation history using AI
 • Preserves critical identifiers (names, emails, IDs)
+• Keeps your own messages word for word (the most recent ones, within a limit)
 • Frees up context window space for longer conversations
 
 **When to use it:**
@@ -251,32 +241,35 @@ The **/resume** command triggers **intelligent context compaction**:
 • When done, the toast morphs into a confirmation *"Conversation summarized — N tokens freed"*
 • If the summary cannot complete (LLM outage, timeout), an **explicit fallback** cleanly truncates the older history with a visible notice rather than a silent loss
 
-**📊 Persistent indicator:** A discreet pill in the centre of the chat header (between the hands-free badge and the knowledge-spaces count) continuously shows your *tokens/threshold* usage as a coloured ring — you can see at any moment when the next compaction will fire.
+**📊 Persistent indicator:** A discreet pill in the chat header (next to the search box) continuously shows your *tokens/threshold* usage as a coloured ring — you can see at any moment when the next compaction will fire.
 
-**💡 Note:** Compaction also triggers automatically when the conversation becomes very long. The /resume command lets you force it at any time.
+**💡 Note:** Compaction also triggers automatically when the conversation becomes very long. The /resume command lets you force it at any time. If the model refuses a request because the conversation no longer fits its context window, LIA summarises the older messages and answers your request again — once, and never when an action was already carried out in that turn, so nothing is done twice. If that is still not enough, LIA tells you to type /resume or to continue in a new discussion.
 
-## What is ReAct mode?
+## What are the Pipeline (🔀), ReAct (⚡) and automatic (🧭) modes?
 
-LIA offers two execution modes, switchable via the **⚡ toggle** in the chat header:
+LIA offers three execution modes, chosen in the menu in the chat header (its icon shows the current mode):
 
-### Pipeline mode (default)
-The classic mode: LIA plans all steps upfront, then executes them in parallel. Fast and efficient for well-defined requests.
+**🔀 Pipeline mode (default)**
+LIA plans all steps upfront, validates them, then executes tools in parallel. This is the **fastest and most economical** mode: it consumes 4 to 8 times fewer tokens than ReAct mode.
 
-### ReAct mode (⚡)
-The assistant **reasons step by step**: it calls a tool, analyzes the result, then autonomously decides what to do next. This mode is ideal for:
-• **Exploratory questions** — "What's happening this weekend?"
-• **Complex research** — multi-step queries where the optimal tool sequence isn't known upfront
-• **Cross-domain initiative** — after getting weather, the assistant may proactively check your calendar
+**⚡ ReAct mode**
+LIA reasons step by step: it calls a tool, analyzes the result, then autonomously decides what to do next. More **adaptable and autonomous**, but consumes significantly more tokens.
 
-**Key differences:**
-| Aspect | Pipeline | ReAct |
-|--------|----------|-------|
-| Planning | Upfront plan | Step-by-step reasoning |
-| Adaptability | Follows plan | Pivots on tool results |
-| Token cost | Lower | Higher (1 LLM call per step) |
-| Best for | Structured requests | Exploration, research |
+**🧭 Automatic mode**
+LIA chooses for you, request by request. A request one plan can finish runs in Pipeline; anything that needs reasoning step by step runs in ReAct — an action to confirm, something to do for each item of a list, a skill, a reference to an earlier answer, a figure to work out from your data, results to cross-check, open-ended work, someone only one of your items names in its text (the person your ticket says to call). In doubt it picks ReAct: a complete answer comes before a fast one. A small badge under the answer, beside the time, says which mode answered. Without a decision model on your instance, the automatic mode always uses ReAct; with ReAct switched off, always Pipeline — the menu says so before you choose.
 
-**Your skills and MCP tools** work in both modes. The toggle preference is saved automatically.
+**💡 When to use which mode?**
+• **Automatic (🧭)**: when you would rather not choose — on average it sits between the two in speed and cost.
+• **Pipeline (🔀)**: for most requests — emails, calendar, weather, contacts, tasks...
+• **ReAct (⚡)**: for exploratory research, complex multi-step questions, or when you need LIA to adapt in real time to results.
+
+**⚠️ Cost warning:** ReAct mode consumes 4 to 8× more tokens. Reserve it for requests where the added value justifies the extra cost.
+
+**🎯 Judged on its result:** in ReAct, LIA checks that each result really answers the question — the right day, the right place, a complete list —, changes source in front of an obstacle, then tells you what it could not obtain and what it tried. A fact that came from another source carries that source.
+
+**🎫 Tickets, scheduled actions and Telegram:** a ticket and a scheduled action offer the same three modes, and a message you send on Telegram follows the mode you chose.
+
+### ReAct details and exchange rhythm
 
 **🎯 Precise values, clean turns** — in ReAct mode, each conversation turn starts from a clean slate (data from a previous request never reappears in the next answer), and the assistant fetches exact values from your data before acting: asking for directions to a contact looks up their precise address in your address book rather than settling for an approximation remembered from earlier conversations.
 
@@ -524,9 +517,11 @@ Yes. When a message lands in your conversation from elsewhere — another tab or
 
 ## What do the cards in answers show?
 
-Cards show the data received from the source; missing values stay missing. Full detail unfolds with a click or from the keyboard, without another call or cost. Galleries, document previews, slot-by-slot weather and interactive routes keep their own controls and announced charges. With unchanged content, interactive cards and widgets retain their state during automatic display updates.
+Cards show the data received from the source; missing values stay missing. Full detail unfolds with a click or from the keyboard, without another call or cost, except an e-mail’s content, read again from your mailbox (below). Galleries, document previews, slot-by-slot weather and interactive routes keep their own controls and announced charges.
 
 **Reply, forward or delete an e-mail** from its card: LIA prepares a request tied to that exact message and mailbox, then follows the usual confirmation. Changing the active provider cannot target another mailbox.
+
+**An e-mail’s content** opens in its original layout, as in the Tools: LIA reads it from your mailbox when you unfold its card, with no model call and no cost, and only from the mailbox that showed the card. Remote images wait for your click, and « Show the text and interact » gives its text version. Without the Tools, without a layout, or when it cannot be read, the card keeps the text. When LIA reads an e-mail to answer you, turn it into an event or summarise it, it reads what this layout shows, not the short stand-in text some senders attach to it.
 
 MCP cards preserve lists and simple values, and show the tool, method and source URL when supplied. Weather icons follow the actual condition and day or night; dates and numbers follow the chosen display format. The model receives the authorised facts, not the card's markup.
 

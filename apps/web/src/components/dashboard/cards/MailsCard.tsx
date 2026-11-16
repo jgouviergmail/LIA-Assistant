@@ -135,14 +135,18 @@ function MailsContent({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-baseline gap-2">
-        <span className="text-3xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300 tracking-tight">
-          {data.total_unread_today}
-        </span>
-        <span className="text-sm text-muted-foreground">
-          {t('dashboard.briefing.cards.mails.unread_label', { count: data.total_unread_today })}
-        </span>
-      </div>
+      {/* The mailbox's own figure, never the length of the page listed below
+          (ADR-185): when the mailbox could not tell, no figure at all. */}
+      {data.total_unread_today !== null && (
+        <div className="flex items-baseline gap-2">
+          <span className="text-3xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300 tracking-tight">
+            {data.total_unread_today}
+          </span>
+          <span className="text-sm text-muted-foreground">
+            {t('dashboard.briefing.cards.mails.unread_label', { count: data.total_unread_today })}
+          </span>
+        </div>
+      )}
       <ul ref={list} className="space-y-1.5" role="list">
         {data.items.map((mail, index) => {
           const sender = mail.sender_name || mail.sender_email || '—';

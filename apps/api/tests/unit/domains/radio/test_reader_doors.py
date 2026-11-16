@@ -25,13 +25,37 @@ TZ = timezone(timedelta(hours=2))
 
 
 class CalendarClient:
-    def __init__(self, items: list[dict[str, Any]]) -> None:
+    """A calendar answering its window whole, in the order its pages came (Graph orders none).
+
+    The configured default holds ``items``; ``others`` are the other calendars the
+    account owns, each with its own events.
+    """
+
+    def __init__(
+        self, items: list[dict[str, Any]], *, others: dict[str, list[dict[str, Any]]] | None = None
+    ) -> None:
         self.items = items
+        self.others = others or {}
         self.calls: list[dict[str, Any]] = []
 
-    async def list_events(self, **kwargs: Any) -> dict[str, Any]:
-        self.calls.append(kwargs)
-        return {"items": self.items}
+    async def list_calendars(self, max_results: int = 100, show_hidden: bool = False) -> Any:
+        listed = [{"id": key, "accessRole": "owner"} for key in self.others]
+        return {"items": listed, "truncated": False}
+
+    async def list_events_window(
+        self,
+        calendar_id: str,
+        time_min: str,
+        time_max: str,
+        *,
+        bound: int,
+        fields: list[str] | None = None,
+    ) -> dict[str, Any]:
+        self.calls.append(
+            {"calendar_id": calendar_id, "time_min": time_min, "time_max": time_max, "bound": bound}
+        )
+        items = self.others.get(calendar_id, self.items)
+        return {"events": items[:bound], "truncated": len(items) > bound}
 
 
 class TasksClient:
@@ -103,6 +127,47 @@ class TestAgenda:
         [call] = client.calls
         assert call["time_min"] == datetime(2026, 9, 27, 0, 0, tzinfo=TZ).isoformat()
         assert call["time_max"] == datetime(2026, 10, 4, 0, 0, tzinfo=TZ).isoformat()
+
+    async def test_a_busy_week_keeps_its_soonest_events_whatever_the_page_order(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """One request stopped at the agents' ceiling and lost the week's last days."""
+        week = [
+            {
+                "id": f"e{day:02d}{hour:02d}",
+                "summary": "Point",
+                "start": {"dateTime": f"2026-09-{27 + day:02d}T{8 + hour:02d}:00:00+02:00"},
+                "end": {"dateTime": f"2026-09-{27 + day:02d}T{9 + hour:02d}:00:00+02:00"},
+            }
+            for day in range(4)
+            for hour in range(10)
+        ]
+        client = CalendarClient(list(reversed(week)))
+        access = CalendarAccess(client=client, calendar_id="primary", connector_type="google")
+        monkeypatch.setattr(agenda, "open_active_calendar", _door(access))
+        read = await agenda._events(
+            USER,
+            time_min=datetime(2026, 9, 27, 0, 0, tzinfo=TZ),
+            time_max=datetime(2026, 10, 4, 0, 0, tzinfo=TZ),
+        )
+        assert [event["id"] for event in read] == [event["id"] for event in week[:30]]
+
+    async def test_the_week_ahead_tells_an_invitation_the_main_calendar_holds(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The default says where events are created; an invitation sits in the main one."""
+        invitation = {
+            "id": "invitation",
+            "summary": "Hotpot",
+            "start": {"dateTime": "2026-09-28T19:00:00+02:00"},
+            "end": {"dateTime": "2026-09-28T21:00:00+02:00"},
+        }
+        client = CalendarClient([], others={"me@example.com": [invitation]})
+        access = CalendarAccess(client=client, calendar_id="work", connector_type="google")
+        monkeypatch.setattr(agenda, "open_active_calendar", _door(access))
+        drafts = await agenda.read_agenda_ahead(USER, now=NOW, tz=TZ)
+        assert {call["calendar_id"] for call in client.calls} == {"work", "me@example.com"}
+        assert [draft.key for draft in drafts] == ["event:invitation"]
 
     async def test_no_calendar_is_nothing_to_read_but_refused_credentials_are_a_failure(
         self, monkeypatch: pytest.MonkeyPatch

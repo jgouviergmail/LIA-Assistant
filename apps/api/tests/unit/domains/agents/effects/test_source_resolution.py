@@ -25,12 +25,13 @@ import pytest
 
 from src.domains.agents.effects.models import EffectSource
 from src.domains.agents.effects.source import resolve_source
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = pytest.mark.unit
 
 
 def _context(*, automated: bool = False) -> SimpleNamespace:
-    return SimpleNamespace(
+    return make_runtime_context(
         user_id=uuid.uuid4(),
         thread_id="thread-1",
         execution_mode="pipeline",

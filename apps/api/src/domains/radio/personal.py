@@ -221,7 +221,8 @@ def _birthdays(data: BirthdaysData) -> Iterator[PersonalDraft]:
 
 def _mails(data: MailsData) -> Iterator[PersonalDraft]:
     if data.total_unread_today:
-        text = f"Unread e-mails received today: {data.total_unread_today}"
+        # The inbox's own figure, whenever the mail arrived: never « received today ».
+        text = f"Unread e-mails in the inbox: {data.total_unread_today}"
         yield PersonalDraft(
             FactKind.EMAIL, text, f"mails:{data.total_unread_today}", Sensitivity.PERSONAL
         )

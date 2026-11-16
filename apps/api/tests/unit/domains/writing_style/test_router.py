@@ -30,7 +30,9 @@ def client() -> TestClient:
 
 
 def test_the_style_shown_is_the_authenticated_accounts(client: TestClient) -> None:
-    shown = WritingStyleResponse(enabled=True, profile="Signs « Seb ».", mails_read=12)
+    shown = WritingStyleResponse(
+        enabled=True, mails_to_read=12, profile="Signs « Seb ».", mails_read=12
+    )
     with patch(SERVICE) as service:
         service.return_value.read = AsyncMock(return_value=shown)
 
@@ -59,7 +61,9 @@ def test_the_switch_is_saved_as_a_shared_preference_and_the_state_answered(
         patch(SERVICE) as service,
         patch("src.domains.writing_style.router.update_assistant_preferences", AsyncMock()) as save,
     ):
-        service.return_value.read = AsyncMock(return_value=WritingStyleResponse(enabled=False))
+        service.return_value.read = AsyncMock(
+            return_value=WritingStyleResponse(enabled=False, mails_to_read=12)
+        )
 
         response = client.patch("/writing-style", json={"writing_style_enabled": False})
 

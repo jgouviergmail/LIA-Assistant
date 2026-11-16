@@ -52,8 +52,8 @@ class MemoryImportOutcome:
     invalid: int
 
 
-async def _held_contents(db: AsyncSession, user_id: UUID) -> set[str]:
-    """The content of every active memory of the account."""
+async def held_contents(db: AsyncSession, user_id: UUID) -> set[str]:
+    """The content of every active memory of the account: what an import leaves alone."""
     rows = await db.scalars(
         select(Memory.content).where(Memory.user_id == user_id, Memory.invalidated_at.is_(None))
     )
@@ -77,7 +77,7 @@ async def import_memories(
     Returns:
         The exact count of what became of every entry.
     """
-    held = await _held_contents(db, user_id)
+    held = await held_contents(db, user_id)
     new = [memory for memory in parsed.memories if memory.data.content not in held]
 
     async def fence() -> None:
@@ -94,7 +94,7 @@ async def import_memories(
     )
 
     await lock_memory_actor(db, user_id)
-    held = await _held_contents(db, user_id)
+    held = await held_contents(db, user_id)
     service = MemoryService(db, embedder=prepared.resolve)
     imported = 0
     for memory in new:

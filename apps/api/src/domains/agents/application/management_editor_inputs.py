@@ -1,5 +1,7 @@
 """UI management editing exposes requests only, never frozen quota or state observations."""
 
+from collections.abc import Callable
+
 from pydantic import BaseModel, JsonValue
 
 from src.domains.agents.application.asset_editor_inputs import (
@@ -29,6 +31,10 @@ from src.domains.agents.application.document_upload_schemas import (
 from src.domains.agents.application.meeting_editor_inputs import (
     MEETING_EDITOR_MODELS,
     meeting_editor_request,
+)
+from src.domains.agents.application.memory_import_schemas import (
+    MemoryImportInput,
+    MemoryImportPatch,
 )
 from src.domains.agents.application.skill_editor_inputs import (
     SKILL_EDITOR_MODELS,
@@ -60,7 +66,34 @@ MANAGEMENT_EDITOR_MODELS: tuple[type[BaseModel], ...] = (
     DocumentArchivePatch,
     DocumentDeletePatch,
     DocumentMovePatch,
+    MemoryImportPatch,
 )
+
+#: Operations whose editor is given back exactly the request the proposal sealed.
+_SEALED_REQUESTS: dict[
+    type[BaseModel], tuple[type[BaseModel], Callable[[dict[str, JsonValue]], BaseModel]]
+] = {
+    MemoryImportPatch: (
+        MemoryImportInput,
+        lambda intent: MemoryImportPatch.model_validate(intent).memories_import.request,
+    ),
+    SpaceCreatePatch: (
+        SpaceCreateInput,
+        lambda intent: SpaceCreatePatch.model_validate(intent).space_create.request,
+    ),
+    SpaceDeletePatch: (
+        SpaceDeleteInput,
+        lambda intent: SpaceDeletePatch.model_validate(intent).space_delete.request,
+    ),
+    DocumentDeletePatch: (
+        DocumentDeleteInput,
+        lambda intent: DocumentDeletePatch.model_validate(intent).documents_to_delete.request,
+    ),
+    DocumentMovePatch: (
+        DocumentMoveInput,
+        lambda intent: DocumentMovePatch.model_validate(intent).documents_to_move.request,
+    ),
+}
 
 
 def management_editor_request(
@@ -74,12 +107,12 @@ def management_editor_request(
         return asset_editor_request(model, intent)
     if model in SOURCE_EDITOR_MODELS:
         return source_editor_request(model, intent)
+    if (sealed := _SEALED_REQUESTS.get(model)) is not None:
+        request_model, sealed_request = sealed
+        return request_model, sealed_request(intent).model_dump(mode="json")
     if model is DocumentUploadPatch:
         selected_upload = DocumentUploadPatch.model_validate(intent).document_to_upload
         return DocumentUploadInput, {"space_id": str(selected_upload.space.id)}
-    if model is SpaceCreatePatch:
-        creation = SpaceCreatePatch.model_validate(intent).space_create
-        return SpaceCreateInput, creation.request.model_dump(mode="json")
     if model is DocumentDownloadPatch:
         selected = DocumentDownloadPatch.model_validate(intent).document_to_download
         return DocumentDownloadInput, {
@@ -92,15 +125,6 @@ def management_editor_request(
             "space_id": str(archive.space_id),
             "document_ids": [str(document.document_id) for document in archive.documents],
         }
-    if model is SpaceDeletePatch:
-        deletion = SpaceDeletePatch.model_validate(intent).space_delete
-        return SpaceDeleteInput, deletion.request.model_dump(mode="json")
-    if model is DocumentDeletePatch:
-        deletion_documents = DocumentDeletePatch.model_validate(intent).documents_to_delete
-        return DocumentDeleteInput, deletion_documents.request.model_dump(mode="json")
-    if model is DocumentMovePatch:
-        movement = DocumentMovePatch.model_validate(intent).documents_to_move
-        return DocumentMoveInput, movement.request.model_dump(mode="json")
     if model is SpaceUpdatePatch:
         update = SpaceUpdatePatch.model_validate(intent).space_update
         return SpaceUpdateInput, update.request.model_dump(mode="json", exclude_unset=True)

@@ -19,7 +19,6 @@ So these adapters gate THEMSELVES, in ``_arun``, where all three doors meet.
 from __future__ import annotations
 
 import uuid
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -32,6 +31,7 @@ from src.domains.agents.effects.treatments import treatment_collector
 from src.infrastructure.mcp.tool_adapter import MCPToolAdapter
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 from tests.helpers.mcp_access import installed_shared_mcp_access
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -65,7 +65,7 @@ def _attended_user() -> Any:
         installed_shared_mcp_access() as actor,
         patch(
             "src.domains.agents.context.runtime_context.runtime_context_if_running",
-            return_value=SimpleNamespace(
+            return_value=make_runtime_context(
                 user_id=actor.id,
                 thread_id="thread-mcp",
                 execution_mode="pipeline",

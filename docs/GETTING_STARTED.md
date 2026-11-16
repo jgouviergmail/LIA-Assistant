@@ -6,7 +6,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-11-01
-**Compatibility**: LIA v5.0.0
+**Compatibility**: LIA v5.1.0
 
 ## Table of Contents
 
@@ -32,12 +32,13 @@
 
 **LIA** is a multi-agent conversational AI assistant built with **FastAPI**, **Next.js** and **LangGraph**. It orchestrates 300+ exposed tools across 20+ domains: Google, Microsoft and Apple services (contacts, emails, calendar, files, tasks), plus Places, Routes, Weather, Wikipedia, Perplexity, Brave Search, web fetch, browser control, Philips Hue, image generation and per-user MCP servers.
 
-Two user-toggleable execution modes (switchable in the chat header):
+Three mode choices in the chat header's menu, served by two execution engines:
 
 - **Pipeline mode** (default) — deterministic and economical: Router → Planner → Semantic Validator → Task Orchestrator → Tools → Response. Roughly 4-8× fewer tokens than ReAct.
 - **ReAct mode** — autonomous iterative reasoning loop for exploratory or ambiguous queries.
+- **Automatic mode** — the router picks one of the two engines for each request, completeness first ([ADR-390](architecture/ADR-390-The-Automatic-Mode-Chooses-The-Engine-Per-Request.md)); a small badge under the answer says which one ran.
 
-Both modes converge on the same streaming response (SSE) and the same HITL (Human-in-the-Loop) approval system.
+Both engines converge on the same streaming response (SSE) and the same HITL (Human-in-the-Loop) approval system.
 
 The guided self-host installer asks whether to offer the **personal radio**. It is off on a fresh guided installation until the operator opts in: programmes are produced on demand in the existing API service using the configured writing and voice providers, and their cost is charged to the listener. The installer sets `RADIO_ENABLED` from that answer; no extra Compose service or boot step is needed. Configure the radio model and voice slots in the Admin UI before enabling it. See [the self-hosting guide](guides/GUIDE_SELF_HOSTING.md) and [radio design](technical/RADIO.md).
 
@@ -74,11 +75,11 @@ For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISH
 | Tools | 311 (tool manifests registered at startup, measured 2026-10-19 on Docker dev) |
 | LLM providers (text) | 7 — OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama |
 | Voice providers | ElevenLabs (STT/TTS), Fish Audio (STT/TTS), Edge TTS (free), OpenAI (STT/TTS), Gemini TTS + local Whisper STT |
-| Configurable model and decision slots | 80, including 23 native JEV usages (admin registry, measured 2026-11-06) |
+| Configurable model and decision slots | [Model registry](../apps/api/src/domains/llm_config/constants.py) and [native JEV usages](../apps/api/src/domains/llm_config/jev_registry.py), administered per slot |
 | UI languages | 6 — fr, en, es, de, it, zh |
-| Prometheus metrics | 677 |
+| Prometheus metrics | 683 |
 | Grafana dashboards | 33 |
-| Built-in FAQ knowledge base | 566 questions in six languages; the English help corpus is indexed at startup |
+| Built-in FAQ knowledge base | 576 questions in six languages; the English help corpus is indexed at startup |
 
 ### Technical Architecture
 
@@ -107,6 +108,7 @@ For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISH
 | **Perplexity** | AI-powered web search | Perplexity API |
 | **Brave Search** | Web search | Per-user API key connector |
 | **Instance web search** | Web links for accounts with no search key | SearXNG, a bundled service the operator runs (ADR-382) |
+| **ntfy notifications** | LIA's notifications in the ntfy app, without Google | The instance's own ntfy server (an optional bundled service) or a public one (ADR-391) |
 | **Web Fetch** | Web page extraction | Built-in |
 | **Browser Control** | Autonomous interactive browsing | Playwright + ReAct agent |
 | **Smart Home** | Philips Hue lights | Local press-link or remote OAuth2 |
@@ -566,7 +568,7 @@ Or use the shortcuts `task dev:api` / `task dev:web` (require PostgreSQL + Redis
 
 ### Launched Docker Services
 
-Dev environment (`docker-compose.dev.yml`): 20 services by default, plus 6 opt-in Langfuse services (compose profile `langfuse`, started via `task dev:langfuse`):
+Dev environment (`docker-compose.dev.yml`), with optional profiles marked below:
 
 | Service | Port(s) | Description | URL |
 |---------|---------|-------------|-----|
@@ -590,6 +592,7 @@ Dev environment (`docker-compose.dev.yml`): 20 services by default, plus 6 opt-i
 | **node-exporter** | 9100 | System metrics | — |
 | **egress** | — | Sandbox egress proxy: the only way out of a skill or script run (ADR-298) | — |
 | **searxng** | — | The instance's own web search, for accounts with no search key (ADR-382) | — |
+| **ntfy** † | 2586 | The instance's own ntfy server, for LIA's notifications without Google (ADR-391) | http://localhost:2586 |
 | **minio** * | 9092, 9093 | S3 storage for Langfuse | http://localhost:9093 |
 | **langfuse-db** * | — | Langfuse PostgreSQL | — |
 | **langfuse-clickhouse** * | — | ClickHouse analytics | — |
@@ -598,8 +601,9 @@ Dev environment (`docker-compose.dev.yml`): 20 services by default, plus 6 opt-i
 | **langfuse-worker** * | 3030 | Langfuse worker | — |
 
 \* Opt-in `langfuse` compose profile — started only by `task dev:langfuse`.
+† Opt-in `ntfy` compose profile — started by `docker compose -f docker-compose.dev.yml --profile ntfy up -d ntfy`, with the `NTFY_*` values `.env.example` describes.
 
-The production compose (`docker-compose.prod.yml`) runs a leaner stack: five core services (postgres, postgres-backup, redis, api, web), twelve more behind the `observability` profile (prometheus, alertmanager, blackbox-exporter, grafana, loki, promtail, tempo, node-exporter, cadvisor, postgres-exporter, redis-exporter, portainer) and the optional `searxng` profile, the instance's own web search (ADR-382) — no pgAdmin, no Langfuse stack. Alertmanager delivers the core alerts by email (ADR-119, see [ALERTING.md](./technical/ALERTING.md)).
+The production compose (`docker-compose.prod.yml`) runs a leaner stack: five core services (postgres, postgres-backup, redis, api, web), twelve more behind the `observability` profile (prometheus, alertmanager, blackbox-exporter, grafana, loki, promtail, tempo, node-exporter, cadvisor, postgres-exporter, redis-exporter, portainer), the optional `searxng` profile, the instance's own web search (ADR-382), and the optional `ntfy` profile, the instance's own ntfy server (ADR-391) — no pgAdmin, no Langfuse stack. Alertmanager delivers the core alerts by email (ADR-119, see [ALERTING.md](./technical/ALERTING.md)).
 
 ### Service Verification
 
@@ -658,7 +662,7 @@ Open https://localhost:3000/chat and try:
 # Simple conversation
 Hello, who are you?
 
-# Execution mode: use the toggle in the chat header to switch Pipeline ↔ ReAct
+# Execution mode: use the menu in the chat header — Pipeline, ReAct or Automatic
 
 # Contacts / Emails / Calendar (once a provider is connected)
 Search my contacts named Jean
@@ -909,8 +913,9 @@ Every subsystem below ships with working defaults; the values shown are the **pr
 | `HTTP_SCAN_PROTECTION_ENABLED` | Temporary bans, shared by every API worker, for clients probing unknown routes or failing to sign in (ADR-353) | `true` |
 | `CHANNELS_ENABLED` | Multi-channel messaging (Telegram) | `true` |
 | `MCP_ENABLED` / `MCP_USER_ENABLED` / `MCP_REACT_ENABLED` | Admin MCP / per-user MCP / MCP ReAct loop | `true` |
-| `REACT_AGENT_ENABLED` | ReAct execution mode toggle | `true` |
+| `REACT_AGENT_ENABLED` | ReAct execution mode (off: every turn, « auto » included, runs in the pipeline) | `true` |
 | `FCM_ENABLED` | Firebase push notifications | `true` |
+| `NTFY_ENABLED` | Notifications through ntfy; the bundled server is a separate installer opt-in ([configuration](technical/NTFY.md)) | `true` |
 | `LIVE_ENABLED` | Live voice mode (ADR-299): speech-to-speech sessions on the person's own Gemini / OpenAI / ElevenLabs key, delegating to the chat | `true` |
 | `PUSH_RELAY_URL` | iOS wake relay for the native app (no default: pointing it somewhere is a privacy decision you take, not a constant) | *(unset)* |
 | `FIREBASE_ANDROID_APP_ID` / `FIREBASE_API_KEY` / `FIREBASE_SENDER_ID` | Android native-app push from YOUR Firebase project (all three or none) | *(unset)* |
@@ -1242,6 +1247,7 @@ Failing connectors trigger an FCM notification and a reconnection modal. See [OA
 COMPACTION_ENABLED=true
 COMPACTION_THRESHOLD_RATIO=0.4
 COMPACTION_PRESERVE_RECENT_MESSAGES=10
+COMPACTION_PERSON_WORDS_MAX_TOKENS=2000
 TOKEN_THRESHOLD_SAFE=50000
 TOKEN_THRESHOLD_WARNING=65000
 TOKEN_THRESHOLD_CRITICAL=85000
@@ -1274,8 +1280,9 @@ Restore procedure: [runbooks/DATABASE_BACKUP_RESTORE.md](./runbooks/DATABASE_BAC
 
 ## LLM Configuration
 
-LIA declares **80 independently configurable model and decision slots** in
-`LLM_TYPES_REGISTRY` (57 static entries and 23 JEV usages). Pipeline nodes,
+LIA declares independently configurable model and decision slots in
+[`LLM_TYPES_REGISTRY`](../apps/api/src/domains/llm_config/constants.py), including
+the usages declared by the [JEV registry](../apps/api/src/domains/llm_config/jev_registry.py). Pipeline nodes,
 agent loops and background tasks select their own provider and model; native
 decision slots expose only the parameters their provider accepts. Configuration
 is resolved as **code defaults (`LLM_DEFAULTS`) → database overrides** (admin
@@ -1797,7 +1804,7 @@ In development the equivalent is `task db:seed:sql` (or `task db:reset`), which 
 ### Features
 
 - [ ] Login works, first conversation streams a response
-- [ ] Execution mode toggle (Pipeline ↔ ReAct) visible in the chat header
+- [ ] Execution mode menu (Pipeline, ReAct, Automatic) visible in the chat header
 - [ ] Connectors connect and appear ACTIVE in Settings > Connectors
 - [ ] Voice mode: microphone authorized, transcription works, TTS speaks
 - [ ] Today Briefing renders on the home page

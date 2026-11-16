@@ -27,6 +27,7 @@ from uuid import UUID
 import structlog
 
 from src.core.constants import HEALTH_METRICS_USER_TOGGLE_ATTR
+from src.core.time_utils import resolve_user_timezone
 from src.domains.health_metrics.heartbeat_signals import build_heartbeat_health_signals
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.metrics_heartbeat import heartbeat_source_dropped_total
@@ -76,7 +77,9 @@ async def fetch_health_signals(
     try:
         async with asyncio.timeout(budget_seconds):
             async with get_db_context() as db:
-                signals = await build_heartbeat_health_signals(db, user_id)
+                signals = await build_heartbeat_health_signals(
+                    db, user_id, zone=resolve_user_timezone(user)
+                )
     except TimeoutError:
         heartbeat_source_dropped_total.labels(source=HEALTH_SIGNALS_SOURCE, reason="timeout").inc()
         logger.warning(

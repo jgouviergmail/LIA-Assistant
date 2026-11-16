@@ -18,6 +18,7 @@ import pytest
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.conversation_target import ConversationOrigin
 from src.core.i18n_diagnostics import get_incident_notification
 from src.domains.diagnostics import notifications as notif_module
 from src.domains.users.models import User
@@ -48,10 +49,13 @@ class _UnreachableAdmin(ScriptedDispatcher):
         metadata: Mapping[str, object],
         db: AsyncSession,
         conversation_id: UUID | None = None,
+        origin: ConversationOrigin | None = None,
     ) -> dict[str, object]:
         if user.id == self.unreachable:
             return {"archived": False, "conversation_id": None, "message_id": None}
-        return await super()._archive_message(user, content, metadata, db, conversation_id)
+        return await super()._archive_message(
+            user, content, metadata, db, conversation_id, origin=origin
+        )
 
 
 @pytest.fixture

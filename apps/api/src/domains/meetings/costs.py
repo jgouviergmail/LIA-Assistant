@@ -91,3 +91,14 @@ def cost_metadata(
         "stt_model": outcome.model,
         "cost_eur": round(sum(priced), 6) if priced else None,
     }
+
+
+def total_cost_eur(meeting: Meeting) -> float | None:
+    """Transcription, native selection and minutes; None if none were priced.
+
+    An unknown component neither hides the other priced components nor turns
+    into a free claim (ADR-185, a count is exact or absent).
+    """
+    parts = [c for c in (meeting.stt_cost_eur, meeting.synthesis_cost_eur) if c is not None]
+    parts.extend(charge.cost_eur for charge in selection_charges(meeting))
+    return round(sum(parts), 6) if parts else None

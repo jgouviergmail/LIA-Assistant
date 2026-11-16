@@ -16,6 +16,7 @@
  * their real "empty/nominal" states, never a parse error.
  */
 import type { MockRoute } from './api-mock';
+import type { ExecutionModePreference } from '../../src/hooks/useExecutionModePreference';
 import type { TelephonyCallSummary } from '../../src/types/telephony';
 
 /** Mirrors `AppConfig` (src/hooks/useAppConfig.ts). */
@@ -121,6 +122,17 @@ export const dashboardShellMocks: MockRoute[] = [
     },
   },
   { url: '**/api/v1/personalities/current', json: { personality_id: null, personality: null } },
+
+  // Execution mode menu (src/hooks/useExecutionModePreference.ts, ADR-390): the
+  // chosen mode is the account's; this read says what « auto » does here.
+  {
+    url: '**/api/v1/auth/me/execution-mode-preference',
+    method: 'GET',
+    json: {
+      execution_mode: 'pipeline',
+      auto_resolution: 'decided',
+    } satisfies ExecutionModePreference,
+  },
 
   // Connector health alert (src/hooks/useConnectorHealth.ts) — healthy, no polling churn.
   {

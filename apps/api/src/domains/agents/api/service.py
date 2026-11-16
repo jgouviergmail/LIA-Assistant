@@ -43,6 +43,7 @@ from src.domains.agents.api.hitl_pending import (
     extract_decision_type,
     hitl_stale_chunks,
 )
+from src.domains.agents.api.message_embedding_prefetch import MessageEmbeddingPrefetch
 from src.domains.agents.api.mixins import GraphManagementMixin, StreamingMixin
 from src.domains.agents.api.schemas import BrowserContext, ChatStreamChunk, composition_request
 from src.domains.agents.api.stream_identity import with_invocation_identity
@@ -638,6 +639,7 @@ class AgentService(
                 execution_mode=user_execution_mode,
                 automated=is_automated_source,
             )
+            embedding_prefetch = MessageEmbeddingPrefetch()
             try:
                 # The consultation register rides alongside the token tracker:
                 # same scope, same guarantee. ``__aexit__`` runs on the normal
@@ -658,6 +660,8 @@ class AgentService(
                     # same scope as the two registers, so a turn that stops
                     # mid-flight still publishes what it had to repair.
                     verdict_collector(),
+                    # Last in, first out: settled before the tracker files (lot 3).
+                    embedding_prefetch,
                 ):
                     # === Step 2: state, attachments and the archived request ===
                     # Everything the turn reads from the database comes first;
@@ -711,6 +715,10 @@ class AgentService(
                         return
                     state = prepared.state
                     archived_user_msg_id = prepared.archived_user_msg_id
+                    # The router's first readers find the message's vector cached.
+                    embedding_prefetch.start(
+                        state, str(user_id), session_id, run_id, resuming=is_hitl_resumption
+                    )
 
                     # === TRACKING: Count user message ===
                     # Count ALL user messages (initial AND HITL responses)

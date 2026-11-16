@@ -115,6 +115,69 @@ def _derive_application_type(callback_url: str) -> str:
     return "native" if host in _NATIVE_CALLBACK_HOSTS else "web"
 
 
+#: The names the discovery documents take under ``/.well-known/`` (RFC 8414, OpenID Connect
+#: Discovery 1.0, RFC 9728).
+_AUTHORIZATION_SERVER_DOCUMENT = "oauth-authorization-server"
+_OPENID_DOCUMENT = "openid-configuration"
+_PROTECTED_RESOURCE_DOCUMENT = "oauth-protected-resource"
+
+
+def _origin_and_path(url: str) -> tuple[str, str]:
+    """A URL's scheme and host, and its path without a trailing slash (``""`` for none)."""
+    parsed = urlparse(url)
+    return f"{parsed.scheme}://{parsed.netloc}", parsed.path.rstrip("/")
+
+
+def authorization_metadata_urls(issuer: str) -> list[str]:
+    """Where an authorization server's metadata may live, in the order they are read (2026-11-14).
+
+    An issuer with a path: RFC 8414 §3.1 inserts the well-known name between the host and the
+    path, then OpenID Connect's insertion and its appending, as the MCP authorization
+    specification reads them; the host's root documents come last, for a server publishing there
+    despite its path. An issuer without a path: the host's documents. Measured: Stripe's MCP
+    authorization server (issuer ``…/mcp``) publishes at the inserted address alone.
+
+    Args:
+        issuer: The authorization server's issuer identifier.
+
+    Returns:
+        The candidate addresses, the most specific first.
+    """
+    origin, path = _origin_and_path(issuer)
+    root = [
+        f"{origin}/.well-known/{_AUTHORIZATION_SERVER_DOCUMENT}",
+        f"{origin}/.well-known/{_OPENID_DOCUMENT}",
+    ]
+    if not path:
+        return root
+    return [
+        f"{origin}/.well-known/{_AUTHORIZATION_SERVER_DOCUMENT}{path}",
+        f"{origin}/.well-known/{_OPENID_DOCUMENT}{path}",
+        f"{origin}{path}/.well-known/{_OPENID_DOCUMENT}",
+        *root,
+    ]
+
+
+def resource_metadata_urls(resource: str) -> list[str]:
+    """Where a protected resource describes itself: the host's root document, then its path
+    inserted as RFC 9728 §3.1 places it.
+
+    The host's document keeps its precedence on purpose (measured 2026-11-14): Asana publishes
+    both for ``…/v2/mcp``, naming two authorization servers, and the host's — the one with
+    dynamic registration — is the one every sign-in was made against. The path's document only
+    serves a resource that publishes no other.
+
+    Args:
+        resource: The MCP server's address.
+
+    Returns:
+        The candidate addresses, in the order they are read.
+    """
+    origin, path = _origin_and_path(resource)
+    root = f"{origin}/.well-known/{_PROTECTED_RESOURCE_DOCUMENT}"
+    return [root, f"{origin}/.well-known/{_PROTECTED_RESOURCE_DOCUMENT}{path}"] if path else [root]
+
+
 def safe_oauth_error_code_value(code: str | None) -> str | None:
     """Return ``code`` only when it is an allowlisted OAuth error code.
 
@@ -252,7 +315,8 @@ class MCPOAuthFlowHandler:
         Discover the OAuth authorization server for an MCP endpoint.
 
         Follows the MCP auth spec:
-        1. Try RFC 9728 Protected Resource Metadata (.well-known/oauth-protected-resource)
+        1. Try RFC 9728 Protected Resource Metadata (.well-known/oauth-protected-resource,
+           the server's path inserted first: ``resource_metadata_urls``)
         2. Try sending unauthenticated request → parse WWW-Authenticate header
         3. Fetch authorization server metadata (RFC 8414)
         4. Fallback: .well-known/openid-configuration
@@ -263,13 +327,12 @@ class MCPOAuthFlowHandler:
         parsed = urlparse(mcp_url)
         base_url = f"{parsed.scheme}://{parsed.netloc}"
 
-        # Strategy 1: .well-known/oauth-protected-resource
-        resource_metadata = await self._try_fetch_json(
-            f"{base_url}/.well-known/oauth-protected-resource"
-        )
-        if resource_metadata and "authorization_servers" in resource_metadata:
-            auth_server_url = resource_metadata["authorization_servers"][0]
-            return await self._fetch_auth_server_metadata(auth_server_url)
+        # Strategy 1: .well-known/oauth-protected-resource (RFC 9728 §3.1)
+        for address in resource_metadata_urls(mcp_url):
+            resource_metadata = await self._try_fetch_json(address)
+            if resource_metadata and "authorization_servers" in resource_metadata:
+                auth_server_url = resource_metadata["authorization_servers"][0]
+                return await self._fetch_auth_server_metadata(auth_server_url)
 
         # Strategy 2: Unauthenticated request → WWW-Authenticate header
         # SEC-008: `mcp_url` was validated when the server was registered, but
@@ -292,15 +355,12 @@ class MCPOAuthFlowHandler:
                                 auth_server_url = rm_data["authorization_servers"][0]
                                 return await self._fetch_auth_server_metadata(auth_server_url)
 
-        # Strategy 3: .well-known/oauth-authorization-server (RFC 8414)
-        metadata = await self._try_fetch_json(f"{base_url}/.well-known/oauth-authorization-server")
-        if metadata and "authorization_endpoint" in metadata:
-            return MCPAuthServerMetadata(metadata)
-
-        # Strategy 4: .well-known/openid-configuration fallback
-        metadata = await self._try_fetch_json(f"{base_url}/.well-known/openid-configuration")
-        if metadata and "authorization_endpoint" in metadata:
-            return MCPAuthServerMetadata(metadata)
+        # Strategies 3 and 4: the server's own host as its authorization server (RFC 8414, then
+        # OpenID Connect).
+        for address in authorization_metadata_urls(base_url):
+            metadata = await self._try_fetch_json(address)
+            if metadata and "authorization_endpoint" in metadata:
+                return MCPAuthServerMetadata(metadata)
 
         raise ValueError(
             f"Could not discover OAuth authorization server for {mcp_url}. "
@@ -725,25 +785,20 @@ class MCPOAuthFlowHandler:
         """Fetch OAuth authorization server metadata (RFC 8414).
 
         Discovery strategies (in order):
-        1. RFC 8414: .well-known/oauth-authorization-server
-        2. OpenID Connect: .well-known/openid-configuration
-        3. Convention-based heuristic: {auth_server_url}/authorize + /access_token
+        1. RFC 8414 and OpenID Connect documents, where each places them for this issuer
+           (``authorization_metadata_urls``: an issuer's path inserted first)
+        2. Convention-based heuristic: {auth_server_url}/authorize + /access_token
            (for providers like GitHub that don't implement RFC 8414)
         """
         parsed = urlparse(auth_server_url)
-        base = f"{parsed.scheme}://{parsed.netloc}"
 
-        # Strategy 1: .well-known/oauth-authorization-server (RFC 8414)
-        metadata = await self._try_fetch_json(f"{base}/.well-known/oauth-authorization-server")
-        if metadata and "authorization_endpoint" in metadata:
-            return MCPAuthServerMetadata(metadata)
+        # Strategy 1: the published documents (RFC 8414 §3.1, OpenID Connect Discovery 1.0)
+        for address in authorization_metadata_urls(auth_server_url):
+            metadata = await self._try_fetch_json(address)
+            if metadata and "authorization_endpoint" in metadata:
+                return MCPAuthServerMetadata(metadata)
 
-        # Strategy 2: .well-known/openid-configuration (OpenID Connect)
-        metadata = await self._try_fetch_json(f"{base}/.well-known/openid-configuration")
-        if metadata and "authorization_endpoint" in metadata:
-            return MCPAuthServerMetadata(metadata)
-
-        # Strategy 3: Convention-based heuristic
+        # Strategy 2: Convention-based heuristic
         # Many OAuth providers (e.g., GitHub) don't implement RFC 8414 metadata
         # discovery but expose endpoints as sub-paths of the auth server URL:
         #   {auth_server_url}/authorize   → authorization endpoint

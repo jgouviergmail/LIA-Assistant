@@ -192,6 +192,8 @@ async def notify_result(message: PeerMessage, outcome: str) -> None:
                 target_id=str(message.id),
                 metadata={"peer_message_notice": True},
                 db=db,
+                # Back to the discussion the message was sent from (ADR-378).
+                origin=current.origin,
             )
             logger.debug(
                 "peer_delivery_sender_notice",

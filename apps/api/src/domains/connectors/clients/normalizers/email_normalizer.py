@@ -18,7 +18,11 @@ from imap_tools.utils import DEFAULT_EMAIL_DATE, EmailAddress
 
 from src.core.field_names import FIELD_MAIL_ANSWERED
 from src.domains.connectors.clients.email_attachments import declares_attachments
-from src.domains.connectors.clients.normalizers.html_text import html_to_text, strip_html_to_line
+from src.domains.connectors.clients.normalizers.html_text import (
+    html_to_text,
+    shown_words,
+    strip_html_to_line,
+)
 from src.domains.connectors.clients.normalizers.imap_handles import message_handle
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
 from src.infrastructure.email.recipients import name_addr
@@ -180,6 +184,19 @@ def _first_header(headers: Any, name: str) -> str | None:
     return str(values[0]).strip() if values else None
 
 
+def _body_text(msg: Any, *, keep_quoted: bool) -> str:
+    """A message's body as text, before its quoted history leaves.
+
+    A reader reads the words the layout shows (ADR-287 amendment 2026-11-15); a
+    mailbox draft, read to be edited and written back, the text the person
+    wrote (ADR-344).
+    """
+    text, html = msg.text or "", msg.html or None
+    if not keep_quoted:
+        return shown_words(text, html)
+    return text or (html_to_text(html) if html else "")
+
+
 def normalize_imap_message(
     msg: Any, folder: str, *, keep_quoted: bool = False, scope: str | None = None
 ) -> dict[str, Any]:
@@ -203,13 +220,9 @@ def normalize_imap_message(
     message_id = message_handle(folder, str(msg.uid), scope=scope)
 
     # =========================================================================
-    # Body: extract text, prefer plain text over HTML-stripped
-    # Store at TOP-LEVEL to bypass GmailFormatter._extract_body_recursive()
-    # which expects base64url-encoded data (Gmail API format)
+    # Body: stored at TOP-LEVEL, the flat vocabulary (ADR-287).
     # =========================================================================
-    body_text = msg.text or ""
-    if not body_text and msg.html:
-        body_text = html_to_text(msg.html)
+    body_text = _body_text(msg, keep_quoted=keep_quoted)
     if not keep_quoted:
         body_text = clean_reply_body(body_text, subject=msg.subject or "")
     snippet = strip_html_to_line(body_text, max_length=_SNIPPET_MAX_LENGTH)

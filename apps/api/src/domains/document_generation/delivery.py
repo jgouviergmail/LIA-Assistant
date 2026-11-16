@@ -17,12 +17,13 @@ from __future__ import annotations
 from typing import Any
 
 from src.domains.document_generation.document_store import (
+    GENERATED_DOCUMENTS_METADATA_KEY,
     get_and_clear_pending_documents,
     peek_pending_documents,
     to_wire_metadata,
 )
 
-_METADATA_KEY = "generated_documents"
+_METADATA_KEY = GENERATED_DOCUMENTS_METADATA_KEY
 
 
 def attach_archived_documents(metadata: dict[str, Any], conversation_id: str) -> None:

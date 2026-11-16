@@ -130,6 +130,42 @@ reaches recovery and the final synthesis. A gap the model declares itself
 `test_a_page_cut_at_the_tool_s_cap_is_not_an_observed_gap` beside the tests
 that keep a failed read and a demanded completeness as gaps.
 
+## Amendment 2026-11-16 — a withheld answer hands its turn's reads to the response
+
+Decision 6 suppresses the loop's completion claim when a requested result has a
+known gap, « so the response can synthesize from the actual tool results ». The
+response received none. Read on a traced turn during the ADR-390 qualification
+(E06, « what day must I return the books to the library? »): the loop read the
+reminder holding the day and wrote a correct answer; the requested result sat in
+the domain the analyzer had guessed (the tasks, which no connector served), its
+only tool failed, the coverage withheld the answer — and the response node's
+input held the failed verdict, the runtime failures and nothing else. The turn's
+registry and its tool results reached it only BESIDE a non-empty answer
+(`_apply_react_passthrough`); `drop_current_turn_responses` removes every message
+after the question, on the promise that `agent_results` keeps the answer. A budget
+exit (ADR-248, invariant 1, whose directive tells the response that « the tool
+results already in this context ARE valid ») took the same path to the same
+nothing. Measured: the answer « I could not find the return date » on four loop
+draws of four.
+
+**Decision.** `orchestration/tool_data_projection.react_handover` decides what a
+ReAct turn hands its response: its answer when it delivered one; otherwise the
+turn's registry and the reads `react_turn_tool_data` collects — this turn's tool
+messages (counted from the END, `current_turn_responses`) that returned a result,
+as the loop read them, minus failures (the failures directive states them,
+ADR-303), calls that never ran, acts (their own directive, ADR-263 §23) and reads
+whose items the registry already shows. They travel as one step payload the
+response's data section already reads (ADR-347, `FIELD_TOOL_DATA`), under the
+response slot's budget. The coverage itself is unchanged: a requested result
+whose guessed source failed still withholds the claim — kept, because a source the
+person NAMES and never connected must not be answered « nothing there » on the
+loop's word; telling a named source from a guessed one would change the
+analyzer's contract, left to the owner.
+
+Proven by `tests/unit/domains/agents/nodes/test_react_withheld_answer_data.py`
+and on the traced turn: the response's input now holds the reminder and the
+forecast, and the answer gives the day and its weather.
+
 ## Implementation references
 
 - [Requested outcome contracts](../../apps/api/src/domains/agents/analysis/requested_outcomes.py)

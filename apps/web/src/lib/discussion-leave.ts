@@ -29,6 +29,11 @@ export interface DiscussionReach {
   hasOtherDiscussions: boolean;
   /** Opens the discussion holding a result; absent while leaving would cancel a turn. */
   openResult?: (row: DiscussionSearchResult) => void;
+  /**
+   * Opens a discussion a notification named, by its id (Main's own id, or
+   * `null`, opens Main); absent while leaving would cancel a turn.
+   */
+  openById?: (id: string | null) => void;
 }
 
 /**
@@ -55,5 +60,10 @@ export function discussionReach(args: {
     currentId,
     hasOtherDiscussions,
     openResult: row => open(row.conversation_kind === 'secondary' ? row.conversation_id : null),
+    // Main is opened as Main (no coordinates), never as a selection of its id.
+    openById: id =>
+      open(
+        id === null || switcher.page?.items.find(row => row.id === id)?.kind === 'main' ? null : id
+      ),
   };
 }

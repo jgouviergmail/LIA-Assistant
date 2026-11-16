@@ -54,6 +54,7 @@ export const CAPABILITY_SECTION: Readonly<Record<string, SettingsSectionToken>> 
   habits: 'habits',
   peers: 'peer-connections',
   channels: 'channels',
+  ntfy: 'notifications',
   telephony: 'telephony-calls',
   live: 'live-mode',
   avatar: 'avatar',

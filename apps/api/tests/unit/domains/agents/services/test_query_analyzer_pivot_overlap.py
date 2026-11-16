@@ -21,6 +21,7 @@ from src.domains.agents.services.query_analyzer_service import (
     QueryAnalysisResult,
     QueryAnalyzerService,
 )
+from tests.helpers.memory_resolution import resolver_answering
 
 ORIGINAL_QUERY = "quel temps fait-il chez mon frère ?"
 TRANSLATED_QUERY = "what is the weather at my brother's place?"
@@ -65,10 +66,7 @@ def _analysis_result() -> QueryAnalysisResult:
 @pytest.mark.asyncio
 async def test_pivot_task_awaited_and_used_as_analyzer_input():
     """The awaited pivot result must feed the analyzer; memory gets the original."""
-    memory_resolver = MagicMock()
-    memory_resolver.retrieve_and_resolve = AsyncMock(
-        return_value=MemoryResolution(facts=None, resolved=None)
-    )
+    memory_resolver = resolver_answering(MemoryResolution(facts=None, resolved=None))
     service = _make_service(memory_resolver)
 
     async def _pivot() -> str:
@@ -93,8 +91,8 @@ async def test_pivot_task_awaited_and_used_as_analyzer_input():
     # Analyzer LLM receives the TRANSLATED query (historical semantics).
     assert mock_analyze.await_args.kwargs["query"] == TRANSLATED_QUERY
     # Memory phase receives the ORIGINAL query (embedding language invariant).
-    memory_resolver.retrieve_and_resolve.assert_awaited_once()
-    assert memory_resolver.retrieve_and_resolve.await_args.kwargs["query"] == ORIGINAL_QUERY
+    memory_resolver.begin.assert_called_once()
+    assert memory_resolver.begin.call_args.args[0] == ORIGINAL_QUERY
     # Debug-panel field keeps the user's original input.
     assert intelligence.original_query == ORIGINAL_QUERY
 
@@ -102,10 +100,7 @@ async def test_pivot_task_awaited_and_used_as_analyzer_input():
 @pytest.mark.asyncio
 async def test_backward_compat_without_pivot_task():
     """Without english_query_task, `query` is used verbatim (pre-R1 behaviour)."""
-    memory_resolver = MagicMock()
-    memory_resolver.retrieve_and_resolve = AsyncMock(
-        return_value=MemoryResolution(facts=None, resolved=None)
-    )
+    memory_resolver = resolver_answering(MemoryResolution(facts=None, resolved=None))
     service = _make_service(memory_resolver)
 
     with patch.object(
@@ -121,7 +116,7 @@ async def test_backward_compat_without_pivot_task():
 
     assert mock_analyze.await_args.kwargs["query"] == TRANSLATED_QUERY
     # Memory still prefers original_query over the (English) query param.
-    assert memory_resolver.retrieve_and_resolve.await_args.kwargs["query"] == ORIGINAL_QUERY
+    assert memory_resolver.begin.call_args.args[0] == ORIGINAL_QUERY
 
 
 @pytest.mark.asyncio
@@ -132,10 +127,7 @@ async def test_no_pivot_task_downstream_steps_use_analyzer_english():
     post-analyzer steps tuned on English input (context resolution, goal
     inference) receive the english_query the analyzer itself produced.
     """
-    memory_resolver = MagicMock()
-    memory_resolver.retrieve_and_resolve = AsyncMock(
-        return_value=MemoryResolution(facts=None, resolved=None)
-    )
+    memory_resolver = resolver_answering(MemoryResolution(facts=None, resolved=None))
     service = _make_service(memory_resolver)
 
     with patch.object(
@@ -196,9 +188,24 @@ async def test_router_pivot_task_gated_by_semantic_pivot_flag(monkeypatch):
     assert mock_service.analyze_full.await_args.kwargs["english_query_task"] is None
 
 
+def test_semantic_pivot_ships_disabled() -> None:
+    """R3 verdict (2026-11-14): the pivot is OFF unless an operator turns it on.
+
+    580 paired requests over 14 languages and three model families measured no
+    routing gain from the pivot (primary domain 98.8 % with it, 99.2 % without),
+    while a production replay put it back on the router's critical path once the
+    memory chain stopped hiding it (0.72 s per turn on average).
+    """
+    from src.core.config.agents import AgentsSettings
+    from src.core.constants import SEMANTIC_PIVOT_ENABLED_DEFAULT
+
+    assert SEMANTIC_PIVOT_ENABLED_DEFAULT is False
+    assert AgentsSettings.model_fields["semantic_pivot_enabled"].default is False
+
+
 @pytest.mark.asyncio
 async def test_router_pivot_task_created_when_flag_enabled(monkeypatch):
-    """R3 flag default: semantic_pivot_enabled=True → router passes a real task."""
+    """R3 flag on (operator opt-in): semantic_pivot_enabled=True → a real task."""
     from langchain_core.runnables import RunnableConfig
 
     from src.core.config import settings as app_settings
@@ -242,8 +249,9 @@ async def test_router_pivot_task_created_when_flag_enabled(monkeypatch):
 @pytest.mark.asyncio
 async def test_pivot_task_not_orphaned_when_memory_phase_fails():
     """A failure racing the pivot must cancel the still-pending task (no orphan)."""
-    memory_resolver = MagicMock()
-    memory_resolver.retrieve_and_resolve = AsyncMock(side_effect=RuntimeError("boom"))
+    memory_resolver = resolver_answering(
+        MemoryResolution(facts=None, resolved=None), facts_error=RuntimeError("boom")
+    )
     service = _make_service(memory_resolver)
 
     async def _slow_pivot() -> str:

@@ -217,9 +217,9 @@ anything sensitive. Each prompt is prefixed with its key (for example
 | ---------------------- | --------------------- | --------------------------------------------- | ------- |
 | `wizard_language`      | always                | `en`, `fr`                                    | `en`    |
 | `exposure`             | always                | `lan`, `proxy`, `caddy`                       | `lan`   |
-| `server_host`          | exposure = `lan`      | hostname or IP your browsers will use          | —       |
+| `server_host`          | exposure = `lan`      | hostname or IP your browsers will use (an IPv6 address without a zone) | —       |
 | `web_domain`           | exposure = `proxy`/`caddy` | public web domain                        | —       |
-| `api_domain`           | exposure = `proxy`/`caddy` | public API domain                        | —       |
+| `api_domain`           | exposure = `proxy`/`caddy` | public API domain, different from the web domain (one proxy serves each name once) | —       |
 | `caddy_email`          | exposure = `caddy`    | email for Let's Encrypt notifications          | —       |
 | `admin_email`          | always                | your login address                             | —       |
 | `admin_name`           | always                | display name                                   | `Admin` |
@@ -232,6 +232,9 @@ anything sensitive. Each prompt is prefixed with its key (for example
 | `speaking_avatar`      | always                | `yes` / `no` — offer a speaking avatar; each person connects their own Simli key and opts in in Settings | `no`    |
 | `world`               | always                | `yes` / `no` — offer LIA World, its shared presence and written exchanges; native activities remain private | `no`    |
 | `web_search`           | always                | `yes` / `no` — the instance's web search (SearXNG, ADR-382) for every person with no search key of their own; a person's own Brave key always wins | `yes`   |
+| `ntfy_server`          | always                | `yes` / `no` — the instance's own ntfy server (ADR-391): people receive LIA's notifications in the ntfy app (Android or iPhone, no Google account); without it a person can still subscribe through a public server such as ntfy.sh | `no`    |
+| `ntfy_domain`          | `ntfy_server` = `yes`, exposure = `proxy`/`caddy` | the ntfy server's own public domain (ntfy serves no sub-path), different from the web and API domains | — |
+| `ntfy_ios_relay`       | `ntfy_server` = `yes` | `yes` / `no` — wake iPhones at once through ntfy.sh, which then receives each message's id and a hash of its topic's address, never its text; without it an iPhone may receive them hours late | `no`    |
 | `admin_password`       | always *(hidden)*     | 10+ chars, 2 uppercase, 2 digits, 2 specials   | —       |
 | `provider_key_anthropic`| always *(hidden)*    | your Anthropic API key                         | —       |
 | `provider_key_deepseek`| always *(hidden)*     | your DeepSeek API key                          | —       |
@@ -269,6 +272,11 @@ Notes that matter in practice:
 - **`caddy`** obtains and renews certificates automatically and serves two
   virtual hosts: your web domain in front of `web`, and your API domain in
   front of `api`. Point both DNS records at this machine before installing.
+- **With the ntfy server** (`ntfy_server = yes`): `lan` also publishes port
+  `2586`, which phones subscribe to; `proxy` keeps it on `127.0.0.1:2586`, for
+  your proxy to route the ntfy domain to (see « Instance ntfy server » in
+  [Optional capabilities](#46-optional-capabilities)); `caddy` serves the ntfy
+  domain as a third virtual host — point its DNS record at this machine too.
 
 ### 4.3 Secrets the installer generates for you
 
@@ -314,6 +322,8 @@ when needed.
 | `AVATAR_ENABLED`        | Your `speaking_avatar` answer; each account still needs its own opt-in and Simli connector |
 | `WORLD_ENABLED`         | Your `world` answer; the administrator capability switch and each participant's presence consent remain effective |
 | `SEARXNG_URL`, `SEARXNG_SECRET` | Your `web_search` answer: `http://searxng:8080` and a generated 64-hex secret, kept across reconfigurations (an empty URL when `no`); the `searxng` Compose profile follows the same answer |
+| `NTFY_SERVER_URL`, `NTFY_PUBLIC_URL`, `NTFY_BEHIND_PROXY`, `NTFY_UPSTREAM_BASE_URL` | Your `ntfy_server`, `ntfy_domain` and `ntfy_ios_relay` answers: `http://ntfy:80` where LIA publishes, `http://<server_host>:2586` (LAN) or `https://<ntfy_domain>` where phones subscribe, `true` behind a proxy, `https://ntfy.sh` when iPhones are relayed; empty URLs when `no`. The `ntfy` Compose profile follows the same answer |
+| `NTFY_PUBLISH_TOKEN`, `NTFY_ACCOUNT_HASH` | Generated when the ntfy server runs, kept across reconfigurations (and while it is off, for a re-enable), replaced only when the server could not start on them: LIA's access token, and its account's hash — random characters no password matches, so the token is the account's only key |
 | `AVATAR_MINTS_PER_HOUR`, `AVATAR_SESSION_LENGTH_SECONDS`, `AVATAR_IDLE_SECONDS`, `AVATAR_HTTP_TIMEOUT_SECONDS`, `AVATAR_CONNECT_TIMEOUT_SECONDS`, `AVATAR_PRESENCE_TIMEOUT_SECONDS` | Finite defaults aligned with [the API's avatar settings](../../apps/api/src/core/config/avatars.py), including the server-controlled relay's validated-presence bound |
 | `ELEVENLABS_TTS_MAX_CONCURRENCY` | The application default; lower it to your ElevenLabs account allowance before enabling its speech synthesis |
 | `FISHAUDIO_MAX_CONCURRENCY` | The application default; lower it to your Fish Audio account allowance before enabling its speech or transcription |
@@ -448,6 +458,60 @@ and restart. To stop it by hand, remove the profile, empty `SEARXNG_URL` and sto
 the container by name
 (`docker compose -f docker-compose.prod.yml --profile searxng stop searxng`):
 Compose never counts a disabled profile's container as an orphan.
+
+**Instance ntfy server** (`ntfy_server = yes`; `no` by default). A person then
+receives LIA's notifications in the free ntfy app, on Android or on an iPhone,
+with no Google account and no Firebase project of yours
+([ADR-391](../architecture/ADR-391-Ntfy-Brings-The-Notifications-To-Any-Device.md),
+[NTFY.md](../technical/NTFY.md)): they subscribe from **Settings → Notifications**
+by scanning a QR code. Without it, a person can still subscribe through a public
+server such as ntfy.sh. The `ntfy` service of `docker-compose.prod.yml` runs
+read-only, with no capability and none of your `.env`; LIA alone publishes, with
+a token the wizard generates, and anyone holding a topic's random name may read
+it — that name is the password. It takes about 17 MiB. The wizard starts the
+`ntfy` profile, writes the `NTFY_*` values and keeps the credentials; answering
+`no` later stops the container.
+
+iPhones: Apple's push reaches the ntfy app only through ntfy.sh. Answering `yes`
+to `ntfy_ios_relay` lets your server ask ntfy.sh to wake a phone — ntfy.sh then
+receives each message's id and a hash of its topic's address, never its text;
+without it, an iPhone may receive a notification hours late. Android is not
+concerned.
+
+Behind your own proxy (`proxy`), route the ntfy domain to `127.0.0.1:2586`
+without buffering — ntfy streams to the phones. With nginx:
+
+```nginx
+server {
+  listen 443 ssl;
+  server_name ntfy.example.org;
+  location / {
+    proxy_pass http://127.0.0.1:2586;
+    proxy_http_version 1.1;
+    proxy_buffering off;
+    proxy_request_buffering off;
+    proxy_set_header Host $http_host;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_read_timeout 3m;
+  }
+}
+```
+
+Without the wizard, add `ntfy` to `COMPOSE_PROFILES`, then set:
+
+```bash
+NTFY_SERVER_URL=http://ntfy:80
+NTFY_PUBLIC_URL=https://ntfy.example.org   # where phones reach it
+NTFY_BEHIND_PROXY=true                     # behind a proxy
+NTFY_PUBLISH_TOKEN=tk_...                  # printf 'tk_%s' "$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 29)"
+NTFY_ACCOUNT_HASH=...                      # LC_ALL=C tr -dc './A-Za-z0-9' </dev/urandom | head -c 53
+```
+
+and restart. To stop it by hand, remove the profile, empty `NTFY_SERVER_URL` and
+`NTFY_PUBLIC_URL`, and stop the container by name
+(`docker compose -f docker-compose.prod.yml --profile ntfy stop ntfy`).
 
 **Script sandbox** (`skill_sandbox = yes`) lets skills execute their scripts
 and commands in a throwaway container, and lets the assistant run the short
@@ -763,6 +827,12 @@ data: the dump of step 1 is the way back
   reconfiguration lists
   `SEARXNG_SECRET` and `SEARXNG_URL` as going from absent to empty even when you change
   nothing: an older `.env` does not hold these keys yet.
+- **The instance's ntfy server is off** after the upgrade: offer it with
+  `./install.sh --reconfigure` (answer `yes` to `ntfy_server`) or by hand, as described
+  under « Instance ntfy server » in [Optional capabilities](#46-optional-capabilities).
+  The first reconfiguration lists the six `NTFY_*` values as going from absent to empty
+  (`NTFY_BEHIND_PROXY` to `false`) even when you change nothing: an older `.env` does not
+  hold these keys yet.
 - **Routines started by a signed call** are served as soon as the new release runs, at
   `…/api/v1/hooks/routines/<key>`: add `ROUTINE_WEBHOOKS_ENABLED=false` to your `.env` before
   step 6 to keep that address closed
@@ -830,6 +900,7 @@ release** and are safe to overwrite:
 install.sh                          docker-compose.prod.yml
 docker-compose.skill-sandbox.yml    .env.min.prod.example
 LICENSE                             infrastructure/caddy/Caddyfile.template
+infrastructure/caddy/Caddyfile.ntfy.template
 infrastructure/docker/postgres-init.sql
 infrastructure/searxng/settings.yml infrastructure/sandbox-egress/
 scripts/install/                    infrastructure/observability/
@@ -879,7 +950,8 @@ pathlib.Path('docker-compose.images.yml').write_text(
 ```
 
 Add `'caddy'` to `services` if you installed behind Caddy, `'searxng'` if the
-instance's web search is on, and the twelve observability services if you
+instance's web search is on, `'ntfy'` if the instance's ntfy server runs, and
+the twelve observability services if you
 enabled that profile — pin exactly the services your Compose layers start, no
 more. The command refuses a manifest that is not
 `passed`, so an unqualified build cannot be pinned by accident.

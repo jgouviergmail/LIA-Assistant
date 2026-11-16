@@ -21,6 +21,11 @@
  * adds those subtrees back under that route only. Server components are
  * unaffected: `initI18next` keeps the whole catalogue.
  *
+ * The landing follows the same rule (2026-11-15): what the server renders
+ * reaches no browser (`LANDING_SERVER_ONLY_SCOPES`), what the home page's
+ * client components read is scoped on the home route
+ * (`HOME_TRANSLATION_SCOPES`), and only the public chrome stays in the root.
+ *
  * The application catalogues also stay out of public pages. The dashboard's
  * server layout supplies them around its client shell; the public demo and
  * animated examples receive only the groups their reused components read.
@@ -143,6 +148,59 @@ export const MORE_TRANSLATION_SCOPES = [
   'more',
 ] as const;
 
+/**
+ * The landing's subtrees no browser reads: their sections render on the
+ * server, yet they went to every page, the dashboard's included — 122 KB of
+ * the 184 KB French `landing` (measured 2026-11-15 on this file's guard graph,
+ * which refuses any browser reader of them on a route that does not scope it).
+ */
+const LANDING_SERVER_ONLY_SCOPES = [
+  'landing.features',
+  'landing.catalog_explorer',
+  'landing.tech',
+  'landing.security',
+  'landing.chat_mockup',
+  'landing.arguments',
+  'landing.use_cases',
+  'landing.world_places',
+  'landing.home_feature_descriptions',
+  'landing.context',
+  'landing.positioning',
+  'landing.promise',
+  'landing.engineering',
+  'landing.basics',
+  'landing.footer',
+  'landing.video',
+  'landing.meta',
+  'landing.changelog',
+  'landing.home_meta',
+  'landing.proof',
+  'landing.blog_preview',
+  'landing.editorial',
+] as const;
+
+/**
+ * The landing's subtrees the home page's client components read: the home
+ * route alone scopes them (the demo route, the two demonstrations). What stays
+ * in the root is the public chrome every page draws (`hero`, `nav`, `motion`,
+ * `cosmos`, `cta`): about 3 KB.
+ */
+export const HOME_TRANSLATION_SCOPES = [
+  'landing.chapters',
+  'landing.comparison',
+  'landing.home_product_demo',
+  'landing.product_demo',
+  'landing.screenshots',
+  'landing.day',
+  'landing.architecture',
+  'landing.platform',
+  'landing.transparency',
+  'landing.home_cta',
+  'landing.presentation',
+  'landing.gallery',
+  'landing.rail',
+] as const;
+
 /** Dotted paths of the subtrees the root layout leaves out. */
 export const ROUTE_SCOPED_TRANSLATIONS = [
   'faq.sections',
@@ -152,6 +210,8 @@ export const ROUTE_SCOPED_TRANSLATIONS = [
   ...DASHBOARD_TRANSLATION_SCOPES,
   'more',
   'showroom',
+  ...LANDING_SERVER_ONLY_SCOPES,
+  ...HOME_TRANSLATION_SCOPES,
 ] as const;
 
 export type RouteScopedTranslation = (typeof ROUTE_SCOPED_TRANSLATIONS)[number];

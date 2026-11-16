@@ -3,7 +3,8 @@
 The switch is an account preference of the reviewed vocabulary the assistant's own
 preference tool writes too (``AssistantPreferencePatch``): one door, two hands. These
 routes read what was learned, switch the style and forget it — for the authenticated
-account only.
+account only. Learning it, which asks a model, is served beside them through the assists'
+door (``tool_assists/style_learning``).
 """
 
 from __future__ import annotations
@@ -86,8 +87,8 @@ async def switch_writing_style(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Forget the writing style LIA learned",
     description=(
-        "Removes what was learned. With the switch on, the next e-mail LIA writes for the "
-        "person learns it again from their sent mail."
+        "Removes what was learned. Nothing is learned again until the person asks "
+        "(POST /writing-style/learn)."
     ),
 )
 async def forget_writing_style(

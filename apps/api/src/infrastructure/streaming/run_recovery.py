@@ -102,7 +102,7 @@ async def close_stopped(activity_id: UUID, confirmed_stopped_worker_id: UUID) ->
             )
     count_settled(settled)
     if changed:
-        announce_release(admission.target.owner_id, RunEnd.INTERRUPTED)
+        announce_release(admission.target.owner_id, RunEnd.INTERRUPTED, settled.held_ids)
     logger.warning(
         "conversation_execution_recovered",
         activity_id=str(activity_id),

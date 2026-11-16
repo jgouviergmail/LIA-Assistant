@@ -1,51 +1,8 @@
 /** Execute the real worker handlers with synthetic Push API clients. */
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { runInNewContext } from 'node:vm';
 import { expect, it, vi } from 'vitest';
-const source = readFileSync(join(process.cwd(), 'public/firebase-messaging-sw.js'), 'utf8');
-interface Event {
-  data?: { json: () => unknown; text: () => string };
-  notification?: { data: Record<string, string>; close: () => void };
-  waitUntil: (promise: Promise<unknown>) => void;
-}
-function worker() {
-  const handlers = new Map<string, (event: Event) => void>();
-  const showNotification = vi.fn<
-    (title: string, options: { tag: string; data: Record<string, string> }) => Promise<void>
-  >(async () => {});
-  const client = {
-    url: 'https://lia.test/en/dashboard',
-    navigate: vi.fn(async (_url: string) => null),
-    focus: vi.fn(async () => {}),
-  };
-  const openWindow = vi.fn(async (_url: string) => null);
-  const output = { log: vi.fn(), error: vi.fn() };
-  runInNewContext(source, {
-    self: {
-      location: { origin: 'https://lia.test' },
-      registration: { showNotification },
-      addEventListener: (type: string, callback: (event: Event) => void) =>
-        handlers.set(type, callback),
-    },
-    clients: { matchAll: async () => [client], openWindow },
-    URL,
-    console: output,
-  });
-  async function emit(type: string, event: Omit<Event, 'waitUntil'>) {
-    const pending: Promise<unknown>[] = [];
-    const handler = handlers.get(type);
-    if (!handler) throw new Error('Missing worker handler');
-    handler({
-      ...event,
-      waitUntil: promise => {
-        pending.push(promise);
-      },
-    });
-    await Promise.all(pending);
-  }
-  return { emit, showNotification, client, openWindow, output };
-}
+
+import { worker } from './service-worker-harness';
+
 it('uses the SMS occurrence as its collapse tag without logging the push payload', async () => {
   const app = worker();
   const data = {

@@ -56,7 +56,6 @@ async def _draft(**overrides: Any) -> tuple[str, dict[str, Any]]:
             user_language="fr",
             user_id="user-1",
             config=config,
-            style_reading=overrides.get("style_reading"),
         )
     return body, {"call": structured.await_args, "config": config, "style": style.await_args}
 
@@ -80,14 +79,12 @@ async def test_without_a_style_the_prompt_is_what_it_was() -> None:
     assert "\n\nThe received e-mail:" in str(human.content)
 
 
-async def test_the_style_is_asked_for_the_account_on_the_writers_own_run() -> None:
-    async def reading() -> None:  # pragma: no cover - only passed through
-        return None
-
-    _body, seen = await _draft(style_reading=reading)
+async def test_the_writer_reads_the_accounts_style_and_learns_nothing() -> None:
+    """A draft never waits for a mailbox: the style is learned at the person's request."""
+    _body, seen = await _draft()
 
     assert seen["style"].args == ("user-1",)
-    assert seen["style"].kwargs == {"config": seen["config"], "reading": reading}
+    assert seen["style"].kwargs == {}
 
 
 async def test_the_received_email_is_external_data_in_the_per_call_part() -> None:

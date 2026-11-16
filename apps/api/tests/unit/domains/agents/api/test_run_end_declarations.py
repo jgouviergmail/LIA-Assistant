@@ -183,7 +183,10 @@ async def test_a_channel_turn_declares_a_normal_end_when_its_stream_completes() 
         user_display_name="Reader",
         user_journals_enabled=False,
         user_psyche_enabled=False,
+        user_execution_mode="pipeline",
         hitl_decision=None,
+        position=None,
+        attachment_ids=(),
     )
     with (
         instruction_runtime(owner),
@@ -222,7 +225,10 @@ async def test_a_channel_turn_that_relayed_an_error_is_interrupted() -> None:
         user_display_name="Reader",
         user_journals_enabled=False,
         user_psyche_enabled=False,
+        user_execution_mode="pipeline",
         hitl_decision=None,
+        position=None,
+        attachment_ids=(),
     )
     with (
         instruction_runtime(owner),

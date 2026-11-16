@@ -51,6 +51,7 @@ class ToolAssist(str, Enum):
     SELECTION = "selection"
     SELECTION_INTERNET = "selection_internet"
     READ_ALOUD = "read_aloud"
+    WRITING_STYLE_LEARN = "writing_style_learn"
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,8 +73,8 @@ class AssistSpec:
 ASSISTS: Final[dict[ToolAssist, AssistSpec]] = {
     ToolAssist.MAIL_SUMMARY: AssistSpec(slot=DIGEST_SLOT, sections=(SECTION_MAIL,)),
     ToolAssist.MAIL_REPLY: AssistSpec(slot=MAIL_WRITING_SLOT, sections=(SECTION_MAIL,)),
-    # Reads the mailbox only to learn how the person writes, when it must (ADR-383).
-    ToolAssist.MAIL_COMPOSE: AssistSpec(slot=MAIL_WRITING_SLOT, sections=(SECTION_MAIL,)),
+    # Writes from the person's words alone: their voice is read, never learned here (ADR-383).
+    ToolAssist.MAIL_COMPOSE: AssistSpec(slot=MAIL_WRITING_SLOT),
     ToolAssist.MAIL_SUBJECT: AssistSpec(slot=MAIL_WRITING_SLOT),
     ToolAssist.MAIL_TRANSLATE: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE, sections=(SECTION_MAIL,)),
     ToolAssist.MAIL_EVENT: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE, sections=(SECTION_MAIL,)),
@@ -106,6 +107,9 @@ ASSISTS: Final[dict[ToolAssist, AssistSpec]] = {
     ),
     # No model: the voice bills on its own run, and the slot here prices nothing.
     ToolAssist.READ_ALOUD: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE, asks_a_model=False),
+    # The person's click in the settings: their sent mail read, how they write learned by
+    # the slot that writes their e-mails (ADR-383 amendment 2026-11-16).
+    ToolAssist.WRITING_STYLE_LEARN: AssistSpec(slot=MAIL_WRITING_SLOT, sections=(SECTION_MAIL,)),
 }
 
 

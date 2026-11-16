@@ -18,6 +18,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from src.core.config import settings
 from src.domains.briefing.fetchers import fetch_agenda, fetch_tasks
 from src.domains.briefing.formatters import format_agenda_event
 from src.domains.connectors.active_client import ActiveClient
@@ -71,8 +72,14 @@ class TestAgendaItemAddress:
 
     async def test_the_card_names_the_calendar_read_and_asks_for_the_call(self) -> None:
         client = MagicMock()
-        client.list_events = AsyncMock(
-            return_value={"items": [_event(hangoutLink="https://meet.google.com/abc")]}
+        client.list_calendars = AsyncMock(
+            return_value={"items": [{"id": "work@group", "accessRole": "owner"}]}
+        )
+        client.list_events_window = AsyncMock(
+            return_value={
+                "events": [_event(hangoutLink="https://meet.google.com/abc")],
+                "truncated": False,
+            }
         )
 
         @asynccontextmanager
@@ -94,8 +101,62 @@ class TestAgendaItemAddress:
             "evt-1",
             "https://meet.google.com/abc",
         )
-        fields = client.list_events.await_args.kwargs["fields"]
+        fields = client.list_events_window.await_args.kwargs["fields"]
         assert {"hangoutLink", "conferenceData"} <= set(fields)
+
+    async def test_the_card_reads_every_owned_calendar_soonest_first(self) -> None:
+        """An invitation sits in the main calendar, whichever one events are created in."""
+        soon = datetime.now(UTC) + timedelta(hours=1)
+
+        def event(event_id: str, hours: int) -> dict[str, object]:
+            start = soon + timedelta(hours=hours)
+            return {
+                "id": event_id,
+                "summary": event_id,
+                "start": {"dateTime": start.isoformat()},
+                "end": {"dateTime": (start + timedelta(minutes=30)).isoformat()},
+            }
+
+        held = {
+            "work@group": [event(f"work-{index}", index + 1) for index in range(12)],
+            "me@example.com": [event("invitation", 0)],
+            "team@example.com": [event("not-mine", 0)],
+        }
+        client = MagicMock()
+        client.list_calendars = AsyncMock(
+            return_value={
+                "items": [
+                    {"id": "me@example.com", "accessRole": "owner", "primary": True},
+                    {"id": "work@group", "accessRole": "owner"},
+                    {"id": "team@example.com", "accessRole": "reader"},
+                ]
+            }
+        )
+
+        async def window(calendar_id: str, *_: object, **__: object) -> dict[str, object]:
+            return {"events": held.get(calendar_id, []), "truncated": False}
+
+        client.list_events_window = AsyncMock(side_effect=window)
+
+        @asynccontextmanager
+        async def opened(user_id, *, fresh=False):
+            yield CalendarAccess(client=client, calendar_id="work@group", connector_type=None)
+
+        with (
+            patch("src.domains.connectors.calendar_access.open_active_calendar", opened),
+            patch(
+                "src.domains.briefing.fetchers.classify_briefing_items",
+                AsyncMock(side_effect=lambda items, **_: items),
+            ),
+        ):
+            data = await fetch_agenda(user=_user(), user_tz=PARIS, language="en")
+
+        assert [(item.id, item.calendar_id) for item in data.events[:2]] == [
+            ("invitation", "me@example.com"),
+            ("work-0", "work@group"),
+        ]
+        assert len(data.events) == settings.briefing_max_agenda_items
+        assert "not-mine" not in [item.id for item in data.events]
 
 
 def _tasks_client(lists: list[dict[str, str]]) -> MagicMock:

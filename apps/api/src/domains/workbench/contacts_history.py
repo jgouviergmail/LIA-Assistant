@@ -9,6 +9,8 @@ in its conversation — answered, a reply received — through the one door (ADR
 A calendar answers a window oldest first, so a long read would hand back the oldest meetings and
 cut the latest: the window walks back from now and stops once both lists are full. How far it
 looked is stated. Each source says why it has nothing: « I could not look » is never « nothing ».
+Every calendar the account OWNS is read, never the default alone: an invitation sits in the main
+calendar whichever one events are created in (``calendar_lists``, owner rule 2026-11-15).
 
 Since 2026-11-07 the contact's NUMBERS are asked too: the calls LIA placed to them and the texts
 they sent (``contacts_lines``). A contact with numbers alone has exchanges, its mailbox and
@@ -27,12 +29,17 @@ from zoneinfo import ZoneInfo
 
 from src.core.config import settings
 from src.core.constants import (
+    CALENDARS_READ_MAX,
     WORKBENCH_CONTACT_HISTORY_ITEMS,
     WORKBENCH_CONTACT_HISTORY_SPAN_DAYS,
     WORKBENCH_CONTACT_HISTORY_SPANS,
 )
 from src.core.exceptions import BaseAPIException
 from src.core.mail_reply_state import ReplyState
+from src.domains.connectors.clients.calendar_lists import (
+    calendars_to_read,
+    read_calendar_windows,
+)
 from src.domains.connectors.clients.protocols import CalendarClientProtocol, EmailClientProtocol
 from src.domains.connectors.mail_reply_states import reply_states_of
 from src.domains.connectors.preferences.owner_defaults import (
@@ -44,7 +51,12 @@ from src.domains.relations.providers.emails import (
     exchange_queries,
     to_exchanged_email,
 )
-from src.domains.relations.providers.events import attends, event_instant, organizes
+from src.domains.relations.providers.events import (
+    attends,
+    event_instant,
+    is_cancelled,
+    organizes,
+)
 from src.domains.relations.providers.schemas import ExchangedEmail
 from src.domains.shared.text_normalization import fold_email
 from src.domains.workbench.calls import provider_call
@@ -206,25 +218,33 @@ def _mail_row(email: ExchangedEmail, states: Mapping[str, ReplyState]) -> Histor
 async def _meetings_with(
     user_id: UUID, zone: ZoneInfo, addresses: list[str], now: datetime
 ) -> _Meetings:
+    """The meetings with these addresses, in every calendar the account owns, latest first.
+
+    Each span is read in every calendar before the next, older one is asked: the
+    lists are full only of the latest meetings, whichever calendar holds them.
+    """
     folded = {fold_email(address) for address in addresses}
     meetings = _Meetings()
     async with open_tool_client(_CALENDAR, user_id, container=CALENDAR) as opened:
         client: CalendarClientProtocol = opened.client
         async with provider_call(_CALENDAR, "history", act=False):
-            calendar_id = await resolve_owner_container_id(
+            default_id = await resolve_owner_container_id(
                 client=client, name=opened.preferred_name, owner_id=user_id, container=CALENDAR
             )
+            calendars = await calendars_to_read(client, default_id, bound=CALENDARS_READ_MAX)
+            meetings.cut = calendars.cut
             for index in range(WORKBENCH_CONTACT_HISTORY_SPANS):
                 end = now - _SPAN * index
-                window = await client.list_events_window(
-                    calendar_id,
-                    (end - _SPAN).isoformat(),
-                    end.isoformat(),
+                span = ((end - _SPAN).isoformat(), end.isoformat())
+                answers = await read_calendar_windows(
+                    client,
+                    [(calendar_id, *span) for calendar_id in calendars.ids],
                     bound=settings.workbench_calendar_window_max_events,
                 )
-                meetings.cut = meetings.cut or bool(window.get("truncated"))
-                for event in window.get("events") or []:
-                    _place(meetings, event, folded, calendar_id, zone)
+                for calendar_id, window in answers:
+                    meetings.cut = meetings.cut or bool(window.get("truncated"))
+                    for event in window.get("events") or []:
+                        _place(meetings, event, folded, calendar_id, zone)
                 if meetings.full():
                     break
     return meetings
@@ -251,9 +271,9 @@ def _place(
 
 def _standing(event: Mapping[str, Any], folded: set[str]) -> Standing | None:
     """Where a meeting stands between the two; another's meeting answers neither list."""
-    if event.get("status") == "cancelled":
-        return None
     raw = dict(event)
+    if is_cancelled(raw):
+        return None
     if organizes(raw, folded):
         return "by_them"
     if not attends(raw, folded):

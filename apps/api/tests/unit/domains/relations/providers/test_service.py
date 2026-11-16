@@ -20,6 +20,7 @@ import pytest
 
 from src.core.config import settings
 from src.domains.relations.providers.client import ProviderNotConfigured
+from src.domains.relations.providers.events import SharedEventsRead
 from src.domains.relations.providers.schemas import (
     ContactCard,
     ContactEmail,
@@ -93,7 +94,10 @@ def _patched(
         ),
         patch(
             "src.domains.relations.providers.service.fetch_shared_events",
-            new=AsyncMock(return_value=events or [], side_effect=event_error),
+            new=AsyncMock(
+                return_value=SharedEventsRead(events=list(events or [])),
+                side_effect=event_error,
+            ),
         ),
         patch(
             "src.domains.relations.providers.service.get_redis_cache",

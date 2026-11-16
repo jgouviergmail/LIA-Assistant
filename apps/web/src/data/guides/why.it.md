@@ -4,7 +4,7 @@
 
 **Versione**: 7.0
 **Data**: 2026-11-14
-**Applicazione**: LIA v5.0.0
+**Applicazione**: LIA v5.1.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -37,7 +37,7 @@ Apri **Strumenti** quando vuoi fare da te: posta, calendario, attività, contatt
 
 Le parli normalmente, per iscritto o a voce, una conversazione per argomento, anche mentre risponde. L'interfaccia esiste in sei lingue (francese, inglese, tedesco, spagnolo, italiano, cinese) e la tua dettatura viene trascritta nella lingua del tuo account. Una ventina di agenti specializzati si dividono il lavoro: i tuoi dati personali, il web, la creazione, la casa connessa, la navigazione sui siti e l'anticipazione.
 
-Un interruttore nella chat sceglie il suo modo di ragionare. La modalità **Pipeline**, predefinita, prepara tutti i passaggi, li verifica e poi li esegue in parallelo: è prevedibile e consuma da 4 a 8 volte meno token. La modalità **ReAct** procede passo dopo passo, più autonoma e più costosa, per una ricerca aperta; quando un passaggio richiede un vero calcolo, scrive alcune righe di Python e le lancia in una sandbox blindata, che esce sul web solo attraverso un unico proxy e senza le tue chiavi ([privacy](/it/faq#faq-privacy), [il percorso di un messaggio](/it/how#pipeline)).
+Il menu della chat offre **Pipeline**, **ReAct** o **Automatico**, che lascia a LIA la scelta per ogni richiesta. La modalità **Pipeline**, predefinita, prepara tutti i passaggi, li verifica e poi li esegue in parallelo: è prevedibile e consuma da 4 a 8 volte meno token. La modalità **ReAct** procede passo dopo passo, più autonoma e più costosa, per una ricerca aperta; quando un passaggio richiede un vero calcolo, scrive alcune righe di Python e le lancia in una sandbox blindata, che esce sul web solo attraverso un unico proxy e senza le tue chiavi ([privacy](/it/faq#faq-privacy), [il percorso di un messaggio](/it/how#pipeline)).
 
 Se scegli la visualizzazione a **schede**, le risposte che portano dati arrivano così: foto di un luogo, meteo fascia oraria per fascia oraria, itinerario, anteprima di un documento. Una scheda mostra ciò che la fonte ha fornito, senza inventare nulla, e rispondere a un'email dalla sua scheda prepara la richiesta senza inviare nulla.
 
@@ -143,7 +143,7 @@ Parla standard aperti e pubblici (MCP, iCalendar, CalDAV, CardDAV, IMAP, vCard) 
 
 I tuoi account si collegano tramite OAuth 2.1 senza che LIA conosca la loro password, e una passkey ti fa accedere senza alcuna password. Ogni versione pubblica l'inventario esatto di ciò che contiene e viene installata su macchine vergini prima di essere pubblicata ([sicurezza](/it/faq#faq-privacy)). Ogni decisione di architettura è scritta e archiviata sulle [mappe](/it/maps). Il codice è sotto AGPL-3.0: puoi sottoporlo ad audit, modificarlo, e deve restare aperto.
 
-Ritrovi LIA nel browser, nell'app mobile con le sue notifiche push, e su Telegram, dove le conferme si fanno con dei pulsanti e dove risponde anche ai tuoi messaggi vocali. La stessa memoria ti segue ovunque.
+Ritrovi LIA nel browser, nell'app mobile e su Telegram, con testi, file e messaggi vocali; le sue notifiche possono raggiungerti anche tramite un abbonamento ntfy, senza il contenuto per impostazione predefinita. La stessa memoria ti segue ovunque.
 
 ## 9. Cosa LIA non è, e dove va
 

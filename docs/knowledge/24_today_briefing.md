@@ -77,13 +77,11 @@ Yes. In the **More actions** menu (⋯) of a mail on the **Unread mail** card, *
 
 ## What do the two figures on the Health card mean?
 
-Each metric (steps, heart rate) stands on its own dial, today's figure in its middle and the average under it:
-• **Today** — today's value so far (the total for steps, the average for heart rate). The mark on the dial shows where it stands, and the band it stands in is lit
-• **Avg N d** — the daily average over the last few days, the notch on the dial; the number of days is set by your administrator
+Each measure, steps and heart rate, stands on its own dial, today’s figure in its middle and the average under it:
+• **Today**: today’s value so far, the total for steps or the average for heart rate. The mark on the dial shows where it stands, and the band it stands in is lit
+• **Avg N d**: the daily average over the last few days, the notch on the dial; your administrator sets the number of days
 
-The three bands are the ones that colour the figure. A value past the end of the dial stays at its end, and the figure says the rest. A day with nothing read shows no mark, never a zero.
-
-The full charts and statistics live in the **Health data** section of the settings.
+A value past the end of the dial stays at its end, and the figure says the rest. A day with nothing read shows no mark, never a zero. The heart rate figure beats at its own pace, once every sixty seconds divided by the figure: 75 bpm beats every 0.8 s. It stays still when your device asks for reduced motion, and for a value no heart beats at (under 30 or over 220 bpm), which is still shown as it was read. The full charts live in the **Health data** section of the settings.
 
 ## What does the Weather card show?
 

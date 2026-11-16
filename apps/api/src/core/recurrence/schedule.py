@@ -29,6 +29,7 @@ from zoneinfo import ZoneInfo
 # `RecurrenceLimits` from this package, so the chain closes on a
 # partially-initialised `core.config` and nothing boots. Pinned by
 # `tests/unit/core/recurrence/test_no_domain_import.py`.
+from src.core.local_day import local_midnight
 from src.core.recurrence.engine import next_occurrence, slots_between
 from src.core.recurrence.spec import RecurrenceSpec
 
@@ -46,23 +47,6 @@ def week_start(tz: ZoneInfo, *, now: datetime | None = None) -> date:
     """
     local_today = (now or datetime.now(UTC)).astimezone(tz).date()
     return local_today - timedelta(days=local_today.isoweekday() - 1)
-
-
-def _local_midnight(day: date, tz: ZoneInfo) -> datetime:
-    """The instant local midnight of ``day`` happens at.
-
-    A local day is not 24 hours: 29 March lasts 23 in Paris. Both bounds of a
-    day window are therefore built from the CALENDAR, never by adding a day to
-    an instant (measured: doing so counted 48 slots where 46 exist).
-
-    Args:
-        day: The local calendar day.
-        tz: The zone.
-
-    Returns:
-        The UTC instant of that local midnight.
-    """
-    return datetime.combine(day, datetime.min.time(), tzinfo=tz).replace(fold=0).astimezone(UTC)
 
 
 def week_slots(
@@ -88,8 +72,8 @@ def week_slots(
     return slots_between(
         spec,
         timezone,
-        start=_local_midnight(monday, tz),
-        end=_local_midnight(monday + timedelta(days=7), tz),
+        start=local_midnight(monday, tz),
+        end=local_midnight(monday + timedelta(days=7), tz),
     )
 
 
@@ -111,8 +95,8 @@ def day_slots(spec: RecurrenceSpec, timezone: str, *, day: date) -> list[datetim
     return slots_between(
         spec,
         timezone,
-        start=_local_midnight(day, tz),
-        end=_local_midnight(day + timedelta(days=1), tz),
+        start=local_midnight(day, tz),
+        end=local_midnight(day + timedelta(days=1), tz),
     )
 
 

@@ -6,12 +6,43 @@ import { useIconStyle } from '@/lib/icon-style-context';
 import { scopeIconArtwork, type IconArtwork, type IconStyle } from '@/lib/icon-style';
 
 const forcedColorsQuery = '(forced-colors: active)';
-function subscribeForcedColors(onChange: () => void): () => void {
-  const query = window.matchMedia(forcedColorsQuery);
-  query.addEventListener('change', onChange);
-  return () => query.removeEventListener('change', onChange);
+
+/**
+ * ONE media query list and ONE browser listener for every icon on the page.
+ * Each `matchMedia` call builds a new list, and a page draws hundreds of icons
+ * (≈590 on the home page, 2026-11-15): asked per icon and per render, that was
+ * four lists and one listener per icon. The list is rebuilt only when
+ * `window.matchMedia` itself is replaced, and the listener follows it.
+ */
+let forcedColors: { source: Window['matchMedia']; list: MediaQueryList } | null = null;
+const forcedColorsListeners = new Set<() => void>();
+
+function notifyForcedColors(): void {
+  for (const listener of forcedColorsListeners) listener();
 }
-const readForcedColors = () => window.matchMedia(forcedColorsQuery).matches;
+
+function forcedColorsList(): MediaQueryList {
+  if (forcedColors?.source !== window.matchMedia) {
+    const listening = forcedColorsListeners.size > 0;
+    if (listening) forcedColors?.list.removeEventListener('change', notifyForcedColors);
+    forcedColors = { source: window.matchMedia, list: window.matchMedia(forcedColorsQuery) };
+    if (listening) forcedColors.list.addEventListener('change', notifyForcedColors);
+  }
+  return forcedColors.list;
+}
+
+function subscribeForcedColors(onChange: () => void): () => void {
+  const list = forcedColorsList();
+  if (forcedColorsListeners.size === 0) list.addEventListener('change', notifyForcedColors);
+  forcedColorsListeners.add(onChange);
+  return () => {
+    forcedColorsListeners.delete(onChange);
+    if (forcedColorsListeners.size === 0) {
+      forcedColors?.list.removeEventListener('change', notifyForcedColors);
+    }
+  };
+}
+const readForcedColors = () => forcedColorsList().matches;
 const serverForcedColors = () => false;
 
 /** A compatible SVG boundary: callers keep their size, ref, labels and handlers. */

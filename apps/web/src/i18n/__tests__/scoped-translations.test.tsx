@@ -19,6 +19,7 @@ import { translationBundle } from '@/i18n';
 import { languages, type Language } from '@/i18n/settings';
 import {
   DASHBOARD_TRANSLATION_SCOPES,
+  HOME_TRANSLATION_SCOPES,
   ROUTE_SCOPED_TRANSLATIONS,
   mergeTranslations,
   omitTranslations,
@@ -76,7 +77,41 @@ describe('scopedTranslationPaths', () => {
   });
 });
 
+/** The landing subtrees the root leaves out: read on the server, or by one route's client. */
+const LANDING_SCOPED = ROUTE_SCOPED_TRANSLATIONS.filter(path => path.startsWith('landing.'));
+
+/** UTF-8 bytes of a catalogue part, as the page payload carries it. */
+const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length;
+
 describe('the root catalogue', () => {
+  it.each(languages)('%s ships every page only the landing chrome', lng => {
+    const whole = translationBundle(lng);
+    const root = omitTranslations(whole, ROUTE_SCOPED_TRANSLATIONS);
+    // The sections render on the server or on their own route (184 KB of French, 2026-11-15).
+    for (const subtree of ['features', 'catalog_explorer', 'chapters', 'tech', 'comparison']) {
+      expect(whole).toHaveProperty(`landing.${subtree}`);
+      expect(root).not.toHaveProperty(`landing.${subtree}`);
+    }
+    // The public chrome every page draws in the browser stays.
+    for (const subtree of ['hero', 'nav', 'motion', 'cosmos']) {
+      expect(root).toHaveProperty(`landing.${subtree}`);
+    }
+    expect(bytes(root.landing)).toBeLessThan(bytes(whole.landing) * 0.05);
+  });
+
+  it.each(languages)('%s gives the home page back exactly what its browser reads', lng => {
+    const whole = translationBundle(lng);
+    const root = omitTranslations(whole, ROUTE_SCOPED_TRANSLATIONS);
+    const home = mergeTranslations(root, pickTranslations(whole, HOME_TRANSLATION_SCOPES));
+    for (const subtree of ['chapters', 'comparison', 'product_demo', 'home_product_demo']) {
+      expect(home).toHaveProperty(`landing.${subtree}`);
+    }
+    // Rendered on the server: never shipped, not even to the home page.
+    for (const subtree of ['features', 'catalog_explorer', 'tech', 'positioning', 'arguments']) {
+      expect(home).not.toHaveProperty(`landing.${subtree}`);
+    }
+  });
+
   it('leaves out the subtrees only some routes read, and keeps the rest', () => {
     const whole = translationBundle('fr');
     const root = omitTranslations(whole, ROUTE_SCOPED_TRANSLATIONS);
@@ -85,7 +120,7 @@ describe('the root catalogue', () => {
     expect(Object.keys(faq)).not.toContain('changelog');
     expect(Object.keys(faq)).toContain('title');
     expect(root).not.toHaveProperty('blog');
-    expect(root.landing).toBe(whole.landing);
+    expect(root).toHaveProperty('landing.hero', (whole.landing as Record<string, unknown>).hero);
     // The point of the cut: most of the catalogue never reaches a page that
     // does not read it (63 % in French when it was made, 2026-10-28).
     expect(JSON.stringify(root).length).toBeLessThan(JSON.stringify(whole).length / 2);
@@ -110,7 +145,7 @@ describe('the root catalogue', () => {
     expect(root).not.toHaveProperty('showroom');
     expect(root).toHaveProperty('settings.language');
     expect(root).toHaveProperty('errors');
-    expect(dashboard).toEqual(omitTranslations(previous, ['more', 'showroom']));
+    expect(dashboard).toEqual(omitTranslations(previous, ['more', 'showroom', ...LANDING_SCOPED]));
     // Measure UTF-8 payload bytes, including languages with multibyte glyphs.
     expect(new TextEncoder().encode(JSON.stringify(root)).length).toBeLessThan(
       new TextEncoder().encode(JSON.stringify(previous)).length * 0.4

@@ -97,6 +97,22 @@ class TestOperationalInjectionLevelRouting:
 
         assert repo.search_by_relevance.await_args.kwargs["exclude_levels"] == ["L0", "L3"]
         assert repo.search_by_relevance.await_args.kwargs["operational_only"] is True
+        # The turn's journal context reads text: the vectors stay in the database.
+        assert repo.search_by_relevance.await_args.kwargs["with_vectors"] is False
+
+    async def test_continuity_entries_are_read_without_their_vectors(self) -> None:
+        """The recent entries beside the relevant ones are text too (latency lot 5)."""
+        from src.domains.journals import context_builder
+
+        recent = _entry("r1")
+        repo = MagicMock(get_recent_for_user=AsyncMock(return_value=[recent]))
+
+        continuity = await context_builder._recent_entries(repo, uuid4(), 2, ["L0", "L3"], [])
+
+        assert continuity == [(recent, None)]
+        kwargs = repo.get_recent_for_user.await_args.kwargs
+        assert kwargs["with_vectors"] is False
+        assert kwargs["limit"] == 2 and kwargs["operational_only"] is True
 
     async def test_explicit_empty_override_injects_all_levels(self) -> None:
         """An explicit ``exclude_levels=[]`` disables the filter (extraction-style)."""

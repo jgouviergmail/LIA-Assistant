@@ -4,7 +4,7 @@
 
 **Versione**: 3.0
 **Data**: 2026-11-14
-**Applicazione**: LIA v5.0.0
+**Applicazione**: LIA v5.1.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi totalità del codice è stata scritta da un'IA. Il mio lavoro è stato 
 | Indicatore | Valore |
 | --- | --- |
 | Codice scritto da un'IA, diretta, inquadrata e controllata | **≈ 100 %** |
-| Righe di codice sorgente (esclusi i test), suddivise in una sessantina di pacchetti di dominio backend | **1.219.354** |
-| Test automatizzati inventariati, in suite adatte al commit e al rilascio | **87.496** |
-| Decisioni di architettura documentate (ADR) | **386** |
-| Versioni rilasciate a ritmo regolare | **297** |
+| Righe di codice sorgente (esclusi i test), suddivise in una sessantina di pacchetti di dominio backend | **1.238.134** |
+| Test automatizzati inventariati, in suite adatte al commit e al rilascio | **89.335** |
+| Decisioni di architettura documentate (ADR) | **389** |
+| Versioni rilasciate a ritmo regolare | **298** |
 | Lingue, con una parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **7,9/10** |
 
@@ -64,11 +64,11 @@ Il mondo condiviso dà all'assistente dei luoghi: una biblioteca per le conoscen
 
 Volevo anche che un assistente lasciasse spazio alle cose fatte in prima persona. Strumenti utilizza gli stessi servizi collegati, ma un gesto a mano non chiama modelli e non viene registrato come un atto di LIA; ciò che un clic le chiede resta una proposta, tracciata e fatturata a chi l’ha chiesta. Delega e controllo diretto possono condividere un’interfaccia se resta chiaro chi ha deciso, chi ha agito e che cosa è stato approvato.
 
-Ecco tre decisioni strutturanti, tra le 386 documentate.
+Ecco tre decisioni strutturanti, tra le 389 documentate.
 
 La prima riguarda la **sovranità**: non volevo alcuna dipendenza irreversibile da un fornitore. I modelli di IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity e modelli locali con Ollama) passano tutti per una stessa astrazione, così ogni utilizzo può cambiare fornitore con una semplice configurazione, con il confronto dei costi. Quanto ai servizi, Google, Apple e Microsoft sono intercambiabili per ogni categoria, che si tratti di posta, agenda o contatti. L'auto-hosting dà il controllo del server: i dati dell'account sono conservati sull'istanza e le credenziali dei connettori sono cifrate. I servizi remoti che la persona sceglie ricevono comunque i dati utili alla loro parte della richiesta.
 
-La seconda riguarda l'**economia**: ho trattato il costo di ogni richiesta come un criterio di progettazione. Coesistono due modalità di esecuzione. Una pipeline deterministica ed economica gestisce le richieste correnti, un agente autonomo si occupa di quelle esplorative. Nei casi standard, a parità di servizio reso, il divario di consumo misurato va da 1 a 4-8. Ogni chiamata è contata al token, valorizzata in euro, aggregata per utente e per modello, e sottoposta a quote.
+La seconda riguarda l'**economia**: ho trattato il costo di ogni richiesta come un criterio di progettazione. Lascio la scelta fra due motori, con una modalità automatica che ne seleziona uno per ogni richiesta. Una pipeline deterministica ed economica gestisce le richieste correnti, un agente autonomo si occupa di quelle esplorative. Nei casi standard, a parità di servizio reso, il divario di consumo misurato va da 1 a 4-8. Ogni chiamata è contata al token, valorizzata in euro, aggregata per utente e per modello, e sottoposta a quote.
 
 Il costo si gioca anche nei dettagli: una notifica di due frasi viene chiesta senza ragionamento, perché un modello che ragiona di default fattura il proprio ragionamento dentro il budget della risposta. Per impostazione predefinita, l'agente autonomo porta con sé solo gli strumenti che la domanda richiede, scelti per pertinenza e non nel loro ordine di arrivo: ottanta descrizioni di strumenti facevano la maggior parte del peso della sua prima chiamata, senza essere contate. Infine, ogni chiamata è valorizzata al prezzo che il fornitore fattura davvero, con tariffe rilette sulle sue pagine, la scrittura in cache fatturata al suo prezzo reale e le tariffe delle fasce orarie ridotte secondo il giorno.
 

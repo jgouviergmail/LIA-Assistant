@@ -301,7 +301,8 @@ class MessagesState(TypedDict):
         messages: List of conversation messages with automatic truncation reducer.
         metadata: Additional metadata (run_id, user_id, session_id, etc.).
         routing_history: History of router decisions for analysis/debugging.
-        agent_results: Results from executed agents (limited to 30 for memory management).
+        agent_results: Results from executed agents, the most recent complete turns
+                      kept under ``max_agent_results`` by every writer (pipeline and ReAct).
                       Keys format: "turn_id:agent_name" (e.g., "3:contacts_agent").
         orchestration_plan: Current execution plan from TaskOrchestrator (V1: sequential).
         current_turn_id: Counter tracking conversation turns (incremented on each user message).
@@ -319,7 +320,7 @@ class MessagesState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages_with_truncate]
     metadata: dict[str, Any]
     routing_history: list[Any]  # Will be RouterOutput objects
-    agent_results: dict[str, Any]  # AgentResult objects - limited to 30 max
+    agent_results: dict[str, Any]  # AgentResult objects, bounded by max_agent_results
     orchestration_plan: Any | None  # OrchestratorPlan object
     execution_plan: Any | None  # ExecutionPlan from planner (Phase 5)
     planner_metadata: dict[str, Any] | None  # Planner metadata for streaming to frontend (Phase 5)

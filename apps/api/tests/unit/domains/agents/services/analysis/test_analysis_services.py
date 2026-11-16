@@ -25,6 +25,7 @@ from src.domains.agents.services.analysis.routing_decider import (
     get_routing_decider,
     reset_routing_decider,
 )
+from tests.helpers.memory_resolution import resolve_all
 
 # =============================================================================
 # GoalInferrer Tests
@@ -494,11 +495,7 @@ class TestMemoryResolver:
                 resolver, "_resolve_memory_references", new=AsyncMock(return_value=None)
             ) as mock_resolve,
         ):
-            resolution = await resolver.retrieve_and_resolve(
-                query="what time is it",
-                user_id="user123",
-                config=config,
-            )
+            resolution = await resolve_all(resolver, "what time is it", "user123", config)
 
         mock_retrieve.assert_awaited_once()
         mock_resolve.assert_not_awaited()
@@ -530,11 +527,7 @@ class TestMemoryResolver:
                 new=AsyncMock(return_value="RESOLVED"),
             ) as mock_resolve,
         ):
-            resolution = await resolver.retrieve_and_resolve(
-                query="email ma femme",
-                user_id="user123",
-                config=config,
-            )
+            resolution = await resolve_all(resolver, "email ma femme", "user123", config)
 
         mock_resolve.assert_awaited_once()
         # Resolution runs against the targeted facts, not the broad ones.
@@ -563,11 +556,7 @@ class TestMemoryResolver:
                 new=AsyncMock(return_value="RESOLVED"),
             ) as mock_resolve,
         ):
-            resolution = await resolver.retrieve_and_resolve(
-                query="email ma femme",
-                user_id="user123",
-                config=config,
-            )
+            resolution = await resolve_all(resolver, "email ma femme", "user123", config)
 
         mock_resolve.assert_awaited_once()
         # Fallback resolves against the broad facts.
@@ -576,7 +565,7 @@ class TestMemoryResolver:
         assert resolution.references == ["ma femme"]
 
     @pytest.mark.asyncio
-    async def test_retrieve_and_resolve_no_facts_skips_resolution(self):
+    async def test_no_facts_and_no_reference_skips_resolution(self):
         """Test that resolution is skipped when no facts found."""
         resolver = MemoryResolver()
         config = MagicMock()
@@ -586,11 +575,7 @@ class TestMemoryResolver:
             patch.object(resolver, "_extract_references", new=AsyncMock(return_value=[])),
         ):
             with patch.object(resolver, "_resolve_memory_references") as mock_resolve:
-                resolution = await resolver.retrieve_and_resolve(
-                    query="test query",
-                    user_id="user123",
-                    config=config,
-                )
+                resolution = await resolve_all(resolver, "test query", "user123", config)
 
                 mock_retrieve.assert_called_once()
                 mock_resolve.assert_not_called()

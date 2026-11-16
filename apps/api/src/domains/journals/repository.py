@@ -15,8 +15,9 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, delete, exists, func, or_, select
+from sqlalchemy import Select, and_, delete, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer
 from sqlalchemy.sql.elements import ColumnElement
 
 from src.domains.journals.models import JournalEntry, JournalEntryStatus
@@ -26,6 +27,19 @@ from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_journals import journal_entries_total
 
 logger = get_logger(__name__)
+
+
+def _without_vectors[T: tuple[Any, ...]](stmt: Select[T]) -> Select[T]:
+    """The statement with both vector columns left in the database (latency lot 5).
+
+    pgvector hands each vector to Python as text parsed float by float on the
+    event loop. ``raiseload`` makes a read the caller forgot raise instead of
+    reloading: a merge reads the winner's vectors, so its entries keep them.
+    """
+    return stmt.options(
+        defer(JournalEntry.embedding, raiseload=True),
+        defer(JournalEntry.keyword_embedding, raiseload=True),
+    )
 
 
 def consolidation_eligible_user_conditions() -> list[ColumnElement[bool]]:
@@ -295,6 +309,8 @@ class JournalEntryRepository:
         exclude_levels: list[str] | None = None,
         observed_scores: list[float] | None = None,
         operational_only: bool = False,
+        *,
+        with_vectors: bool = True,
     ) -> list[tuple[JournalEntry, float]]:
         """Search active entries by multi-vector semantic relevance.
 
@@ -314,6 +330,9 @@ class JournalEntryRepository:
             observed_scores: Optional accumulator receiving EVERY candidate
                 similarity (filtered ones included) — the adaptive threshold
                 controller's observation channel (lot 7). Purely additive.
+            with_vectors: False for a read door that ranks and reads text: the
+                vector columns stay in the database and reading one raises.
+                Extraction keeps them: its entries may be merged.
 
         Returns:
             List of (entry, score) tuples sorted by score descending,
@@ -351,6 +370,8 @@ class JournalEntryRepository:
             .order_by(best_distance)
             .limit(limit)
         )
+        if not with_vectors:
+            stmt = _without_vectors(stmt)
         result = await self.db.execute(stmt)
 
         scored: list[tuple[JournalEntry, float]] = []
@@ -420,6 +441,8 @@ class JournalEntryRepository:
         limit: int = 2,
         exclude_levels: list[str] | None = None,
         operational_only: bool = False,
+        *,
+        with_vectors: bool = True,
     ) -> list[JournalEntry]:
         """
         Get most recent active entries for temporal continuity injection.
@@ -452,12 +475,15 @@ class JournalEntryRepository:
                 ]
             )
 
-        result = await self.db.execute(
+        stmt = (
             select(JournalEntry)
             .where(and_(*conditions))
             .order_by(JournalEntry.created_at.desc())
             .limit(limit)
         )
+        if not with_vectors:
+            stmt = _without_vectors(stmt)
+        result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
     async def increment_injection_counts(self, entry_ids: list[UUID]) -> None:

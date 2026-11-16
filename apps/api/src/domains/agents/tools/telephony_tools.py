@@ -55,6 +55,13 @@ _STATUS_TO_PHRASE: dict[str, str] = {
     # not verified on the Twilio account). Telling the user to retry would be
     # a lie — nothing changes until the provider side is fixed.
     "rejected": "call_rejected",
+    # The vendor REFUSED the request itself (a 4xx other than a credential, a
+    # timeout or a rate limit — prod: 404 and 400, 2026). Same doctrine: no retry.
+    "refused": "call_refused",
+    # The request left but its answer was lost: the call may be ringing. The
+    # person is told the outcome is unknown, never guessed (the return or the
+    # stale sweep's notice follows).
+    "unknown": "call_unknown",
     # The vendor REJECTED the stored API key (prod 2026-08-15: ElevenLabs
     # stopped accepting legacy key-ID-shaped credentials). Same doctrine:
     # only reconnecting the connector with a valid key can fix it.

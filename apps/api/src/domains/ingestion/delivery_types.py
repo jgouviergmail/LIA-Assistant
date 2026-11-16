@@ -5,6 +5,11 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
+from src.core.constants import (
+    DELIVERY_RETRY_AFTER_DEFAULT_SECONDS,
+    DELIVERY_RETRY_AFTER_MAX_SECONDS,
+)
+
 
 class DeliveryDisposition(StrEnum):
     ACCEPTED = "accepted"
@@ -12,6 +17,10 @@ class DeliveryDisposition(StrEnum):
     PERMANENT = "permanent"
     UNKNOWN = "unknown"
     CANCELLED = "cancelled"
+
+
+#: The one destination reaching every active ntfy subscription of the person (ADR-391).
+NTFY_DESTINATION_KEY = "ntfy"
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,7 +37,7 @@ class DeliveryDestination:
 class DeliveryResult:
     disposition: DeliveryDisposition
     error_code: str | None = None
-    retry_after_seconds: int = 60
+    retry_after_seconds: int = DELIVERY_RETRY_AFTER_DEFAULT_SECONDS
 
     def __post_init__(self) -> None:
         if self.error_code and (
@@ -36,7 +45,7 @@ class DeliveryResult:
             or any(c not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789" for c in self.error_code)
         ):
             raise ValueError("Only content-free error codes are accepted")
-        if not 1 <= self.retry_after_seconds <= 86400:
+        if not 1 <= self.retry_after_seconds <= DELIVERY_RETRY_AFTER_MAX_SECONDS:
             raise ValueError("Invalid retry delay")
 
 

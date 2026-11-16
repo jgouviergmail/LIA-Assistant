@@ -390,6 +390,7 @@ async def test_reminder_attempt_is_settled_before_delivery_failure(error_type) -
         created_at=datetime.now(UTC),
         user_timezone="Europe/Paris",
         recurrence_spec=None,
+        first_asked_at=None,
     )
     failure = error_type("synthetic delivery failure")
 
@@ -411,7 +412,8 @@ async def test_reminder_attempt_is_settled_before_delivery_failure(error_type) -
         patch.object(
             reminder_notification, "generate_reminder_message", AsyncMock(return_value=result)
         ),
-        patch.object(reminder_notification, "_deliver", AsyncMock(side_effect=delivery)),
+        patch.object(reminder_notification, "_record_firing", AsyncMock(return_value=None)),
+        patch.object(reminder_notification, "deliver_reminder", AsyncMock(side_effect=delivery)),
         patch.object(reminder_notification, "_archive", AsyncMock()) as archived,
         patch(
             "src.infrastructure.proactive.tracking.track_proactive_tokens", AsyncMock()

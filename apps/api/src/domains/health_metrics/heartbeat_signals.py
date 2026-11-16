@@ -16,9 +16,9 @@ the baseline delta and the variation detectors. The previous shape called
 the same 36-day window per kind: 6 queries and ~30 000 raw rows per heartbeat
 tick, whose decode blocked the event loop long enough to blow the aggregator's
 2-second budget on roughly half the ticks. The 24-hour ``summary_today`` window
-stays on raw samples on purpose — it is a few hundred rows and needs
-per-sample semantics (``_summary_value``, last-sample freshness) that a per-day
-rollup cannot express.
+is one SQL summary (``fetch_window_summary``): its value counted through the
+fusion door, its freshness read off the latest sample received. Days are the
+person's, cut at their midnight (ADR-148 amendment 2026-11-14).
 
 Phase: evolution — Health Metrics × Heartbeat
 Created: 2026-07-24
@@ -29,6 +29,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,6 +37,7 @@ from src.core.constants import (
     HEALTH_METRICS_AGENT_SUMMARY_WINDOW_DAYS,
     HEALTH_METRICS_HEARTBEAT_FRESHNESS_MINUTES,
 )
+from src.core.local_day import local_today
 from src.domains.health_metrics.baseline import (
     DailyStat,
     baseline_window_start,
@@ -46,8 +48,7 @@ from src.domains.health_metrics.kinds import (
     AggregationMethod,
     HealthKindSpec,
 )
-from src.domains.health_metrics.models import HealthSample
-from src.domains.health_metrics.repository import HealthSampleRepository
+from src.domains.health_metrics.repository import HealthSampleRepository, WindowSummary
 from src.domains.health_metrics.signals import (
     detect_notable_events_from_stats,
     detect_recent_variations_from_stats,
@@ -57,6 +58,8 @@ from src.domains.health_metrics.signals import (
 async def build_heartbeat_health_signals(
     db: AsyncSession,
     user_id: UUID,
+    *,
+    zone: ZoneInfo,
 ) -> dict[str, Any] | None:
     """Return the structured health-signals payload for the Heartbeat source.
 
@@ -76,6 +79,7 @@ async def build_heartbeat_health_signals(
         db: Session owned by the caller; the fetches are sequential, so it is
             never used concurrently.
         user_id: Owner user UUID.
+        zone: The person's zone, where days are cut.
 
     Returns:
         A dict ready to attach to ``HeartbeatContext.health_signals``, or
@@ -86,8 +90,9 @@ async def build_heartbeat_health_signals(
     now = datetime.now(UTC)
     freshness_cutoff = now - timedelta(minutes=HEALTH_METRICS_HEARTBEAT_FRESHNESS_MINUTES)
     # Same window as compute_kind_baseline_delta: the full rolling baseline
-    # span PLUS the recent window on top of it.
-    from_ts = baseline_window_start(now) - timedelta(days=HEALTH_METRICS_AGENT_SUMMARY_WINDOW_DAYS)
+    # span PLUS the recent window on top of it, at the person's midnight.
+    from_ts = baseline_window_start(now, zone, recent_days=HEALTH_METRICS_AGENT_SUMMARY_WINDOW_DAYS)
+    today = local_today(now, zone)
 
     summary_today: dict[str, dict[str, Any]] = {}
     baseline_deltas: dict[str, dict[str, Any]] = {}
@@ -95,19 +100,21 @@ async def build_heartbeat_health_signals(
     any_data = False
 
     for spec in HEALTH_KINDS.values():
-        stats = await repo.fetch_daily_stats(user_id, kind=spec.kind, from_ts=from_ts, to_ts=now)
+        stats = await repo.fetch_daily_stats(
+            user_id, kind=spec.kind, zone=zone, from_ts=from_ts, to_ts=now
+        )
         stats_by_kind[spec.kind] = stats
 
-        samples_today = await repo.fetch_samples_kind(
+        recent = await repo.fetch_window_summary(
             user_id, kind=spec.kind, from_ts=freshness_cutoff, to_ts=now
         )
-        if samples_today:
+        value = _summary_value(spec, recent)
+        if value is not None and recent.last_start is not None:
             any_data = True
-            last_sample = samples_today[-1]
             summary_today[spec.kind] = {
-                "value": _summary_value(spec, samples_today),
+                "value": value,
                 "unit": spec.unit,
-                "last_update_minutes_ago": int((now - last_sample.date_start).total_seconds() / 60),
+                "last_update_minutes_ago": int((now - recent.last_start).total_seconds() / 60),
             }
 
         delta = compute_kind_delta_from_stats(stats, spec, HEALTH_METRICS_AGENT_SUMMARY_WINDOW_DAYS)
@@ -134,7 +141,7 @@ async def build_heartbeat_health_signals(
             recent_variations.append(variation)
         notable_events.extend(
             detect_notable_events_from_stats(
-                stats, spec, window_days=HEALTH_METRICS_AGENT_SUMMARY_WINDOW_DAYS
+                stats, spec, today=today, window_days=HEALTH_METRICS_AGENT_SUMMARY_WINDOW_DAYS
             )
         )
 
@@ -146,25 +153,28 @@ async def build_heartbeat_health_signals(
     }
 
 
-def _summary_value(spec: HealthKindSpec, samples: list[HealthSample]) -> int | float:
-    """Single-scalar representation of today's samples for the Heartbeat card.
+def _summary_value(spec: HealthKindSpec, window: WindowSummary) -> int | float | None:
+    """Single-scalar representation of the recent window for the Heartbeat card.
 
-    - ``SUM`` aggregation → total across the window (e.g. steps).
+    - ``SUM`` aggregation → the counted total (e.g. steps, overlaps fused).
     - ``AVG_MIN_MAX`` aggregation → rounded average (e.g. heart rate).
     - ``LAST_VALUE`` aggregation → last recorded value.
 
     Args:
         spec: Kind spec.
-        samples: Non-empty list of samples, ordered by ``date_start`` ascending.
+        window: The recent window's summary.
 
     Returns:
-        A scalar summarizing today's data for the kind.
+        A scalar summarizing the window for the kind, or None when nothing
+        counts in it.
     """
-    values = [int(s.value) for s in samples]
+    counted = window.counted
+    if counted is None:
+        return None
     match spec.aggregation_method:
         case AggregationMethod.SUM:
-            return sum(values)
+            return round(counted.total)
         case AggregationMethod.AVG_MIN_MAX:
-            return round(sum(values) / len(values), 1)
+            return round(counted.total / counted.rows, 1)
         case AggregationMethod.LAST_VALUE:
-            return values[-1]
+            return window.last_value

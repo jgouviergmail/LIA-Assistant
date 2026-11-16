@@ -60,11 +60,13 @@ from src.core.constants import (
     SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS,
     SCHEDULED_ACTIONS_SESSION_PREFIX,
 )
+from src.core.conversation_target import ConversationOrigin
 from src.core.exceptions import ResourceNotFoundError
 from src.core.i18n import normalize_language
 from src.core.time_utils import now_utc
 from src.core.user_display import resolve_user_display_name
 from src.domains.agents.utils.helpers import generate_run_id
+from src.domains.conversations import return_target as returns
 from src.domains.scheduled_actions.condition_ledger import ConditionLedger, with_check_error
 
 # CRITICAL: Import model at module level to register with SQLAlchemy metadata
@@ -102,11 +104,10 @@ from src.infrastructure.scheduler.scheduled_action_housekeeping import (
 )
 from src.infrastructure.scheduler.scheduled_action_notices import (
     RoutineNotice,
-    claim_quota_notice,
+    TickEnd,
     failure_notice,
-    notify_result,
     send_approval_notification,
-    send_routine_notice,
+    tell_tick_end,
 )
 
 if TYPE_CHECKING:
@@ -178,26 +179,13 @@ class _Tick:
     started_at: datetime
     occurrence: DueOccurrence | None = None
     """What was due, for a time routine; None for a run the person started and a watch."""
-
-
-@dataclass(frozen=True, slots=True)
-class _TickEnd:
-    """What a tick leaves for the routine's owner once its outcome is durable."""
-
-    text: str = ""
-    """The answer to push; empty when the routine did not answer."""
-    notice: RoutineNotice | None = None
-    """Why it did not run as planned, when the owner is owed a word about it."""
-    manual: bool = False
-    """Whether the person started the run: such a run is always told its end."""
-    silent: bool = False
-    """The answer stays in the chat and is not pushed: its owner asked to be
-    told only of something new, and the run declared it had nothing new."""
+    target: returns.ReturnTarget | None = None
+    """Where a run asked in a discussion answers; None: Main, by omission."""
 
 
 #: A tick with nothing to tell: a check that found nothing new, a proposal
 #: (it notified already), a tick that lost the routine.
-_NOTHING = _TickEnd()
+_NOTHING = TickEnd()
 
 #: The engine outcomes that ran nothing for a reason other than a ceiling, and
 #: the reason each leaves on the week.
@@ -414,6 +402,7 @@ async def execute_single_action(
     execution_guard: ExecutionGuard | None = None,
     execution_token: uuid.UUID | None = None,
     started_by_person: bool = False,
+    origin: ConversationOrigin | None = None,
 ) -> str:
     """
     Execute a single scheduled action through the agent pipeline.
@@ -430,6 +419,9 @@ async def execute_single_action(
         started_by_person: Declared by the call site (« run now », a run asked
             in the chat): such a run is the person's act, so the age of the
             pending slot is never a reason to give it up as missed.
+        origin: The discussion a run asked in the chat was asked in: its turn
+            runs there and its result and notices return there while that
+            generation lives, else in Main. None for every scheduled tick.
 
     Returns:
         Response content from the agent.
@@ -451,6 +443,8 @@ async def execute_single_action(
         started_at = now_utc()
         due_at = action.next_trigger_at
         user_language = normalize_language(user.language)
+        # A run asked in a discussion answers there (ADR-378 amendment).
+        target = await returns.origin_target(db, user_id, origin, language=user_language)
         # The reads are done: nothing is held while a source, a model or a
         # push answers (ADR-304). The session is ``expire_on_commit=False``.
         await db.commit()
@@ -464,6 +458,7 @@ async def execute_single_action(
             due_at=due_at,
             started_at=started_at,
             occurrence=occurrence,
+            target=target,
         )
         if occurrence is not None and not started_by_person and occurrence.is_late(started_at):
             ended = await _give_up_late(tick, occurrence)
@@ -477,48 +472,24 @@ async def execute_single_action(
         # during a push must not re-run a routine that already answered.
         await db.commit()
 
-        if ended.text and not ended.silent:
-            await notify_result(
-                db,
-                user_id=user_id,
-                action=action,
-                content=ended.text,
-                user_language=user_language,
-            )
-        notice = await _owed_notice(ended, user_id)
-        if notice is not None:
-            await send_routine_notice(
-                db, user=user, action=action, kind=notice, user_language=user_language
-            )
+        await tell_tick_end(
+            db,
+            ended,
+            user=user,
+            user_id=user_id,
+            action=action,
+            user_language=user_language,
+            discussion=returns.annex_of(tick.target),
+            origin=origin,
+        )
         await db.commit()
 
     return ended.text
 
 
-async def _owed_notice(ended: _TickEnd, user_id: uuid.UUID) -> RoutineNotice | None:
-    """The notice to send once the tick is durable, if its owner is owed one.
-
-    The ceiling's notice is the ACCOUNT's, claimed once per window whichever
-    routine met the ceiling first; a run the person started is waited for, and
-    is told whatever the claim says. Claimed after the commit: nothing is held
-    while the cache answers (ADR-304).
-
-    Args:
-        ended: How the tick ended.
-        user_id: The routine's owner.
-
-    Returns:
-        The notice, or None when there is nothing to say or it was said already.
-    """
-    if ended.notice is not RoutineNotice.QUOTA:
-        return ended.notice
-    claimed = await claim_quota_notice(user_id)
-    return ended.notice if claimed or ended.manual else None
-
-
 async def _serve_tick(
     tick: _Tick, user: UserProfile, *, guard: ExecutionGuard | None, user_language: str
-) -> _TickEnd:
+) -> TickEnd:
     """Serve a tick its owner's ceiling admitted: check, propose or run.
 
     Nothing is held open across a wait (ADR-304), and the reservation is
@@ -585,7 +556,7 @@ async def _serve_tick(
 
 async def _run_pipeline(
     tick: _Tick, user: UserProfile, *, gate: _ConditionGate, user_language: str
-) -> _TickEnd:
+) -> TickEnd:
     """Run the routine's instruction through the shared engine, and mark the outcome.
 
     The retry policy, the timeout, the fresh session per attempt and the
@@ -615,6 +586,9 @@ async def _run_pipeline(
     result = await stream_instruction(
         StreamRequest(
             user_id=action.user_id,
+            # Main by omission, or the discussion a run asked in the chat was asked in.
+            conversation_id=returns.selection_of(tick.target).conversation_id,
+            conversation_revision=returns.selection_of(tick.target).conversation_revision,
             prompt=prompt,
             session_id=f"{SCHEDULED_ACTIONS_SESSION_PREFIX}{action.id}",
             language=user_language,
@@ -675,7 +649,7 @@ async def _run_pipeline(
     # new is simply not pushed to an owner who asked for that. A failure is
     # always told: its notice does not read this.
     silent = action.notify_only_when_new and result.nothing_new
-    return _TickEnd(text=result.text, notice=notice, silent=silent)
+    return TickEnd(text=result.text, notice=notice, silent=silent)
 
 
 async def _record_unserved(tick: _Tick, outcome: ScheduledRunOutcome) -> None:
@@ -717,7 +691,7 @@ async def _stand_aside(
     return True
 
 
-async def _give_up_late(tick: _Tick, occurrence: DueOccurrence) -> _TickEnd:
+async def _give_up_late(tick: _Tick, occurrence: DueOccurrence) -> TickEnd:
     """Record an occurrence reached past its window, and arm what may still start.
 
     A morning routine answered in the afternoon is not the morning's (ADR-265
@@ -777,7 +751,7 @@ async def _rearm_at(tick: _Tick, next_trigger: datetime | None) -> bool:
     return True
 
 
-async def _stand_aside_for_quota(tick: _Tick, *, unserved_state: dict[str, Any] | None) -> _TickEnd:
+async def _stand_aside_for_quota(tick: _Tick, *, unserved_state: dict[str, Any] | None) -> TickEnd:
     """Stand a routine aside for its account's usage ceiling, and say why.
 
     A condition routine's reason goes on its ledger, in place of the row a
@@ -806,7 +780,7 @@ async def _stand_aside_for_quota(tick: _Tick, *, unserved_state: dict[str, Any] 
         )
     if not await _stand_aside(tick, ScheduledRunOutcome.SKIPPED_QUOTA, ledger):
         return _NOTHING
-    return _TickEnd(notice=RoutineNotice.QUOTA, manual=is_manual_run(tick.due_at, tick.started_at))
+    return TickEnd(notice=RoutineNotice.QUOTA, manual=is_manual_run(tick.due_at, tick.started_at))
 
 
 async def _mark_routine(

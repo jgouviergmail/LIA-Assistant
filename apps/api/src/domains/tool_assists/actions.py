@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any, Final, Literal
+from typing import Final, Literal
 
 import structlog
 from pydantic import BaseModel, Field
@@ -34,7 +34,7 @@ from src.domains.agents.utils.content_wrapper import wrap_external_content
 from src.domains.connectors.clients.protocols import EmailClientProtocol
 from src.domains.tool_assists.door import AssistRun
 from src.domains.tool_assists.llm import ask_slot, assist_line
-from src.domains.workbench.calls import provider_call
+from src.domains.tool_assists.mail import read_as_shown
 from src.domains.workbench.clients import open_tool_client
 from src.domains.workbench.errors import ASSIST_FAILED, ASSIST_NOT_FOUND, refuse
 from src.domains.workbench.features import WorkbenchTool
@@ -248,13 +248,12 @@ async def _own_address(client: EmailClientProtocol) -> str | None:
 
 
 async def _received(run: AssistRun, message_id: str, *, own_address: bool) -> _Received:
-    """The message as a form reads it: a stranger's words, marked as such, with whom it went to
-    and the files it carries; the mailbox's own address when the form has guests to sort."""
+    """The message as a form reads it: a stranger's words as its reader shows them, marked as
+    such, with whom it went to and the files it carries; the mailbox's own address when the form
+    has guests to sort."""
     async with open_tool_client(_MAIL, run.user_id) as opened:
-        client: EmailClientProtocol = opened.client
-        async with run.reading(), provider_call(_MAIL, "read", act=False):
-            message: dict[str, Any] = await client.get_message(message_id, use_cache=False)
-        own = await _own_address(client) if own_address else None
+        message = await read_as_shown(run, opened, message_id)
+        own = await _own_address(opened.client) if own_address else None
     return _Received(received_as_external(message, recipients=True), own)
 
 

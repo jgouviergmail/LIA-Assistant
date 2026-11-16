@@ -236,29 +236,19 @@ class GmailMessageStateMixin:
         time, and a label removed meanwhile simply has none.
 
         Args:
-            folders_max: The labels of the person's own read at most.
+            folders_max: The labels of the person's own read at most; 0 reads the
+                inbox and the spam alone, without listing the labels.
 
         Returns:
             The figures, ``complete`` False when labels were left out.
         """
-        labels = await self.list_labels_full(use_cache=False)
+        labels = await self.list_labels_full(use_cache=False) if folders_max > 0 else []
         own = [str(label["id"]) for label in labels if label.get("type") == "user"]
         read = own[:folders_max]
         gate = asyncio.Semaphore(MOVE_CONCURRENCY)
-
-        async def figure(label_id: str) -> int | None:
-            async with gate:
-                try:
-                    label = await self._make_request(
-                        "GET", f"/users/me/labels/{_path_id(label_id)}"
-                    )
-                except ConnectorAPIError as refused:
-                    if refused.upstream_status_code in _GONE:
-                        return None
-                    raise
-            return int(label.get("messagesUnread") or 0)
-
-        figures = await asyncio.gather(*(figure(name) for name in (_INBOX, _SPAM, *read)))
+        figures = await asyncio.gather(
+            *(_label_unread(self, label_id, gate) for label_id in (_INBOX, _SPAM, *read))
+        )
         inbox, spam, *folders = figures
         roles = {"inbox": inbox, "spam": spam}
         return UnreadCounts(
@@ -268,7 +258,8 @@ class GmailMessageStateMixin:
                 for label, count in zip(read, folders, strict=True)
                 if count is not None
             },
-            complete=len(read) == len(own),
+            # No label listed is no label read: « complete » is never claimed for it.
+            complete=folders_max > 0 and len(read) == len(own),
         )
 
     async def mark_read(
@@ -336,6 +327,32 @@ class GmailMessageStateMixin:
                 continue
             updated.append(message_id)
         return read_state_result(updated, failed)
+
+
+async def _label_unread(
+    host: _GmailStateHost, label_id: str, gate: asyncio.Semaphore
+) -> int | None:
+    """What one label leaves unread, read under ``gate``; None for a label removed meanwhile.
+
+    Args:
+        host: The Gmail client.
+        label_id: The label.
+        gate: Bounds the labels read at once.
+
+    Returns:
+        The label's unread figure, or None when Gmail says it is gone.
+
+    Raises:
+        ConnectorAPIError: Any other refusal: a figure never read is never zero.
+    """
+    async with gate:
+        try:
+            label = await host._make_request("GET", f"/users/me/labels/{_path_id(label_id)}")
+        except ConnectorAPIError as refused:
+            if refused.upstream_status_code in _GONE:
+                return None
+            raise
+    return int(label.get("messagesUnread") or 0)
 
 
 def _label_change(place: MailPlace, origin: MailPlace | None) -> tuple[list[str], list[str]]:

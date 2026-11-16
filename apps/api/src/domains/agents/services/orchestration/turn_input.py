@@ -30,13 +30,16 @@ from langchain_core.runnables import RunnableConfig
 
 # LangGraph's own key for « this run resumes the checkpoint » (``pregel/_loop.py``),
 # pinned by ``test_new_input_never_resumes.py`` on a real graph.
-from langgraph._internal._constants import CONFIG_KEY_RESUMING
+from langgraph._internal._constants import CONFIG_KEY_CHECKPOINT_ID, CONFIG_KEY_RESUMING
 
 __all__ = [
     "LOADED_SNAPSHOT_KEY",
+    "RESTORED_CHECKPOINT_KEY",
     "appended_messages",
     "fresh_run_config",
+    "pop_restored_checkpoint",
     "prepare_graph_input",
+    "remember_restored_checkpoint",
     "snapshot_loaded_state",
     "snapshot_restored_state",
     "turn_input",
@@ -48,14 +51,20 @@ logger = structlog.get_logger(__name__)
 #: before the graph runs — never a channel, like ``_interrupt_resume_data``.
 LOADED_SNAPSHOT_KEY = "_loaded_snapshot"
 
+#: The checkpoint the turn was restored from, left by the loader the same way:
+#: the one replay of a turn the model's window refused forks from it (lot 15).
+RESTORED_CHECKPOINT_KEY = "_restored_checkpoint_id"
+
+_TEMPORARY_KEYS = frozenset({LOADED_SNAPSHOT_KEY, RESTORED_CHECKPOINT_KEY})
+
 
 def snapshot_loaded_state(state: Mapping[str, Any]) -> dict[str, Any]:
     """A deep copy of the restored values, taken before the turn shapes them.
 
     Deep, because the turn mutates nested values in place (the turn's
     attachments are popped from ``metadata``, the messages are appended) and a
-    shallow copy would read those mutations as « unchanged ». The snapshot key
-    itself is never copied.
+    shallow copy would read those mutations as « unchanged ». The temporary
+    keys themselves are never copied.
 
     Args:
         state: The values the checkpoint restored.
@@ -63,7 +72,7 @@ def snapshot_loaded_state(state: Mapping[str, Any]) -> dict[str, Any]:
     Returns:
         An independent copy.
     """
-    return copy.deepcopy({key: value for key, value in state.items() if key != LOADED_SNAPSHOT_KEY})
+    return copy.deepcopy({key: value for key, value in state.items() if key not in _TEMPORARY_KEYS})
 
 
 def snapshot_restored_state(state: MutableMapping[str, Any], run_id: str) -> None:
@@ -94,6 +103,34 @@ def snapshot_restored_state(state: MutableMapping[str, Any], run_id: str) -> Non
         key_count=len(snapshot),
         duration_ms=round((time.perf_counter() - started) * 1000, 1),
     )
+
+
+def remember_restored_checkpoint(
+    state: MutableMapping[str, Any], config: Mapping[str, Any] | None
+) -> None:
+    """Name, on the state, the checkpoint the turn was restored from.
+
+    Args:
+        state: The restored state, mutated in place.
+        config: The restored checkpoint's config; nothing is named without one.
+    """
+    checkpoint_id = ((config or {}).get("configurable") or {}).get(CONFIG_KEY_CHECKPOINT_ID)
+    if checkpoint_id:
+        state[RESTORED_CHECKPOINT_KEY] = str(checkpoint_id)
+
+
+def pop_restored_checkpoint(state: MutableMapping[str, Any]) -> str | None:
+    """Take the checkpoint the turn starts from off the state, before the graph runs.
+
+    Args:
+        state: The state the loader returned, as the stream holds it.
+
+    Returns:
+        The checkpoint id, or None for a turn restored from none (a new
+        conversation, a checkpoint that could not be read).
+    """
+    checkpoint_id = state.pop(RESTORED_CHECKPOINT_KEY, None)
+    return checkpoint_id if isinstance(checkpoint_id, str) else None
 
 
 def appended_messages(
@@ -135,7 +172,7 @@ def turn_input(state: Mapping[str, Any], snapshot: Mapping[str, Any] | None) -> 
         return state
     changed: dict[str, Any] = {}
     for key, value in state.items():
-        if key == LOADED_SNAPSHOT_KEY:
+        if key in _TEMPORARY_KEYS:
             continue
         if key == "messages":
             tail = appended_messages(list(snapshot.get("messages") or []), list(value or []))

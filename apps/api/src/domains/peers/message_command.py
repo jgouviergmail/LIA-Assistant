@@ -13,6 +13,7 @@ from uuid import UUID
 import structlog
 
 from src.core.config import settings
+from src.core.conversation_source import current_origin
 from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 from src.domains.peers.message_authority import lock_message_authority
 from src.domains.peers.repository import PeersRepository
@@ -88,7 +89,9 @@ async def enqueue_peer_message(
         repo = PeersRepository(db)
         if not await _quota_available(repo, sender_id, recipient_id):
             return PeerMessageRefusal.QUOTA_REACHED
-        row = await repo.enqueue_message(connection_id, sender_id, recipient_id, message)
+        row = await repo.enqueue_message(
+            connection_id, sender_id, recipient_id, message, origin=current_origin()
+        )
         receipt = PeerMessageReceipt(row.id, people[1].full_name or "")
         await db.commit()
     logger.info("peer_message_enqueued", user_id=str(sender_id), message_id=str(receipt.message_id))

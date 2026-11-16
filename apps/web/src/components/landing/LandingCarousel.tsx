@@ -504,11 +504,11 @@ export function LandingCarousel({
         />
       </div>
 
-      {/* Caption — and the carousel's live region. Capped to a readable
-          measure so the longest capture name still holds one line. */}
+      {/* Caption — and the carousel's live region. It takes the section's
+          width, like every text of the home page (owner, 2026-11-15). */}
       <p
         aria-live="polite"
-        className="mx-auto mt-5 max-w-3xl text-center text-sm font-medium text-muted-foreground"
+        className="mt-5 text-center text-sm font-medium text-muted-foreground"
       >
         {active.caption}
       </p>

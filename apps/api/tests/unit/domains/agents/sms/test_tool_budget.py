@@ -12,6 +12,7 @@ from src.core.token_budget import count_external_tokens
 from src.domains.agents.tools import sms_tools
 from src.domains.sms.facade import SmsFacade
 from src.domains.sms.read_schemas import SmsPage, SmsView
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = pytest.mark.unit
 
@@ -42,9 +43,8 @@ async def test_output_fits_a_smaller_actual_model_without_losing_the_source_page
     monkeypatch.setattr(
         sms_tools, "validate_runtime_config", lambda *args: SimpleNamespace(user_id=str(owner))
     )
-    monkeypatch.setattr(
-        sms_tools, "tool_runtime_context", lambda runtime: SimpleNamespace(execution_mode=mode)
-    )
+    context = make_runtime_context(user_id=owner, execution_mode=mode)
+    monkeypatch.setattr(sms_tools, "tool_runtime_context", lambda runtime: context)
     monkeypatch.setattr(
         sms_tools, "slot_tool_result_budget", lambda slot: 600 if slot == small else 4000
     )

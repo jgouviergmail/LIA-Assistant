@@ -9,10 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.conversation_execution import ExecutionRevoked, RunAdmission
 from src.core.conversation_publication import (
     CurrentPrimaryPublication,
+    OriginPublication,
     PinnedReservationPublication,
     PinnedRunPublication,
+    PublicationDestination,
 )
-from src.core.conversation_target import ConversationKind
+from src.core.conversation_target import ConversationKind, ConversationOrigin
 from src.core.exceptions import ResourceNotFoundError
 from src.core.field_names import (
     FIELD_CONVERSATION_REVISION,
@@ -26,6 +28,7 @@ from src.domains.conversations.execution_repository import ConversationExecution
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.conversations.reservation_repository import ConversationReservationRepository
 from src.domains.users.models import User
+from src.infrastructure.observability.metrics_agents import conversation_origin_returns_total
 
 
 class ConversationPublicationRepository(BaseRepository[ConversationMessage]):
@@ -35,12 +38,7 @@ class ConversationPublicationRepository(BaseRepository[ConversationMessage]):
         """Own no session beyond the caller's publication."""
         super().__init__(db, ConversationMessage)
 
-    async def resolve(
-        self,
-        destination: (
-            UUID | PinnedRunPublication | CurrentPrimaryPublication | PinnedReservationPublication
-        ),
-    ) -> tuple[UUID, dict[str, object]]:
+    async def resolve(self, destination: PublicationDestination) -> tuple[UUID, dict[str, object]]:
         """Freeze an independent Main or validate the graph's exact invocation.
 
         A legacy UUID within a graph inherits its authority, never a fresh Main.
@@ -62,6 +60,10 @@ class ConversationPublicationRepository(BaseRepository[ConversationMessage]):
             if authority is not None:
                 raise ExecutionRevoked()
             return await self._primary(destination.owner_id)
+        if isinstance(destination, OriginPublication):
+            if authority is not None:
+                raise ExecutionRevoked()
+            return await self._origin_or_primary(destination.owner_id, destination.origin)
         if isinstance(destination, UUID):
             if authority is None:
                 return destination, {}
@@ -82,9 +84,7 @@ class ConversationPublicationRepository(BaseRepository[ConversationMessage]):
 
     async def prepare(
         self,
-        destination: (
-            UUID | PinnedRunPublication | CurrentPrimaryPublication | PinnedReservationPublication
-        ),
+        destination: PublicationDestination,
         metadata: Mapping[str, object] | None,
     ) -> tuple[UUID, dict[str, object]]:
         """Bind archive metadata to the authorized destination, overriding caller stamps."""
@@ -114,6 +114,71 @@ class ConversationPublicationRepository(BaseRepository[ConversationMessage]):
         if row is None:
             raise ResourceNotFoundError("conversation")
         return row.id, {FIELD_CONVERSATION_REVISION: row.revision}
+
+    async def _origin_or_primary(
+        self, owner_id: UUID, origin: ConversationOrigin
+    ) -> tuple[UUID, dict[str, object]]:
+        """The act's own generation while it lives, else the current Main.
+
+        Locked like Main (account, then discussion, ``FOR SHARE``) until the
+        publication commits, so a reset or a deletion either commits first —
+        and the return goes to Main — or waits for it, and retires the
+        generation with the return inside. Never a late write into a
+        generation retired meanwhile, never a discussion of another account.
+        """
+        owner = await self.db.scalar(
+            select(User.id)
+            .where(User.id == owner_id, User.is_active.is_(True))
+            .with_for_update(read=True)
+        )
+        if owner is None:
+            raise ExecutionRevoked()
+        row = (
+            await self.db.execute(
+                select(Conversation.id, Conversation.revision)
+                .where(
+                    Conversation.id == origin.conversation_id,
+                    Conversation.user_id == owner_id,
+                    Conversation.revision == origin.revision,
+                    Conversation.deleted_at.is_(None),
+                )
+                .with_for_update(read=True)
+            )
+        ).one_or_none()
+        if row is None:
+            conversation_origin_returns_total.labels(outcome="retired").inc()
+            return await self._primary(owner_id)
+        conversation_origin_returns_total.labels(outcome="origin").inc()
+        return row.id, {FIELD_CONVERSATION_REVISION: row.revision}
+
+    async def secondary_origin(self, owner_id: UUID, origin: ConversationOrigin) -> UUID | None:
+        """The annex an origin names, while its generation lives; None for Main or retired.
+
+        What a notification links to, in the person's channel and push: the
+        discussion the return went to, when it is not Main.
+        """
+        annex: UUID | None = await self.db.scalar(
+            select(Conversation.id).where(
+                Conversation.id == origin.conversation_id,
+                Conversation.user_id == owner_id,
+                Conversation.revision == origin.revision,
+                Conversation.kind == ConversationKind.SECONDARY,
+                Conversation.deleted_at.is_(None),
+            )
+        )
+        return annex
+
+    async def live_annex_revision(self, owner_id: UUID, conversation_id: UUID) -> int | None:
+        """The current generation of an owned, live annex; None for Main or anything else."""
+        revision: int | None = await self.db.scalar(
+            select(Conversation.revision).where(
+                Conversation.id == conversation_id,
+                Conversation.user_id == owner_id,
+                Conversation.kind == ConversationKind.SECONDARY,
+                Conversation.deleted_at.is_(None),
+            )
+        )
+        return revision
 
     async def has_invocation_answer(self, admission: RunAdmission) -> bool:
         """A question, a user row or an earlier HITL invocation is not this answer."""

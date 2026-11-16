@@ -185,7 +185,7 @@ def test_truncation_fallback_separates_untrusted_identifiers(
     clause. The user's own address stays a plain key identifier.
     """
     result = service._truncation_fallback(
-        _tainted_history(), preserve_recent_n=2, reason="global_timeout"
+        _tainted_history(), preserve_recent_n=2, reason="global_timeout", zone=UTC
     )
     assert result.strategy == "truncation"
     assert result.contains_external_content is True
@@ -208,7 +208,7 @@ def test_truncation_fallback_clean_history_notice_unchanged(
 ) -> None:
     """Without external content the notice keeps its historical single-line shape."""
     result = service._truncation_fallback(
-        _clean_history(), preserve_recent_n=2, reason="global_timeout"
+        _clean_history(), preserve_recent_n=2, reason="global_timeout", zone=UTC
     )
     assert result.contains_external_content is False
     assert "\n" not in result.summary

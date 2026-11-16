@@ -14,7 +14,6 @@ file pins the executor wrapper, whose failure modes are not the same ones:
 from __future__ import annotations
 
 import uuid
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -22,6 +21,7 @@ import pytest
 
 from src.domains.agents.effects import runtime as gate_runtime
 from src.domains.agents.effects.runtime import EffectAlreadyClaimed
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -37,7 +37,7 @@ async def _executor(draft_content: dict[str, Any], user_id: uuid.UUID, deps: Any
 @pytest.fixture(autouse=True)
 def _reset() -> Any:
     RUNS.clear()
-    context = SimpleNamespace(
+    context = make_runtime_context(
         user_id=uuid.uuid4(),
         thread_id="thread-A",
         execution_mode="pipeline",

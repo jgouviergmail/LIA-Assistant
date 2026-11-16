@@ -13,6 +13,7 @@ is testable here, hermetically, in milliseconds.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -363,3 +364,232 @@ class TestRouterPublishesTheExchangeRhythm:
         from src.domains.agents.models import MessagesState
 
         assert "exchange_rhythm" in MessagesState.__annotations__
+
+
+class TestTheRouterSettlesTheEngine:
+    """An actionable turn leaves the router with ONE engine, in the state and on the
+    context's holder: the routing edge reads the first, every tool, register and
+    metric label the second (``executed_mode_of``)."""
+
+    @pytest.fixture(autouse=True)
+    def _no_response_prefetch(self, monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+        """Same reason as for the rhythm: a background prefetch nothing awaits."""
+        prefetch = MagicMock()
+        monkeypatch.setattr(
+            "src.domains.agents.services.response_context.start_response_context_prefetch",
+            prefetch,
+        )
+        return prefetch
+
+    @pytest.mark.parametrize("requested", ["pipeline", "react"])
+    async def test_an_actionable_turn_settles_the_requested_engine(self, requested: str) -> None:
+        from tests.helpers.runtime_context import installed_runtime_context
+
+        state = _state(HumanMessage(content="cherche jean"))
+        state["execution_mode"] = "stale value of the previous turn"
+
+        with installed_runtime_context(requested_execution_mode=requested) as context:
+            update = await router_node_v3(state, _config())
+
+        assert update["execution_mode"] == requested
+        assert context.turn_engine.executed == requested
+
+    async def test_the_loop_switched_off_settles_the_planner(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """What runs is what the registers file: the edge already plans such a turn in
+        the pipeline (``graph._planning_node``), and the record said « react »."""
+        from src.core.config import settings
+        from tests.helpers.runtime_context import installed_runtime_context
+
+        monkeypatch.setattr(settings, "react_agent_enabled", False)
+
+        with installed_runtime_context(requested_execution_mode="react") as context:
+            update = await router_node_v3(_state(HumanMessage(content="cherche jean")), _config())
+
+        assert update["execution_mode"] == "pipeline"
+        assert context.turn_engine.executed == "pipeline"
+
+    async def test_a_turn_already_settled_publishes_its_engine(self) -> None:
+        """A router meeting a turn that already runs (a resumed one, a compacted
+        replay) publishes the engine in force, never the request it reads now:
+        the edge and the registers must keep agreeing."""
+        from tests.helpers.runtime_context import installed_runtime_context
+
+        with installed_runtime_context(requested_execution_mode="pipeline") as context:
+            context.turn_engine.settle("react")
+            update = await router_node_v3(_state(HumanMessage(content="cherche jean")), _config())
+
+        assert update["execution_mode"] == "react"
+        assert context.turn_engine.executed == "react"
+
+    @pytest.mark.parametrize(
+        ("verdict", "engine"),
+        [("direct", "pipeline"), ("computed", "react"), ("no_decision", "react")],
+    )
+    async def test_auto_plans_where_the_judged_shape_says(
+        self, monkeypatch: pytest.MonkeyPatch, verdict: str, engine: str
+    ) -> None:
+        """ADR-390: the pipeline only for a shape judged direct; every doubt loops."""
+        from src.domains.agents.services.engine_resolution import EngineReason
+        from tests.helpers.runtime_context import installed_runtime_context
+
+        judged = AsyncMock(return_value=EngineReason(verdict))
+        monkeypatch.setattr("src.domains.agents.nodes.router_node_v3.judge_request_shape", judged)
+
+        with installed_runtime_context(requested_execution_mode="auto") as context:
+            update = await router_node_v3(_state(HumanMessage(content="cherche jean")), _config())
+
+        assert update["execution_mode"] == engine
+        assert context.turn_engine.executed == engine
+        judged.assert_awaited_once_with("cherche jean")
+
+    @staticmethod
+    def _judgement_that_never_answers(monkeypatch: pytest.MonkeyPatch) -> asyncio.Event:
+        """Install a judgement that waits forever; the event says it was cancelled."""
+        cancelled = asyncio.Event()
+
+        async def pending(_request: str) -> None:
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
+
+        monkeypatch.setattr("src.domains.agents.nodes.router_node_v3.judge_request_shape", pending)
+        return cancelled
+
+    @staticmethod
+    def _analysis_taking_a_beat(analyzer: MagicMock, **fields: Any) -> None:
+        """The analysis yields once, as the real one does for seconds."""
+
+        async def analyze(*_args: Any, **_kwargs: Any) -> QueryIntelligence:
+            await asyncio.sleep(0)
+            return _intelligence(**fields)
+
+        analyzer.analyze_full = AsyncMock(side_effect=analyze)
+
+    @staticmethod
+    def _judgements_still_running() -> list[asyncio.Task[Any]]:
+        return [
+            task
+            for task in asyncio.all_tasks()
+            if task.get_name() == "execution_mode_shape" and not task.done()
+        ]
+
+    async def test_a_shape_the_analysis_reads_never_waits_for_the_judgement(
+        self, analyzer: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """An act loops whatever the provider says: its judgement is cancelled and
+        AWAITED, never left running beside the turn."""
+        from tests.helpers.runtime_context import installed_runtime_context
+
+        cancelled = self._judgement_that_never_answers(monkeypatch)
+        self._analysis_taking_a_beat(analyzer, is_mutation_intent=True)
+
+        with installed_runtime_context(requested_execution_mode="auto") as context:
+            update = await router_node_v3(_state(HumanMessage(content="supprime jean")), _config())
+
+        assert update["execution_mode"] == "react"
+        assert context.turn_engine.executed == "react"
+        assert cancelled.is_set()
+        assert self._judgements_still_running() == []
+
+    async def test_a_conversation_abandons_the_judgement(
+        self, analyzer: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """No engine plans a conversation: the state says what was asked."""
+        from tests.helpers.runtime_context import installed_runtime_context
+
+        cancelled = self._judgement_that_never_answers(monkeypatch)
+        self._analysis_taking_a_beat(analyzer, route_to="response")
+
+        with installed_runtime_context(requested_execution_mode="auto") as context:
+            update = await router_node_v3(_state(HumanMessage(content="merci")), _config())
+
+        assert update["execution_mode"] == "auto"
+        assert context.turn_engine.executed is None
+        assert cancelled.is_set()
+        assert self._judgements_still_running() == []
+
+    async def test_a_failed_analysis_never_leaves_the_judgement_behind(
+        self, analyzer: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from tests.helpers.runtime_context import installed_runtime_context
+
+        cancelled = self._judgement_that_never_answers(monkeypatch)
+
+        async def failing(*_args: Any, **_kwargs: Any) -> QueryIntelligence:
+            await asyncio.sleep(0)
+            raise RuntimeError("analysis down")
+
+        analyzer.analyze_full = AsyncMock(side_effect=failing)
+
+        with (
+            installed_runtime_context(requested_execution_mode="auto"),
+            pytest.raises(RuntimeError),
+        ):
+            await router_node_v3(_state(HumanMessage(content="cherche jean")), _config())
+
+        assert cancelled.is_set()
+        assert self._judgements_still_running() == []
+
+    @pytest.mark.parametrize(
+        ("requested", "loop_on"), [("pipeline", True), ("react", True), ("auto", False)]
+    )
+    async def test_nothing_is_judged_when_no_choice_is_left(
+        self, monkeypatch: pytest.MonkeyPatch, requested: str, loop_on: bool
+    ) -> None:
+        """An explicit engine, or « auto » on an instance without the loop: the
+        provider is never billed for a judgement nothing would read."""
+        from src.core.config import settings
+        from tests.helpers.runtime_context import installed_runtime_context
+
+        judged = AsyncMock()
+        monkeypatch.setattr("src.domains.agents.nodes.router_node_v3.judge_request_shape", judged)
+        monkeypatch.setattr(settings, "react_agent_enabled", loop_on)
+
+        with installed_runtime_context(requested_execution_mode=requested):
+            update = await router_node_v3(_state(HumanMessage(content="cherche jean")), _config())
+
+        judged.assert_not_called()
+        assert update["execution_mode"] == (requested if loop_on else "pipeline")
+
+    async def test_the_engine_and_its_reason_reach_the_turn_s_record(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from src.domains.agents.effects.decisions import publish_turn, reset_turn, turn_decision
+        from src.domains.agents.services.engine_resolution import EngineReason
+        from tests.helpers.runtime_context import installed_runtime_context
+
+        monkeypatch.setattr(
+            "src.domains.agents.nodes.router_node_v3.judge_request_shape",
+            AsyncMock(return_value=EngineReason.OPEN_ENDED),
+        )
+        record = turn_decision(
+            run_id="run-test", user_id=None, thread_id="t", execution_mode="auto", automated=False
+        )
+        token = publish_turn(record)
+        try:
+            with installed_runtime_context(requested_execution_mode="auto"):
+                await router_node_v3(_state(HumanMessage(content="organise ma semaine")), _config())
+        finally:
+            reset_turn(token)
+
+        assert (record.execution_mode, record.requested_mode, record.resolution_reason) == (
+            "react",
+            "auto",
+            "open_ended",
+        )
+
+    async def test_a_conversation_turn_settles_no_engine(self, analyzer: MagicMock) -> None:
+        """No engine plans a conversation: the state keeps what was asked."""
+        from tests.helpers.runtime_context import installed_runtime_context
+
+        analyzer.analyze_full = AsyncMock(return_value=_intelligence(route_to="response"))
+
+        with installed_runtime_context(requested_execution_mode="react") as context:
+            update = await router_node_v3(_state(HumanMessage(content="merci")), _config())
+
+        assert update["execution_mode"] == "react"
+        assert context.turn_engine.executed is None

@@ -1,0 +1,8 @@
+# Who writes an e-mail sent in the person's name (ADR-383 amendment 2026-11-16), one
+# `key|template` per line; blank lines and #-comments are ignored (ADR-284: prose never
+# lives in a .py). Read by domains/agents/emails/authorship.py; measured by
+# scripts/emails/measure_writing_style.py (--proposed).
+
+# Above a text the agent drafted itself, handed to LIA's writer as what the e-mail must
+# say: the facts it carries are kept, its wording is the writer's to choose.
+proposed|What the assistant drafted for this e-mail follows. It says WHAT the e-mail must say, not how: keep every fact, figure, date, time, name, address and link it holds, and every passage in quotes word for word; write the rest in the sender's own way.

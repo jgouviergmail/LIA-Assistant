@@ -2005,8 +2005,8 @@
     },
     "383": {
       "title": "Ein Entwurf spricht mit der Stimme der Person",
-      "summary": "Zwei Personen, die auf dieselbe E-Mail antworteten, bekamen von LIA dieselbe Antwort. Wenn LIA zum ersten Mal eine E-Mail für dich schreibt, lernt sie jetzt aus deinen zuletzt gesendeten E-Mails, wie du schreibst — Anrede, Grußformel, Signatur, Ton, nie worüber du geschrieben hast — und folgt dem in jeder Antwort und jeder neuen Nachricht, auch in der Antwort, die du bestätigst und die LIA jetzt selbst schreibt, wenn du ihren Wortlaut nicht diktiert hast. In den Einstellungen kannst du sie lesen, ausschalten oder vergessen lassen. Vor dem Code an fiktiven Personen gemessen: Die Antworten stiegen von etwa 42 auf 63 von 66 Merkmalen des Stils ihres Autors, ohne eine einzige Tatsache aus alten E-Mails zu übernehmen.",
-      "src": "34665c9462e6"
+      "summary": "Zwei Personen, die auf dieselbe E-Mail antworteten, bekamen von LIA dieselbe Antwort. LIA lernt jetzt aus deinen zuletzt gesendeten E-Mails, wie du schreibst — Anrede, Grußformel, Signatur, Ton, nie worüber du geschrieben hast —, wenn du darum bittest, in den Einstellungen oder in einem Gespräch, und folgt dem in jeder Antwort und jeder neuen Nachricht. Worte, die du diktiert hast, werden unverändert gesendet; jeder andere Text, auch einer, den der Assistent entworfen hat, geht durch LIAs Schreiber, der ihn mit deiner Stimme schreibt. Vor dem Code an fiktiven Personen gemessen: Die Antworten stiegen von etwa 42 auf 63 von 66 Merkmalen des Stils ihres Autors, ohne eine einzige Tatsache aus alten E-Mails zu übernehmen.",
+      "src": "bbbcacec799d"
     },
     "384": {
       "title": "Eine Nachricht, die du schreibst, während LIA arbeitet, wartet, bis sie an der Reihe ist",
@@ -2032,6 +2032,21 @@
       "title": "Dokumente nutzen, was ihre Formate können",
       "summary": "Ein Dokument, das LIA erzeugt, nutzt jetzt die Mechanismen seines Formats: Eine Tabelle rechnet mit echten Formeln, ein Diagramm lässt sich in Excel oder PowerPoint bearbeiten, eine Präsentation, die du vorführst, bewegt sich dezent, ein Bericht beginnt mit einem Titelblatt, mit seinen Kennzahlen, seinen Abbildungen und seinen anklickbaren Quellen. Das Modell sagt, was die Dinge sind, und der Renderer zeichnet sie, in einer kontrastgeprüften Palette, die dem Ton des Dokuments folgt. Illustrationen sind generierte Bilder: Sie kommen nur, wenn du sie unter Einstellungen › Dokumente erlaubst, innerhalb eines Budgets, und jede wird in deinen Kosten gezählt.",
       "src": "825ef1252ca8"
+    },
+    "389": {
+      "title": "Telegram liest und antwortet wie der Chat",
+      "summary": "Auf Telegram antwortete LIA schlechter als in der App: Überschriften und Tabellen kamen roh an, ein Foto, ein Dokument oder ein Standort blieben unbeantwortet, und eine Nachricht, die du schriebst, während sie arbeitete, ging verloren. Jetzt gestaltet eine einzige Tür alles, was an Telegram geht, der Befehl /stop beendet die laufende Antwort, eine inzwischen geschriebene Nachricht wartet, bis sie dran ist, ein Standort wird für die gestellte Frage zu deinem, und Dateien gehen in beide Richtungen. Eine Sprachnachricht bekommt eine gesprochene Antwort, wenn gesprochene Antworten aktiviert sind, und die Ergebnisse deiner Routinen kommen dort ebenfalls an.",
+      "src": "f4add347a30e"
+    },
+    "390": {
+      "title": "Der automatische Modus wählt die Engine für jede Anfrage",
+      "summary": "Neben den Modi Pipeline und ReAct lässt eine dritte Wahl LIA für jede Anfrage entscheiden. Was ein einzelner Plan nicht zu Ende bringen kann, geht an die ReAct-Schleife; sonst beurteilt ein Entscheidungsmodell in einem Aufruf, ob die Anfrage eine Berechnung, einen Abgleich, offene Arbeit oder jemanden verlangt, den nur der Text eines Eintrags nennt, und die Pipeline übernimmt nur, wenn nichts davon vorliegt — im Zweifel die Schleife, denn eine vollständige Antwort geht vor einer schnellen. Ein kleines Abzeichen unter der Antwort zeigt, welche Engine geantwortet hat; Tickets, Routinen und Telegram folgen derselben Wahl.",
+      "src": "e080272fbb72"
+    },
+    "391": {
+      "title": "ntfy bringt die Benachrichtigungen auf jedes Gerät",
+      "summary": "ntfy bietet einen weiteren Weg für LIAs Benachrichtigungen: Jede Person kann auf dem Server der Instanz oder einem öffentlichen Server abonnieren, dessen Adresse vor jedem Versand geprüft wird. Standardmäßig geht nur ein Hinweis ohne Inhalt hinaus; den vollständigen Text wählt die Person selbst, sensible Themen bleiben verborgen. Themen und Tokens der Abonnements bleiben verschlüsselt, weil ein Thema wie ein Passwort wirken kann.",
+      "src": "6854697b101e"
     }
   }
 }

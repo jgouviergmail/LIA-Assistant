@@ -26,16 +26,18 @@ import asyncio
 import json
 import subprocess
 import sys
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+from langchain.tools import ToolRuntime
 
 from src.core.constants import EXECUTION_MODE_PIPELINE, EXECUTION_MODE_REACT
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.skills.executor import ScriptResult
+from tests.helpers.runtime_context import make_tool_runtime
 
 pytestmark = [pytest.mark.unit]
 
@@ -48,14 +50,10 @@ def _operator_switches_are_isolated(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def _runtime(mode: str = EXECUTION_MODE_REACT) -> SimpleNamespace:
-    context = SimpleNamespace(
-        user_id=uuid4(),
-        thread_id="t1",
-        conversation_id="c1",
-        execution_mode=mode,
+def _runtime(mode: str = EXECUTION_MODE_REACT) -> ToolRuntime[LiaRuntimeContext, Any]:
+    return make_tool_runtime(
+        user_id=uuid4(), thread_id="t1", conversation_id="c1", execution_mode=mode
     )
-    return SimpleNamespace(context=context)
 
 
 def _ok(stdout: str = "3\n") -> ScriptResult:

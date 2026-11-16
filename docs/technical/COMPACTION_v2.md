@@ -26,6 +26,85 @@ critique pending, entity disambiguation, etc.), compaction runs.
 The user can also force a compaction with the slash command `/resume` (handled
 by `_is_resume_command`).
 
+### A turn the model's window refused (2026-11-15, lot 15)
+
+The threshold is a share of the **response** slot's window, so a slot on a smaller
+window can be refused (`ContextOverflowError`) before any compaction triggers, turn
+after turn — and « please try again » failed the same way. A refusal is a KNOWN
+outcome: the provider generated nothing. `overflow_replay.stream_fresh_turn` then
+replays the turn once:
+
+- **from the checkpoint the turn was restored from** (`turn_input`'s
+  `remember_restored_checkpoint` / `pop_restored_checkpoint`): the refused
+  attempt's writes stay on a branch nobody reads, and the replay is the turn as the
+  person sent it;
+- **with its compaction forced by the run's context** (`LiaRuntimeContext.compaction_forced`,
+  never checkpointed, so the instruction cannot outlive the replay); unlike
+  `/resume`, nothing is consumed and no confirmation is asked;
+- **only where a compaction can help** (`replay_refusal`): compaction on, a
+  checkpoint to fork from, messages beyond the kept tail
+  (`compaction_service.compactable_messages`, the rule the compaction itself
+  applies), no question pending (`CompactionService.pending_question`);
+- **never after an act**: the register is read last, through the one door every
+  replay of a run asks (`effects/replay_guard.run_may_have_acted`, shared with the
+  out-of-turn retry); doubt counts as an act.
+
+A resumed question is never replayed (its value is the person's answer). When no
+replay can run, or the replay is refused too, the person reads what helps instead
+of « try again »: `/resume`, or a new discussion (`SSEErrorMessages`, category
+`context_overflow`, which wins over the provider's 400).
+
+Measured before it was written (read-only): neither production — twelve weeks of
+recorded call failures, seven days of logs — nor dev had ever hit an overflow; the
+longest prompts reached a quarter of their window. The path is reachable by
+configuration, which is why it exists.
+
+### What a compaction keeps, measured (2026-11-15, lot 16)
+
+`task agents:compaction:measure` (`apps/api/scripts/agents/measure_compaction_recall.py`)
+plants facts in five fictional discussions, where the compaction summarises: the
+person's own words, a tool's result the answer did not repeat, an identifier, a
+decision LIA took (`compaction_recall_corpus.py`; one discussion buries the person's
+constraints among thirty long searches, another ends on a turn heavy in tool calls).
+The production entry node runs on each, forced as a replay forces it, through the real
+reducer; each fact is then read by a rule in the response model's view before and after
+(`held_after`, free), and asked as a question (`--answer`, paid).
+`--compaction-models` names other families for the summary, `--models` for the answer.
+
+Two defects were measured and fixed; the lot's third idea was measured and not built.
+
+- **A tail counted in messages cut exchanges in two.** Two discussions out of five
+  kept a tail beginning on LIA's answer or a tool result, its request summarised: both
+  summaries then listed that request as unanswered (« no result recorded »), and the
+  response model read an answer without its question. The tail now keeps at least
+  `COMPACTION_PRESERVE_RECENT_MESSAGES` messages and begins on the person's message of
+  the exchange it would cut (`compaction_service.compactable_messages`, the one rule the
+  summary, the node's removals, the truncation fallback and the overflow replay read).
+  Measured after: five tails out of five begin on the person, no false pending request.
+- **The person's words depend on the model that summarises.** The slot configured on
+  dev and a summarizer of another family kept all 17 planted words of the person (one
+  apparent loss was the bench's own rule refusing « 10 h 00 », since fixed); a small
+  summarizer kept 12 (four constraints of the dense discussion vanished in the
+  multi-chunk merge), and the truncation fallback, which writes no summary, none. What the person
+  wrote (a human message stamped with when it was written, ADR-381; a scaffold the node
+  writes is not theirs) is now quoted as written under the summary and in the truncation
+  notice, the most recent first within `COMPACTION_PERSON_WORDS_MAX_TOKENS`, the rest
+  counted. The quotes ride on the summary message (`additional_kwargs`,
+  `COMPACTION_PERSON_WORDS_KEY`): a later compaction carries them as written, and the
+  merge is given the earlier summaries without them, so they never cost its budget.
+  Measured after: 17 out of 17 for every family, the fallback included. Quoted under
+  the system summary, they remain the person's words and grant nothing: what an act may
+  do is enforced by the gate and its confirmations (ADR-263), never by a sentence.
+- **A tail counted in tokens** (the third idea of the lot) was not built: no fact was
+  lost to the tail's size once it stopped cutting exchanges.
+
+The budget comes from production (read-only, lengths only): a person's message weighs
+121 characters at the median and 372 at the 90th percentile, so 2,000 tokens hold about
+forty-five recent messages of median length, each with its stamp. The whole bench cost
+0.64 EUR across its seven runs, the corpus is
+fictional, and every rule reads its own exchange and nothing else
+(`tests/unit/scripts/test_compaction_recall_measure.py`).
+
 ## 2. Pipeline (v2)
 
 ```
@@ -137,7 +216,8 @@ cover production).
 | `COMPACTION_ENABLED` | `true` | bool | Master switch. |
 | `COMPACTION_THRESHOLD_RATIO` | `0.4` | 0.1–0.9 | Dynamic threshold ratio of the response model context window. |
 | `COMPACTION_TOKEN_THRESHOLD` | `0` | `0` or ≥1 | Absolute override (`0` = use dynamic ratio). |
-| `COMPACTION_PRESERVE_RECENT_MESSAGES` | `10` | 2–50 | Never-compacted recent messages. |
+| `COMPACTION_PRESERVE_RECENT_MESSAGES` | `10` | 2–50 | Never-compacted recent messages: at least this many, extended back to the person's message of the exchange they would cut. |
+| `COMPACTION_PERSON_WORDS_MAX_TOKENS` | `2000` | 0–20000 | Token budget of the person's own words quoted as written under the summary and in the truncation notice, the most recent first, the rest counted (`0` = none). |
 | `COMPACTION_CHUNK_MAX_TOKENS` | `20000` | 1k–100k | Max input tokens per LLM chunk. |
 | `COMPACTION_MIN_MESSAGES` | `20` | 5–200 | Fast-path skip below this count. |
 | `COMPACTION_GLOBAL_TIMEOUT_SECONDS` | `120` | 10–600 | Whole `compact()` budget; it yields to one whole call of the `compaction` slot, whose own timeout bounds each chunk (ADR-221 amendment 2026-11-05). |
@@ -162,10 +242,13 @@ Defined in `apps/api/src/infrastructure/observability/metrics_compaction.py`.
 | `compaction_tokens_saved` | Histogram | — | Per-compaction savings |
 | `compaction_cost_tokens_total` | Counter | `token_type` (prompt/completion) | LLM cost |
 | `compaction_errors_total` | Counter | `error_type` (llm_failure/unexpected) | Failures |
+| `compaction_writer_unavailable_total` | Counter | `reason` | Start/done events dropped (no stream writer) |
+| `compaction_overflow_replays_total` | Counter | `outcome` (`replayed`/`replay_overflowed`/`refused_<reason>`) | Turns the model's window refused, and what became of their one replay |
 
-Dashboard: **"14 - Compaction v2"** (Grafana, auto-loaded). 7 panels covering
-strategy mix, latency percentiles, chunk timeouts, global timeouts (red),
-errors by type, skipped reasons, tokens saved.
+Dashboard: **"22 - Compaction"** (Grafana, auto-loaded). 14 panels covering
+the 24 h health stats, strategy mix, latency percentiles, chunk timeouts, global
+timeouts (red), errors by type, skipped reasons, tokens saved, compaction cost,
+per-chunk call duration and the turns the window refused, by outcome.
 
 ## 6. Failure modes
 
@@ -177,6 +260,7 @@ errors by type, skipped reasons, tokens saved.
 | Cloudflare-style idle cut | `iter_with_keepalive` pulses every 15 s | Stream stays open |
 | Unexpected non-LLM exception | `except Exception` in `compact()` | `_truncation_fallback` with `reason="unexpected:<Type>"` |
 | Frontend disconnects mid-compaction | `iter_with_keepalive` cancels pending task | Clean shutdown, no leaked task |
+| The model's window refuses the turn | `ContextOverflowError` out of `graph.astream` (`overflow_replay.stream_fresh_turn`) | One replay from the restored checkpoint, compaction forced; refused when it cannot help or the run acted; a second refusal is the turn's failure, said with `/resume` |
 
 The truncation fallback's notice (rendered as a SystemMessage in the
 conversation) reads:
@@ -300,6 +384,20 @@ Unit tests (backend):
 - `apps/api/tests/unit/agents/api/test_custom_stream_mode_integration.py` —
   1 integration test exercising the full LangGraph custom-mode →
   `_process_custom_chunk` path.
+- `apps/api/tests/unit/domains/agents/services/orchestration/test_overflow_replay.py`
+  — the replay on a real graph and checkpointer (the refused attempt's writes
+  absent from the state, one replay at most, none after an act) and every refusal
+  read before the register; `test_turn_input.py` pins the restored checkpoint
+  riding on the state and never reaching the graph input;
+  `test_compaction_node.py` the forcing by the run's context;
+  `apps/api/tests/unit/domains/agents/api/test_error_classification.py` the
+  person's message in six languages.
+- `apps/api/tests/unit/agents/services/test_compaction_tail.py` — the kept tail begins
+  on the person's message whatever the setting, and the node and the truncation
+  fallback remove what the summary replaced; `test_compaction_person_words.py` — the
+  person's words quoted whatever the summary kept, within the budget with the cut
+  counted, carried by a later compaction, in the truncation notice, on the summary
+  message.
 
 Unit tests (frontend):
 - `apps/web/src/reducers/__tests__/chat-reducer.compaction.test.ts` — 6 tests.

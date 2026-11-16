@@ -419,6 +419,18 @@ class TestTheSearch:
         assert len(found.events) == WORKBENCH_EVENT_SEARCH_MAX
         assert found.truncated is True
 
+    async def test_one_calendar_holding_more_than_its_read_says_so(self) -> None:
+        """Its one request stopped at the ceiling: a few shown, the cut said."""
+        few = [self._event(f"e{n}", f"2026-11-{n + 1:02d}") for n in range(3)]
+        client = MagicMock(list_events=AsyncMock(return_value={"items": few, "truncated": True}))
+        with _door(client, ConnectorType.GOOGLE_CALENDAR):
+            found = await calendar_service.search_events(
+                USER, PARIS, EventSearchQuery(q="budget", calendar_ids=["work"])
+            )
+
+        assert len(found.events) == 3
+        assert found.truncated is True
+
     async def test_a_cancelled_event_is_no_answer(self) -> None:
         cancelled = {**self._event("e1", "2026-11-01"), "status": "cancelled"}
         client = MagicMock(list_events=AsyncMock(return_value={"items": [cancelled]}))

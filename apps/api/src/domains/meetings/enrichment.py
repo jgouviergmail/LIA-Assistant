@@ -19,6 +19,7 @@ from uuid import UUID
 import httpx
 import structlog
 
+from src.domains.connectors.clients.calendar_lists import read_owned_events
 from src.domains.shared.consultation_sink import collector_is_active, consultation_collector
 from src.domains.shared.consultation_surfaces import record_surface_consultations
 
@@ -28,7 +29,7 @@ logger = structlog.get_logger(__name__)
 _SURFACE = "meeting"
 _CALENDAR_SECTION = "calendar"
 
-#: Events considered around the recording (a meeting often starts late).
+#: Events considered around the recording (a meeting often starts late), per calendar.
 _CALENDAR_MARGIN = timedelta(minutes=30)
 _MAX_EVENTS = 20
 
@@ -104,15 +105,22 @@ async def match_calendar_event(
             if not isinstance(access, CalendarAccess):
                 return None
             opened = True
-            result = await access.client.list_events(
-                time_min=(started_at - _CALENDAR_MARGIN).isoformat(),
-                time_max=(stopped_at + _CALENDAR_MARGIN).isoformat(),
-                max_results=_MAX_EVENTS,
-                calendar_id=access.calendar_id,
+            # Every calendar the account owns: the meeting recorded may sit in the
+            # main calendar, not the default (owner rule 2026-11-15).
+            owned = await read_owned_events(
+                access.client,
+                access.calendar_id,
+                [
+                    (
+                        (started_at - _CALENDAR_MARGIN).isoformat(),
+                        (stopped_at + _CALENDAR_MARGIN).isoformat(),
+                    )
+                ],
+                bound=_MAX_EVENTS,
                 fields=["id", "summary", "start", "end", "attendees", "location"],
             )
             provider = str(getattr(access.connector_type, "value", access.connector_type))
-        events = result.get("items", []) or []
+        events = owned.events
     except (TimeoutError, httpx.HTTPError, ValueError, KeyError, AttributeError, OSError) as exc:
         failed = True
         logger.debug("meeting_calendar_match_failed", user_id=str(user_id), error=str(exc))

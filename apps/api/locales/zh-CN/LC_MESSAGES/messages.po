@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LIA API 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-05 17:02+0000\n"
-"PO-Revision-Date: 2026-11-05 17:02+0000\n"
+"POT-Creation-Date: 2026-11-15 23:59+0000\n"
+"PO-Revision-Date: 2026-11-15 23:59+0000\n"
 "Last-Translator: Claude Code <noreply@anthropic.com>\n"
 "Language-Team: Simplified Chinese\n"
 "Language: zh-CN\n"
@@ -278,6 +278,12 @@ msgstr "禁用连接器时必须说明原因。"
 
 msgid "Important message"
 msgstr "重要消息"
+
+msgid "LIA test notification"
+msgstr "LIA 测试通知"
+
+msgid "ntfy works: LIA can reach you here."
+msgstr "ntfy 可以正常使用：LIA 能在这里联系到你。"
 
 msgid "A deactivation must state its reason."
 msgstr "停用账户时必须说明原因。"

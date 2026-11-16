@@ -18,6 +18,7 @@ from src.core.date_contract import (
     ISO_MOMENT_DESCRIPTION,
     InvertedPeriodError,
     UnreadableDateError,
+    local_day_bounds,
     period_bounds,
     read_moment,
     unreadable_date_message,
@@ -136,3 +137,38 @@ class TestAPeriod:
     def test_an_unreadable_bound_is_the_contract_s_refusal(self) -> None:
         with pytest.raises(UnreadableDateError):
             period_bounds("last week", None, PARIS, now=NOW, default_days=7)
+
+
+class TestTheLocalDayOfAValue:
+    """« Do I have a reminder that day? », the day being a ticket's deadline (ADR-390
+    qualification, E08): the plan passes an INSTANT, often in UTC, and the person
+    means the day it falls on where they live."""
+
+    def test_a_date_is_that_whole_local_day(self) -> None:
+        assert local_day_bounds("2026-11-17", PARIS) == (
+            datetime(2026, 11, 17, tzinfo=PARIS),
+            datetime(2026, 11, 18, tzinfo=PARIS),
+        )
+
+    def test_an_instant_stands_for_the_local_day_it_falls_on(self) -> None:
+        """23:30 UTC on the 17th is already the 18th in Paris."""
+        assert local_day_bounds("2026-11-17T23:30:00+00:00", PARIS) == (
+            datetime(2026, 11, 18, tzinfo=PARIS),
+            datetime(2026, 11, 19, tzinfo=PARIS),
+        )
+
+    def test_an_instant_without_offset_is_read_in_the_zone(self) -> None:
+        assert local_day_bounds("2026-11-17T10:00", PARIS)[0] == datetime(
+            2026, 11, 17, tzinfo=PARIS
+        )
+
+    def test_a_day_the_clocks_go_back_lasts_twenty_five_hours(self) -> None:
+        """Measured on absolute instants: Python subtracts two datetimes sharing a
+        tzinfo on their wall clocks, 24 h for the 25 of a clock change (ADR-318)."""
+        since, until = local_day_bounds("2026-10-25", PARIS)
+
+        assert until.astimezone(UTC) - since.astimezone(UTC) == timedelta(hours=25)
+
+    def test_an_unreadable_value_is_the_contract_s_refusal(self) -> None:
+        with pytest.raises(UnreadableDateError):
+            local_day_bounds("le jour de l'échéance", PARIS)

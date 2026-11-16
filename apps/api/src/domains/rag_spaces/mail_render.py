@@ -104,9 +104,11 @@ def _newest(messages: list[dict[str, Any]]) -> datetime | None:
 def render_thread(thread: dict[str, Any], *, max_chars: int) -> RenderedThread:
     """Render a Gmail thread as Markdown: subject, then one section per message.
 
-    Messages are ordered by their internal date; the plain-text body is
-    preferred and HTML is converted by the client's own extractor; attachments
-    contribute their names only. The header labels are RFC names, not
+    Messages are ordered by their internal date; each is read as its reader
+    shows it, by the client's own reading door (the words of its layout, its
+    text part when the layout holds none — ADR-287 amendment 2026-11-15), which
+    parses: the caller renders off the event loop. Attachments contribute their
+    names only. The header labels are RFC names, not
     interface strings — the document is corpus, read by the retriever.
 
     Args:

@@ -16,6 +16,7 @@ Created: 2026-04-22
 
 from __future__ import annotations
 
+from src.core.date_contract import ISO_MOMENT_DESCRIPTION
 from src.domains.agents.constants import AGENT_HEALTH, CONTEXT_DOMAIN_HEALTH_SIGNALS
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.registry.catalogue import (
@@ -53,11 +54,23 @@ ContextTypeRegistry.register(
 # Shared parameters
 # ============================================================================
 
+#: The wording of the window parameters, read by the manifest AND the ``@tool``
+#: schema (ADR-310): a date is a whole day in the user's timezone, the window
+#: starting at their midnight when omitted (ADR-148 amendment 2026-11-14).
+HEALTH_TIME_MIN_DESCRIPTION = (
+    f"First day (or instant) of the window, inclusive. {ISO_MOMENT_DESCRIPTION} "
+    "Omitted: today, from the user's midnight."
+)
+HEALTH_TIME_MAX_DESCRIPTION = (
+    "Last day of the window, inclusive (an instant is exclusive). "
+    f"{ISO_MOMENT_DESCRIPTION} Omitted: now."
+)
+
 _TIME_MIN_PARAM = ParameterSchema(
     name="time_min",
     type="string",
     required=False,
-    description="Start of search window (ISO 8601).",
+    description=HEALTH_TIME_MIN_DESCRIPTION,
     semantic_type="datetime",
 )
 
@@ -65,7 +78,7 @@ _TIME_MAX_PARAM = ParameterSchema(
     name="time_max",
     type="string",
     required=False,
-    description="End of search window (ISO 8601).",
+    description=HEALTH_TIME_MAX_DESCRIPTION,
     semantic_type="datetime",
 )
 

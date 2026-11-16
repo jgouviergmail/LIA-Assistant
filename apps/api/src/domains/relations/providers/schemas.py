@@ -213,6 +213,13 @@ class ContextSection(BaseModel):
     contact: ContactCard | None = Field(default=None, description="Contact section payload.")
     emails: list[ExchangedEmail] = Field(default_factory=list)
     events: list[SharedEvent] = Field(default_factory=list)
+    truncated: bool = Field(
+        default=False,
+        description=(
+            "Meetings only: the window held more events than one read takes, so "
+            "what is shown was found in part of it — the cut is said (ADR-185)."
+        ),
+    )
 
 
 class RelationContext(BaseModel):

@@ -1,134 +1,134 @@
 """Integration tests for the per-day rollup against a real PostgreSQL.
 
-``HealthSampleRepository.fetch_daily_stats`` replaced a raw-sample fetch on the
-baseline / variations / heartbeat paths. The unit nets prove the *consumers*
-behave identically given a per-day series; they cannot prove that PostgreSQL
-produces the same series the in-Python grouping does — that half needs a real
-database, and it is the half where a silent divergence would poison every
-baseline downstream.
+``HealthSampleRepository.fetch_daily_stats`` is what the baseline, variations,
+heartbeat and briefing paths read. Since the ADR-148 amendment of 2026-11-14
+it counts through the fusion door (``fusion.counted_samples``) and cuts days
+at the person's midnight. Both halves are SQL, so both are proven here, on a
+real database:
 
-What is pinned here:
-
-- **Bit-exact equality** with :func:`daily_stats_from_samples` over a dataset
-  built to break naive implementations: samples straddling UTC midnight, a day
-  whose values do not divide evenly (repeating decimal average), a single-sample
-  day, and zero values.
+- **Local days.** A sample at 23:30 UTC is the NEXT day in Paris; a day a
+  clock change shortens (29 March) or lengthens (25 October) is still one day.
 - **Session-timezone independence.** Day bucketing uses an explicit
-  ``timezone('UTC', ...)``; a connection whose ``TimeZone`` is UTC+14 must yield
-  exactly the same days. Without the explicit cast this is the bug that ships:
-  green in CI (UTC), wrong in production.
-- **Window bounds**: ``date_start >= from_ts`` inclusive, ``< to_ts`` exclusive.
-- Ordering, and the empty-window contract.
+  ``timezone(<zone>, ...)``; a connection whose ``TimeZone`` is UTC+14 must
+  yield exactly the same days. Without the explicit cast this is the bug that
+  ships: green in CI (UTC), wrong in production.
+- **The fusion.** Two devices measuring one walk count it once: a long sample
+  holding a short one, two staggered samples, an identical rate on both; a
+  sample overlapping nothing comes out whole; a sample starting before the
+  window shares its overlap with one starting inside it.
+- **Window bounds** (a row belongs to the window of its start, ``to_ts``
+  exclusive), ordering, the empty window, user and kind isolation.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.health_metrics.baseline import DailyStat, daily_stats_from_samples
+from src.domains.health_metrics.baseline import DailyStat
 from src.domains.health_metrics.models import HealthSample
 from src.domains.health_metrics.repository import HealthSampleRepository
 from src.domains.users.models import User
 
 pytestmark = pytest.mark.integration
 
-# Fixed anchor: a UTC midnight boundary is the interesting edge, so every
-# timestamp below is expressed relative to one.
-ANCHOR = datetime(2026, 5, 20, 0, 0, tzinfo=UTC)
+PARIS = ZoneInfo("Europe/Paris")
+UTC_ZONE = ZoneInfo("UTC")
 
 
-def _sample(user_id, kind: str, start: datetime, value: int) -> HealthSample:
+def _sample(user_id, kind: str, start: datetime, value: int, *, minutes: float = 1) -> HealthSample:
     return HealthSample(
         user_id=user_id,
         kind=kind,
         date_start=start,
-        date_end=start + timedelta(minutes=1),
+        date_end=start + timedelta(minutes=minutes),
         value=value,
         source="test",
     )
 
 
-async def _seed(session: AsyncSession, user: User) -> None:
-    """Insert a dataset designed to break naive day bucketing."""
-    rows = [
-        # Straddling UTC midnight: 23:59 on 05-19 and 00:01 on 05-20 must land
-        # in DIFFERENT days. Under a UTC+14 session clock a naive cast would
-        # merge them into 05-20.
-        _sample(user.id, "heart_rate", ANCHOR - timedelta(minutes=1), 60),
-        _sample(user.id, "heart_rate", ANCHOR + timedelta(minutes=1), 80),
-        _sample(user.id, "heart_rate", ANCHOR + timedelta(minutes=2), 81),
-        # 05-21: three values summing to 214 -> 71.333... (non-terminating)
-        _sample(user.id, "heart_rate", ANCHOR + timedelta(days=1, hours=8), 70),
-        _sample(user.id, "heart_rate", ANCHOR + timedelta(days=1, hours=9), 71),
-        _sample(user.id, "heart_rate", ANCHOR + timedelta(days=1, hours=10), 73),
-        # 05-22: single sample
-        _sample(user.id, "heart_rate", ANCHOR + timedelta(days=2, hours=12), 65),
-        # steps, including a zero-valued day (inactivity signal)
-        _sample(user.id, "steps", ANCHOR + timedelta(hours=10), 4000),
-        _sample(user.id, "steps", ANCHOR + timedelta(hours=11), 1500),
-        _sample(user.id, "steps", ANCHOR + timedelta(days=1, hours=10), 0),
-    ]
-    session.add_all(rows)
-    await session.commit()
-
-
-async def _both_paths(
-    session: AsyncSession, user: User, kind: str, from_ts: datetime, to_ts: datetime
-) -> tuple[list[DailyStat], list[DailyStat]]:
-    """Return (SQL rollup, in-Python grouping) over the same window."""
-    repo = HealthSampleRepository(session)
-    sql_side = await repo.fetch_daily_stats(user.id, kind=kind, from_ts=from_ts, to_ts=to_ts)
-    samples = await repo.fetch_samples_kind(user.id, kind=kind, from_ts=from_ts, to_ts=to_ts)
-    return sql_side, daily_stats_from_samples(samples)
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("kind", ["heart_rate", "steps"])
-async def test_rollup_matches_in_python_grouping(
-    async_session: AsyncSession, test_user: User, kind: str
-) -> None:
-    """The SQL rollup must equal the in-Python grouping, field for field."""
-    await _seed(async_session, test_user)
-
-    sql_side, python_side = await _both_paths(
-        async_session, test_user, kind, ANCHOR - timedelta(days=1), ANCHOR + timedelta(days=5)
+async def _stats(
+    session: AsyncSession,
+    user: User,
+    kind: str,
+    zone: ZoneInfo,
+    from_ts: datetime,
+    to_ts: datetime,
+) -> list[DailyStat]:
+    return await HealthSampleRepository(session).fetch_daily_stats(
+        user.id, kind=kind, zone=zone, from_ts=from_ts, to_ts=to_ts
     )
 
-    assert sql_side == python_side
-    assert sql_side, "dataset should not be empty — the assertion above would be vacuous"
+
+# =============================================================================
+# Local days
+# =============================================================================
 
 
 @pytest.mark.asyncio
-async def test_days_are_utc_buckets_across_midnight(
-    async_session: AsyncSession, test_user: User
-) -> None:
-    """23:59 and 00:01 belong to different UTC days, and averages are exact."""
-    await _seed(async_session, test_user)
+async def test_a_day_is_the_person_s_day(async_session: AsyncSession, test_user: User) -> None:
+    """23:30 UTC on the 13th is 00:30 on the 14th in Paris: the 14th's steps."""
+    evening = datetime(2026, 11, 13, 23, 30, tzinfo=UTC)
+    async_session.add_all(
+        [
+            _sample(test_user.id, "steps", evening, 300),
+            _sample(test_user.id, "steps", evening + timedelta(hours=12), 700),
+        ]
+    )
+    await async_session.commit()
+    window = (datetime(2026, 11, 12, tzinfo=UTC), datetime(2026, 11, 16, tzinfo=UTC))
 
-    stats, _ = await _both_paths(
+    paris = await _stats(async_session, test_user, "steps", PARIS, *window)
+    utc = await _stats(async_session, test_user, "steps", UTC_ZONE, *window)
+
+    assert [(stat.day, stat.total) for stat in paris] == [(date(2026, 11, 14), 1000)]
+    assert [(stat.day, stat.total) for stat in utc] == [
+        (date(2026, 11, 13), 300),
+        (date(2026, 11, 14), 700),
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("day", "last_instant"),
+    [
+        # 29 March 2026 lasts 23 hours in Paris: its last minute is 21:59 UTC.
+        (date(2026, 3, 29), datetime(2026, 3, 29, 21, 59, tzinfo=UTC)),
+        # 25 October 2026 lasts 25 hours: its last minute is 22:59 UTC.
+        (date(2026, 10, 25), datetime(2026, 10, 25, 22, 59, tzinfo=UTC)),
+    ],
+)
+async def test_a_day_a_clock_change_shortens_or_lengthens_is_one_day(
+    async_session: AsyncSession, test_user: User, day: date, last_instant: datetime
+) -> None:
+    first_instant = datetime.combine(day, datetime.min.time(), tzinfo=PARIS).astimezone(UTC)
+    async_session.add_all(
+        [
+            _sample(test_user.id, "steps", first_instant, 100),
+            _sample(test_user.id, "steps", last_instant, 200),
+            # The next local day's first minute.
+            _sample(test_user.id, "steps", last_instant + timedelta(minutes=1), 400),
+        ]
+    )
+    await async_session.commit()
+
+    stats = await _stats(
         async_session,
         test_user,
-        "heart_rate",
-        ANCHOR - timedelta(days=1),
-        ANCHOR + timedelta(days=5),
+        "steps",
+        PARIS,
+        first_instant - timedelta(days=1),
+        last_instant + timedelta(days=1),
     )
-    by_day = {stat.day: stat for stat in stats}
 
-    assert by_day[date(2026, 5, 19)] == DailyStat(
-        day=date(2026, 5, 19), total=60, count=1, minimum=60
-    )
-    assert by_day[date(2026, 5, 20)] == DailyStat(
-        day=date(2026, 5, 20), total=161, count=2, minimum=80
-    )
-    # 70 + 71 + 73 = 214 over 3 samples -> the repeating-decimal case.
-    assert by_day[date(2026, 5, 21)] == DailyStat(
-        day=date(2026, 5, 21), total=214, count=3, minimum=70
-    )
-    assert by_day[date(2026, 5, 21)].total / by_day[date(2026, 5, 21)].count == 214 / 3
+    assert [(stat.day, stat.total) for stat in stats] == [
+        (day, 300),
+        (day + timedelta(days=1), 400),
+    ]
 
 
 @pytest.mark.asyncio
@@ -140,66 +140,230 @@ async def test_day_bucketing_ignores_the_session_timezone(
     ``SET LOCAL`` scopes the change to the surrounding transaction, so the
     fixture's connection is never left contaminated for the next test.
     """
-    await _seed(async_session, test_user)
-    window = (ANCHOR - timedelta(days=1), ANCHOR + timedelta(days=5))
+    anchor = datetime(2026, 5, 20, tzinfo=UTC)
+    async_session.add_all(
+        [
+            _sample(test_user.id, "heart_rate", anchor - timedelta(minutes=1), 60),
+            _sample(test_user.id, "heart_rate", anchor + timedelta(minutes=1), 80),
+            _sample(test_user.id, "steps", anchor + timedelta(hours=21, minutes=30), 500),
+        ]
+    )
+    await async_session.commit()
+    window = (anchor - timedelta(days=1), anchor + timedelta(days=2))
 
-    utc_stats, _ = await _both_paths(async_session, test_user, "heart_rate", *window)
-
+    before = {
+        kind: await _stats(async_session, test_user, kind, PARIS, *window)
+        for kind in ("heart_rate", "steps")
+    }
     await async_session.execute(text("SET LOCAL TIME ZONE 'Pacific/Kiritimati'"))
-    shifted_stats, python_side = await _both_paths(async_session, test_user, "heart_rate", *window)
+    after = {
+        kind: await _stats(async_session, test_user, kind, PARIS, *window)
+        for kind in ("heart_rate", "steps")
+    }
 
-    assert shifted_stats == utc_stats
-    assert shifted_stats == python_side
+    assert after == before
+    # 23:59 and 00:01 UTC are both the 20th in Paris (01:59 and 02:01).
+    assert before["heart_rate"] == [
+        DailyStat(day=date(2026, 5, 20), total=140, count=2, minimum=60)
+    ]
+    # 21:30 UTC is 23:30 in Paris: still the 20th.
+    assert [(stat.day, stat.total) for stat in before["steps"]] == [(date(2026, 5, 20), 500)]
+
+
+# =============================================================================
+# The fusion: one walk measured twice counts once
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_a_long_sample_holding_a_short_one_counts_the_higher_rate(
+    async_session: AsyncSession, test_user: User
+) -> None:
+    """The phone's 10 minutes at 100/min hold the watch's 2 minutes at 150/min.
+
+    Slices: 4 min at 100, 2 min at max(100, 150) = 150, 4 min at 100 → 1100,
+    where the raw sum said 1000 + 300 = 1300.
+    """
+    start = datetime(2026, 11, 14, 9, 0, tzinfo=UTC)
+    async_session.add_all(
+        [
+            _sample(test_user.id, "steps", start, 1000, minutes=10),
+            _sample(test_user.id, "steps", start + timedelta(minutes=4), 300, minutes=2),
+        ]
+    )
+    await async_session.commit()
+
+    stats = await _stats(
+        async_session,
+        test_user,
+        "steps",
+        PARIS,
+        start - timedelta(hours=1),
+        start + timedelta(hours=1),
+    )
+
+    assert [stat.total for stat in stats] == [1100]
+
+
+@pytest.mark.asyncio
+async def test_staggered_samples_and_an_identical_rate_count_once(
+    async_session: AsyncSession, test_user: User
+) -> None:
+    """Two devices agreeing on a walk: the overlap counts once, whatever its shape."""
+    start = datetime(2026, 11, 14, 14, 0, tzinfo=UTC)
+    async_session.add_all(
+        [
+            # Staggered: [0, 10) at 50/min and [5, 15) at 50/min → 15 min at 50.
+            _sample(test_user.id, "steps", start, 500, minutes=10),
+            _sample(test_user.id, "steps", start + timedelta(minutes=5), 500, minutes=10),
+            # Alone an hour later: whole.
+            _sample(test_user.id, "steps", start + timedelta(hours=1), 123, minutes=3),
+        ]
+    )
+    await async_session.commit()
+
+    stats = await _stats(
+        async_session,
+        test_user,
+        "steps",
+        PARIS,
+        start - timedelta(hours=1),
+        start + timedelta(hours=3),
+    )
+
+    assert [stat.total for stat in stats] == [750 + 123]
+
+
+@pytest.mark.asyncio
+async def test_samples_that_never_overlap_add_up_exactly(
+    async_session: AsyncSession, test_user: User
+) -> None:
+    """The fusion changes nothing where nothing overlaps — one per minute, odd values."""
+    start = datetime(2026, 11, 14, 7, 0, tzinfo=UTC)
+    values = [17, 1, 999, 3, 250, 7, 41]
+    async_session.add_all(
+        [
+            _sample(test_user.id, "steps", start + timedelta(minutes=index), value)
+            for index, value in enumerate(values)
+        ]
+    )
+    await async_session.commit()
+
+    stats = await _stats(
+        async_session, test_user, "steps", PARIS, start, start + timedelta(hours=1)
+    )
+
+    assert [stat.total for stat in stats] == [sum(values)]
+
+
+@pytest.mark.asyncio
+async def test_heart_rate_readings_are_never_fused(
+    async_session: AsyncSession, test_user: User
+) -> None:
+    """Two overlapping readings are two observations: averaged, not deduplicated."""
+    start = datetime(2026, 11, 14, 10, 0, tzinfo=UTC)
+    async_session.add_all(
+        [
+            _sample(test_user.id, "heart_rate", start, 60, minutes=5),
+            _sample(test_user.id, "heart_rate", start + timedelta(minutes=1), 90, minutes=5),
+        ]
+    )
+    await async_session.commit()
+
+    stats = await _stats(
+        async_session, test_user, "heart_rate", PARIS, start, start + timedelta(hours=1)
+    )
+
+    assert stats == [DailyStat(day=date(2026, 11, 14), total=150, count=2, minimum=60)]
+
+
+@pytest.mark.asyncio
+async def test_adjacent_windows_add_up_to_the_window_that_holds_them(
+    async_session: AsyncSession, test_user: User
+) -> None:
+    """A sample starting before a window still splits the overlap the window reads.
+
+    The phone's [23:50, 00:10) and the watch's [00:00, 00:05) at a higher rate:
+    the slice [00:00, 00:05) counts once, in the day it starts on, whichever
+    window reads it — so yesterday plus today equals both days read at once.
+    """
+    midnight = datetime(2026, 11, 14, tzinfo=PARIS).astimezone(UTC)
+    async_session.add_all(
+        [
+            _sample(test_user.id, "steps", midnight - timedelta(minutes=10), 200, minutes=20),
+            _sample(test_user.id, "steps", midnight, 100, minutes=5),
+        ]
+    )
+    await async_session.commit()
+    day = timedelta(days=1)
+
+    yesterday = await _stats(async_session, test_user, "steps", PARIS, midnight - day, midnight)
+    today = await _stats(async_session, test_user, "steps", PARIS, midnight, midnight + day)
+    both = await _stats(async_session, test_user, "steps", PARIS, midnight - day, midnight + day)
+
+    # [23:50, 00:00) at 10/min = 100; [00:00, 00:05) at max(10, 20) = 100; [00:05, 00:10) = 50.
+    assert [(stat.day, stat.total) for stat in yesterday] == [(date(2026, 11, 13), 100)]
+    assert [(stat.day, stat.total) for stat in today] == [(date(2026, 11, 14), 150)]
+    assert both == yesterday + today
+
+
+# =============================================================================
+# Bounds, ordering, isolation
+# =============================================================================
 
 
 @pytest.mark.asyncio
 async def test_window_bounds_are_inclusive_then_exclusive(
     async_session: AsyncSession, test_user: User
 ) -> None:
-    """``from_ts`` is included, ``to_ts`` excluded — same as the raw fetch."""
-    await _seed(async_session, test_user)
-    first_sample_at = ANCHOR - timedelta(minutes=1)
-
-    included, python_included = await _both_paths(
-        async_session, test_user, "heart_rate", first_sample_at, ANCHOR + timedelta(minutes=2)
+    """A row belongs to the window of its start: ``from_ts`` in, ``to_ts`` out."""
+    start = datetime(2026, 5, 20, 8, 0, tzinfo=UTC)
+    async_session.add_all(
+        [
+            _sample(test_user.id, "heart_rate", start, 61),
+            _sample(test_user.id, "heart_rate", start + timedelta(minutes=5), 75),
+        ]
     )
-    excluded, python_excluded = await _both_paths(
+    await async_session.commit()
+
+    included = await _stats(
+        async_session, test_user, "heart_rate", PARIS, start, start + timedelta(minutes=5)
+    )
+    excluded = await _stats(
         async_session,
         test_user,
         "heart_rate",
-        first_sample_at + timedelta(seconds=1),
-        ANCHOR + timedelta(minutes=2),
+        PARIS,
+        start + timedelta(seconds=1),
+        start + timedelta(minutes=10),
     )
 
-    assert included == python_included
-    assert excluded == python_excluded
-    # The 23:59 sample is in the first window, out of the second.
-    assert date(2026, 5, 19) in {stat.day for stat in included}
-    assert date(2026, 5, 19) not in {stat.day for stat in excluded}
-    # to_ts is exclusive: the 00:02 sample is never counted.
-    assert all(stat.total != 161 for stat in included)
+    assert [stat.total for stat in included] == [61]
+    assert [stat.total for stat in excluded] == [75]
 
 
 @pytest.mark.asyncio
 async def test_ordering_and_empty_window(async_session: AsyncSession, test_user: User) -> None:
     """Days come back ascending; a window with no sample yields an empty list."""
-    await _seed(async_session, test_user)
-    repo = HealthSampleRepository(async_session)
-
-    stats = await repo.fetch_daily_stats(
-        test_user.id,
-        kind="heart_rate",
-        from_ts=ANCHOR - timedelta(days=1),
-        to_ts=ANCHOR + timedelta(days=5),
+    base = datetime(2026, 5, 20, 12, 0, tzinfo=UTC)
+    async_session.add_all(
+        [_sample(test_user.id, "steps", base + timedelta(days=offset), 100) for offset in (2, 0, 1)]
     )
-    empty = await repo.fetch_daily_stats(
-        test_user.id,
-        kind="heart_rate",
-        from_ts=ANCHOR + timedelta(days=100),
-        to_ts=ANCHOR + timedelta(days=200),
+    await async_session.commit()
+
+    stats = await _stats(
+        async_session, test_user, "steps", PARIS, base - timedelta(days=1), base + timedelta(days=5)
+    )
+    empty = await _stats(
+        async_session,
+        test_user,
+        "steps",
+        PARIS,
+        base + timedelta(days=100),
+        base + timedelta(days=200),
     )
 
-    assert [stat.day for stat in stats] == sorted(stat.day for stat in stats)
+    assert [stat.day for stat in stats] == [date(2026, 5, 20), date(2026, 5, 21), date(2026, 5, 22)]
     assert empty == []
 
 
@@ -208,7 +372,7 @@ async def test_rollup_is_scoped_to_user_and_kind(
     async_session: AsyncSession, test_user: User
 ) -> None:
     """Neither another user's rows nor another kind may leak into a series."""
-    await _seed(async_session, test_user)
+    start = datetime(2026, 5, 20, 9, 0, tzinfo=UTC)
     other = User(
         email="rollup-isolation@example.com",
         hashed_password="x",
@@ -218,20 +382,18 @@ async def test_rollup_is_scoped_to_user_and_kind(
     )
     async_session.add(other)
     await async_session.flush()
-    async_session.add(_sample(other.id, "heart_rate", ANCHOR + timedelta(hours=1), 200))
+    async_session.add_all(
+        [
+            _sample(test_user.id, "steps", start, 1000, minutes=10),
+            # The other person's overlapping walk must not fuse into this one.
+            _sample(other.id, "steps", start, 5000, minutes=10),
+            _sample(test_user.id, "heart_rate", start, 70, minutes=10),
+        ]
+    )
     await async_session.commit()
 
-    repo = HealthSampleRepository(async_session)
-    stats = await repo.fetch_daily_stats(
-        test_user.id,
-        kind="heart_rate",
-        from_ts=ANCHOR - timedelta(days=1),
-        to_ts=ANCHOR + timedelta(days=5),
+    stats = await _stats(
+        async_session, test_user, "steps", PARIS, start, start + timedelta(hours=1)
     )
 
-    by_day = {stat.day: stat for stat in stats}
-    # The other user's 200 bpm would blow both the total and the minimum.
-    assert by_day[date(2026, 5, 20)].total == 161
-    assert all(stat.minimum >= 60 for stat in stats)
-    # steps rows exist on the same days and must not bleed into heart_rate.
-    assert by_day[date(2026, 5, 20)].count == 2
+    assert [stat.total for stat in stats] == [1000]

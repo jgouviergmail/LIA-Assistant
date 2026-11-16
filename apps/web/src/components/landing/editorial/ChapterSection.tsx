@@ -41,24 +41,27 @@ export function ChapterSection({
     >
       {ghost}
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        {/* One reading and keyboard order: introduction, proof, explanation.
-            The desktop proof spans both text rows to retain the alternating
-            columns. A max-content heading row prevents a taller proof from
-            opening an artificial gap before its benefits. */}
-        <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr] lg:grid-rows-[max-content_1fr] lg:gap-x-12">
+        {/* The title runs the full width above both columns (owner,
+            2026-11-15). Then one reading and keyboard order: introduction,
+            proof, explanation. The desktop proof spans both text rows to
+            retain the alternating columns. A max-content first row prevents a
+            taller proof from opening an artificial gap before its benefits. */}
+        <FadeInOnScroll>
+          <p className={cn('text-xs font-medium', tone.text)}>
+            {t('landing.chapters.eyebrow')} {chapter.num}
+          </p>
+          <h2
+            id={`${chapter.anchor}-title`}
+            className="mt-1.5 text-3xl font-bold tracking-tight mobile:text-4xl"
+          >
+            {k('title')}
+          </h2>
+        </FadeInOnScroll>
+        <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_1.1fr] lg:grid-rows-[max-content_1fr] lg:gap-x-12">
           <FadeInOnScroll
             className={cn('min-w-0 lg:row-start-1', reverse ? 'lg:col-start-2' : 'lg:col-start-1')}
           >
-            <p className={cn('text-xs font-medium', tone.text)}>
-              {t('landing.chapters.eyebrow')} {chapter.num}
-            </p>
-            <h2
-              id={`${chapter.anchor}-title`}
-              className="mt-1.5 text-3xl font-bold tracking-tight mobile:text-4xl"
-            >
-              {k('title')}
-            </h2>
-            <p className="mt-3 max-w-[48ch] text-muted-foreground">{k('sub')}</p>
+            <p className="leading-7 text-muted-foreground">{k('sub')}</p>
           </FadeInOnScroll>
 
           <FadeInOnScroll
@@ -76,11 +79,17 @@ export function ChapterSection({
               reverse ? 'lg:col-start-2' : 'lg:col-start-1'
             )}
           >
-            <ul className="grid gap-4">
+            {/* One tile per benefit (owner, 2026-11-15: « plus lisible »), the
+                chapter's tone on a short bar; an odd last tile takes the row. */}
+            <ul className="grid gap-3 sm:grid-cols-2">
               {benefitIndexes.map(i => (
-                <li key={i} className={cn('border-l-2 pl-4 text-sm leading-relaxed', tone.border)}>
+                <li
+                  key={i}
+                  className="rounded-2xl border border-border bg-background p-4 text-sm leading-relaxed sm:last:odd:col-span-2"
+                >
+                  <span aria-hidden="true" className={cn('mb-3 block h-1 w-8 rounded-full', tone.fill)} />
                   <strong className="block font-semibold">{k(`b${i}_t`)}</strong>
-                  <span className="text-muted-foreground">{k(`b${i}_d`)}</span>
+                  <span className="mt-1 block text-muted-foreground">{k(`b${i}_d`)}</span>
                 </li>
               ))}
             </ul>

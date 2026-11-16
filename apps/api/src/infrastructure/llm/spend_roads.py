@@ -76,8 +76,8 @@ LLM_SPEND_ROADS: dict[str, SpendRoad] = {
     "domains/agents/emails/content_generation.py": SpendRoad.TURN,
     # The reply a mailbox draft holds, written in the turn (ADR-344).
     "domains/agents/emails/reply_drafting.py": SpendRoad.TURN,
-    # How the person writes, learned on the run of the writer that first needs it,
-    # turn or assist, whose config it is handed (ADR-383).
+    # How the person writes, learned at their request — the assistant's turn, or their
+    # click through the assists' door — on the config it is handed (ADR-383).
     "domains/agents/emails/writing_style.py": SpendRoad.TURN,
     "domains/agents/emails/digest.py": SpendRoad.TURN,
     "domains/agents/emails/attachment_content.py": SpendRoad.TURN,

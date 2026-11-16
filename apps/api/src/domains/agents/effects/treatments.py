@@ -242,7 +242,10 @@ def _count_lost_register() -> None:
     Read cheaply and only on the path that already returned early: under a
     published collector this is never reached, so a normal turn pays nothing.
     """
-    from src.domains.agents.context.runtime_context import runtime_context_if_running
+    from src.domains.agents.context.runtime_context import (
+        executed_mode_of,
+        runtime_context_if_running,
+    )
 
     try:
         context = runtime_context_if_running()
@@ -252,7 +255,7 @@ def _count_lost_register() -> None:
             treatments_uncollected_total,
         )
 
-        mode = str(getattr(context, "execution_mode", "unknown"))
+        mode = executed_mode_of(context)
         treatments_uncollected_total.labels(execution_mode=mode).inc()
         logger.warning("treatment_register_not_open", execution_mode=mode)
         # The metric counts; the row says WHOSE turn (ADR-263 lot 8). Scheduled
@@ -292,7 +295,10 @@ def _build(
         The row, or None when no run context names a user — nothing can be
         written to a register whose every row belongs to someone.
     """
-    from src.domains.agents.context.runtime_context import runtime_context_if_running
+    from src.domains.agents.context.runtime_context import (
+        executed_mode_of,
+        runtime_context_if_running,
+    )
     from src.domains.agents.effects.scope import current_scope
     from src.domains.agents.effects.source import resolve_source
 
@@ -311,7 +317,7 @@ def _build(
         thread_id=str(context.thread_id),
         run_id=str(run_id),
         source=source,
-        execution_mode=str(context.execution_mode),
+        execution_mode=executed_mode_of(context),
         tool_name=tool_name,
         mutation_policy=mutation_policy,
         outcome="ok" if succeeded else "failed",

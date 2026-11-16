@@ -8,8 +8,8 @@ Filtering logic:
 1. Filter by domains (only include requested domains)
 2. Filter by categories (search, detail, write, etc.)
 3. Filter by semantic scores (exclude low-scoring tools)
-4. Ensure domain coverage (at least one tool per domain)
-5. Respect max_tools limit
+4. Ensure domain coverage: every domain seated by its most relevant tool
+5. Fill each domain by relevance up to the max_tools limit (``catalogue/seats.py``)
 
 Token savings:
 - FULL contacts catalogue: ~5500 tokens
@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from src.core.constants import CATALOGUE_DOMAIN_COVERAGE_TOP_N
 from src.domains.agents.analysis.query_intelligence import ToolFilter
+from src.domains.agents.services.catalogue.seats import seat_tools
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import planner_catalogue_size_tools
 
@@ -258,26 +259,13 @@ class NormalFilteringStrategy:
                 domains=tool_filter.domains,
             )
 
-        # Second pass: build filtered list ensuring domain coverage
-        filtered_tools: list[dict[str, Any]] = []
-        domains_included = set()
-        categories_included = set()
-
-        # First, add at least one tool per domain (domain coverage)
-        for domain, tools in tools_by_domain.items():
-            if tools and len(filtered_tools) < tool_filter.max_tools:
-                tool_dict, tool_category = tools[0]
-                filtered_tools.append(tool_dict)
-                domains_included.add(domain)
-                categories_included.add(tool_category)
-
-        # Then, fill remaining slots with additional tools
-        for _domain, tools in tools_by_domain.items():
-            for tool_dict, tool_category in tools[1:]:  # Skip first (already added)
-                if len(filtered_tools) >= tool_filter.max_tools:
-                    break
-                filtered_tools.append(tool_dict)
-                categories_included.add(tool_category)
+        # Second pass: each domain seated by its most relevant tool, then filled
+        # by relevance under the cap — never by registration order (ADR-293
+        # amendment 2026-11-15).
+        seats = seat_tools(tools_by_domain, tool_scores, tool_filter.max_tools)
+        filtered_tools: list[dict[str, Any]] = seats.tools
+        domains_included = seats.domains_included
+        categories_included = seats.categories_included
 
         # Closure: a catalogue whose tools require a handle nobody can source
         # leaves the planner no valid plan at all (prod incident 2026-07-30).

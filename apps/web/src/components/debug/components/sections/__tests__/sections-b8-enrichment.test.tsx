@@ -388,4 +388,41 @@ describe('the two deferred registers', () => {
 
     expect(screen.queryByText('Silently corrected')).not.toBeInTheDocument();
   });
+
+  it.each([
+    ['an automatic turn', 'auto', 'pipeline', 'direct'],
+    ['a chosen loop the instance cannot run', 'react', 'pipeline', 'loop_disabled'],
+  ])('says how %s came to its engine (ADR-390)', (_case, requested, engine, reason) => {
+    open(
+      ['registers'],
+      <RegistersSection
+        data={{
+          ...REGISTERS,
+          decision: {
+            ...REGISTERS.decision!,
+            execution_mode: engine,
+            requested_mode: requested,
+            resolution_reason: reason,
+          },
+        }}
+      />
+    );
+
+    expect(screen.getByText(/^Mode:/).parentElement).toHaveTextContent(engine);
+    expect(screen.getByText(/^Requested:/).parentElement).toHaveTextContent(requested);
+    expect(screen.getByText(/^Engine because:/).parentElement).toHaveTextContent(reason);
+  });
+
+  it.each([
+    ['the mode the person chose', { requested_mode: 'react', resolution_reason: 'requested' }],
+    ['a payload from before ADR-390', {}],
+  ])('adds nothing for %s', (_case, fields) => {
+    open(
+      ['registers'],
+      <RegistersSection data={{ ...REGISTERS, decision: { ...REGISTERS.decision!, ...fields } }} />
+    );
+
+    expect(screen.queryByText(/^Requested:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Engine because:/)).not.toBeInTheDocument();
+  });
 });

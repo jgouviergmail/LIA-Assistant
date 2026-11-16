@@ -132,6 +132,21 @@ describe('ChatMessage — assistant badges', () => {
     expect(screen.queryByText(/chat\.message\.interrupted/)).not.toBeInTheDocument();
   });
 
+  it('says beside the time which engine answered an automatic turn (ADR-390)', () => {
+    const { container } = renderMessage(makeMessage({ metadata: { execution_engine: 'pipeline' } }));
+
+    const mark = container.querySelector('[data-execution-engine="pipeline"]');
+    // On the meta line with the time and the other provenance marks — never
+    // inside the answer, where it would read as part of what LIA said.
+    expect(screen.getByText(/\d{2}:\d{2}/)).toContainElement(mark as HTMLElement);
+    expect(mark?.closest('.message-bubble')).toBeNull();
+  });
+
+  it('names no engine under an answer whose mode the person chose', () => {
+    const { container } = renderMessage(makeMessage());
+    expect(container.querySelector('[data-execution-engine]')).toBeNull();
+  });
+
   it('opens a lightbox on a generated image', async () => {
     const { user } = renderMessage(
       makeMessage({ generatedImages: [{ url: 'https://img/1.png', alt: 'a cat' }] })

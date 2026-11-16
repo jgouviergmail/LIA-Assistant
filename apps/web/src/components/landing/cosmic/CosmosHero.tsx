@@ -1,7 +1,8 @@
 /**
- * The centered homepage promise, followed by the functional constellation.
- * The map uses the same localized data as the living documentation; the
- * guided-demo link retains its deployment switch.
+ * The centered homepage promise and its calls to action. The bricks and their
+ * families live in the living map (`/maps`), not here (owner, 2026-11-15); the
+ * scroll hint leads to the positioning that follows. The guided-demo link
+ * retains its deployment switch.
  */
 
 import Link from 'next/link';
@@ -13,10 +14,7 @@ import { GithubIcon } from '@/components/icons/GithubIcon';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { getPublicShowroomVariant } from '@/lib/showroom-config';
 import type { Language } from '@/i18n/settings';
-import { mapsData } from '@/lib/maps/data';
-import { buildBrickMap } from '@/lib/maps/model';
 import { APP_VERSION, LAST_UPDATED } from '@/lib/version';
-import { LandingConstellation } from './LandingConstellation';
 import { PresentationButton } from '../video/PresentationButton';
 
 const HERO_DATE_LOCALES: Record<string, string> = {
@@ -50,7 +48,6 @@ interface CosmosHeroProps {
 
 export async function CosmosHero({ lng }: CosmosHeroProps) {
   const { t } = await initI18next(lng);
-  const map = buildBrickMap(mapsData(lng), 'functional');
   // The demo CTA exists ONLY when the guided mission is the /demo experience:
   // under `legacy` that page is a passive mockup, so advertising it as a demo
   // would overpromise. Build-time value — no runtime branch on the public page.
@@ -79,9 +76,9 @@ export async function CosmosHero({ lng }: CosmosHeroProps) {
 
   return (
     <section className="relative min-h-screen flex items-center overflow-clip">
-      <div className="lm-functional-frame relative z-10 pt-24 lg:pt-28 pb-24">
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-4 pt-24 pb-24 sm:px-6 lg:px-8 lg:pt-28">
         <div className="flex min-w-0 flex-col items-center gap-6">
-          <div className="w-full min-w-0 max-w-4xl text-center">
+          <div className="w-full min-w-0 text-center">
             <div
               {...rise(RISE_DELAYS.badges)}
               className="cosmos-rise flex flex-wrap items-center gap-3 justify-center mb-3 sm:mb-6"
@@ -113,18 +110,17 @@ export async function CosmosHero({ lng }: CosmosHeroProps) {
               <span className="block">{t('landing.hero.title_line3')}</span>
             </h1>
 
-            {/* One paragraph, one typography: the tagline and the value line read as
-                a single promise (owner layout, 2026-10-30). */}
+            {/* The tagline alone under the title (owner, 2026-11-15): what LIA
+                connects and what it costs are said by the sections below. */}
             <p
               {...rise(RISE_DELAYS.lede)}
-              className="cosmos-rise text-base mobile:text-lg font-semibold text-foreground/90 max-w-2xl mx-auto leading-relaxed"
+              className="cosmos-rise text-base mobile:text-lg font-semibold text-foreground/90 leading-relaxed"
             >
-              <span className="block">{t('landing.hero.subtitle_top')}</span>
-              <span className="block">{t('landing.hero.home_value')}</span>
+              {t('landing.hero.subtitle_top')}
             </p>
           </div>
 
-          <div className="w-full min-w-0 max-w-3xl text-center">
+          <div className="w-full min-w-0 text-center">
             <div
               {...rise(RISE_DELAYS.cta)}
               className="cosmos-rise flex flex-col sm:flex-row sm:flex-wrap gap-3 justify-center mb-3"
@@ -174,13 +170,11 @@ export async function CosmosHero({ lng }: CosmosHeroProps) {
               {t('landing.hero.home_access_note')}
             </p>
           </div>
-
-          <LandingConstellation map={map} lng={lng} />
         </div>
       </div>
 
       <a
-        href="#gallery"
+        href="#positioning"
         className="absolute bottom-6 left-1/2 -translate-x-1/2 flex min-h-11 flex-col items-center gap-2 rounded-md px-3 text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label={t('landing.hero.scroll_hint')}
       >

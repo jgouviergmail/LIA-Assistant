@@ -76,7 +76,10 @@ def _request(admission: RunAdmission, original: str | None) -> ChannelAgentReque
         user_display_name=None,
         user_journals_enabled=True,
         user_psyche_enabled=True,
+        user_execution_mode="pipeline",
         hitl_decision=None,
+        position=None,
+        attachment_ids=(),
     )
 
 

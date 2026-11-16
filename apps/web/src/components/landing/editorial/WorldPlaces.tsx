@@ -23,7 +23,7 @@ export function WorldPlaces({ t }: { t: Translate }) {
   return (
     <div className="mt-8 border-t border-border pt-6">
       <h3 className="text-lg font-semibold">{t('landing.world_places.title')}</h3>
-      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
         {t('landing.world_places.intro')}
       </p>
       <dl className="mt-6 grid gap-x-8 sm:grid-cols-2">

@@ -31,6 +31,7 @@ from src.domains.agents.application.meeting_template_schemas import (
     canonical_template_replacement,
 )
 from src.domains.agents.application.meeting_transcript_schemas import canonical_transcript_deletion
+from src.domains.agents.application.memory_import_schemas import canonical_memory_import
 from src.domains.agents.application.people_rendering import PEOPLE_CANONICAL, PEOPLE_PREVIEW_NOTES
 from src.domains.agents.application.personal_mcp_configuration_schemas import (
     canonical_personal_mcp_configuration,
@@ -58,6 +59,7 @@ from src.domains.agents.application.skill_delete_schemas import canonical_skill_
 from src.domains.agents.application.skill_download_schemas import canonical_skill_download
 from src.domains.agents.application.skill_file_upload_schemas import canonical_skill_file_upload
 from src.domains.agents.application.skill_library_import_schemas import canonical_library_import
+from src.domains.agents.application.skill_restore_schemas import canonical_skill_restore
 from src.domains.agents.application.skill_update_schemas import canonical_skill_update
 from src.domains.agents.application.skill_url_import_schemas import canonical_skill_url_import
 from src.domains.agents.application.source_delete_schemas import canonical_source_deletion
@@ -104,6 +106,8 @@ MANAGEMENT_CANONICAL = {
     "personal_mcp.configuration": canonical_personal_mcp_configuration,
     "personal_mcp.oauth_authorize": canonical_personal_mcp_oauth,
     "skill_settings.delete": canonical_skill_deletion,
+    "skill_settings.restore_previous": canonical_skill_restore,
+    "memories.import": canonical_memory_import,
     "plugin.delete": canonical_plugin_deletion,
     "plugin_url.import": canonical_plugin_url_import,
     "plugin_file.upload": canonical_plugin_file_upload,
@@ -162,6 +166,8 @@ MANAGEMENT_PREVIEW_NOTES = {
     "personal_mcp.configuration": "application_personal_mcp_configuration_note",
     "personal_mcp.oauth_authorize": "application_personal_mcp_oauth_note",
     "skill_settings.delete": "application_skill_delete_note",
+    "skill_settings.restore_previous": "application_skill_restore_note",
+    "memories.import": "application_memory_import_note",
     "plugin.delete": "application_plugin_delete_note",
     "skill_file.upload": "application_skill_file_upload_note",
     "skill_url.import": "application_skill_url_import_note",

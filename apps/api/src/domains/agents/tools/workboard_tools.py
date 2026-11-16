@@ -34,7 +34,7 @@ Four consequences of that choice, each visible in the code:
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Final
 from uuid import UUID
 
 import structlog
@@ -70,7 +70,8 @@ from src.domains.agents.tools.workboard_update_tool import propose_workboard_upd
 from src.domains.agents.workboard.category_manifest import categories_managed_from
 from src.domains.agents.workboard.context import ticket_registry_items
 from src.domains.users.models import User
-from src.domains.workboard.board_queries import AssigneeFilter, BoardFilters
+from src.domains.workboard.board_queries import AssigneeFilter, BoardFilters, search_words
+from src.domains.workboard.constants import CLOSED_STATUSES, STATUS_ORDER
 from src.domains.workboard.service import WorkboardService
 from src.infrastructure.database.session import get_db_context
 
@@ -156,6 +157,33 @@ def _board_side(assignee: str | None) -> AssigneeFilter:
     if assignee in ("me", "lia", "peer", "all"):
         return assignee
     return "all"
+
+
+#: The board's own « open » set, in board order: every column but the closed ones.
+_OPEN_COLUMNS: Final[tuple[str, ...]] = tuple(
+    status for status in STATUS_ORDER if status not in CLOSED_STATUSES
+)
+
+
+def _columns(status: str | None, open_only: bool | None) -> tuple[str, ...] | None:
+    """The columns a listing keeps.
+
+    « Open tickets » is the board's own set, never its first column: a plan
+    that read ``todo`` for it left out what is in progress, waiting and still
+    an idea (ADR-390 qualification, E02). A named column is the narrower ask.
+
+    Args:
+        status: One column the model named, or None.
+        open_only: Whether only the tickets still open are asked for.
+
+    Returns:
+        The columns, or None for every column.
+    """
+    if status:
+        return (status,)
+    if open_only:
+        return _OPEN_COLUMNS
+    return None
 
 
 @write_tool(name="create_ticket", agent_name=AGENT_TICKET)
@@ -316,11 +344,14 @@ async def comment_ticket_tool(
 
 @read_tool(name="list_tickets", agent_name=AGENT_TICKET, context_domain=CONTEXT_DOMAIN_TICKETS)
 async def list_tickets_tool(
-    status: Annotated[str | None, "Only this column"] = None,
+    status: Annotated[str | None, "Only this ONE column"] = None,
+    open_only: Annotated[bool | None, "Only tickets still open: every column but done"] = None,
     assignee: Annotated[str | None, "'me' | 'lia' | 'peer' | 'all' (default)"] = None,
     priority: Annotated[str | None, "Only this priority"] = None,
     overdue: Annotated[bool | None, "Only tickets past their due date and still open"] = None,
-    query: Annotated[str | None, "Only tickets whose title contains this fragment"] = None,
+    query: Annotated[
+        str | None, "Only tickets mentioning EVERY word of this, in the title or the description"
+    ] = None,
     category: Annotated[str | None, "Only tickets filed under the category of this NAME"] = None,
     uncategorized: Annotated[bool | None, "Only tickets filed under no category"] = None,
     limit: Annotated[int | None, "How many to return (the EXACT total comes too)"] = None,
@@ -333,10 +364,11 @@ async def list_tickets_tool(
 
     Args:
         status: Narrow to one column.
+        open_only: Narrow to the columns still open.
         assignee: Narrow to one side.
         priority: Narrow to one priority.
         overdue: Only what is late.
-        query: A fragment of the title.
+        query: Words a ticket must all mention, in its title or its description.
         category: Narrow to the lanes of this name on the user's board.
         uncategorized: Narrow to what is filed under nothing; with ``category``
             the two widen each other, as on the board.
@@ -362,11 +394,11 @@ async def list_tickets_tool(
             # empty page would say « no ticket in it », which is another fact.
             lanes = await service.categories.visible_named(user_id, category) if category else None
             filters = BoardFilters(
-                statuses=(status,) if status else None,
+                statuses=_columns(status, open_only),
                 assignee=_board_side(assignee),
                 priorities=(priority,) if priority else None,
                 overdue=bool(overdue),
-                query=query or None,
+                words=search_words(query) if query else None,
                 categories=lanes,
                 uncategorized=bool(uncategorized),
             )

@@ -14,6 +14,7 @@ from uuid import uuid4
 
 import pytest
 
+from src.domains.agents.registry.catalogue import CostProfile, PermissionProfile, ToolManifest
 from src.domains.agents.services.turn_catalogue import build_turn_catalogue
 from src.domains.feature_switches.registry import PlatformCapability
 
@@ -33,8 +34,20 @@ def _registry(tools_by_agent: dict[str, list[str]]) -> MagicMock:
     return registry
 
 
-def _catalogue(*names: str) -> list[SimpleNamespace]:
-    return [SimpleNamespace(name=name, agent="test_agent") for name in names]
+def _catalogue(*names: str) -> list[ToolManifest]:
+    """Real manifests: the turn's catalogue copies one it annotates (``dataclasses.replace``)."""
+    return [
+        ToolManifest(
+            name=name,
+            agent="test_agent",
+            description=f"{name} under test",
+            parameters=[],
+            outputs=[],
+            cost=CostProfile(),
+            permissions=PermissionProfile(),
+        )
+        for name in names
+    ]
 
 
 async def test_a_switched_off_capability_and_an_unconnected_provider_are_both_withheld() -> None:
@@ -56,6 +69,32 @@ async def test_a_switched_off_capability_and_an_unconnected_provider_are_both_wi
         offered = await build_turn_catalogue(registry, uuid4(), frozenset({"google_calendar"}))
 
     assert [manifest.name for manifest in offered] == ["get_emails_tool", "get_events_tool"]
+
+
+async def test_a_source_nobody_serves_is_said_on_the_turn_s_copy_only() -> None:
+    """The planner reads which category holds nothing for this account; the
+    registry's manifest is every account's, so it is never the one annotated."""
+    from src.domains.agents.tasks.catalogue_manifests import get_tasks_catalogue_manifest
+
+    with (
+        patch(
+            "src.core.context.build_request_tool_manifests",
+            return_value=[get_tasks_catalogue_manifest],
+        ),
+        patch(
+            "src.domains.feature_switches.registry.disabled_capabilities",
+            AsyncMock(return_value=frozenset()),
+        ),
+        patch(
+            "src.domains.agents.tools.connector_requirements.unserved_category_tools",
+            return_value={"get_tasks_tool": "tasks"},
+        ),
+    ):
+        offered = await build_turn_catalogue(_registry({}), uuid4(), frozenset())
+
+    assert [manifest.name for manifest in offered] == ["get_tasks_tool"]
+    assert offered[0].unserved_category == "tasks"
+    assert get_tasks_catalogue_manifest.unserved_category is None
 
 
 async def test_every_capability_on_offers_the_whole_catalogue() -> None:

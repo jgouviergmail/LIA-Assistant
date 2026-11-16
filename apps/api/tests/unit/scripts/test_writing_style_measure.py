@@ -9,14 +9,17 @@ from scripts.emails.measure_writing_style import (
     COMPOSE_ARMS,
     EXAMPLES_SHOWN,
     PERSONAS,
+    PROPOSED,
     Draft,
     answer_text,
     compose_prompt,
     composed_body,
     draft_messages,
     leaked,
+    lost,
     marks,
     profile_request,
+    proposed_instruction,
     tally,
 )
 from src.domains.agents.emails.writing_style import compose_block, reply_block
@@ -155,3 +158,24 @@ def test_the_profile_is_asked_as_production_asks_it() -> None:
 
     assert "Never say WHAT they wrote about" in str(messages[0].content)
     assert all(mail.split("\n")[0] in str(messages[-1].content) for mail in SEB.sent)
+
+
+def test_every_proposed_text_is_rewritten_by_the_production_rule() -> None:
+    """A case read as the person's dictation would measure nothing: none is."""
+    assert set(PROPOSED) == {persona.key for persona in PERSONAS}
+    for persona in PERSONAS:
+        for item in PROPOSED[persona.key]:
+            instruction = proposed_instruction(item)
+            assert instruction.endswith(item.drafted.strip())
+            assert all(quote in item.request for quote in item.quoted)
+            assert not leaked(persona, item.drafted)
+
+
+def test_a_lost_fact_or_quote_is_counted_and_a_respaced_one_is_kept() -> None:
+    item = PROPOSED["marie"][0]
+
+    assert lost(item, "Le devis est de 1240 € ht ; signature le 3 décembre.") == []
+    assert lost(item, "Le devis est de 1 240 € HT.") == ["3 décembre"]
+    quoted = PROPOSED["jake"][1]
+    assert lost(quoted, "Hey Chris, You saved my weekend! Thx") == []
+    assert lost(quoted, "Hey Chris, you rescued my weekend!") == ["you saved my weekend"]

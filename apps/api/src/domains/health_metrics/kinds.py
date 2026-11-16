@@ -6,8 +6,10 @@ Single source of truth for every kind's semantics:
   override via ``.env`` (`HEALTH_METRICS_<KIND>_MIN`, `_MAX`).
 - **Merge strategy** for intra-batch deduplication
   (see :func:`src.domains.health_metrics.repository._merge_duplicate_samples`).
+- **Overlap rule** for samples whose intervals overlap, read by every reader
+  (see :func:`src.domains.health_metrics.fusion.counted_samples`).
 - **Aggregation method** for bucketed charts and summaries
-  (see :func:`src.domains.health_metrics.aggregator.aggregate_samples`).
+  (see :func:`src.domains.health_metrics.chart_read.read_chart_statistics`).
 - **Baseline kind** (daily sum vs daily average) for long-term comparisons.
 - **Agent name** for the LangGraph catalogue registration.
 - **i18n display key** for the Settings UI.
@@ -58,6 +60,28 @@ class AggregationMethod(str, Enum):
     """Keep the latest sample in the bucket (e.g. instantaneous state metrics)."""
 
 
+class OverlapRule(str, Enum):
+    """What samples of one kind whose intervals overlap count for.
+
+    The ingestion merge (:class:`MergeStrategy`) only meets IDENTICAL
+    intervals within one batch. Two devices measuring the same walk send
+    intervals that overlap without being identical — measured 2026-11-14, an
+    iPhone and a Watch both labelled ``iphone``: 161 overlapping pairs in one
+    day, 137 of them nested, the raw sum 23 309 steps where the overlap-free
+    count was about 13 300. Every reader counts through ONE door,
+    :func:`src.domains.health_metrics.fusion.counted_samples`.
+    """
+
+    MAX_RATE = "max_rate"
+    """A count spread over its interval: on every slice of time covered by
+    several samples, the highest rate is kept, so one walk counts once (the
+    MAX merge, extended from identical intervals to overlapping ones)."""
+
+    KEEP_ALL = "keep_all"
+    """Every sample is an observation of its own (e.g. heart rate: two
+    measurements of one minute are two readings, averaged)."""
+
+
 class BaselineKind(str, Enum):
     """How to compute a user's per-day baseline value for a kind."""
 
@@ -95,6 +119,8 @@ class HealthKindSpec:
             via ``.env`` as ``HEALTH_METRICS_<KIND>_MAX``.
         merge_strategy: Arbitration when multiple samples in the same batch
             share ``(date_start, date_end)``.
+        overlap_rule: What samples whose intervals overlap count for, read
+            by every reader through ``fusion.counted_samples``.
         aggregation_method: How to aggregate within a time bucket for charts.
         baseline_kind: How to compute the user's per-day baseline.
         agent_name: LangGraph agent identifier registered at startup in
@@ -115,6 +141,7 @@ class HealthKindSpec:
     min_value: int
     max_value: int
     merge_strategy: MergeStrategy
+    overlap_rule: OverlapRule
     aggregation_method: AggregationMethod
     baseline_kind: BaselineKind
     agent_name: str
@@ -135,6 +162,7 @@ HEALTH_KINDS: dict[str, HealthKindSpec] = {
         min_value=20,
         max_value=250,
         merge_strategy=MergeStrategy.AVG_ROUNDED,
+        overlap_rule=OverlapRule.KEEP_ALL,
         aggregation_method=AggregationMethod.AVG_MIN_MAX,
         baseline_kind=BaselineKind.DAILY_AVG,
         agent_name="heart_rate_agent",
@@ -148,6 +176,7 @@ HEALTH_KINDS: dict[str, HealthKindSpec] = {
         min_value=0,
         max_value=15000,
         merge_strategy=MergeStrategy.MAX,
+        overlap_rule=OverlapRule.MAX_RATE,
         aggregation_method=AggregationMethod.SUM,
         baseline_kind=BaselineKind.DAILY_SUM,
         agent_name="steps_agent",

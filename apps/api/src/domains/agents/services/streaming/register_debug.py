@@ -75,6 +75,8 @@ def _decision_block() -> dict[str, Any] | None:
         "run_id": turn.run_id,
         "source": turn.source,
         "execution_mode": turn.execution_mode,
+        "requested_mode": turn.requested_mode,
+        "resolution_reason": turn.resolution_reason,
         "route": turn.route,
         "plan_step_count": turn.plan_step_count,
         "outcome": turn.outcome.value,

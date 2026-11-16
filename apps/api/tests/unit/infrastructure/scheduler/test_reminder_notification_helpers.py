@@ -22,7 +22,7 @@ from src.core.config import settings
 from src.core.constants import SUPPORTED_LANGUAGES
 from src.core.i18n_dates import format_elapsed, format_short_stamp
 from src.core.i18n_proactive import ProactiveMessages
-from src.infrastructure.scheduler.reminder_notification import (
+from src.infrastructure.scheduler.reminder_delivery import (
     get_localized_title,
     truncate_for_notification,
 )

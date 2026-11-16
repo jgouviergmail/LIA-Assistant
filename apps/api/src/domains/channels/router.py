@@ -343,33 +343,61 @@ async def process_telegram_update(payload: dict) -> None:
 async def _dispatch_update(message: ChannelInboundMessage) -> None:
     """Send a parsed update to the flow it belongs to.
 
+    ``/start <code>`` links the account; a button press resumes its question; a
+    command the bot answers itself (``/stop``, ``/help``, ``/start`` alone) runs
+    BEFORE any turn is claimed — ``/stop`` exists to reach a running turn
+    (lot 33); everything else is a message for LIA.
+
     Args:
         message: The parsed update.
     """
-    # OTP verification: detect /start {code} pattern
-    if message.text and message.text.startswith("/start "):
-        code = message.text[7:].strip()
-        if code:
-            await _handle_otp_verification(
-                code=code,
-                channel_user_id=message.channel_user_id,
-                channel_type=message.channel_type.value,
-                raw_data=message.raw_data,
-            )
-            return
+    from src.domains.channels.commands import ChannelCommand, command_of, handle_command
+    from src.domains.channels.reminder_press import handle_reminder_press
+    from src.domains.channels.waiting import handle_waiting_press
+    from src.infrastructure.cache.redis import get_redis_session
+    from src.infrastructure.channels.telegram.reminder_keyboard import (
+        parse_reminder_callback_data,
+    )
+    from src.infrastructure.channels.telegram.sender import TelegramSender
+    from src.infrastructure.channels.telegram.waiting_keyboard import parse_waiting_callback_data
 
-    # HITL callback query (inline keyboard button press)
+    call = command_of(message.text)
+    if call is not None and call.command is ChannelCommand.START and call.argument:
+        await _handle_otp_verification(
+            code=call.argument,
+            channel_user_id=message.channel_user_id,
+            channel_type=message.channel_type.value,
+            raw_data=message.raw_data,
+        )
+        return
+
+    sender = TelegramSender()
+    # A button press: a held message's answer (lot 34), a fired reminder's
+    # « later » or « stop » (ADR-268 amendment 2026-11-16), or a question's.
+    # Every press is answered — Telegram draws a progress bar on it until then;
+    # a question's at once, the others with what their action did.
     if message.callback_data:
+        waiting = parse_waiting_callback_data(message.callback_data)
+        if waiting is not None:
+            await handle_waiting_press(message, waiting, sender=sender)
+            return
+        reminder = parse_reminder_callback_data(message.callback_data)
+        if reminder is not None:
+            await handle_reminder_press(message, reminder, sender=sender)
+            return
+        if message.press_id is not None:
+            await sender.answer_press(message.press_id, None)
         await _handle_hitl_callback(message)
+        return
+
+    redis = await get_redis_session()
+    if call is not None:
+        await handle_command(message, call, sender=sender, redis=redis)
         return
 
     # Route through ChannelMessageRouter (binding lookup, rate limit, lock, dispatch)
     from src.domains.channels.message_router import ChannelMessageRouter
-    from src.infrastructure.cache.redis import get_redis_session
-    from src.infrastructure.channels.telegram.sender import TelegramSender
 
-    redis = await get_redis_session()
-    sender = TelegramSender()
     message_router = ChannelMessageRouter(redis=redis, sender=sender)
     await message_router.route_message(message)
 
@@ -632,6 +660,8 @@ async def _resume_pending_hitl(
             user_memory_enabled=prefs.memory_enabled,
             user_journals_enabled=prefs.journals_enabled,
             user_psyche_enabled=prefs.psyche_enabled,
+            user_voice_enabled=prefs.voice_enabled,
+            user_execution_mode=prefs.execution_mode,
             conversation_id=conversation_id,
             pending_hitl=pending,
             user_display_name=prefs.display_name,

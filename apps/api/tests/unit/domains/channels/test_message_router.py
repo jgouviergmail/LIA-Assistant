@@ -13,6 +13,7 @@ from src.core.config import settings
 from src.core.constants import CHANNEL_RATE_WINDOW_SECONDS
 from src.core.i18n import resolve_language
 from src.domains.channels.abstractions import ChannelInboundMessage
+from src.domains.channels.inbound_handler import InboundMessageHandler
 from src.domains.channels.message_router import ChannelMessageRouter
 from src.domains.channels.models import ChannelType
 from src.domains.conversations.models import Conversation
@@ -341,7 +342,7 @@ class TestUserLock:
     @patch(_PATCH_RATE_LIMITER)
     @patch(_PATCH_REPO)
     @patch(_PATCH_DB_CTX)
-    async def test_lock_not_acquired_sends_busy(
+    async def test_a_held_lock_keeps_the_message_waiting(
         self,
         mock_db_ctx: MagicMock,
         mock_repo_cls: MagicMock,
@@ -353,7 +354,8 @@ class TestUserLock:
         mock_sender: AsyncMock,
         text_message: ChannelInboundMessage,
     ) -> None:
-        """If lock is already held, send 'busy' message, in the person's language."""
+        """Behind another turn of the person's, the words wait theirs (lot 34): no
+        « busy », the message is kept in the person's language."""
         mock_db_ctx.return_value = _make_db_context()
         binding = _make_binding()
         mock_repo = mock_repo_cls.return_value
@@ -367,11 +369,14 @@ class TestUserLock:
 
         # Lock NOT acquired (another message being processed)
         mock_redis.set = AsyncMock(return_value=False)
+        keep = AsyncMock()
 
-        await router.route_message(text_message)
+        with patch.object(InboundMessageHandler, "keep_waiting", keep):
+            await router.route_message(text_message)
 
-        mock_sender.send_message.assert_called_once()
-        mock_bot_msg.assert_called_once_with("busy", _PERSON)
+        keep.assert_awaited_once_with(text_message, user_id=binding.user_id, user_language=_PERSON)
+        mock_sender.send_message.assert_not_called()
+        mock_bot_msg.assert_not_called()
 
     @pytest.mark.asyncio
     @patch(_PATCH_INBOUND_HANDLER)
@@ -847,7 +852,7 @@ class TestTheClaimFailsLoudly:
     @patch(_PATCH_RATE_LIMITER)
     @patch(_PATCH_REPO)
     @patch(_PATCH_DB_CTX)
-    async def test_a_held_claim_is_counted(
+    async def test_a_held_claim_refuses_nothing(
         self,
         mock_db_ctx: MagicMock,
         mock_repo_cls: MagicMock,
@@ -864,10 +869,14 @@ class TestTheClaimFailsLoudly:
         mock_redis.set = AsyncMock(return_value=False)
         before = _rejected("locked")
 
-        with capture_logs() as logs:
+        with (
+            capture_logs() as logs,
+            patch.object(InboundMessageHandler, "keep_waiting", AsyncMock()),
+        ):
             await router.route_message(text_message)
 
-        assert _rejected("locked") == before + 1
+        # Kept, not refused (lot 34): only a button's held claim is a refusal.
+        assert _rejected("locked") == before
         assert [
             entry["log_level"] for entry in logs if entry["event"] == "channel_message_locked"
         ] == ["info"]

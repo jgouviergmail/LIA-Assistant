@@ -18,6 +18,10 @@ from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
+#: The message-metadata key the chat reads document cards from — on the done
+#: chunk and on the archived row; a channel reads it to send the files (lot 11).
+GENERATED_DOCUMENTS_METADATA_KEY = "generated_documents"
+
 
 @dataclass
 class PendingDocument:
@@ -45,7 +49,7 @@ class PendingDocument:
 
 
 # Module-level store: conversation_id -> list of PendingDocument
-_pending_documents: PendingCards[PendingDocument] = PendingCards("generated_documents")
+_pending_documents: PendingCards[PendingDocument] = PendingCards(GENERATED_DOCUMENTS_METADATA_KEY)
 
 
 def store_pending_document(conversation_id: str, document: PendingDocument) -> None:

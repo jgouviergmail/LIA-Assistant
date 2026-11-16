@@ -323,6 +323,44 @@ proposés sans leur connecteur ; leur échec est désormais typé
 `test_live_tools_router.py`, `tests/unit/domains/live/test_direct_mode.py`,
 `tests/unit/domains/telephony/test_call_me_tool.py`.
 
+## Amendement 2026-11-15 — une source que rien ne sert est dite au planificateur
+
+**Constat** (qualification du mode automatique, [ADR-390](ADR-390-The-Automatic-Mode-Chooses-The-Engine-Per-Request.md),
+compte de preuve dont les connecteurs Tâches et Agenda sont en erreur). Pour « quel jour
+dois-je rapporter les livres à la médiathèque » et « quand dois-je m'occuper de la
+voiture », l'analyse proposait le domaine des rappels à côté des tâches. Le
+planificateur a pourtant planifié les tâches seules, sur tous les tirages pour la
+première demande. Cet appel ne pouvait répondre que « aucun service n'est connecté »,
+alors que le rappel tenait la réponse. Le planificateur ne pouvait pas le savoir : un
+outil de catégorie reste proposé sans connecteur, et rien ne disait qu'il ne contient
+rien.
+
+**Décision.**
+
+- L'outil de catégorie **reste proposé**. Quand la personne demande cette source, sa
+  réponse « connectez un fournisseur » est la bonne (amendement du 2026-10-14).
+- Le catalogue du tour dit, une fois, ce qu'il sait de la source : un outil dont la
+  catégorie n'est servie par aucun connecteur actif du compte est proposé en **copie**
+  portant cette catégorie (`ToolManifest.unserved_category`, posé par
+  `services/turn_catalogue`). Le manifeste du registre, commun à tous les comptes,
+  n'est jamais annoté.
+- L'entrée du planificateur le publie (`connected: false`, `UNSERVED_SOURCE_KEY`), et
+  son prompt dit ce que cela signifie : planifier cette source quand la demande la
+  nomme, une autre source listée quand ce qui est demandé peut s'y trouver. Le modèle
+  décide ; aucun domaine n'est câblé.
+- On ne le dit que quand c'est certain (`unserved_categories`). Rien n'est dit hors
+  requête, ni pour une catégorie qu'un membre sans clé peut servir comme défaut de
+  l'instance (ADR-307). Une ligne héritée sert sa catégorie, comme la lit le résolveur.
+
+**Mesuré.** Sur le compte de preuve, « quelles sont mes tâches ? » et « mes
+rendez-vous de demain » appellent toujours leur outil et répondent honnêtement
+qu'aucun service n'est connecté. L'effet sur E06 et E14 est dans la qualification
+d'ADR-390.
+
+**Preuves.** `tests/unit/domains/agents/tools/test_connector_requirements.py::TestASourceNobodyServesIsSaid`,
+`tests/unit/domains/agents/services/test_turn_catalogue.py`,
+`tests/unit/domains/agents/services/catalogue/test_catalogue_unserved_source.py`.
+
 ## Amendement 2026-11-06 — une borne se publie aussi à la personne, et ne refuse jamais une lecture
 
 **Constat** (production 2026-11-06). L'extracteur écrit une mémoire de 495

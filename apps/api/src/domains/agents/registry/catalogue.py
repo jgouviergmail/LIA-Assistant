@@ -39,8 +39,8 @@ from typing import Any, Final, Literal, get_args
 
 from src.core.constants import (
     DEFAULT_TOOL_TIMEOUT_MS,
+    EXECUTION_ENGINES,
     EXECUTION_MODE_PIPELINE,
-    EXECUTION_MODES_ALL,
     MCP_TOOL_NAME_PREFIX,
 )
 from src.domains.agents.context.schemas import ContextSaveMode
@@ -632,7 +632,7 @@ class ToolManifest:
     # Behavior
     #: Execution modes this tool may run in (ADR-249). Both by default; a
     #: restriction is a CONTRACT the planner catalogue reads, not a convention.
-    execution_modes: frozenset[str] = EXECUTION_MODES_ALL
+    execution_modes: frozenset[str] = EXECUTION_ENGINES
     max_iterations: int = 1
     supports_dry_run: bool = False
     # Explicit execution contracts: absence never implies concurrency or reuse.
@@ -764,6 +764,13 @@ class ToolManifest:
     # The adapter supplies identity; a normalized domain never replaces a server key.
     mcp_origin: Literal["admin", "user"] | None = None
     mcp_server_key: str | None = None
+
+    # A turn's COPY only (``services/turn_catalogue``): the functional category this
+    # category tool serves when the account has no provider for it. The tool stays
+    # offered — « no provider is connected » is the honest answer when that source is
+    # asked for — and the planner reads that it holds nothing. Never set on the
+    # registry's manifest, which is every account's (ADR-390 qualification).
+    unserved_category: str | None = None
 
     def __post_init__(self) -> None:
         """Validate the manifest."""

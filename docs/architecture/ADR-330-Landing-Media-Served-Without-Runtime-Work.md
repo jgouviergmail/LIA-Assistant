@@ -175,6 +175,19 @@ Measured before anything changed (2026-10-01):
    lines above a 1088 px grid at every desktop width; the cap and the 65 ch
    cap on the lead are gone, `text-pretty` keeps the last line whole.
 
+## Amendment 2026-11-16 — priority belongs to the page being opened
+
+React Flight emits image preload hints for server-rendered eager images, including
+while Next prefetches a link. The blog index's first four cards and each article's
+explicit server preload therefore downloaded illustrations on the landing before
+navigation. `ArticleIllustration` is now a client boundary and owns the priority
+preload: HTML SSR still emits the responsive head hint, and client navigation
+emits it when the illustration renders; route prefetch emits neither. The maps
+links in the public header and both footers alone set `prefetch={false}`, keeping
+that route's dedicated stylesheet for a visit. Other links keep Next's defaults.
+The hermetic `blog-illustration-loading` and `public-maps-prefetch` browser specs
+exercise Flight hints, initial HTML without JavaScript, and styled navigation.
+
 ## Consequences
 
 - The host serves no image resize and no video byte: the illustrations are

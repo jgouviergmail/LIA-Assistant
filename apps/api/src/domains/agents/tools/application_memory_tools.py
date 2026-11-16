@@ -15,6 +15,8 @@ from src.domains.agents.application.memory_bulk_removal import prepare_memory_bu
 from src.domains.agents.application.memory_bulk_schemas import MemoryBulkDeleteRequest
 from src.domains.agents.application.memory_create_schemas import MemoryCreateConfiguration
 from src.domains.agents.application.memory_creation import prepare_memory_creation
+from src.domains.agents.application.memory_import import prepare_memory_import
+from src.domains.agents.application.memory_import_schemas import MemoryImportInput
 from src.domains.agents.application.memory_pin import prepare_memory_pin
 from src.domains.agents.application.memory_pin_schemas import MemoryPinRequest
 from src.domains.agents.application.memory_provenance import read_memory_provenance
@@ -25,6 +27,7 @@ from src.domains.agents.application.memory_removal import prepare_memory_removal
 from src.domains.agents.application.memory_removal_schemas import MemoryDeleteRequest
 from src.domains.agents.application.memory_update import prepare_memory_update
 from src.domains.agents.application.memory_update_schemas import MemoryUpdateRequest
+from src.domains.agents.application.native_tool_preparation import prepare_native_tool
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.drafts.service import DraftService
@@ -355,4 +358,29 @@ async def get_lia_memories_tool(
         message="Explicit memory management data. Automatic recall opt-out stays unchanged; these results do not count as recall usage. Counts cover the active owned set, not the UI's capped list. Follow next_cursor and never infer complete absence from a cut page.",
         structured_data=result.model_dump(mode="json"),
         metadata={"application_memory_cursor": True},
+    )
+
+
+@write_tool(name="import_lia_memories", agent_name="setting_agent")
+async def import_lia_memories_tool(
+    request: MemoryImportInput,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, object] | None, InjectedToolArg] = None,
+) -> UnifiedToolOutput:
+    """Propose importing a memories export the person attached here; approval precedes paid work.
+
+    Args:
+        request: The attached export, by the file name this conversation shows.
+        runtime: Injected authenticated account context.
+
+    Returns:
+        A draft showing the file and its exact counts. No embedding or memory write before
+        approval.
+    """
+    return await prepare_native_tool(
+        request,
+        runtime,
+        name="import_lia_memories_tool",
+        model=MemoryImportInput,
+        prepare=prepare_memory_import,
+        sessions=get_db_context,
     )

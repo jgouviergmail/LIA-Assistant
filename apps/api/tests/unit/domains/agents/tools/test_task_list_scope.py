@@ -25,6 +25,7 @@ from src.domains.agents.tools import task_list_scope as scope
 from src.domains.agents.tools.exceptions import ToolValidationError
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.tasks_tools import get_tasks_tool
+from src.domains.connectors.clients.task_lists import TaskListsRead
 from src.domains.connectors.models import ConnectorType
 from tests.helpers.runtime_context import (
     installed_runtime_context,
@@ -105,7 +106,7 @@ class TestTheListNamed:
 
         await scope.named_task_list(client, "l1")
 
-        client.list_task_lists.assert_awaited_once_with(max_results=TASK_LIST_NAMES_SCAN_MAX)
+        client.list_task_lists.assert_awaited_once_with(TASK_LIST_NAMES_SCAN_MAX)
 
     async def test_an_account_without_a_list_answers_to_nothing(self) -> None:
         client = _client()
@@ -283,6 +284,38 @@ def _holding(held: dict[str, Any]) -> MagicMock:
     return _client(get_task=AsyncMock(side_effect=get))
 
 
+class TestAListingCutAtItsBound:
+    """Past the bound, the lists left were never asked: never « no list answers » (ADR-303)."""
+
+    @staticmethod
+    def _cut(lists: list[dict[str, Any]]) -> Any:
+        return patch.object(
+            scope,
+            "list_every_task_list",
+            AsyncMock(return_value=TaskListsRead(lists=lists, cut=True)),
+        )
+
+    async def test_a_name_none_of_the_read_lists_answers_is_said_unread(self) -> None:
+        with (
+            self._cut([{"id": "l1", "title": "Work"}]),
+            pytest.raises(ToolValidationError) as raised,
+        ):
+            await scope.named_task_list(_client(), "Bills")
+
+        assert str(raised.value) == scope.LISTS_CUT
+
+    async def test_a_task_no_read_list_holds_is_said_unread(self) -> None:
+        client = _holding({})
+        with (
+            self._cut([{"id": "l1", "title": "Work"}]),
+            _default("l1"),
+            pytest.raises(ToolValidationError) as raised,
+        ):
+            await scope.find_task_lists(client, USER, ["t"])
+
+        assert str(raised.value) == scope.LISTS_CUT
+
+
 class TestATaskNobodySaidTheListOf:
     """Every list is asked: the default list is where a task is MADE, not where it is assumed."""
 
@@ -296,7 +329,7 @@ class TestATaskNobodySaidTheListOf:
         with _default("l1"):
             assert await scope.find_task_lists(client, USER, ["t"]) == {"t": "l3"}
 
-        client.list_task_lists.assert_awaited_once_with(max_results=TASK_LIST_NAMES_SCAN_MAX)
+        client.list_task_lists.assert_awaited_once_with(TASK_LIST_NAMES_SCAN_MAX)
 
     async def test_the_default_list_is_asked_first_and_the_asking_stops_once_found(self) -> None:
         """A task made with no list named went there: one call in the common case."""

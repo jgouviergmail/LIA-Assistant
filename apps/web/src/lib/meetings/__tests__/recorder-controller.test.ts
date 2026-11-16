@@ -153,6 +153,7 @@ function harness(over: Partial<RecorderDeps> = {}): Harness {
     position: async () => null,
     acquireWakeLock: async () => null,
     timezone: () => 'Europe/Paris',
+    discussion: () => null,
     isOnline: () => online.value,
     now: () => clock.now,
     store: useMeetingRecorderStore,
@@ -211,6 +212,23 @@ afterEach(() => {
 });
 
 describe('MeetingRecorderController.start', () => {
+  // ADR-378 amendment 2026-11-14: « minutes ready » returns to the annex on
+  // screen when the recording starts, Main otherwise.
+  it('names the annex on screen at the start, and none from Main', async () => {
+    const annex = harness({ discussion: () => 'annex-1' });
+    await annex.controller.start();
+    expect(annex.api.start).toHaveBeenCalledWith(
+      expect.objectContaining({ conversation_id: 'annex-1' })
+    );
+    await annex.controller.dispose();
+
+    useMeetingRecorderStore.getState().reset();
+    const main = harness();
+    await main.controller.start();
+    expect(main.api.start).toHaveBeenCalledWith(expect.objectContaining({ conversation_id: null }));
+    await main.controller.dispose();
+  });
+
   it('ignores old capture callbacks after a different account becomes owner', async () => {
     const h = harness();
     await h.controller.start();
@@ -365,6 +383,7 @@ describe('MeetingRecorderController.start', () => {
       language: 'auto',
       timezone: 'Europe/Paris',
       geolocation: null,
+      conversation_id: null,
     });
     expect(state.phase).toBe('recording');
     expect(state.recording?.meetingId).toBe('m1');

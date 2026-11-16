@@ -26,13 +26,13 @@ Per-day aggregation follows the kind's
   the future ``sleep_duration`` kind)
 
 Module is DB-access free, and keeps unit-testable in isolation (no Postgres
-required). It exposes each computation twice over ONE implementation: a
-``*_from_stats`` entry point consuming a pre-aggregated :class:`DailyStat`
+required). Every computation consumes a pre-aggregated :class:`DailyStat`
 series — what
 :meth:`~src.domains.health_metrics.repository.HealthSampleRepository.fetch_daily_stats`
-returns — and a raw-sample wrapper that groups first via
-:func:`daily_stats_from_samples`. The two paths share :func:`_stat_value`, so
-the per-day reduction cannot drift between them.
+returns, the person's local days counted through the fusion door
+(``fusion.counted_samples``). There is no second, raw-sample path: an
+in-Python grouping by UTC day over unfused samples was one, and it would now
+disagree with every reader (ADR-148 amendment 2026-11-14).
 
 Phase: evolution — Health Metrics (assistant agents v1.17.2)
 Created: 2026-04-22
@@ -41,14 +41,15 @@ Created: 2026-04-22
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from statistics import median
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 from src.core.config import settings
 from src.core.constants import HEALTH_METRICS_BASELINE_ROLLING_WINDOW_DAYS
+from src.core.local_day import local_midnight, local_today
 from src.domains.health_metrics.kinds import BaselineKind, HealthKindSpec
-from src.domains.health_metrics.models import HealthSample
 
 BaselineMode = Literal["empty", "bootstrap", "rolling"]
 
@@ -72,23 +73,19 @@ class BaselineResult:
 
 @dataclass(frozen=True, slots=True)
 class DailyStat:
-    """Aggregate primitives for one UTC day of samples of a single kind.
+    """Aggregate primitives for one local day of a single kind.
 
     Carries **raw integer primitives** rather than a pre-reduced value on
     purpose: every :class:`~src.domains.health_metrics.kinds.BaselineKind`
     aggregation is derivable from them, and ``detect_notable_events`` needs
     the raw daily ``total`` regardless of the kind's baseline aggregation.
 
-    Because ``total`` and ``count`` are exact integers, ``total / count`` is
-    the *same* IEEE-754 operation Python performs over the raw sample list —
-    a server-side rollup is bit-identical to in-Python grouping, not merely
-    close.
-
     Attributes:
-        day: UTC calendar day the samples belong to.
-        total: Sum of the day's sample values.
-        count: Number of samples recorded that day (always >= 1).
-        minimum: Smallest sample value of the day.
+        day: The person's calendar day the counted rows start on.
+        total: Sum of the day's counted values, rounded to a whole count.
+        count: Counted rows that day (always >= 1): samples of a ``KEEP_ALL``
+            kind, fused slices of a ``MAX_RATE`` one.
+        minimum: Smallest counted value of the day, rounded.
     """
 
     day: date
@@ -102,34 +99,10 @@ class DailyStat:
 # =============================================================================
 
 
-def daily_stats_from_samples(samples: list[HealthSample]) -> list[DailyStat]:
-    """Reduce raw samples to one :class:`DailyStat` per UTC day, day ascending.
-
-    In-Python counterpart of
-    :meth:`~src.domains.health_metrics.repository.HealthSampleRepository.fetch_daily_stats`.
-    Callers holding a small, already-fetched sample window (or unit tests)
-    use this; callers facing a wide window let PostgreSQL do the rollup.
-
-    Args:
-        samples: Samples of a single kind (any order).
-
-    Returns:
-        One entry per day having at least one sample, ordered by day ascending.
-        Days with no sample are absent — the SQL rollup cannot invent them
-        either, so both paths agree.
-    """
-    by_day = _group_samples_by_day(samples)
-    return [
-        DailyStat(day=day, total=sum(by_day[day]), count=len(by_day[day]), minimum=min(by_day[day]))
-        for day in sorted(by_day)
-    ]
-
-
 def _stat_value(stat: DailyStat, baseline_kind: BaselineKind) -> float:
     """Reduce one day's aggregate primitives to its baseline value.
 
-    Single source of truth for the per-day reduction, shared by the raw-sample
-    path and the server-side rollup path — the two must never drift.
+    Single source of truth for the per-day reduction.
 
     Args:
         stat: One day's aggregate primitives.
@@ -151,15 +124,6 @@ def _stat_value(stat: DailyStat, baseline_kind: BaselineKind) -> float:
             return float(stat.minimum)
 
 
-def _group_samples_by_day(samples: list[HealthSample]) -> dict[date, list[int]]:
-    """Group samples by their UTC date (from ``date_start``)."""
-    by_day: dict[date, list[int]] = {}
-    for s in samples:
-        day = s.date_start.astimezone(UTC).date()
-        by_day.setdefault(day, []).append(int(s.value))
-    return by_day
-
-
 def daily_values(
     stats: list[DailyStat],
     baseline_kind: BaselineKind,
@@ -167,8 +131,7 @@ def daily_values(
     """Reduce a per-day series to one value per day, day order preserved.
 
     Args:
-        stats: Per-day aggregates, day ascending (from either the repository
-            rollup or :func:`daily_stats_from_samples`).
+        stats: Per-day aggregates, day ascending (the repository rollup).
         baseline_kind: Aggregation semantics for the kind at hand.
 
     Returns:
@@ -177,61 +140,9 @@ def daily_values(
     return [_stat_value(stat, baseline_kind) for stat in stats]
 
 
-def _daily_aggregate(
-    samples: list[HealthSample],
-    baseline_kind: BaselineKind,
-) -> list[float]:
-    """Reduce samples to one value per day according to the baseline kind.
-
-    Raw-sample entry point: groups, then delegates to :func:`daily_values` so
-    the per-day reduction has exactly one implementation shared with the
-    server-side rollup path.
-
-    Args:
-        samples: Raw samples (any kind — filtering happens upstream).
-        baseline_kind: Aggregation semantics for the kind at hand.
-
-    Returns:
-        Daily aggregates as a list of floats, sorted by day ascending.
-        Empty list if no samples.
-    """
-    return daily_values(daily_stats_from_samples(samples), baseline_kind)
-
-
 # =============================================================================
 # Baseline computation
 # =============================================================================
-
-
-def compute_baseline(
-    samples: list[HealthSample],
-    spec: HealthKindSpec,
-    window_days: int | None = None,
-) -> BaselineResult:
-    """Compute an adaptive baseline for a kind over a window.
-
-    Mode selection:
-    - If no data at all → ``"empty"`` with ``median_value=None``.
-    - If ``days_available < settings.health_metrics_baseline_min_days`` →
-      ``"bootstrap"`` (median of whatever is available).
-    - Else → ``"rolling"`` (median of the last ``window_days`` of daily
-      aggregates, defaulting to
-      :data:`HEALTH_METRICS_BASELINE_ROLLING_WINDOW_DAYS`).
-
-    Args:
-        samples: Samples in the baseline lookup window. The caller is
-            responsible for pre-filtering to the kind and fetching a
-            generous enough history (≥ ``window_days``). Ordering is not
-            required — daily aggregation groups by UTC date.
-        spec: Spec of the kind (drives per-day aggregation via
-            ``spec.baseline_kind``).
-        window_days: Explicit rolling window size; defaults to
-            :data:`HEALTH_METRICS_BASELINE_ROLLING_WINDOW_DAYS`.
-
-    Returns:
-        A :class:`BaselineResult` carrying the mode, median, and days count.
-    """
-    return compute_baseline_from_stats(daily_stats_from_samples(samples), spec, window_days)
 
 
 def compute_baseline_from_stats(
@@ -241,9 +152,13 @@ def compute_baseline_from_stats(
 ) -> BaselineResult:
     """Compute an adaptive baseline from a per-day series.
 
-    Same contract and mode selection as :func:`compute_baseline`, one layer
-    lower: callers that already hold per-day aggregates (the server-side
-    rollup) skip the sample grouping entirely.
+    Mode selection:
+    - If no data at all → ``"empty"`` with ``median_value=None``.
+    - If ``days_available < settings.health_metrics_baseline_min_days`` →
+      ``"bootstrap"`` (median of whatever is available).
+    - Else → ``"rolling"`` (median of the last ``window_days`` of daily
+      aggregates, defaulting to
+      :data:`HEALTH_METRICS_BASELINE_ROLLING_WINDOW_DAYS`).
 
     Args:
         stats: Per-day aggregates covering the baseline lookup window, day
@@ -290,8 +205,7 @@ def compute_kind_delta_from_stats(
     the service owns the window fetch, this owns the payload.
 
     The recent window is the last ``window_days`` **days present in the
-    series** (not calendar days), the baseline everything before it — the
-    exact split the raw-sample path performs on the same cutoff day, because
+    series** (not calendar days), the baseline everything before it:
     ``stats`` is day-ascending with one entry per day.
 
     Args:
@@ -344,20 +258,20 @@ def compute_kind_delta_from_stats(
 # =============================================================================
 
 
-def baseline_window_start(now: datetime, window_days: int | None = None) -> datetime:
-    """Return the UTC ``from_ts`` that covers a full rolling baseline window.
+def baseline_window_start(now: datetime, zone: ZoneInfo, *, recent_days: int) -> datetime:
+    """The local midnight a baseline read starts at.
 
-    Used by callers to fetch samples from the repository before calling
-    :func:`compute_baseline`. Adds a one-day safety margin so the last day
-    of the window is always fully populated even across timezone edges.
+    The rolling window, one day of margin, and the recent window compared
+    against it on top — every day of the series whole, cut at the person's
+    midnight (ADR-148 amendment 2026-11-14).
 
     Args:
-        now: Current UTC datetime.
-        window_days: Explicit window size; defaults to
-            :data:`HEALTH_METRICS_BASELINE_ROLLING_WINDOW_DAYS`.
+        now: The current instant.
+        zone: The person's zone.
+        recent_days: The recent window the read compares (0 for none).
 
     Returns:
-        Timezone-aware UTC datetime at the start of the lookup window.
+        The UTC instant of that local midnight.
     """
-    days = window_days or HEALTH_METRICS_BASELINE_ROLLING_WINDOW_DAYS
-    return (now - timedelta(days=days + 1)).astimezone(UTC)
+    days = HEALTH_METRICS_BASELINE_ROLLING_WINDOW_DAYS + 1 + recent_days
+    return local_midnight(local_today(now, zone) - timedelta(days=days), zone)

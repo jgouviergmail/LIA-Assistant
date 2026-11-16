@@ -130,6 +130,7 @@ from src.domains.agents.nodes.turn_proposal import resolve_turn_proposal
 from src.domains.agents.orchestration.correlation_detector import detect_correlations
 from src.domains.agents.orchestration.tool_data_projection import (
     merge_react_synthesis_result,
+    react_handover,
 )
 from src.domains.agents.prompts import (
     escape_braces,
@@ -2562,17 +2563,21 @@ def _apply_react_passthrough(state: MessagesState, run_id: str) -> tuple[Any, bo
     ``state[agent_results]`` and returns (react_result, react_passthrough_merged);
     the merged agent_results is also persisted by contract via the state_update.
     What the turn DID is not merged here: it has its own directive
-    (``services/performed_actions_directive``, ADR-263 §23).
+    (``services/performed_actions_directive``, ADR-263 §23). An answer the loop did
+    not deliver — withheld by the requested-result coverage (ADR-336), cut by its
+    budget (ADR-248) — hands the turn's reads instead (``react_handover``).
     """
-    _react_passthrough_merged = False  # F5: gate for the explicit state return
     react_result = state.get("react_agent_result")
-    if react_result and react_result.get("final_message"):
+    current_registry = state.get("current_turn_registry") or {}
+    handover = react_handover(react_result, state[STATE_KEY_MESSAGES], current_registry)
+    if handover is not None:
+        final_message, tool_data = handover
         # The ReAct answer is handed to the response LLM as AUTHORITATIVE
         # (``agent_results_summary``). A sentinel the agent copied from history
         # would therefore be reproduced verbatim in the final answer, on top of
         # the deterministic injection. Sentinels are host-owned: drop them here,
         # at the point the message becomes authoritative.
-        react_message, _react_sentinels = strip_widget_sentinels(react_result["final_message"])
+        react_message, _react_sentinels = strip_widget_sentinels(final_message)
         if _react_sentinels:
             widget_sentinels_stripped_total.labels(source="agent_results").inc(_react_sentinels)
             logger.info(
@@ -2591,7 +2596,6 @@ def _apply_react_passthrough(state: MessagesState, run_id: str) -> tuple[Any, bo
         # and re-displaying previous turns' data. react_execute_tools and
         # the initiative node always write current_turn_registry alongside
         # registry, so a tool-less ReAct turn legitimately yields {}.
-        current_registry = state.get("current_turn_registry") or {}
         # Merge (not gate): the Initiative node may have written {turn}:initiative
         # before us on the ReAct nominal path. A plain "if not agent_results" guard
         # would drop the ReAct answer; merging preserves both (ADR-070).
@@ -2604,16 +2608,19 @@ def _apply_react_passthrough(state: MessagesState, run_id: str) -> tuple[Any, bo
             react_message,
             current_turn,
             current_registry,
+            tool_data=tool_data,
         )
-        _react_passthrough_merged = True
         logger.info(
             "response_node_react_passthrough",
             run_id=run_id,
             iterations=react_result.get("iteration_count", 0),
             registry_items=len(current_registry),
             message_length=len(react_message) if react_message else 0,
+            withheld_answer=not final_message,
+            tool_data_records=len(tool_data),
         )
-    return react_result, _react_passthrough_merged
+    # F5: whether the turn merged — the gate for the explicit state return.
+    return react_result, handover is not None
 
 
 def _parse_psyche_appraisal(

@@ -25,6 +25,7 @@ from uuid import UUID
 
 from sqlalchemy import ColumnElement, Select, and_, case, or_, select
 
+from src.core.sql_search import LIKE_ESCAPE, escape_like
 from src.domains.workboard.constants import (
     CLOSED_STATUSES,
     AssigneeKind,
@@ -72,7 +73,11 @@ class BoardFilters:
         priorities: Priorities to keep; None means all four.
         overdue: Only tickets past their due date and still open.
         due_before: Only tickets due at or before this instant.
-        query: Case-insensitive fragment of the title.
+        query: Case-insensitive fragment of the title — the board's own search
+            box, whose contract says so.
+        words: Case-insensitive words that must ALL appear, each in the title
+            or the description, in any order — the assistant's search, read
+            from what a plan wrote with :func:`search_words`.
         include_closed_before: Hide closed tickets that closed BEFORE this
             instant. Never hides an open ticket, however old.
         sort: Which order the page comes back in.
@@ -87,10 +92,61 @@ class BoardFilters:
     overdue: bool = False
     due_before: datetime | None = None
     query: str | None = None
+    words: tuple[str, ...] | None = None
     include_closed_before: datetime | None = None
     sort: SortKey = "position"
     categories: tuple[UUID, ...] | None = None
     uncategorized: bool = False
+
+
+#: Characters that surround a word without belonging to it: sentence punctuation,
+#: quotes and brackets as the six languages write them, and an edge hyphen. A
+#: sign that is part of a word stays: « 100% » searched as « 100 » would also
+#: find « Budget 1000 euros ».
+_AROUND_A_WORD: Final = ".,;:!?…\"'«»“”„‘’()[]{}-"
+
+
+def search_words(text: str) -> tuple[str, ...]:
+    """The words a search asks for, in the order they were written.
+
+    A one-shot plan writes a request's KEYWORDS (« t-shirt voile »), never a
+    phrase a title holds contiguously, and it cannot try again on an empty
+    page (ADR-390 qualification, E07): each word is asked on its own. The
+    punctuation around a word is not part of it, its inner hyphen and
+    apostrophe are; a single character carries nothing to search for; a
+    repeated word is asked once.
+
+    Args:
+        text: What was written.
+
+    Returns:
+        The words, possibly none.
+    """
+    words: dict[str, str] = {}
+    for written in text.split():
+        word = written.strip(_AROUND_A_WORD)
+        if len(word) > 1:
+            words.setdefault(word.casefold(), word)
+    return tuple(words.values())
+
+
+def mentions_word(word: str) -> ColumnElement[bool]:
+    """A ticket mentions a word when its title or its description contains it.
+
+    Case-insensitive and literal: the word is a needle, its ``%`` and ``_``
+    ordinary characters (``core.sql_search``).
+
+    Args:
+        word: One word of a search.
+
+    Returns:
+        The predicate.
+    """
+    needle = f"%{escape_like(word)}%"
+    return or_(
+        WorkboardTicket.title.ilike(needle, escape=LIKE_ESCAPE),
+        WorkboardTicket.description.ilike(needle, escape=LIKE_ESCAPE),
+    )
 
 
 def visible_predicate(user_id: UUID) -> ColumnElement[bool]:

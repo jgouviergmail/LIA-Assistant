@@ -48,7 +48,12 @@ async def two_discussions(
 
 
 async def keep(
-    engine: AsyncEngine, target: ConversationRef, text: str, *, held: bool = False
+    engine: AsyncEngine,
+    target: ConversationRef,
+    text: str,
+    *,
+    held: bool = False,
+    reply_channel: str | None = None,
 ) -> tuple[WaitingMessage, bool]:
     async with AsyncSession(engine, expire_on_commit=False) as db:
         kept = await WaitingMessageRepository(db).keep(
@@ -56,9 +61,67 @@ async def keep(
             text,
             rendering=None,
             status=WaitingStatus.HELD if held else WaitingStatus.WAITING,
+            reply_channel=reply_channel,
         )
         await db.commit()
         return kept
+
+
+async def test_words_written_on_a_channel_are_answered_there_whatever_is_added(
+    async_engine: AsyncEngine, two_discussions: tuple[ConversationRef, ...]
+) -> None:
+    """Telegram lot 34: the answer goes where the person waits for it — words
+    added from the app never take it away from the chat they wrote in."""
+    first, second, _foreign = two_discussions
+    written, _ = await keep(async_engine, first, "from telegram", reply_channel="telegram")
+    added, appended = await keep(async_engine, first, "from the app")
+    app_only, _ = await keep(async_engine, second, "app")
+
+    assert written.reply_channel == "telegram"
+    assert appended and added.id == written.id and added.reply_channel == "telegram"
+    assert app_only.reply_channel is None
+
+
+async def test_a_reply_channel_is_a_channel_sql_knows(
+    async_engine: AsyncEngine, two_discussions: tuple[ConversationRef, ...]
+) -> None:
+    first, *_ = two_discussions
+    async with AsyncSession(async_engine) as db:
+        db.add(
+            WaitingMessage(
+                user_id=first.owner_id,
+                conversation_id=first.id,
+                conversation_revision=first.revision,
+                content="x",
+                status=WaitingStatus.WAITING,
+                version=1,
+                reply_channel="carrier_pigeon",
+            )
+        )
+        with pytest.raises(IntegrityError, match="ck_waiting_message_reply_channel"):
+            await db.commit()
+
+
+async def test_a_release_names_what_it_held(
+    async_engine: AsyncEngine, two_discussions: tuple[ConversationRef, ...]
+) -> None:
+    """The held messages are named, not counted: a channel tells its person
+    which message did not leave (Telegram lot 34)."""
+    first, second, foreign = two_discussions
+    leaving, _ = await keep(async_engine, first, "leaving")
+    waiting, _ = await keep(async_engine, second, "waiting")
+    await keep(async_engine, foreign, "stranger")
+    async with AsyncSession(async_engine) as db:
+        assert await WaitingMessageRepository(db).claim(leaving.id, 1, stream_id="run")
+        await db.commit()
+    async with AsyncSession(async_engine) as db:
+        settled = await WaitingMessageRepository(db).settle_release(
+            first.owner_id, "run", RunEnd.INTERRUPTED
+        )
+        await db.commit()
+
+    assert set(settled.held_ids) == {leaving.id, waiting.id}
+    assert settled.held == 2
 
 
 async def rows(engine: AsyncEngine, owner_id: UUID) -> list[WaitingMessage]:

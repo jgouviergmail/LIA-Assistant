@@ -144,8 +144,12 @@ def _line(outcome: DelegationOutcome) -> DelegationResult:
 
 def _stream_request(request: DelegationRequest, context: RunContext) -> StreamRequest:
     session = request.session
+    # The discussion the call was placed from while it lives, else Main.
+    selection = session.turn_selection
     return StreamRequest(
         user_id=session.user_id,
+        conversation_id=selection.conversation_id,
+        conversation_revision=selection.conversation_revision,
         prompt=request.request.strip(),
         session_id=f"{session.origin_kind}_{session.origin_id}",
         language=context.language,

@@ -10,7 +10,6 @@ from langgraph.store.memory import InMemoryStore
 
 from src.core.constants import EXTERNAL_CONTENT_OPEN_TAG
 from src.domains.agents.context.manager import ToolContextManager
-from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.formatters.resolved_context import generate_html_for_resolved_context
 from src.domains.agents.sms import snapshots
 from src.domains.agents.sms.catalogue_manifests import SMS_AGENT_MANIFEST
@@ -20,6 +19,7 @@ from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
 from src.domains.sms import identity_resolution as facade
 from src.domains.sms.identity import IdentityBook
 from src.domains.sms.ingestion import SmsIngestionService
+from tests.helpers.runtime_context import make_runtime_context
 from tests.integration.test_sms_ingestion import authority, message
 
 pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("sms_identity_session")]
@@ -50,7 +50,7 @@ async def test_real_sms_tool_entry_projection_context_and_withdrawal(
     thread = str(uuid4())
     runtime = ToolRuntime(
         state={"current_turn_id": 1},
-        context=LiaRuntimeContext(
+        context=make_runtime_context(
             user_id=test_user.id,
             thread_id=thread,
             conversation_id=thread,

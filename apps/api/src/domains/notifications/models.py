@@ -10,7 +10,16 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -87,6 +96,74 @@ class UserFCMToken(BaseModel):
         return (
             f"<UserFCMToken(id={self.id}, user_id={self.user_id}, device_type={self.device_type})>"
         )
+
+
+class NtfySubscription(BaseModel):
+    """A topic on an ntfy server the person's apps subscribe to (ADR-391).
+
+    The topic is a password — whoever knows it reads what is published to it — and the access
+    token a credential: both are stored encrypted (``encrypt_data``). An INSTANCE subscription
+    names no server: LIA publishes to the one the operator declares now, so a server that moves
+    takes its subscriptions along. A refusal is remembered, never a reason to delete: doubt
+    never deletes a way to reach someone.
+    """
+
+    __tablename__ = "ntfy_subscriptions"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="The account the notifications are for.",
+    )
+    server_kind: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        comment="instance (the operator's server) | custom (a public server the person chose).",
+    )
+    server_url: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="The custom server's https address; NULL for the instance server.",
+    )
+    topic_encrypted: Mapped[str] = mapped_column(
+        Text, nullable=False, comment="The topic, encrypted: it is a password."
+    )
+    token_encrypted: Mapped[str | None] = mapped_column(
+        Text, nullable=True, comment="The person's access token on a custom server, encrypted."
+    )
+    content: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        default="minimal",
+        server_default="minimal",
+        comment="minimal (a notice that LIA has something) | full (the words themselves).",
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+    last_sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, comment="Last publication the server accepted."
+    )
+    last_error_code: Mapped[str | None] = mapped_column(
+        String(32), nullable=True, comment="Outcome of the last refused publication (NtfyOutcome)."
+    )
+    last_error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("server_kind IN ('instance', 'custom')", name="ck_ntfy_server_kind"),
+        CheckConstraint(
+            "(server_kind = 'instance') = (server_url IS NULL)", name="ck_ntfy_server_url"
+        ),
+        CheckConstraint(
+            "server_kind = 'custom' OR token_encrypted IS NULL", name="ck_ntfy_instance_token"
+        ),
+        CheckConstraint("content IN ('minimal', 'full')", name="ck_ntfy_content"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<NtfySubscription(id={self.id}, user_id={self.user_id}, kind={self.server_kind})>"
 
 
 class BroadcastAudience(str, Enum):

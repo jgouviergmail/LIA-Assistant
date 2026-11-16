@@ -222,6 +222,80 @@ class TestOneTurnOneRow:
         assert row.request_message_id == asked.id
 
 
+class TestTheEngineOfAnAutomaticTurn:
+    """ADR-390: the row says what was asked, the engine that ran, and why."""
+
+    async def test_the_resolution_is_filed_beside_the_request(
+        self, async_session: AsyncSession, user: User
+    ) -> None:
+        await DecisionRepository(async_session).record(
+            _turn(
+                user,
+                "run-auto",
+                execution_mode="pipeline",
+                requested_mode="auto",
+                resolution_reason="direct",
+            ),
+            ended_at=_START + timedelta(seconds=3),
+        )
+        await async_session.flush()
+
+        row = await _row(async_session, "run-auto")
+        assert (row.execution_mode, row.requested_mode, row.resolution_reason) == (
+            "pipeline",
+            "auto",
+            "direct",
+        )
+
+    async def test_a_resumption_never_rewrites_how_the_turn_was_resolved(
+        self, async_session: AsyncSession, user: User
+    ) -> None:
+        """A resumed segment never meets the router: its record carries the
+        request again and no reason. The first segment's resolution stands, even
+        when the person switched modes while LIA waited."""
+        repository = DecisionRepository(async_session)
+        await repository.record(
+            _turn(
+                user,
+                "run-auto",
+                execution_mode="react",
+                requested_mode="auto",
+                resolution_reason="computed",
+            ),
+            ended_at=_START + timedelta(seconds=4),
+        )
+        await async_session.flush()
+        await repository.record(
+            _turn(
+                user,
+                "run-auto",
+                execution_mode="pipeline",
+                requested_mode="pipeline",
+                started_at=_START + timedelta(minutes=20),
+            ),
+            ended_at=_START + timedelta(minutes=20, seconds=6),
+        )
+        await async_session.flush()
+
+        row = await _row(async_session, "run-auto")
+        assert (row.execution_mode, row.requested_mode, row.resolution_reason) == (
+            "react",
+            "auto",
+            "computed",
+        )
+
+    async def test_a_turn_from_before_the_columns_reads_as_unknown(
+        self, async_session: AsyncSession, user: User
+    ) -> None:
+        await DecisionRepository(async_session).record(
+            _turn(user, "run-old"), ended_at=_START + timedelta(seconds=1)
+        )
+        await async_session.flush()
+
+        row = await _row(async_session, "run-old")
+        assert (row.requested_mode, row.resolution_reason) == (None, None)
+
+
 class TestItPointsAndLeavesATombstone:
     async def test_the_pointers_resolve_to_the_real_messages(
         self, async_session: AsyncSession, user: User, conversation: Conversation

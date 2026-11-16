@@ -4,7 +4,12 @@ from unittest.mock import patch
 
 import pytest
 
-from src.domains.channels.abstractions import ChannelInboundMessage
+from src.domains.channels.abstractions import (
+    ChannelFile,
+    ChannelFileKind,
+    ChannelInboundMessage,
+    ChannelLocation,
+)
 from src.domains.channels.models import ChannelType
 from src.infrastructure.channels.telegram.webhook_handler import TelegramWebhookHandler
 
@@ -336,14 +341,14 @@ class TestParseUpdateIgnored:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_photo_message_unsupported(self, handler: TelegramWebhookHandler) -> None:
-        """Photo messages are not supported → None."""
+    async def test_video_message_unsupported(self, handler: TelegramWebhookHandler) -> None:
+        """A video is no file LIA reads (lot 11 reads photos and documents) → None."""
         payload = {
             "message": {
                 "message_id": 1,
                 "chat": {"id": 123},
                 "from": {"id": 123},
-                "photo": [{"file_id": "photo_id", "width": 100, "height": 100}],
+                "video": {"file_id": "video_id", "width": 100, "height": 100, "duration": 3},
             }
         }
         result = await handler.parse_update(payload)
@@ -361,3 +366,194 @@ class TestParseUpdateIgnored:
         }
         result = await handler.parse_update(payload)
         assert result is None
+
+
+# =============================================================================
+# Shared locations and quoted replies (lot 8)
+# =============================================================================
+
+
+def _message(**fields: object) -> dict[str, object]:
+    return {
+        "update_id": 1,
+        "message": {"message_id": 9, "chat": {"id": 123}, "from": {"id": 123}, **fields},
+    }
+
+
+class TestASharedLocationIsRead:
+    """A pin reached nobody: LIA answered nothing to a shared location (lot 8)."""
+
+    async def test_a_shared_position_is_the_person_s(self, handler: TelegramWebhookHandler) -> None:
+        payload = _message(
+            location={"latitude": 48.85661, "longitude": 2.35222, "horizontal_accuracy": 12.5}
+        )
+
+        parsed = await handler.parse_update(payload)
+
+        assert parsed is not None and parsed.text is None
+        assert parsed.location == ChannelLocation(48.85661, 2.35222, accuracy_m=12.5)
+        assert parsed.location.is_place is False
+
+    async def test_a_venue_is_a_place_not_the_person(self, handler: TelegramWebhookHandler) -> None:
+        """A place's names are read on one line: a break would open markup in the app."""
+        payload = _message(
+            location={"latitude": 48.85837, "longitude": 2.29448},
+            venue={
+                "location": {"latitude": 48.85837, "longitude": 2.29448},
+                "title": "Tour\n# Eiffel",
+                "address": "Champ de Mars,\n  Paris",
+            },
+        )
+
+        parsed = await handler.parse_update(payload)
+
+        assert parsed is not None
+        assert parsed.location == ChannelLocation(
+            48.85837, 2.29448, title="Tour # Eiffel", address="Champ de Mars, Paris"
+        )
+        assert parsed.location.is_place is True
+
+    async def test_a_venue_with_no_name_is_never_taken_for_the_person(
+        self, handler: TelegramWebhookHandler
+    ) -> None:
+        """Its point is somewhere else: read as a position, « near me » would go there."""
+        payload = _message(
+            location={"latitude": 48.85837, "longitude": 2.29448},
+            venue={"location": {"latitude": 48.85837, "longitude": 2.29448}, "title": "  "},
+        )
+
+        assert await handler.parse_update(payload) is None
+
+    @pytest.mark.parametrize(
+        "location",
+        [
+            {"latitude": 91.0, "longitude": 2.0},
+            {"latitude": 48.0, "longitude": -181.0},
+            {"latitude": "48.8", "longitude": 2.3},
+            {"latitude": 48.8},
+            {"latitude": True, "longitude": 2.3},
+        ],
+        ids=["lat_out_of_range", "lon_out_of_range", "text", "missing", "bool"],
+    )
+    async def test_a_position_that_is_none_is_ignored(
+        self, handler: TelegramWebhookHandler, location: dict[str, object]
+    ) -> None:
+        assert await handler.parse_update(_message(location=location)) is None
+
+
+class TestAQuotedReplyIsRead:
+    """Replying to an earlier message said which one: LIA read the words alone."""
+
+    async def test_the_selected_part_wins(self, handler: TelegramWebhookHandler) -> None:
+        payload = _message(
+            text="and this one?",
+            reply_to_message={"message_id": 4, "text": "1. Paris\n2. Lyon\n3. Nice"},
+            quote={"text": "2. Lyon", "position": 9},
+        )
+
+        parsed = await handler.parse_update(payload)
+
+        assert parsed is not None and parsed.quoted_text == "2. Lyon"
+
+    async def test_a_whole_message_is_quoted_by_its_text_or_caption(
+        self, handler: TelegramWebhookHandler
+    ) -> None:
+        texted = await handler.parse_update(
+            _message(text="why?", reply_to_message={"message_id": 4, "text": "No."})
+        )
+        captioned = await handler.parse_update(
+            _message(text="where?", reply_to_message={"message_id": 5, "caption": "The view"})
+        )
+
+        assert texted is not None and texted.quoted_text == "No."
+        assert captioned is not None and captioned.quoted_text == "The view"
+
+    async def test_a_reply_to_something_wordless_quotes_nothing(
+        self, handler: TelegramWebhookHandler
+    ) -> None:
+        parsed = await handler.parse_update(
+            _message(text="nice", reply_to_message={"message_id": 4, "sticker": {}})
+        )
+
+        assert parsed is not None and parsed.quoted_text is None
+
+
+class TestAFileIsRead:
+    """A photo or a document reached nobody: LIA answered nothing (lot 11)."""
+
+    async def test_a_photo_is_read_at_its_largest_size_with_its_caption(
+        self, handler: TelegramWebhookHandler
+    ) -> None:
+        payload = _message(
+            photo=[
+                {"file_id": "small", "file_unique_id": "u", "width": 90, "height": 60},
+                {
+                    "file_id": "large",
+                    "file_unique_id": "u",
+                    "width": 1280,
+                    "height": 853,
+                    "file_size": 120_000,
+                },
+                {"file_id": "medium", "file_unique_id": "u", "width": 320, "height": 213},
+            ],
+            caption="what is this?",
+        )
+
+        parsed = await handler.parse_update(payload)
+
+        assert parsed is not None and parsed.text == "what is this?"
+        assert parsed.files == (
+            ChannelFile("large", ChannelFileKind.PHOTO, "photo.jpg", "image/jpeg", 120_000),
+        )
+
+    async def test_a_document_keeps_its_name_type_and_size(
+        self, handler: TelegramWebhookHandler
+    ) -> None:
+        payload = _message(
+            document={
+                "file_id": "doc",
+                "file_unique_id": "d",
+                "file_name": "report.pdf",
+                "mime_type": "application/pdf",
+                "file_size": 52_000,
+            }
+        )
+
+        parsed = await handler.parse_update(payload)
+
+        assert parsed is not None and parsed.text is None
+        assert parsed.files == (
+            ChannelFile("doc", ChannelFileKind.DOCUMENT, "report.pdf", "application/pdf", 52_000),
+        )
+
+    async def test_a_document_with_nothing_declared_is_still_read(
+        self, handler: TelegramWebhookHandler
+    ) -> None:
+        parsed = await handler.parse_update(_message(document={"file_id": "doc"}))
+
+        assert parsed is not None
+        assert parsed.files == (ChannelFile("doc", ChannelFileKind.DOCUMENT, None, None, None),)
+
+    async def test_an_album_s_part_names_its_album(self, handler: TelegramWebhookHandler) -> None:
+        payload = _message(
+            photo=[{"file_id": "p1", "width": 10, "height": 10}], media_group_id="album-7"
+        )
+
+        parsed = await handler.parse_update(payload)
+
+        assert parsed is not None and parsed.album_id == "album-7"
+
+    @pytest.mark.parametrize(
+        "fields",
+        [
+            {"photo": []},
+            {"photo": [{"width": 10, "height": 10}]},
+            {"document": {"file_name": "x.pdf"}},
+            {"document": {"file_id": ""}},
+        ],
+        ids=["no_size", "photo_without_id", "document_without_id", "empty_id"],
+    )
+    async def test_a_file_with_no_id_is_ignored(
+        self, handler: TelegramWebhookHandler, fields: dict[str, object]
+    ) -> None:
+        assert await handler.parse_update(_message(**fields)) is None

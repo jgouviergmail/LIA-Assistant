@@ -188,6 +188,65 @@ class TestCompactionNode:
     @pytest.mark.asyncio
     @patch("src.domains.agents.nodes.compaction_node.settings")
     @patch("src.domains.agents.nodes.compaction_node.CompactionService")
+    async def test_a_run_replayed_after_an_overflow_compacts_below_threshold(
+        self, mock_svc_cls, mock_settings
+    ):
+        """The run's context forces it (lot 15): the person's request stays the last message.
+
+        Unlike /resume, nothing is consumed and no confirmation is asked: the
+        replay answers the request the model's window refused.
+        """
+        import uuid
+
+        from src.domains.agents.context.runtime_context import LiaRuntimeContext
+
+        mock_settings.compaction_enabled = True
+        mock_settings.compaction_preserve_recent_messages = 2
+        mock_svc = MagicMock()
+        mock_svc.should_compact.return_value = False  # Below threshold
+        mock_svc.is_safe_to_compact.return_value = SafetyCheckResult(safe=True)
+        mock_svc.compact = AsyncMock(
+            return_value=CompactionResult(
+                summary="Earlier exchange.",
+                tokens_before=9000,
+                tokens_after=300,
+                tokens_saved=8700,
+                identifiers_preserved=[],
+                strategy="single_chunk",
+            )
+        )
+        mock_svc_cls.return_value = mock_svc
+        forced = LiaRuntimeContext(
+            user_id=uuid.uuid4(), thread_id="t", conversation_id="c", compaction_forced=True
+        )
+        state = {
+            "messages": [
+                HumanMessage(content="first", id="h1"),
+                AIMessage(content="answer", id="a1"),
+                HumanMessage(content="second", id="h2"),
+                AIMessage(content="answer", id="a2"),
+                HumanMessage(content="the request", id="h3"),
+            ],
+            "user_language": "en",
+            "compaction_count": 0,
+        }
+
+        with patch(
+            "src.domains.agents.nodes.compaction_node.runtime_context_if_running",
+            return_value=forced,
+        ):
+            result = await compaction_node(state, config={})
+
+        mock_svc.compact.assert_awaited_once()
+        removed = {m.id for m in result["messages"] if isinstance(m, RemoveMessage)}
+        # The request is never removed, and the kept tail begins on a person's
+        # message: « second » stays with its answer (lot 16).
+        assert removed == {"h1", "a1"}
+        assert not [m for m in result["messages"] if isinstance(m, HumanMessage)]
+
+    @pytest.mark.asyncio
+    @patch("src.domains.agents.nodes.compaction_node.settings")
+    @patch("src.domains.agents.nodes.compaction_node.CompactionService")
     async def test_resume_consumed_when_unsafe(self, mock_svc_cls, mock_settings):
         """The /resume command is consumed even when compaction is unsafe."""
         mock_settings.compaction_enabled = True

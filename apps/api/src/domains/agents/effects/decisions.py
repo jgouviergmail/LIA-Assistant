@@ -25,6 +25,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
+from src.core.constants import EXECUTION_ENGINES, EXECUTION_MODE_AUTO
 from src.domains.agents.effects.models import DecisionOutcome
 from src.domains.agents.effects.source import resolve_source
 
@@ -46,7 +47,12 @@ class TurnDecision:
         user_id: Whose turn.
         thread_id: Conversation it belongs to.
         source: Under whose authority it ran.
-        execution_mode: pipeline | react | subagent.
+        execution_mode: The engine the router settled (pipeline | react); until it
+            does, what was asked (« auto » included); for a run outside the graph,
+            how it ran (subagent | direct).
+        requested_mode: What the turn was asked to run in; None outside the graph.
+        resolution_reason: Why the router chose the engine (``EngineReason``); None
+            for a turn no engine planned.
         route: What the router decided; None when the turn ended before it.
         plan_step_count: Steps the planner produced; None when no plan was built.
         request_message_id: Pointer to what was asked.
@@ -61,6 +67,8 @@ class TurnDecision:
     thread_id: str = ""
     source: str = "user"
     execution_mode: str = "pipeline"
+    requested_mode: str | None = None
+    resolution_reason: str | None = None
     route: str | None = None
     plan_step_count: int | None = None
     request_message_id: uuid.UUID | None = None
@@ -89,7 +97,8 @@ def turn_decision(
         run_id: The turn.
         user_id: Whose turn.
         thread_id: Conversation it belongs to.
-        execution_mode: pipeline | react | subagent.
+        execution_mode: What the turn is asked to run in; the router replaces it
+            with the engine it settles (:func:`note_engine`).
         automated: Whether the turn was started by a scheduled action rather
             than by the person.
 
@@ -102,6 +111,7 @@ def turn_decision(
         thread_id=thread_id,
         source=resolve_source(None, automated=automated),
         execution_mode=execution_mode,
+        requested_mode=execution_mode,
     )
 
 
@@ -196,6 +206,46 @@ def note_route(route: str) -> None:
     turn = _current_turn.get()
     if turn is not None:
         turn.route = route
+
+
+def note_engine(engine: str, reason: str) -> None:
+    """Record the engine the router settled, and why (ADR-390).
+
+    Args:
+        engine: ``pipeline`` or ``react``.
+        reason: The resolution's reason (``EngineReason`` value).
+    """
+    turn = _current_turn.get()
+    if turn is not None:
+        turn.execution_mode = engine
+        turn.resolution_reason = reason
+
+
+def note_resumed_engine(engine: str) -> None:
+    """Record the engine a resumed turn runs in, as its state carried it.
+
+    A resumed segment never meets the router; the reason it was chosen belongs to
+    the first segment and is not invented here.
+
+    Args:
+        engine: ``pipeline`` or ``react``.
+    """
+    turn = _current_turn.get()
+    if turn is not None:
+        turn.execution_mode = engine
+
+
+def automatic_turn_engine() -> str | None:
+    """The engine « auto » settled for the turn in flight, for its answer's badge.
+
+    Returns:
+        ``pipeline`` or ``react`` for an automatic turn an engine planned; None for
+        an explicit choice, a conversation, or outside a turn (ADR-390).
+    """
+    turn = _current_turn.get()
+    if turn is None or turn.requested_mode != EXECUTION_MODE_AUTO:
+        return None
+    return turn.execution_mode if turn.execution_mode in EXECUTION_ENGINES else None
 
 
 def note_plan(step_count: int) -> None:

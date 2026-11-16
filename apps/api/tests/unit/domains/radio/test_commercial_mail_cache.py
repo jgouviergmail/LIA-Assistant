@@ -14,6 +14,7 @@ from src.domains.briefing.cache_keys import section_keys_every_language
 from src.domains.briefing.schemas import CardSection, CardStatus, MailItem, MailsData
 from src.domains.connectors import active_client
 from src.domains.connectors.active_client import ActiveClient
+from src.domains.connectors.clients.mail_moves import UnreadCounts
 from src.domains.connectors.models import ConnectorType
 from src.domains.push_channels.cache_invalidation import invalidate_for_provider
 from src.domains.radio import adapters
@@ -68,6 +69,9 @@ async def test_same_owner_concurrent_radio_and_dashboard_do_not_share_promotiona
             await asyncio.sleep(0)
             return {"messages": messages[: kwargs["max_results"]]}
 
+        async def unread_counts(self, folders_max):
+            return UnreadCounts(roles={"inbox": len(messages)}, folders={}, complete=False)
+
     @asynccontextmanager
     async def opened(*args):
         yield ActiveClient(Client(), ConnectorType.GOOGLE_GMAIL, None)
@@ -100,7 +104,7 @@ async def test_same_owner_concurrent_radio_and_dashboard_do_not_share_promotiona
     )
     assert normal.mails.data.items[0].subject == "Something for you"
     assert radio.mails.data.items[0].subject == "A family dinner"
-    assert normal.mails.data.total_unread_today == 1
+    assert normal.mails.data.total_unread_today == len(messages)
     assert radio.mails.data.total_unread_today == len(messages)
     assert count == 2 and sorted(scans)[0] == 1
     assert consultations == [("mails", CardStatus.OK)]

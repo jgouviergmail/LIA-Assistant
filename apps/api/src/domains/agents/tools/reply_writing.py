@@ -3,7 +3,8 @@
 « Answer Paul that Friday works » is an instruction, not the reply: both the reply that
 is sent after confirmation (``reply_email_tool``) and the one saved in the drafts
 (``create_mailbox_reply_draft_tool``) are written by ONE writer, from the received
-e-mail, in the person's own voice when LIA knows how they write (ADR-344, ADR-383).
+e-mail, in the person's own voice when LIA knows how they write (ADR-344, ADR-383). A
+reply the agent wrote itself is what the reply must say, never the reply (``authorship``).
 What it could not do is said as the tool's refusal, never guessed: a spending ceiling,
 no usable answer, an empty one — each asks for the reply's text instead.
 """
@@ -17,6 +18,7 @@ from langchain.tools import ToolRuntime
 
 from src.core.exceptions_domains import UsageLimitExceededError
 from src.domains.agents.context.runtime_context import LiaRuntimeContext, tool_runtime_context
+from src.domains.agents.emails.authorship import person_words_of, settle_words
 from src.domains.agents.emails.previous_reply import PreviousReply, previous_reply_of
 from src.domains.agents.emails.reply_drafting import draft_reply_body
 from src.domains.agents.tools.common import ToolErrorCode
@@ -88,7 +90,8 @@ async def reply_words(
     Args:
         client: The open mailbox.
         original: The received e-mail being answered.
-        body: The words the person dictated, or empty.
+        body: The text the agent passed: the person's marked words are kept, any other
+            text is what the writer must say (``authorship``); empty, nothing was passed.
         instruction: What the reply must say; with nothing said, the person's own message
             in the turn is.
         runtime: The tool's runtime.
@@ -99,10 +102,19 @@ async def reply_words(
         The words (or the writer's refusal), and the person's earlier answer to the
         message, read with its words when LIA writes: the new reply continues from it.
     """
-    previous = await previous_reply_of(client, original, user_timezone=None, with_words=not body)
-    if body:
-        return body, previous
-    said = instruction or (get_original_user_message(runtime) if runtime is not None else None)
+    words = settle_words(
+        tool="reply_email_tool",
+        body=body,
+        instruction=instruction,
+        person_words=person_words_of(runtime),
+    )
+    kept = (words.body or "").strip()
+    previous = await previous_reply_of(client, original, user_timezone=None, with_words=not kept)
+    if kept:
+        return kept, previous
+    said = words.instruction or (
+        get_original_user_message(runtime) if runtime is not None else None
+    )
     written = await written_reply(
         original,
         instruction=said,

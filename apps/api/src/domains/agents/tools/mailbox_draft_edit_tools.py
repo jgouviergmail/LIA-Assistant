@@ -3,8 +3,11 @@
 An edit changes what the person asked and nothing else: a field given replaces
 its value, an instruction ("make it shorter") is applied by the draft modifier
 to the person's OWN words, and the history a reply quotes stays below them —
-the quote is the mailbox's, never rewritten. A body rewritten as plain text
-loses an HTML draft's formatting, never its files.
+the quote is the mailbox's, never rewritten. A new text is the person's when
+they dictated it; one the agent wrote itself is written again by LIA's writer,
+in their voice (``authorship``, ADR-383). A model that took seconds to write
+re-reads the draft before saving: an edit the person made meanwhile is kept. A
+body rewritten as plain text loses an HTML draft's formatting, never its files.
 
 Deleting moves drafts to the mailbox's trash, where they stay recoverable
 (measured on Gmail 2026-10-13; Outlook's Deleted Items; iCloud's trash folder).
@@ -15,6 +18,7 @@ never dropped, and what each draft became is said draft by draft.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -23,6 +27,7 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 
 from src.core.config import settings
+from src.core.exceptions_domains import UsageLimitExceededError
 from src.core.field_names import FIELD_BODY, FIELD_MAILBOX_DRAFT_ID, FIELD_MAILBOX_DRAFT_REVISION
 from src.core.run_config import run_id_of
 from src.domains.agents.constants import AGENT_EMAIL, CONTEXT_DOMAIN_EMAILS
@@ -31,10 +36,17 @@ from src.domains.agents.context.runtime_context import (
     tool_runtime_context,
 )
 from src.domains.agents.context.schemas import ContextSaveMode
+from src.domains.agents.emails.authorship import person_words_of, settle_words
+from src.domains.agents.emails.catalogue_manifests import (
+    UPDATE_BODY_DESCRIPTION,
+    UPDATE_INSTRUCTIONS_DESCRIPTION,
+)
+from src.domains.agents.emails.content_generation import generate_email_content
 from src.domains.agents.emails.mailbox_drafts_manifests import DELETE_MAX_RESULTS_DESCRIPTION
 from src.domains.agents.services.hitl.draft_modifier import get_draft_modification_service
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.decorators import connector_tool
+from src.domains.agents.tools.exceptions import ContentGenerationError
 from src.domains.agents.tools.lookup_parameters import bounded_count
 from src.domains.agents.tools.mailbox_draft_base import (
     MAILBOX_REFUSALS,
@@ -57,6 +69,14 @@ logger = structlog.get_logger(__name__)
 
 #: The fields an edit may change, as the mailbox clients name them.
 EDITABLE_FIELDS: tuple[str, ...] = ("to", "cc", "bcc", "subject", "body")
+
+
+@dataclass(frozen=True, slots=True)
+class _Prepared:
+    """What an edit saves, and whether a model wrote any of it (the draft is then re-read)."""
+
+    changes: dict[str, Any]
+    modeled: bool
 
 
 def _edited_fields(
@@ -109,6 +129,54 @@ class UpdateMailboxDraftTool(MailboxDraftTool):
             if modified.get(name) is not None and str(modified[name]) != original[name]
         }
 
+    async def _written_text(
+        self, current: dict[str, Any], given: dict[str, Any], user_id: UUID
+    ) -> str | dict[str, Any] | None:
+        """The new text LIA writes in the person's voice, when the agent wrote it itself.
+
+        A text the agent wrote itself is what the draft must say (ADR-383): LIA's writer
+        writes it for whom the draft is addressed to. The person's marked words, and a
+        text too long to be written back whole, are saved as given.
+
+        Args:
+            current: The live draft.
+            given: The fields the agent gave, its new text among them.
+            user_id: The account, for both spending ceilings and the writing style.
+
+        Returns:
+            The text LIA wrote; None when the given text is saved as it is; or the
+            refusal saying why none was written.
+        """
+        words = settle_words(
+            tool=self.tool_name,
+            body=str(given[FIELD_BODY]),
+            instruction=None,
+            person_words=person_words_of(self.runtime),
+        )
+        if words.instruction is None:
+            return None
+        context = tool_runtime_context(self.runtime) if self.runtime is not None else None
+        try:
+            written = await generate_email_content(
+                instruction=words.instruction,
+                recipient=str(given.get("to") or current.get("to") or ""),
+                user_language=self.get_user_language(),
+                config=self.runtime.config if self.runtime is not None else None,
+                sender_name=context.display_name if context is not None else None,
+                user_id=str(user_id),
+            )
+        except UsageLimitExceededError:
+            return refusal(
+                ToolErrorCode.RATE_LIMIT_EXCEEDED,
+                "A spending ceiling refused writing the text: give its words, or try later.",
+            )
+        except ContentGenerationError:
+            return refusal(
+                ToolErrorCode.EXTERNAL_API_ERROR, "The text could not be written: give its words."
+            )
+        body = str(written.get("body") or "").strip()
+        return body or refusal(ToolErrorCode.EMPTY_RESULT, "No text was written: give its words.")
+
     async def _resolve_instructed_recipients(
         self, changes: dict[str, str], given: dict[str, Any]
     ) -> None:
@@ -147,26 +215,56 @@ class UpdateMailboxDraftTool(MailboxDraftTool):
                     ToolErrorCode.INVALID_RESPONSE_FORMAT,
                     "The mailbox did not provide the complete draft revision: nothing was modified.",
                 )
-            own_words, history = split_quoted_history(str(current.get(FIELD_BODY) or ""))
-            changes = (
-                await self._instructed_changes(current, own_words.strip(), instructions)
-                if instructions
-                else {}
-            )
-            await self._resolve_instructed_recipients(changes, given)
-            if instructions:
+            prepared = await self._prepared(current, given, instructions, user_id)
+            if not isinstance(prepared, _Prepared):
+                return prepared
+            # A model took seconds to write: the person may have edited the draft meanwhile.
+            if prepared.modeled:
                 ensure_draft_revision(await client.get_draft(draft_id), revision)
-            changes = _edited_fields(changes, given, history)
-            draft = await client.update_draft(draft_id, expected_revision=revision, **changes)
+            draft = await client.update_draft(
+                draft_id, expected_revision=revision, **prepared.changes
+            )
         except MAILBOX_REFUSALS as error:
             return refusal_for(error)
         logger.info(
             "mailbox_draft_updated",
             user_id=str(user_id),
-            fields=sorted(changes),
+            fields=sorted(prepared.changes),
             instructed=bool(instructions),
         )
         return self.drafts_result([draft], **kwargs)
+
+    async def _prepared(
+        self, current: dict[str, Any], given: dict[str, Any], instructions: str, user_id: UUID
+    ) -> _Prepared | dict[str, Any]:
+        """The fields to save — a new text LIA wrote, an instruction applied — or a refusal.
+
+        Args:
+            current: The live draft.
+            given: The fields the agent gave.
+            instructions: A change to apply to the person's own words, or empty.
+            user_id: The account.
+
+        Returns:
+            The changes and whether a model wrote any of them, or the refusal saying
+            why nothing could be written.
+        """
+        own_words, history = split_quoted_history(str(current.get(FIELD_BODY) or ""))
+        written = await self._written_text(current, given, user_id) if FIELD_BODY in given else None
+        if isinstance(written, dict):
+            return written
+        if written is not None:
+            given = {**given, FIELD_BODY: written}
+        changes = (
+            await self._instructed_changes(current, own_words.strip(), instructions)
+            if instructions
+            else {}
+        )
+        await self._resolve_instructed_recipients(changes, given)
+        return _Prepared(
+            changes=_edited_fields(changes, given, history),
+            modeled=bool(instructions) or written is not None,
+        )
 
 
 _update_mailbox_draft_tool_instance = UpdateMailboxDraftTool()
@@ -185,10 +283,8 @@ async def update_mailbox_draft_tool(
     cc: Annotated[str | None, "New copies; empty string clears them"] = None,
     bcc: Annotated[str | None, "New blind copies; empty string clears them"] = None,
     subject: Annotated[str | None, "New subject"] = None,
-    body: Annotated[str | None, "New text, replacing the person's own words"] = None,
-    instructions: Annotated[
-        str | None, "A change to apply ('make it shorter', 'add that I am late')"
-    ] = None,
+    body: Annotated[str | None, UPDATE_BODY_DESCRIPTION] = None,
+    instructions: Annotated[str | None, UPDATE_INSTRUCTIONS_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -196,6 +292,8 @@ async def update_mailbox_draft_tool(
 
     Fields not given stay as they are; the history a reply quotes stays below
     the person's words. On iCloud the edited draft gets a new mailbox_draft_id.
+    Who writes the text: `body` holds the user's own words, dictated in quotes or after a colon,
+    exactly as given; to change what the draft says, give `instructions`.
 
     Args:
         mailbox_draft_id: The draft's handle.
@@ -203,7 +301,7 @@ async def update_mailbox_draft_tool(
         cc: New copies.
         bcc: New blind copies.
         subject: New subject.
-        body: New text.
+        body: The user's own words, dictated.
         instructions: A change to apply to the draft.
         runtime: Tool runtime (injected).
 

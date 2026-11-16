@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from src.core.constants import TASK_LIST_NAMES_SCAN_MAX
 from src.domains.connectors.preferences.resolver import (
     GoogleCalendarNameResolver,
     GoogleTasksListNameResolver,
@@ -295,7 +296,8 @@ class TestGoogleTasksListNameResolver:
         items = await resolver.fetch_items(mock_tasks_client)
 
         # Assert
-        mock_tasks_client.list_task_lists.assert_called_once_with(max_results=100)
+        # Every page of lists, under the names-scan bound (ADR-185 amendment).
+        mock_tasks_client.list_task_lists.assert_called_once_with(TASK_LIST_NAMES_SCAN_MAX)
         assert items == [{"id": "list_1", "title": "My Tasks"}]
 
     def test_get_item_name_returns_title(self, resolver):

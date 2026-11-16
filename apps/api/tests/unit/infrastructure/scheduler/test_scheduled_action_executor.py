@@ -226,13 +226,13 @@ def _executor_env(
         # door; a test about a notice reads it, the others send nothing.
         notice = stack.enter_context(
             patch(
-                "src.infrastructure.scheduler.scheduled_action_executor.send_routine_notice",
+                "src.infrastructure.scheduler.scheduled_action_notices.send_routine_notice",
                 AsyncMock(),
             )
         )
         quota_claim = stack.enter_context(
             patch(
-                "src.infrastructure.scheduler.scheduled_action_executor.claim_quota_notice",
+                "src.infrastructure.scheduler.scheduled_action_notices.claim_quota_notice",
                 AsyncMock(return_value=False),
             )
         )
@@ -1517,6 +1517,8 @@ class TestTheUsageCeilingStandsARoutineAside:
 _DUE = datetime(2026, 8, 3, 6, 0, tzinfo=UTC)
 _DUE_THE_DAY_BEFORE = datetime(2026, 8, 2, 6, 0, tzinfo=UTC)
 _EXECUTOR = "src.infrastructure.scheduler.scheduled_action_executor"
+_NOTICES = "src.infrastructure.scheduler.scheduled_action_notices"
+_RETURNS = "src.domains.conversations.return_target"
 
 
 def _busy() -> Any:
@@ -1724,3 +1726,47 @@ class TestARoutineToldToNotifyOnlyOfSomethingNew:
             await _fail(env, marked=_marked(1))
 
         assert env.notice.await_args.kwargs["kind"] is RoutineNotice.FAILED
+
+
+@pytest.mark.asyncio
+async def test_a_run_asked_in_a_discussion_runs_and_answers_there() -> None:
+    """ADR-378 amendment 2026-11-14: the turn, the push and the toast name the annex."""
+    from src.core.conversation_target import ConversationOrigin
+    from src.domains.conversations.return_target import ReturnTarget
+
+    annex = uuid.uuid4()
+    origin = ConversationOrigin(annex, 7)
+    result = RunResult(outcome=RunOutcome.SUCCESS, attempts=1, text="ok")
+    streamed = AsyncMock(return_value=result)
+    notified = AsyncMock()
+    with (
+        _executor_env(chunks=[]) as env,
+        patch(f"{_EXECUTOR}.stream_instruction", streamed),
+        patch(f"{_RETURNS}.return_target", AsyncMock(return_value=ReturnTarget(annex, 7))),
+        patch(f"{_NOTICES}.notify_result", notified),
+    ):
+        await execute_single_action(
+            env.action_id, env.user_id, started_by_person=True, origin=origin
+        )
+
+    (request,), _ = streamed.await_args
+    assert (request.conversation_id, request.conversation_revision) == (annex, 7)
+    assert notified.await_args.kwargs["discussion"] == annex
+
+
+@pytest.mark.asyncio
+async def test_a_scheduled_tick_runs_in_main_by_omission() -> None:
+    """A routine on its own clock answers in Main, as it always did."""
+    result = RunResult(outcome=RunOutcome.SUCCESS, attempts=1, text="ok")
+    streamed = AsyncMock(return_value=result)
+    target = AsyncMock()
+    with (
+        _executor_env(chunks=[]) as env,
+        patch(f"{_EXECUTOR}.stream_instruction", streamed),
+        patch(f"{_RETURNS}.return_target", target),
+    ):
+        await execute_single_action(env.action_id, env.user_id)
+
+    (request,), _ = streamed.await_args
+    assert (request.conversation_id, request.conversation_revision) == (None, None)
+    target.assert_not_awaited()

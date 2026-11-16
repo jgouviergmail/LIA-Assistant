@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import func
 
+from src.core.constants import SQL_IN_CLAUSE_CHUNK
 from src.core.repository import BaseRepository
 from src.domains.notifications.models import (
     AdminBroadcast,
@@ -25,9 +26,6 @@ from src.domains.notifications.models import (
     UserFCMToken,
 )
 from src.domains.users.models import User
-
-#: Ids bound per ``IN (...)`` query when a list can grow with the instance.
-_IN_CLAUSE_CHUNK = 1000
 
 
 @dataclass(frozen=True)
@@ -246,8 +244,8 @@ class FCMTokenRepository(BaseRepository[UserFCMToken]):
         tokens: list[str] = []
         # Bounded IN lists: asyncpg refuses more than 32 767 bind parameters,
         # and an instance-wide language group can be larger than that.
-        for start in range(0, len(user_ids), _IN_CLAUSE_CHUNK):
-            chunk = user_ids[start : start + _IN_CLAUSE_CHUNK]
+        for start in range(0, len(user_ids), SQL_IN_CLAUSE_CHUNK):
+            chunk = user_ids[start : start + SQL_IN_CLAUSE_CHUNK]
             result = await self.db.scalars(
                 select(UserFCMToken.token).where(
                     UserFCMToken.user_id.in_(chunk),

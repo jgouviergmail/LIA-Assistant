@@ -55,6 +55,8 @@ const DialogContent = React.forwardRef<
   const { t } = useTranslation();
   const selectionHost = React.useId();
   const focusReturn = useDialogFocusReturn(onOpenAutoFocus, onCloseAutoFocus);
+  // One column that may shrink below its content (owner, 2026-11-14): an implicit grid track is
+  // as wide as the longest unbreakable line inside it, and pushed a dialog past a phone's screen.
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -63,7 +65,7 @@ const DialogContent = React.forwardRef<
         data-selection-host={selectionHost}
         {...focusReturn}
         className={cn(
-          'fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-1.5rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border lia-overlay-surface p-6 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto',
+          'fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-1.5rem)] max-w-lg grid-cols-[minmax(0,1fr)] translate-x-[-50%] translate-y-[-50%] gap-4 border lia-overlay-surface p-6 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto',
           className
         )}
         onEscapeKeyDown={event => {
@@ -110,7 +112,9 @@ const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn('text-lg font-semibold leading-none tracking-tight', className)}
+    // A title or a description quotes what people named (a file, a discussion, a reminder):
+    // a word wider than the dialog wraps, even beside an icon (owner, 2026-11-15).
+    className={cn('text-lg font-semibold leading-none tracking-tight wrap-anywhere', className)}
     {...props}
   />
 ));
@@ -126,7 +130,7 @@ const DialogDescription = React.forwardRef<
     // glass (v1.27.0) over a dark overlay, and muted text measured 4.19:1 on
     // that composite in light mode (axe, 2026-09-24) — below the AA floor the
     // contrast contract holds every neutral surface to (docs/a11y/CONTRAST_TOKENS.md).
-    className={cn('text-sm text-foreground/80', className)}
+    className={cn('text-sm text-foreground/80 wrap-anywhere', className)}
     {...props}
   />
 ));

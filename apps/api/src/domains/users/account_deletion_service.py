@@ -232,6 +232,10 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         # deleting it, so no FK action ever fires — the same trap open_loops
         # and the peers tables are named for.
         by_user("proactive_moments"),
+        # BEFORE its reminders, for the same reason as the references above: its
+        # reminder_id is SET NULL, so deleting the reminders first would only
+        # rewrite rows this statement then deletes.
+        by_user("reminder_firings"),
         by_user("reminders"),
         by_user("scheduled_actions"),
         # Workboard (ADR-276): the tickets the account OWNS. Comments and the
@@ -253,6 +257,7 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         # ADR-083 Phase 2 cleanup: sub_agents table dropped — nothing to delete.
         by_user("rag_spaces"),
         by_user("user_fcm_tokens"),
+        by_user("ntfy_subscriptions"),
         by_user("user_channel_bindings"),
         by_user("attachments"),
         by_user("message_bookmarks"),

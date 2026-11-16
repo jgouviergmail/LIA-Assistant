@@ -61,19 +61,37 @@ def _db_ctx(user: Any) -> Any:
     return _ctx
 
 
-def _calendar(items: list[dict[str, Any]] | Exception) -> Any:
+def _calendar(
+    items: list[dict[str, Any]] | Exception,
+    *,
+    default: str = "primary",
+    held: dict[str, list[dict[str, Any]]] | None = None,
+) -> Any:
+    """The calendar door: the main calendar holds ``items`` unless ``held`` says more."""
     from contextlib import asynccontextmanager
 
+    calendars = {"main": items} if held is None else held
     client = MagicMock()
-    if isinstance(items, Exception):
-        client.list_events = AsyncMock(side_effect=items)
-    else:
-        client.list_events = AsyncMock(return_value={"items": items})
+    client.list_calendars = AsyncMock(
+        return_value={
+            "items": [
+                {"id": key, "accessRole": "owner", "primary": key == "main"} for key in calendars
+            ]
+        }
+    )
+
+    async def window(calendar_id: str, *_: Any, **__: Any) -> dict[str, Any]:
+        answer = calendars.get(calendar_id, [])
+        if isinstance(answer, Exception):
+            raise answer
+        return {"events": answer, "truncated": False}
+
+    client.list_events_window = AsyncMock(side_effect=window)
     client.close = AsyncMock()
 
     @asynccontextmanager
     async def _open(_user_id: Any):
-        yield CalendarAccess(client=client, calendar_id="primary", connector_type=None)
+        yield CalendarAccess(client=client, calendar_id=default, connector_type=None)
 
     return _open
 
@@ -125,6 +143,14 @@ class TestTheVerdict:
         """Off means off: no verdict, and no calendar call to reach it."""
         opener = _calendar([_meeting_now()])
         assert await _ask([], opener=opener, enabled=False) is False
+
+
+class TestEveryOwnedCalendar:
+    """The default says where events are created; a meeting may sit in the main one."""
+
+    async def test_a_meeting_in_the_main_calendar_defers_the_tick(self) -> None:
+        opener = _calendar([], default="famille", held={"famille": [], "main": [_meeting_now()]})
+        assert await _ask([], opener=opener) is True
 
 
 class TestItFailsOpen:

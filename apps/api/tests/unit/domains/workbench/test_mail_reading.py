@@ -356,8 +356,10 @@ class TestTheHtml:
     def test_no_tool_of_the_assistant_reads_it(self) -> None:
         """Display only: the model reads text, never markup (ADR-287, D2).
 
-        A contact's card is read from a message's whole text, its signature included, which the
-        assistant's own body leaves out: `html_to_text` turns it into words first (ADR-372).
+        What the person reads, LIA's assists read too, as words: one door
+        (`tool_assists.shown_words.words_as_shown`) turns the original layout into text first,
+        for the summary, the reply, the translation, the event, the task and the contact card
+        (ADR-372 amendment 2026-11-14).
         """
         source = Path(mail_reading.__file__).parents[2]
         callers = sorted(
@@ -367,6 +369,6 @@ class TestTheHtml:
         )
 
         assert callers == [
-            "domains/tool_assists/contact_card.py",
+            "domains/tool_assists/shown_words.py",
             "domains/workbench/mail_reading.py",
         ]

@@ -15,10 +15,12 @@ import secrets
 import socket
 import stat
 import time
-from collections.abc import Collection, Mapping
+from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from scripts.install import ntfy
+from scripts.install.addresses import web_origin
 from scripts.install.maps import MAPS_ENV_KEYS, validate_maps_settings
 from scripts.install.model import Exposure, PublicAnswers
 from scripts.install.turnstile import (
@@ -59,12 +61,24 @@ ANSWER_DERIVED_KEYS: frozenset[str] = frozenset(
         "ALERTMANAGER_LIA_WEBHOOK_URL",
         "SEARXNG_URL",
         "SEARXNG_SECRET",
+        "NTFY_SERVER_URL",
+        "NTFY_PUBLIC_URL",
+        "NTFY_PUBLISH_TOKEN",
+        "NTFY_ACCOUNT_HASH",
+        "NTFY_BEHIND_PROXY",
+        "NTFY_UPSTREAM_BASE_URL",
     }
 )
 
 #: Answer-derived values the console never prints: a confirmation names them.
 SECRET_ANSWER_DERIVED_KEYS: frozenset[str] = frozenset(
-    {"DIAGNOSTICS_WEBHOOK_SECRET", "GRAFANA_ADMIN_PASSWORD", "SEARXNG_SECRET"}
+    {
+        "DIAGNOSTICS_WEBHOOK_SECRET",
+        "GRAFANA_ADMIN_PASSWORD",
+        "SEARXNG_SECRET",
+        "NTFY_PUBLISH_TOKEN",
+        "NTFY_ACCOUNT_HASH",
+    }
 )
 
 #: Where the API reaches the instance's web search (ADR-382): the `searxng`
@@ -116,17 +130,73 @@ def _grafana_credential_is_configured(value: str) -> bool:
     return value not in ("", '""', "''")
 
 
-def _searxng_secret(public: PublicAnswers, in_force: Mapping[str, str]) -> str:
-    """The web search's secret: the one in force, else a new one when it runs.
+def _kept_or_new(
+    in_force: Mapping[str, str],
+    key: str,
+    *,
+    usable: Callable[[str], bool],
+    new: Callable[[], str],
+    wanted: bool,
+) -> str:
+    """A service's credential: the one in force, else a new one when the service runs.
 
-    SearXNG refuses to start on its default secret, so an empty or placeholder
-    line (the templates') is no secret. One in force is never rotated, and is
-    kept while the search is off, for a later re-enable.
+    One in force is never rotated, and is kept while its service is off, for a
+    later re-enable. A value the service could not start on — a template's empty
+    or placeholder line, a malformed one — is no credential.
     """
-    current = in_force.get("SEARXNG_SECRET", "")
-    if _grafana_credential_is_configured(current) and not current.startswith("CHANGE_ME"):
+    current = in_force.get(key, "")
+    if usable(current):
         return current
-    return secrets.token_hex(32) if public.web_search else ""
+    return new() if wanted else ""
+
+
+def _is_set_secret(value: str) -> bool:
+    """Not empty, not a template placeholder (SearXNG refuses its default secret)."""
+    return _grafana_credential_is_configured(value) and not value.startswith("CHANGE_ME")
+
+
+def _searxng_secret(public: PublicAnswers, in_force: Mapping[str, str]) -> str:
+    return _kept_or_new(
+        in_force,
+        "SEARXNG_SECRET",
+        usable=_is_set_secret,
+        new=lambda: secrets.token_hex(32),
+        wanted=public.web_search,
+    )
+
+
+def _ntfy_environment(public: PublicAnswers, in_force: Mapping[str, str]) -> dict[str, str]:
+    """The instance's own ntfy server (ADR-391), read by the API and by the service.
+
+    LIA publishes inside the network with its token, phones subscribe at the
+    public address; behind a proxy the server reads the client's address from
+    the forwarded header, and iPhones are woken through ntfy.sh only when the
+    operator chose it. Nothing here when the server is off, its credentials
+    apart: they wait for a re-enable.
+    """
+    runs = public.ntfy_server
+    return {
+        "NTFY_SERVER_URL": ntfy.NTFY_INTERNAL_URL if runs else "",
+        "NTFY_PUBLIC_URL": ntfy.public_url(public),
+        "NTFY_PUBLISH_TOKEN": _kept_or_new(
+            in_force,
+            "NTFY_PUBLISH_TOKEN",
+            usable=ntfy.is_publish_token,
+            new=ntfy.new_publish_token,
+            wanted=runs,
+        ),
+        "NTFY_ACCOUNT_HASH": _kept_or_new(
+            in_force,
+            "NTFY_ACCOUNT_HASH",
+            usable=ntfy.is_account_hash,
+            new=ntfy.new_account_hash,
+            wanted=runs,
+        ),
+        "NTFY_BEHIND_PROXY": "true" if runs and public.exposure is not Exposure.LAN else "false",
+        "NTFY_UPSTREAM_BASE_URL": (
+            ntfy.NTFY_IOS_RELAY_URL if runs and public.ntfy_ios_relay else ""
+        ),
+    }
 
 
 def load_existing_generated_secrets(
@@ -160,12 +230,6 @@ def load_existing_generated_secrets(
     return result
 
 
-def _origin(public: PublicAnswers) -> str:
-    if public.exposure is Exposure.LAN:
-        return f"http://{public.server_host}:3000"
-    return f"https://{public.web_domain}"
-
-
 def maps_environment(path: Path, provided: Mapping[str, str]) -> Mapping[str, str]:
     """Keep skipped operator settings; only a validated complete pair replaces them."""
     validated = validate_maps_settings(provided)
@@ -196,7 +260,7 @@ def derive_environment(
     host-neutral and same-origin; runtime origin travels through the
     server-only ``APP_URL_SERVER``.
     """
-    origin = _origin(public)
+    origin = web_origin(public)
     secure = public.exposure is not Exposure.LAN
     in_force = _parse_env_text(current_env)
     grafana_user = in_force.get("GRAFANA_ADMIN_USER", "")
@@ -281,6 +345,7 @@ def derive_environment(
         # API asks it for whoever has no search key; empty, the API asks nothing.
         "SEARXNG_URL": SEARXNG_INTERNAL_URL if public.web_search else "",
         "SEARXNG_SECRET": _searxng_secret(public, in_force),
+        **_ntfy_environment(public, in_force),
     }
 
 

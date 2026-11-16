@@ -256,3 +256,25 @@ tool can still carry unresolved dependencies; its version alone is no security
 verdict. The [image qualification report](../superpowers/qualification/2026-11-01-v4-3-0-container-images.md)
 records the measured v4.3.0 results and the owner's decision to wait for
 upstream corrections.
+
+## Amendment — 16 November 2026: remove unused Docker CLI plugins
+
+The API requires the Docker CLI for sandbox `run` and `rm` operations and local
+DevOps commands. It does not require Compose or Buildx: the mounted
+`infrastructure/claude-cli/CLAUDE.server.md` explicitly directs the local agent to
+Docker commands, while Compose files and deployment configuration remain on the
+host. Remote DevOps runs against the remote host's own tools.
+
+Docker's CLI package recommends both plugins, so installing the CLI alone also
+introduced their independent dependency graphs. The production image now removes
+both recommended plugins in the existing package-cleanup step; the development
+image declines recommendations only when installing the Docker CLI. The Docker
+CLI and supported sandbox commands stay available. Host deployment commands are
+unchanged. Image qualification verifies both the promised commands and the absence
+of the unused plugins.
+
+This removes unused executable code, not a scanner finding by policy: the image
+scan retains its severity threshold, failure exit code and treatment of unfixed
+findings. A module appearing in a binary's build metadata is not proof that every
+package in it was compiled; package and symbol analysis supplements the image
+report, without creating an implicit exception.

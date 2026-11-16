@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -27,6 +28,7 @@ from scripts.install.compose import (
     up_suffix,
 )
 from scripts.install.model import Exposure, InstallMode, PublicAnswers
+from scripts.install.ntfy import NTFY_HOST_PORT
 
 DIGEST = "a" * 64
 
@@ -47,6 +49,7 @@ def _public(
     observability: bool = False,
     skill_sandbox: bool = False,
     web_search: bool = False,
+    ntfy_server: bool = False,
 ) -> PublicAnswers:
     return PublicAnswers(
         language="en",
@@ -58,6 +61,10 @@ def _public(
         observability=observability,
         skill_sandbox=skill_sandbox,
         web_search=web_search,
+        ntfy_server=ntfy_server,
+        ntfy_domain=(
+            "ntfy.example.org" if ntfy_server and exposure is not Exposure.LAN else None
+        ),
         server_host="192.168.1.50" if exposure is Exposure.LAN else None,
         web_domain=None if exposure is Exposure.LAN else "lia.example.org",
         api_domain=None if exposure is Exposure.LAN else "api.example.org",
@@ -222,12 +229,54 @@ def test_locked_services_match_the_dependency_catalogue_and_base_file() -> None:
         )
     }
     full = locked_services(
-        _public(Exposure.CADDY, mode=InstallMode.PREBUILT, observability=True, web_search=True)
+        _public(
+            Exposure.CADDY,
+            mode=InstallMode.PREBUILT,
+            observability=True,
+            web_search=True,
+            ntfy_server=True,
+        )
     )
     assert set(full) == catalogue | {"api", "web"}
     lan = locked_services(_public(Exposure.LAN, mode=InstallMode.PREBUILT))
     assert "caddy" not in lan
-    assert not any(s in lan for s in ("grafana", "prometheus", "searxng"))
+    assert not any(s in lan for s in ("grafana", "prometheus", "searxng", "ntfy"))
+
+
+def test_the_instance_ntfy_server_starts_its_profile_on_a_pinned_image() -> None:
+    # ADR-391: off unless the operator asks; on, a prebuilt install pins its image.
+    on = _public(Exposure.LAN, mode=InstallMode.PREBUILT, ntfy_server=True)
+    off = _public(Exposure.LAN, mode=InstallMode.PREBUILT)
+    assert "ntfy" in build_invocation(on, root=Path(".")).profiles
+    assert "ntfy" not in build_invocation(off, root=Path(".")).profiles
+    assert "ntfy" in locked_services(on)
+    assert "ntfy" not in locked_services(off)
+
+
+def test_a_lan_ntfy_server_is_published_to_the_network_beside_the_web() -> None:
+    # The base file publishes loopback only, as for the web: phones on the LAN
+    # reach the server on the host, a proxy or Caddy reaches it from the host.
+    parsed = _render(_public(Exposure.LAN, ntfy_server=True))
+    assert parsed["services"]["ntfy"]["ports"] == [f"{NTFY_HOST_PORT}:80"]
+    for exposure in (Exposure.PROXY, Exposure.CADDY):
+        assert "ntfy" not in _render(_public(exposure, ntfy_server=True))["services"]
+    assert "ntfy" not in _render(_public(Exposure.LAN))["services"]
+
+
+def test_the_base_file_publishes_ntfy_on_the_installers_port_loopback_only() -> None:
+    from scripts.install.compose import BASE_COMPOSE
+    from scripts.install.tests.conftest import REPO_ROOT
+
+    services = yaml.safe_load((REPO_ROOT / BASE_COMPOSE).read_text(encoding="utf-8"))["services"]
+    assert services["ntfy"]["ports"] == [f"127.0.0.1:{NTFY_HOST_PORT}:80"]
+
+
+def test_caddy_serves_the_ntfy_domain_only_when_the_server_runs() -> None:
+    served = render_caddyfile(_public(Exposure.CADDY, ntfy_server=True))
+    assert re.search(r"^ntfy\.example\.org \{\n\treverse_proxy ntfy:80\n\}$", served, re.M)
+    assert "lia.example.org" in served and "api.example.org" in served
+    alone = render_caddyfile(_public(Exposure.CADDY))
+    assert "ntfy" not in alone
 
 
 def test_the_instance_web_search_starts_its_profile_on_a_pinned_image() -> None:
@@ -256,7 +305,13 @@ def test_every_profile_names_exactly_the_services_it_starts() -> None:
         assert set(names) == declared, profile
     for observability in (False, True):
         for web_search in (False, True):
-            invocation = build_invocation(
-                _public(observability=observability, web_search=web_search), root=Path(".")
-            )
-            assert set(invocation.profiles) <= set(PROFILE_SERVICES)
+            for ntfy_server in (False, True):
+                invocation = build_invocation(
+                    _public(
+                        observability=observability,
+                        web_search=web_search,
+                        ntfy_server=ntfy_server,
+                    ),
+                    root=Path("."),
+                )
+                assert set(invocation.profiles) <= set(PROFILE_SERVICES)

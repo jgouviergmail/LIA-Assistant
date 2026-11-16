@@ -11,7 +11,9 @@ from uuid import uuid4
 import pytest
 
 import src.domains.telephony.owner_call as oc
+from src.core.conversation_target import ConversationOrigin
 from src.core.i18n_telephony import get_return_phrases
+from src.domains.conversations.return_target import ReturnTarget
 from src.domains.telephony.models import (
     CallKind,
     NotificationStatus,
@@ -31,6 +33,7 @@ def _call(*, call_mode: str = "direct") -> SimpleNamespace:
         objective="catch-up",
         callee_display="Alex",
         call_kind=CallKind.SELF,
+        origin=None,
         call_mode=call_mode,
         initiated_at=datetime(2026, 9, 20, 10, 0, tzinfo=UTC),
     )
@@ -335,9 +338,9 @@ def _install_live(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
         captured["detached"] = user_id
         return True
 
-    class _Conversations:
-        async def get_or_create_conversation(self, _user_id, _db, *, language):  # noqa: ANN001
-            return SimpleNamespace(id=conversation_id)
+    async def _target(db, owner_id, origin, *, language):  # noqa: ANN001
+        captured["target_origin"] = origin
+        return ReturnTarget(conversation_id, None)
 
     async def _close(db, **kwargs):  # noqa: ANN001
         captured["close"] = kwargs
@@ -347,7 +350,7 @@ def _install_live(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
         raise AssertionError("a Live call synthesises and relays nothing")
 
     monkeypatch.setattr(oc, "detach_live_tools", _detach)
-    monkeypatch.setattr(oc, "ConversationService", _Conversations)
+    monkeypatch.setattr(oc, "return_target", _target)
     monkeypatch.setattr(oc, "close_voice_session", _close)
     monkeypatch.setattr(oc, "synthesize_relay", _never)
     monkeypatch.setattr(oc, "run_relay", _never)
@@ -499,3 +502,50 @@ async def test_a_live_call_that_lost_the_claim_touches_nothing(
     )
     assert "detached" not in captured
     assert "close" not in captured
+
+
+@pytest.mark.unit
+async def test_a_direct_call_relays_in_the_discussion_it_was_placed_from(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The person's words come back as their turn where they asked for the call."""
+    captured = _install(monkeypatch)
+    call = _call()
+    call.origin = ConversationOrigin(uuid4(), 6)
+
+    await oc.process_owner_call(
+        db=object(),
+        repo=_Repo(),  # type: ignore[arg-type]
+        call=call,  # type: ignore[arg-type]
+        payload=_payload(),
+        user=SimpleNamespace(id=call.user_id),
+        language="fr",
+        user_timezone="Europe/Paris",
+        status=PhoneCallStatus.COMPLETED,
+        call_seconds=Decimal("90"),
+    )
+
+    assert captured["relay_request"].origin == call.origin
+
+
+@pytest.mark.unit
+async def test_a_live_call_closes_where_it_returns(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The card and the voice rows go where the call's requests ran: its origin."""
+    captured = _install_live(monkeypatch)
+    call = _call(call_mode="delegated")
+    call.origin = ConversationOrigin(uuid4(), 2)
+
+    await oc.process_owner_call(
+        db=object(),
+        repo=_Repo(),  # type: ignore[arg-type]
+        call=call,  # type: ignore[arg-type]
+        payload=_live_payload(),
+        user=SimpleNamespace(id=call.user_id, memory_enabled=False),
+        language="fr",
+        user_timezone="Europe/Paris",
+        status=PhoneCallStatus.COMPLETED,
+        call_seconds=Decimal("30"),
+    )
+
+    assert captured["target_origin"] == call.origin
+    assert captured["close"]["session"].conversation_id == captured["conversation_id"]

@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 import structlog
 from fastapi import status
 
+from src.core.constants import CALENDAR_LIST_PAGE_MAX, CALENDAR_WINDOW_READ_MAX
 from src.core.exceptions import ConnectorAPIError
 from src.core.i18n_api_messages import APIMessages
 from src.core.wall_time import WallTime
@@ -36,6 +37,7 @@ from src.domains.connectors.clients.event_bounds import (
     EventBounds,
     TimedSides,
 )
+from src.domains.connectors.clients.event_order import soonest_first
 from src.domains.connectors.clients.normalizers.graph_paging import (
     graph_page_params,
     graph_page_token,
@@ -68,7 +70,8 @@ _EVENT_SELECT_FIELDS = (
     "isOnlineMeeting,onlineMeeting"
 )
 
-_CALENDAR_SELECT_FIELDS = "id,name,color,isDefaultCalendar,canEdit,isRemovable"
+#: ``canShare`` is how Graph says the account OWNS a calendar: only its creator may share it.
+_CALENDAR_SELECT_FIELDS = "id,name,color,isDefaultCalendar,canEdit,canShare,isRemovable"
 
 #: What a move copies. Graph writes the rest itself, or the event has none (see the refusals).
 _COPIED_FIELDS: Final = (
@@ -140,9 +143,10 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
             show_hidden: Include hidden calendars (no-op for Microsoft).
 
         Returns:
-            Dict with 'items' list of calendar metadata in Google format.
+            Dict with 'items' list of calendar metadata in Google format, and
+            ``truncated``: Graph's next link says the listing holds more.
         """
-        max_results = min(max_results, 250)
+        max_results = min(max_results, CALENDAR_LIST_PAGE_MAX)
 
         params: dict[str, Any] = {
             "$top": max_results,
@@ -152,14 +156,16 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         response = await self._make_request("GET", "/me/calendars", params)
 
         items = [normalize_graph_calendar(cal) for cal in response.get("value", [])]
+        truncated = bool(response.get("@odata.nextLink"))
 
         logger.info(
             "microsoft_calendar_list_retrieved",
             user_id=str(self.user_id),
             count=len(items),
+            truncated=truncated,
         )
 
-        return {"items": items}
+        return {"items": items, "truncated": truncated}
 
     async def list_events(
         self,
@@ -171,67 +177,71 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         fields: list[str] | None = None,
     ) -> dict[str, Any]:
         """
-        List calendar events with optional filters.
+        The soonest events of a window, in start order, and whether it holds more.
 
-        Uses /me/calendarView when time range is provided (expands recurrences).
-        Falls back to /me/events otherwise.
+        A window is read through ``calendarView`` (occurrences expanded), which
+        promises no order and takes no ``$orderby``: a ``$top`` alone would keep an
+        arbitrary N of a busy window. So every match of the window is read, pages
+        drained and bounded (``CALENDAR_WINDOW_READ_MAX``), Graph filtering the
+        subject, then sorted and cut, the cut said (ADR-185 amendment 2026-11-15).
+        Without a window, ``/events`` orders by start itself.
 
         Args:
             time_min: Start time filter (ISO format).
             time_max: End time filter (ISO format).
-            max_results: Maximum events to return.
+            max_results: Most events returned, never past the per-request ceiling.
             calendar_id: Calendar ID ("primary" → default calendar).
-            query: Free text search query.
+            query: Words the subject must contain (case ignored).
             fields: Field projection (unused, kept for interface compatibility).
 
         Returns:
-            Dict with 'items' list of events in Google Calendar format.
+            Dict with 'items' list of events in Google Calendar format, and
+            ``truncated`` (the window holds more than the answer).
         """
         # Enforce the global per-request volumetry ceiling (centralized cap).
         max_results = apply_max_items_limit(max_results)
 
-        params: dict[str, Any] = {
-            "$top": max_results,
-            "$select": _EVENT_SELECT_FIELDS,
-            "$orderby": "start/dateTime",
-        }
-
-        if query:
-            # OData string literals escape single quotes by doubling them;
-            # unescaped apostrophes make the Graph API reject the filter (400).
-            escaped_query = query.replace("'", "''")
-            params["$filter"] = f"contains(subject, '{escaped_query}')"
-
-        # Use calendarView for time range queries (expands recurrences)
         if time_min and time_max:
-            params["startDateTime"] = time_min
-            params["endDateTime"] = time_max
-
-            if calendar_id == "primary":
-                endpoint = "/me/calendarView"
-            else:
-                endpoint = f"/me/calendars/{_segment(calendar_id)}/calendarView"
-            # calendarView doesn't support $orderby, remove it
-            params.pop("$orderby", None)
+            window = await self._calendar_view(
+                calendar_id,
+                time_min,
+                time_max,
+                bound=CALENDAR_WINDOW_READ_MAX,
+                subject_contains=query,
+            )
+            ordered = soonest_first(window["events"])
+            items = ordered[:max_results]
+            truncated = len(ordered) > max_results or bool(window["truncated"])
         else:
-            if calendar_id == "primary":
-                endpoint = "/me/calendar/events"
-            else:
-                endpoint = f"/me/calendars/{_segment(calendar_id)}/events"
-
-        response = await self._make_request("GET", endpoint, params)
-
-        items = [normalize_graph_event(evt) for evt in response.get("value", [])]
+            params: dict[str, Any] = {
+                "$top": max_results,
+                "$select": _EVENT_SELECT_FIELDS,
+                "$orderby": "start/dateTime",
+            }
+            if query:
+                # OData string literals escape single quotes by doubling them;
+                # unescaped apostrophes make the Graph API reject the filter (400).
+                escaped_query = query.replace("'", "''")
+                params["$filter"] = f"contains(subject, '{escaped_query}')"
+            endpoint = (
+                "/me/calendar/events"
+                if calendar_id == "primary"
+                else f"/me/calendars/{_segment(calendar_id)}/events"
+            )
+            response = await self._make_request("GET", endpoint, params)
+            items = [normalize_graph_event(evt) for evt in response.get("value", [])]
+            truncated = bool(response.get("@odata.nextLink"))
 
         logger.info(
             "microsoft_calendar_events_listed",
             user_id=str(self.user_id),
             count=len(items),
+            truncated=truncated,
             # A query is a name, a subject or an address: content, never INFO.
             has_query=bool(query),
         )
 
-        return {"items": items}
+        return {"items": items, "truncated": truncated}
 
     async def get_event(
         self,
@@ -409,7 +419,13 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         return normalize_graph_event(response)
 
     async def list_events_window(
-        self, calendar_id: str, time_min: str, time_max: str, *, bound: int
+        self,
+        calendar_id: str,
+        time_min: str,
+        time_max: str,
+        *,
+        bound: int,
+        fields: list[str] | None = None,
     ) -> dict[str, Any]:
         """Every event of a window — occurrences expanded — up to ``bound`` (ADR-369).
 
@@ -417,10 +433,30 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         client's OWN host with its own parameters, the link's skip value alone
         carried over (``graph_paging``): a link is never where the person's
         token is sent. A link that cannot be continued, or one past
-        ``_WINDOW_MAX_PAGES`` pages, is a cut, and says so.
+        ``_WINDOW_MAX_PAGES`` pages, is a cut, and says so. ``fields`` is accepted
+        for parity and unused: Graph reads the client's own ``$select``.
 
         Returns:
             ``{"events": [...], "truncated": bool}``.
+        """
+        return await self._calendar_view(calendar_id, time_min, time_max, bound=bound)
+
+    async def _calendar_view(
+        self,
+        calendar_id: str,
+        time_min: str,
+        time_max: str,
+        *,
+        bound: int,
+        subject_contains: str | None = None,
+    ) -> dict[str, Any]:
+        """The window's events, pages drained up to ``bound``, Graph filtering the subject.
+
+        The filter stays server-side: matching words over a year of a busy
+        calendar locally would read every event of it to keep a handful.
+
+        Returns:
+            ``{"events": [...], "truncated": bool}``, in Graph's (unspecified) order.
         """
         endpoint = (
             "/me/calendarView"
@@ -433,6 +469,11 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
             "$top": min(_WINDOW_PAGE_SIZE, bound + 1),
             "$select": _EVENT_SELECT_FIELDS,
         }
+        if subject_contains:
+            # OData string literals escape single quotes by doubling them;
+            # unescaped apostrophes make the Graph API reject the filter (400).
+            escaped = subject_contains.replace("'", "''")
+            params["$filter"] = f"contains(subject, '{escaped}')"
         raw: list[dict[str, Any]] = []
         token: str | None = None
         more = False

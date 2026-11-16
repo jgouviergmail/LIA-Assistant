@@ -31,6 +31,7 @@ from src.domains.connectors.clients.protocols import EmailClientProtocol
 from src.domains.connectors.models import ConnectorType
 from src.domains.tool_assists.door import AssistRun
 from src.domains.tool_assists.llm import ask_slot, assist_line
+from src.domains.tool_assists.shown_words import words_as_shown
 from src.domains.tool_assists.text import WrittenText, translate_text
 from src.domains.workbench.calls import provider_call
 from src.domains.workbench.clients import open_tool_client
@@ -63,6 +64,19 @@ async def read_message(run: AssistRun, opened: ActiveClient, message_id: str) ->
     return message
 
 
+async def read_as_shown(run: AssistRun, opened: ActiveClient, message_id: str) -> dict[str, Any]:
+    """The message as its reader shows it, for a model asked about it (owner, 2026-11-14).
+
+    Its body is the words of its original layout when it has one (``shown_words``); the rest is
+    the mailbox's. A copy: the mailbox's own message is never rewritten.
+    """
+    message = await read_message(run, opened, message_id)
+    client: EmailClientProtocol = opened.client
+    async with run.reading(), provider_call(_TOOL, "read_html", act=False):
+        words = await words_as_shown(client, message_id, str(message.get(FIELD_BODY) or ""))
+    return {**message, FIELD_BODY: words}
+
+
 async def summarize_message(run: AssistRun, message_id: str) -> EmailDigest:
     """The digest of a message: what the assistant holds, else one short call.
 
@@ -82,7 +96,7 @@ async def summarize_message(run: AssistRun, message_id: str) -> EmailDigest:
         )
         if held is not None:
             return held
-        message = await read_message(run, opened, message_id)
+        message = await read_as_shown(run, opened, message_id)
     await EmailDigestService().digest_many(
         user_id=str(run.user_id), emails=[message], language=run.language, config=run.config
     )
@@ -119,7 +133,7 @@ async def propose_reply(
         BaseAPIException: The message cannot be read, or no usable answer came.
     """
     async with open_tool_client(_TOOL, run.user_id) as opened:
-        original = await read_message(run, opened, message_id)
+        original = await read_as_shown(run, opened, message_id)
         # What the person already answered to it, read whole (ADR-379): fail-open.
         async with run.reading(), provider_call(_TOOL, "read_conversation", act=False):
             previous = await previous_reply_of(
@@ -135,8 +149,6 @@ async def propose_reply(
         user_language=run.language,
         user_id=str(run.user_id),
         config=run.config,
-        # The person's voice (ADR-383): a style learned now reads their sent mail, filed here.
-        style_reading=run.reading,
     )
     if not words:
         refuse(ASSIST_FAILED)
@@ -171,9 +183,8 @@ async def compose_message(
         run.language,
         config=run.config,
         sender_name=sender_name,
-        # The person's voice (ADR-383): a style learned now reads their sent mail, filed here.
+        # The person's voice (ADR-383): read, never learned while writing.
         user_id=str(run.user_id),
-        style_reading=run.reading,
     )
     subject, body = _one_line(written["subject"]), written.get("body", "").strip()
     if not body:
@@ -223,7 +234,7 @@ async def translate_message(run: AssistRun, message_id: str) -> TranslatedMessag
         The translation, and whether it stopped short of the end.
     """
     async with open_tool_client(_TOOL, run.user_id) as opened:
-        message = await read_message(run, opened, message_id)
+        message = await read_as_shown(run, opened, message_id)
     body = str(message.get(FIELD_BODY) or "").strip()
     if not body:
         refuse(ASSIST_EMPTY)

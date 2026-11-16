@@ -668,7 +668,8 @@
         "apps/api/src/domains/notifications",
         "apps/api/src/domains/push_relay",
         "apps/api/src/infrastructure/external/push_relay_client.py",
-        "apps/api/src/infrastructure/notification_devices.py"
+        "apps/api/src/infrastructure/notification_devices.py",
+        "apps/api/src/infrastructure/external/ntfy_client.py"
       ],
       "domains": [
         "notifications",

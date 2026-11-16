@@ -151,10 +151,9 @@ result = await selector.select_tools(
 
 ### LLM du Semantic Pivot
 
-Le **Semantic Pivot** traduit les queries vers l'anglais avant embedding matching.
-Ceci ameliore significativement le matching car le semantic pivot traduit les queries avant le calcul d'embeddings.
+Par défaut, l'analyseur de requête reçoit la requête d'origine et écrit lui-même sa version anglaise (`english_query`), qui alimente le matching anglais en aval. Le **Semantic Pivot**, un appel LLM de traduction dédié lancé avant l'analyseur, ne tourne plus que si `SEMANTIC_PIVOT_ENABLED=true` : son A/B du 14/11/2026 (580 requêtes appariées, 14 langues, trois familles de modèles) n'a mesuré aucun gain de routage, pour un appel de modèle de plus par tour.
 
-Il est le poste `semantic_pivot` : ses valeurs par defaut sont dans `LLM_DEFAULTS` (`apps/api/src/domains/llm_config/constants.py`) et un administrateur les remplace dans Settings > Administration > LLM Configuration. Aucune variable d'environnement ne le configure.
+Allumé, il est le poste `semantic_pivot` : ses valeurs par defaut sont dans `LLM_DEFAULTS` (`apps/api/src/domains/llm_config/constants.py`) et un administrateur les remplace dans Settings > Administration > LLM Configuration. Aucune variable d'environnement ne configure son modèle.
 
 ### Thresholds (Code)
 
@@ -191,7 +190,7 @@ EMBEDDING_DIMENSIONS = 1536
 
 Les tools définissent leurs `semantic_keywords` dans leurs manifestes pour améliorer le matching sémantique.
 
-**IMPORTANT** : Les keywords doivent être en **anglais uniquement**. Le semantic pivot traduit automatiquement les requêtes non-anglaises avant le calcul d'embeddings OpenAI. Une requête française comme "mes emails récents" correspondra correctement au keyword anglais "recent emails" grâce à cette traduction automatique.
+**IMPORTANT** : Les keywords doivent être en **anglais uniquement**. L'analyseur de requête écrit une version anglaise de chaque requête (`english_query`), et c'est elle que le matching compare aux keywords. Une requête française comme "mes emails récents" correspondra correctement au keyword anglais "recent emails" grâce à cette version anglaise.
 
 ### Example: Email Tool
 
@@ -230,7 +229,7 @@ get_emails_catalogue_manifest = ToolManifest(
 
 ### Best Practices for Keywords
 
-1. **English Only** : Tous les keywords en anglais (le semantic pivot gère le multilingual via traduction automatique)
+1. **English Only** : Tous les keywords en anglais (la version anglaise écrite par l'analyseur gère le multilingue)
 2. **Include action + noun** : "search emails", "find contacts", "get calendar events"
 3. **Add variations** : "email", "mail", "message" - couvrir les synonymes courants
 4. **Natural language phrases** : Inclure des phrases comme l'utilisateur pourrait les dire

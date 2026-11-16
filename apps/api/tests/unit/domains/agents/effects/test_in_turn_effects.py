@@ -5,7 +5,6 @@ what came back, through the same ledger the gate uses."""
 from __future__ import annotations
 
 import uuid
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -16,6 +15,7 @@ from src.domains.agents.effects.in_turn_effects import (
     SANDBOX_NETWORK_CAPABILITY,
     in_turn_effect,
 )
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = pytest.mark.unit
 
@@ -37,7 +37,7 @@ class _Ledger:
 
 @pytest.fixture
 def context() -> Any:
-    ctx = SimpleNamespace(
+    ctx = make_runtime_context(
         user_id=uuid.uuid4(),
         thread_id="thread-A",
         execution_mode="react",

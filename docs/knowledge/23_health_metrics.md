@@ -1,96 +1,69 @@
-# Health Metrics — ingestion + assistant integrations
+# Health data
 
-## What are Health Metrics?
+## What is the “Health data” section?
 
-A feature that lets you push heart-rate and step-count measurements to LIA from any source — the documented, simplest path is an iPhone Shortcuts automation pushing Apple Health, but any system that can issue a signed HTTP call (Android automation, personal script, compatible IoT) can feed the ingestion API. A unified per-user toggle exposes those measurements to the assistant's three central loops — conversation, proactivity, and introspection.
+A dedicated ingestion API that accepts heart-rate and step measurements from **any source**: iPhone Shortcuts automation (the documented primary use case), Android scripts, third-party integrations, or compatible IoT devices. Ingestion works in **batches** (up to 1000 samples per request), each measurement carrying its own `date_start` / `date_end` interval. Your data is visualized in **Settings → Features → Health data** as a line chart (HR) and bar chart (steps), with a period selector (hour / day / week / month / year), a dashed line for the period average, and the actual aggregation window displayed in the statistics.
 
-**Design principle**: LIA acts as the storage and visualization layer; the producer is whatever you wire in. The endpoints are authenticated by a per-user token (never a session cookie) so automations can run unattended. Ingestion is **batch-based** rather than continuous push — each sample carries its own `date_start` / `date_end`, and the Shortcut (or equivalent) ships the day's samples in one payload whenever it fires (on unlock or at a fixed time).
+## How do I set up my iPhone to push data?
 
-## What gets sent
+**1. Generate a token** from **Settings → Features → Health data → Ingestion API**. The token starts with `hm_` and is shown *once* only — copy it immediately. The same token authenticates both endpoints (steps + heart rate).
+**2. Create two iOS Shortcuts** (one per kind) that fetch the day's Apple Health samples and send them in the format below.
+**3. Schedule an automation** — on iPhone unlock or at a fixed time — that runs both Shortcuts. Re-sending the same day is free: the server deduplicates automatically.
 
-Each request is an **array of self-timestamped samples**. One endpoint per measurement kind:
+**📤 The request:**
+• `POST https://your-lia-domain/api/v1/ingest/health/steps` for steps, `POST https://your-lia-domain/api/v1/ingest/health/heart_rate` for heart rate
+• headers: `Authorization: Bearer hm_…` and `Content-Type: application/json`
+• body: a JSON array of samples, up to 1,000 per request; `{"data": [...]}`, a single sample or one JSON sample per line (NDJSON) are accepted too
 
-```
-POST /api/v1/ingest/health/steps
-[
-  {"date_start": "2026-04-21T06:00:00+02:00",
-   "date_end":   "2026-04-21T07:00:00+02:00",
-   "steps": 1234, "o": "iphone"},
-  ...
-]
-```
+**📋 Each sample:**
+• `date_start` and `date_end` (required): start and end of the measured interval, as ISO 8601 text **with a timezone** — for example `2026-04-21T06:00:00+02:00`, or the `Z` suffix for UTC; a date without a timezone is rejected
+• `steps` for steps, `heart_rate` for heart rate in bpm (required): an integer
+• `o` (optional): where the sample comes from, for example `iphone`
 
-```
-POST /api/v1/ingest/health/heart_rate
-[
-  {"date_start": "2026-04-21T06:15:00+02:00",
-   "date_end":   "2026-04-21T06:15:30+02:00",
-   "heart_rate": 72, "o": "iphone"},
-  ...
-]
-```
+**💡 Example (steps):**
+`[{"date_start": "2026-04-21T06:00:00+02:00", "date_end": "2026-04-21T07:00:00+02:00", "steps": 1234, "o": "iphone"}]`
+For heart rate, replace `steps` with `heart_rate`.
 
-- `date_start` / `date_end` — ISO 8601 with timezone offset; the server UTC-normalizes and truncates to the second (idempotency key).
-- `steps` / `heart_rate` — the scalar value for the interval (integer).
-- `o` — origin label (free text, slugified server-side; defaults to `iphone`).
+**✅ The response:**
+`{"received": 1, "inserted": 1, "updated": 0, "rejected": []}`: every rejected sample is listed in `rejected` with its index and reason, the others are stored. An unreadable body returns `400`, an invalid token `401`, an oversized batch `413` and too frequent sends `429`.
 
-The parser accepts four envelope shapes to absorb iOS Shortcut authoring variations: canonical JSON array, NDJSON, `{"data": [...]}`, and the "Dictionary" wrapping where the NDJSON is encoded as the sole key of an outer dict with an empty value.
+👉 Step-by-step guide: `docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md`.
 
-Up to 1,000 samples per request. The response — `{"received": 1, "inserted": 1, "updated": 0, "rejected": []}` — lists every rejected sample with its index and reason while the others are stored; an unreadable body returns 400, an invalid token 401, an oversized batch 413 and too frequent sends 429.
+## What data is sent and stored?
 
-## Where to find it
+Each request is an **array of self-timestamped samples**, in the format detailed in “How do I set up my iPhone to push data?”:
+• for steps: `{date_start, date_end, steps, o}` — the measurement interval and the step count over it
+• for heart rate: `{date_start, date_end, heart_rate, o}` — the interval and the bpm value
 
-**Settings → Features → Health data**. Five sub-sections behind one collapsible card:
+The server UTC-normalizes dates and applies **per-sample physiological validation**: HR outside [20, 250] bpm or steps outside [0, 15,000] are individually rejected with their index and a bounded reason (valid siblings in the same batch persist). When Apple Watch and iPhone measure the same period, LIA merges them intelligently: **MAX** for steps, **rounded average** for heart rate. No raw values are ever logged by the server.
 
-1. **Ingestion API** — two URLs (steps + heart_rate) to paste into your iPhone Shortcuts, list of your tokens, button to generate a new one or revoke an existing one.
-2. **Assistant** — a single toggle that opts your health data into the assistant's agents, proactive notifications, memory extractor, and journal consolidation. **Default: off**. No health data ever reaches the LLM when this is off.
-3. **Charts** — heart-rate line chart + steps bar chart. A period selector at the top (hour / day / week / month / year) drives both. A dashed reference line shows the period average.
-4. **Statistics** — period-wide aggregates: HR avg / min / max, average steps per day, total steps over the period. The actual aggregation window (from/to) is displayed so you can tell which data is being summarized.
-5. **Data management** — three deletion buttons: delete all heart rates, delete all steps, or wipe everything. Tokens are not affected by data deletion.
+## How do I delete my health data?
 
-## Token security
+In **Settings → Features → Health data → Data management** three actions are available:
 
-- The raw token is shown **only once** at generation time. Copy it immediately. After that, only an 8-character display prefix (`hm_xxxxxxxx…`) remains visible.
-- The server stores a SHA-256 hash. Nobody (not even an admin) can recover the raw value after creation.
-- A token only authorizes the ingestion endpoints. It cannot read your account or perform any other action.
-- The same token works for both `/steps` and `/heart_rate`.
-- You can hold multiple tokens at once (one per device, for example). Each one is revocable independently from the UI.
-- Rate limit: **60 requests per hour per token** (Redis sliding window, configurable). Batch size cap: 1000 samples per request (HTTP 413 beyond).
+- **Delete heart rates**: deletes every heart-rate measurement (steps preserved).
+- **Delete steps**: deletes every step measurement (HR preserved).
+- **Delete**: erases every measurement permanently (your ingestion tokens remain active).
 
-## Validation and deduplication
+If you delete your LIA account, all health data is wiped automatically (SQL cascade).
 
-### Per-sample validation (mixed)
+## Is my token safe if intercepted?
 
-Each sample is validated independently against physiological bounds (configurable in `.env`):
+No: anyone who obtains the token can send health samples into your account until you revoke it. The token only permits health-data ingestion; it cannot read your account or perform other actions.
 
-| Field | Default range | Out-of-range behavior |
-| ----- | ------------- | --------------------- |
-| `heart_rate` | [20, 250] bpm | individual sample rejected with `out_of_range:above_max` or `:below_min` |
-| `steps` | [0, 15 000] per sample | same |
+Generate and revoke tokens in **Settings → Health data → Ingestion API**. The full token is shown only once; afterwards only its identifying prefix remains visible. The server stores its hash, not the token itself. You can issue separate tokens for your devices and revoke each independently.
 
-Other bounded rejection reasons: `malformed`, `missing_field`, `invalid_date`. The response lists `rejected[{index, reason}]` so the client knows exactly which samples were dropped and why. Valid siblings in the same batch persist — one bad sample never kills the day.
+If a token is exposed, revoke it and replace it in your automation. Keeping a hash on the server does not protect a token copied elsewhere.
 
-The raw values are never written to logs (GDPR-aware): only the reason label is captured for observability.
+## How do I ask LIA about my health data?
 
-### Intra-batch dedupe (per-kind arbitrage)
+Enable the **Settings → Health data → Assistant** toggle (off by default, *opt-in*). While off, no health data ever reaches the LLM. Once on, you can:
 
-iOS legitimately emits overlapping samples when the Apple Watch and iPhone both report the same interval. PostgreSQL's `ON CONFLICT DO UPDATE` refuses to touch the same target row twice per statement, so the server fuses intra-batch duplicates on `(date_start, date_end)` before the UPSERT:
+- **Ask factual questions in chat**: “How many steps today?”, “My heart rate this week?”, “Steps day by day over the last 7 days?”, “Am I walking less than usual?”, “Anything unusual in my health lately?”. LIA answers with factual figures (totals, averages, deltas vs baseline) — never medical diagnosis.
+- **Receive proactive notifications** that combine health + weather + calendar (“Sunny today and 4 days of inactivity → short walk?”).
+- **Enrich your memories and internal journals** with biometric context at capture time (only deltas and trends — never raw values).
 
-- `steps` → **MAX** across the group (Watch and iPhone count complementary subsets of movement; MAX approximates ground truth better than SUM double-count or AVG under-count).
-- `heart_rate` → **AVG** rounded to the nearest int (two sensors aim at the same physiological signal; averaging is the most honest fusion).
-
-Collapsed duplicates are reported as `updated` in the response and tracked via the Prometheus counter `health_samples_batch_duplicates_total{kind}`.
-
-### Idempotent upsert
-
-The uniqueness key is `(user_id, kind, date_start, date_end)`. Re-sending the same sample overwrites `value` + `source` + `updated_at` — so the Shortcut can safely re-push the same day every unlock without creating duplicates.
-
-## Charts
-
-• **Heart rate**: a line of the average in each slot of the period, with a dashed line at the period average. The minimum and maximum appear in the **Statistics** panel, not on the chart.
-• **Steps**: a bar with the total of each slot, with a dashed line at the average steps per day over the period.
-• **Statistics panel**: shows the actual aggregation window (for example "Apr 21 18:00 → Apr 22 18:00"), so you can see which range is being summarised.
-• Tooltips follow the light or dark theme.
+A single switch governs these 4 integrations. The 28-day rolling baseline qualifies comparisons honestly (“based on only N days of data” while history is under 7 days).
 
 ## Why do my health charts show gaps, and why don't the statistics change with the period?
 
@@ -101,53 +74,13 @@ The charts draw **one slot per unit** of the period you pick: hourly over the la
 
 The **Statistics** — average, minimum and maximum heart rate, average steps per day, total steps — summarise the range written under them as the **Aggregation window**. If all your measurements fit in the shortest range, the figures stay the same whatever the period: nothing is wrong, there is simply no older data. With nothing to show, the chart says **No data for this period**.
 
-## How to set up the iPhone Shortcut
+## Are my steps counted twice if I wear an Apple Watch?
 
-The end-to-end procedure is documented in [`docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md`](../guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md). High-level summary:
+No. The Shortcut sends the samples of all your devices: the iPhone in your pocket and the Apple Watch on your wrist count the same walk, over intervals that overlap. LIA counts each slice of time once, at the highest rate a device measured — the history already received included. There is nothing to set.
 
-1. Generate a token in Settings (copy it once).
-2. Create **two** Shortcuts: one that fetches the day's step samples from Apple Health and POSTs the JSON array to `/api/v1/ingest/health/steps`, and one that does the same for heart_rate and POSTs to `/api/v1/ingest/health/heart_rate`. Both use `Authorization: Bearer hm_xxx`.
-3. Schedule via Shortcuts → Automation: run both on iPhone unlock or at a fixed time (or both). Re-sending the same day is free.
+Days are yours: today, the daily bars, the averages and the comparisons start at midnight in your account’s timezone. A small gap with the Health app remains possible: the steps taken since the Shortcut’s last send are not in LIA yet, and Health keeps one device per period by its source priority.
 
-## Privacy by design
+## Further reading
 
-- Health data is GDPR special-category (article 9). LIA stores only what the iPhone sends and never logs raw values.
-- Encryption at rest is handled by PostgreSQL standard volume encryption.
-- Right to erasure: per-kind delete + full delete from the UI. Deleting your account also erases all your health data and health-ingestion tokens (the account deletion service purges them explicitly), and a device that was sending health data can no longer ingest afterward.
-- No data is shared with third parties — everything stays in the LIA database.
-- **Opt-in gated downstream**: the **Assistant** toggle defaults to *off*. Until enabled, the assistant's agents, Heartbeat, memory extractor, and journal consolidation never touch your health samples.
-- **No raw values in downstream artifacts**: when assistant integrations are on, memories, journals, and Heartbeat signals carry **deltas / trends / events only** — never raw bpm / step counts. Raw integers remain in `health_samples` where GDPR erasure applies.
-
-## What the assistant can do with your health data
-
-When the **Assistant** toggle is on:
-
-1. **Ask it questions in chat**. A single `health_agent` owns seven hand-crafted tools covering steps (summary / breakdown / baseline), heart rate (summary / baseline), and cross-kind overview + change-detection. Typical questions:
-   - Steps — "How many steps today?", "Steps cette semaine ?", "Show my last 10 days", "Am I walking less than usual?"
-   - Heart rate — "What's my avg heart rate this week?", "Is my HR higher than usual?"
-   - Overview — "How's my health today?", "Anything unusual this week?"
-
-   Responses are factual (numbers + trends). The assistant never diagnoses. Summary + overview tools take ISO 8601 `time_min` / `time_max` bounds (same pattern as `calendar_tools.search_events_tool`): LIA resolves temporal phrases like "this week" or "last month" into concrete date ranges before the planner runs, so the tool receives exact start/end dates. Defaults when omitted: today 00:00 UTC → now.
-2. **Proactive notifications (Heartbeat)**. LIA injects a compact health signals block into its proactive-messaging context — baseline deltas, recent variations, inactivity streaks — so it can time a reminder when you've been inactive for 4 days, or frame a rebond combining weather + health.
-3. **Memory introspection**. When LIA extracts a durable memory from a conversation with significant emotional charge, it may attach a compact `context_biometric` blob to the memory (baseline deltas at that moment). Future recalls carry the biometric frame as context — never the raw values.
-4. **Journal consolidation**. LIA's internal operational journal can factor health signals into reflections ("the user has been less active this week — revisit my assumptions about their routine"). Never diagnostic.
-
-**Adaptive baseline**. The first ~7 days of data use a `bootstrap` mode (median of all available days) — LIA always qualifies statements with "based on only N days of data". Past 7 days, it switches to a `rolling` 28-day median.
-
-## Adding a new kind (developer reference)
-
-Adding a new kind (e.g. `sleep_duration`, `spo2`, `calories_burned`) is a single-file edit in the central `HEALTH_KINDS` registry plus a per-kind tool pack. See `docs/technical/HEALTH_METRICS.md` for the checklist. The service, repository, aggregator, heartbeat, memory, and journal pipelines iterate the registry — no code change needed in those modules.
-
-## Known limitations
-
-- The polymorphic single-table storage supports scalar measurements only. A future `workout` kind carrying multiple scalars would need a different schema (JSON column or a second table).
-- The iOS "Dictionary" wrapping detection is heuristic (single key with embedded newline + empty value). If Apple ever changes the shape, the parser needs an update. The NDJSON fallback catches most degenerate cases.
-- The chart `Hour` view defaults to the last 24 hours; coarser views default to: 7 days (Day), 12 weeks (Week), 365 days (Month), 5 years (Year).
-
-## Related references
-
-- ADR-076 — Health Metrics Ingestion via Per-User Tokens (revised 2026-04-21 for the polymorphic batch refactor)
-- `docs/technical/HEALTH_METRICS.md` — full technical documentation
-- `docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md` — step-by-step iPhone setup guide
-- Settings page: `apps/web/src/components/settings/HealthMetricsSettings.tsx`
-- Backend domain: `apps/api/src/domains/health_metrics/`
+- [Health data technical reference](../technical/HEALTH_METRICS.md)
+- [iPhone Shortcuts setup guide](../guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md)

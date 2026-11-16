@@ -32,6 +32,7 @@ from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n import get_language_name, normalize_language
 from src.core.i18n_telephony import get_return_phrases
 from src.core.llm_config_helper import get_llm_config_for_agent
+from src.domains.telephony.call_facts import CallFacts, read_call_facts, unreachable_notice
 from src.domains.telephony.call_notifications import dispatch_call_notification
 from src.domains.telephony.models import CallKind, PhoneCallOutcome, PhoneCallStatus
 from src.domains.telephony.payload import (
@@ -112,13 +113,19 @@ def _render_context(
     structured: StructuredCallData,
     language: str,
     user_timezone: str,
+    facts: CallFacts | None = None,
 ) -> str:
-    """Build the CONTEXT block (data as a HumanMessage — avoids .format brace traps)."""
+    """Build the CONTEXT block (data as a HumanMessage — avoids .format brace traps).
+
+    The provider's facts (status, a voicemail message left) come first after
+    the clock: the synthesis states them, never infers them from prose.
+    """
     language_name = get_language_name(language)
     parts = [
         f"LANGUAGE: {language_name} ({language}). Write EVERYTHING you output "
         f"ENTIRELY in {language_name}.",
         current_datetime_line(user_timezone),
+        *([facts.context_line()] if facts is not None else []),
         f"OBJECTIVE: {objective}",
         f"CALLEE: {callee_display}",
         f"SUMMARY: {transcript_summary or '(none provided)'}",
@@ -146,6 +153,7 @@ async def synthesize_return(
     user_timezone: str,
     user_id: UUID | None = None,
     call_id: UUID | None = None,
+    facts: CallFacts | None = None,
 ) -> tuple[ReturnProposal, SynthUsage | None]:
     """Single tool-less LLM call → factual ``summary`` + first-person ``proposal_text``.
 
@@ -175,6 +183,7 @@ async def synthesize_return(
         structured=structured_data,
         language=user_language,
         user_timezone=user_timezone,
+        facts=facts,
     )
     llm = get_llm(_LLM_TYPE)
     provider = get_llm_config_for_agent(settings, _LLM_TYPE).provider
@@ -330,6 +339,7 @@ async def _synthesize_with_fallback(
     user_timezone: str,
     fallback_phrase: str,
     user_id: UUID | None = None,
+    facts: CallFacts | None = None,
 ) -> tuple[ReturnProposal, SynthUsage | None]:
     """Run the synthesis; a failure returns the localized failure notice.
 
@@ -347,12 +357,61 @@ async def _synthesize_with_fallback(
             user_timezone=user_timezone,
             user_id=user_id,
             call_id=call_id,
+            facts=facts,
         )
     except Exception as exc:  # noqa: BLE001 — synthesis must not lose the call
         logger.warning(
             "telephony_synthesis_failed", call_id=str(call_id), error_type=type(exc).__name__
         )
         return ReturnProposal(summary=fallback_phrase, proposal_text=fallback_phrase), None
+
+
+async def _proposal_for(
+    *,
+    call: Any,
+    payload: dict[str, Any],
+    structured: StructuredCallData,
+    language: str,
+    user_timezone: str,
+    generic_fallback: str,
+) -> tuple[ReturnProposal, SynthUsage | None]:
+    """The return of a third-party call: its facts said plainly, or its synthesis.
+
+    A call that reached nobody to talk to is told what happened from the
+    provider's own record (a voicemail and whether the message was left, no
+    answer, a failed line). When nothing at all was heard from the other side
+    there is nothing to synthesise and no model is asked; otherwise the
+    synthesis receives the facts, and its failure falls back to that same
+    sentence — the generic refusal only remains for a call that connected.
+
+    Args:
+        call: The active call row.
+        payload: The post-call webhook payload.
+        structured: The minimized outcome the provider extracted.
+        language: The account's backend-canonical language.
+        user_timezone: The account's IANA zone.
+        generic_fallback: The refusal of a connected call whose synthesis failed.
+
+    Returns:
+        The proposal to deliver and the synthesis usage (None when no model ran).
+    """
+    facts = read_call_facts(payload)
+    notice = unreachable_notice(facts, callee=call.callee_display, language=language)
+    if notice is not None and not facts.callee_spoke:
+        return ReturnProposal(summary=notice, proposal_text=notice), None
+    return await _synthesize_with_fallback(
+        call_id=call.id,
+        transcript=extract_transcript_text(payload),
+        transcript_summary=extract_transcript_summary(payload),
+        structured=structured,
+        objective=call.objective,
+        callee_display=call.callee_display,
+        language=language,
+        user_timezone=user_timezone,
+        fallback_phrase=notice or generic_fallback,
+        user_id=call.user_id,
+        facts=facts,
+    )
 
 
 async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None:
@@ -404,22 +463,16 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
             telephony_calls_total.labels(status=status.value).inc()
             logger.info("telephony_verification_call_closed", call_id=str(call_id))
             return
-        transcript_summary = extract_transcript_summary(payload)
-        transcript = extract_transcript_text(payload)
         structured = _extract_structured(payload)
         phrases = get_return_phrases(language)
 
-        proposal, usage = await _synthesize_with_fallback(
-            call_id=call_id,
-            transcript=transcript,
-            transcript_summary=transcript_summary,
+        proposal, usage = await _proposal_for(
+            call=call,
+            payload=payload,
             structured=structured,
-            objective=call.objective,
-            callee_display=call.callee_display,
             language=language,
             user_timezone=user_timezone,
-            fallback_phrase=phrases["fallback"],
-            user_id=call.user_id,
+            generic_fallback=phrases["fallback"],
         )
 
         # P14 — append the deterministic appointment suggestion BEFORE arming
@@ -485,6 +538,8 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
                 # Durable or nothing (AC-003): the outbox row stays PENDING for the
                 # reaper unless the return reached a channel the person finds later.
                 require_durable=True,
+                # Back to the discussion the call was placed from (ADR-378).
+                origin=call.origin,
             )
         except Exception as exc:  # noqa: BLE001 — a dispatch failure must NOT lose the return
             # The call result + PENDING outbox record are already committed; leave

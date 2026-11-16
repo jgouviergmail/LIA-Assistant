@@ -2,9 +2,11 @@
 
 from datetime import date, timedelta
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from pydantic import AwareDatetime, StrictFloat, StrictInt
 
+from src.core.local_day import local_midnight
 from src.domains.health_metrics.kinds import HEALTH_KINDS
 from src.domains.health_metrics.schemas import HealthMetricAggregateResponse
 from src.domains.shared.discussion_sources import (
@@ -17,11 +19,15 @@ from src.domains.shared.discussion_sources import (
 
 
 class HealthDay(DiscussionValue):
-    """One day's aggregate of one health metric, over the samples available only."""
+    """One local day's aggregate of one health metric, over the samples available only.
+
+    ``timezone`` names the zone the day is cut in — the person's, so ``day`` is
+    the calendar day they lived (ADR-148 amendment 2026-11-14).
+    """
 
     day: date
     kind: str
-    timezone: Literal["UTC"] = "UTC"
+    timezone: str
     unit: str
     metrics: dict[str, StrictInt | StrictFloat]
     interval_start: AwareDatetime
@@ -32,15 +38,17 @@ class HealthDay(DiscussionValue):
 
 
 def daily_evidence(
-    chart: HealthMetricAggregateResponse, request: SourceReadRequest
+    chart: HealthMetricAggregateResponse, request: SourceReadRequest, zone: ZoneInfo
 ) -> tuple[DiscussionEvidence, ...]:
     """Project a metric's daily aggregates into observed evidence, newest day first.
 
-    A day without samples is skipped; a partial day says so.
+    A day without samples is skipped; a partial day says so. A day ends at the
+    next local midnight, read off the calendar: 29 March lasts 23 hours in Paris.
 
     Args:
-        chart: The metric's daily aggregates.
+        chart: The metric's daily aggregates, bucketed in ``zone``.
         request: The read.
+        zone: The person's zone, where the chart's days were cut.
 
     Returns:
         The evidence, one per day with data.
@@ -49,17 +57,20 @@ def daily_evidence(
     for point in reversed(chart.points):
         if not point.has_data:
             continue
-        day_end = point.bucket + timedelta(days=1)
-        start, end = max(point.bucket, chart.from_ts), min(day_end, chart.to_ts)
+        day = point.bucket.astimezone(zone).date()
+        day_start = local_midnight(day, zone)
+        day_end = local_midnight(day + timedelta(days=1), zone)
+        start, end = max(day_start, chart.from_ts), min(day_end, chart.to_ts)
         for kind, metrics in sorted((point.metrics_by_kind or {}).items()):
             frame = HealthDay(
-                day=point.bucket.date(),
+                day=day,
                 kind=kind,
+                timezone=zone.key,
                 unit=HEALTH_KINDS[kind].unit,
                 metrics=metrics,
                 interval_start=start,
                 interval_end=end,
-                full_day_window=start == point.bucket and end == day_end,
+                full_day_window=start == day_start and end == day_end,
             )
             excerpt = frame.model_dump_json()
             if len(excerpt) > request.item_max_chars:

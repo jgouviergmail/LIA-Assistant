@@ -13,7 +13,7 @@ from __future__ import annotations
 import uuid
 from typing import Final
 
-__all__ = ["ATTACHMENT_PATH_PREFIX", "attachment_url"]
+__all__ = ["ATTACHMENT_PATH_PREFIX", "attachment_id_from_url", "attachment_url"]
 
 #: The route ``GET /api/v1/attachments/{attachment_id}`` serves, as a prefix —
 #: also the prefix a proxied photo URL is allowed to carry.
@@ -30,3 +30,21 @@ def attachment_url(attachment_id: uuid.UUID | str) -> str:
         ``/api/v1/attachments/{id}``.
     """
     return f"{ATTACHMENT_PATH_PREFIX}{attachment_id}"
+
+
+def attachment_id_from_url(url: str) -> uuid.UUID | None:
+    """The stored file a wire path names, read back (a channel sends the file itself).
+
+    Args:
+        url: A card's URL.
+
+    Returns:
+        The attachment id of an ``/api/v1/attachments/{id}`` path, None for any
+        other URL (a provider's, a sub-route of the attachments router).
+    """
+    if not url.startswith(ATTACHMENT_PATH_PREFIX):
+        return None
+    try:
+        return uuid.UUID(url.removeprefix(ATTACHMENT_PATH_PREFIX))
+    except ValueError:
+        return None

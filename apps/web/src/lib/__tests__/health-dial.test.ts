@@ -4,7 +4,14 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { bandArc, bandOf, dialPosition, HEALTH_SCALES, toneOf } from '../health-dial';
+import {
+  bandArc,
+  bandOf,
+  dialPosition,
+  HEALTH_SCALES,
+  heartBeatPeriod,
+  toneOf,
+} from '../health-dial';
 
 const { steps, heart_rate: heart } = HEALTH_SCALES;
 
@@ -55,5 +62,27 @@ describe('the bands as drawn', () => {
     expect(third?.to).toBe(1);
     expect(first?.to).toBeLessThan(second?.from ?? 0);
     expect(second?.to).toBeLessThan(third?.from ?? 0);
+  });
+});
+
+describe('the heartbeat a figure keeps', () => {
+  it.each([
+    [30, 2],
+    [60, 1],
+    [75, 0.8],
+    [220, 60 / 220],
+  ])('beats %d bpm once every %f seconds', (bpm, period) => {
+    expect(heartBeatPeriod('heart_rate', bpm)).toBeCloseTo(period, 6);
+  });
+
+  it.each([null, 0, 29.9, 220.1, Number.NaN, Number.POSITIVE_INFINITY])(
+    'tells no rhythm for a pulse no heart beats at: %s',
+    value => {
+      expect(heartBeatPeriod('heart_rate', value)).toBeNull();
+    }
+  );
+
+  it('never beats the steps', () => {
+    expect(heartBeatPeriod('steps', 72)).toBeNull();
   });
 });

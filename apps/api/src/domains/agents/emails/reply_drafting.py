@@ -135,7 +135,6 @@ async def draft_reply_body(
     user_id: str | None,
     config: RunnableConfig | None,
     previous_reply: PreviousReply | None = None,
-    style_reading: writing_style.Reading | None = None,
 ) -> str:
     """Write the reply to ``original`` the person will find in their drafts.
 
@@ -144,12 +143,10 @@ async def draft_reply_body(
         instruction: What the person said the reply should say, if anything.
         sender_name: The person's first name, for a signature they asked for.
         user_language: The language when the received e-mail's is unclear.
-        user_id: The account, for both spending ceilings (ADR-272).
+        user_id: The account, for both spending ceilings (ADR-272) and its writing style.
         config: The turn's RunnableConfig — it carries the tracking callback.
         previous_reply: What the person already answered to it, when the mailbox says
             they did: the new reply continues from it (ADR-379).
-        style_reading: How a caller outside a turn files a read of the person's mailbox,
-            should their writing style have to be learned first (ADR-383).
 
     Returns:
         The reply's own words, stripped (possibly empty: the caller refuses it).
@@ -158,7 +155,7 @@ async def draft_reply_body(
         StructuredOutputError: The model gave no usable answer.
         UsageLimitExceededError: A spending ceiling refused the call.
     """
-    style = await writing_style.writing_style_for(user_id, config=config, reading=style_reading)
+    style = await writing_style.writing_style_for(user_id)
     rendered = load_prompt("mailbox_reply_draft_prompt").format(
         instruction=instruction or "",
         original=received_as_external(original),

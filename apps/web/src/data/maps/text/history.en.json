@@ -2005,8 +2005,8 @@
     },
     "383": {
       "title": "A draft speaks in the person's voice",
-      "summary": "Two people answering the same e-mail used to get the same reply from LIA. The first time LIA writes an e-mail for you, it now learns how you write from your latest sent e-mails — greeting, sign-off, signature, tone, never what you wrote about — and follows it in every reply and new message, including the reply you confirm, which LIA now writes itself when you did not dictate its words. You read, switch off or forget it in the settings. Measured on fictional people before the code was written: replies went from about 42 to 63 marks of their author's style out of 66, without a single fact copied from past mail.",
-      "src": "34665c9462e6"
+      "summary": "Two people answering the same e-mail used to get the same reply from LIA. LIA now learns how you write from your latest sent e-mails — greeting, sign-off, signature, tone, never what you wrote about — when you ask it, in the settings or in a conversation, and follows it in every reply and new message. Words you dictated are sent as they are; any other text, even one the assistant drafted, goes through LIA's writer, which writes it in your voice. Measured on fictional people before the code was written: replies went from about 42 to 63 marks of their author's style out of 66, without a single fact copied from past mail.",
+      "src": "bbbcacec799d"
     },
     "384": {
       "title": "A message written while LIA works waits its turn",
@@ -2032,6 +2032,21 @@
       "title": "Documents use what their formats can do",
       "summary": "A document LIA generates now uses its format's own mechanisms: a spreadsheet computes with real formulas, a chart can be edited in Excel or PowerPoint, a deck you will present moves soberly, a report opens on a cover page with its key figures, its figures and its clickable sources. The model says what things are and the renderer draws them, in a palette checked for contrast that follows the document's tone. Illustrations are generated images: they come only if you allow them in Settings › Documents, within a budget, and each one is counted in your costs.",
       "src": "825ef1252ca8"
+    },
+    "389": {
+      "title": "Telegram reads and answers like the chat",
+      "summary": "On Telegram, LIA answered less well than in the app: headings and tables arrived raw, a photo, a document or a location got no answer, and a message written while she worked was lost. Now one door shapes everything sent to Telegram, the /stop command stops the answer in progress, a message written meanwhile waits its turn, a location becomes yours for the question asked and files travel both ways. A voice note gets a spoken answer when your voice comments are on, and your routines' results arrive there too.",
+      "src": "f4add347a30e"
+    },
+    "390": {
+      "title": "The automatic mode chooses the engine per request",
+      "summary": "Beside the Pipeline and ReAct modes, a third choice lets LIA decide for each request. What one plan cannot finish goes to the ReAct loop; otherwise a decision model judges in one call whether the request needs a calculation, a cross-check, open-ended work or someone only an item's text names, and the Pipeline takes over only when none of these is there — in doubt, the loop, because a complete answer comes before a fast one. A small badge under the answer says which engine answered; tickets, routines and Telegram follow the same choice.",
+      "src": "e080272fbb72"
+    },
+    "391": {
+      "title": "ntfy brings the notifications to any device",
+      "summary": "ntfy offers another route for LIA's notifications: each person can subscribe on the instance's server or on a public server whose address is checked before every publication. By default, only a content-free notice leaves; full text is the person's choice, while sensitive topics remain masked. Subscription topics and tokens stay encrypted, because a topic can act as a password.",
+      "src": "6854697b101e"
     }
   }
 }

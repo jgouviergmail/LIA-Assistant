@@ -9,6 +9,7 @@ import type { RAGDocument } from '@/types/rag-spaces';
 export const RAG_DOCUMENT_ERROR_CODES = [
   'file_missing',
   'extraction_failed',
+  'inflates_too_far',
   'scanned_pdf_no_text_layer',
   'no_text_content',
   'no_chunks',

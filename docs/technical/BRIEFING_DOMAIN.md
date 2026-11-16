@@ -463,6 +463,16 @@ synthesis threshold either.
 The mails card lists UNREAD mail, and unread is not unanswered: a message answered from a phone's notification stays unread. Each listed mail carries its
 [reply state](./MAIL_REPLY_STATE.md) (`MailItem.reply_state`), read through the one door while the mailbox is open, for the listed mails alone. The card marks « answered » and withdraws « reply expected »; the greeting and the synthesis read the state beside the qualification (`prompt_cards._project_mails`), a reading of a moment lapsing by itself on a cached card; the radio's journal leaves an answered mail out. A routine's mail condition lists through the same read and opts out (`situate_items=False`): a watch waits for an arrival.
 
+## The unread figure is the mailbox's (2026-11-15)
+
+The figure above the list was the LENGTH of the list (`briefing_max_mails_items`, one page under
+the agents' per-request ceiling), so an inbox holding more read as « 10 unread ». It is now the
+mailbox's own count of unread mail in the inbox (`unread_counts(0)`: the inbox and spam roles
+alone, no label listed, no folder walked), and absent when the mailbox could not tell
+(`MailsData.total_unread_today: int | None`). It is said as the inbox's, never « today's »: the
+card's label, the synthesis (`unread_in_inbox`) and the radio's journal alike (ADR-185 amendment
+2026-11-15).
+
 ## From the home to the Tools (owner, 2026-11-07)
 
 Where the instance offers the « Tools » (ADR-369), a click on an item opens it in its tool, on

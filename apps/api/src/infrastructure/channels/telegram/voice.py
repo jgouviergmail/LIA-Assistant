@@ -11,11 +11,11 @@ Created: 2026-03-03
 
 from __future__ import annotations
 
-from io import BytesIO
 from typing import TYPE_CHECKING
 
 from src.core.config import settings
 from src.core.constants import TELEGRAM_MAX_VOICE_FILE_SIZE, TELEGRAM_VOICE_DECODE_TIMEOUT_SECONDS
+from src.infrastructure.channels.telegram.files import download_file
 from src.infrastructure.media.ffmpeg import FfmpegError, transcode
 from src.infrastructure.observability.logging import get_logger
 
@@ -172,9 +172,10 @@ async def _decode_to_pcm(ogg_bytes: bytes, *, max_seconds: int) -> bytes:
 
 async def _download_voice_file(bot: Bot, file_id: str) -> bytes | None:
     """
-    Download a voice file from Telegram.
+    Download a voice file from Telegram, within the voice note's ceiling.
 
-    Includes file size validation to prevent DoS via memory exhaustion.
+    The bot's one download door (``telegram.files``): the declared size is
+    checked first, the received one after (DoS protection).
 
     Args:
         bot: Telegram Bot instance.
@@ -183,44 +184,4 @@ async def _download_voice_file(bot: Bot, file_id: str) -> bytes | None:
     Returns:
         Raw OGG bytes, or None on failure.
     """
-    try:
-        tg_file = await bot.get_file(file_id)
-
-        # Check file size from Telegram metadata before downloading
-        if tg_file.file_size and tg_file.file_size > TELEGRAM_MAX_VOICE_FILE_SIZE:
-            logger.warning(
-                "telegram_voice_file_too_large",
-                file_id=file_id[:12],
-                file_size=tg_file.file_size,
-                max_size=TELEGRAM_MAX_VOICE_FILE_SIZE,
-            )
-            return None
-
-        buffer = BytesIO()
-        await tg_file.download_to_memory(buffer)
-        ogg_bytes = buffer.getvalue()
-
-        # Double-check actual size after download
-        if len(ogg_bytes) > TELEGRAM_MAX_VOICE_FILE_SIZE:
-            logger.warning(
-                "telegram_voice_download_exceeded_limit",
-                file_id=file_id[:12],
-                actual_size=len(ogg_bytes),
-                max_size=TELEGRAM_MAX_VOICE_FILE_SIZE,
-            )
-            return None
-
-        logger.debug(
-            "telegram_voice_downloaded",
-            file_id=file_id[:12],
-            size_bytes=len(ogg_bytes),
-        )
-        return ogg_bytes
-
-    except Exception:
-        logger.error(
-            "telegram_voice_download_failed",
-            file_id=file_id[:12],
-            exc_info=True,
-        )
-        return None
+    return await download_file(bot, file_id, max_bytes=TELEGRAM_MAX_VOICE_FILE_SIZE)

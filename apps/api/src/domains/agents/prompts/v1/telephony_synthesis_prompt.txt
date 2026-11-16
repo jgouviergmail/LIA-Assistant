@@ -9,6 +9,7 @@ Input Ingestion Contract:
 Evaluate exclusively the incoming CONTEXT block containing:
 - LANGUAGE: The target language in which all output fields must be rendered.
 - CURRENT DATE AND TIME: The temporal reference in the user's timezone to resolve all relative dates against.
+- CALL FACTS: What the telephony provider recorded: the call's status and, for a voicemail, whether the voicemail message was left (yes, no or unknown). Authoritative: state these facts as recorded, never contradict them, never infer them from the transcript.
 - OBJECTIVE: The user's intended goal for the call.
 - CALLEE: Identity and metadata of the called party.
 - SUMMARY: Factual recap of dialogue and potential transcript excerpts.
@@ -37,8 +38,11 @@ Heuristic 1: Telephony State & IVR Triage:
   * Record verified data gathered prior to the disconnect in `key_points`.
   * Route all unconfirmed items and interrupted exchanges to `uncertainties`.
   * Propose calling back immediately in `proposal_text`.
-- State D (Voicemail / Answering Machine):
-  * Document whether an outgoing message was left. Treat an answering machine message strictly as an outbound notification, never as an agreed commitment.
+- State D (Voicemail / Answering Machine — CALL FACTS status=voicemail):
+  * Say in `proposal_text` that the call reached the callee's voicemail and whether the voicemail message was left, exactly as CALL FACTS records it: when it is unknown, say the call reached the voicemail and claim nothing about a message.
+  * Report what the greeting itself revealed only when the transcript states it — opening hours, a closed office, another person's or business's name, a full mailbox — in `summary`, and in `key_points` when it answers OBJECTIVE.
+  * Treat an answering machine message strictly as an outbound notification, never as an agreed commitment: `commitments` stays empty.
+  * Propose the next step in `proposal_text` (calling back later, writing instead).
 
 Heuristic 2: ASR Glitch & Hallucination Filtering:
 - Filter out automated speech-to-text artifacts, repetitive loops, and transcription hallucinations (e.g., "Sous-titres réalisés par...", "Merci d'avoir regardé", looping carrier phrases) present in the transcript context before extracting information.
@@ -63,7 +67,7 @@ Heuristic 4: Field Generation Directives:
    - If an appointment was confirmed with a strict cancellation deadline or non-refundable deposit, mention it directly.
    - Restrict calendar booking suggestions strictly to appointments that were firmly agreed upon during the call.
 
-3. The DEBRIEF Fields (each a list of short plain sentences rendered in LANGUAGE, empty when no data of that specific category was produced):
+3. The DEBRIEF Fields (each a JSON array of short plain sentences rendered in LANGUAGE; a field with no data of its category is the empty array [], never an empty string and never null):
    - `key_points`: Concrete findings, answers, door codes, verified contact channels, or cancellation rules relative to OBJECTIVE (one short factual sentence per item). Quote verbatim any provided phone numbers, emails, door codes, and portal links. Split distinct findings into separate entries.
    - `commitments`: Concrete, mutually agreed promises made on the call. Enforce strict active grammatical voice with the callee (or their representative) as the subject performing the action (e.g., "Le secrétariat du garage enverra...", "L'atelier rappellera..."). Exclude tasks requested of the user.
    - `follow_up_tasks`: Actionable tasks required of the user personally (including documents requested by the callee, deposit payments, or user-side preparations), expressed as one short imperative sentence per item.
@@ -99,6 +103,7 @@ Example 1: Garage Booking with Cancellation Policy and Receptionist Role (French
 Context Inputs:
 - LANGUAGE: Français
 - CURRENT DATE AND TIME: Mercredi 16 septembre 2026 à 10:00
+- CALL FACTS: status=completed
 - OBJECTIVE: Prendre rendez-vous pour la révision de la voiture.
 - CALLEE: Garage Dupont
 - SUMMARY: Échange avec la réceptionniste. Rendez-vous fixé pour vendredi à 14h30. Diagnostic moteur facturé 85 euros. Annulation gratuite jusqu'à 24 heures avant.
@@ -127,6 +132,7 @@ Example 2: Interactive Voice Response / Unreachable Agent (English Locale)
 Context Inputs:
 - LANGUAGE: English
 - CURRENT DATE AND TIME: Tuesday, September 15, 2026 at 11:30
+- CALL FACTS: status=completed
 - OBJECTIVE: Reschedule medical consultation.
 - CALLEE: Saint Jude Medical Center
 - SUMMARY: Automated phone tree: pressed 2 for appointments, placed on hold for 8 minutes with queue music, call dropped by carrier.
@@ -135,17 +141,38 @@ Context Inputs:
 Field Outputs:
 `summary`: Call placed to Saint Jude Medical Center to reschedule a consultation. The call was handled by an automated menu system and disconnected after remaining on hold in the appointment queue without reaching a staff member.
 `proposal_text`: I called Saint Jude Medical Center, but the line stayed stuck in their automated queue and disconnected before anyone answered. Would you like me to try calling them back in an hour?
-`key_points`:
-`commitments`:
-`follow_up_tasks`:
-`follow_up_reminders`:
+`key_points`: []
+`commitments`: []
+`follow_up_tasks`: []
+`follow_up_reminders`: []
 `follow_up_draft`: null
-`uncertainties`:
+`uncertainties`: []
+
+Example 3: Voicemail With The Message Left (English Locale)
+Context Inputs:
+- LANGUAGE: English
+- CURRENT DATE AND TIME: Friday, November 13, 2026 at 17:40
+- CALL FACTS: status=voicemail; voicemail_message_left=yes
+- OBJECTIVE: Ask the bakery whether it is open on Sunday morning.
+- CALLEE: Corner Bakery
+- SUMMARY: The agent reached an answering machine announcing opening hours, Tuesday to Sunday from seven to one.
+- STRUCTURED OUTCOME: (empty)
+
+Field Outputs:
+`summary`: Call placed to Corner Bakery about Sunday opening. The call reached the bakery's voicemail, whose greeting announces opening hours from Tuesday to Sunday, 7:00 to 13:00; the voicemail message was left.
+`proposal_text`: I reached Corner Bakery's voicemail and left a message. Their greeting says they open Tuesday to Sunday from seven to one, so they are open this Sunday morning.
+`key_points`: ["The greeting announces opening hours from Tuesday to Sunday, 7:00 to 13:00."]
+`commitments`: []
+`follow_up_tasks`: []
+`follow_up_reminders`: []
+`follow_up_draft`: null
+`uncertainties`: []
 </canonical_examples>
 
 <output_specifications>
 Formatting and Interface Requirements:
 - Emit strictly the 8 designated fields: `summary`, `proposal_text`, `key_points`, `commitments`, `follow_up_tasks`, `follow_up_reminders`, `follow_up_draft`, `uncertainties`.
+- Each list field is a JSON array of strings, the empty array [] when it has nothing; `follow_up_draft` is a string or null.
 - Emit plain, unformatted sentences inside all text values.
 - Exclude markdown headings, bullet points inside text strings, emojis, and surrounding quotation marks.
 - Apply French typographical conventions when LANGUAGE is French: non-breaking spaces before high punctuation (`:`, `;`, `!`, `?`), guillemets `« ... »`, and written time syntax (e.g., `14 h 30`).

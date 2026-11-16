@@ -24,6 +24,7 @@ from src.domains.agents.application.meeting_report_update_editing import rebuild
 from src.domains.agents.application.meeting_retry_editing import rebuild_meeting_retry
 from src.domains.agents.application.meeting_template_editing import rebuild_meeting_template
 from src.domains.agents.application.meeting_transcript_editing import rebuild_transcript_deletion
+from src.domains.agents.application.memory_import_editing import rebuild_memory_import
 from src.domains.agents.application.people_editors import PEOPLE_EDITORS
 from src.domains.agents.application.personal_mcp_configuration_editing import (
     rebuild_personal_mcp_configuration,
@@ -51,6 +52,7 @@ from src.domains.agents.application.skill_delete_editing import rebuild_skill_de
 from src.domains.agents.application.skill_download_editing import rebuild_skill_download
 from src.domains.agents.application.skill_file_upload_editing import rebuild_skill_file_upload
 from src.domains.agents.application.skill_library_import_editing import rebuild_library_import
+from src.domains.agents.application.skill_restore_editing import rebuild_skill_restore
 from src.domains.agents.application.skill_update_editing import rebuild_skill_update
 from src.domains.agents.application.skill_url_import_editing import rebuild_skill_url_import
 from src.domains.agents.application.source_delete_editing import rebuild_source_deletion
@@ -98,6 +100,8 @@ MANAGEMENT_EDITORS = {
     "personal_mcp.configuration": rebuild_personal_mcp_configuration,
     "personal_mcp.oauth_authorize": rebuild_personal_mcp_oauth,
     "skill_settings.delete": rebuild_skill_delete,
+    "skill_settings.restore_previous": rebuild_skill_restore,
+    "memories.import": rebuild_memory_import,
     "plugin.delete": rebuild_plugin_delete,
     "plugin_url.import": rebuild_plugin_url_import,
     "plugin_file.upload": rebuild_plugin_file_upload,

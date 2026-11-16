@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterator
-from types import SimpleNamespace
 from typing import Annotated, Any
 from unittest.mock import AsyncMock, patch
 
@@ -28,6 +27,7 @@ from typing_extensions import TypedDict
 from src.domains.agents.effects import runtime as gate_runtime
 from src.domains.agents.effects.integrity import IntegrityKind
 from src.domains.agents.effects.treatments import collected_treatments, treatment_collector
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -56,7 +56,7 @@ class _TurnState(TypedDict):
 @pytest.fixture(autouse=True)
 def _running_turn() -> Any:
     gate_runtime.reset_policy_cache()
-    turn = SimpleNamespace(
+    turn = make_runtime_context(
         user_id="11111111-1111-4111-8111-111111111111",
         thread_id="thread-1",
         execution_mode="pipeline",

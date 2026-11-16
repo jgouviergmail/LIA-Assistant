@@ -6,7 +6,7 @@ and managing FCM tokens.
 """
 
 import asyncio
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
@@ -15,13 +15,15 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import PUSH_RELAY_HANDLE_PREFIX
+from src.core.constants import DELIVERY_RETRY_AFTER_DEFAULT_SECONDS, PUSH_RELAY_HANDLE_PREFIX
+from src.core.notification_privacy import PRIVATE_NOTIFICATION_MARKER, NotificationPrivacy
 from src.domains.notifications.delivery_payload import build_message, classify_failure
 from src.domains.notifications.device_commands import (
     NotificationDeviceSnapshot,
     delete_notification_device,
 )
 from src.domains.notifications.models import UserFCMToken
+from src.domains.notifications.ntfy_delivery import NtfyBatch, push_to_ntfy
 from src.domains.notifications.repository import FCMTokenRepository
 from src.infrastructure.external.push_relay_client import PushRelayClient
 
@@ -66,7 +68,7 @@ class FCMSendResult:
     token_invalid: bool = False
     error_code: str | None = None
     retryable: bool = False
-    retry_after_seconds: int = 60
+    retry_after_seconds: int = DELIVERY_RETRY_AFTER_DEFAULT_SECONDS
 
 
 @dataclass
@@ -266,17 +268,20 @@ class FCMNotificationService:
         image_url: str | None = None,
     ) -> FCMBatchResult:
         """
-        Send notification to all user's active devices.
+        Send notification to all user's active devices, and to their ntfy topics.
+
+        Every push of a person starts here, so ntfy is published to here, once (ADR-391):
+        a publication a server accepted counts as delivered, like a push.
 
         Args:
             user_id: User UUID
             title: Notification title
             body: Notification body
-            data: Optional data payload
+            data: Optional data payload (``url``: the path the notification opens)
             image_url: Optional image URL
 
         Returns:
-            FCMBatchResult with success/failure counts
+            FCMBatchResult with success/failure counts, ntfy's included
         """
         tokens = await self.get_active_tokens(user_id)
 
@@ -284,11 +289,6 @@ class FCMNotificationService:
             # Push enrollment is optional; no device registered is an ordinary
             # unavailable channel, not a failed delivery attempt.
             logger.info("no_active_tokens", user_id=str(user_id))
-            return FCMBatchResult(
-                success_count=0,
-                failure_count=0,
-                results=[],
-            )
 
         results = [
             await self._send_to_token(
@@ -300,24 +300,27 @@ class FCMNotificationService:
             )
             for token in tokens
         ]
+        ntfy = await self._publish_to_ntfy(user_id, title, body, data)
 
         # Every send first, every status write after (ADR-304): a token row
-        # updated between two sends stayed locked while the next device was
-        # being reached.
+        # updated between two sends — or before a topic is published — stayed
+        # locked while the next server was being reached.
         for token, result in zip(tokens, results, strict=True):
             if result.success:
                 await self.repository.update_last_used(token.id)
             elif result.token_invalid:
                 await self.repository.deactivate_token(token.token, result.error)
 
-        success_count = sum(1 for r in results if r.success)
-        failure_count = len(results) - success_count
+        fcm_success = sum(1 for r in results if r.success)
+        success_count = fcm_success + ntfy.sent
+        failure_count = len(results) - fcm_success + ntfy.failed
 
         logger.info(
             "fcm_batch_sent",
             user_id=str(user_id),
             success=success_count,
             failed=failure_count,
+            ntfy_sent=ntfy.sent,
         )
 
         return FCMBatchResult(
@@ -326,12 +329,39 @@ class FCMNotificationService:
             results=results,
         )
 
+    @staticmethod
+    async def _publish_to_ntfy(
+        user_id: UUID, title: str, body: str, data: dict | None
+    ) -> NtfyBatch:
+        """The person's ntfy topics receive what the push shows (ADR-391).
+
+        A topic that fails never unsays the devices: their pushes left, and a caller that saw
+        an exception would send them again.
+        """
+        try:
+            return await push_to_ntfy(
+                user_id,
+                title=title,
+                body=body,
+                click_path=(data or {}).get("url"),
+                privacy=(
+                    NotificationPrivacy.IN_APP_SENSITIVE
+                    if (data or {}).get(PRIVATE_NOTIFICATION_MARKER) == "true"
+                    else NotificationPrivacy.NORMAL
+                ),
+            )
+        except Exception as error:
+            logger.warning("ntfy_push_failed", error_type=type(error).__name__)
+            return NtfyBatch()
+
     async def send_reminder_notification(
         self,
         user_id: UUID,
         title: str,
         body: str,
         reminder_id: str,
+        *,
+        snooze: Mapping[str, str] | None = None,
     ) -> FCMBatchResult:
         """
         Send a reminder notification.
@@ -341,6 +371,8 @@ class FCMNotificationService:
             title: Notification title
             body: Notification body (reminder content)
             reminder_id: Reminder UUID for tracking
+            snooze: The fields that let a web push offer the postponement of the
+                occurrence that rang (ADR-268 amendment 2026-11-16), or None.
 
         Returns:
             FCMBatchResult
@@ -353,6 +385,7 @@ class FCMNotificationService:
                 "type": "reminder",
                 "reminder_id": reminder_id,
                 "click_action": "OPEN_CHAT",
+                **(snooze or {}),
             },
         )
 

@@ -320,6 +320,30 @@ describe('ProviderEmailsSection', () => {
 });
 
 describe('ProviderEventsSection', () => {
+  it('says the window was read in part when it was cut', () => {
+    renderWithProviders(
+      <ProviderEventsSection
+        section={section({ status: 'ok', events: [event()], truncated: true })}
+        windowDays={90}
+        busy={false}
+        onRefresh={vi.fn()}
+      />
+    );
+    expect(screen.getByText('relations.events_window_cut')).toBeInTheDocument();
+  });
+
+  it('says nothing of a cut when the whole window was read', () => {
+    renderWithProviders(
+      <ProviderEventsSection
+        section={section({ status: 'ok', events: [event()] })}
+        windowDays={90}
+        busy={false}
+        onRefresh={vi.fn()}
+      />
+    );
+    expect(screen.queryByText('relations.events_window_cut')).toBeNull();
+  });
+
   it('tells the two roles apart, in words', () => {
     renderWithProviders(
       <ProviderEventsSection
@@ -502,6 +526,28 @@ describe('the one sentence unusable sections may say', () => {
           contact: section({ status: 'ok', contact: CARD }),
           emails: section({ status: 'not_configured' }),
           events: section({ status: 'empty' }),
+        })
+      )
+    ).toBeNull();
+  });
+
+  it('says a cut window that found nothing, since no section is drawn for it', () => {
+    expect(
+      providerNoteKey(
+        context({
+          contact: section({ status: 'ok', contact: CARD }),
+          events: section({ status: 'empty', truncated: true }),
+        })
+      )
+    ).toBe('relations.events_window_cut');
+  });
+
+  it('leaves the cut to the section itself when the section is drawn', () => {
+    expect(
+      providerNoteKey(
+        context({
+          contact: section({ status: 'ok', contact: CARD }),
+          events: section({ status: 'ok', events: [event()], truncated: true }),
         })
       )
     ).toBeNull();

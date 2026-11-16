@@ -360,6 +360,11 @@ export interface ContextSection {
   contact: ContactCard | null;
   emails: ExchangedEmail[];
   events: SharedEvent[];
+  /**
+   * Meetings only: the window held more events than one read takes, so what is
+   * shown was found in part of it (ADR-185). Absent in a cache written before it.
+   */
+  truncated?: boolean;
 }
 
 export interface RelationContext {

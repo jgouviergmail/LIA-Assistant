@@ -9,9 +9,12 @@ secret on a known call, which is a security event.
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager, contextmanager
 from types import SimpleNamespace
 from typing import Any
-from uuid import uuid4
+from unittest.mock import patch
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi import Request
@@ -20,9 +23,13 @@ import src.domains.agents.telephony.live_tools as lmod
 import src.domains.agents.telephony.live_tools_router as rmod
 import src.domains.agents.telephony.voice_lookup as admission
 from src.core.config import settings
+from src.core.conversation_target import ConversationOrigin
 from src.core.exceptions import ForbiddenError, ResourceNotFoundError
 from src.domains.agents.telephony.live_tools import LiveToolSpec, result_lines
+from src.domains.conversations.return_target import ReturnTarget
 from src.domains.telephony.live_tools import LIVE_TOOL_HEADER, LiveToolAuth, LiveToolAuthOutcome
+from src.infrastructure.scheduler.out_of_turn_run import RunContext
+from src.infrastructure.scheduler.voice_delegation import DelegationRequest, DelegationResult
 
 #: A derived list small enough to read: two catalogue tools and the native
 #: memories lookup (lot 8).
@@ -51,15 +58,46 @@ def _request(body: dict[str, Any] | str, *, token: str = "tok") -> Request:
 
 
 class _DB:
+    """Every short session the route opens; ``events`` says when each opened and closed."""
+
     def __init__(self, user: object | None) -> None:
         self.user = user
+        self.events: list[str] = []
 
     async def get(self, _model, _pk):  # noqa: ANN001
         return self.user
 
 
+@contextmanager
+def _sessions_of(db: _DB) -> Iterator[None]:
+    """Serve ``db`` as each session the route opens, logging its life."""
+
+    @asynccontextmanager
+    async def _session() -> AsyncIterator[_DB]:
+        db.events.append("open")
+        try:
+            yield db
+        finally:
+            db.events.append("close")
+
+    with patch.object(rmod, "get_db_context", _session):
+        yield
+
+
+async def _ask_lookup(tool_name: str, request: Request, *, db: _DB) -> dict[str, str]:
+    """Call the lookup route, ``db`` standing for the sessions it opens."""
+    with _sessions_of(db):
+        return await rmod.live_tool_callback(tool_name, request)
+
+
+async def _ask_delegation(request: Request, *, db: _DB) -> dict[str, str]:
+    """Call the delegation route, ``db`` standing for the sessions it opens."""
+    with _sessions_of(db):
+        return await rmod.delegation_callback(request)
+
+
 def _call() -> SimpleNamespace:
-    return SimpleNamespace(id=uuid4(), user_id=uuid4())
+    return SimpleNamespace(id=uuid4(), user_id=uuid4(), origin=None)
 
 
 @pytest.fixture
@@ -119,7 +157,7 @@ def _user(disabled: list[str] | None = None) -> SimpleNamespace:
 async def test_a_valid_callback_runs_the_tool_and_answers_its_text(_wired: dict) -> None:
     call = _wired["auth"].call
     body = {"call_id": str(call.id), "query": "dentist", "max_results": 5}
-    out = await rmod.live_tool_callback("get_events_tool", _request(body), db=_DB(_user()))
+    out = await _ask_lookup("get_events_tool", _request(body), db=_DB(_user()))
     assert out == {"result": "2 events"}
     assert _wired["seen"] == (str(call.id), "tok")
     name, args, kwargs = _wired["ran"][0]
@@ -143,7 +181,7 @@ async def test_the_route_hides_itself_while_the_flag_is_off(
 ) -> None:
     monkeypatch.setattr(settings, "telephony_live_tools_enabled", False)
     with pytest.raises(ResourceNotFoundError):
-        await rmod.live_tool_callback("get_events_tool", _request({"call_id": "x"}), db=_DB(None))
+        await _ask_lookup("get_events_tool", _request({"call_id": "x"}), db=_DB(None))
     assert "seen" not in _wired  # nothing was even looked up
 
 
@@ -156,9 +194,7 @@ async def test_an_unknown_or_unconfigured_call_reads_as_not_found(
 ) -> None:
     _wired["auth"] = LiveToolAuth(outcome)
     with pytest.raises(ResourceNotFoundError):
-        await rmod.live_tool_callback(
-            "get_events_tool", _request({"call_id": str(uuid4())}), db=_DB(None)
-        )
+        await _ask_lookup("get_events_tool", _request({"call_id": str(uuid4())}), db=_DB(None))
     assert _wired["ran"] == []
 
 
@@ -166,7 +202,7 @@ async def test_an_unknown_or_unconfigured_call_reads_as_not_found(
 async def test_a_wrong_secret_on_a_known_call_is_forbidden(_wired: dict) -> None:
     _wired["auth"] = LiveToolAuth(LiveToolAuthOutcome.BAD_SECRET)
     with pytest.raises(ForbiddenError):
-        await rmod.live_tool_callback(
+        await _ask_lookup(
             "get_events_tool", _request({"call_id": str(uuid4())}, token="bad"), db=_DB(None)
         )
 
@@ -174,9 +210,7 @@ async def test_a_wrong_secret_on_a_known_call_is_forbidden(_wired: dict) -> None
 @pytest.mark.unit
 async def test_a_tool_outside_the_allowlist_reads_as_not_found(_wired: dict) -> None:
     with pytest.raises(ResourceNotFoundError):
-        await rmod.live_tool_callback(
-            "send_email_tool", _request({"call_id": str(uuid4())}), db=_DB(_user())
-        )
+        await _ask_lookup("send_email_tool", _request({"call_id": str(uuid4())}), db=_DB(_user()))
     assert _wired["ran"] == []
 
 
@@ -186,9 +220,7 @@ async def test_a_tool_a_capability_switched_off_reads_as_not_found(_wired: dict)
     a capability switch is refused even if its vendor tool still exists."""
     _wired["available"] = tuple(s for s in SPECS if s.name != "get_events_tool")
     with pytest.raises(ResourceNotFoundError):
-        await rmod.live_tool_callback(
-            "get_events_tool", _request({"call_id": str(uuid4())}), db=_DB(_user())
-        )
+        await _ask_lookup("get_events_tool", _request({"call_id": str(uuid4())}), db=_DB(_user()))
 
 
 @pytest.mark.unit
@@ -197,13 +229,13 @@ async def test_a_domain_the_person_switched_off_reads_as_not_found(_wired: dict)
     call-back — a tool still attached by a stale PATCH answers nothing on a
     domain switched off since."""
     with pytest.raises(ResourceNotFoundError):
-        await rmod.live_tool_callback(
+        await _ask_lookup(
             "get_events_tool", _request({"call_id": str(uuid4())}), db=_DB(_user(["event"]))
         )
     assert _wired["disabled_domains"] == frozenset({"event"})
     assert _wired["ran"] == []
     # The memories lookup answers on its own route like any other tool.
-    out = await rmod.live_tool_callback(
+    out = await _ask_lookup(
         "recall_memories", _request({"call_id": str(uuid4()), "query": "tea"}), db=_DB(_user())
     )
     assert out == {"result": "2 events"}
@@ -214,24 +246,20 @@ async def test_a_domain_the_person_switched_off_reads_as_not_found(_wired: dict)
 async def test_the_call_s_owner_names_whose_connectors_decide(_wired: dict) -> None:
     """RC2.1: a tool of a provider the account never connected is not offered."""
     call = _wired["auth"].call
-    await rmod.live_tool_callback(
-        "get_events_tool", _request({"call_id": str(call.id)}), db=_DB(_user())
-    )
+    await _ask_lookup("get_events_tool", _request({"call_id": str(call.id)}), db=_DB(_user()))
     assert _wired["offered_to"] == call.user_id
 
 
 @pytest.mark.unit
 async def test_a_malformed_body_reads_as_not_found(_wired: dict) -> None:
     with pytest.raises(ResourceNotFoundError):
-        await rmod.live_tool_callback("get_events_tool", _request("not json"), db=_DB(None))
+        await _ask_lookup("get_events_tool", _request("not json"), db=_DB(None))
 
 
 @pytest.mark.unit
 async def test_an_exhausted_budget_answers_a_sentence_the_agent_can_say(_wired: dict) -> None:
     _wired["budget"] = False
-    out = await rmod.live_tool_callback(
-        "get_events_tool", _request({"call_id": str(uuid4())}), db=_DB(_user())
-    )
+    out = await _ask_lookup("get_events_tool", _request({"call_id": str(uuid4())}), db=_DB(_user()))
     assert out == {"result": result_lines()["budget_exhausted"]}
     assert _wired["ran"] == []
 
@@ -239,9 +267,7 @@ async def test_an_exhausted_budget_answers_a_sentence_the_agent_can_say(_wired: 
 @pytest.mark.unit
 async def test_a_call_whose_user_vanished_reads_as_not_found(_wired: dict) -> None:
     with pytest.raises(ResourceNotFoundError):
-        await rmod.live_tool_callback(
-            "get_events_tool", _request({"call_id": str(uuid4())}), db=_DB(None)
-        )
+        await _ask_lookup("get_events_tool", _request({"call_id": str(uuid4())}), db=_DB(None))
 
 
 # ---------------------------------------------------------------------------
@@ -276,16 +302,16 @@ def _delegation(_wired: dict, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]
     async def _context(_db, _user_id):  # noqa: ANN001
         return state["context"]
 
-    class _Conversations:
-        async def get_or_create_conversation(self, _user_id, _db, *, language):  # noqa: ANN001
-            return SimpleNamespace(id=uuid4())
+    async def _target(db, owner_id, origin, *, language):  # noqa: ANN001
+        state["target_origin"] = origin
+        return ReturnTarget(uuid4(), None)
 
     async def _delegate(request, *, context):  # noqa: ANN001
         state["delegated"] = (request, context)
         return state["result"]
 
     monkeypatch.setattr(rmod, "resolve_run_context", _context)
-    monkeypatch.setattr(rmod, "ConversationService", _Conversations)
+    monkeypatch.setattr(rmod, "return_target", _target)
     monkeypatch.setattr(rmod, "delegate", _delegate)
     monkeypatch.setattr(settings, "telephony_delegation_timeout_seconds", 90, raising=False)
     return state
@@ -297,7 +323,7 @@ async def test_a_delegation_reaches_the_bridge_and_answers_with_its_note(
 ) -> None:
     call = _wired["auth"].call
     body = {"call_id": str(call.id), "request": "Rappelle-moi la banque demain"}
-    out = await rmod.delegation_callback(_delegation_request(body), db=_DB(_user()))
+    out = await _ask_delegation(_delegation_request(body), db=_DB(_user()))
     assert out == {"result": "C'est noté.", "tone": "warm note"}
     request, context = _delegation["delegated"]
     assert request.request == "Rappelle-moi la banque demain"
@@ -311,6 +337,29 @@ async def test_a_delegation_reaches_the_bridge_and_answers_with_its_note(
 
 
 @pytest.mark.unit
+async def test_a_delegated_request_runs_in_the_discussion_the_call_was_placed_from(
+    _wired: dict, _delegation: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Production 2026-11-14: every Live request of a call ran in Main."""
+    call = _wired["auth"].call
+    annex = uuid4()
+    call.origin = ConversationOrigin(annex, 8)
+
+    async def _annex_target(db, owner_id, origin, *, language):  # noqa: ANN001
+        _delegation["target_origin"] = origin
+        return ReturnTarget(annex, 8)
+
+    monkeypatch.setattr(rmod, "return_target", _annex_target)
+    body = {"call_id": str(call.id), "request": "Rappelle-moi la banque demain"}
+    await _ask_delegation(_delegation_request(body), db=_DB(_user()))
+
+    assert _delegation["target_origin"] == ConversationOrigin(annex, 8)
+    request, _context = _delegation["delegated"]
+    assert request.session.turn_selection.conversation_id == annex
+    assert request.session.turn_selection.conversation_revision == 8
+
+
+@pytest.mark.unit
 async def test_a_result_without_a_note_carries_no_tone_field(
     _wired: dict, _delegation: dict
 ) -> None:
@@ -318,7 +367,7 @@ async def test_a_result_without_a_note_carries_no_tone_field(
 
     _delegation["result"] = DelegationResult(DelegationOutcome.TIMED_OUT, "still working")
     call = _wired["auth"].call
-    out = await rmod.delegation_callback(
+    out = await _ask_delegation(
         _delegation_request({"call_id": str(call.id), "request": "x"}), db=_DB(_user())
     )
     assert out == {"result": "still working"}
@@ -332,7 +381,7 @@ async def test_a_direct_call_reads_as_not_found_on_the_delegation_route(
     call = _wired["auth"].call
     call.call_mode = "direct"
     with pytest.raises(ResourceNotFoundError):
-        await rmod.delegation_callback(
+        await _ask_delegation(
             _delegation_request({"call_id": str(call.id), "request": "x"}), db=_DB(_user())
         )
     assert "delegated" not in _delegation
@@ -347,11 +396,11 @@ async def test_a_request_off_the_message_bound_reads_as_not_found(
     call = _wired["auth"].call
     too_long = "x" * (CHAT_MESSAGE_MAX_LENGTH + 1)
     with pytest.raises(ResourceNotFoundError):
-        await rmod.delegation_callback(
+        await _ask_delegation(
             _delegation_request({"call_id": str(call.id), "request": too_long}), db=_DB(_user())
         )
     with pytest.raises(ResourceNotFoundError):
-        await rmod.delegation_callback(
+        await _ask_delegation(
             _delegation_request({"call_id": str(call.id), "request": 42}), db=_DB(_user())
         )
     assert "delegated" not in _delegation
@@ -363,7 +412,7 @@ async def test_a_wrong_secret_on_the_delegation_route_is_forbidden(
 ) -> None:
     _wired["auth"] = LiveToolAuth(LiveToolAuthOutcome.BAD_SECRET)
     with pytest.raises(ForbiddenError):
-        await rmod.delegation_callback(
+        await _ask_delegation(
             _delegation_request({"call_id": str(uuid4()), "request": "x"}), db=_DB(_user())
         )
 
@@ -375,7 +424,7 @@ async def test_the_delegation_route_needs_no_live_tools_flag(
     """The mode on the row is the switch, not the lookups' flag."""
     monkeypatch.setattr(settings, "telephony_live_tools_enabled", False)
     call = _wired["auth"].call
-    out = await rmod.delegation_callback(
+    out = await _ask_delegation(
         _delegation_request({"call_id": str(call.id), "request": "x"}), db=_DB(_user())
     )
     assert out["result"] == "C'est noté."
@@ -389,8 +438,65 @@ async def test_a_call_that_spent_its_budget_hears_a_sentence_on_the_delegation_r
 
     _wired["budget"] = False
     call = _wired["auth"].call
-    out = await rmod.delegation_callback(
+    out = await _ask_delegation(
         _delegation_request({"call_id": str(call.id), "request": "x"}), db=_DB(_user())
     )
     assert out == {"result": bridge_lines()["budget_exhausted"]}
     assert "delegated" not in _delegation
+
+
+@pytest.mark.unit
+async def test_a_lookup_reaches_its_provider_with_no_session_open(
+    _wired: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR-304: the call and its owner are read, the session closes, then the lookup runs."""
+    call = _wired["auth"].call
+    db = _DB(_user())
+    seen: list[list[str]] = []
+
+    async def _run(spec: LiveToolSpec, args: dict[str, Any], **kwargs: object) -> str:
+        del spec, args, kwargs
+        seen.append(list(db.events))
+        return "2 events"
+
+    monkeypatch.setattr(admission, "run_live_tool", _run)
+    out = await _ask_lookup("get_events_tool", _request({"call_id": str(call.id)}), db=db)
+    assert out == {"result": "2 events"}
+    assert seen == [["open", "close"]]
+
+
+@pytest.mark.unit
+async def test_a_delegated_turn_waits_with_no_session_open(
+    _wired: dict, _delegation: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR-304: neither the budget's Redis nor the delegated turn runs inside a session."""
+    call = _wired["auth"].call
+    db = _DB(_user())
+    at_budget: list[list[str]] = []
+
+    async def _budget(_redis: object, _call_id: UUID, *, limit: int, ttl_seconds: int) -> bool:
+        del limit, ttl_seconds
+        at_budget.append(list(db.events))
+        return True
+
+    async def _delegate(request: DelegationRequest, *, context: RunContext) -> DelegationResult:
+        del request, context
+        _delegation["events_at_turn"] = list(db.events)
+        result: DelegationResult = _delegation["result"]
+        return result
+
+    monkeypatch.setattr(rmod, "consume_live_tool_budget", _budget)
+    monkeypatch.setattr(rmod, "delegate", _delegate)
+    body = {"call_id": str(call.id), "request": "Rappelle-moi la banque demain"}
+    await _ask_delegation(_delegation_request(body), db=db)
+    assert at_budget == [["open", "close"]]
+    assert _delegation["events_at_turn"] == ["open", "close", "open", "close"]
+
+
+@pytest.mark.unit
+def test_neither_route_takes_a_request_session() -> None:
+    """A request-scoped session would live as long as the response, waits included."""
+    import inspect
+
+    for route in (rmod.live_tool_callback, rmod.delegation_callback):
+        assert "db" not in inspect.signature(route).parameters

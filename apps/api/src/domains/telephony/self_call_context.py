@@ -37,8 +37,11 @@ from zoneinfo import ZoneInfo
 import structlog
 
 from src.core.config import settings
+from src.core.constants import CALENDAR_WINDOW_READ_MAX
 from src.core.i18n_telephony import get_context_headings
 from src.core.time_utils import format_datetime_for_display
+from src.domains.connectors.clients.calendar_lists import read_owned_events
+from src.domains.connectors.clients.event_order import soonest_first
 from src.domains.shared.consultation_surfaces import record_surface_consultations
 from src.domains.telephony.budget import fit_lines, token_count
 
@@ -102,16 +105,18 @@ async def _fetch_agenda(user_id: UUID, *, timezone: str, language: str) -> list[
     async with open_active_calendar(user_id) as access:
         if isinstance(access, CalendarUnavailable):
             return None
-        result = await access.client.list_events(
-            time_min=now.isoformat(),
-            time_max=(now + timedelta(hours=_AGENDA_LOOKAHEAD_HOURS)).isoformat(),
-            max_results=_MAX_LINES_PER_SECTION,
-            calendar_id=access.calendar_id,
+        # Every calendar the account owns, the default first: an invitation sits in
+        # the main calendar (``calendar_lists``, owner rule 2026-11-15).
+        owned = await read_owned_events(
+            access.client,
+            access.calendar_id,
+            [(now.isoformat(), (now + timedelta(hours=_AGENDA_LOOKAHEAD_HOURS)).isoformat())],
+            bound=CALENDAR_WINDOW_READ_MAX,
             fields=["id", "summary", "start", "end", "location"],
         )
     tz = ZoneInfo(timezone)
     lines: list[str] = []
-    for raw in result.get("items", []) or []:
+    for raw in soonest_first(owned.events)[:_MAX_LINES_PER_SECTION]:
         item = format_agenda_event(raw, tz, language)
         where = f" ({item.location})" if getattr(item, "location", None) else ""
         end = f"-{item.end_local}" if item.end_local else ""

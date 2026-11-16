@@ -26,10 +26,13 @@ logger = get_logger(__name__)
 #: The registry selection the response model writes at character 0. Parsed here,
 #: and never shown or spoken while it streams (agents/services/streaming/machine_tags.py).
 RELEVANT_IDS_OPENING: Final = "<relevant_ids>"
-RELEVANT_IDS_CLOSING: Final = "</relevant_ids>"
+#: A selection holds ids, never a « < »: it ends at its FIRST closing tag, whatever
+#: name the model gave it — measured 2026-11-15, a garbled closing name showed the
+#: whole selection to the person. A « < » that opens no closing tag after the ids
+#: means the selection never closed: the text is kept as written, as the stream keeps it.
 _RELEVANT_IDS_PATTERN: Final = re.compile(
-    f"{re.escape(RELEVANT_IDS_OPENING)}(.*?){re.escape(RELEVANT_IDS_CLOSING)}",
-    re.DOTALL | re.IGNORECASE,
+    f"{re.escape(RELEVANT_IDS_OPENING)}([^<]*)</[^<>]*>",
+    re.IGNORECASE,
 )
 #: A declared id this long may be a truncated payload id, matched by its start.
 _TRUNCATED_ID_MIN_LENGTH: Final = 20

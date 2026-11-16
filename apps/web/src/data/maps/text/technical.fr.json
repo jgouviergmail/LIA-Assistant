@@ -78,7 +78,7 @@
     },
     "t.channels": {
       "name": "Canaux de messagerie",
-      "role": "Parler à LIA depuis Telegram et recevoir ses messages ; le webhook du bot est posé par le seul leader de l'ordonnanceur.",
+      "role": "Échanger avec LIA sur Telegram : texte mis en forme, fichiers dans les deux sens, notes vocales, confirmations et arrêt ; le webhook du bot est posé par le seul leader de l'ordonnanceur.",
       "stack": [
         "Telegram",
         "python-telegram-bot"
@@ -161,7 +161,7 @@
     },
     "t.router": {
       "name": "Routeur",
-      "role": "Classe la demande et, depuis un seul embedding, note les domaines pour le planificateur et classe tous les outils pour ReAct.",
+      "role": "Classe la demande, choisit son moteur lorsque le mode automatique est demandé et, depuis un seul embedding, note les domaines pour le planificateur et classe les outils pour ReAct.",
       "stack": [
         "Analyse de requête",
         "Embedding pivot",
@@ -376,11 +376,12 @@
     },
     "t.push": {
       "name": "Notifications push",
-      "role": "Joindre un navigateur ou un téléphone ; sur iOS, un relais ne transporte qu'un identifiant opaque et une phrase sans contenu.",
+      "role": "Joindre un navigateur ou un téléphone, avec ou sans les services Google ; sur iOS, un relais ne transporte qu'un identifiant opaque et une phrase sans contenu.",
       "stack": [
         "Firebase Cloud Messaging",
         "Relais de réveil iOS",
-        "Web Push"
+        "Web Push",
+        "ntfy"
       ]
     },
     "t.scheduler": {

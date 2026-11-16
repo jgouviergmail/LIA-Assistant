@@ -1428,8 +1428,12 @@ class TestProviderClientLifecycle:
     async def test_calendar_client_closed(self):
         from unittest.mock import AsyncMock
 
-        client = self._client(list_events=AsyncMock(return_value={"items": []}))
+        client = self._client(
+            list_calendars=AsyncMock(return_value={"items": [], "truncated": False}),
+            list_events_window=AsyncMock(return_value={"events": [], "truncated": False}),
+        )
         await self._run("_fetch_calendar", client)
+        client.list_events_window.assert_awaited_once()
 
     async def test_tasks_client_closed(self):
         from unittest.mock import AsyncMock
@@ -1683,3 +1687,72 @@ class TestWeatherFeedsTheCompanion:
         _, offer = await self._read(ConnectionError("provider down"))
 
         offer.assert_not_awaited()
+
+
+@pytest.mark.unit
+class TestTheCalendarSourceReadsEveryOwnedCalendar:
+    """The default says where events are created: an invitation sits in the main one."""
+
+    async def test_an_invitation_in_the_main_calendar_reaches_the_decision_first(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from contextlib import asynccontextmanager
+        from typing import Any
+        from unittest.mock import AsyncMock
+        from uuid import uuid4
+
+        from src.core.constants import HEARTBEAT_CONTEXT_CALENDAR_EVENTS_MAX
+        from src.domains.connectors import calendar_access
+
+        now = datetime.now(UTC)
+
+        def event(event_id: str, hours: int) -> dict[str, Any]:
+            start = now + timedelta(hours=hours)
+            return {
+                "id": event_id,
+                "summary": event_id,
+                "start": {"dateTime": start.isoformat()},
+                "end": {"dateTime": (start + timedelta(minutes=30)).isoformat()},
+            }
+
+        held = {
+            "famille": [
+                event(f"famille-{index}", index + 2)
+                for index in range(HEARTBEAT_CONTEXT_CALENDAR_EVENTS_MAX)
+            ],
+            "moi@x.com": [event("invitation", 1)],
+            "collegue@x.com": [event("not-mine", 1)],
+        }
+        client = MagicMock()
+        client.list_calendars = AsyncMock(
+            return_value={
+                "items": [
+                    {"id": "moi@x.com", "accessRole": "owner", "primary": True},
+                    {"id": "famille", "accessRole": "owner"},
+                    {"id": "collegue@x.com", "accessRole": "reader"},
+                ],
+                "truncated": False,
+            }
+        )
+
+        async def window(calendar_id: str, *_: Any, **__: Any) -> dict[str, Any]:
+            return {"events": held.get(calendar_id, []), "truncated": False}
+
+        client.list_events_window = AsyncMock(side_effect=window)
+
+        @asynccontextmanager
+        async def opened(_user_id: Any) -> Any:
+            yield calendar_access.CalendarAccess(client, "famille", "google_calendar")
+
+        monkeypatch.setattr(calendar_access, "open_active_calendar", opened)
+        user = MagicMock()
+        user.timezone = "Europe/Paris"
+
+        events = await ContextAggregator(MagicMock())._fetch_calendar(
+            uuid4(), user, SimpleNamespace(heartbeat_context_calendar_hours=48)
+        )
+
+        assert events is not None
+        assert [item["summary"] for item in events][:2] == ["invitation", "famille-0"]
+        assert len(events) == HEARTBEAT_CONTEXT_CALENDAR_EVENTS_MAX
+        assert "not-mine" not in [item["summary"] for item in events]

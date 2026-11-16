@@ -14,6 +14,10 @@ Architecture (3-phase reference resolution):
 
     Phase 1 and broad memory retrieval run in parallel.
     Phase 2 searches run in parallel via asyncio.gather.
+    The analyzer reads the broad facts alone, so the whole reference chain runs
+    beside the analyzer call (latency lot 1): ``begin`` starts both tracks and
+    hands back a ``PendingMemoryResolution`` its caller joins after the analyzer
+    and always closes.
 
     This produces higher similarity scores than embedding the full query,
     allowing a higher search threshold and less noise.
@@ -76,6 +80,47 @@ class MemoryResolution:
     references: list[str] = field(default_factory=list)
 
 
+class PendingMemoryResolution:
+    """The memory phase of one analysis, running while the analyzer runs.
+
+    It owns its two tasks: :meth:`close` cancels whatever was not consumed and
+    waits for it. Its caller closes it on every exit, cancellation included, so
+    no reference chain keeps spending model calls behind a turn that ended.
+    """
+
+    def __init__(
+        self,
+        facts: asyncio.Task[list[str] | None],
+        chain: asyncio.Task[tuple[list[str], ResolvedReferences | None]],
+    ) -> None:
+        """Hold the two started tracks.
+
+        Args:
+            facts: The broad semantic retrieval.
+            chain: The reference extraction, targeted search and resolution.
+        """
+        self._facts = facts
+        self._chain = chain
+
+    async def facts(self) -> list[str] | None:
+        """The broad memory facts, the only memory input of the analyzer."""
+        return await self._facts
+
+    async def resolution(self) -> MemoryResolution:
+        """Both tracks joined: the facts, the resolved and the extracted references."""
+        facts = await self._facts
+        references, resolved = await self._chain
+        return MemoryResolution(facts=facts, resolved=resolved, references=references)
+
+    async def close(self) -> None:
+        """Cancel the tracks not yet consumed and wait for them."""
+        running = [task for task in (self._facts, self._chain) if not task.done()]
+        for task in running:
+            task.cancel()
+        if running:
+            await asyncio.gather(*running, return_exceptions=True)
+
+
 class MemoryResolver:
     """
     Resolves memory facts and references for query analysis.
@@ -85,18 +130,8 @@ class MemoryResolver:
     2. Targeted resolution: extract references → per-reference search → resolve names
     """
 
-    async def retrieve_and_resolve(
-        self,
-        query: str,
-        user_id: str,
-        config: RunnableConfig,
-    ) -> MemoryResolution:
-        """
-        Retrieve memory facts and resolve references.
-
-        Runs broad retrieval and reference extraction in parallel.
-        If references are found, performs targeted per-reference searches
-        with a higher similarity threshold for precision.
+    def begin(self, query: str, user_id: str, config: RunnableConfig) -> PendingMemoryResolution:
+        """Start the broad retrieval and, beside it, the reference chain.
 
         Args:
             query: User's original query
@@ -104,45 +139,47 @@ class MemoryResolver:
             config: RunnableConfig for callback propagation
 
         Returns:
-            MemoryResolution with facts, resolved references, and the Phase 1
-            extracted references (kept even when resolution yields nothing, as
-            evidence for semantic domain expansion).
+            The running phase; the caller joins it and must close it.
         """
-        # Phase 1 + broad retrieval in parallel
-        memory_facts, references = await asyncio.gather(
-            self._retrieve_memory_facts(query, user_id, config),
-            self._extract_references(query, config),
+        facts = asyncio.create_task(self._retrieve_memory_facts(query, user_id, config))
+        chain = asyncio.create_task(self._reference_chain(query, user_id, config, facts))
+        return PendingMemoryResolution(facts, chain)
+
+    async def _reference_chain(
+        self,
+        query: str,
+        user_id: str,
+        config: RunnableConfig,
+        broad_facts: asyncio.Task[list[str] | None],
+    ) -> tuple[list[str], ResolvedReferences | None]:
+        """Extract the references, then resolve them, targeted facts first.
+
+        Args:
+            query: User's original query
+            user_id: User ID for memory retrieval
+            config: RunnableConfig for callback propagation
+            broad_facts: The broad retrieval, the fallback when targeted search finds nothing.
+
+        Returns:
+            The Phase 1 references (kept even when resolution yields nothing, as
+            evidence for semantic domain expansion) and the resolution, if any.
+        """
+        references = await self._extract_references(query, config)
+        if not references:
+            # No reference → no resolution call (N-97): the extraction already
+            # determined there is nothing to resolve.
+            return references, None
+        targeted_facts = await self._search_memories_targeted(references, user_id, config)
+        if targeted_facts:
+            return references, await self._resolve_memory_references(query, targeted_facts, config)
+        memory_facts = await broad_facts
+        if not memory_facts:
+            return references, None
+        logger.info(
+            "memory_targeted_search_empty_falling_back_to_broad",
+            references_count=len(references),
         )
-
-        resolved_references = None
-
-        if references:
-            # Phase 2: targeted search per reference (parallel)
-            targeted_facts = await self._search_memories_targeted(references, user_id, config)
-
-            if targeted_facts:
-                # Phase 3: resolve using targeted facts
-                resolved_references = await self._resolve_memory_references(
-                    query, targeted_facts, config
-                )
-            elif memory_facts:
-                # Fallback: use broad facts if targeted search found nothing
-                logger.info(
-                    "memory_targeted_search_empty_falling_back_to_broad",
-                    references=references,
-                )
-                resolved_references = await self._resolve_memory_references(
-                    query, memory_facts, config
-                )
-        # No references extracted → skip resolution entirely (N-97). Resolving
-        # broad facts without a reference in the query is a wasted LLM call per
-        # turn: the extraction step already determined there is nothing to resolve.
-
-        return MemoryResolution(
-            facts=memory_facts,
-            resolved=resolved_references,
-            references=references,
-        )
+        return references, await self._resolve_memory_references(query, memory_facts, config)
 
     async def _extract_references(
         self,
@@ -261,8 +298,8 @@ class MemoryResolver:
             except Exception as e:
                 logger.warning(
                     "memory_targeted_search_failed",
-                    reference=ref,
-                    error=str(e),
+                    reference_length=len(ref),
+                    error_type=type(e).__name__,
                 )
                 return []
 
@@ -281,7 +318,7 @@ class MemoryResolver:
         if merged:
             logger.info(
                 "memory_targeted_search_complete",
-                references=references,
+                references_count=len(references),
                 facts_count=len(merged),
             )
 
@@ -408,6 +445,7 @@ def reset_memory_resolver() -> None:
 __all__ = [
     "MemoryResolution",
     "MemoryResolver",
+    "PendingMemoryResolution",
     "get_memory_resolver",
     "reset_memory_resolver",
 ]

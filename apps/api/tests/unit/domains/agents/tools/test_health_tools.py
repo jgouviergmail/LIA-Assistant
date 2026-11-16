@@ -9,8 +9,9 @@ Single ``health_agent`` owns seven tools. Tests cover:
 - Runtime-config failures propagate as ``UnifiedToolOutput``.
 - Service exceptions get wrapped via ``handle_tool_exception``.
 - Argument clamping (days / window_days).
-- ISO 8601 time bound parsing (``_parse_iso_ts``) — date-only, datetime
-  with Z suffix, datetime with offset, malformed → None + warning.
+- Window reading (``_read_window``) through the date contract: a date is a
+  whole day in the user's timezone, an unreadable bound is refused, never
+  replaced (ADR-318, ADR-148 amendment 2026-11-14).
 
 Strategy: patch ``validate_runtime_config``, ``get_db_context``,
 ``_check_user_toggle_or_error``, and ``HealthMetricsService`` so the tool
@@ -20,7 +21,9 @@ functions run without Postgres or a real ToolRuntime.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -60,63 +63,100 @@ def _patch_toggle(return_value: UnifiedToolOutput | None = None):
 
 
 # =============================================================================
-# _parse_iso_ts (pure function, no mocks)
+# _read_window — the date contract, in the user's timezone
 # =============================================================================
 
+PARIS = ZoneInfo("Europe/Paris")
 
-class TestParseIsoTs:
-    """ISO 8601 parsing for ``time_min`` / ``time_max`` inputs."""
 
-    def test_none_returns_none(self) -> None:
-        from src.domains.agents.tools.health_tools import _parse_iso_ts
+def _patch_zone(zone: ZoneInfo = PARIS):
+    return patch("src.domains.agents.tools.health_tools.resolve_user_timezone", return_value=zone)
 
-        assert _parse_iso_ts(None, param="time_min") is None
-        assert _parse_iso_ts("", param="time_min") is None
 
-    def test_date_only_becomes_midnight_utc(self) -> None:
-        """A bare date like ``"2026-04-20"`` -> midnight UTC of that day."""
-        from datetime import UTC, datetime
+class TestReadWindow:
+    """The planner's bounds read by ``read_period`` (ADR-318), days cut at the user's midnight."""
 
-        from src.domains.agents.tools.health_tools import _parse_iso_ts
+    def test_omitted_bounds_stay_open(self) -> None:
+        from src.domains.agents.tools.health_tools import _read_window
 
-        parsed = _parse_iso_ts("2026-04-20", param="time_min")
-        assert parsed == datetime(2026, 4, 20, 0, 0, 0, tzinfo=UTC)
+        with _patch_zone():
+            assert _read_window(None, None, None) == (PARIS, None, None)
 
-    def test_z_suffix_treated_as_utc(self) -> None:
-        """Python 3.11+ ``fromisoformat`` handles the ``Z`` suffix."""
-        from datetime import UTC, datetime
+    def test_a_date_is_a_whole_local_day_and_the_last_one_counts(self) -> None:
+        """« This week » from the 20th to the 26th covers the 26th too."""
+        from src.domains.agents.tools.health_tools import _read_window
 
-        from src.domains.agents.tools.health_tools import _parse_iso_ts
+        with _patch_zone():
+            window = _read_window(None, "2026-04-20", "2026-04-26")
 
-        parsed = _parse_iso_ts("2026-04-20T10:00:00Z", param="time_max")
-        assert parsed == datetime(2026, 4, 20, 10, 0, 0, tzinfo=UTC)
+        assert not isinstance(window, UnifiedToolOutput)
+        zone, since, until = window
+        assert since == datetime(2026, 4, 20, tzinfo=PARIS)
+        assert until == datetime(2026, 4, 27, tzinfo=PARIS)
+        assert since.astimezone(UTC) == datetime(2026, 4, 19, 22, 0, tzinfo=UTC)
 
-    def test_offset_preserved(self) -> None:
-        """An explicit offset is kept on the parsed datetime."""
-        from src.domains.agents.tools.health_tools import _parse_iso_ts
+    def test_an_instant_with_an_offset_is_taken_as_it_names(self) -> None:
+        from src.domains.agents.tools.health_tools import _read_window
 
-        parsed = _parse_iso_ts("2026-04-20T12:00:00+02:00", param="time_min")
-        assert parsed is not None
-        assert parsed.isoformat() == "2026-04-20T12:00:00+02:00"
+        with _patch_zone():
+            window = _read_window(None, "2026-04-20T12:00:00+02:00", None)
 
-    def test_naive_datetime_coerced_to_utc(self) -> None:
-        """A naive datetime is assumed to be UTC."""
-        from datetime import UTC, datetime
+        assert not isinstance(window, UnifiedToolOutput)
+        assert window[1] == datetime(2026, 4, 20, 10, 0, tzinfo=UTC)
 
-        from src.domains.agents.tools.health_tools import _parse_iso_ts
+    @pytest.mark.parametrize("unreadable", ["not a date", "2026-13-01"])
+    def test_an_unreadable_bound_is_refused_never_replaced(self, unreadable: str) -> None:
+        from src.domains.agents.tools.health_tools import _read_window
 
-        parsed = _parse_iso_ts("2026-04-20T10:00:00", param="time_min")
-        assert parsed == datetime(2026, 4, 20, 10, 0, 0, tzinfo=UTC)
+        with _patch_zone():
+            window = _read_window(None, unreadable, None)
 
-    def test_malformed_returns_none_with_warning(self, caplog: pytest.LogCaptureFixture) -> None:
-        """Unparseable inputs warn and return ``None`` (service uses defaults)."""
-        import logging
+        assert isinstance(window, UnifiedToolOutput)
+        assert window.success is False
+        assert window.error_code == "INVALID_INPUT"
 
-        from src.domains.agents.tools.health_tools import _parse_iso_ts
+    async def test_the_summary_tool_returns_the_refusal_without_reading(self) -> None:
+        from src.domains.agents.tools.health_tools import get_steps_summary_tool
 
-        with caplog.at_level(logging.WARNING):
-            assert _parse_iso_ts("not a date", param="time_min") is None
-            assert _parse_iso_ts("2026-13-01", param="time_min") is None
+        service_mock = MagicMock()
+        service_mock.compute_kind_summary = AsyncMock()
+        with (
+            _patch_runtime(),
+            _patch_db(),
+            _patch_toggle(None),
+            patch(
+                "src.domains.health_metrics.service.HealthMetricsService",
+                return_value=service_mock,
+            ),
+        ):
+            result = await get_steps_summary_tool.ainvoke({"time_min": "yesterday-ish"})
+
+        assert result.success is False
+        service_mock.compute_kind_summary.assert_not_called()
+
+    async def test_the_summary_tool_reads_in_the_user_s_zone(self) -> None:
+        from src.domains.agents.tools.health_tools import get_steps_summary_tool
+
+        service_mock = MagicMock()
+        service_mock.compute_kind_summary = AsyncMock(
+            return_value={"kind": "steps", "unit": "steps", "total": None, "samples_count": 0}
+        )
+        with (
+            _patch_runtime(),
+            _patch_db(),
+            _patch_toggle(None),
+            _patch_zone(),
+            patch(
+                "src.domains.health_metrics.service.HealthMetricsService",
+                return_value=service_mock,
+            ),
+        ):
+            await get_steps_summary_tool.ainvoke({"time_min": "2026-04-20"})
+
+        kwargs = service_mock.compute_kind_summary.await_args.kwargs
+        assert kwargs["zone"] == PARIS
+        assert kwargs["time_min"] == datetime(2026, 4, 20, tzinfo=PARIS)
+        assert kwargs["time_max"] is None
 
 
 # =============================================================================

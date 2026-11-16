@@ -222,9 +222,15 @@ def _mail_block(context: RelationContext, scope: RelationOverviewScope) -> dict[
 
 
 def _meeting_block(context: RelationContext, scope: RelationOverviewScope) -> dict[str, Any]:
-    """Meetings shared, in the reader's chosen roles, plus their window."""
+    """Meetings shared, in the reader's chosen roles, plus their window.
+
+    A window read in part says so (``events_window_cut``), present only then: a
+    meeting the cut hid must not read as one that does not exist (ADR-185).
+    """
     wanted_roles = {role.value for role in scope.roles}
+    cut = {"events_window_cut": True} if context.events.truncated else {}
     return {
+        **cut,
         "events": [
             {
                 "summary": event.summary,

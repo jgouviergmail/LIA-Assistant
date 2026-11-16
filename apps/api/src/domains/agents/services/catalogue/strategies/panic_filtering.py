@@ -15,7 +15,9 @@ Trade-off:
 
 Architecture:
 - Creates expanded ToolFilter (all categories, higher limit)
-- Delegates to NormalFilteringStrategy with expanded filter
+- Seats each domain's tools through the normal strategy's door
+  (``catalogue/seats.py``); delegates to NormalFilteringStrategy only when
+  panic mode was already used for the request
 - Marks result as panic_mode for debugging
 """
 
@@ -23,6 +25,7 @@ from typing import TYPE_CHECKING
 
 from src.core.context import panic_mode_used
 from src.domains.agents.analysis.query_intelligence import ToolFilter
+from src.domains.agents.services.catalogue.seats import seat_tools
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import planner_catalogue_size_tools
 
@@ -117,7 +120,8 @@ class PanicFilteringStrategy:
 
         Args:
             intelligence: QueryIntelligence with user intent
-            tool_selection_result: Semantic tool scores (unused in panic mode)
+            tool_selection_result: Semantic tool scores: never a threshold in
+                panic mode, they only order each domain's tools under the cap
 
         Returns:
             FilteredCatalogue with expanded tools, marked as panic_mode
@@ -195,26 +199,12 @@ class PanicFilteringStrategy:
                 (self.service._manifest_to_dict(manifest), tool_category)
             )
 
-        # Build filtered list with expanded limit
-        filtered_tools: list[dict] = []
-        domains_included = set()
-        categories_included = set()
-
-        # Add at least one tool per domain
-        for domain, tools in tools_by_domain.items():
-            if tools and len(filtered_tools) < expanded_filter.max_tools:
-                tool_dict, tool_category = tools[0]
-                filtered_tools.append(tool_dict)
-                domains_included.add(domain)
-                categories_included.add(tool_category)
-
-        # Fill remaining slots
-        for _domain, tools in tools_by_domain.items():
-            for tool_dict, tool_category in tools[1:]:
-                if len(filtered_tools) >= expanded_filter.max_tools:
-                    break
-                filtered_tools.append(tool_dict)
-                categories_included.add(tool_category)
+        # The expanded cap seats like the normal one: no threshold here, but each
+        # domain's most relevant tool first (ADR-293 amendment 2026-11-15).
+        scores = (tool_selection_result or {}).get("all_scores") or {}
+        seats = seat_tools(tools_by_domain, scores, expanded_filter.max_tools)
+        filtered_tools = seats.tools
+        domains_included = seats.domains_included
 
         # Calculate token estimate
         token_estimate = sum(

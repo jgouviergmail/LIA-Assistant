@@ -26,13 +26,13 @@ async def test_return_reaper_expires_replays_and_survives_a_corrupt_row(
     corrupt = SimpleNamespace(id=uuid4(), return_webhook_encrypted="ENC_BAD")
 
     repo = MagicMock()
-    repo.expire_stale_returns = AsyncMock(return_value=2)
+    repo.expire_stale_returns = AsyncMock(return_value=[])
     repo.fetch_recoverable_returns = AsyncMock(return_value=[good, corrupt])
     monkeypatch.setattr(reapers, "TelephonyRepository", lambda _db: repo)
 
     @asynccontextmanager
     async def _fake_ctx():
-        yield MagicMock()
+        yield SimpleNamespace(commit=AsyncMock())
 
     monkeypatch.setattr(reapers, "get_db_context", _fake_ctx)
 
@@ -56,13 +56,13 @@ async def test_return_reaper_expires_replays_and_survives_a_corrupt_row(
 @pytest.mark.asyncio
 async def test_return_reaper_noops_on_empty_inbox(monkeypatch: pytest.MonkeyPatch):
     repo = MagicMock()
-    repo.expire_stale_returns = AsyncMock(return_value=0)
+    repo.expire_stale_returns = AsyncMock(return_value=[])
     repo.fetch_recoverable_returns = AsyncMock(return_value=[])
     monkeypatch.setattr(reapers, "TelephonyRepository", lambda _db: repo)
 
     @asynccontextmanager
     async def _fake_ctx():
-        yield MagicMock()
+        yield SimpleNamespace(commit=AsyncMock())
 
     monkeypatch.setattr(reapers, "get_db_context", _fake_ctx)
     process = AsyncMock()

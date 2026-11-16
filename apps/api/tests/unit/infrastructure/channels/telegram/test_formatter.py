@@ -10,7 +10,151 @@ from src.infrastructure.channels.telegram.formatter import (
     markdown_to_telegram_html,
     split_message,
     strip_html_cards,
+    telegram_answer_html,
 )
+
+
+class TestTheStructureTelegramCannotDrawIsDrawnAnotherWay:
+    """Telegram's HTML has no heading, no table, no list: they reached the
+    person as raw Markdown (« ## Résumé », rows of pipes). Each is drawn with
+    what Telegram does draw (hermes inspiration, lot 3)."""
+
+    @pytest.mark.parametrize(
+        ("markdown", "drawn"),
+        [
+            ("## Résumé\nTexte", "<b>Résumé</b>\nTexte"),
+            ("# **Plan**", "<b>Plan</b>"),
+            ("### Étapes ###", "<b>Étapes</b>"),
+            ("###### six", "<b>six</b>"),
+        ],
+        ids=["h2", "already_bold", "closing_hashes", "h6"],
+    )
+    def test_a_heading_is_a_bold_line(self, markdown: str, drawn: str) -> None:
+        assert markdown_to_telegram_html(markdown) == drawn
+
+    @pytest.mark.parametrize(
+        "prose",
+        ["#hashtag et C#", "####### sept", "Le #1 du classement"],
+        ids=["hashtag", "seven_hashes", "mid_line"],
+    )
+    def test_a_hash_that_opens_no_heading_stays(self, prose: str) -> None:
+        assert markdown_to_telegram_html(prose) == prose
+
+    def test_a_table_becomes_one_group_per_row(self) -> None:
+        markdown = (
+            "| Day | Temp | Rain |\n"
+            "|-----|:----:|-----:|\n"
+            "| Monday | 12° | 20 % |\n"
+            "| Tuesday | 9° |  |"
+        )
+        assert markdown_to_telegram_html(markdown, "en") == (
+            "<b>Monday</b>\n• Temp: 12°\n• Rain: 20 %\n\n<b>Tuesday</b>\n• Temp: 9°"
+        )
+
+    def test_a_table_speaks_its_reader_s_punctuation(self) -> None:
+        """The label joins its value with the reader's punctuation (ADR-323)."""
+        markdown = "| Jour | Temp |\n|---|---|\n| Lundi | 12° |"
+        assert markdown_to_telegram_html(markdown, "fr") == "<b>Lundi</b>\n• Temp : 12°"
+
+    def test_a_one_column_table_is_a_list_under_its_header(self) -> None:
+        markdown = "| Courses |\n|---|\n| Pain |\n| Lait |"
+        assert markdown_to_telegram_html(markdown, "en") == "<b>Courses</b>\n• Pain\n• Lait"
+
+    def test_a_cell_keeps_an_escaped_pipe_and_its_own_markup(self) -> None:
+        markdown = (
+            "| Name | Link |\n|---|---|\n"
+            "| x \\| y | [here](https://e.example) |\n"
+            "| **Bold** | l1<br>l2 |"
+        )
+        assert markdown_to_telegram_html(markdown, "en") == (
+            '<b>x | y</b>\n• Link: <a href="https://e.example">here</a>\n\n'
+            "<b>Bold</b>\n• Link: l1 · l2"
+        )
+
+    def test_pipes_without_a_delimiter_row_are_prose(self) -> None:
+        assert markdown_to_telegram_html("a | b | c\nd | e") == "a | b | c\nd | e"
+
+    def test_a_delimiter_row_of_another_width_makes_no_table(self) -> None:
+        """GFM: the header and the delimiter row hold as many cells."""
+        markdown = "| a | b |\n|---|\n| x | y |"
+        assert markdown_to_telegram_html(markdown) == markdown
+
+    def test_a_table_ends_at_a_blank_line(self) -> None:
+        markdown = "| a | b |\n|---|---|\n|  | y |\n\nAfter | that"
+        assert markdown_to_telegram_html(markdown, "en") == "—\n• b: y\n\nAfter | that"
+
+    def test_a_quote_is_a_telegram_quote(self) -> None:
+        assert markdown_to_telegram_html("> citation\n> suite\n\nfin") == (
+            "<blockquote>citation\nsuite</blockquote>\n\nfin"
+        )
+
+    def test_an_empty_quote_draws_no_empty_quote(self) -> None:
+        """A « > » alone holds nothing: an empty quote is no message part."""
+        assert markdown_to_telegram_html("a\n>\nb") == "a\n\nb"
+
+    def test_a_quote_draws_what_it_holds(self) -> None:
+        assert markdown_to_telegram_html(">> ## T\n> - a\n> - **b**") == (
+            "<blockquote><b>T</b>\n• a\n• <b>b</b></blockquote>"
+        )
+
+    def test_a_list_is_drawn_with_bullets_its_nesting_kept(self) -> None:
+        assert markdown_to_telegram_html("- un\n* deux\n+ trois\n  - imbriqué") == (
+            "• un\n• deux\n• trois\n  • imbriqué"
+        )
+
+    def test_a_task_list_is_drawn_with_boxes(self) -> None:
+        assert markdown_to_telegram_html("- [ ] à faire\n- [x] fait\n- [X] aussi") == (
+            "☐ à faire\n☑ fait\n☑ aussi"
+        )
+
+    def test_a_dash_that_opens_no_item_stays(self) -> None:
+        assert markdown_to_telegram_html("-5 °C et *mot*") == "-5 °C et <i>mot</i>"
+
+    @pytest.mark.parametrize("rule", ["---", "* * *", "___", "  - - -"])
+    def test_a_rule_is_a_short_line(self, rule: str) -> None:
+        assert markdown_to_telegram_html(f"a\n\n{rule}\n\nb") == "a\n\n———\n\nb"
+
+    @pytest.mark.parametrize("prose", ["--", "-*-", "    ---"], ids=["two", "mixed", "indented"])
+    def test_what_is_no_rule_stays(self, prose: str) -> None:
+        assert markdown_to_telegram_html(f"a\n\n{prose}") == f"a\n\n{prose}"
+
+    @pytest.mark.parametrize("line_break", ["<br>", "<br/>", "<BR />"])
+    def test_a_line_break_tag_is_a_new_line(self, line_break: str) -> None:
+        assert markdown_to_telegram_html(f"ligne1{line_break}ligne2") == "ligne1\nligne2"
+
+    def test_a_code_block_keeps_what_would_read_as_structure(self) -> None:
+        markdown = "```\n# pas un titre\n| a | b |\n|---|---|\n> non\n- non\n---\n```"
+        assert markdown_to_telegram_html(markdown) == (
+            "<pre># pas un titre\n| a | b |\n|---|---|\n&gt; non\n- non\n---\n</pre>"
+        )
+
+
+class TestOneDoorForEverythingTelegramShows:
+    """An answer, a question, a notification: what LIA wrote reaches Telegram
+    through ONE reading — an HTML document converted, the cards Telegram cannot
+    draw left out, then Telegram's HTML."""
+
+    def test_the_cards_under_an_answer_are_left_out(self) -> None:
+        answer = 'Voici **la météo**.\n\n<div class="lia-card"><span>12°</span></div>'
+        assert telegram_answer_html(answer) == "Voici <b>la météo</b>."
+
+    def test_an_html_document_is_read_as_markdown(self) -> None:
+        """The ``html`` display mode answers a document: Telegram read « <div »
+        and the card stripper cut the answer at its first closing tag."""
+        document = '<div class="lia-response"><h2>Titre</h2><p>Un <strong>texte</strong>.</p></div>'
+        assert telegram_answer_html(document) == "<b>Titre</b>\n\nUn <b>texte</b>."
+
+    def test_the_cards_under_a_document_are_left_out_too(self) -> None:
+        document = (
+            '<div class="lia-response"><p>Un <strong>texte</strong>.</p></div>\n\n'
+            '<div class="lia-response-wrapper" data-card-version="2"><div>12°</div></div>'
+        )
+        assert telegram_answer_html(document) == "Un <b>texte</b>."
+
+    def test_cards_alone_draw_nothing(self) -> None:
+        """No prose, nothing to read: the caller says the answer was empty."""
+        cards = '<div class="lia-response-wrapper" data-card-version="2"><p>12°</p></div>'
+        assert telegram_answer_html(cards) == ""
 
 
 class TestMarkdownToTelegramHTML:
@@ -214,6 +358,19 @@ class TestFormatNotification:
         """Should escape HTML entities in title and body."""
         result = format_notification("T & P", "15°C & sunny <today>")
         assert result == "<b>T &amp; P</b>\n\n15°C &amp; sunny &lt;today&gt;"
+
+    def test_a_notification_body_is_drawn_like_an_answer(self) -> None:
+        """A reminder, a routine's result, a peer's comment: the body used to
+        reach Telegram flattened to plain text — no bold, no quote, links spelt
+        out. It is drawn through the answers' door now; the title stays text."""
+        result = format_notification(
+            "Rappel *urgent*",
+            "**Léa** t'a envoyé une image.\n\n> Bisous &#60;3 &#91;promis&#93;",
+        )
+        assert result == (
+            "<b>Rappel *urgent*</b>\n\n<b>Léa</b> t'a envoyé une image.\n\n"
+            "<blockquote>Bisous &lt;3 [promis]</blockquote>"
+        )
 
 
 class TestGetBotMessage:

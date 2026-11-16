@@ -769,7 +769,7 @@ Les `semantic_keywords` permettent la découverte sémantique des outils via Ope
 
 | Règle | Description | Exemple |
 |-------|-------------|---------|
-| **Langue** | Anglais uniquement (optimisé pour le semantic pivot) | ✅ "create reminder" ❌ "créer rappel" |
+| **Langue** | Anglais uniquement (comparés à la version anglaise de la requête écrite par l'analyseur) | ✅ "create reminder" ❌ "créer rappel" |
 | **Nombre** | 10-20 mots-clés par outil | Couverture complète des cas d'usage |
 | **Style** | Phrases naturelles courtes | ✅ "set alert for meeting" |
 | **Verbes** | Actions variées synonymes | "create", "add", "set", "make", "schedule" |

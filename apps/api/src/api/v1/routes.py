@@ -24,6 +24,7 @@ from src.domains.agents.effects.statistics_router import (
 from src.domains.agents.effects.statistics_router import router as statistics_router
 from src.domains.agents.effects.treatments_router import router as treatments_router
 from src.domains.auth.checklist_router import router as checklist_router
+from src.domains.auth.execution_mode_router import router as execution_mode_router
 from src.domains.auth.oauth_router import router as oauth_router
 from src.domains.auth.profile_image_router import router as profile_image_router
 from src.domains.auth.router import router as auth_router
@@ -72,6 +73,7 @@ from src.domains.system_settings.public_router import (
     router as system_settings_public_router,
 )
 from src.domains.system_settings.router import router as system_settings_router
+from src.domains.tool_assists.style_learning import router as writing_style_learning_router
 from src.domains.users.router import router as users_router
 from src.domains.voice.admin_router import router as voice_admin_router
 from src.domains.voice.lia_voices_router import router as lia_voices_router
@@ -146,12 +148,20 @@ api_router.include_router(interests_notifications_router)
 # concern from "which interests exist", and the main router is at its ceiling.
 api_router.include_router(interests_explainability_router)
 api_router.include_router(notifications_router)
+# ntfy (ADR-391): the deployment ceiling mounts the settings; the operator's switch guards them.
+if getattr(settings, "ntfy_enabled", False):
+    from src.domains.notifications.ntfy_router import router as ntfy_router
+
+    api_router.include_router(ntfy_router)
 api_router.include_router(scheduled_actions_router)
 api_router.include_router(briefing_router)  # Today dashboard
 api_router.include_router(briefing_progressive_router)  # Today, progressive (D2)
 api_router.include_router(relations_router)  # Personal CRM (N-09, read-only)
 api_router.include_router(writing_style_router)  # The person's voice (ADR-383)
+# Learning it at their click, through the assists' door, whatever the Tools' switch.
+api_router.include_router(writing_style_learning_router)
 api_router.include_router(checklist_router)  # Starter checklist state (UXR A10)
+api_router.include_router(execution_mode_router)  # Pipeline / ReAct / auto preference (ADR-390)
 if getattr(settings, "account_export_enabled", False):
     from src.domains.account_export.router import router as account_export_router
 
@@ -535,6 +545,8 @@ async def get_client_config() -> dict:
             # checklist (and B5's open-loops nav) never offers a disabled
             # subsystem (gate-keeper rule, ADR-061).
             "channels_enabled": getattr(settings, "channels_enabled", False),
+            # ntfy (ADR-391): gates the ntfy card of the notification settings.
+            "ntfy_enabled": getattr(settings, "ntfy_enabled", False),
             "heartbeat_enabled": getattr(settings, "heartbeat_enabled", False),
             # The deployment ceiling of the home address: saving one geocodes it
             # through Google Places (ADR-307), which the administrator's switch

@@ -33,7 +33,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
-from src.core.constants import HEARTBEAT_CONTENT_EXCERPT_CHARS
+from src.core.constants import (
+    CALENDAR_WINDOW_READ_MAX,
+    HEARTBEAT_CONTENT_EXCERPT_CHARS,
+    HEARTBEAT_CONTEXT_CALENDAR_EVENTS_MAX,
+)
+from src.domains.connectors.clients.calendar_lists import read_owned_events
+from src.domains.connectors.clients.event_order import soonest_first
 from src.domains.connectors.companion_weather import publish_companion_weather
 from src.domains.connectors.service import ConnectorService
 from src.domains.conversations.activity_probe import fetch_last_seen_at
@@ -480,17 +486,20 @@ class ContextAggregator:
             time_min = now.isoformat()
             time_max = (now + timedelta(hours=hours)).isoformat()
 
-            result = await access.client.list_events(
-                time_min=time_min,
-                time_max=time_max,
-                max_results=10,
-                calendar_id=access.calendar_id,
+            # Every calendar the account owns, the default first: an invitation
+            # sits in the main calendar (``calendar_lists``, owner rule 2026-11-15).
+            owned = await read_owned_events(
+                access.client,
+                access.calendar_id,
+                [(time_min, time_max)],
+                bound=CALENDAR_WINDOW_READ_MAX,
                 fields=["id", "summary", "start", "end", "location"],
             )
 
             from src.domains.heartbeat.wake_context import merge_wake_events
 
-            events = merge_wake_events(self._wake, list(result.get("items", [])))
+            soonest = soonest_first(owned.events)[:HEARTBEAT_CONTEXT_CALENDAR_EVENTS_MAX]
+            events = merge_wake_events(self._wake, soonest)
             if not events:
                 return None
 
@@ -708,6 +717,7 @@ class ContextAggregator:
                 query_embedding=query_embedding,
                 limit=limit,
                 min_score=0.3,
+                with_vectors=False,
             )
 
         if not results:

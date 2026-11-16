@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
+from uuid import UUID
 
 import pytest
 from langgraph.store.memory import InMemoryStore
@@ -15,6 +16,7 @@ from src.domains.agents.application.reminder_queries import read_reminders
 from src.domains.agents.application.reminder_read_schemas import ReminderRead
 from src.domains.agents.tools.application_reminder_tools import get_lia_reminders_tool
 from src.domains.agents.tools.reminder_tools import list_reminders_tool
+from src.domains.reminders.models import Reminder
 from src.domains.reminders.schemas import ReminderCreate
 from src.domains.reminders.service import ReminderService
 from src.domains.users.models import User
@@ -120,8 +122,13 @@ async def test_native_and_legacy_read_refuse_an_operator_withdrawal_after_source
     if legacy:
         original_list = ReminderService.list_pending_for_user
 
-        async def read_then_withdraw(service: ReminderService, user_id):
-            result = await original_list(service, user_id)
+        async def read_then_withdraw(
+            service: ReminderService,
+            user_id: UUID,
+            *,
+            fires_between: tuple[datetime, datetime] | None = None,
+        ) -> list[Reminder]:
+            result = await original_list(service, user_id, fires_between=fires_between)
             if disabled:
                 monkeypatch.setattr(settings, "application_tools_enabled", False)
             return result
@@ -132,7 +139,9 @@ async def test_native_and_legacy_read_refuse_an_operator_withdrawal_after_source
 
         original_page = ReminderRepository.page_pending_by_id
 
-        async def page_then_withdraw(repo: ReminderRepository, user_id, *, after_id, limit):
+        async def page_then_withdraw(
+            repo: ReminderRepository, user_id: UUID, *, after_id: UUID | None, limit: int
+        ) -> list[Reminder]:
             result = await original_page(repo, user_id, after_id=after_id, limit=limit)
             if disabled:
                 monkeypatch.setattr(settings, "application_tools_enabled", False)

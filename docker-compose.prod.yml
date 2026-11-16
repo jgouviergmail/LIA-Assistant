@@ -171,6 +171,65 @@ services:
           cpus: '0.05'
           memory: 96M
 
+  # The instance's own ntfy server (ADR-391): LIA publishes the notifications a
+  # person reads in the ntfy app (Android or iPhone, no Google account). Off unless
+  # the `ntfy` profile runs (the installer asks). LIA's token alone publishes, on
+  # the `lia_` topics; anyone reads one, whose random name is the password. LIA's
+  # account has NO password: its hash is random characters in bcrypt's shape, which
+  # no password matches, so the token is its only key. Only its own variables reach
+  # it — never LIA's `.env`. Measured on this image: read-only, with no capability.
+  ntfy:
+    image: binwiederhier/ntfy:v2.37.2@sha256:1875ddcf815c8a3c981d6d78c67a93452d0abba79b1ab9520b1f5f5238902bd7
+    container_name: lia-ntfy-prod
+    profiles: ["ntfy"]  # Opt-in: add `ntfy` to COMPOSE_PROFILES
+    command: ["serve"]
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - NTFY_BASE_URL=${NTFY_PUBLIC_URL:-}
+      - NTFY_BEHIND_PROXY=${NTFY_BEHIND_PROXY:-false}
+      # iPhones are woken through ntfy.sh only when the operator chose it.
+      - NTFY_UPSTREAM_BASE_URL=${NTFY_UPSTREAM_BASE_URL:-}
+      - NTFY_CACHE_FILE=/var/lib/ntfy/cache.db
+      - NTFY_AUTH_FILE=/var/lib/ntfy/user.db
+      - NTFY_AUTH_DEFAULT_ACCESS=deny-all
+      # `$$` is a literal `$`: the bcrypt prefix, then the generated characters.
+      - NTFY_AUTH_USERS=lia:$$2a$$10$$${NTFY_ACCOUNT_HASH:-}:user
+      - NTFY_AUTH_TOKENS=lia:${NTFY_PUBLISH_TOKEN:-}:LIA
+      - NTFY_AUTH_ACCESS=lia:lia_*:wo,*:lia_*:ro
+      - NTFY_ENABLE_LOGIN=false
+      - NTFY_ENABLE_SIGNUP=false
+      # A broadcast publishes once per subscription: at ntfy's default burst (60,
+      # then one every 5 s) it met 429s; 300 then one a second took 150 at once.
+      - NTFY_VISITOR_REQUEST_LIMIT_BURST=300
+      - NTFY_VISITOR_REQUEST_LIMIT_REPLENISH=1s
+    volumes:
+      - ntfy_data:/var/lib/ntfy  # the account file and the messages kept 12 h
+    ports:
+      # Loopback-only, as for the web: a proxy on the host reaches it here,
+      # Caddy over the network, and a LAN install publishes it to the network.
+      - "127.0.0.1:2586:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:80/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M  # measured ~17M after a burst of 150 publications
+        reservations:
+          cpus: '0.05'
+          memory: 16M
+
   # Backend API
   api:
     # Parameterized image (B04/ADR-215): local build stays the default name
@@ -837,6 +896,7 @@ volumes:
   skills_data:  # Persistent storage for user-imported skills
   tool_cache_data:  # Tool-embeddings disk cache (must survive --force-recreate)
   portainer_data:
+  ntfy_data:  # The instance's ntfy server (ADR-391): its account file and message cache
 
 networks:
   lia-network:

@@ -35,8 +35,15 @@ LIA supporte les **canaux de messagerie externes** comme complément à l'interf
 
 | Fonctionnalite | Description |
 |----------------|-------------|
-| Chat bidirectionnel | Messages texte Telegram <-> pipeline agent LIA |
-| Notifications proactives | Interets, rappels, actions planifiees, heartbeat autonome -> Telegram |
+| Chat bidirectionnel | Messages texte, vocaux, photos, documents et positions Telegram <-> pipeline agent LIA |
+| Notifications proactives | Interets, rappels, résultats des routines, heartbeat autonome -> Telegram |
+| Rappels reportables | Un rappel qui sonne porte « Dans 10 min », « Dans 1 h », « Demain matin » et, s'il se répète, « Arrêter ce rappel » : les choix de la bulle du chat ([7.8](#78-rappels-reportables)) |
+| Commandes | `/stop` arrête la réponse en cours, `/help` dit ce que le bot sait faire ; menu des commandes publié dans les 6 langues ([5.7](#57-commandes-du-bot)) |
+| Rendu lisible | Titres, tableaux, citations, listes et cases dessinés pour Telegram par une seule porte ; aperçu des liens désactivé par défaut ([7.6](#76-rendu-des-réponses--une-seule-porte)) |
+| Messages en attente | Un message écrit pendant que LIA travaille attend son tour (réaction 👀) et part dès qu'elle est libre, comme dans l'application (ADR-384, [5.8](#58-messages-écrits-pendant-que-lia-travaille)) |
+| Position et réponses | Une position partagée devient la géolocalisation du tour ; un lieu est nommé ; une réponse emporte le message qu'elle cite ([5.9](#59-position-lieux-et-messages-cités)) |
+| Fichiers, dans les deux sens | Photos et documents reçus comme les pièces jointes du chat, albums regroupés ; images et documents que LIA produit envoyés dans la discussion ([5.10](#510-photos-documents-et-albums), [7.7](#77-fichiers-produits-par-lia)) |
+| Réponse vocale | Avec les commentaires vocaux activés, une note vocale reçoit aussi une réponse vocale ([8.4](#84-réponse-vocale)) |
 | HITL (Human-in-the-Loop) | Boutons inline Telegram pour confirmer ou annuler un brouillon, une action, une boucle FOR_EACH ; réponse tapée pour une clarification |
 | Messages vocaux | OGG/Opus -> PCM 16kHz -> Sherpa STT -> texte |
 | Liaison OTP | Code 6 chiffres via Redis, TTL 5min, single-use |
@@ -69,6 +76,7 @@ apps/api/src/domains/channels/           # Domaine (interfaces génériques ; le
 +-- read_projection.py                   # Projection de la liste des liaisons (HTTP et lecture d'application)
 +-- message_router.py                    # ChannelMessageRouter (binding lookup, lock, rate limit)
 +-- inbound_handler.py                   # InboundMessageHandler (agent pipeline, content_replacement)
++-- reminder_press.py                    # Appui sur le bouton d'un rappel qui a sonné (reporter, arrêter)
 +-- router.py                            # FastAPI endpoints + webhook + background tasks
 
 apps/api/src/infrastructure/channels/
@@ -81,6 +89,7 @@ apps/api/src/infrastructure/channels/
     +-- formatter.py                     # MD->HTML, split (texte brut), strip_html_cards, i18n messages
     +-- html_split.py                    # Decoupe d'un message HTML en parties analysables (point 8)
     +-- hitl_keyboard.py                 # InlineKeyboard builders pour HITL (6 langues)
+    +-- reminder_keyboard.py             # Boutons d'un rappel qui a sonné (rmd:{choix}:{occurrence})
     +-- voice.py                         # Download OGG -> transcode PCM -> Sherpa STT
 ```
 
@@ -201,6 +210,7 @@ Toutes les variables sont definies dans `core/config/channels.py` via la classe 
 | `TELEGRAM_WEBHOOK_SECRET` | -- | Secret pour validation webhook |
 | `TELEGRAM_WEBHOOK_URL` | -- | URL publique prod (si absent -> long polling dev) |
 | `TELEGRAM_MESSAGE_MAX_LENGTH` | `4000` | Max avant split (100-4096) |
+| `TELEGRAM_LINK_PREVIEW_ENABLED` | `false` | Aperçu des liens sous les messages du bot : désactivé par défaut, une réponse citant dix sources dessinait le grand aperçu de la première |
 | `CHANNEL_OTP_TTL_SECONDS` | `300` | TTL OTP Redis |
 | `CHANNEL_OTP_LENGTH` | `6` | Longueur code OTP |
 | `CHANNEL_OTP_MAX_ATTEMPTS` | `5` | Max tentatives OTP avant blocage |
@@ -387,13 +397,16 @@ Sans `TELEGRAM_WEBHOOK_SECRET`, aucune requête n'est acceptée. Rien de légiti
 
 ### 5.3 Parsing des Updates
 
-Le `TelegramWebhookHandler.parse_update()` gere trois types de mises a jour :
+Le `TelegramWebhookHandler.parse_update()` lit :
 
 1. **Messages texte** : `payload["message"]["text"]`
 2. **Messages vocaux** : `payload["message"]["voice"]`
-3. **Callback queries** : `payload["callback_query"]` (boutons inline HITL)
+3. **Photos et documents** : `photo` (la plus grande taille) ou `document` -> `ChannelInboundMessage.files`, la légende comme mots, `media_group_id` comme `album_id`
+4. **Positions et lieux** : `location` -> la position de la personne (précision comprise) ; `venue` -> un lieu nommé, jamais pris pour la position de la personne (Telegram pose `location` à côté du `venue`) ; une coordonnée hors bornes ou qui n'est pas un nombre est ignorée
+5. **Réponses** : `quote.text` (la partie sélectionnée) sinon le texte ou la légende de `reply_to_message` -> `ChannelInboundMessage.quoted_text`
+6. **Callback queries** : `payload["callback_query"]` (boutons inline HITL et boutons d'un message retenu), avec l'identifiant de l'appui (`press_id`) pour y répondre
 
-Les types ignores (edited messages, channel posts, photos, stickers...) retournent `None`.
+Les types ignores (edited messages, channel posts, vidéos, stickers...) retournent `None`.
 
 ### 5.4 Pipeline de traitement
 
@@ -448,6 +461,35 @@ Un bouton HITL (`_handle_hitl_callback`) lit la liaison et la personne par les m
 Le streaming LangGraph peut emettre le texte final de deux facons -- incrementalement via des chunks `token`, puis en bloc via un chunk `content_replacement`. L'`InboundMessageHandler._stream_and_collect()`, qui lit le flux par `_ChannelTurn`, retient `content_replacement` comme source **autoritaire** : quand present, il remplace les tokens collectes (apres `strip_html_cards()` pour retirer le HTML des cards web). En fallback, les tokens collectes sont utilises directement.
 
 ---
+
+### 5.7 Commandes du bot
+
+`domains/channels/commands.py` répond à `/stop`, `/help` et `/start` sans code AVANT toute réservation de tour : `/stop` existe pour atteindre un tour en cours.
+
+- `/stop` demande l'arrêt de la réponse en cours de la discussion principale (`gateway.stop` -> `cancel_selected`) : « j'arrête », « rien ne tourne » ou « ce qui tourne ne s'arrête pas d'ici » (une autre discussion, une routine). Un tour de canal est réservé **annulable** et surveille le signal d'arrêt du chat (`_StopWatch`) : la commande `/stop` comme le bouton Stop de l'application l'arrêtent ; le tour arrêté se tait (la réponse partielle se lirait comme la réponse).
+- `/help` (et `/start` sans code) résume ce que le bot sait faire, dans la langue de la personne.
+- Le menu des commandes est publié une fois par le leader de l'ordonnanceur (`ensure_telegram_commands`, tâche unique `telegram_commands_setup`) : une liste par langue (`language_code`) et une par défaut.
+
+### 5.8 Messages écrits pendant que LIA travaille
+
+Un message écrit sur Telegram pendant qu'un tour tourne ATTEND son tour, comme dans l'application (ADR-384) : il est gardé pour la discussion principale avec `waiting_messages.reply_channel = 'telegram'`, marqué d'une réaction 👀 sur le message de la personne (une phrase quand Telegram refuse la réaction), et part à la prochaine libération normale du compte — comme un tour de canal, sa réponse arrive sur Telegram. Un canal coupé ou délié entre-temps : la réponse arrive dans l'application.
+
+- Une réponse à une question en attente ne patiente pas (elle EST la réponse) : « réponds dans un instant ».
+- Une position ou un fichier n'attend pas : gardés, ils partiraient en mots seuls, la géolocalisation ou le fichier perdu ; la personne est invitée à renvoyer le message.
+- Un message retenu par une libération anormale (tour arrêté, en échec) est signalé sur Telegram avec deux boutons, « Envoyer » et « Retirer » (`wait:{send|withdraw}:{id}`), les mêmes actions que la bulle du chat.
+- Chaque appui sur un bouton reçoit sa réponse (`answerCallbackQuery`) : Telegram dessine sinon une barre de progression jusqu'à abandon.
+
+### 5.9 Position, lieux et messages cités
+
+- Une **position** partagée devient la géolocalisation consentie du tour (`ChannelAgentRequest.position` -> `BrowserContext.geolocation`) : « près de moi » la lit comme celle du navigateur, et elle n'est mémorisée que sous l'option « dernière position connue » de la personne. Le message de la personne la dit aussi en mots (« 📍 Ma position actuelle : 48.85661, 2.35222 (± 13 m) »), pour le modèle et l'historique.
+- Un **lieu** (`venue`) est nommé (titre, adresse, coordonnées), jamais pris pour la position de la personne ; ses noms sont lus sur une ligne et rendus littéralement (ADR-316).
+- Une **réponse à un message** porte le message cité au-dessus de ses mots, en citation Markdown littérale, coupée à `CHANNEL_QUOTE_MAX_CHARS` ; une réponse à une question n'emporte pas la question citée (la question cadre déjà la réponse).
+
+### 5.10 Photos, documents et albums
+
+- Un fichier reçu passe par la porte d'upload du chat (`AttachmentService.upload`, `domains/channels/channel_files.py`) : son type décidé par ses octets, les limites de l'instance, la discussion source ; il devient une pièce jointe du tour. Sous l'interrupteur `ATTACHMENTS` (lu à l'acte, ADR-280), tout ou rien : un message dont un fichier est refusé n'en garde aucun et dit pourquoi (indisponible, trop nombreux, trop lourd, type refusé, illisible).
+- Sans légende, le message se dit par les noms de ses fichiers (« 📎 photo.jpg »).
+- Un **album** est UN message : Telegram envoie chaque partie dans sa propre mise à jour ; la première partie attend `CHANNEL_ALBUM_WINDOW_SECONDS` ses sœurs, qui lui remettent leurs fichiers par Redis (`domains/channels/albums.py`, deux scripts atomiques, au plus `CHANNEL_ALBUM_MAX_PARTS` parties), puis un seul tour répond. Une partie arrivée après la collecte, ou au-delà du plafond, est traitée seule ; un Redis injoignable traite chaque partie seule (jamais perdue).
 
 ## 6. HITL via Telegram
 
@@ -546,14 +588,14 @@ Le `NotificationDispatcher.dispatch()` a ete etendu avec un 4eme canal de livrai
 1. **Archive** : stockage en base (existant)
 2. **FCM push** : notification mobile Firebase, tronquee a 150 chars (existant)
 3. **SSE real-time** : push temps reel vers le frontend web (existant)
-4. **Channels** : `_send_channels()` -> `TelegramSender.send_notification()` (contenu **integral**, non tronque)
+4. **Channels** : `_send_channels()` -> `TelegramSender.send_notification()` (contenu **integral**, non tronque, rendu par la porte unique dans la langue de la personne)
 
 ### 7.2 Envoi via TelegramSender
 
 ```python
 # apps/api/src/infrastructure/channels/telegram/sender.py
-async def send_notification(self, channel_user_id, title, body, data=None) -> bool:
-    formatted = format_notification(title, body)  # "<b>Titre</b>\n\nCorps du message"
+async def send_notification(self, channel_user_id, title, body, data=None, *, language=None) -> bool:
+    formatted = format_notification(title, body, language)  # "<b>Titre</b>\n\nCorps rendu"
     message = ChannelOutboundMessage(text=formatted, parse_mode="HTML")
     result = await self.send_message(channel_user_id, message)
     return result is not None
@@ -563,11 +605,11 @@ async def send_notification(self, channel_user_id, title, body, data=None) -> bo
 
 ```python
 # apps/api/src/infrastructure/channels/telegram/formatter.py
-def format_notification(title: str, body: str) -> str:
-    return f"<b>{html.escape(title)}</b>\n\n{html.escape(body)}"
+def format_notification(title: str, body: str, language: str | None = None) -> str:
+    return f"<b>{html.escape(title)}</b>\n\n{telegram_answer_html(body, language)}"
 ```
 
-Le `html.escape()` est essentiel pour eviter les erreurs `BadRequest` de Telegram causees par les caracteres `&`, `<`, `>` non echappes.
+Le titre est échappé (`html.escape()`), le corps passe par la porte des réponses ([7.6](#76-rendu-des-réponses--une-seule-porte)) : le répartiteur transmet le contenu tel que le chat le montre (Markdown, cartes comprises), et non plus un texte aplati.
 
 ### 7.4 Types de notifications supportes
 
@@ -577,7 +619,8 @@ Le `html.escape()` est essentiel pour eviter les erreurs `BadRequest` de Telegra
 | Ouvertures des discussions proactives | `infrastructure/proactive/discussion_delivery.py` |
 | Interets proactifs | `NotificationDispatcher._send_channels()` |
 | Heartbeat autonome | `NotificationDispatcher._send_channels()` |
-| Actions planifiees | `NotificationDispatcher._send_channels()` |
+| Résultats des routines | `infrastructure/scheduler/scheduled_action_notices.notify_result` : envoi direct aux canaux, AVANT le push FCM (la séquence FCM laisse des écritures non commitées sur la session du tick, ADR-304) |
+| Avis d'échec et de pause des routines | `NotificationDispatcher._send_channels()` |
 
 ### 7.5 Gestion du bot bloque
 
@@ -594,6 +637,22 @@ except Forbidden:
     )
     return None
 ```
+
+### 7.6 Rendu des réponses : une seule porte
+
+`formatter.telegram_answer_html(content, language)` est la porte unique de tout ce qui part vers Telegram (réponses, questions HITL, notifications) : un document HTML de réponse est converti en Markdown et ses cartes laissées de côté, puis `structure.draw_structure` dessine ce que le sous-ensemble HTML de Telegram ne sait pas afficher — titres en gras, tableaux en un groupe par ligne (« **ligne**\n• colonne : valeur »), citations en `<blockquote>`, listes à puces, cases ☐/☑, filets, `<br>` —, la ponctuation entre un libellé et sa valeur étant celle de la langue (`label_separator`). Le code reste intact (protégé par `read_as_markdown`).
+
+### 7.7 Fichiers produits par LIA
+
+Les images et documents qu'un tour produit (les cartes `generated_images` / `generated_documents` du chunk `done`) sont envoyés après la réponse — avant une question, qui reste la dernière avec ses boutons — chacun depuis SA ligne : uniquement les fichiers prêts de la personne (`get_batch_for_user`). Une image JPEG, PNG ou WebP de 10 Mo au plus part en photo (une photo refusée par Telegram repart en document), tout autre fichier en document ; un fichier au-delà de 50 Mo est nommé plutôt qu'envoyé.
+
+### 7.8 Rappels reportables
+
+Un rappel qui sonne sur Telegram porte les choix de la bulle du chat (ADR-268, amendement 2026-11-16) : « Dans 10 min », « Dans 1 h », « Demain matin » et, quand il a encore un avenir, « Arrêter ce rappel ». Chaque bouton nomme l'OCCURRENCE qui a sonné (`rmd:{short|long|morning|stop}:{firing_id}`, 48 octets sur les 64 permis), jamais le rappel : un rappel ponctuel est déjà supprimé quand on lit sa notification.
+
+- `send_notification_to_channels(..., reply_markup=...)` porte le clavier, construit par `reminder_keyboard.build_reminder_keyboard` dans la langue de la personne ; une occurrence qu'on n'a pas pu enregistrer part sans bouton.
+- L'appui passe par `domains/channels/reminder_press.handle_reminder_press` : refus d'un compte désactivé ou d'un canal coupé comme pour toute pression, puis le même service que le web (`ReminderFiringService`), dans le fuseau du compte. La transaction est close avant de répondre à Telegram (ADR-304).
+- La réponse s'affiche au-dessus de la conversation (`answerCallbackQuery`) : « C'est noté : je te le rappelle le 16/11 à 15:40. », « Déjà reporté… », « Trop tard pour le reporter… », « Rappel arrêté… ». Les boutons s'effacent une fois l'occurrence réglée ; ils restent quand le report tomberait après la prochaine occurrence d'une série (« Ce rappel revient déjà… »), car un délai plus court marche encore.
 
 ---
 
@@ -641,6 +700,10 @@ async def transcribe_voice_message(bot, voice_file_id, voice_duration_seconds=No
 - Limite de taille : 20 MB (`TELEGRAM_MAX_VOICE_FILE_SIZE`)
 
 ---
+
+### 8.4 Réponse vocale
+
+Avec les commentaires vocaux activés (`users.voice_enabled`, le même interrupteur que le chat), la réponse à une note vocale part aussi en message vocal, après le texte : ses mots seulement (cartes, marques et adresses de liens laissées de côté), ses premières phrases comme le chat les lit (`VOICE_CHAT_MODE_MAX_SENTENCES`), par la passerelle injectée (`gateway.speak` -> `synthesize_user_text`) : facturée à la personne sous un run à elle, les deux plafonds demandés avant qu'un moteur payant parle (ADR-272). Telegram lit un MP3 comme un message vocal (Bot API 7.3) : rien n'est converti. Une question, un message tapé ou les commentaires vocaux coupés restent écrits ; une voix impossible à produire n'annule jamais la réponse déjà envoyée.
 
 ## 9. Comment ajouter un nouveau canal
 
@@ -720,10 +783,10 @@ Le module `metrics_channels.py` expose, suivant le pattern RED (Rate, Errors, Du
 
 | Metrique | Type | Labels |
 |----------|------|--------|
-| `channel_messages_received_total` | Counter | `channel_type`, `message_type` |
+| `channel_messages_received_total` | Counter | `channel_type`, `message_type` (`text`, `voice`, `file`, `location`, `command`) |
 | `channel_message_processing_duration_seconds` | Histogram | `channel_type` |
 | `channel_messages_rejected_total` | Counter | `channel_type`, `reason` |
-| `channel_messages_sent_total` | Counter | `channel_type`, `message_type` |
+| `channel_messages_sent_total` | Counter | `channel_type`, `message_type` (`text`, `notification`, `photo`, `document`, `voice`) |
 | `channel_send_errors_total` | Counter | `channel_type`, `error_type` |
 | `channel_active_bindings` | Gauge | `channel_type` |
 | `channel_otp_generated_total` | Counter | `channel_type` |
@@ -917,9 +980,10 @@ async def test_parse_hitl_callback():
 - Un message HTML long est decoupe par `split_html_message` (`html_split.py`) : une partie ne coupe jamais une balise ni une entite, ferme ce qu'elle a ouvert et la suivante le rouvre (`<pre>`, liens et imbrications compris) ; la longueur est comptee en unites UTF-16, l'unite de Telegram (un emoji compte deux). Avant, une coupe au milieu de `<b>...</b>` etait refusee par Telegram puis renvoyee en texte brut, balises visibles
 - Verifier `TELEGRAM_MESSAGE_MAX_LENGTH` (defaut 4000, max Telegram 4096)
 
-### Probleme : le bot repond "busy" (message precedent encore en cours)
+### Probleme : un message reçoit 👀 au lieu d'une réponse (message precedent encore en cours)
 
-- Le verrou Redis par personne est tenu tant que le tour precedent tourne (rearme pendant le tour) : le nouveau message recoit "busy", et c'est voulu -- deux tours sur la meme conversation ecriraient l'un a cote de l'autre
+- Le verrou Redis par personne est tenu tant que le tour precedent tourne (rearme pendant le tour) : le nouveau message attend son tour (réaction 👀, [5.8](#58-messages-écrits-pendant-que-lia-travaille)) et part dès que LIA est libre -- deux tours sur la meme conversation ecriraient l'un a cote de l'autre
+- Une réponse à une question en attente, une position ou un fichier n'attendent pas : la personne est invitée à les renvoyer
 - Une personne au-dela de son debit (`CHANNEL_RATE_LIMIT_PER_USER_PER_MINUTE`) recoit aussi "busy", une fois par fenetre : `channel_message_rate_limited` dans les logs
 - Apres un crash du worker, le verrou expire au plus `CHANNEL_MESSAGE_LOCK_TTL_SECONDS` plus tard
 - `channel_message_claim_lost` dans les logs : `claim_loss=taken_over`, un autre tour a pris le verrou (cache injoignable plus longtemps que le TTL) ; `claim_loss=hold_exhausted`, le tour a depasse `BACKGROUND_RUNS_STREAM_SAFETY_TTL_SECONDS` ; dans les deux cas il a ete arrete et la personne a recu "error"

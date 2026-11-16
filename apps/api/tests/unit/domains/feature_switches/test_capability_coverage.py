@@ -66,6 +66,8 @@ EXPECTED_CAPABILITIES: frozenset[str] = frozenset(
         "peers",
         "psyche",
         "channels",
+        # ADR-391 — notifications through a server the person subscribes to.
+        "ntfy",
         "open_loops",
         "memory",
         "interests",

@@ -18,6 +18,7 @@ What must hold:
 
 from __future__ import annotations
 
+import json
 import uuid
 from types import SimpleNamespace
 from typing import Any
@@ -30,11 +31,14 @@ from src.core.constants import (
     SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES,
     SCHEDULED_ACTIONS_QUOTA_NOTIFIED_KEY_PREFIX,
 )
+from src.core.conversation_target import ConversationOrigin
+from src.core.field_names import FIELD_CONVERSATION_ID
 from src.core.i18n_proactive import ProactiveMessages
 from src.infrastructure.scheduler.scheduled_action_notices import (
     RoutineNotice,
     claim_quota_notice,
     failure_notice,
+    notify_result,
     send_routine_notice,
 )
 
@@ -164,3 +168,168 @@ class TestARoutineNotice:
             )
 
         dispatcher.dispatch.assert_awaited_once()
+
+    async def test_a_run_asked_in_an_annex_is_told_there(self) -> None:
+        """ADR-378 amendment 2026-11-14: the notice follows the run's origin."""
+        origin = ConversationOrigin(uuid.uuid4(), 3)
+        dispatcher = MagicMock(dispatch=AsyncMock(return_value=MagicMock(durably_delivered=True)))
+        with patch(
+            "src.infrastructure.proactive.notification.NotificationDispatcher",
+            return_value=dispatcher,
+        ):
+            await send_routine_notice(
+                MagicMock(),
+                user=_owner(),
+                action=_routine(),
+                kind=RoutineNotice.FAILED,
+                user_language="fr",
+                origin=origin,
+            )
+
+        assert dispatcher.dispatch.await_args.kwargs["origin"] == origin
+
+
+_CHANNELS = "src.infrastructure.scheduler.scheduled_action_notices.send_notification_to_channels"
+
+
+class _Pushes:
+    """The two halves of a routine's result, captured where they leave."""
+
+    def __init__(self) -> None:
+        self.fcm = MagicMock(send_to_user=AsyncMock())
+        self.redis = MagicMock(publish=AsyncMock())
+
+    def patches(self) -> tuple[Any, Any]:
+        return (
+            patch(
+                "src.domains.notifications.service.FCMNotificationService",
+                return_value=self.fcm,
+            ),
+            patch(
+                "src.infrastructure.cache.redis.get_redis_cache",
+                AsyncMock(return_value=self.redis),
+            ),
+        )
+
+    @property
+    def push_data(self) -> dict[str, str]:
+        data: dict[str, str] = self.fcm.send_to_user.await_args.kwargs["data"]
+        return data
+
+    @property
+    def live_event(self) -> dict[str, Any]:
+        _channel, payload = self.redis.publish.await_args.args
+        event: dict[str, Any] = json.loads(payload)
+        return event
+
+
+class TestARoutineResultNamesItsAnnex:
+    """Both halves describe ONE notification: the toast reads its place from either."""
+
+    async def _notify(self, discussion: uuid.UUID | None) -> _Pushes:
+        pushes = _Pushes()
+        fcm_patch, redis_patch = pushes.patches()
+        with fcm_patch, redis_patch, patch(_CHANNELS, AsyncMock(return_value=0)):
+            await notify_result(
+                MagicMock(),
+                user_id=USER_ID,
+                action=_routine(),
+                content="Résultat",
+                user_language="fr",
+                discussion=discussion,
+            )
+        return pushes
+
+    async def test_a_result_in_an_annex_names_it_on_both_halves(self) -> None:
+        annex = uuid.uuid4()
+        pushes = await self._notify(annex)
+
+        assert pushes.push_data[FIELD_CONVERSATION_ID] == str(annex)
+        assert pushes.push_data["url"] == f"/dashboard/chat?conversation={annex}"
+        assert pushes.live_event["metadata"] == {FIELD_CONVERSATION_ID: str(annex)}
+
+    async def test_a_result_in_main_names_none(self) -> None:
+        pushes = await self._notify(None)
+
+        assert FIELD_CONVERSATION_ID not in pushes.push_data
+        assert "url" not in pushes.push_data
+        assert pushes.live_event["metadata"] == {}
+
+
+class TestARoutineResultReachesTheChannels:
+    """The Telegram FAQ promised the results of the routines; the executor only
+    pushed and toasted them (``SCHEDULED_ACTIONS.md``: « jamais poussé vers
+    Telegram »). The result now reaches every active channel, whole, as the
+    chat shows it — each channel draws it (Telegram lot 1)."""
+
+    async def _notify(
+        self, channels: AsyncMock, *, enabled: bool = True, routine: SimpleNamespace | None = None
+    ) -> _Pushes:
+        pushes = _Pushes()
+        fcm_patch, redis_patch = pushes.patches()
+        with (
+            fcm_patch,
+            redis_patch,
+            patch(_CHANNELS, channels),
+            patch.object(settings, "channels_enabled", enabled),
+        ):
+            await notify_result(
+                MagicMock(),
+                user_id=USER_ID,
+                action=routine or _routine(),
+                content='**3** mails\n\n<div class="card">x</div>',
+                user_language="en",
+            )
+        return pushes
+
+    async def test_the_whole_result_is_sent_to_the_channels(self) -> None:
+        channels = AsyncMock(return_value=1)
+        routine = _routine()
+
+        pushes = await self._notify(channels, routine=routine)
+
+        channels.assert_awaited_once()
+        sent = channels.await_args.kwargs
+        assert sent["user_id"] == USER_ID
+        assert sent["body"] == '**3** mails\n\n<div class="card">x</div>'
+        assert sent["task_type"] == "scheduled_action"
+        assert sent["target_id"] == str(routine.id)
+        assert sent["language"] == "en"
+        # One notification, two surfaces: the channel's title is the push's.
+        assert sent["title"] == pushes.fcm.send_to_user.await_args.kwargs["title"]
+
+    async def test_the_channels_are_reached_before_the_push_opens_its_transaction(self) -> None:
+        """The push reads and writes its device rows on the tick's session and
+        leaves them uncommitted: a channel reached after it would hold those
+        row locks across Telegram (ADR-304)."""
+        order: list[str] = []
+        channels = AsyncMock(side_effect=lambda **_kw: order.append("channels") or 1)
+        pushes = _Pushes()
+        pushes.fcm.send_to_user = AsyncMock(side_effect=lambda **_kw: order.append("push"))
+        fcm_patch, redis_patch = pushes.patches()
+        with fcm_patch, redis_patch, patch(_CHANNELS, channels):
+            with patch.object(settings, "channels_enabled", True):
+                await notify_result(
+                    MagicMock(),
+                    user_id=USER_ID,
+                    action=_routine(),
+                    content="Résultat",
+                    user_language="fr",
+                )
+
+        assert order == ["channels", "push"]
+
+    async def test_an_instance_without_channels_asks_none(self) -> None:
+        channels = AsyncMock(return_value=1)
+
+        await self._notify(channels, enabled=False)
+
+        channels.assert_not_awaited()
+
+    async def test_a_channel_that_fails_never_reaches_the_tick_or_the_push(self) -> None:
+        channels = AsyncMock(side_effect=ConnectionError("database away"))
+
+        pushes = await self._notify(channels)
+
+        pushes.fcm.send_to_user.assert_awaited_once()
+        pushes.redis.publish.assert_awaited_once()

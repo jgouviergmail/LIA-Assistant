@@ -147,7 +147,8 @@ When a document is uploaded:
 **Error handling**: On failure, document status is set to `error` with a technical
 message (`error_message`, kept for support) **and a code** (`error_code`, the closed
 vocabulary `RAGDocumentErrorCode`: `file_missing`, `extraction_failed`,
-`scanned_pdf_no_text_layer`, `no_text_content`, `no_chunks`, `too_many_chunks`,
+`inflates_too_far` (a zipped document declaring more than `RAG_SPACES_MAX_INFLATED_MB` once
+unzipped: its reader is never started, 2026-11-14), `scanned_pdf_no_text_layer`, `no_text_content`, `no_chunks`, `too_many_chunks`,
 `retries_exhausted` — the durable job's dead letter, written by
 `fail_or_retry_document` when the retry bound is reached). The
 frontend translates the code into the person's language under the row
@@ -267,7 +268,7 @@ third party and it travels into a `Content-Disposition` header.
 | Path | Trigger | What it does |
 |---|---|---|
 | Full sync | link, manual sync, reaper re-drive | reads the history id **before** listing the label's threads (a message arriving mid-listing is replayed by the next pass instead of falling in the gap), ingests each thread, removes the documents whose thread left the label, completes with an EXACT `COUNT(*)` of READY documents |
-| Incremental | a Gmail push notification (ADR-261) | replays `history.list` from the source's anchor, revisits only the threads the history names (label added/removed, message added to an indexed thread), and falls back to a full sync when the anchor is missing or expired |
+| Incremental | a Gmail push notification (ADR-261) | replays `history.list` from the source's anchor, page after page (`gmail_history.read_history`, Gmail-sized pages), revisits only the threads the history names (label added/removed, message added to an indexed thread), resumes after the last record a cut read saw — never from the mailbox's current id, never by re-reading the same pages (ADR-185 amendment 2026-11-15) — and falls back to a full sync when the anchor is missing or expired |
 
 **Two independent bounds**: `RAG_SPACES_MAX_DOCS_PER_SPACE` controls the
 space's total document capacity; `RAG_MAIL_MAX_THREADS_PER_SYNC` controls

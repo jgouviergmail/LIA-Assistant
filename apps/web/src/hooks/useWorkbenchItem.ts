@@ -14,10 +14,11 @@
  * what is on screen when it fails. `setItem` applies an optimistic or confirmed
  * change without a read.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useAuth } from '@/hooks/useAuth';
 import apiClient, { type QueryParamValue } from '@/lib/api-client';
+import { CARD_SOURCE_HEADER } from '@/lib/workbench/card-source';
 import { paramsOf, serialiseParams } from '@/lib/workbench/params';
 import type { RereadOptions } from '@/lib/workbench/types';
 import { useWorkbenchSourceKey } from './useWorkbenchSourceKey';
@@ -43,17 +44,26 @@ interface Read<T> {
 /**
  * @param path - The item's endpoint; null reads nothing.
  * @param params - What names it (its id); part of the key.
+ * @param cardSource - The signed source of the chat card that asks (owner, 2026-11-14): sent as
+ *   the header a Tools page opened from a card sends, so a replacement source is refused; part of
+ *   the key. A Tools page leaves it out: its own address carries its source.
  * @returns The item's state and its two gestures.
  */
 export function useWorkbenchItem<T>(
   path: string | null,
-  params: Readonly<Record<string, QueryParamValue>>
+  params: Readonly<Record<string, QueryParamValue>>,
+  cardSource: string | null = null
 ): WorkbenchItemState<T> {
   const { user } = useAuth();
   const owner = user?.id;
   const queryKey = serialiseParams(params);
-  const sourceKey = useWorkbenchSourceKey(path);
+  const pageSource = useWorkbenchSourceKey(path);
+  const sourceKey = cardSource ?? pageSource;
   const key = owner && path ? JSON.stringify([owner, path, queryKey, sourceKey]) : null;
+  const headers = useMemo(
+    () => (cardSource ? { [CARD_SOURCE_HEADER]: cardSource } : undefined),
+    [cardSource]
+  );
   const [read, setRead] = useState<Read<T> | null>(null);
   // Every read starts a new generation; an answer to an older one is dropped.
   const generation = useRef(0);
@@ -63,7 +73,7 @@ export function useWorkbenchItem<T>(
     const readId = ++generation.current;
     const transport = new AbortController();
     apiClient
-      .get<T>(path, { params: paramsOf(queryKey), signal: transport.signal })
+      .get<T>(path, { params: paramsOf(queryKey), signal: transport.signal, headers })
       .then(item => {
         if (readId === generation.current) setRead({ key, item, error: null });
       })
@@ -72,7 +82,7 @@ export function useWorkbenchItem<T>(
         setRead({ key, item: undefined, error });
       });
     return () => transport.abort();
-  }, [key, path, queryKey]);
+  }, [key, path, queryKey, headers]);
 
   const current = read !== null && read.key === key;
   const itemShown = current && read.item !== undefined;
@@ -82,13 +92,13 @@ export function useWorkbenchItem<T>(
       if (key === null || path === null || (unasked && !itemShown)) return;
       const readId = ++generation.current;
       try {
-        const item = await apiClient.get<T>(path, { params: paramsOf(queryKey) });
+        const item = await apiClient.get<T>(path, { params: paramsOf(queryKey), headers });
         if (readId === generation.current) setRead({ key, item, error: null });
       } catch (error: unknown) {
         if (readId === generation.current && !unasked) setRead({ key, item: undefined, error });
       }
     },
-    [key, path, queryKey, itemShown]
+    [key, path, queryKey, itemShown, headers]
   );
 
   const setItem = useCallback(

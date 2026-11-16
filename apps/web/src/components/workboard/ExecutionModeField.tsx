@@ -2,12 +2,14 @@
 /**
  * How LIA runs a ticket, chosen per ticket (ADR-276).
  *
- * The two options carry the header toggle's own names — « Mode ReAct »,
- * « Mode Pipeline » — and its own marks (lot 21, D81), and nothing else: the
- * owner asked for the choice without a paragraph under it (2026-09-09). The
- * loop stays the default because a ticket is a multi-step task with nobody
- * there to steer a plan; the pipeline stays offered because it is four to
- * eight times cheaper in tokens.
+ * The three options carry the header menu's own names — « Mode Pipeline »,
+ * « Mode ReAct », « Mode automatique » — and its own marks (lot 21, D81), and
+ * nothing else: the owner asked for the choice without a paragraph under it
+ * (2026-09-09). The loop stays the default because a ticket is a multi-step
+ * task with nobody there to steer a plan; the pipeline stays offered because it
+ * is four to eight times cheaper in tokens, and « auto » lets the router pick
+ * one of the two for each run (ADR-390, offered to tickets and routines by the
+ * owner's decision of 2026-11-15).
  *
  * One component for the creation form, the detail panel and the routines: the
  * choice is the same choice, and a ticket engaged for days is exactly when a
@@ -16,8 +18,8 @@
 import { useTranslation } from 'react-i18next';
 
 import { GlyphSelect } from '@/components/workboard/GlyphSelect';
-import { modeIcon } from '@/lib/workboard/icons';
-import { EXECUTION_MODES, type ExecutionMode } from '@/types/workboard';
+import { EXECUTION_MODES, type ExecutionMode } from '@/lib/execution-mode';
+import { modeIcon } from '@/lib/execution-mode-icon';
 
 export interface ExecutionModeFieldProps {
   /** Id of the control, so its label points at it. */
@@ -33,7 +35,7 @@ export function ExecutionModeField({ id, value, onChange }: ExecutionModeFieldPr
   const items = EXECUTION_MODES.map(mode => ({
     value: mode,
     glyph: modeIcon(mode, GLYPH),
-    text: t(`workboard.execution_mode.${mode}`),
+    text: t(`executionMode.modes.${mode}`),
   }));
 
   return (
@@ -46,7 +48,7 @@ export function ExecutionModeField({ id, value, onChange }: ExecutionModeFieldPr
         items={items}
         className="h-10 px-3 text-sm"
         onChange={chosen => {
-          // The list only ever offers the two modes; narrowing by lookup keeps
+          // The list only ever offers the three modes; narrowing by lookup keeps
           // the type honest without a cast.
           const mode = EXECUTION_MODES.find(candidate => candidate === chosen);
           if (mode) onChange(mode);

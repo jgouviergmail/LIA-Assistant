@@ -32,7 +32,7 @@ LIA utilise **LangGraph v1.2.14** avec exécution parallèle native **asyncio** 
 
 ## 1. Schéma Global du Graph
 
-Le graphe réel (`apps/api/src/domains/agents/graph.py`), des deux modes d'exécution jusqu'à la réponse :
+Le graphe réel (`apps/api/src/domains/agents/graph.py`), des deux moteurs d'exécution jusqu'à la réponse ; le choix `auto` est résolu par le routeur ([ADR-390](architecture/ADR-390-The-Automatic-Mode-Chooses-The-Engine-Per-Request.md)) :
 
 ```mermaid
 graph TD
@@ -80,7 +80,7 @@ graph TD
 
 ## 1b. ReAct Execution Mode (ADR-070)
 
-Alternative path when `execution_mode == "react"`: the router routes to `react_setup` instead of `planner`.
+Alternative path when `execution_mode == "react"`: the router routes to `react_setup` instead of `planner`. The turn's state carries the ENGINE: the person chose ReAct, or the automatic mode resolved the turn to the loop ([ADR-390](architecture/ADR-390-The-Automatic-Mode-Chooses-The-Engine-Per-Request.md), `services/engine_resolution.py`).
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐

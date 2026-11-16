@@ -69,3 +69,17 @@ it('bounds private content and retained arrivals during a long world session', (
   for (const n of box.snapshot())
     if (n.kind === 'reminder') expect(n.content.length).toBeLessThanOrEqual(4000);
 });
+it('keeps the occurrence a reminder names and suppresses only its own duplicate (ADR-268)', () => {
+  const box = new DeviceInbox(owner);
+  const first = { ...reminder, firing_id: 'firing-1' };
+  const next = { ...reminder, firing_id: 'firing-2' };
+  expect(box.receiveReminder(first, 0)).toBe(true);
+  // The same ringing through the second transport: one notice.
+  expect(box.receiveReminder(first, 900)).toBe(false);
+  // The next occurrence of a frequent series is news, however soon it comes.
+  expect(box.receiveReminder(next, 1000)).toBe(true);
+  expect(box.snapshot().map(n => (n.kind === 'reminder' ? n.firingId : null))).toEqual([
+    'firing-2',
+    'firing-1',
+  ]);
+});

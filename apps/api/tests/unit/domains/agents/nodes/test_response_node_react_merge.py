@@ -49,6 +49,58 @@ class TestMergeReactSynthesisResult:
         merge_react_synthesis_result(existing, "answer", 4, {})
         assert "4:react_agent" not in existing
 
+    def test_a_long_react_thread_keeps_a_bounded_history(self) -> None:
+        """The ReAct write keeps the recent turns only, like the pipeline's writers.
+
+        Unbounded, every ReAct turn's answer and registry items rode every later
+        checkpoint: production measured 4.65 MB of a 5.3 MB state in agent_results.
+        """
+        from src.core.config import settings
+
+        bound = settings.max_agent_results
+        current = bound + 6
+        existing: dict[str, Any] = {
+            f"{turn}:react_agent": {"data": {"react_synthesis": f"turn {turn}"}}
+            for turn in range(1, current)
+        }
+        merged = merge_react_synthesis_result(existing, "now", current, {})
+        assert len(merged) <= bound
+        assert merged[f"{current}:react_agent"]["data"]["react_synthesis"] == "now"
+        assert f"{current - 1}:react_agent" in merged
+        assert "1:react_agent" not in merged
+
+    def test_the_bound_never_separates_the_current_turn(self) -> None:
+        """The initiative entry of the turn stays beside its ReAct answer."""
+        from src.core.config import settings
+
+        bound = settings.max_agent_results
+        current = bound + 3
+        existing: dict[str, Any] = {
+            f"{turn}:react_agent": {"data": {"react_synthesis": f"turn {turn}"}}
+            for turn in range(1, current)
+        }
+        existing[f"{current}:initiative"] = {"status": "success", "data": {}}
+        merged = merge_react_synthesis_result(existing, "now", current, {})
+        assert len(merged) <= bound
+        assert f"{current}:initiative" in merged
+        assert f"{current}:react_agent" in merged
+
+    def test_a_bound_smaller_than_the_turn_never_drops_the_answer(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """An operator's tiny bound trims the history, never the turn's own answer."""
+        from src.core.config import settings
+
+        monkeypatch.setattr(settings, "max_agent_results", 1)
+        existing: dict[str, Any] = {
+            "1:react_agent": {"data": {"react_synthesis": "old"}},
+            "2:initiative": {"status": "success", "data": {}},
+        }
+        merged = merge_react_synthesis_result(existing, "now", 2, {})
+        assert merged["2:react_agent"]["data"]["react_synthesis"] == "now"
+        assert "2:initiative" in merged
+        assert "1:react_agent" not in merged
+
     def test_another_turn_s_pipeline_data_blocks_leave_the_state(self) -> None:
         """The ReAct turn's write is the one the checkpoint keeps (ADR-347).
 

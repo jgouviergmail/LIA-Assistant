@@ -2,7 +2,7 @@
 
 > Documentation technique détaillée des flux de notifications dans LIA
 
-**Related ADRs**: ADR-051 (Reminder & Notification System), ADR-046 (Background Job Scheduling), ADR-312 (Broadcast Audience)
+**Related ADRs**: ADR-051 (Reminder & Notification System), ADR-046 (Background Job Scheduling), ADR-312 (Broadcast Audience), ADR-391 (ntfy)
 
 ---
 
@@ -14,6 +14,7 @@
 4. [FCM Push Notification Flow](#fcm-push-notification-flow)
 5. [SSE Real-time Flow](#sse-real-time-flow)
 6. [Admin Broadcast Flow](#admin-broadcast-flow)
+6b. [ntfy Flow](#ntfy-flow)
 7. [Error Handling Flow](#error-handling-flow)
 8. [Concurrency Handling](#concurrency-handling)
 
@@ -25,10 +26,10 @@ Le système de notifications LIA gère plusieurs types de notifications, livrée
 
 | Type | Trigger | Delivery | Use Case |
 |------|---------|----------|----------|
-| **Reminders** | Scheduled (trigger_at) | FCM Push + SSE + Channels (Telegram) | "Rappelle-moi de..." |
-| **Proactive** | Interest detection | FCM Push + SSE + Channels (Telegram) | Actualités centres d'intérêt |
-| **Scheduled actions** | Cron (jours + heure) | FCM Push + SSE (**pas** de canaux) | Voir [SCHEDULED_ACTIONS.md](SCHEDULED_ACTIONS.md) |
-| **Admin broadcasts** | Un administrateur | FCM Push + SSE | Annonce à tous ou à des comptes choisis — voir [Admin Broadcast Flow](#admin-broadcast-flow) |
+| **Reminders** | Scheduled (trigger_at) | FCM + ntfy + SSE + Channels (Telegram) | "Rappelle-moi de..." |
+| **Proactive** | Interest detection | FCM + ntfy + SSE + Channels (Telegram) | Actualités centres d'intérêt |
+| **Scheduled actions** | Récurrence, condition ou webhook | FCM + ntfy + SSE + Channels (Telegram) | Voir [SCHEDULED_ACTIONS.md](SCHEDULED_ACTIONS.md) |
+| **Admin broadcasts** | Un administrateur | FCM + ntfy + SSE | Annonce à tous ou à des comptes choisis — voir [Admin Broadcast Flow](#admin-broadcast-flow) |
 | **Real-time** | Immediate | SSE only | Status updates, typing indicators |
 
 ### Règle transverse : le corps d'une notification est du texte brut
@@ -575,6 +576,19 @@ selection, and the row says which ([ADR-312](../architecture/ADR-312-A-Broadcast
 4. **The history** (`GET /notifications/admin/broadcasts`) serves a page and its
    exact total, a bounded sample of the recipients with their exact count, the
    expiry instant and the chosen delay — four queries whatever the page size.
+
+---
+
+## ntfy Flow
+
+Chaque notification d'une personne part aussi vers ses abonnements ntfy, par UNE porte
+(`push_to_ntfy` / `deliver`, ADR-391) : la porte push (`send_to_user`, qui publie AVANT d'écrire
+le statut des appareils), l'ouverture d'une discussion proactive, la boîte d'envoi durable des SMS
+(destination `ntfy`) et la diffusion d'un administrateur. Les cibles sont lues dans une session
+courte, détachées ; les publications partent sans transaction ouverte ; chaque issue est écrite
+après, dans une autre session. Contenu minimal par défaut (l'avis générique), texte complet au
+choix ; une publication acceptée par un serveur compte comme remise. Détails, routes, réglages et
+limites mesurées : [NTFY.md](NTFY.md).
 
 ---
 

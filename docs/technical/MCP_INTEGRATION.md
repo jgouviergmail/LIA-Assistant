@@ -675,9 +675,12 @@ one placed where the catalogue says being refused (`401`/`403`); (3) for a serve
 needs no account, what its tools weigh in a prompt was read and stays moderate. Measured
 on 2026-11-12 against thirty-four candidates: two publish no registration endpoint (a
 client would have to be pre-registered), two publish their authorization metadata under
-an issuer PATH that LIA's discovery does not read, and one account-free server lists five
+an issuer PATH that LIA's discovery did not read, and one account-free server lists five
 tools weighing about seventeen thousand tokens — none of the five is listed; each can
-still be added by hand. On 2026-11-13 seventeen servers the owner's account uses were
+still be added by hand. Since 2026-11-14 the discovery reads an issuer's path as RFC 8414
+places it (OAuth 2.1 Metadata Discovery, below): Stripe is listed, measured with dynamic
+registration and PKCE `S256`; Strava stays out, its authorization server announcing no
+PKCE method. On 2026-11-13 seventeen servers the owner's account uses were
 added with the scheme that account uses (none, `oauth2`, a key or a token): Bright Data,
 whose token the owner's address carried in its query, is listed as `bearer` — measured,
 it reads the token from `Authorization` as well, and a catalogue address carries no
@@ -847,16 +850,30 @@ Users can also force-(re)generate a description via `POST /mcp/servers/{id}/gene
 | Rate limiting | Per-server sliding window |
 | OAuth PKCE | S256 code_challenge_method |
 | State single-use | Redis TTL 5min, deleted after consumption |
-| OAuth metadata discovery | 3-strategy fallback (RFC 8414 → OpenID → heuristic) |
+| OAuth metadata discovery | 3-strategy fallback (RFC 8414 → OpenID → heuristic), an issuer's path inserted first |
 
 ### OAuth 2.1 Metadata Discovery
 
 The `MCPOAuthFlowHandler.discover_auth_server()` discovers the authorization server for a given MCP URL using 4 strategies in order:
 
-1. **RFC 9728** — `.well-known/oauth-protected-resource` on the MCP server (returns `authorization_servers[]`)
+1. **RFC 9728** — `.well-known/oauth-protected-resource` on the MCP server (returns `authorization_servers[]`): the host's root document first, then the server's path inserted (`resource_metadata_urls`)
 2. **WWW-Authenticate** — Unauthenticated request to MCP URL, parse `resource_metadata` from 401 header
-3. **RFC 8414** — `.well-known/oauth-authorization-server` on the auth server base URL
+3. **RFC 8414** — `.well-known/oauth-authorization-server` for the issuer
 4. **OpenID Connect** — `.well-known/openid-configuration` fallback
+
+An authorization server's documents are read where each standard places them for its issuer
+(`authorization_metadata_urls`, 2026-11-14): for an issuer with a path, RFC 8414 §3.1 inserts the
+well-known name between the host and the path (`https://as.example.com/.well-known/oauth-authorization-server/mcp`
+for the issuer `https://as.example.com/mcp`), then OpenID Connect's insertion and its appending,
+then the host's root documents; an issuer without a path reads the root documents. Measured on
+2026-11-14: Stripe's MCP authorization server (issuer `https://access.stripe.com/mcp`) publishes at
+the inserted address alone, so LIA refused it until then. Strava publishes there too but announces
+no PKCE method, which LIA refuses as the MCP specification requires (it stays out of the known
+servers). The resource document keeps the host's root first on purpose: Asana publishes both for
+`…/v2/mcp`, naming two authorization servers, and the host's one, with dynamic registration, is the
+one every sign-in was made against. LIA does not check that a fetched document's `issuer` equals
+the issuer it was looked up for (RFC 8414 §3.3); the callback's `iss` is checked against the
+recorded one (RFC 9207).
 
 When strategies 3 & 4 fail (e.g., GitHub doesn't implement RFC 8414), a **convention-based heuristic** probes `{auth_server_url}/authorize`. If the endpoint exists (any status except 404/5xx), it constructs:
 

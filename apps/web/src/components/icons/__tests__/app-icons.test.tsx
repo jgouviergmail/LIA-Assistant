@@ -1,5 +1,5 @@
 import { createRef } from 'react';
-import { fireEvent, render } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Calendar, Circle, Heart, Home, MessageSquare, Pin, Square, Star } from '@/lib/icons';
 import * as applicationIcons from '@/lib/icons';
@@ -87,6 +87,55 @@ describe('shared icon rendering', () => {
       else expect(getByLabelText(label).querySelector('[fill="inherit"]')).not.toBeNull();
     }
   });
+  it('asks the browser once for every icon, never once per icon', () => {
+    const addEventListener = vi.fn();
+    const matchMedia = vi.fn((media: string) => ({
+      matches: false,
+      media,
+      onchange: null,
+      addEventListener,
+      removeEventListener: vi.fn(),
+    }));
+    vi.stubGlobal('matchMedia', matchMedia);
+    render(
+      <IconStyleContext.Provider value="fluent">
+        {Array.from({ length: 10 }, (_, index) => (
+          <Calendar key={index} aria-label={`Calendar ${index}`} />
+        ))}
+      </IconStyleContext.Provider>
+    );
+    // A page draws hundreds of icons (≈590 on the home page, 2026-11-15).
+    expect(matchMedia).toHaveBeenCalledTimes(1);
+    expect(addEventListener).toHaveBeenCalledTimes(1);
+  });
+
+  it('switches every icon at once when forced colours turn on', () => {
+    let forced = false;
+    let notify: () => void = () => {};
+    vi.stubGlobal('matchMedia', (media: string) => ({
+      get matches() {
+        return forced;
+      },
+      media,
+      onchange: null,
+      addEventListener: (_type: string, listener: () => void) => {
+        notify = listener;
+      },
+      removeEventListener: vi.fn(),
+    }));
+    const { getByLabelText } = render(
+      <IconStyleContext.Provider value="fluent">
+        <Calendar aria-label="First" />
+        <Home aria-label="Second" />
+      </IconStyleContext.Provider>
+    );
+    expect(getByLabelText('First')).toHaveAttribute('data-icon-style', 'fluent');
+    forced = true;
+    act(() => notify());
+    expect(getByLabelText('First')).toHaveAttribute('data-icon-style', 'lucide');
+    expect(getByLabelText('Second')).toHaveAttribute('data-icon-style', 'lucide');
+  });
+
   it('uses system-coloured Lucide geometry in forced-colour environments', () => {
     const query = window.matchMedia('(forced-colors: active)');
     vi.stubGlobal('matchMedia', () => ({ ...query, matches: true }));

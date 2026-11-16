@@ -41,6 +41,7 @@ ApplicationResource = Literal[
     "workboard",
     "spaces",
     "generated_assets",
+    "writing_style",
 ]
 
 GROUP_RESOURCES: dict[str, tuple[ApplicationResource, ...]] = {
@@ -85,6 +86,8 @@ DEDICATED_RESOURCES: dict[str, ApplicationResource] = {
     "meeting_template.update": "meeting_templates",
     "meeting_template.delete": "meeting_templates",
     "skill_settings.delete": "skills",
+    "skill_settings.restore_previous": "skills",
+    "memories.import": "memories",
     "skill_file.upload": "skills",
     "skill_url.import": "skills",
     "skill_library.install": "skills",
@@ -133,6 +136,8 @@ DEDICATED_RESOURCES: dict[str, ApplicationResource] = {
     "habits.delete": "habits",
     "habits.forget": "habits",
     "habits.recompute": "habits",
+    "writing_style.learn": "writing_style",
+    "writing_style.forget": "writing_style",
     "open_loops.update": "open_loops",
     "open_loops.close": "open_loops",
     "interest_settings.update": "interests",

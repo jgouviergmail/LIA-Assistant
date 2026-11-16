@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1.4
 
-ARG PIP_VERSION=26.2.2
-ARG PIP_WHEEL_SHA256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70
-ARG NPM_VERSION=12.2.1
+ARG PIP_VERSION=26.3
+ARG PIP_WHEEL_SHA256=f3b60b20ffaadd4415ed7957212a38ac63fa4c5fa375bd0f4a797777940fad13
+ARG NPM_VERSION=12.2.2
 
 # =============================================================================
 # Model download stage - Downloads Sherpa-onnx Whisper Small INT8 STT model
@@ -132,7 +132,7 @@ RUN apt-get update && apt-get install -y \
     && gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg /tmp/docker.asc \
     && rm -f /tmp/docker.asc \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian trixie stable" > /etc/apt/sources.list.d/docker.list \
-    && apt-get update && apt-get install -y docker-ce-cli \
+    && apt-get update && apt-get install -y --no-install-recommends docker-ce-cli \
     && rm -rf /var/lib/apt/lists/* \
     && pip install uv==0.13.4
 

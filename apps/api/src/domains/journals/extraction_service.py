@@ -326,11 +326,14 @@ async def extract_journal_entry_background(
 
             # 1. Semantic search: top N entries close to current conversation
             if query_embedding:
+                # The vectors come along: these entries may be merged, and a
+                # merge reads the winner's vectors (latency lot 5).
                 semantic_results = await service.repo.search_by_relevance(
                     user_id=UUID(user_id),
                     query_embedding=query_embedding,
                     limit=JOURNAL_EXTRACTION_SEMANTIC_LIMIT,
                     min_score=JOURNAL_EXTRACTION_DEDUP_MIN_SCORE,
+                    with_vectors=True,
                 )
                 semantic_entries = [entry for entry, _ in semantic_results]
             else:
@@ -340,6 +343,7 @@ async def extract_journal_entry_background(
             recent_entries = await service.repo.get_recent_for_user(
                 user_id=UUID(user_id),
                 limit=JOURNAL_EXTRACTION_RECENT_LIMIT,
+                with_vectors=True,
             )
 
             # 3. Merge + dedup by ID

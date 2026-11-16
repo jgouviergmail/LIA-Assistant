@@ -24,7 +24,7 @@ export async function BasicsBand({ lng }: { lng: string }) {
           <h2 id="basics-title" className="text-2xl font-bold tracking-tight">
             {t('landing.basics.title')}
           </h2>
-          <p className="mt-2 max-w-[68ch] text-sm text-muted-foreground">
+          <p className="mt-2 text-sm text-muted-foreground">
             {t('landing.basics.sub')}
           </p>
           <ul className="mt-6 flex list-none flex-wrap gap-2">

@@ -566,6 +566,51 @@ décision ; un appel d'outil protégé attend donc sa décision, les valeurs d'u
 appel étant jugées en parallèle. La mesure (décision d5) et ses limites sont dans
 le [bilan de qualification](JEV_SEMANTIC_QUALIFICATION.md).
 
+## Choix automatique du moteur d'exécution
+
+L'usage `execution_mode` (« Mode d'exécution automatique »,
+[ADR-390](../architecture/ADR-390-The-Automatic-Mode-Chooses-The-Engine-Per-Request.md))
+répond, pour une demande en mode automatique, à quatre questions Noul en UN appel :
+la demande attend-elle un chiffre calculé à partir de données lues, un recoupement
+de résultats, un travail ouvert, ou quelqu'un (ou quelque chose) que seul le texte
+écrit d'un élément nomme ? La quatrième existe parce qu'une référence de plan ne
+transmet qu'un champ : une personne nommée dans la description d'un ticket ne peut
+pas être enchaînée par le pipeline. L'état transmis est la demande seule
+(`{"request": …}`), jamais la conversation. Les quatre portes sont des marges
+(`GateKind.MARGIN`, [jev_gates.py](../../apps/api/src/domains/llm_config/jev_gates.py)) :
+0,20 pour le calcul, 0,50 pour le recoupement et pour le travail ouvert, 0,48 pour le
+nom lu dans un texte, réglables de 0,02 à 0,50. Le pipeline ne planifie le tour que si
+les quatre propriétés sont JUGÉES absentes au-delà de leur marge (une seule porte,
+`property_absent`, lue par le verdict et par le banc) ; une propriété présente, un doute, un délai, un quota,
+une panne ou l'usage éteint envoient le tour dans la boucle ReAct (`no_decision`).
+C'est l'arbitrage du propriétaire : sans fournisseur de décision, le mode automatique
+se comporte comme ReAct, et le menu du chat le dit avant le choix (`auto_resolution`).
+
+Le routeur lance le jugement à côté de son analyse et ne l'attend que si l'analyse n'a
+rien tranché — un acte, un traitement élément par élément, une compétence, une
+référence à un tour précédent ou un calcul sur un autre domaine envoient déjà dans la
+boucle — ; sinon il l'annule. Chaque issue est comptée comme celle des autres usages,
+la dépense est celle du tour, sous les deux plafonds. Mesuré sur le corpus tenu à
+l'écart (`scripts/agents/execution_mode_corpus.py`) : 165 ms de médiane (p90 196 ms)
+pour une analyse de 2,8 s menée en parallèle ; l'écart de bout en bout qui reste à
+arbitrer est décrit dans l'ADR.
+
+Le jugement seul se requalifie depuis le dépôt :
+`task agents:execution-mode:measure -- --draws 2 --budget-eur 0.10` (`--dry-run`
+n'appelle rien). Le banc passe par la porte de production avec les marges de
+l'instance, sur le compte de preuve, et mesure l'usage même éteint : la
+qualification précède l'activation. Il compte comme fuite un cas étiqueté par une
+propriété jugée et pourtant jugé planifiable ; un acte, un traitement élément par
+élément ou une relance relèvent de l'analyse et sont listés à part. Relevé du
+15 novembre 2026 : 192 appels, 0,007 €, aucune fuite, critères déclarés tenus.
+À rejouer avant de déplacer le défaut d'une marge. Le banc rapporte aussi, par
+propriété, le plus bas score d'un cas étiqueté et le plus haut d'un cas
+planifiable (ce sur quoi une marge se choisit), lit les critères qu'une propriété
+déclare en plus (`PROPERTY_ACCEPTANCE`) et garde chaque jugement en une ligne de
+faits (`--rows-out`). La quatrième question a été qualifiée ainsi en deux tours : le
+premier a échoué en validation (« who am I supposed to meet », lu comme les
+participants d'une réunion), le second, sur un jeu neuf, est passé sans fuite.
+
 ## Qualification avant activation
 
 Le [bilan des lots 4 à 8](../superpowers/plans/2026-09-29-jev-lots-4-8.md)

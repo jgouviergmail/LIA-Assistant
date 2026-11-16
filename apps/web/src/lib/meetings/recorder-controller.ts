@@ -62,6 +62,8 @@ export interface RecorderDeps {
   position: () => Promise<MeetingGeolocation | null>;
   acquireWakeLock: () => Promise<WakeLockHandle | null>;
   timezone: () => string;
+  /** The chat annex on screen when a recording starts, or `null` (Main, another page). */
+  discussion: () => string | null;
   isOnline: () => boolean;
   now: () => number;
   /** Store accessors (zustand `getState`/`setState` shape). */
@@ -121,6 +123,7 @@ export class MeetingRecorderController {
         language: 'auto',
         timezone: this.deps.timezone(),
         geolocation,
+        conversation_id: this.deps.discussion(),
       });
     } catch (error) {
       if (lifetime === this.lifetime) store.fail(meetingErrorCode(error) ?? 'start_failed');

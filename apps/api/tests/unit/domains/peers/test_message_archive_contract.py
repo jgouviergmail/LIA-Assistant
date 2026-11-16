@@ -172,3 +172,62 @@ class TestUnknownSenderPlaceholder:
         assert _display_name(None) == PEER_UNKNOWN_DISPLAY_NAME
         assert _display_name(SimpleNamespace(full_name=None)) == PEER_UNKNOWN_DISPLAY_NAME
         assert _display_name(SimpleNamespace(full_name="Marie")) == "Marie"
+
+
+class TestTheSenderNoticeReturnsWhereTheMessageWasSent:
+    """ADR-378 amendment 2026-11-14: a message sent from an annex is told about there."""
+
+    async def test_the_delivery_notice_carries_the_message_origin(self) -> None:
+        from collections.abc import AsyncIterator
+        from contextlib import asynccontextmanager
+        from unittest.mock import MagicMock
+
+        from sqlalchemy.ext.asyncio import AsyncSession
+
+        from src.core.conversation_target import ConversationOrigin
+        from src.domains.peers.models import PeerMessage
+        from src.domains.users.models import User
+
+        sender = User(id=uuid4(), language="fr", full_name="Sender", is_active=True)
+        recipient = User(id=uuid4(), language="en", full_name="Recipient", is_active=True)
+        origin = ConversationOrigin(uuid4(), 4)
+        message = PeerMessage(
+            id=uuid4(), sender_id=sender.id, recipient_id=recipient.id, delivered_text="Received"
+        )
+        message.keep_origin(origin)
+        db = MagicMock(spec=AsyncSession)
+        db.get = AsyncMock(side_effect=[sender, recipient, message])
+        db.commit = AsyncMock()
+
+        @asynccontextmanager
+        async def context() -> AsyncIterator[AsyncSession]:
+            yield db
+
+        with (
+            patch.object(delivery, "get_db_context", context),
+            patch.object(delivery, "NotificationDispatcher") as dispatcher,
+        ):
+            dispatcher.return_value.dispatch = AsyncMock()
+            await delivery.notify_result(message, "delivered")
+        to_recipient, to_sender = dispatcher.return_value.dispatch.await_args_list
+        # The recipient's copy is theirs: no origin of the sender's ever reaches it.
+        assert to_recipient.kwargs.get("origin") is None
+        assert to_sender.kwargs["origin"] == origin
+
+    async def test_a_message_queued_in_a_turn_keeps_its_discussion(self) -> None:
+        from unittest.mock import MagicMock
+
+        from src.core.conversation_source import conversation_source_scope
+        from src.core.conversation_target import ConversationKind, ConversationRef
+        from src.domains.peers.repository import PeersRepository
+
+        annex = ConversationRef(uuid4(), uuid4(), ConversationKind.SECONDARY, 9, uuid4())
+        db = MagicMock()
+        db.flush = AsyncMock()
+        with conversation_source_scope(annex):
+            from src.core.conversation_source import current_origin
+
+            row = await PeersRepository(db).enqueue_message(
+                uuid4(), uuid4(), uuid4(), "Hello", origin=current_origin()
+            )
+        assert (row.origin_conversation_id, row.origin_conversation_revision) == (annex.id, 9)

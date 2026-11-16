@@ -48,6 +48,7 @@ from src.core.constants import (
     RAG_SPACES_MAX_CONTEXT_TOKENS_DEFAULT,
     RAG_SPACES_MAX_DOCS_PER_SPACE_DEFAULT,
     RAG_SPACES_MAX_FILE_SIZE_MB_DEFAULT,
+    RAG_SPACES_MAX_INFLATED_MB_DEFAULT,
     RAG_SPACES_MAX_SPACES_PER_USER_DEFAULT,
     RAG_SPACES_RETRIEVAL_LIMIT_DEFAULT,
     RAG_SPACES_RETRIEVAL_MIN_SCORE_DEFAULT,
@@ -87,6 +88,19 @@ class RAGSpacesSettings(BaseSettings):
         ge=1,
         le=100,
         description="Maximum file size in MB for uploaded documents.",
+    )
+
+    rag_spaces_max_inflated_mb: int = Field(
+        default=RAG_SPACES_MAX_INFLATED_MB_DEFAULT,
+        ge=1,
+        le=2048,
+        description=(
+            "Most megabytes a zipped document of a knowledge space (Word, Excel, PowerPoint, "
+            "OpenDocument, EPUB) may declare once unzipped before its text is read. A file sent "
+            "small can inflate large, and its readers inflate whole parts in memory: past this, "
+            "the document ends in error « too large once unzipped ». Symptom if too low: a large "
+            "spreadsheet in a space is refused (default: 200)."
+        ),
     )
 
     rag_spaces_max_spaces_per_user: int = Field(

@@ -52,7 +52,7 @@ from src.domains.agents.application.workboard_delete_spec import WORKBOARD_DELET
 from src.domains.agents.tools import workboard_tools
 from src.domains.agents.workboard.category_manifest import categories_managed_from
 from src.domains.users.models import User
-from src.domains.workboard.constants import STATUS_ORDER, WorkboardError
+from src.domains.workboard.constants import CLOSED_STATUSES, STATUS_ORDER, WorkboardError
 
 pytestmark = pytest.mark.unit
 
@@ -521,6 +521,41 @@ class TestReading:
 
         assert service.board.await_args.kwargs["limit"] == 100
 
+    async def test_open_tickets_are_every_column_but_the_closed_ones(self) -> None:
+        """« My open tickets » is the board's own set, never its first column: a
+        plan that read `status: todo` for it left out what is in progress, waiting
+        and still an idea (ADR-390 qualification, E02)."""
+        service = _service()
+        async with _running(service):
+            await workboard_tools.list_tickets_tool.coroutine(open_only=True, runtime=_runtime())
+
+        filters = service.board.await_args.args[1]
+        assert filters.statuses == tuple(
+            status for status in STATUS_ORDER if status not in CLOSED_STATUSES
+        )
+
+    async def test_a_named_column_is_the_narrower_ask(self) -> None:
+        service = _service()
+        async with _running(service):
+            await workboard_tools.list_tickets_tool.coroutine(
+                status="waiting", open_only=True, runtime=_runtime()
+            )
+
+        assert service.board.await_args.args[1].statuses == ("waiting",)
+
+    async def test_a_search_needs_every_word_never_one_contiguous_fragment(self) -> None:
+        """A one-shot plan writes the request's keywords; a title fragment it
+        could not match ended the whole chain on an empty page (E07)."""
+        service = _service()
+        async with _running(service):
+            await workboard_tools.list_tickets_tool.coroutine(
+                query="tailles, t-shirts voile", runtime=_runtime()
+            )
+
+        filters = service.board.await_args.args[1]
+        assert filters.words == ("tailles", "t-shirts", "voile")
+        assert filters.query is None
+
     async def test_an_unknown_side_reads_the_whole_board(self) -> None:
         """A filter the model mis-spelled must not turn « what is on my board »
         into an error message."""
@@ -733,6 +768,28 @@ class TestTheManifestsPublishWhatTheServiceEnforces:
         ):
             offered = self._bound(manifest, "status", "enum")
             assert sorted(offered) == sorted(STATUS_ORDER), manifest.name
+
+    def test_open_only_names_the_columns_it_leaves_out(self) -> None:
+        """The planner reads the manifest, the loop binds the tool's own schema:
+        both say which columns « open » leaves out, and they are the ones the
+        filter drops. A closed column added to the board and left unsaid would
+        be listed as open to a model told the opposite."""
+        from src.domains.agents.workboard.catalogue_manifests import (
+            list_tickets_catalogue_manifest,
+        )
+
+        manifest_says = next(
+            schema.description
+            for schema in list_tickets_catalogue_manifest.parameters
+            if schema.name == "open_only"
+        )
+        schema_says = (
+            workboard_tools.list_tickets_tool.args_schema.model_fields["open_only"].description
+            or ""
+        )
+        for said in (manifest_says, schema_says):
+            for closed in CLOSED_STATUSES:
+                assert closed in said, said
 
     def test_the_agent_owns_exactly_the_seven_tools(self) -> None:
         from src.domains.agents.workboard.catalogue_manifests import TICKET_AGENT_MANIFEST

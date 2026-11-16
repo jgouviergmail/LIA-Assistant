@@ -18,6 +18,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.conversation_target import ConversationOrigin
 from src.core.repository import BaseRepository
 from src.domains.peers.constants import (
     PEER_MESSAGE_DIRECTION_RECEIVED,
@@ -649,6 +650,8 @@ class PeersRepository(BaseRepository[PeerConnection]):
         sender_id: UUID,
         recipient_id: UUID,
         content: str,
+        *,
+        origin: ConversationOrigin | None = None,
     ) -> PeerMessage:
         """Persist a pending relayed message (delivery is Lot 4's sweep).
 
@@ -657,6 +660,8 @@ class PeersRepository(BaseRepository[PeerConnection]):
             sender_id: Sender (pays the LLM cost — spec A4).
             recipient_id: Recipient.
             content: Sender directive text (kept until ``expires_at``).
+            origin: The discussion it was sent from: the sender's delivery
+                notice comes back there while it lives (ADR-378 amendment).
 
         Returns:
             The pending message row.
@@ -672,6 +677,7 @@ class PeersRepository(BaseRepository[PeerConnection]):
             # sweep ever got to it.
             expires_at=datetime.now(UTC) + timedelta(days=settings.peers_message_retention_days),
         )
+        message.keep_origin(origin)
         self.db.add(message)
         await self.db.flush()
         return message

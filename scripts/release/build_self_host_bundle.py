@@ -27,6 +27,8 @@ BUNDLE_FILES: tuple[str, ...] = (
     "docker-compose.prod.yml",
     "docker-compose.skill-sandbox.yml",
     "infrastructure/caddy/Caddyfile.template",
+    # The ntfy server's site, appended when the operator runs one (ADR-391).
+    "infrastructure/caddy/Caddyfile.ntfy.template",
     "infrastructure/docker/postgres-init.sql",
     # The optional `searxng` service mounts it (lot 18, profile `searxng`).
     "infrastructure/searxng/settings.yml",

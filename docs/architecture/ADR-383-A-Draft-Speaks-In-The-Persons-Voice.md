@@ -1,6 +1,7 @@
 # ADR-383 — A draft speaks in the person's voice
 
-**Status**: Accepted, 2026-11-13.
+**Status**: Accepted, 2026-11-13; amended 2026-11-16 (learned when the person asks; the
+person's words or LIA's writer — see the amendment below).
 **Date**: 2026-11-13
 
 **Amends**:
@@ -47,7 +48,8 @@ spend: €0.173.
    teach nothing: the row says it was built and holds no profile, so the sent folder is not read
    again before it is due (ADR-248).
 
-2. **Learned on the run of the first writer that needs it.** No scheduler and no sweep: the
+2. *(Superseded by the amendment of 2026-11-16: the style is learned only when the person
+   asks, and never expires.)* **Learned on the run of the first writer that needs it.** No scheduler and no sweep: the
    first e-mail LIA writes for the person reads their sent folder (`in:sent`, whole on Gmail and
    IMAP, one message at a time on Graph) and asks the e-mail slot, billed to that writer's turn
    or assist; the profile is then served from the database until it is
@@ -107,6 +109,103 @@ spend: €0.173.
   (`signed_body`): what the person types and what their mailbox appends are two things, as in
   their own sent mail.
 
+## Amendment 2026-11-16 — learned when the person asks; the person's words or LIA's writer
+
+### Context
+
+In production (2026-11-15) an e-mail LIA wrote and sent left the settings saying « nothing
+learned yet », on an instance where no account had a profile at all. The turn ran in ReAct and
+called `send_email_tool` with a `subject` and a `body` the loop wrote itself: the new-mail
+writer runs only when one of them is missing, so the one door that learns and reads the style
+was never reached — nothing was learned, nothing was read. The bound schema invited it: `body`
+read « Email body content », while `reply_email_tool` and the mailbox drafts already said
+« only words the person dictated ». Two flaws, not one: WHEN the style is learned (inside a
+draft, invisibly, on the first writer that happens to run) and WHO writes the words (whoever
+fills `body`).
+
+Measured before the fix, on production's ReAct family with the real prompt and the real tool
+schemas (`scripts/react/measure_email_authorship.py`, fictional addresses only): 14 of 18
+requests of intent were written by the loop itself, and 3 of 12 dictations were altered.
+
+### Decision
+
+1. **Learned only when the person asks, and kept until they learn it again or forget it.**
+   Their click in the settings (`POST /writing-style/learn`) runs through the assists' door
+   (`tool_assists/style_learning.py`, `run_assist`): both spending ceilings asked first, the
+   call billed to the account, the read of the sent mail filed, the outcome answered in a
+   closed vocabulary (`learned`, `too_few`, `no_mailbox`, `reconnect`, `switched_off`,
+   `superseded`) with what it cost. Their word to the assistant prepares an exact card
+   (`learn_lia_writing_style_tool`) whose confirmation runs the same learning on the turn —
+   the read filed as the turn's consultation, the call billed to the turn. Whichever surface
+   asks, it is the account's one learning at a time across workers
+   (`writing_style.learn_one_at_a_time`, one `run_shared_flight` claim: a second request waits
+   at least as long as the e-mail slot's call and pays nothing), and it replaces the record it
+   was asked on and nothing since: a record forgotten or learned again meanwhile is the
+   person's later act and stands — `superseded`, checked before anything is read and again in
+   the conditioned write (`WritingStyleRepository.save(..., replaces=)`). A profile never
+   expires: `WRITING_STYLE_MAX_AGE_DAYS` is gone, and the writers only READ the style
+   (`writing_style_for`).
+2. **One authorship door for every tool that writes to someone**
+   (`agents/emails/authorship.settle_words`: `send_email_tool`, `reply_email_tool`, and the
+   mailbox drafts' create, reply and update). The words the person MARKED are kept exactly —
+   quoted, introduced by a colon or a line break, or the whole message — by one linear rule
+   (`is_dictated`). Any other text the agent proposed becomes what the e-mail must SAY, handed to
+   LIA's writer, which keeps every fact, figure, date, name, address, link and quoted passage
+   (`email_authorship_lines.txt`); a text too long to be written back whole (over
+   `EMAIL_REWRITE_MAX_SHARE` of the writer's output budget) is kept as given rather than cut.
+   The tools that set a text verbatim declare why (`TEXTS_LEFT_AS_GIVEN`): a note to oneself, a
+   forward's note, a ticket comment, an automatic reply set from the card the person confirms.
+3. **One contract, published once.** Each writing tool's manifest, `@tool` schema and docstring
+   read the same constants (`emails/catalogue_manifests.py`), and the planner's e-mail rule says
+   the same thing; a guard reads what the ReAct loop actually binds.
+4. **The assistant at parity with the settings** (application operations `writing_style.read`,
+   `.learn`, `.forget`). Learning binds the switch and the record it replaces, up to the write
+   that keeps its result; forgetting removes the confirmed record only, in one conditioned
+   statement (`WritingStyleRepository.forget`), so a style learned again since the card is kept
+   and the card answers a stale state. An open
+   settings section reads itself again when the assistant learned or forgot (`writing_style`
+   resource) or turned the switch (`profile`).
+
+### Measured
+
+| What | Before | After |
+|---|---|---|
+| Requests of intent the ReAct loop wrote itself (of 18) | 14 | 1 — handed to the writer |
+| Dictations kept exactly (of 12) | 9 | 12 |
+| Facts and quoted passages kept when the agent's text becomes what to say (of 22) | — | 22 |
+| Voice marks in a new e-mail, without / with the profile (of 44) | 28 | 43 |
+| One learning's model call on 50 sent e-mails | — | 4.5–5 s, ≈ 10.6 k tokens, ≈ €0.02 |
+
+The first two rows are production's ReAct family, three runs of eleven requests; the next two
+are production's e-mail slot (`scripts/emails/measure_writing_style.py --proposed`). Spend:
+about $0.03 on the ReAct family and €0.07 on the e-mail slot, plus the timed learning calls
+(≈ €0.02 each).
+
+### What this amendment leaves, and says so
+
+- **A dictation spread over several messages** is not recognised: the rule reads the run's own
+  message and, when the run resumes the turn after a question, the request the turn began with
+  (`LiaRuntimeContext.turn_request`, from the router's record of the turn) — so « send to Paul:
+  “…” » then « which Paul? » keeps the quoted words — but no earlier turn (in Pipeline mode the
+  tool sees no state). Such words go to the writer as what to say, their facts kept.
+- **When the agent wrote the e-mail, it costs one more call** of the e-mail slot: the price of
+  the person's voice.
+- **Forgetting from one surface while a learning started on another is still running**: the
+  later write wins. The settings section holds its own « Forget » while its learning runs; the
+  assistant's turn is sequential.
+- **The automatic reply** (`set_vacation_responder_tool`) is set verbatim from the card the
+  person confirms; no writer serves that setting.
+- **The demonstrator** exposes the learn route: with no mailbox to read, it answers
+  `no_mailbox`, asks no model and spends nothing.
+
+### Consequences
+
+- No e-mail waits for a learning any more: a writer's only extra cost is reading one row.
+- An account that never asks is written for without a style, exactly as with the switch off;
+  the settings say « nothing learned yet » and offer the button.
+- Learning reads the latest `WRITING_STYLE_SENT_MAILS` sent e-mails once per request: one
+  search, plus one read per message on Graph.
+
 ## References
 
 - `apps/api/src/domains/agents/emails/writing_style.py`,
@@ -120,3 +219,11 @@ spend: €0.173.
 - `apps/api/scripts/emails/measure_writing_style.py`
 - `apps/web/src/components/settings/WritingStyleSettings.tsx`
 - `docs/technical/WRITING_STYLE.md`
+- Amendment 2026-11-16: `apps/api/src/domains/agents/emails/authorship.py`,
+  `apps/api/src/domains/agents/prompts/v1/email_authorship_lines.txt`,
+  `apps/api/src/domains/tool_assists/style_learning.py`,
+  `apps/api/src/domains/agents/application/writing_style_learning.py`,
+  `apps/api/src/domains/agents/application/writing_style_forgetting.py`,
+  `apps/api/src/domains/agents/tools/application_writing_style_tools.py`,
+  `apps/api/scripts/react/measure_email_authorship.py`,
+  `apps/api/alembic/versions/2026_11_16_0300-6a1f3c9e2b7d_writing_style_learned_on_request.py`

@@ -45,9 +45,6 @@ test.describe('public SEO and translated reading journeys', () => {
       await expect(
         page.getByText(catalogue.landing.hero.subtitle_top, { exact: true })
       ).toBeVisible();
-      await expect(
-        page.getByText(catalogue.landing.hero.home_value, { exact: true })
-      ).toBeVisible();
       await expectNoOverflow(page, `${language} introduction at 375px`);
 
       // The footer and list use Next Link: retain the shared layout across a

@@ -23,7 +23,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlalchemy.dialects import postgresql
 
-from src.domains.workboard.board_queries import BoardFilters, needs_me_stmt
+from src.domains.workboard.board_queries import BoardFilters, needs_me_stmt, search_words
 from src.domains.workboard.category_repository import WorkboardCategoryRepository
 from src.domains.workboard.constants import STATUS_ORDER
 from src.domains.workboard.repository import WorkboardRepository
@@ -126,11 +126,41 @@ class TestFilters:
         assert "ILIKE" in sql
         assert "%venue%" in sql
 
+    def test_a_word_search_asks_each_word_of_the_title_or_the_description(self) -> None:
+        """Every word on its own, in either text (E07): a one-shot plan writes
+        the request's keywords, never a phrase a title holds contiguously."""
+        sql = _sql(_repo()._board_stmt(USER, BoardFilters(words=("voile", "t-shirt"))))
+        assert sql.count("workboard_tickets.title ILIKE") == 2
+        assert sql.count("workboard_tickets.description ILIKE") == 2
+        for word in ("voile", "t-shirt"):
+            assert sql.count(f"%{word}%") == 2
+
     def test_due_before(self) -> None:
         sql = _sql(
             _repo()._board_stmt(USER, BoardFilters(due_before=datetime(2026, 9, 30, tzinfo=UTC)))
         )
         assert "due_at <=" in sql
+
+
+class TestSearchWords:
+    """What a search asks for, read from what was written."""
+
+    def test_words_keep_their_order_and_lose_the_punctuation_around_them(self) -> None:
+        assert search_words("tailles, t-shirts « voile »…") == ("tailles", "t-shirts", "voile")
+
+    def test_a_word_keeps_its_inner_hyphen_and_apostrophe(self) -> None:
+        assert search_words("l'équipe t-shirt") == ("l'équipe", "t-shirt")
+
+    def test_a_sign_that_is_part_of_the_word_stays(self) -> None:
+        """Only sentence punctuation, quotes and brackets surround a word: « 100% »
+        searched as « 100 » would also find « Budget 1000 euros »."""
+        assert search_words("(100%) C++ #42") == ("100%", "C++", "#42")
+
+    def test_a_single_character_carries_nothing_and_a_repeat_is_asked_once(self) -> None:
+        assert search_words("à Voile x voile") == ("Voile",)
+
+    def test_nothing_to_search_is_no_words(self) -> None:
+        assert search_words("  , ; ") == ()
 
 
 class TestOrdering:

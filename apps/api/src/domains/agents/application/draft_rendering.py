@@ -68,16 +68,26 @@ from src.domains.agents.application.reminder_rendering import (
     _reminder_creation_preview,
     _reminder_update_preview,
 )
-from src.domains.agents.application.routine_card_rows import preapproval_rows
-from src.domains.agents.application.routine_create_schemas import RoutineCreatePatch
-from src.domains.agents.application.routine_run_schemas import RoutineRunPatch
-from src.domains.agents.application.routine_schemas import RoutineStatePatch
-from src.domains.agents.application.routine_update_schemas import RoutineUpdatePatch
+from src.domains.agents.application.routine_rendering import (
+    routine_creation_preview,
+    routine_run_preview,
+    routine_state_preview,
+    routine_update_preview,
+)
 from src.domains.agents.application.session_bulk_operations import OtherSessionsRevokePatch
 from src.domains.agents.application.session_revocation_schemas import DeviceSessionRevokePatch
+from src.domains.agents.application.writing_style_forgetting import (
+    canonical_writing_style_forgetting,
+)
+from src.domains.agents.application.writing_style_learning import (
+    canonical_writing_style_learning,
+)
+from src.domains.agents.application.writing_style_rendering import (
+    writing_style_forgetting_preview,
+    writing_style_learning_preview,
+)
 from src.domains.agents.drafts.card_spec import Note, PreviewLine, Row
 from src.domains.connectors.models import ConnectorType, get_connector_display_name
-from src.domains.scheduled_actions.models import TriggerKind
 
 _UNLINK_FIELDS = {
     "interests.delete_all": "interests_to_delete",
@@ -135,6 +145,8 @@ _STRUCTURED_OPERATIONS = frozenset(
         "psyche.summary",
         "habits.recompute",
         "habits.forget",
+        "writing_style.learn",
+        "writing_style.forget",
         "habits.status",
         "habits.delete",
         "open_loops.update",
@@ -214,6 +226,8 @@ def render_application_preview(
         "psyche.summary": psyche_summary_preview,
         "habits.recompute": habit_recompute_preview,
         "habits.forget": habit_forgetting_preview,
+        "writing_style.learn": writing_style_learning_preview,
+        "writing_style.forget": writing_style_forgetting_preview,
         "habits.status": habit_preview,
         "habits.delete": habit_preview,
         "open_loops.update": open_loop_preview,
@@ -236,10 +250,10 @@ def render_application_preview(
         "reminder.update": _reminder_update_preview,
         "reminder.create": _reminder_creation_preview,
         "device_sessions.revoke_others": _other_sessions_preview,
-        "routine_state.update": _routine_state_preview,
-        "routine.create": _routine_creation_preview,
-        "routine.update": _routine_update_preview,
-        "routine.execute": _routine_run_preview,
+        "routine_state.update": routine_state_preview,
+        "routine.create": routine_creation_preview,
+        "routine.update": routine_update_preview,
+        "routine.execute": routine_run_preview,
     }.get(draft.operation_id)
     if specialized is not None:
         return specialized(draft, labels, format_dt)
@@ -337,157 +351,6 @@ def _other_sessions_preview(
             value=selected.current_display_id,
             key="details",
         ),
-        Row(
-            label=labels["application_expiry"],
-            value=format_dt(draft.expires_at.isoformat()),
-            key="date",
-        ),
-    ]
-
-
-def _routine_creation_preview(
-    draft: ApplicationActionDraftContent,
-    labels: dict[str, str],
-    format_dt: Callable[[str | None], str],
-) -> list[PreviewLine]:
-    created = RoutineCreatePatch.model_validate(draft.intent).routine_to_create
-    if draft.before != {"routine_to_create": None} or created.id != draft.command_id:
-        return [Note(text=labels["application_unavailable"])]
-    # ADR-386: the secret of a routine started by calls never reaches the chat.
-    on_calls = created.configuration.trigger_kind is TriggerKind.WEBHOOK
-    return [
-        Note(text=labels["application_routine_creation_note"]),
-        *([Note(text=labels["application_routine_webhook_note"])] if on_calls else []),
-        Row(
-            label=labels["application_routine_creation_title"],
-            value=json.dumps(
-                {
-                    "timezone": created.user_timezone,
-                    **created.configuration.model_dump(mode="json"),
-                },
-                ensure_ascii=False,
-            ),
-            key="details",
-        ),
-        Row(
-            label=labels["application_expiry"],
-            value=format_dt(draft.expires_at.isoformat()),
-            key="date",
-        ),
-    ]
-
-
-def _routine_run_preview(
-    draft: ApplicationActionDraftContent,
-    labels: dict[str, str],
-    format_dt: Callable[[str | None], str],
-) -> list[PreviewLine]:
-    selected = RoutineRunPatch.model_validate(draft.intent).routine_to_run
-    if draft.before != {"routine_to_run": None}:
-        return [Note(text=labels["application_unavailable"])]
-    return [
-        Note(text=labels["application_routine_run_note"]),
-        Row(
-            label=labels["application_routine_title"],
-            value=f"{selected.expected.title} · {selected.expected.id}",
-            key="details",
-        ),
-        Row(
-            label=labels["application_routine_creation_title"],
-            value=json.dumps(
-                {
-                    "timezone": selected.user_timezone,
-                    **selected.configuration.model_dump(mode="json"),
-                },
-                ensure_ascii=False,
-            ),
-            key="details",
-        ),
-        *preapproval_rows(selected.mcp_preapproval, labels),
-        Row(
-            label=labels["application_expiry"],
-            value=format_dt(draft.expires_at.isoformat()),
-            key="date",
-        ),
-    ]
-
-
-def _routine_update_preview(
-    draft: ApplicationActionDraftContent,
-    labels: dict[str, str],
-    format_dt: Callable[[str | None], str],
-) -> list[PreviewLine]:
-    previous = RoutineUpdatePatch.model_validate(draft.before).routine_configuration
-    selected = RoutineUpdatePatch.model_validate(draft.intent).routine_configuration
-    if (
-        previous.expected != selected.expected
-        or previous.changes != selected.changes
-        or previous.user_timezone != selected.user_timezone
-        or previous.enabled != previous.expected.enabled
-    ):
-        return [Note(text=labels["application_unavailable"])]
-    return [
-        Note(text=labels["application_routine_update_note"]),
-        Row(
-            label=labels["application_routine_title"],
-            value=f"{selected.expected.title} · {selected.expected.id}",
-            key="details",
-        ),
-        Row(
-            label=labels["application_routine_creation_title"],
-            value=json.dumps(
-                {
-                    "timezone": selected.user_timezone,
-                    labels["application_before"]: {
-                        "enabled": previous.enabled,
-                        **previous.configuration.model_dump(mode="json"),
-                    },
-                    labels["application_after"]: {
-                        "enabled": selected.enabled,
-                        **selected.configuration.model_dump(mode="json"),
-                    },
-                },
-                ensure_ascii=False,
-            ),
-            key="details",
-        ),
-        *preapproval_rows(selected.mcp_preapproval, labels),
-        Row(
-            label=labels["application_expiry"],
-            value=format_dt(draft.expires_at.isoformat()),
-            key="date",
-        ),
-    ]
-
-
-def _routine_state_preview(
-    draft: ApplicationActionDraftContent,
-    labels: dict[str, str],
-    format_dt: Callable[[str | None], str],
-) -> list[PreviewLine]:
-    previous = RoutineStatePatch.model_validate(draft.before).routine_state
-    selected = RoutineStatePatch.model_validate(draft.intent).routine_state
-    if previous.enabled != previous.expected.enabled:
-        return [Note(text=labels["application_unavailable"])]
-    before = labels[
-        "application_routine_enabled" if previous.enabled else "application_routine_disabled"
-    ]
-    after = labels[
-        "application_routine_enabled" if selected.enabled else "application_routine_disabled"
-    ]
-    return [
-        Note(text=labels["application_routine_note"]),
-        Row(
-            label=labels["application_routine_title"],
-            value=f"{selected.expected.title} · {selected.expected.id}",
-            key="details",
-        ),
-        Row(
-            label=labels["application_routine_title"],
-            value=f"{labels['application_before']}: {before} → {labels['application_after']}: {after}",
-            key="details",
-        ),
-        *preapproval_rows(selected.mcp_preapproval, labels),
         Row(
             label=labels["application_expiry"],
             value=format_dt(draft.expires_at.isoformat()),
@@ -595,6 +458,8 @@ _CANONICAL_OPERATIONS = {
     "psyche.summary": canonical_psyche_summary,
     "habits.recompute": canonical_habit_recompute,
     "habits.forget": canonical_habit_forgetting,
+    "writing_style.learn": canonical_writing_style_learning,
+    "writing_style.forget": canonical_writing_style_forgetting,
     "habits.status": canonical_habit,
     "habits.delete": canonical_habit,
     "open_loops.update": canonical_open_loop,

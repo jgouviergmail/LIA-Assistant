@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterator
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -34,6 +33,7 @@ from src.domains.agents.orchestration.held_steps import (
     told_after_the_answer,
 )
 from src.domains.agents.orchestration.plan_schemas import ExecutionPlan, ExecutionStep, StepType
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -315,7 +315,7 @@ def probe_tools(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     with (
         patch(
             "src.domains.agents.context.runtime_context.runtime_context_if_running",
-            return_value=SimpleNamespace(
+            return_value=make_runtime_context(
                 user_id=uuid.uuid4(),
                 thread_id="thread-held",
                 execution_mode="pipeline",

@@ -19,7 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.users.models import User
-from src.domains.workboard.board_queries import BoardFilters
+from src.domains.workboard.board_queries import BoardFilters, search_words
 from src.domains.workboard.constants import AssigneeKind, TicketPriority, TicketStatus
 from src.domains.workboard.models import WorkboardTicket
 from src.domains.workboard.repository import WorkboardRepository
@@ -180,6 +180,63 @@ class TestTitleSearch:
             owner_id, BoardFilters(query="salle"), limit=50, offset=0
         )
         assert [row.title for row in rows] == ["Réserver la salle"]
+
+
+class TestWordSearch:
+    async def test_every_word_is_found_in_the_title_or_the_description(
+        self, async_session: AsyncSession, owner: User
+    ) -> None:
+        """The qualification's E07, on a real server: the plan asked « tailles
+        t-shirts voile » and « t-shirt voile », a title fragment neither is, and
+        the chain ended on an empty page. Each word is now asked on its own,
+        and « tailles » lives in the description."""
+        owner_id = owner.id
+        shirts = _ticket(
+            owner_id,
+            title="Commander les t-shirts de l'équipe de voile",
+            description="Demander les tailles à Bastien Roux.",
+        )
+        hall = _ticket(
+            owner_id,
+            title="Réserver la salle polyvalente",
+            description="Contacter le service des salles de la mairie.",
+        )
+        async_session.add_all([shirts, hall])
+        await async_session.commit()
+        shirts_id = shirts.id
+
+        repo = WorkboardRepository(async_session)
+        for written in ("tailles t-shirts voile", "t-shirt voile", "VOILE, Tailles"):
+            rows, total = await repo.list_board(
+                owner_id, BoardFilters(words=search_words(written)), limit=50, offset=0
+            )
+            assert [row.id for row in rows] == [shirts_id], written
+            assert total == 1
+
+        # Every word in the SAME ticket: two tickets holding one word each are
+        # not a match for both.
+        rows, total = await repo.list_board(
+            owner_id, BoardFilters(words=("t-shirt", "salle")), limit=50, offset=0
+        )
+        assert rows == []
+        assert total == 0
+
+    async def test_a_wildcard_in_a_word_is_a_character(
+        self, async_session: AsyncSession, owner: User
+    ) -> None:
+        owner_id = owner.id
+        async_session.add_all(
+            [
+                _ticket(owner_id, title="Marge 100% garantie"),
+                _ticket(owner_id, title="Budget 1000 euros"),
+            ]
+        )
+        await async_session.commit()
+
+        rows, _total = await WorkboardRepository(async_session).list_board(
+            owner_id, BoardFilters(words=("100%",)), limit=50, offset=0
+        )
+        assert [row.title for row in rows] == ["Marge 100% garantie"]
 
 
 class TestPageAndCounts:

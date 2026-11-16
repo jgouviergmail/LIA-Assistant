@@ -32,7 +32,9 @@ from src.domains.agents.api.request_admission import PreparedChat
 from src.domains.agents.api.schemas import BrowserContext, ChatRequest
 from src.domains.agents.api.service import AgentService
 from src.domains.agents.utils import generate_run_id
+from src.domains.channels.waiting import reply_route, start_channel_turn, tell_held
 from src.domains.conversations.catalogue_service import ConversationCatalogueService
+from src.domains.conversations.waiting_models import WaitingMessage
 from src.domains.conversations.waiting_repository import WaitingMessageRepository
 from src.domains.users.models import User
 from src.infrastructure.async_utils import finish_owned_task
@@ -74,16 +76,47 @@ class Candidate:
     conversation_revision: int
     content: str
     rendering: dict[str, Any] | None
+    #: The channel some of the words were written on, where the answer goes
+    #: (Telegram lot 34); None: the app.
+    reply_channel: str | None = None
+
+    @classmethod
+    def of(cls, row: WaitingMessage) -> Candidate:
+        """Detach the version read, for a departure that runs after its session."""
+        return cls(
+            id=row.id,
+            version=row.version,
+            conversation_id=row.conversation_id,
+            conversation_revision=row.conversation_revision,
+            content=row.content,
+            rendering=row.rendering,
+            reply_channel=row.reply_channel,
+        )
 
 
-async def depart_after_release(owner_id: UUID, end: RunEnd) -> None:
+async def depart_after_release(owner_id: UUID, end: RunEnd, held: tuple[UUID, ...] = ()) -> None:
     """Send the first waiting message that may leave after this release.
+
+    Then tell the person, on the channel they wrote on, which of their messages
+    the release held: on Telegram no bubble shows it (lot 34).
 
     Args:
         owner_id: The released account.
         end: How the releasing run ended; only a normal end lets a message the
             person did not ask to send now leave by itself.
+        held: The waiting messages the release held.
     """
+    try:
+        await _depart_in_order(owner_id, end)
+    finally:
+        # Never a candidate of this release (a held message waits for a click):
+        # told whatever the departure met.
+        if held:
+            await tell_held(owner_id, held)
+
+
+async def _depart_in_order(owner_id: UUID, end: RunEnd) -> None:
+    """Send the first candidate that may leave, reading the queue again on a lost claim."""
     for _ in range(WAITING_DEPARTURE_ROUNDS):
         for candidate in await _candidates(owner_id, end):
             outcome = (await depart(owner_id, candidate)).outcome
@@ -112,9 +145,12 @@ async def depart(owner_id: UUID, candidate: Candidate) -> DepartureResult:
     if await pending_run_id(str(target.runtime_id)) is not None:
         # A question asked there is answered by the person, never by what waited.
         return DepartureResult(Departure.SKIPPED)
+    # Words written on a channel are answered there while it is linked, by a
+    # channel turn no browser joins; otherwise in the app (Telegram lot 34).
+    route = await reply_route(owner_id, candidate.reply_channel)
     stream_id = generate_run_id()
     reserved = await reserve_execution(
-        target, run_id=stream_id, stream_id=stream_id, relayed=True, cancellable=True
+        target, run_id=stream_id, stream_id=stream_id, relayed=route is None, cancellable=True
     )
     if isinstance(reserved, RunBusy):
         return DepartureResult(Departure.BUSY)
@@ -128,7 +164,10 @@ async def depart(owner_id: UUID, candidate: Candidate) -> DepartureResult:
             )
         if not claimed:
             return DepartureResult(Departure.CLAIM_LOST)
-        _start_turn(reserved, user, candidate)
+        if route is None:
+            _start_turn(reserved, user, candidate)
+        else:
+            start_channel_turn(reserved, user, candidate.content, route)
         transferred = True
     finally:
         if not transferred:
@@ -145,25 +184,17 @@ async def depart(owner_id: UUID, candidate: Candidate) -> DepartureResult:
         conversation_id=str(candidate.conversation_id),
         stream_id=reserved.stream_id,
         length=len(candidate.content),
+        reply_channel=route.channel_type if route is not None else None,
     )
-    return DepartureResult(Departure.SENT, reserved.stream_id)
+    # A channel turn is joined by no browser: no stream to name.
+    return DepartureResult(Departure.SENT, reserved.stream_id if route is None else None)
 
 
 async def _candidates(owner_id: UUID, end: RunEnd) -> list[Candidate]:
     """Read what may leave, detached, in a session that ends before any wait."""
     async with get_db_context() as db:
         rows = await WaitingMessageRepository(db).departure_candidates(owner_id, end)
-        return [
-            Candidate(
-                id=row.id,
-                version=row.version,
-                conversation_id=row.conversation_id,
-                conversation_revision=row.conversation_revision,
-                content=row.content,
-                rendering=row.rendering,
-            )
-            for row in rows
-        ]
+        return [Candidate.of(row) for row in rows]
 
 
 async def _resolve(owner_id: UUID, candidate: Candidate) -> tuple[ConversationRef, User] | None:

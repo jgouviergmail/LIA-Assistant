@@ -85,3 +85,32 @@ async def test_deferred_launcher_never_calls_the_source_before_chat_readiness(
             arguments["user_id"] == reservation.actor_id and arguments["action_id"] == expected.id
         )
         assert callable(arguments["execution_guard"])
+
+
+async def test_a_run_asked_in_a_discussion_answers_there() -> None:
+    """ADR-378 amendment 2026-11-14: the reservation hands its origin to the run."""
+    from src.core.conversation_target import ConversationOrigin
+
+    expected = RoutineSnapshot(id=uuid4(), title="Run", enabled=True, configuration_digest="a" * 64)
+    origin = ConversationOrigin(uuid4(), 5)
+    reservation = RoutineExecutionReservation(
+        uuid4(), expected, uuid4(), datetime.now(UTC) + timedelta(minutes=1), origin=origin
+    )
+    with (
+        patch(
+            "src.domains.agents.application.routine_execution.wait_for_routine_turn",
+            AsyncMock(return_value=True),
+        ),
+        patch(
+            "src.infrastructure.scheduler.scheduled_action_executor.execute_single_action",
+            AsyncMock(),
+        ) as execute,
+        patch(
+            "src.domains.agents.application.routine_execution.cancel_routine_reservation",
+            AsyncMock(),
+        ),
+    ):
+        await _run_reserved(reservation)
+
+    assert execute.await_args is not None
+    assert execute.await_args.kwargs["origin"] == origin

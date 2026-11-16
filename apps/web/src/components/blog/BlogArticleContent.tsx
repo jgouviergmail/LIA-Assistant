@@ -1,13 +1,7 @@
 import Link from 'next/link';
-import { preload } from 'react-dom';
 import { ArrowLeft, ChevronLeft, ChevronRight } from '@/lib/icons';
 import { cn } from '@/lib/utils';
-import {
-  ARTICLE_HERO_SIZES,
-  ARTICLE_IMAGE_DEFAULT_WIDTH,
-  articleImageSrc,
-  articleImageSrcSet,
-} from '@/lib/blog/article-images';
+import { ARTICLE_HERO_SIZES } from '@/lib/blog/article-images';
 import type { BlogArticle, BlogCategory } from '@/data/blog-articles';
 import { ArticleIllustration } from './ArticleIllustration';
 
@@ -52,16 +46,6 @@ export function BlogArticleContent({
 }: BlogArticleContentProps) {
   const badgeClass = CATEGORY_STYLES[article.category];
   const blogListPath = lng === 'fr' ? '/blog' : `/${lng}/blog`;
-
-  // The hero is the page's LCP candidate: announce it in <head> with the same
-  // candidates the <img> below offers, so the browser picks one before the
-  // body is parsed (what next/image's `priority` used to emit).
-  preload(articleImageSrc(article.slug, ARTICLE_IMAGE_DEFAULT_WIDTH), {
-    as: 'image',
-    imageSrcSet: articleImageSrcSet(article.slug),
-    imageSizes: ARTICLE_HERO_SIZES,
-    fetchPriority: 'high',
-  });
 
   return (
     <article className="relative max-w-3xl mx-auto">

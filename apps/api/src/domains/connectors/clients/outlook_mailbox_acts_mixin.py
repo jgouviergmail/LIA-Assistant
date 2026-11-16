@@ -230,13 +230,14 @@ class OutlookMailboxActsMixin:
         """What the mailbox leaves unread: the folder walk carries each folder's figure.
 
         Args:
-            folders_max: Unused: the walk has its own bound, and costs one read a level
-                whatever is kept of it.
+            folders_max: 0 reads the inbox and the spam alone, with no walk; any
+                other value walks every folder (the walk has its own bound, and
+                costs one read a level whatever is kept of it).
 
         Returns:
-            The figures, ``complete`` False when the walk was cut.
+            The figures, ``complete`` False when the walk was cut or not taken.
         """
-        folders, complete = await self.list_folders()
+        folders, complete = await self.list_folders() if folders_max > 0 else ([], False)
         inbox, spam = await asyncio.gather(self._role_unread("inbox"), self._role_unread("spam"))
         roles = {"inbox": inbox, "spam": spam}
         return UnreadCounts(

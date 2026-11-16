@@ -25,6 +25,7 @@ from src.domains.system_settings.registry import SETTING_SPECS
 from src.infrastructure.llm import jev_http, jev_runtime
 from src.infrastructure.llm.decision_types import DecisionAttempt
 from src.infrastructure.llm.typesafe_client import ChoiceAnswer
+from tests.helpers.memory_resolution import resolve_all
 
 pytestmark = pytest.mark.unit
 
@@ -151,7 +152,7 @@ async def test_gate_preserves_broad_facts_and_fallback_identity_path(skip: bool)
             resolver, "_resolve_memory_references", AsyncMock(return_value=None)
         ) as resolve,
     ):
-        result = await resolver.retrieve_and_resolve("my sister", str(uuid4()), {})
+        result = await resolve_all(resolver, "my sister", str(uuid4()), {})
     assert result.facts == ["broad fact"]
     assert result.references == ([] if skip else ["my sister"])
     if skip:
@@ -218,7 +219,7 @@ async def test_confident_preserve_keeps_brother_fact_and_identity_resolution() -
                 resolver, "_resolve_memory_references", AsyncMock(return_value=resolved)
             ) as resolution,
         ):
-            result = await resolver.retrieve_and_resolve(query, str(tracker.user_id), config)
+            result = await resolve_all(resolver, query, str(tracker.user_id), config)
         assert result.facts == [fact]
         assert result.references == ["mon frère"]
         assert result.resolved is resolved

@@ -49,8 +49,30 @@ async def test_gmail_preview_lists_ids_without_storing_any_anchor() -> None:
     with patch.object(wake_context, "advance_gmail_anchor", AsyncMock()) as advance:
         ids, new_anchor = await gmail_delta_preview(client, "400")
     assert (ids, new_anchor) == (["m1", "m2"], "500")
-    client.get_history.assert_awaited_once_with(start_history_id="400")
+    client.get_history.assert_awaited_once()
+    assert client.get_history.await_args.kwargs["start_history_id"] == "400"
     advance.assert_not_awaited()
+
+
+async def test_gmail_preview_reads_every_page_and_resumes_from_the_last() -> None:
+    """Each page carries the MAILBOX's id: kept from the first, it skipped the second."""
+    client = AsyncMock()
+    client.get_history = AsyncMock(
+        side_effect=[
+            {
+                "historyId": "900",
+                "nextPageToken": "next",
+                "history": [{"id": "410", "messagesAdded": [{"message": {"id": "m1"}}]}],
+            },
+            {
+                "historyId": "900",
+                "history": [{"id": "899", "messagesAdded": [{"message": {"id": "m2"}}]}],
+            },
+        ]
+    )
+    ids, new_anchor = await gmail_delta_preview(client, "400")
+    assert (ids, new_anchor) == (["m1", "m2"], "900")
+    assert client.get_history.await_args_list[1].kwargs["page_token"] == "next"
 
 
 async def test_gmail_preview_fails_open() -> None:
@@ -70,10 +92,12 @@ async def test_metadata_fetch_is_bounded_and_tolerant() -> None:
         return {"id": message_id}
 
     client.get_message = AsyncMock(side_effect=_get)
-    ids = ["bad"] + [f"m{i}" for i in range(20)]
+    # A delta lists the oldest first: the wake reads the LATEST arrivals.
+    ids = [f"m{i}" for i in range(20)] + ["bad"]
     messages = await fetch_mail_metadata(client, ids)
     assert len(calls) == 10  # PUSH_WAKE_MAIL_MAX_MESSAGES
-    assert [m["id"] for m in messages] == [f"m{i}" for i in range(9)]
+    assert calls == [f"m{i}" for i in range(11, 20)] + ["bad"]
+    assert [m["id"] for m in messages] == [f"m{i}" for i in range(11, 20)]
 
 
 async def test_metadata_is_read_fresh_so_an_opened_message_reads_opened() -> None:

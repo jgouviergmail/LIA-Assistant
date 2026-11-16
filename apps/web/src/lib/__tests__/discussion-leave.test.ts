@@ -87,7 +87,8 @@ describe('discussionReach', () => {
   it('counts the other discussions without the one on screen', () => {
     const one = { rules: rules(true), page: page(1) };
     expect(
-      discussionReach({ switcher: one, current: summary(), typing: false, open }).hasOtherDiscussions
+      discussionReach({ switcher: one, current: summary(), typing: false, open })
+        .hasOtherDiscussions
     ).toBe(false);
     // Main not created yet: the one listed discussion is another one.
     expect(
@@ -95,7 +96,8 @@ describe('discussionReach', () => {
     ).toBe(true);
     const two = { rules: rules(true), page: page(2) };
     expect(
-      discussionReach({ switcher: two, current: summary(), typing: false, open }).hasOtherDiscussions
+      discussionReach({ switcher: two, current: summary(), typing: false, open })
+        .hasOtherDiscussions
     ).toBe(true);
   });
 
@@ -134,6 +136,7 @@ describe('discussionReach', () => {
       open,
     });
     expect(held.openResult).toBeUndefined();
+    expect(held.openById).toBeUndefined();
     const background = discussionReach({
       switcher: { rules: rules(true), page: page(2) },
       current: summary(),
@@ -141,5 +144,32 @@ describe('discussionReach', () => {
       open,
     });
     expect(background.openResult).toBeDefined();
+    expect(background.openById).toBeDefined();
+  });
+
+  it('opens the discussion a notification named by its id, Main as Main', () => {
+    open.mockClear();
+    const listed: ConversationCataloguePage = {
+      ...page(2),
+      items: [summary(), summary({ id: 'annex-1', kind: 'secondary', title: 'Travaux' })],
+    };
+    const reach = discussionReach({
+      switcher: { rules: rules(false), page: listed },
+      current: summary({ id: 'annex-1', kind: 'secondary' }),
+      typing: false,
+      open,
+    });
+    reach.openById?.('annex-1');
+    reach.openById?.('main-1');
+    // An annex off the page is opened by its identity: the server names annexes.
+    reach.openById?.('annex-9');
+    // A notification naming no discussion went to Main: null opens Main.
+    reach.openById?.(null);
+    expect(open.mock.calls).toEqual([['annex-1'], [null], ['annex-9'], [null]]);
+  });
+
+  it('opens nothing on an API that publishes no catalogue', () => {
+    const reach = discussionReach({ switcher: undefined, current: summary(), typing: false, open });
+    expect(reach.openById).toBeUndefined();
   });
 });

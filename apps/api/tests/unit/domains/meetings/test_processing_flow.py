@@ -401,6 +401,48 @@ class TestAfterReadyGuard:
 class TestNotifyReady:
     """The archived message links to the token log and states what the exchange cost."""
 
+    async def test_the_minutes_return_to_the_discussion_the_meeting_began_from(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """ADR-378 amendment 2026-11-14: never to Main when an annex asked for them."""
+        from src.core.conversation_target import ConversationOrigin
+        from src.domains.meetings.transcription import TranscriptionOutcome
+
+        monkeypatch.setattr(
+            "src.infrastructure.proactive.tracking.track_proactive_tokens",
+            AsyncMock(return_value="run"),
+        )
+        dispatcher = MagicMock()
+        dispatcher.dispatch = AsyncMock()
+        monkeypatch.setattr(
+            "src.infrastructure.proactive.notification.NotificationDispatcher",
+            MagicMock(return_value=dispatcher),
+        )
+        origin = ConversationOrigin(uuid.uuid4(), 2)
+        meeting = _meeting(synthesis_cost_eur=0.0, index_state=None, origin=origin)
+        outcome = TranscriptionOutcome(
+            turns=[],
+            language_code="fr",
+            audio_duration_seconds=10.0,
+            provider=MeetingSttProvider.OPENAI,
+            model="gpt-4o-transcribe-diarize",
+            diarized=True,
+            cost_usd=0.0,
+            cost_eur=0.0,
+        )
+        await processing._notify_ready(
+            MagicMock(),
+            meeting=meeting,
+            user=MagicMock(),
+            synthesis=_synthesis(),
+            outcome=outcome,
+            language="fr",
+            gaps=0,
+            run_id="run",
+        )
+
+        assert dispatcher.dispatch.await_args.kwargs["origin"] == origin
+
     async def test_metadata_carries_run_id_tokens_and_both_costs(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

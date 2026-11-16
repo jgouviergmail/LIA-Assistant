@@ -120,9 +120,9 @@ class TestADocumentIsAcceptedForWhatItIs:
         threads: list[int] = []
         real = document_formats.extract_text
 
-        def spy(path: Path, mime_type: str) -> str:
+        def spy(path: Path, mime_type: str, *, max_inflated_mb: int) -> str:
             threads.append(threading.get_ident())
-            return real(path, mime_type)
+            return real(path, mime_type, max_inflated_mb=max_inflated_mb)
 
         monkeypatch.setattr(document_formats, "extract_text", spy)
 
@@ -171,7 +171,7 @@ class TestAnExtractionThatFails:
     async def test_it_costs_the_text_never_the_upload(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        def broken(_path: Path, _mime_type: str) -> str:
+        def broken(_path: Path, _mime_type: str, *, max_inflated_mb: int) -> str:
             raise ValueError("unreadable part")
 
         monkeypatch.setattr(document_formats, "extract_text", broken)

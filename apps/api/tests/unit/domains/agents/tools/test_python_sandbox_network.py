@@ -14,13 +14,16 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+from langchain.tools import ToolRuntime
 
 from src.core.constants import EXECUTION_MODE_REACT
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.python_sandbox.egress.hosts import HostStatus
 from src.domains.agents.python_sandbox.egress.proxy_client import EgressProxyUnavailable
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials
 from src.domains.skills.executor import ScriptResult
+from tests.helpers.runtime_context import make_tool_runtime
 
 pytestmark = [pytest.mark.unit]
 
@@ -58,16 +61,15 @@ class FakePublisher:
         yield
 
 
-def _runtime(gate: FakeGate) -> SimpleNamespace:
+def _runtime(gate: FakeGate) -> ToolRuntime[LiaRuntimeContext, Any]:
     deps = SimpleNamespace(get_connector_service=AsyncMock(return_value=gate))
-    context = SimpleNamespace(
+    return make_tool_runtime(
         user_id=uuid4(),
         thread_id="t1",
         conversation_id="c1",
         execution_mode=EXECUTION_MODE_REACT,
         deps=deps,
     )
-    return SimpleNamespace(context=context)
 
 
 def _ok(stdout: str = "200\n") -> ScriptResult:

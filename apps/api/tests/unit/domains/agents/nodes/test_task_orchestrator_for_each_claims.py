@@ -11,8 +11,8 @@ still carrying the cap. ADR-185: a count shown is a claim — exact, or absent.
 
 ``refresh_for_each_scope_claims`` re-runs the scope detector with the
 measured counts and stamps ``item_count`` on each step dict. It never touches
-the approval DECISION (membership of the HITL list was settled before
-pre-execution and stays settled) — only the claims.
+the approval DECISION — only the claims; ``still_requiring_approval`` decides
+again on the same counts (``test_for_each_measured_approval.py``).
 """
 
 from __future__ import annotations
@@ -75,9 +75,8 @@ class TestRefreshForEachScopeClaims:
         assert "item_count" not in steps[0]
 
     def test_membership_is_never_touched(self) -> None:
-        """A read-only step whose measured count falls below every threshold
-        keeps its place in the HITL list — the decision was made before
-        pre-execution; only the claims are refreshed."""
+        """Refreshing the claims leaves the list as it is: whether a step still
+        asks is ``still_requiring_approval``'s decision, not this function's."""
         steps = [
             _mutation_step(
                 tool_name="get_route_tool",

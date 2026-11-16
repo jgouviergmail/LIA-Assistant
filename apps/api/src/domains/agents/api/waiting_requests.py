@@ -104,7 +104,7 @@ async def keep_waiting(
                 status = WaitingStatus.HELD
         row, appended = await _keep(db, target, request.message, rendering, status)
         note_stream = await executions.note_stream(owner_id, target)
-        candidate = _candidate(row)
+        candidate = Candidate.of(row)
         view = WaitingMessageResponse.of(row, note_stream=note_stream)
     chat_waiting_messages_total.labels(event="added" if appended else "kept").inc()
     logger.info(
@@ -247,7 +247,7 @@ async def send_waiting_now(owner_id: UUID, selection: ConversationSelection) -> 
             if current is None:
                 _not_found()
             _refuse_by_status(current)
-        candidate = _candidate(row)
+        candidate = Candidate.of(row)
         active = await ConversationExecutionRepository(db).snapshot_for_owner(owner_id)
     chat_waiting_messages_total.labels(event="sent_now").inc()
     if active is None:
@@ -288,18 +288,6 @@ async def _require_target(owner_id: UUID, selection: ConversationSelection) -> C
     if target is None:
         _not_found()
     return target
-
-
-def _candidate(row: WaitingMessage) -> Candidate:
-    """Detach the version read, for a departure that runs after this session."""
-    return Candidate(
-        id=row.id,
-        version=row.version,
-        conversation_id=row.conversation_id,
-        conversation_revision=row.conversation_revision,
-        content=row.content,
-        rendering=row.rendering,
-    )
 
 
 def _refuse_by_status(current: WaitingMessage) -> NoReturn:

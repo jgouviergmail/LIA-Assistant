@@ -21,6 +21,7 @@ from src.core.conversation_execution import ExecutionRevoked, RunAdmission, RunE
 from src.core.i18n import resolve_language
 from src.core.run_authority import current_run_authority, run_authority_scope
 from src.domains.agents.api.error_messages import SSEErrorMessages
+from src.domains.agents.api.hitl_pending import forget_question_of_run
 from src.domains.agents.api.run_output import (
     InlineRunOutput,
     RedisRunOutput,
@@ -29,7 +30,6 @@ from src.domains.agents.api.run_output import (
 )
 from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.api.stream_identity import with_invocation_identity
-from src.domains.agents.utils.hitl_store import HITLStore
 from src.infrastructure.async_utils import cancel_and_join, finish_owned_task, safe_fire_and_forget
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.observability.metrics_agents import (
@@ -340,13 +340,8 @@ async def _close_producer(
                 lambda: finalize_partial(content, status), "chat_run_partial_archive_failed"
             )
     if status == "cancelled":
-        store = HITLStore(redis, settings.hitl_pending_data_ttl_seconds)
         await _best_effort(
-            lambda: store.clear_interrupt_for_run(
-                str(admission.target.runtime_id),
-                admission.run_id,
-                activity_id=admission.activity_id,
-            ),
+            lambda: forget_question_of_run(admission, redis=redis),
             "chat_run_question_cleanup_failed",
         )
         await _best_effort(

@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 
-from src.core.conversation_target import ConversationRef
+from src.core.conversation_target import ConversationOrigin, ConversationRef
 
 _source: ContextVar[ConversationRef | None] = ContextVar("conversation_source", default=None)
 
@@ -12,6 +12,12 @@ _source: ContextVar[ConversationRef | None] = ContextVar("conversation_source", 
 def current_conversation_source() -> ConversationRef | None:
     """Read the originating generation; None means explicitly unbound account work."""
     return _source.get()
+
+
+def current_origin() -> ConversationOrigin | None:
+    """The generation an act begun now belongs to; None for work outside any turn."""
+    source = _source.get()
+    return ConversationOrigin.of(source) if source is not None else None
 
 
 @contextmanager

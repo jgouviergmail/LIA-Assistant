@@ -1,3 +1,6 @@
+'use client';
+
+import { preload } from 'react-dom';
 import { cn } from '@/lib/utils';
 import {
   ARTICLE_IMAGE_DEFAULT_WIDTH,
@@ -29,6 +32,17 @@ export function ArticleIllustration({
   priority = false,
   className,
 }: ArticleIllustrationProps) {
+  // A client boundary keeps image hints out of prefetched Flight payloads.
+  // This still runs during HTML SSR, so a real visit gets its LCP hint in head.
+  if (priority) {
+    preload(articleImageSrc(slug, ARTICLE_IMAGE_DEFAULT_WIDTH), {
+      as: 'image',
+      imageSrcSet: articleImageSrcSet(slug),
+      imageSizes: sizes,
+      fetchPriority: 'high',
+    });
+  }
+
   return (
     // eslint-disable-next-line @next/next/no-img-element -- pre-generated static variants, no optimizer (ADR-330)
     <img

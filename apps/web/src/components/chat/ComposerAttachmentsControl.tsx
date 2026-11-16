@@ -95,6 +95,8 @@ export interface ComposerAttachmentsControlProps {
   generatedFilesEnabled?: boolean;
   /** A recording file can be imported as a meeting (the instance offers it). */
   meetingImportEnabled?: boolean;
+  /** The annex this composer writes in; its imported meeting returns there. */
+  discussionId?: string | null;
   disabled: boolean;
   onPickFile: () => void;
   onTakePhoto: () => void;
@@ -147,13 +149,22 @@ function composerEntries(
 function ComposerMeetingImport({
   open,
   onOpenChange,
+  discussionId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  discussionId?: string | null;
 }) {
   const { i18n } = useTranslation();
   const lng = isLanguage(i18n.language) ? i18n.language : fallbackLng;
-  return <MeetingImportDialog lng={lng} open={open} onOpenChange={onOpenChange} />;
+  return (
+    <MeetingImportDialog
+      lng={lng}
+      open={open}
+      onOpenChange={onOpenChange}
+      conversationId={discussionId}
+    />
+  );
 }
 
 function ComposerPickers({
@@ -197,6 +208,7 @@ function ComposerPickers({
         <ComposerMeetingImport
           open={open === 'meeting_import'}
           onOpenChange={toggle('meeting_import')}
+          discussionId={props.discussionId}
         />
       )}
     </>

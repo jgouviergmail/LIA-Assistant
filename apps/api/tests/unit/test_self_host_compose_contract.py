@@ -56,8 +56,8 @@ OBSERVABILITY_SERVICES = {
     "portainer",
 }
 #: Opt-in services, each under a profile of its own name (lot 18: the instance's
-#: keyless web search).
-OPT_IN_SERVICES = {"searxng"}
+#: keyless web search; ADR-391: the instance's own ntfy server).
+OPT_IN_SERVICES = {"searxng", "ntfy"}
 
 
 def _load(name: str) -> dict[str, Any]:
@@ -98,6 +98,33 @@ def test_profile_split_is_exact() -> None:
             assert svc.get("profiles") == [
                 "observability"
             ], f"service {name} must carry exactly ['observability']"
+
+
+@pytest.mark.parametrize("compose", ["docker-compose.prod.yml", "docker-compose.dev.yml"])
+def test_the_ntfy_server_holds_none_of_lias_secrets_and_lets_only_lia_publish(
+    compose: str,
+) -> None:
+    """The instance's ntfy server (ADR-391) receives its own variables alone: an
+    ``env_file`` would hand it every secret of LIA's ``.env``. It runs read-only with
+    no capability (measured on the pinned image: its account file and its cache live
+    in its volume). LIA's token alone publishes, on the topics the backend names;
+    anyone reads one, whose random name is the password; nobody signs up."""
+    from src.core.constants import NTFY_TOPIC_PREFIX
+
+    ntfy = _load(compose)["services"]["ntfy"]
+    assert ntfy["profiles"] == ["ntfy"]
+    assert "env_file" not in ntfy
+    assert ntfy["cap_drop"] == ["ALL"]
+    assert ntfy["read_only"] is True
+    assert "no-new-privileges:true" in ntfy["security_opt"]
+    env = dict(entry.split("=", 1) for entry in ntfy["environment"])
+    assert all(name.startswith("NTFY_") for name in env), sorted(env)
+    assert env["NTFY_AUTH_DEFAULT_ACCESS"] == "deny-all"
+    assert env["NTFY_AUTH_ACCESS"] == f"lia:{NTFY_TOPIC_PREFIX}*:wo,*:{NTFY_TOPIC_PREFIX}*:ro"
+    assert env["NTFY_AUTH_TOKENS"] == "lia:${NTFY_PUBLISH_TOKEN:-}:LIA"
+    assert (env["NTFY_ENABLE_SIGNUP"], env["NTFY_ENABLE_LOGIN"]) == ("false", "false")
+    # The address people subscribe to is the one LIA hands them (NtfySettings).
+    assert env["NTFY_BASE_URL"] == "${NTFY_PUBLIC_URL:-}"
 
 
 def test_base_api_has_no_privileged_surface() -> None:

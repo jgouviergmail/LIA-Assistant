@@ -2,14 +2,13 @@
 
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
+from zoneinfo import ZoneInfo
 
 import pytest
 from pydantic import ValidationError
 
-from src.domains.agents.application.health_aggregate_schemas import (
-    HEALTH_CHART_MAX_BUCKETS,
-    HealthAggregateRead,
-)
+from src.core.constants import HEALTH_METRICS_CHART_MAX_BUCKETS as HEALTH_CHART_MAX_BUCKETS
+from src.domains.agents.application.health_aggregate_schemas import HealthAggregateRead
 from src.domains.agents.application.health_aggregate_spec import HEALTH_AGGREGATE_MANIFEST
 from src.domains.health_metrics.chart_read import chart_bucket_starts, read_chart_statistics
 
@@ -40,6 +39,7 @@ async def test_excessive_points_are_refused_before_query_and_bound_is_published(
             db,
             uuid4(),
             period="hour",
+            zone=ZoneInfo("Europe/Paris"),
             from_ts=start,
             to_ts=start + timedelta(hours=HEALTH_CHART_MAX_BUCKETS + 1),
             maximum_buckets=HEALTH_CHART_MAX_BUCKETS,
@@ -53,6 +53,7 @@ def test_last_bucket_does_not_advance_beyond_datetime_domain():
         "year",
         datetime(9999, 1, 1, tzinfo=UTC),
         datetime(9999, 12, 31, tzinfo=UTC),
+        ZoneInfo("UTC"),
         maximum=HEALTH_CHART_MAX_BUCKETS,
     )
-    assert result == [datetime(9999, 1, 1, tzinfo=UTC)]
+    assert result == [datetime(9999, 1, 1)]

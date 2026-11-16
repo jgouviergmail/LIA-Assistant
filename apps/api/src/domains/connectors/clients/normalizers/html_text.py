@@ -8,12 +8,16 @@ travelled through the registry. A model reasoning over e-mails needs the
 same text whatever the mailbox, so the conversion lives here, at the client
 boundary, and the normalisers all call it.
 
-Two doors:
+Four doors:
 
 - :func:`html_to_text` — the body: structure kept (paragraphs, ``<br>``, list
   bullets, headers), ``<style>`` / ``<script>`` dropped, links kept as
   ``text [link](url)`` behind a technical label (ADR-256: what a model reads
   is English), long standalone urls shortened the same way;
+- :func:`shown_words` — what a reader of a message reads: the words its layout
+  shows, its text part only when the layout holds none (amendment 2026-11-15);
+- :func:`links_for_people` — the technical label turned back into an address
+  a person reads, for any text that leaves in a mail (a quoted original);
 - :func:`strip_html_to_line` — a snippet: one line, entities decoded, a
   preheader's invisible padding dropped, whitespace collapsed, capped. Gmail's
   own preview goes through it too: it arrives HTML-escaped.
@@ -27,7 +31,12 @@ from html.parser import HTMLParser
 
 import structlog
 
-from src.core.constants import EMAILS_URL_SHORTEN_THRESHOLD_DEFAULT, HTML_TEXT_LINK_LABEL
+from src.core.constants import (
+    EMAIL_HTML_TEXT_MAX_CHARS,
+    EMAILS_URL_SHORTEN_THRESHOLD_DEFAULT,
+    HTML_TEXT_LINK_LABEL,
+)
+from src.core.markup_detection import looks_like_html
 
 logger = structlog.get_logger(__name__)
 
@@ -39,6 +48,7 @@ _LINK_OPENER = rf"\[{re.escape(HTML_TEXT_LINK_LABEL)}\]\("
 _WRITTEN_LINK_OR_BARE_URL = re.compile(
     rf"{_LINK_OPENER}(?:(?!{_LINK_OPENER})[^\s)])*\)|https?://[^\s<>\"'\)]+"
 )
+_WRITTEN_LINK = re.compile(rf"{_LINK_OPENER}((?:(?!{_LINK_OPENER})[^\s)])*)\)")
 _BLOCK_TAGS = frozenset({"p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote"})
 _IGNORED_TAGS = frozenset({"style", "script"})
 _INLINE_PUNCTUATION = ".,;:!?'\")]}—"
@@ -180,6 +190,44 @@ def html_to_text(html: str, *, url_shorten_threshold: int | None = None) -> str:
         return unescape(_HTML_TAG_RE.sub(" ", html)).strip()
 
 
+def shown_words(text: str, html: str | None) -> str:
+    """What a reader of a message reads: the words its reader shows (the reading door).
+
+    Every reader of LIA draws a message in its layout when it has one — the Tools, the chat's
+    card (ADR-369, ADR-332) — so a model reads that layout: its HTML turned to text, cut at
+    ``EMAIL_HTML_TEXT_MAX_CHARS`` before it is parsed. The text part a sender wrote beside it
+    can say nothing of what the layout shows (measured in production on 2026-11-14: an event
+    asked of an invitation read a nearly empty body and found nothing), so it stands in only
+    when the layout holds no words; turned to text too when it is markup sent as text.
+
+    Parsing is CPU work: a caller on the event loop calls this door off it.
+
+    Args:
+        text: The message's text part, as the mailbox gave it.
+        html: Its layout, or None when it has none.
+
+    Returns:
+        The text of the layout when it holds words; else ``text``, read as text.
+    """
+    if html:
+        words = html_to_text(html[:EMAIL_HTML_TEXT_MAX_CHARS])
+        if words.strip():
+            return words
+    if looks_like_html(text):
+        return html_to_text(text[:EMAIL_HTML_TEXT_MAX_CHARS])
+    return text
+
+
+def links_for_people(text: str) -> str:
+    """The model's link labels written as a person reads an address: ``<url>``.
+
+    A body read off a layout carries ``text [link](url)`` (ADR-256: what a model reads is
+    technical English). Text that leaves in a mail — an original quoted under a reply or a
+    forward — is read by people, who write an address between angle brackets.
+    """
+    return _WRITTEN_LINK.sub(r"<\1>", text)
+
+
 def strip_html_to_line(html: str, *, max_length: int) -> str:
     """Flatten HTML to one capped line (the snippet door).
 
@@ -202,4 +250,10 @@ def strip_html_to_line(html: str, *, max_length: int) -> str:
     return " ".join(words)[:max_length]
 
 
-__all__ = ["HTMLToTextConverter", "html_to_text", "strip_html_to_line"]
+__all__ = [
+    "HTMLToTextConverter",
+    "html_to_text",
+    "links_for_people",
+    "shown_words",
+    "strip_html_to_line",
+]

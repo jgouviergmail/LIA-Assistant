@@ -22,7 +22,6 @@ jumps over both. These tests exercise the real functions.
 from __future__ import annotations
 
 import uuid
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -33,6 +32,7 @@ from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.effects import runtime as gate_runtime
 from src.domains.agents.effects.treatments import treatment_collector
 from src.domains.agents.orchestration.parallel_executor import PendingDraftInfo
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -57,7 +57,7 @@ def _attended_user() -> Any:
     with (
         patch(
             "src.domains.agents.context.runtime_context.runtime_context_if_running",
-            return_value=SimpleNamespace(
+            return_value=make_runtime_context(
                 user_id=uuid.uuid4(),
                 thread_id="thread-pipeline",
                 execution_mode="pipeline",

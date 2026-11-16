@@ -58,6 +58,11 @@ interface MeetingImportDialogProps {
   lng: Language;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * The chat annex the import was begun from (the composer's « + »): its
+   * « minutes ready » comes back there (ADR-378 amendment). Absent: Main.
+   */
+  conversationId?: string | null;
 }
 
 interface Chosen {
@@ -146,10 +151,12 @@ function ImportForm({
   lng,
   limits,
   onClose,
+  conversationId,
 }: {
   lng: Language;
   limits: MeetingImportLimits;
   onClose: () => void;
+  conversationId: string | null;
 }) {
   const { t } = useTranslation(lng);
   const id = useId();
@@ -186,6 +193,7 @@ function ImportForm({
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         language,
         template_ref: templateRef,
+        conversation_id: conversationId,
       });
       const result = await uploadImportFile({
         meetingId: started.id,
@@ -311,12 +319,28 @@ function ImportForm({
   );
 }
 
-function ImportBody({ lng, onClose }: { lng: Language; onClose: () => void }) {
+function ImportBody({
+  lng,
+  onClose,
+  conversationId,
+}: {
+  lng: Language;
+  onClose: () => void;
+  conversationId: string | null;
+}) {
   const { t } = useTranslation(lng);
   const limits = useApiQuery<MeetingImportLimits>(MEETING_IMPORT_LIMITS_PATH, {
     componentName: 'MeetingImportDialog',
   });
-  if (limits.data) return <ImportForm lng={lng} limits={limits.data} onClose={onClose} />;
+  if (limits.data)
+    return (
+      <ImportForm
+        lng={lng}
+        limits={limits.data}
+        onClose={onClose}
+        conversationId={conversationId}
+      />
+    );
   if (limits.error) {
     const code = meetingErrorCode(limits.error) ?? 'unexpected';
     return (
@@ -335,7 +359,12 @@ function ImportBody({ lng, onClose }: { lng: Language; onClose: () => void }) {
   );
 }
 
-export function MeetingImportDialog({ lng, open, onOpenChange }: MeetingImportDialogProps) {
+export function MeetingImportDialog({
+  lng,
+  open,
+  onOpenChange,
+  conversationId = null,
+}: MeetingImportDialogProps) {
   const { t } = useTranslation(lng);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -347,7 +376,13 @@ export function MeetingImportDialog({ lng, open, onOpenChange }: MeetingImportDi
           </DialogTitle>
           <DialogDescription>{t('meetings.import.description')}</DialogDescription>
         </DialogHeader>
-        {open && <ImportBody lng={lng} onClose={() => onOpenChange(false)} />}
+        {open && (
+          <ImportBody
+            lng={lng}
+            onClose={() => onOpenChange(false)}
+            conversationId={conversationId}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

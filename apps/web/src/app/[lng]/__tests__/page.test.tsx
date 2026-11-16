@@ -71,6 +71,15 @@ vi.mock('@/components/landing/cosmic/CosmosHero', () => ({
 vi.mock('@/components/landing/video/LandingVideoSection', () => ({
   LandingVideoSection: () => <div data-testid="landing-video-section" />,
 }));
+vi.mock('@/components/landing/editorial/PositioningSection', () => ({
+  PositioningSection: () => <div data-testid="positioning-section" />,
+}));
+vi.mock('@/components/landing/editorial/ArgumentsSection', () => ({
+  ArgumentsSection: () => <div data-testid="arguments-section" />,
+}));
+vi.mock('@/components/landing/comparison/ComparisonSection', () => ({
+  ComparisonSection: () => <div data-testid="comparison-section" />,
+}));
 vi.mock('@/components/landing/LandingEyes', () => ({
   LandingEyes: () => <div data-testid="landing-eyes" />,
 }));
@@ -89,7 +98,10 @@ describe('HomePage (cosmos landing)', () => {
     const order = [
       'landing-header',
       'cosmos-hero',
+      'positioning-section',
       'landing-video-section',
+      'arguments-section',
+      'comparison-section',
       'gallery-section',
       'promise-section',
       'personal-context-section',

@@ -27,7 +27,10 @@ from typing import Final
 from src.core.field_names import FIELD_TOOL_DATA
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.constants import STATE_KEY_AGENT_RESULTS, STATE_KEY_CURRENT_TURN_ID
-from src.domains.agents.orchestration.tool_data_projection import RESPONSE_SLOT
+from src.domains.agents.orchestration.tool_data_projection import (
+    RESPONSE_SLOT,
+    STEP_RESULTS_KEY,
+)
 from src.domains.agents.utils.react_budget import slot_tool_result_budget
 from src.domains.agents.utils.token_utils import count_tokens
 from src.infrastructure.observability.metrics_pipeline import pipeline_tool_data_truncated_total
@@ -94,7 +97,7 @@ def _turn_records(
         if current_turn_id is not None and not key.startswith(prefix):
             continue
         data = result.get("data") if isinstance(result, dict) else None
-        steps = data.get("step_results") if isinstance(data, dict) else None
+        steps = data.get(STEP_RESULTS_KEY) if isinstance(data, dict) else None
         for step in steps if isinstance(steps, list) else ():
             yield from _records_of(step)
 

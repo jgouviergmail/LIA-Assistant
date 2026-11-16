@@ -18,7 +18,9 @@ from typing import Final, Literal, get_args
 from uuid import UUID
 
 from src.core.conversation_execution import ReservedWork
-from src.core.conversation_publication import PinnedReservationPublication
+from src.core.conversation_publication import OriginPublication, PinnedReservationPublication
+from src.core.conversation_selection import ConversationSelection
+from src.core.conversation_target import ConversationOrigin
 
 #: How a session runs: every request delegated to the chat (HITL, actions,
 #: registers), or the voice reading LIA's tools itself and never acting.
@@ -92,6 +94,12 @@ class VoiceSession:
         conversation_id: The person's conversation.
         language: Backend-canonical language.
         timezone: IANA zone.
+        reservation: The browser session's reserved work, which pins its
+            discussion; None for the phone.
+        conversation_revision: The generation of an ANNEX a phone session
+            returns to (the discussion the call was placed from, ADR-378
+            amendment 2026-11-14); None when it returns to Main, which is then
+            addressed by omission — a reset of Main never refuses its turns.
     """
 
     carrier: VoiceCarrier
@@ -104,6 +112,7 @@ class VoiceSession:
     language: str
     timezone: str
     reservation: ReservedWork | None = None
+    conversation_revision: int | None = None
 
     def __post_init__(self) -> None:
         as_voice_session_mode(self.mode)
@@ -119,11 +128,39 @@ class VoiceSession:
         return self.mode == "delegated"
 
     @property
-    def publication(self) -> UUID | PinnedReservationPublication:
-        """A browser archive proves its running contribution; the phone keeps its own policy."""
+    def publication(self) -> UUID | PinnedReservationPublication | OriginPublication:
+        """Where the session's rows are archived.
+
+        A browser archive proves its running contribution. A phone session
+        returning to an annex archives there while that generation lives, and
+        in Main otherwise; one returning to Main keeps Main's own id.
+        """
         if self.reservation is not None:
             return PinnedReservationPublication(self.reservation)
+        if self.conversation_revision is not None:
+            return OriginPublication(
+                self.user_id, ConversationOrigin(self.conversation_id, self.conversation_revision)
+            )
         return self.conversation_id
+
+    @property
+    def turn_selection(self) -> ConversationSelection:
+        """The discussion a turn of this session runs in, as the admission reads it.
+
+        The browser's reserved discussion, a phone call's annex, or Main by
+        omission (a reset of Main between the dial and the turn refuses nothing).
+        """
+        if self.reservation is not None:
+            return ConversationSelection(
+                conversation_id=self.conversation_id,
+                conversation_revision=self.reservation.admission.target.revision,
+            )
+        if self.conversation_revision is not None:
+            return ConversationSelection(
+                conversation_id=self.conversation_id,
+                conversation_revision=self.conversation_revision,
+            )
+        return ConversationSelection()
 
     @classmethod
     def browser(
@@ -162,8 +199,13 @@ class VoiceSession:
         conversation_id: UUID,
         language: str,
         timezone: str,
+        conversation_revision: int | None = None,
     ) -> VoiceSession:
-        """A phone call: the call's run id is both the key and the run id."""
+        """A phone call: the call's run id is both the key and the run id.
+
+        ``conversation_revision`` names the annex generation the call returns
+        to; None returns to Main (``conversation_id`` is then Main's).
+        """
         key = phone_session_key(call_id)
         return cls(
             carrier=VoiceCarrier.PHONE,
@@ -175,6 +217,7 @@ class VoiceSession:
             conversation_id=conversation_id,
             language=language,
             timezone=timezone,
+            conversation_revision=conversation_revision,
         )
 
 

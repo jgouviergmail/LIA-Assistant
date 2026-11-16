@@ -595,6 +595,10 @@ def _import_tool_modules() -> None:
             "application_habit_action_tools",
         ),
         (
+            "src.domains.agents.tools.application_writing_style_tools",
+            "application_writing_style_tools",
+        ),
+        (
             "src.domains.agents.tools.application_open_loop_action_tools",
             "application_open_loop_action_tools",
         ),

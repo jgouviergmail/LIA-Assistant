@@ -80,6 +80,16 @@ class DecisionRepository:
                     # But a segment that learned nothing new must not blank what
                     # an earlier one established.
                     "route": func.coalesce(existing.route, current.route),
+                    # How the turn was resolved is the FIRST segment's: a resumed
+                    # one never meets the router, and the person may have switched
+                    # modes while LIA waited (ADR-390). The engine itself is not in
+                    # this list for the same reason.
+                    "requested_mode": func.coalesce(
+                        current.requested_mode, existing.requested_mode
+                    ),
+                    "resolution_reason": func.coalesce(
+                        current.resolution_reason, existing.resolution_reason
+                    ),
                     # A resumption that ended normally must CLEAR the reason its
                     # first segment stopped for: the turn no longer stopped
                     # short. Hence the newest value wins, unlike the pointers.
@@ -238,6 +248,8 @@ def _insert(decision: TurnDecision, *, ended_at: datetime) -> Insert:
         run_id=decision.run_id,
         source=decision.source,
         execution_mode=decision.execution_mode,
+        requested_mode=decision.requested_mode,
+        resolution_reason=decision.resolution_reason,
         route=decision.route,
         plan_step_count=decision.plan_step_count,
         request_message_id=decision.request_message_id,

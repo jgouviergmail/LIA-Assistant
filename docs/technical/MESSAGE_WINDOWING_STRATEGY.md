@@ -705,7 +705,8 @@ Message windowing reduces tokens per-node, but the **full conversation history**
 COMPACTION_ENABLED=true              # Feature flag
 COMPACTION_THRESHOLD_RATIO=0.4       # 40% of response model context window
 COMPACTION_TOKEN_THRESHOLD=0         # Absolute override (0 = use ratio)
-COMPACTION_PRESERVE_RECENT_MESSAGES=10  # Never compacted
+COMPACTION_PRESERVE_RECENT_MESSAGES=10  # Never compacted (at least; the tail begins on a person's message)
+COMPACTION_PERSON_WORDS_MAX_TOKENS=2000  # The person's words quoted as written under the summary
 COMPACTION_CHUNK_MAX_TOKENS=20000    # Max tokens per LLM chunk
 COMPACTION_MIN_MESSAGES=20           # Fast-path skip
 ```

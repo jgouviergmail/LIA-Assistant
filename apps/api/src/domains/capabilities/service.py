@@ -194,6 +194,14 @@ COUNTED_NODES: tuple[_CountedNode, ...] = (
         lambda: _import("channels.models", "UserChannelBinding"),
         capability=PlatformCapability.CHANNELS,
     ),
+    # The ntfy topics LIA publishes to (ADR-391): a way to be reached, set up per account
+    # beside the devices — counted while active, the figure the settings show.
+    _CountedNode(
+        "ntfy",
+        lambda: _import("notifications.models", "NtfySubscription"),
+        capability=PlatformCapability.NTFY,
+        load_filters=lambda: {"is_active": True},
+    ),
     _CountedNode(
         "skills",
         lambda: _import("skills.models", "UserSkillState"),
@@ -288,6 +296,7 @@ PLATFORM_CAPABILITY_NODES: dict[PlatformCapability, str] = {
     PlatformCapability.PEERS: "peers",
     PlatformCapability.PSYCHE: "personality",
     PlatformCapability.CHANNELS: "channels",
+    PlatformCapability.NTFY: "ntfy",
     PlatformCapability.OPEN_LOOPS: "open_loops",
     PlatformCapability.MEMORY: "memory",
     PlatformCapability.INTERESTS: "interests",

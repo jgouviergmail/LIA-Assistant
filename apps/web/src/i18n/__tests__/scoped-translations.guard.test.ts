@@ -34,6 +34,7 @@ import { describe, expect, it } from 'vitest';
 import { isCommentLine, readSources } from '@/__tests__/source-scan';
 import {
   DASHBOARD_TRANSLATION_SCOPES,
+  HOME_TRANSLATION_SCOPES,
   MORE_TRANSLATION_SCOPES,
   ROUTE_SCOPED_TRANSLATIONS,
 } from '../scoped-translations';
@@ -147,6 +148,7 @@ function scopedBy(text: string): Set<string> {
   for (const match of text.matchAll(/<ScopedTranslations\b[\s\S]*?scopes=\{([\s\S]*?)\}\s*>/g)) {
     const groups: Readonly<Record<string, readonly string[]>> = {
       DASHBOARD_TRANSLATION_SCOPES,
+      HOME_TRANSLATION_SCOPES,
       MORE_TRANSLATION_SCOPES,
     };
     for (const subtree of groups[match[1].trim()] ?? []) scoped.add(subtree);

@@ -122,6 +122,15 @@ class ChannelsSettings(BaseSettings):
         ),
     )
 
+    telegram_link_preview_enabled: bool = Field(
+        default=False,
+        description=(
+            "Whether Telegram draws a preview of the first link of a message LIA sends. "
+            "Off by default: an answer citing several sources showed a large preview of "
+            "the first one alone."
+        ),
+    )
+
     # ========================================================================
     # OTP Linking Flow
     # ========================================================================

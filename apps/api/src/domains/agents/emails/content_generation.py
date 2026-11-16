@@ -50,10 +50,18 @@ NOTE_TO_SELF_RECIPIENT: Final = "SELF"
 
 @dataclass(frozen=True)
 class EmailContent:
-    """A subject and a body, both non-empty."""
+    """A subject and a body, both non-empty.
+
+    Attributes:
+        subject: The subject.
+        body: The body.
+        written: LIA's writer wrote the body: it is plain text, whatever flag the agent
+            set for the words it did not keep.
+    """
 
     subject: str
     body: str
+    written: bool = False
 
 
 async def generate_email_content(
@@ -64,7 +72,6 @@ async def generate_email_content(
     config: RunnableConfig | None = None,
     sender_name: str | None = None,
     user_id: str | None = None,
-    style_reading: writing_style.Reading | None = None,
 ) -> dict[str, str]:
     """Generate an e-mail's subject and/or body from an instruction.
 
@@ -72,7 +79,7 @@ async def generate_email_content(
     dedicated prompt that reads the body.
 
     Args:
-        instruction: Creative instruction (e.g., "a humorous love poem about Excel").
+        instruction: What the e-mail must say (e.g. "tell Paul I'll be late tomorrow").
         recipient: The recipient, or :data:`NOTE_TO_SELF_RECIPIENT`.
         user_language: Target language of the generated content.
         existing_body: If provided, only the subject is generated.
@@ -80,15 +87,12 @@ async def generate_email_content(
         sender_name: The sender's first name, for an explicitly requested
             signature (None = unknown).
         user_id: The sender's account, whose writing style a letter follows (ADR-383).
-        style_reading: How a caller outside a turn files a read of the person's
-            mailbox, should their style have to be learned first.
 
     Returns:
         ``{"subject": ...}`` always, ``"body"`` only when it was generated.
 
     Raises:
         ContentGenerationError: If generation fails or returns an invalid format.
-        UsageLimitExceededError: A spending ceiling refused learning the style.
     """
     from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 
@@ -106,9 +110,7 @@ async def generate_email_content(
         style = (
             None
             if recipient == NOTE_TO_SELF_RECIPIENT
-            else await writing_style.writing_style_for(
-                user_id, config=config, reading=style_reading
-            )
+            else await writing_style.writing_style_for(user_id)
         )
         prompt = load_prompt("email_content_generation_prompt").format(
             instruction=instruction,
@@ -196,6 +198,7 @@ async def resolve_email_content(
 
     final_subject = subject or ""
     final_body = body or ""
+    written = False
     if instruction and (not subject or not body):
         context = tool_runtime_context(runtime) if runtime is not None else None
         try:
@@ -217,6 +220,7 @@ async def resolve_email_content(
             )
         final_subject = subject or generated.get("subject", "")
         final_body = body or generated.get("body", "")
+        written = not body
         # Counts only at INFO: the instruction and the subject are the person's words.
         logger.info(
             "email_content_generated",
@@ -231,7 +235,7 @@ async def resolve_email_content(
             message=APIMessages.email_content_missing(user_language),
             error_code="MISSING_CONTENT",
         )
-    return EmailContent(subject=final_subject, body=final_body)
+    return EmailContent(subject=final_subject, body=final_body, written=written)
 
 
 __all__ = [

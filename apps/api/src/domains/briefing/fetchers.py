@@ -32,12 +32,13 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import (
+    CALENDAR_WINDOW_READ_MAX,
     GMAIL_FORMAT_METADATA,
     HEALTH_METRICS_USER_TOGGLE_ATTR,
     TASK_LISTS_READ_MAX,
 )
 from src.core.exceptions import ConnectorAPIError, MaxRetriesExceededError
-from src.core.time_utils import now_utc
+from src.core.time_utils import now_utc, resolve_user_timezone
 from src.domains.agents.services.qualification.publication import source_binding
 from src.domains.agents.tools.weather_environment_enrichment import (
     environment_enrichment_active,
@@ -86,6 +87,8 @@ from src.domains.briefing.schemas import (
     WeatherData,
 )
 from src.domains.briefing.tasks_card import card_items
+from src.domains.connectors.clients.calendar_lists import event_key, read_owned_events
+from src.domains.connectors.clients.event_order import soonest_first
 from src.domains.connectors.clients.normalizers.calendar_links import CONFERENCE_FIELDS
 from src.domains.connectors.clients.task_lists import TaskListing, read_every_task_list
 from src.domains.connectors.companion_weather import publish_companion_weather
@@ -380,11 +383,14 @@ async def fetch_agenda(
         now = datetime.now(UTC)
         window = timedelta(hours=lookahead_hours or settings.briefing_agenda_lookahead_hours)
         try:
-            result = await access.client.list_events(
-                time_min=now.isoformat(),
-                time_max=(now + window).isoformat(),
-                max_results=settings.briefing_max_agenda_items,
-                calendar_id=access.calendar_id,
+            # Every calendar the account owns, the configured default first: an
+            # invitation sits in the main calendar whichever one events are
+            # created in (``calendar_lists``, owner rule 2026-11-15).
+            owned = await read_owned_events(
+                access.client,
+                access.calendar_id,
+                [(now.isoformat(), (now + window).isoformat())],
+                bound=CALENDAR_WINDOW_READ_MAX,
                 fields=["id", "summary", "start", "end", "location", *CONFERENCE_FIELDS],
             )
         except (TimeoutError, httpx.HTTPError) as exc:
@@ -392,13 +398,19 @@ async def fetch_agenda(
 
         binding = source_binding(access.client)
         provider = getattr(access.connector_type, "value", "")
-        calendar_id = access.calendar_id
+        default_id = access.calendar_id
 
-    raw_events = result.get("items", []) or []
+    if owned.cut:
+        logger.info("briefing_agenda_read_in_part", user_id=str(user.id))
     # Drop any event whose end is already past (defensive — Google's timeMin
     # filter is end-time-based but edge cases like all-day events ending at
-    # midnight may still slip through).
-    upcoming = [e for e in raw_events if not is_event_past(e, now, user_tz)]
+    # midnight may still slip through), then the soonest across the calendars,
+    # each carrying the calendar it was read in (its container, its link).
+    upcoming = [
+        {**event, "calendar_id": owned.calendar_of.get(event_key(event), default_id)}
+        for event in soonest_first(owned.events)
+        if not is_event_past(event, now, user_tz)
+    ][: settings.briefing_max_agenda_items]
     upcoming = await classify_briefing_items(
         upcoming,
         kind="event",
@@ -406,11 +418,12 @@ async def fetch_agenda(
         provider=provider,
         binding=binding if qualify_items else "",
         timezone=str(user_tz),
-        container=calendar_id,
+        container=default_id,
     )
     return AgendaData(
         events=[
-            format_agenda_event(e, user_tz, language, calendar_id=calendar_id) for e in upcoming
+            format_agenda_event(e, user_tz, language, calendar_id=str(e["calendar_id"]))
+            for e in upcoming
         ]
     )
 
@@ -473,6 +486,7 @@ async def fetch_mails(
         listed = eligible[: settings.briefing_max_mails_items]
         if situate_items:
             await attach_reply_states(opened.client, listed, user_timezone=str(user_tz))
+        unread = await _inbox_unread(opened.client)
         binding = source_binding(opened.client)
         provider = getattr(opened.connector_type, "value", "")
 
@@ -485,7 +499,28 @@ async def fetch_mails(
         timezone=str(user_tz),
     )
     items = [format_email_item(m, user_tz, language) for m in selected]
-    return MailsData(items=items, total_unread_today=len(full_messages))
+    return MailsData(items=items, total_unread_today=unread)
+
+
+async def _inbox_unread(client: Any) -> int | None:
+    """The inbox's exact unread figure, or None when the mailbox could not tell.
+
+    The listing is a PAGE (``briefing_max_mails_items``, under the agents'
+    per-request ceiling): its length was shown as the count and under-reported
+    every inbox holding more (ADR-185 amendment 2026-11-15: a count is exact, or
+    it does not exist). The mailbox's own figure is read, the roles alone
+    (``folders_max=0``: no label listed, no folder walked).
+    """
+    reader = getattr(client, "unread_counts", None)
+    if reader is None:
+        return None
+    try:
+        counts = await reader(0)
+    except _READ_FAILURES as exc:
+        logger.debug("briefing_inbox_unread_unknown", error_type=type(exc).__name__)
+        return None
+    figure = counts.roles.get("inbox")
+    return figure if isinstance(figure, int) else None
 
 
 async def _unread_inbox(
@@ -622,9 +657,9 @@ async def fetch_health(*, user: User) -> HealthData:
     """Fetch today's value + 14-day rolling average per health kind.
 
     For each registered kind (steps, heart_rate):
-    - ``compute_kind_summary`` (default time_min = today midnight UTC)
-      → today's aggregate (SUM for steps, AVG for heart_rate)
-    - ``compute_kind_daily_breakdown(days=14)`` → list of daily values
+    - ``compute_kind_summary`` (default time_min = the person's midnight)
+      → today's aggregate (SUM for steps, overlaps fused; AVG for heart_rate)
+    - ``compute_kind_daily_breakdown(days=14)`` → list of local-day values
       → averaged to produce the per-day mean over the rolling window
 
     Sequential calls (no asyncio.gather): SQLAlchemy AsyncSession is not
@@ -642,10 +677,11 @@ async def fetch_health(*, user: User) -> HealthData:
         service = HealthMetricsService(db)
         # Sequential — same session, no concurrent ops allowed.
         per_kind_data: list[tuple[str, dict[str, Any], list[dict[str, Any]]]] = []
+        zone = resolve_user_timezone(user)
         for kind in HEALTH_KINDS:
-            today_summary = await service.compute_kind_summary(user.id, kind)
+            today_summary = await service.compute_kind_summary(user.id, kind, zone=zone)
             window_breakdown = await service.compute_kind_daily_breakdown(
-                user.id, kind, days=settings.briefing_health_window_days
+                user.id, kind, days=settings.briefing_health_window_days, zone=zone
             )
             per_kind_data.append((kind, today_summary, window_breakdown))
 

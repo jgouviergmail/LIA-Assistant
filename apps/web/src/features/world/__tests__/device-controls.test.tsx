@@ -34,6 +34,11 @@ vi.mock('@/components/radio/RadioControl', () => ({
     enabled ? { onAir: false, busy: false, run: state.run } : null,
 }));
 vi.mock('next/dynamic', () => ({ default: () => () => <p>Native private message</p> }));
+// The shared « later » row is the chat's (its own tests): here, only that the
+// device hands it the occurrence that rang.
+vi.mock('@/components/chat/ReminderFiringActions', () => ({
+  ReminderFiringButtons: ({ firingId }: { firingId: string }) => <p>Postpone {firingId}</p>,
+}));
 vi.mock('@/i18n/client', () => ({
   useTranslation: () => ({
     t: (key: string, values?: Record<string, unknown>) =>
@@ -168,6 +173,23 @@ it('shows two distinct arrival indicators, lets the user choose and renders remi
   expect(props.onActivity).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'reminders.settings.title' }));
   expect(props.onActivity).toHaveBeenCalledExactlyOnceWith({ kind: 'native', token: 'reminders' });
+});
+it('offers the bubble’s « later » on a reminder whose occurrence was recorded (ADR-268)', () => {
+  render(<WorldDeviceControls {...props} />);
+  act(() => {
+    state.options.onNotification?.({
+      id: 'r',
+      type: 'reminder',
+      reminder_id: 'r',
+      firing_id: 'firing-1',
+      content: 'Call the bank',
+      timestamp: new Date(),
+      read: false,
+    });
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Phone 0 1' }));
+  fireEvent.click(screen.getByRole('button', { name: 'world.device.reminder' }));
+  expect(screen.getByText('Postpone firing-1')).toBeVisible();
 });
 it('forgets another account inbox and refuses retained notification callbacks after replacement', () => {
   const view = render(<WorldDeviceControls {...props} />);

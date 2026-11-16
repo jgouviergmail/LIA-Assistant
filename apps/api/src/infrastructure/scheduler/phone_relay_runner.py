@@ -27,8 +27,9 @@ from uuid import UUID
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.conversation_target import ConversationOrigin
 from src.core.i18n_telephony import get_return_phrases
-from src.domains.conversations.service import ConversationService
+from src.domains.conversations.return_target import return_target
 from src.domains.telephony.call_notifications import dispatch_call_notification
 from src.domains.telephony.models import PhoneCall, PhoneCallStatus
 from src.domains.telephony.repository import TelephonyRepository
@@ -68,11 +69,14 @@ class RelayRequest:
         call_id: The owner call, stamped on every row of the turn.
         user_id: Whose turn it is.
         relay: What the synthesis produced.
+        origin: The discussion the call was placed from: the turn runs there
+            while that generation lives, else in Main.
     """
 
     call_id: UUID
     user_id: UUID
     relay: SelfCallRelay
+    origin: ConversationOrigin | None = None
 
 
 #: The push a relay that RAN sends, by outcome: the words are already in the
@@ -85,9 +89,18 @@ _RAN_PHRASE_KEYS: Final[dict[RelayOutcome, str]] = {
 
 
 async def _push_relay_ran(
-    user: User, *, outcome: RelayOutcome, language: str, call_id: UUID, db: AsyncSession
+    user: User,
+    *,
+    outcome: RelayOutcome,
+    language: str,
+    call_id: UUID,
+    db: AsyncSession,
+    origin: ConversationOrigin | None,
 ) -> None:
-    """A push, and only a push: the turn's rows are already in the chat."""
+    """A push, and only a push: the turn's rows are already in the chat.
+
+    It opens the discussion the turn ran in when that is an annex.
+    """
     phrases = get_return_phrases(language)
     try:
         await dispatch_call_notification(
@@ -98,6 +111,7 @@ async def _push_relay_ran(
             title=phrases["self_call_title"],
             metadata={"relay": outcome.value},
             db=db,
+            origin=origin,
         )
     except Exception as exc:  # noqa: BLE001 — a push failure never undoes the turn
         logger.warning(
@@ -126,17 +140,16 @@ async def run_relay(request: RelayRequest) -> RelayOutcome:
         context = await resolve_run_context(db, request.user_id)
         if context is None:
             return _counted(RelayOutcome.FAILED)
-        conversation = await ConversationService().get_or_create_conversation(
-            request.user_id, db, language=context.language
-        )
-        conversation_id = conversation.id
+        # The discussion the call was placed from while it lives, else Main.
+        target = await return_target(db, request.user_id, request.origin, language=context.language)
     session = VoiceSession.phone(
         call_id=request.call_id,
         mode="direct",
         user_id=request.user_id,
-        conversation_id=conversation_id,
+        conversation_id=target.conversation_id,
         language=context.language,
         timezone=context.timezone,
+        conversation_revision=target.revision,
     )
     outcome = await run_voice_relay(
         VoiceRelayRequest(session=session, relay=request.relay), context=context
@@ -149,6 +162,7 @@ async def run_relay(request: RelayRequest) -> RelayOutcome:
                 language=context.language,
                 call_id=request.call_id,
                 db=db,
+                origin=request.origin,
             )
     return _counted(outcome)
 
@@ -208,6 +222,7 @@ async def settle_owner_call(
             metadata={"call_status": PhoneCallStatus(call.status).value, "relay": outcome.value},
             db=db,
             require_durable=True,
+            origin=call.origin,
         )
     except Exception as exc:  # noqa: BLE001 — PENDING stays for the reaper (T1)
         logger.warning(

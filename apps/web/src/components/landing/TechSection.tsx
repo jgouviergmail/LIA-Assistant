@@ -130,29 +130,30 @@ export async function TechSection({ lng }: TechSectionProps) {
     <section id="technology" className="landing-section py-24 bg-card" aria-labelledby="tech-title">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <FadeInOnScroll>
-          <div className="mb-10 max-w-3xl">
+          <div className="mb-10">
             <h2 id="tech-title" className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4">
               {t('landing.engineering.title')}
             </h2>
-            <p className="max-w-[65ch] text-muted-foreground leading-relaxed">
+            <p className="leading-7 text-muted-foreground">
               {t('landing.engineering.sub')}
             </p>
           </div>
         </FadeInOnScroll>
 
-        <ol className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {ENGINEERING_STEPS.map(({ key, icon: Icon }, index) => (
-            <li key={key} className="relative border-t-2 border-primary/25 pt-5">
+        {/* Tiles, as the platform's and the chapters' (owner, 2026-11-15); the
+            title beside its icon: a step number there said nothing. */}
+        <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {ENGINEERING_STEPS.map(({ key, icon: Icon }) => (
+            <li key={key} className="rounded-2xl border border-border bg-background p-5">
               <div className="mb-4 flex items-center gap-3">
-                <span className="flex size-10 items-center justify-center rounded-full border border-primary/25 bg-primary/10">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary/10">
                   <Icon className="size-5 text-primary" aria-hidden="true" />
                 </span>
-                <span className="text-xs tabular-nums text-muted-foreground" aria-hidden="true">
-                  {index + 1}
-                </span>
+                <h3 className="min-w-0 text-base font-semibold">
+                  {t(`landing.engineering.${key}_title`)}
+                </h3>
               </div>
-              <h3 className="text-base font-semibold">{t(`landing.engineering.${key}_title`)}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              <p className="text-sm leading-relaxed text-muted-foreground">
                 {t(`landing.engineering.${key}_body`)}
               </p>
               <p className="mt-4 text-sm font-medium text-primary">

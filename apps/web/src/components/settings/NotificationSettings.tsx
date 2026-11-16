@@ -14,6 +14,7 @@ import { useFCMToken } from '@/hooks/useFCMToken';
 import { useAuth } from '@/hooks/useAuth';
 import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { NotificationPrompt } from '@/components/notifications/NotificationPrompt';
+import { NtfySettings } from '@/components/settings/ntfy/NtfySettings';
 import { toast } from 'sonner';
 import { getDeviceType } from '@/lib/firebase';
 import {
@@ -153,15 +154,17 @@ function AccountNotificationSettings({
                   setShowDisableConfirm(true);
                 }
               }}
-              busy={isLoading || (!!currentDeviceToken && deletingTokenId === currentDeviceToken.id)}
+              busy={
+                isLoading || (!!currentDeviceToken && deletingTokenId === currentDeviceToken.id)
+              }
               disabled={!isSupported || !isConfigured || permissionStatus === 'denied'}
             />
           </div>
 
           {/* Not configured warning */}
           {isSupported && !isConfigured && (
-            <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-4">
-              <p className="text-sm text-amber-600">
+            <div className="rounded-lg border border-warning/20 bg-warning/10 p-4">
+              <p className="text-sm text-warning">
                 {t('settings.notifications.not_configured_admin')}
               </p>
             </div>
@@ -258,6 +261,9 @@ function AccountNotificationSettings({
               <LoadingSpinner size="lg" spinnerColor="muted" />
             </div>
           )}
+
+          {/* ntfy: the same notifications, through an app that needs no Google services (ADR-391) */}
+          <NtfySettings lng={lng} />
         </div>
       </SettingsSection>
 

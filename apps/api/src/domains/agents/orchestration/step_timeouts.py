@@ -90,7 +90,9 @@ TOOL_LLM_SLOTS: Mapping[str, tuple[str, ...]] = {
     "create_mailbox_draft_tool": ("emails_agent",),
     "create_mailbox_reply_draft_tool": ("emails_agent",),
     "reply_email_tool": ("emails_agent",),
-    "update_mailbox_draft_tool": ("hitl_question_generator",),
+    # A new text the agent wrote is written by LIA's writer, then an instruction applied
+    # (ADR-383 amendment 2026-11-16).
+    "update_mailbox_draft_tool": ("emails_agent", "hitl_question_generator"),
 }
 #: A server's task runs on ONE of these, chosen from what the server exposes.
 _MCP_TASK_LLM_SLOTS: tuple[str, ...] = ("mcp_react_agent", "mcp_app_react_agent")

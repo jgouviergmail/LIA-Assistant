@@ -14,16 +14,19 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import structlog
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import RECURRENCE_REMINDER_LIMITS
 from src.core.exceptions import ResourceConflictError, ResourceNotFoundError
 from src.core.recurrence import (
     DailyTimes,
+    RecurrenceError,
     RecurrenceSpec,
     TimeOfDay,
     next_occurrence,
     rearm_after,
+    slots_between,
 )
 from src.core.time_utils import now_utc
 from src.domains.reminders.models import Reminder, ReminderStatus
@@ -32,6 +35,36 @@ from src.domains.reminders.schemas import ReminderCreate, ReminderUpdate
 from src.domains.shared.display_query import DisplayQuery
 
 logger = structlog.get_logger(__name__)
+
+#: Rows read per page when a window drains every reminder due before its end.
+_WINDOW_PAGE_SIZE = 50
+
+
+def fires_within(reminder: Reminder, since: datetime, until: datetime) -> bool:
+    """Whether a pending reminder fires within ``[since, until)``.
+
+    Read through its schedule from its next instant on (ADR-268: one engine; a
+    one-shot reminder is ``freq='once'``, so nothing asks « is it recurring »). A
+    daily reminder due tomorrow fires the day after too, which ``trigger_at`` alone
+    would not say. A stored schedule that no longer reads falls back on the next
+    instant, the one the poll reads: one malformed row never hides a reminder.
+
+    Args:
+        reminder: A pending reminder.
+        since: The window's first instant.
+        until: The window's end, excluded.
+
+    Returns:
+        True when one of its pending instants falls in the window.
+    """
+    start = max(since, reminder.trigger_at)
+    if start >= until:
+        return False
+    try:
+        spec = reminder.recurrence_spec
+        return bool(slots_between(spec, reminder.user_timezone, start=start, end=until, cap=1))
+    except ValidationError, RecurrenceError:
+        return since <= reminder.trigger_at < until
 
 
 def convert_to_utc(local_dt: datetime, user_timezone: str) -> datetime:
@@ -347,9 +380,40 @@ class ReminderService:
         )
         return reminder
 
-    async def list_pending_for_user(self, user_id: UUID) -> list[Reminder]:
-        """List pending reminders for a user."""
-        return await self.repository.get_pending_for_user(user_id)
+    async def list_pending_for_user(
+        self,
+        user_id: UUID,
+        *,
+        fires_between: tuple[datetime, datetime] | None = None,
+        page_size: int = _WINDOW_PAGE_SIZE,
+    ) -> list[Reminder]:
+        """List pending reminders for a user; with a window, those firing in it.
+
+        A window reads EVERY pending reminder due before its end, page by page — the
+        agents' bounded page is no limit on one day's reminders (ADR-185 amendment)
+        — and keeps those whose schedule fires in it (:func:`fires_within`).
+
+        Args:
+            user_id: The owner.
+            fires_between: ``[since, until)``, or None for the soonest page.
+            page_size: Rows read per page while a window drains.
+
+        Returns:
+            The reminders, soonest first.
+        """
+        if fires_between is None:
+            return await self.repository.get_pending_for_user(user_id)
+        since, until = fires_between
+        found: list[Reminder] = []
+        offset = 0
+        while True:
+            rows = await self.repository.get_pending_for_user(
+                user_id, limit=page_size, offset=offset, firing_before=until
+            )
+            found.extend(row for row in rows if fires_within(row, since, until))
+            if len(rows) < page_size:
+                return found
+            offset += page_size
 
     async def list_pending_page(
         self,

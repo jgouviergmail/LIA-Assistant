@@ -108,6 +108,29 @@ class TestNormalizeImapMessage:
         assert "HTML & content" in result["snippet"]
         assert "<p>" not in result["snippet"]
 
+    def test_a_reader_reads_the_layout_the_person_sees(self) -> None:
+        """The text part beside a layout can say nothing of it (ADR-287 amendment
+        2026-11-15): a reader reads the layout, as on every other mailbox."""
+        msg = _make_mail_message(
+            text="To view this email, open it in a client that shows HTML.",
+            html="<h1>Board meeting</h1><p>Thursday 20 November, 14:00</p>",
+        )
+
+        result = normalize_imap_message(msg, "INBOX")
+
+        assert result["body"] == "Board meeting\n\nThursday 20 November, 14:00"
+
+    def test_a_draft_is_read_as_the_text_the_person_wrote(self) -> None:
+        """A mailbox draft is read to be edited and written back (ADR-344): its text part."""
+        msg = _make_mail_message(
+            text="My own words",
+            html='<p>My own words <a href="https://example.org/x">here</a></p>',
+        )
+
+        result = normalize_imap_message(msg, "Drafts", keep_quoted=True)
+
+        assert result["body"] == "My own words"
+
     def test_attachments_included(self) -> None:
         """Attachment metadata is present in the normalized output."""
         att = MagicMock()

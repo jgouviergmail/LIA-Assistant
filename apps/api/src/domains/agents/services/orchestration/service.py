@@ -27,6 +27,7 @@ from src.core.application_origin import ApplicationOrigin
 from src.core.config import settings
 from src.core.conversation_target import ConversationRef
 from src.core.exceptions import DatabaseError
+from src.core.execution_mode import recursion_limit_for
 from src.core.field_names import (
     FIELD_ABANDON_PENDING,
     FIELD_CONVERSATION_ID,
@@ -41,6 +42,7 @@ from src.domains.agents.constants import (
     HITL_DECISION_NEW_REQUEST,
 )
 from src.domains.agents.context.extraction_revision import with_current_extraction_revision
+from src.domains.agents.context.runtime_context import executed_mode_of
 from src.domains.agents.context.runtime_context_builder import build_runtime_context
 from src.domains.agents.context.store import get_tool_context_store
 from src.domains.agents.models import (
@@ -49,7 +51,7 @@ from src.domains.agents.models import (
     migrate_state_to_current,
     needs_migration,
 )
-from src.domains.agents.services.orchestration import turn_input
+from src.domains.agents.services.orchestration import overflow_replay, turn_input
 from src.domains.agents.services.orchestration.person_message import person_message
 from src.domains.agents.services.orchestration.tracking_commit import commit_tracked_spend
 from src.domains.conversations.runtime_identity import checkpoint_config
@@ -120,6 +122,13 @@ async def drop_replaced_question(
             error=str(cleanup_err),
             error_type=type(cleanup_err).__name__,
         )
+
+
+def _observed_duration(start_time: float) -> float:
+    """The stream's duration since ``start_time``, observed on the graph histogram."""
+    duration = time.perf_counter() - start_time
+    langgraph_graph_duration_seconds.observe(duration)
+    return duration
 
 
 class GraphChunk:
@@ -443,8 +452,12 @@ class OrchestrationService:
                 state = current_state.values
                 checkpoint_created_at = current_state.created_at
                 # The restored values before the turn shapes them: the stream hands
-                # the graph only what changed since, never the whole state.
+                # the graph only what changed since, never the whole state. And
+                # where they were restored from: a refused turn replays from it.
                 turn_input.snapshot_restored_state(state, run_id)
+                turn_input.remember_restored_checkpoint(
+                    state, getattr(current_state, "config", None)
+                )
 
                 # === SCHEMA MIGRATION (F7) ===
                 # Bring checkpoints written by older code up to the current
@@ -764,42 +777,15 @@ class OrchestrationService:
                 error_type=type(e).__name__,
             )
 
-        # === NEW: Create RunnableConfig with thread_id for checkpoint persistence ===
-        # ``configurable`` carries LangGraph PLUMBING ONLY. The 17 run-scoped values
-        # it used to carry — identity, preferences, dependencies, the SSE side
-        # channel — now travel on the typed ``LiaRuntimeContext`` built below
-        # (ADR-231). Keeping both planes populated would leave two authorities on
-        # the same fact, and the untyped one always wins by being easier to read.
-        runnable_config = RunnableConfig(
-            configurable=checkpoint_config(target)["configurable"],
-            metadata={
-                FIELD_RUN_ID: run_id,
-                FIELD_USER_ID: str(user_id),
-                FIELD_SESSION_ID: session_id,
-                FIELD_CONVERSATION_ID: str(conversation_id),
-            },
-            callbacks=[token_callback],  # Propagates to ALL nodes automatically
-            # ADR-070: ReAct mode needs higher recursion_limit (each iteration = 2 transitions)
-            recursion_limit=(
-                settings.react_agent_max_iterations * 2 + 15
-                if user_execution_mode == "react"
-                else settings.agent_max_iterations
-            ),
-        )
+        # === PHASE 8 - HITL: Check if resuming from interrupt ===
+        # If _interrupt_resume_data is present, use Command(resume=...) pattern
+        # instead of passing state directly
+        # NOTE: Use cast to access temporary field (not in MessagesState TypedDict)
+        from typing import cast
 
-        # === Phase 6 - LLM Observability: Enrich config with Langfuse callbacks ===
-        # Add Langfuse callbacks + metadata (session_id, user_id, tags) for tracing
-        runnable_config = enrich_config_with_callbacks(
-            runnable_config,
-            llm_type="agent_graph",
-            session_id=session_id,
-            user_id=str(user_id),
-            metadata={
-                FIELD_RUN_ID: run_id,
-                FIELD_CONVERSATION_ID: str(conversation_id),
-            },
-            trace_name=f"agent_conversation_{run_id[:8]}",
-        )
+        state_dict = cast(dict[str, Any], state)
+        resume_data = state_dict.get("_interrupt_resume_data")
+        is_resuming_interrupt = resume_data is not None
 
         # Typed run-scoped context (ADR-231), built by the single builder so
         # this frozen service does not grow a second construction site.
@@ -820,19 +806,45 @@ class OrchestrationService:
             user_exchange_rhythm=user_exchange_rhythm,
             is_automated_source=is_automated_source,
             application_origin=application_origin,
+            resuming=is_resuming_interrupt,
         )
 
         runtime_context = await with_current_extraction_revision(runtime_context)
 
-        # === PHASE 8 - HITL: Check if resuming from interrupt ===
-        # If _interrupt_resume_data is present, use Command(resume=...) pattern
-        # instead of passing state directly
-        # NOTE: Use cast to access temporary field (not in MessagesState TypedDict)
-        from typing import cast
+        # === NEW: Create RunnableConfig with thread_id for checkpoint persistence ===
+        # ``configurable`` carries LangGraph PLUMBING ONLY. The 17 run-scoped values
+        # it used to carry — identity, preferences, dependencies, the SSE side
+        # channel — now travel on the typed ``LiaRuntimeContext`` built above
+        # (ADR-231). Keeping both planes populated would leave two authorities on
+        # the same fact, and the untyped one always wins by being easier to read.
+        runnable_config = RunnableConfig(
+            configurable=checkpoint_config(target)["configurable"],
+            metadata={
+                FIELD_RUN_ID: run_id,
+                FIELD_USER_ID: str(user_id),
+                FIELD_SESSION_ID: session_id,
+                FIELD_CONVERSATION_ID: str(conversation_id),
+            },
+            callbacks=[token_callback],  # Propagates to ALL nodes automatically
+            # ADR-070: the graph's room, from the engine the turn runs in — a
+            # resumed turn's, whatever the person chose since
+            recursion_limit=recursion_limit_for(executed_mode_of(runtime_context)),
+        )
 
-        state_dict = cast(dict[str, Any], state)
-        resume_data = state_dict.get("_interrupt_resume_data")
-        is_resuming_interrupt = resume_data is not None
+        # === Phase 6 - LLM Observability: Enrich config with Langfuse callbacks ===
+        # Add Langfuse callbacks + metadata (session_id, user_id, tags) for tracing
+        runnable_config = enrich_config_with_callbacks(
+            runnable_config,
+            llm_type="agent_graph",
+            session_id=session_id,
+            user_id=str(user_id),
+            metadata={
+                FIELD_RUN_ID: run_id,
+                FIELD_CONVERSATION_ID: str(conversation_id),
+            },
+            trace_name=f"agent_conversation_{run_id[:8]}",
+        )
+        restored_checkpoint_id = turn_input.pop_restored_checkpoint(state_dict)
         # What the graph receives on a normal turn: the turn's changes since the
         # restore (turn_input) — passed whole, every channel took a new version on
         # every turn, ~1 MB of blobs per save on production (2026-10-12).
@@ -870,7 +882,6 @@ class OrchestrationService:
 
         # PHASE 2.5 - LangGraph Observability: Track graph execution
         start_time = time.perf_counter()
-        graph_completed = False
 
         try:
             if isinstance(resume_data, dict):
@@ -897,10 +908,7 @@ class OrchestrationService:
                 async for mode, chunk in graph.astream(
                     command_input,
                     runnable_config,
-                    # "custom" added in Day 2: nodes use langgraph.config.get_stream_writer
-                    # to push compaction_start/done events that the streaming service
-                    # forwards to the frontend SSE stream.
-                    stream_mode=["values", "messages", "updates", "custom"],
+                    stream_mode=overflow_replay.GRAPH_STREAM_MODES,
                     context=runtime_context,
                     # Explicit intent (was the implicit default): checkpoint
                     # writes happen asynchronously per step — per-step
@@ -910,22 +918,22 @@ class OrchestrationService:
                 ):
                     yield (mode, chunk)
             else:
-                # Normal execution with the turn's changes — declared fresh: a
-                # new request under the run id of the question it replaces must
-                # never resume that question (turn_input.fresh_run_config).
-                async for mode, chunk in graph.astream(
+                # Normal execution with the turn's changes, declared fresh (a new
+                # request never resumes the question it replaces), replayed once
+                # compacted if the model's window refuses it (lot 15).
+                async for mode, chunk in overflow_replay.stream_fresh_turn(
+                    graph,
                     graph_input,
-                    turn_input.fresh_run_config(runnable_config),
-                    stream_mode=["values", "messages", "updates", "custom"],
-                    context=runtime_context,
-                    durability="async",  # explicit intent — see resume branch above
+                    runnable_config,
+                    runtime_context,
+                    state=state_dict,
+                    run_id=run_id,
+                    restored_checkpoint_id=restored_checkpoint_id,
                 ):
                     yield (mode, chunk)
 
             # Graph completed successfully
-            graph_completed = True
-            duration = time.perf_counter() - start_time
-            langgraph_graph_duration_seconds.observe(duration)
+            duration = _observed_duration(start_time)
             langgraph_graph_executions_total.labels(status="success").inc()
 
             logger.debug(
@@ -937,10 +945,11 @@ class OrchestrationService:
 
         except GraphRecursionError as e:
             # Recursion limit exceeded (infinite loop detection)
-            duration = time.perf_counter() - start_time
-            langgraph_graph_duration_seconds.observe(duration)
+            duration = _observed_duration(start_time)
+            # The bound the graph actually ran under: the loop's or the pipeline's.
+            recursion_limit = runnable_config.get("recursion_limit")
             langgraph_graph_recursion_limit_exceeded_total.labels(
-                max_recursion_limit=str(settings.agent_max_iterations)
+                max_recursion_limit=str(recursion_limit)
             ).inc()
             langgraph_graph_errors_total.labels(error_type="GraphRecursionError").inc()
             langgraph_graph_executions_total.labels(status="error").inc()
@@ -949,15 +958,14 @@ class OrchestrationService:
                 "graph_recursion_limit_exceeded",
                 run_id=run_id,
                 error=str(e),
-                max_iterations=settings.agent_max_iterations,
+                max_iterations=recursion_limit,
                 duration_seconds=duration,
             )
             raise
 
         except GraphInterrupt:
             # Graph interrupted (HITL approval gate)
-            duration = time.perf_counter() - start_time
-            langgraph_graph_duration_seconds.observe(duration)
+            duration = _observed_duration(start_time)
             langgraph_graph_interrupts_total.labels(interrupt_type="hitl_approval").inc()
             langgraph_graph_executions_total.labels(status="interrupted").inc()
 
@@ -970,26 +978,23 @@ class OrchestrationService:
             raise
 
         except ContextOverflowError as e:
-            # Context window exceeded during LLM call inside a graph node
-            # LangGraph propagates this as-is (no wrapping)
-            duration = time.perf_counter() - start_time
-            if not graph_completed:
-                langgraph_graph_duration_seconds.observe(duration)
+            # The window refused the turn: a resumed question (never replayed),
+            # or a new turn whose one compacted replay could not run or was
+            # refused too (overflow_replay). Facts, never the provider's text.
+            duration = _observed_duration(start_time)
             langgraph_graph_errors_total.labels(error_type="ContextOverflowError").inc()
             langgraph_graph_executions_total.labels(status="error").inc()
             logger.error(
                 "graph_context_overflow",
                 run_id=run_id,
-                error=str(e),
+                error_type=type(e).__name__,
                 duration_seconds=duration,
             )
             raise
 
         except asyncio.CancelledError:
             # Client disconnected during streaming — graceful termination, not an error
-            duration = time.perf_counter() - start_time
-            if not graph_completed:
-                langgraph_graph_duration_seconds.observe(duration)
+            duration = _observed_duration(start_time)
             langgraph_graph_executions_total.labels(status="cancelled").inc()
 
             logger.info(
@@ -1001,9 +1006,7 @@ class OrchestrationService:
 
         except (TimeoutError, RuntimeError, ValueError, OSError) as e:
             # Actual errors
-            duration = time.perf_counter() - start_time
-            if not graph_completed:
-                langgraph_graph_duration_seconds.observe(duration)
+            duration = _observed_duration(start_time)
 
             error_type = type(e).__name__
             langgraph_graph_errors_total.labels(error_type=error_type).inc()

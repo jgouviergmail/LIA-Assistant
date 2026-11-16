@@ -36,6 +36,7 @@ from typing import Final
 import structlog
 
 from src.core.config import settings
+from src.domains.rag_spaces.inflation import ZIPPED_CONTENT_TYPES, InflatesTooFar
 from src.domains.rag_spaces.processing import EXTRACTABLE_CONTENT_TYPES, extract_text
 
 logger = structlog.get_logger(__name__)
@@ -122,14 +123,18 @@ _UTF16_MARKS: Final = (codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)
 
 
 def _assert_formats_are_extractable() -> None:
-    """Refuse to import with a format nothing can read.
+    """Refuse to import with a format nothing can read, or a zipped one its reader never measures.
 
     Raises:
-        RuntimeError: When a declared format has no extractor.
+        RuntimeError: When a declared format has no extractor, or an archive format escapes the
+            reader's inflation ceiling (``ZIPPED_CONTENT_TYPES``).
     """
     unread = sorted(set(_BY_MIME) - EXTRACTABLE_CONTENT_TYPES)
     if unread:
         raise RuntimeError(f"Document formats without an extractor: {unread}")
+    unmeasured = sorted(_ARCHIVE_FORMATS - ZIPPED_CONTENT_TYPES)
+    if unmeasured:
+        raise RuntimeError(f"Archive formats the reader never measures: {unmeasured}")
 
 
 def assert_document_formats_extractable() -> None:
@@ -226,8 +231,9 @@ def extract_capped_text(path: Path, mime_type: str, max_chars: int) -> str | Non
     An extraction that fails costs the text, never the upload — as a scanned
     PDF always did: the person still sees their file, and the model is not
     handed a document it cannot read. An archive that declares more than
-    ``ATTACHMENTS_MAX_INFLATED_MB`` once inflated is not opened by its reader
-    at all (:func:`_inflates_too_far`).
+    ``ATTACHMENTS_MAX_INFLATED_MB`` once inflated is refused by the reader's own
+    door before its reader starts (``InflatesTooFar``): the file is kept, its
+    text is not read.
 
     Args:
         path: The stored file.
@@ -237,10 +243,18 @@ def extract_capped_text(path: Path, mime_type: str, max_chars: int) -> str | Non
     Returns:
         The text cut at ``max_chars``, or ``None`` when there is none to read.
     """
-    if _inflates_too_far(path, mime_type):
-        return None
     try:
-        text = extract_text(path, mime_type)
+        text = extract_text(path, mime_type, max_inflated_mb=settings.attachments_max_inflated_mb)
+    except InflatesTooFar as refused:
+        # Facts only (ADR-317): the sizes, never the name.
+        logger.warning(
+            "attachment_text_extraction_skipped",
+            mime_type=mime_type,
+            reason="inflated_size",
+            inflated_mb=refused.inflated_mb,
+            ceiling_mb=refused.ceiling_mb,
+        )
+        return None
     except Exception as exc:  # noqa: BLE001 — a text never costs the upload
         # Facts only (ADR-317): a reader's message may quote the document.
         logger.warning(
@@ -250,43 +264,6 @@ def extract_capped_text(path: Path, mime_type: str, max_chars: int) -> str | Non
         )
         return None
     return text[:max_chars] or None
-
-
-def _inflates_too_far(path: Path, mime_type: str) -> bool:
-    """Whether a zipped document declares more than its readers may inflate.
-
-    A document sent small can inflate large — megabytes of padding deflate to a
-    few kilobytes — and its readers inflate whole parts in memory, inside the
-    upload request. What an archive inflates to is DECLARED in its directory,
-    and the zip readers never inflate a member past what it declares: the sum
-    is a real bound, read without inflating anything.
-
-    Args:
-        path: The stored file.
-        mime_type: Its format; only an archive format is measured.
-
-    Returns:
-        True when the text must not be read; the fact is logged, never the name.
-    """
-    if mime_type not in _ARCHIVE_FORMATS:
-        return False
-    ceiling = settings.attachments_max_inflated_mb * 1024 * 1024
-    try:
-        with zipfile.ZipFile(path) as archive:
-            inflated = sum(member.file_size for member in archive.infolist())
-    except zipfile.BadZipFile, zipfile.LargeZipFile, OSError:
-        # Unreadable as an archive: its reader will say so, and cost the text alone.
-        return False
-    if inflated <= ceiling:
-        return False
-    logger.warning(
-        "attachment_text_extraction_skipped",
-        mime_type=mime_type,
-        reason="inflated_size",
-        inflated_mb=inflated // (1024 * 1024),
-        ceiling_mb=settings.attachments_max_inflated_mb,
-    )
-    return True
 
 
 def extension_of(mime_type: str) -> str | None:

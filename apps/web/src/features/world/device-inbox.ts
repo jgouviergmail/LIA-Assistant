@@ -2,9 +2,11 @@ import { SmsSignalInbox, type SmsReceivedSignal } from '@/lib/sms/notification';
 import type { Notification } from '@/hooks/useNotifications';
 export type DeviceNotice =
   | { key: string; kind: 'sms'; messageId: string; read: boolean }
-  | { key: string; kind: 'reminder'; content: string; read: boolean };
-/** One owner, no storage or world transport. Native reminder signals have no occurrence id:
- * suppress transport duplicates briefly, while allowing the next recurring occurrence. */
+  | { key: string; kind: 'reminder'; content: string; firingId?: string; read: boolean };
+/** One owner, no storage or world transport. A reminder signal names its occurrence
+ * (`firing_id`, ADR-268 amendment 2026-11-16) when it was recorded — else only its reminder:
+ * the two transports deliver one ringing twice, so a duplicate of the same occurrence (or,
+ * unrecorded, of the same reminder) is suppressed briefly, and the next occurrence is not. */
 export class DeviceInbox {
   private readonly sms: SmsSignalInbox;
   private entries: DeviceNotice[] = [];
@@ -36,15 +38,17 @@ export class DeviceInbox {
   }
   receiveReminder(n: Notification, now: number): boolean {
     if (n.type !== 'reminder' || !n.reminder_id || !Number.isFinite(now)) return false;
-    const previous = this.reminders.get(n.reminder_id);
+    const ringing = n.firing_id ?? n.reminder_id;
+    const previous = this.reminders.get(ringing);
     if (previous !== undefined && now - previous < 5000) return false;
-    this.reminders.delete(n.reminder_id);
-    this.reminders.set(n.reminder_id, now);
+    this.reminders.delete(ringing);
+    this.reminders.set(ringing, now);
     if (this.reminders.size > 128) this.reminders.delete(this.reminders.keys().next().value!);
     this.push({
       key: 'reminder:' + ++this.serial,
       kind: 'reminder',
       content: n.content.slice(0, 4000),
+      ...(n.firing_id ? { firingId: n.firing_id } : {}),
       read: false,
     });
     return true;

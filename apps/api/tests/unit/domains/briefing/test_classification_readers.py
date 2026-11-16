@@ -78,7 +78,8 @@ async def test_event_read_and_actual_synthesis_share_annotation(monkeypatch, pro
     }
     client = SimpleNamespace(
         credentials=SimpleNamespace(account_binding="grant-a"),
-        list_events=AsyncMock(return_value={"items": [item]}),
+        list_calendars=AsyncMock(return_value={"items": [{"id": "work", "accessRole": "owner"}]}),
+        list_events_window=AsyncMock(return_value={"events": [item], "truncated": False}),
     )
 
     @asynccontextmanager

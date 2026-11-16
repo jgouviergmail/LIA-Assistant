@@ -31,9 +31,14 @@ from src.domains.agents.context.runtime_context import (
     LiaRuntimeContext,
 )
 from src.domains.agents.context.schemas import ContextSaveMode
+from src.domains.agents.emails.authorship import person_words_of, settle_words
 from src.domains.agents.emails.catalogue_manifests import (
     MAIL_DRIVE_FILES_DESCRIPTION,
     MAIL_FILE_NAMES_DESCRIPTION,
+    NEW_MAIL_BODY_DESCRIPTION,
+    NEW_MAIL_INSTRUCTION_DESCRIPTION,
+    REPLY_BODY_DESCRIPTION,
+    REPLY_INSTRUCTION_DESCRIPTION,
 )
 from src.domains.agents.emails.content_generation import resolve_email_content
 from src.domains.agents.emails.mailbox_drafts_manifests import LIST_MAX_RESULTS_DESCRIPTION
@@ -224,12 +229,8 @@ async def create_mailbox_draft_tool(
         str | None, "Recipient(s): addresses or contact names, comma-separated (optional)"
     ] = None,
     subject: Annotated[str | None, "Subject (optional)"] = None,
-    body: Annotated[str | None, "The draft's text, when the person dictated it"] = None,
-    content_instruction: Annotated[
-        str | None,
-        "What the draft should say, for LIA to write it (use instead of body; omit when the "
-        "person asked for an empty draft)",
-    ] = None,
+    body: Annotated[str | None, NEW_MAIL_BODY_DESCRIPTION] = None,
+    content_instruction: Annotated[str | None, NEW_MAIL_INSTRUCTION_DESCRIPTION] = None,
     cc: Annotated[str | None, "Copies (optional, comma-separated)"] = None,
     bcc: Annotated[str | None, "Blind copies (optional, comma-separated)"] = None,
     is_html: Annotated[bool, "True if body is HTML (default False)"] = False,
@@ -240,14 +241,15 @@ async def create_mailbox_draft_tool(
     """
     Save a new DRAFT in the person's mailbox: nothing is sent, no confirmation.
 
-    The draft may wait for its recipient or its words; LIA writes them only
-    when the person said what the draft should say (``content_instruction``).
+    Who writes it: `body` holds the user's own words, dictated in quotes or after a colon,
+    exactly as given; otherwise give `content_instruction` and LIA's writer writes it in
+    the user's own voice. Neither: the draft waits, empty, for its words.
 
     Args:
         to: Recipient(s), addresses or contact names.
         subject: Subject.
-        body: The draft's text, as dictated.
-        content_instruction: What the draft should say, for LIA to write.
+        body: The user's own words, dictated.
+        content_instruction: What the draft must say, for LIA to write.
         cc: Copies.
         bcc: Blind copies.
         is_html: Whether body is HTML.
@@ -258,17 +260,26 @@ async def create_mailbox_draft_tool(
     Returns:
         UnifiedToolOutput with the saved draft.
     """
-    if content_instruction:
+    # The person's words, else LIA's writer's: never the agent's own (ADR-383).
+    words = settle_words(
+        tool="create_mailbox_draft_tool",
+        body=body,
+        instruction=content_instruction,
+        person_words=person_words_of(runtime),
+    )
+    body = words.body
+    if words.instruction:
         content = await resolve_email_content(
             runtime=runtime,
             recipient=to or "",
             subject=subject,
             body=body,
-            content_instruction=content_instruction,
+            content_instruction=words.instruction,
         )
         if isinstance(content, UnifiedToolOutput):
             return content
         subject, body = content.subject, content.body
+        is_html = is_html and not content.written
     user_timezone, _, locale = await get_user_preferences(runtime)
     return await _create_mailbox_draft_tool_instance.execute(
         runtime=runtime,
@@ -327,10 +338,17 @@ class CreateMailboxReplyDraftTool(MailboxDraftTool):
         message_id = str(kwargs.get("message_id") or "")
         if not message_id:
             return refusal(ToolErrorCode.MISSING_REQUIRED_PARAM, "message_id is required.")
+        # The person's words, else LIA's writer's: never the agent's own (ADR-383).
+        words = settle_words(
+            tool=self.tool_name,
+            body=kwargs.get("body"),
+            instruction=kwargs.get("content_instruction"),
+            person_words=person_words_of(self.runtime),
+        )
         try:
             # A blank text is no text: LIA writes the reply.
-            body = str(kwargs.get("body") or "").strip() or await self._written_reply(
-                client, user_id, message_id, kwargs.get("content_instruction")
+            body = (words.body or "").strip() or await self._written_reply(
+                client, user_id, message_id, words.instruction
             )
             if isinstance(body, dict):
                 return body
@@ -363,10 +381,8 @@ _create_mailbox_reply_draft_tool_instance = CreateMailboxReplyDraftTool()
 )
 async def create_mailbox_reply_draft_tool(
     message_id: Annotated[str, "The received e-mail to answer (from get_emails or CONTEXT)"],
-    body: Annotated[str | None, "The reply's text, when the person dictated it"] = None,
-    content_instruction: Annotated[
-        str | None, "What the reply should say ('accept', 'ask for Friday'), for LIA to write it"
-    ] = None,
+    body: Annotated[str | None, REPLY_BODY_DESCRIPTION] = None,
+    content_instruction: Annotated[str | None, REPLY_INSTRUCTION_DESCRIPTION] = None,
     reply_all: Annotated[bool, "Answer every recipient of the e-mail (default False)"] = False,
     to: Annotated[
         str | None, "Who it reaches instead of the sender: addresses or contact names"
@@ -379,13 +395,14 @@ async def create_mailbox_reply_draft_tool(
     """
     Save the reply to a received e-mail as a DRAFT in its thread: nothing is sent.
 
-    Without ``body`` LIA writes the reply from the received e-mail, following
-    ``content_instruction`` when the person gave one.
+    Who writes it: `body` holds the user's own words, dictated in quotes or after a colon,
+    exactly as given; otherwise LIA's writer writes the reply from the received e-mail,
+    in the user's own voice, following `content_instruction` when given.
 
     Args:
         message_id: The received e-mail.
-        body: The reply's text, as dictated.
-        content_instruction: What the reply should say.
+        body: The user's own words, dictated.
+        content_instruction: What the reply must say.
         reply_all: Answer every recipient.
         to: Who it reaches instead of the sender.
         cc: Copies instead of those it would keep.

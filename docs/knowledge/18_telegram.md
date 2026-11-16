@@ -22,9 +22,9 @@ Write to the bot as you would in the chat: LIA answers with the same tools — e
 Send a voice note and LIA transcribes it, then answers as if you had typed it. A note longer than the transcription accepts is refused with a message giving the **maximum duration in seconds** — that limit depends on how your administrator set up transcription. If the note cannot be understood, the bot asks you to try again or to write.
 
 **📝 Good to know:**
-• LIA reads **text and voice notes** only: photos, files and stickers are not read, and editing a message you already sent changes nothing
-• answers arrive as formatted text; visual cards (weather, maps, images, e-mail cards) are shown in the web app, in the same conversation
-• while LIA is still working on your previous message, a new one gets "I'm still processing your previous message" — send it again once the answer has arrived
+• LIA reads **text, voice notes, photos, documents and shared locations**; stickers and videos are not read, and editing a message you already sent changes nothing
+• answers arrive as formatted text, headings, tables and quotes included; visual cards (weather, maps, e-mail cards) are shown in the web app, in the same conversation
+• **/help** sums up what the bot can do, **/stop** stops the answer in progress
 
 ## How do confirmations and notifications work on Telegram?
 
@@ -36,12 +36,11 @@ What LIA sends you — reminders, the results of your routines, proactive notifi
 
 ## Is a Telegram conversation the same as the one in the web app?
 
-Yes. Your account has **one conversation**, whichever way you reach it: a message sent from Telegram and LIA's answer also appear in the web chat — an open chat picks them up without being reloaded — together with the cards Telegram cannot show.
+Telegram talks in **Main**: your messages and LIA's answers appear there in the web app once archived, with the cards Telegram cannot show. Side discussions keep their own histories; Telegram does not follow whichever one you have open.
 
-**⚙️ Same preferences, everywhere:**
-Telegram is not a reduced mode. Your language, timezone and personality apply, and so do long-term memory, LIA's journals and its emotional state — exactly as you set them. What you switched off stays off on Telegram too.
+**Same preferences:** language, timezone, personality, execution mode, memory and journals follow your account. A capability you switched off stays off here too.
 
-**💡 One consequence:** when LIA is waiting for your answer to a question, your next Telegram message is read as that answer, just as it would be in the chat.
+When LIA asks a question in the Telegram conversation, your next message answers it, as in the chat.
 
 ## How do I pause or unlink Telegram?
 
@@ -64,3 +63,37 @@ Yes, in two ways:
 When external channels are switched off, Telegram can be neither linked nor used on the instance. Existing links are kept and work again once the capability is back on.
 
 If your LIA account is deactivated, the bot only answers that the account is deactivated and that you should contact your administrator.
+
+## What happens if I write while LIA is still answering?
+
+Your message waits its turn, as in the app: the bot marks it with 👀 and sends it as your next message as soon as LIA has finished — its answer comes back on Telegram.
+
+**⏹️ Stopping the answer in progress:**
+Send **/stop** (it is also in the bot's menu): LIA stops the answer being written, as with the app's stop button. When nothing is running, or when what runs cannot be stopped from Telegram (another conversation, a routine), the bot tells you.
+
+**📝 Good to know:**
+• if the answer was stopped or failed, your waiting message does not leave by itself: the bot shows it to you with two buttons, **Send** and **Withdraw**
+• an answer to a question LIA asked you does not wait — it is the answer: send it again once LIA has finished
+• a location or a file sent meanwhile does not wait either: send it again once the answer has arrived
+
+## Can I send photos, files or my location?
+
+Yes.
+
+**📎 Photos and files:**
+Send a photo or a document, with a caption saying what you want — or without one. LIA reads it like a file attached in the chat: same formats, same size limits, and an album of several photos is read as one message. A file that cannot be received is refused with the reason (too large, a type LIA does not read, too many files at once). The images and documents LIA makes for you are sent to you as files.
+
+**📍 Location:**
+Share your location and LIA uses it for the question you ask — *restaurants nearby*, *the weather here*, a route from where you are. It is kept afterwards only if **Location memory** is on. A place you share is read as that place, not as where you are.
+
+**↩️ Replies:**
+Reply to one of the messages of the conversation and LIA knows which one you are talking about.
+
+## Can LIA answer my voice notes out loud?
+
+Yes, when **Spoken replies** are on (in the chat's voice menu): the answer to a voice note arrives as text, then as a voice message. The voice reads the beginning of the answer, as in the chat, without the cards or the addresses of links; the text stays complete.
+
+**📝 Good to know:**
+• a typed message gets a written answer only
+• a question from LIA (with its buttons) stays written
+• the voice counts in your costs like the chat's; when your usage limit is reached, only the written answer arrives

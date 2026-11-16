@@ -90,6 +90,7 @@ from src.core.i18n_meeting_retry import MEETING_RETRY_COPY
 from src.core.i18n_meeting_template_actions import MEETING_TEMPLATE_ACTION_COPY
 from src.core.i18n_meeting_transcripts import MEETING_TRANSCRIPT_COPY
 from src.core.i18n_memory_export import MEMORY_EXPORT_COPY
+from src.core.i18n_memory_import import MEMORY_IMPORT_COPY
 from src.core.i18n_open_loop import OPEN_LOOP_COPY
 from src.core.i18n_peer_block import PEER_BLOCK_COPY
 from src.core.i18n_peer_image import PEER_IMAGE_COPY
@@ -124,6 +125,7 @@ from src.core.i18n_skill_download import SKILL_DOWNLOAD_COPY
 from src.core.i18n_skill_file_upload import SKILL_FILE_UPLOAD_COPY
 from src.core.i18n_skill_library_import import SKILL_LIBRARY_IMPORT_COPY
 from src.core.i18n_skill_personal import SKILL_PERSONAL_COPY
+from src.core.i18n_skill_restore import SKILL_RESTORE_COPY
 from src.core.i18n_skill_url_import import SKILL_URL_IMPORT_COPY
 from src.core.i18n_sms import SMS_APPROVAL_NOTE
 from src.core.i18n_source_delete import SOURCE_DELETE_COPY
@@ -138,6 +140,7 @@ from src.core.i18n_workboard_comment import WORKBOARD_COMMENT_COPY
 from src.core.i18n_workboard_create import WORKBOARD_CREATE_COPY
 from src.core.i18n_workboard_delete import WORKBOARD_DELETE_COPY
 from src.core.i18n_workboard_update import WORKBOARD_UPDATE_COPY
+from src.core.i18n_writing_style_actions import WRITING_STYLE_ACTION_COPY
 from src.core.text_clip import ELLIPSIS, one_line, spell_unseen
 
 # ============================================================================
@@ -1495,6 +1498,10 @@ for _language, _application_copy in APPLICATION_DRAFT_COPY.items():
         application_skill_update_note=SKILL_PERSONAL_COPY[_language][1],
         application_field_skill_to_delete=SKILL_DELETE_COPY[_language][0],
         application_skill_delete_note=SKILL_DELETE_COPY[_language][1],
+        application_field_skill_to_restore=SKILL_RESTORE_COPY[_language][0],
+        application_skill_restore_note=SKILL_RESTORE_COPY[_language][1],
+        application_field_memories_import=MEMORY_IMPORT_COPY[_language][0],
+        application_memory_import_note=MEMORY_IMPORT_COPY[_language][1],
         application_field_plugin_to_delete=PLUGIN_DELETE_COPY[_language][0],
         application_plugin_delete_note=PLUGIN_DELETE_COPY[_language][1],
         application_field_plugin_url_import=PLUGIN_IMPORT_COPY[_language][0],
@@ -1585,6 +1592,15 @@ for _language, _application_copy in APPLICATION_DRAFT_COPY.items():
         application_habit_activity_count=HABIT_FORGET_COUNTS[_language][2],
         application_field_habit_recompute=HABIT_RECOMPUTE_COPY[_language][0],
         application_habit_recompute_note=HABIT_RECOMPUTE_COPY[_language][1],
+        application_writing_style_learn_note=WRITING_STYLE_ACTION_COPY[_language].learn_note,
+        application_writing_style_forget_note=WRITING_STYLE_ACTION_COPY[_language].forget_note,
+        application_writing_style_mails_to_read=WRITING_STYLE_ACTION_COPY[_language].mails_to_read,
+        application_writing_style_nothing_learned=WRITING_STYLE_ACTION_COPY[
+            _language
+        ].nothing_learned,
+        application_writing_style_replaces=WRITING_STYLE_ACTION_COPY[_language].replaces,
+        application_writing_style_learned_on=WRITING_STYLE_ACTION_COPY[_language].learned_on,
+        application_writing_style_mails_read=WRITING_STYLE_ACTION_COPY[_language].mails_read,
         application_field_open_loop=OPEN_LOOP_COPY[_language][0],
         application_interest_reactivation_note=APPLICATION_INTEREST_REACTIVATION[_language].note,
         application_field_interest_to_reactivate=APPLICATION_INTEREST_REACTIVATION[_language].title,

@@ -574,6 +574,21 @@ This list is built once per request by `build_request_tool_manifests(registry)` 
 2. **By DOMAIN** : contacts, emails, calendar, etc.
 3. **By CONTEXT** : context tools si reference turn
 
+### Places par pertinence (ADR-293, amendement 2026-11-15)
+
+> **Fichier**: [seats.py](../../apps/api/src/domains/agents/services/catalogue/seats.py)
+> **Appelée par**: `NormalFilteringStrategy.filter` et `PanicFilteringStrategy.filter`
+
+Chaque domaine détecté reçoit une place, puis les places restantes se remplissent
+domaine par domaine jusqu'à `max_tools`. Dans un domaine, les outils passent par
+score calibré décroissant (les scores du routeur, déjà payés) : la tête du domaine
+prend sa place, le reste remplit sous le plafond. Une égalité, ou un tour que le
+sélecteur n'a pas noté, garde l'ordre d'enregistrement (tri stable) ; l'ordre des
+domaines reste celui de l'analyseur. Avant, l'ordre d'enregistrement décidait
+seul : sur E06 (ADR-390), le domaine des rappels était assis par
+`create_reminder_tool` et `list_reminders_tool`, seul outil capable de répondre,
+tombait sous le plafond derrière quatre outils météo.
+
 ### Closure — le catalogue doit permettre l'existence d'un plan valide (ADR-183)
 
 > **Fichier**: [closure.py](../../apps/api/src/domains/agents/services/catalogue/closure.py)

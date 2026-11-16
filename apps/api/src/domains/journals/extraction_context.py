@@ -9,6 +9,7 @@ from uuid import UUID
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from src.core.config import settings
+from src.domains.health_metrics.prompt_context import opted_in_health_context
 from src.domains.journals.constants import JOURNAL_EXTRACTION_MESSAGE_MAX_CHARS
 from src.domains.shared.extraction_targets import find_last_user_message, is_synthetic_message
 from src.infrastructure.llm.message_view import written_prefix
@@ -222,38 +223,18 @@ def _render_previous_entries(entries: list[JournalEntry]) -> str:
 
 
 async def _maybe_build_health_context(user_id: str) -> str:
-    """Return the Health Metrics context block for the journal prompt.
+    """Return the opted-in Health Metrics context block for the journal prompt.
 
-    Mirror of the memory extractor helper — empty string when the global
-    feature flag is off, the user has not opted in, or health data is
-    unavailable. The prompt template includes a ``{health_context}``
-    placeholder flagged ``(optional)``.
+    The gate is the one door's (``health_metrics.prompt_context``); the
+    ``{health_context}`` placeholder is optional, so an empty block is fine.
+
+    Args:
+        user_id: Owner user ID (string form from the extraction plumbing).
+
+    Returns:
+        A short textual block (``""`` if none).
     """
-    from src.core.config import settings as global_settings
-    from src.core.constants import HEALTH_METRICS_USER_TOGGLE_ATTR
-
-    if not getattr(global_settings, "health_metrics_enabled", False):
-        return ""
-
-    try:
-        from src.infrastructure.database.session import get_db_context
-
-        async with get_db_context() as db:
-            from src.domains.health_metrics.service import HealthMetricsService
-            from src.domains.users.repository import UserRepository
-
-            user = await UserRepository(db).get_by_id(UUID(user_id))
-            if user is None or not getattr(user, HEALTH_METRICS_USER_TOGGLE_ATTR, False):
-                return ""
-            service = HealthMetricsService(db)
-            return await service.build_health_context_for_prompt(UUID(user_id))
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.warning(
-            "journal_extraction_health_context_failed",
-            user_id=user_id,
-            error=str(exc),
-        )
-        return ""
+    return await opted_in_health_context(UUID(user_id), surface="journal_extraction")
 
 
 def _format_messages_for_extraction(messages: list[BaseMessage], *, zone: tzinfo) -> str:

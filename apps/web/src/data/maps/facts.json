@@ -1,7 +1,7 @@
 {
-  "version": "5.0.0",
-  "releaseDate": "2026-11-14",
-  "releases": 297,
+  "version": "5.1.0",
+  "releaseDate": "2026-11-16",
+  "releases": 298,
   "milestones": [
     {
       "version": "1.0.0",
@@ -286,6 +286,10 @@
     {
       "version": "5.0.0",
       "date": "2026-11-14"
+    },
+    {
+      "version": "5.1.0",
+      "date": "2026-11-16"
     }
   ],
   "domains": 63,
@@ -676,6 +680,9 @@
     "385": "ADR-385-A-Note-Joins-The-Answer-Being-Written.md",
     "386": "ADR-386-A-Signed-Call-Starts-A-Routine.md",
     "387": "ADR-387-A-Watched-Page-Is-Read-Without-A-Model.md",
-    "388": "ADR-388-Documents-Use-What-Their-Formats-Can-Do.md"
+    "388": "ADR-388-Documents-Use-What-Their-Formats-Can-Do.md",
+    "389": "ADR-389-Telegram-Reads-And-Answers-Like-The-Chat.md",
+    "390": "ADR-390-The-Automatic-Mode-Chooses-The-Engine-Per-Request.md",
+    "391": "ADR-391-Ntfy-Brings-The-Notifications-To-Any-Device.md"
   }
 }

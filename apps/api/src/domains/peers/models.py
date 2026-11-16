@@ -31,6 +31,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from src.infrastructure.database.conversation_origin import ConversationOriginMixin
 from src.infrastructure.database.models import BaseModel, UUIDMixin
 from src.infrastructure.database.session import Base
 
@@ -226,7 +227,7 @@ class PeerDomainShare(BaseModel):
         )
 
 
-class PeerMessage(BaseModel):
+class PeerMessage(ConversationOriginMixin, BaseModel):
     """Ledger of one relayed message — and, for a while, of what it said.
 
     Content is retained on a TTL rather than erased at delivery (ADR-186),
@@ -237,6 +238,9 @@ class PeerMessage(BaseModel):
     actually said — because showing either across would undo the relay: the
     recipient would read the raw directive instead of their assistant's
     rendering, and the sender would read that assistant's private tone.
+
+    The sender's delivery notice comes back to the discussion the message
+    was sent from while it lives, else to Main.
     """
 
     __tablename__ = "peer_messages"

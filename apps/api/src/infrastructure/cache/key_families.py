@@ -174,6 +174,9 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "channel": KeyScope.USER_RUNTIME,
     "channel_otp": KeyScope.USER_RUNTIME,
     "channel_otp_attempts": KeyScope.USER_RUNTIME,
+    # The parts of a Telegram album meeting their first part (lot 11): named by
+    # the chat and the album, not by an account, and gone within a minute.
+    "channel_album": KeyScope.GLOBAL,
     # The spoken code of a phone-number verification and its attempt counter
     # (phone-as-a-channel, lot 2): one-time, short-lived, never learning.
     "telephony_verify": KeyScope.USER_RUNTIME,

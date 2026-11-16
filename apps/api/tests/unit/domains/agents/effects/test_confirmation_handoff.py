@@ -22,7 +22,6 @@ Two boundaries the tests below pin:
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -33,6 +32,7 @@ from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.effects import runtime as gate_runtime
 from src.domains.agents.effects.scope import EffectScope, effect_scope
 from src.domains.agents.effects.treatments import treatment_collector
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -51,7 +51,7 @@ def _reset() -> Any:
     with (
         patch(
             "src.domains.agents.context.runtime_context.runtime_context_if_running",
-            return_value=SimpleNamespace(
+            return_value=make_runtime_context(
                 user_id=__import__("uuid").uuid4(),
                 thread_id="thread-A",
                 execution_mode="pipeline",

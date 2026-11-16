@@ -260,11 +260,13 @@ const NO_CIDS: readonly string[] = [];
 /**
  * @param messageId - The open message.
  * @param html - Its layout, once read.
+ * @param cardSource - The signed source of the chat card that reads it, if a card does.
  * @returns The images it carries, once read; nothing is asked where it names none.
  */
 export function useInlineImages(
   messageId: string | null,
-  html: string | null
+  html: string | null,
+  cardSource: string | null = null
 ): MailInlineImages | undefined {
   const cids = useMemo(() => (html ? cidsOf(html) : NO_CIDS), [html]);
   const params = useMemo(
@@ -273,7 +275,8 @@ export function useInlineImages(
   );
   const read = useWorkbenchItem<MailInlineImages>(
     messageId && cids.length > 0 ? INLINE_IMAGES_PATH : null,
-    params
+    params,
+    cardSource
   );
   if (read.error && !read.item) return { images: [], skipped: cids.length };
   return read.item;

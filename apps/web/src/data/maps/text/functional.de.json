@@ -49,9 +49,9 @@
     },
     "f.routing": {
       "name": "Verständnis der Anfrage",
-      "role": "Liest jede Nachricht: bloßer Austausch oder auszuführende Anfrage, betroffene Bereiche (Kalender, E-Mail…), Sprache — und ordnet die Werkzeuge nach Relevanz.",
+      "role": "Versteht die Anfrage, ihre Bereiche und Sprache und ordnet die Werkzeuge nach Relevanz; im automatischen Modus wählt sie je nach Anfrage und verfügbaren Abläufen zwischen Pipeline und ReAct.",
       "goal": "Jede Anfrage auf den richtigen Weg schicken, ohne mehr auszugeben als nötig.",
-      "src": "d8835f003b0f"
+      "src": "e1a694fd08ce"
     },
     "f.planning": {
       "name": "Planung (Pipeline-Modus)",
@@ -283,9 +283,9 @@
     },
     "f.reminders": {
       "name": "Erinnerungen",
-      "role": "Eine Erinnerung, die zur festgelegten Zeit klingelt und sich wiederholen kann, von LIA in dem Moment formuliert, in dem sie klingelt.",
+      "role": "Eine Erinnerung, die zur festgelegten Zeit klingelt, sich wiederholen kann und dann von LIA formuliert wird; ihre Karte verschiebt die gerade fällige Erinnerung oder lässt dich das Ende künftiger Wiederholungen bestätigen.",
       "goal": "Nichts mehr vergessen, ohne Post-it.",
-      "src": "e681ab76106e"
+      "src": "b18d8ed7d964"
     },
     "f.workboard": {
       "name": "Workboard",
@@ -295,9 +295,9 @@
     },
     "f.notifications": {
       "name": "Benachrichtigungen und Kanäle",
-      "role": "Web- und Mobil-Benachrichtigungen sowie Telegram; eine von LIA gesendete Benachrichtigung ist eine im Register vermerkte Aktion, und eine Ankündigung der Administration geht nur an die Konten, die sie meint.",
+      "role": "Web- und Mobilbenachrichtigungen, ntfy-Abonnements und Telegram-Gespräche; eine von LIA gesendete Benachrichtigung ist eine im Register verzeichnete Aktion, und eine Administratorankündigung erreicht nur die angesprochenen Konten.",
       "goal": "Dich erreichen, wo du bist, ohne es je stillschweigend zu tun.",
-      "src": "bb532ffc6ada"
+      "src": "fa402fb5201b"
     },
     "f.activity": {
       "name": "Aktivität und Vorschläge",

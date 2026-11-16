@@ -9,25 +9,27 @@ a channel answers):
 2. Claim ONE due reminder (FOR UPDATE SKIP LOCKED → PROCESSING, committed)
 3. Notify it:
    a. Generate personalized message via LLM (includes creation date/time)
-   b. Send FCM push notification
-   c. Send via external channels (Telegram, etc.) if enabled
+   b. Record the occurrence that rings, so every surface can offer to
+      postpone it (ADR-268 amendment 2026-11-16) — never a gate: a failed
+      record sends the reminder with nothing to press, and is counted
+   c. Deliver it: push, external channels, real time (``reminder_delivery``)
    d. Archive message in conversation
-   e. Publish to Redis for SSE real-time
 4. Settle it in a transaction of its own: ask the recurrence what to arm
    next — an instant RE-ARMS the reminder, `None` DELETES it. A single
    occurrence answers `None` once consumed, so "delete after notification"
    is that one rule, not a branch beside it.
-5. Repeat, up to REMINDER_NOTIFICATION_BATCH_LIMIT reminders per tick.
+5. Repeat, up to REMINDER_NOTIFICATION_BATCH_LIMIT reminders per tick, then
+   purge a batch of fired occurrences whose snooze window closed — in a session
+   of its own, never a gate either.
 
 Metrics:
 - background_job_duration_seconds{job_name="reminder_notification"}
 - background_job_errors_total{job_name="reminder_notification"}
-- reminder_notifications_sent_total{status="success"|"failed"}
+- reminder_firings_unrecorded_total (``metrics_reminders``)
 """
 
 from __future__ import annotations
 
-import json
 import time
 import uuid
 from collections.abc import Awaitable, Callable
@@ -62,7 +64,6 @@ from src.domains.agents.prompts.prompt_loader import (
 # is resolved during the first DB query.
 from src.domains.reminders.models import Reminder  # noqa: F401
 from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot, get_cached_cost_usd_eur
-from src.infrastructure.cache.user_channel import user_notifications_channel
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.llm.output_truncation import is_output_truncated
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
@@ -73,57 +74,23 @@ from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
     background_job_errors_total,
 )
+from src.infrastructure.observability.metrics_reminders import reminder_firings_unrecorded_total
+from src.infrastructure.scheduler.reminder_delivery import (
+    deliver_reminder,
+    get_localized_title,
+    publish_reminder,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
+    from src.domains.reminders.firings import FiringOffer
     from src.domains.reminders.repository import ReminderRepository
 
 logger = structlog.get_logger(__name__)
 
 # Maximum retries before marking as failed
 MAX_RETRIES = 3
-
-
-def get_localized_title(language: str) -> str:
-    """Localized push/channel title for a fired reminder.
-
-    Delegates to the central proactive table. The inline dict that used to live
-    here was keyed ``"zh"`` while ``User.language`` is backend-canonical
-    ``"zh-CN"`` (see the column comment on ``users.language``), so the lookup
-    never matched and every Chinese user received the English title on every
-    reminder — the exact defect [ADR-131] centralized this table to eliminate,
-    reproduced here for the third time.
-
-    Args:
-        language: Any locale spelling; normalized by the accessor.
-
-    Returns:
-        The localized title, English fallback.
-    """
-    from src.core.i18n_proactive import ProactiveMessages
-
-    return ProactiveMessages.notification_title("reminder", language)
-
-
-def truncate_for_notification(text: str, max_length: int | None = None) -> str:
-    """Truncate text for a push notification body.
-
-    Args:
-        text: The message.
-        max_length: Character budget. Defaults to
-            ``settings.proactive_notification_max_length`` -- the setting the
-            proactive dispatcher and the routine executor already honour; this
-            module carried a literal 150 beside it.
-
-    Returns:
-        The text, ellipsized when it exceeds the budget.
-    """
-    if max_length is None:
-        max_length = settings.proactive_notification_max_length
-    if len(text) <= max_length:
-        return text
-    return text[: max_length - 3] + "..."
 
 
 class ReminderMessageResult:
@@ -164,6 +131,7 @@ async def generate_reminder_message(
     user_id: str | None = None,
     recurrence: RecurrenceSpec | None = None,
     run_id: str | None = None,
+    postponed: bool = False,
 ) -> ReminderMessageResult:
     """
     Generate a personalized reminder message using LLM.
@@ -179,6 +147,9 @@ async def generate_reminder_message(
         recurrence: The reminder's schedule, so the message can tell a
             post-it from one occurrence of a series.
         user_id: User UUID string for psyche context injection
+        postponed: The reminder is a copy the person postponed when it rang
+            (ADR-268 amendment 2026-11-16): it is coming BACK, and the message
+            must not present it as a request just made.
 
     Returns:
         ReminderMessageResult with message and token usage info
@@ -233,7 +204,9 @@ async def generate_reminder_message(
     # no branch on "is this recurring"; the WORDING does, and legitimately:
     # "you asked me three months ago" is right for a post-it and wrong on the
     # ninetieth morning of a daily reminder.
-    if recurrence is not None and recurrence.freq != "once":
+    if postponed:
+        origin_context = load_prompt("reminder_origin_postponed", version="v1")
+    elif recurrence is not None and recurrence.freq != "once":
         origin_context = load_prompt("reminder_origin_recurring", version="v1").format(
             schedule_human=describe(recurrence, language)
         )
@@ -439,10 +412,11 @@ async def get_relevant_memories(user_id: str, reminder_content: str) -> list[dic
                 query_embedding=query_embedding,
                 limit=5,
                 min_score=INITIATIVE_MEMORY_MIN_SCORE,
+                with_vectors=False,
             )
 
-        # Return as list[dict] for backward compatibility with callers
-        # Exclude embedding vector (1536 floats) to avoid unnecessary payload
+        # Return as list[dict] for backward compatibility with callers; the
+        # vectors never left the database (latency lot 5)
         return [
             {
                 "content": memory.content or "",
@@ -557,6 +531,8 @@ async def process_pending_reminders() -> dict[str, Any]:
             if counter is not None:
                 stats[counter] += 1
 
+        await _purge_closed_windows()
+
         duration = time.perf_counter() - start_time
         background_job_duration_seconds.labels(job_name=job_name).observe(duration)
         if stats["processed"]:
@@ -576,6 +552,24 @@ async def process_pending_reminders() -> dict[str, Any]:
             duration_seconds=round(duration, 3),
         )
         raise
+
+
+async def _purge_closed_windows() -> None:
+    """Delete a batch of occurrences whose snooze window closed.
+
+    Housekeeping, in a session of its own and AFTER the batch: a failure here is
+    logged and left to the next tick — it must never keep a reminder from
+    ringing (measured 2026-11-16: run in the recovery's transaction, a missing
+    table stopped every reminder of the instance).
+    """
+    from src.domains.reminders.firing_service import ReminderFiringService
+    from src.infrastructure.database.session import get_db_context
+
+    try:
+        async with get_db_context() as db:
+            await ReminderFiringService(db).purge_expired(now=datetime.now(UTC))
+    except Exception as error:
+        logger.warning("reminder_firings_purge_failed", error_type=type(error).__name__)
 
 
 async def _claim_next_due() -> Reminder | None:
@@ -746,7 +740,8 @@ async def _notify(reminder: Reminder) -> str:
     result = await generate_reminder_message(
         original_message=reminder.original_message,
         reminder_content=reminder.content,
-        created_at=reminder.created_at,
+        # A postponed copy speaks of the request it carries, not of the press.
+        created_at=reminder.first_asked_at or reminder.created_at,
         user_timezone=reminder.user_timezone,
         personality=personality,
         memories=await get_relevant_memories(str(reminder.user_id), reminder.content),
@@ -754,13 +749,17 @@ async def _notify(reminder: Reminder) -> str:
         user_id=str(reminder.user_id),
         recurrence=reminder.recurrence_spec,
         run_id=operation_run_id,
+        postponed=reminder.first_asked_at is not None,
     )
     message = f"🔔 {result.message}"  # always the bell for a reminder
     title = get_localized_title(language)
     await _bill_before_delivery(reminder, result, operation_run_id)
-    fcm_result = await _deliver(reminder, title=title, message=message)
-    await _archive(reminder, message=message, result=result, language=language)
-    await _publish(reminder, title=title, message=message)
+    offer = await _record_firing(reminder)
+    fcm_result = await deliver_reminder(
+        reminder, title=title, message=message, language=language, offer=offer
+    )
+    await _archive(reminder, message=message, result=result, language=language, offer=offer)
+    await publish_reminder(reminder, title=title, message=message, offer=offer)
 
     next_at = await _settle(reminder.id, _rearm_or_drop)
     logger.info(
@@ -789,6 +788,31 @@ async def _bill_before_delivery(
         )
 
 
+async def _record_firing(reminder: Reminder) -> FiringOffer | None:
+    """Record the occurrence about to ring, in a short session of its own.
+
+    Never a gate: a reminder whose occurrence cannot be written still rings,
+    with nothing to press, and the miss is counted.
+
+    Returns:
+        What the notification offers, or None when the record failed.
+    """
+    from src.domains.reminders.firing_service import ReminderFiringService
+    from src.infrastructure.database.session import get_db_context
+
+    try:
+        async with get_db_context() as db:
+            return await ReminderFiringService(db).record(reminder, fired_at=datetime.now(UTC))
+    except Exception as error:
+        reminder_firings_unrecorded_total.inc()
+        logger.warning(
+            "reminder_firing_unrecorded",
+            reminder_id=str(reminder.id),
+            error_type=type(error).__name__,
+        )
+        return None
+
+
 async def _load_owner(reminder: Reminder) -> tuple[Any | None, Any | None]:
     """The reminder's owner and their personality, read in a short session."""
     from src.domains.personalities.service import PersonalityService
@@ -805,40 +829,19 @@ async def _load_owner(reminder: Reminder) -> tuple[Any | None, Any | None]:
     return user, personality
 
 
-async def _deliver(reminder: Reminder, *, title: str, message: str) -> Any:
-    """Push the reminder to the person's devices and external channels."""
-    from src.domains.notifications.service import FCMNotificationService
-    from src.infrastructure.database.session import get_db_context
-
-    async with get_db_context() as db:
-        fcm_result = await FCMNotificationService(db).send_reminder_notification(
-            user_id=reminder.user_id,
-            title=title,
-            body=truncate_for_notification(message),
-            reminder_id=str(reminder.id),
-        )
-    if getattr(settings, "channels_enabled", False):
-        try:
-            from src.infrastructure.proactive.notification import send_notification_to_channels
-
-            await send_notification_to_channels(
-                user_id=reminder.user_id,
-                title=title,
-                body=message,
-                task_type="reminder",
-                target_id=str(reminder.id),
-            )
-        except Exception as ch_error:
-            logger.warning(
-                "reminder_channels_failed", reminder_id=str(reminder.id), error=str(ch_error)
-            )
-    return fcm_result
-
-
 async def _archive(
-    reminder: Reminder, *, message: str, result: ReminderMessageResult, language: str
+    reminder: Reminder,
+    *,
+    message: str,
+    result: ReminderMessageResult,
+    language: str,
+    offer: FiringOffer | None = None,
 ) -> None:
-    """Archive the notification in the person's conversation, with its cost."""
+    """Archive the notification in the person's conversation, with its cost.
+
+    With an offer, the bubble names its occurrence and until when it can be
+    postponed: the chat draws the « later » from them, nothing else.
+    """
     from src.domains.conversations.service import ConversationService
     from src.infrastructure.database.session import get_db_context
 
@@ -869,6 +872,14 @@ async def _archive(
                     "original_trigger_at": reminder.trigger_at.isoformat(),
                     "created_at": reminder.created_at.isoformat(),
                     "run_id": run_id,
+                    **(
+                        {
+                            "firing_id": str(offer.firing_id),
+                            "snoozable_until": offer.snoozable_until.isoformat(),
+                        }
+                        if offer is not None
+                        else {}
+                    ),
                 },
                 db=db,
             )
@@ -882,29 +893,4 @@ async def _archive(
     except Exception as archive_error:
         logger.warning(
             "reminder_archive_failed", reminder_id=str(reminder.id), error=str(archive_error)
-        )
-
-
-async def _publish(reminder: Reminder, *, title: str, message: str) -> None:
-    """Publish the reminder on the person's SSE channel (real time)."""
-    from src.infrastructure.cache.redis import get_redis_cache
-
-    try:
-        redis = await get_redis_cache()
-        if redis:
-            await redis.publish(
-                user_notifications_channel(reminder.user_id),
-                json.dumps(
-                    {
-                        "type": "reminder",
-                        "content": message,
-                        "reminder_id": str(reminder.id),
-                        "title": title,
-                    },
-                    ensure_ascii=False,
-                ),
-            )
-    except Exception as redis_error:
-        logger.warning(
-            "reminder_redis_publish_failed", reminder_id=str(reminder.id), error=str(redis_error)
         )

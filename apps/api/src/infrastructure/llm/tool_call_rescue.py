@@ -1,6 +1,6 @@
 """Recover a tool call the parser or the schema refused for a mechanical reason.
 
-Five shapes, each a complete answer a door threw away:
+Six shapes, each a complete answer a door threw away:
 
 - **Nulls where the schema has a default** (production 2026-09-05,
   ``deepseek-v4-flash``, a complete minutes payload, ``"bullets": null`` on a
@@ -12,6 +12,14 @@ Five shapes, each a complete answer a door threw away:
   the key is dropped so the default applies; a ``null`` on an Optional field is
   a value and stays; a ``null`` on a required field is an error and stays.
   Nested models and lists of models are walked the same way.
+- **A blank where a structure is expected** (production 2026-11-09 and
+  2026-11-14, the return synthesis of three calls that reached a voicemail:
+  its five debrief lists came back blank, three identical rejections each,
+  and the person read « no detailed summary »). Where a defaulted field
+  expects a list or an object and admits no text, a value that says nothing
+  and is not that structure (``""``, ``"  "``, ``{}`` for a list) is the same
+  « absent » and is dropped. A word stays — it could be meant, and a guess
+  would replace it — and so does a blank on a required field.
 - **An undeclared key that says nothing** (dev 2026-10-22, Haiku 5.5 with
   thinking on the auto-tool door, ``"source_quote_note": ""`` inside a requested
   outcome: the whole query analysis was refused). On a model that FORBIDS extras,
@@ -145,14 +153,17 @@ class AbsentValues:
 
     nulls: int = 0
     extras: int = 0
+    blanks: int = 0
 
     @property
     def total(self) -> int:
         """Every key removed, whatever its shape."""
-        return self.nulls + self.extras
+        return self.nulls + self.extras + self.blanks
 
     def __add__(self, other: AbsentValues) -> AbsentValues:
-        return AbsentValues(self.nulls + other.nulls, self.extras + other.extras)
+        return AbsentValues(
+            self.nulls + other.nulls, self.extras + other.extras, self.blanks + other.blanks
+        )
 
 
 def _declared_field(schema: type[BaseModel], key: str) -> FieldInfo | None:
@@ -175,6 +186,20 @@ def _says_nothing(value: Any) -> bool:
     return isinstance(value, list | dict) and not value
 
 
+def _blank_where_a_structure_is_expected(field: FieldInfo, value: Any) -> bool:
+    """A blank text or an empty mismatched collection on a defaulted structure field.
+
+    Where the field expects a list or an object, admits no text and has a
+    default, a value that says nothing and is not that structure is the
+    model's spelling of « nothing »: the default says it. A value that says
+    something stays, and so does a blank on a required field.
+    """
+    if field.is_required() or value is None or not _says_nothing(value):
+        return False
+    kind = _structure_kind(field.annotation)
+    return kind is not None and not isinstance(value, kind)
+
+
 def _cleaned_value(annotation: Any, value: Any) -> tuple[Any, AbsentValues]:
     """``value`` with the absent values of the model(s) its annotation names removed."""
     nested = _model_of(annotation)
@@ -195,8 +220,9 @@ def _cleaned_value(annotation: Any, value: Any) -> tuple[Any, AbsentValues]:
 def drop_absent_values(schema: type[BaseModel], payload: Any) -> tuple[Any, AbsentValues]:
     """A copy of ``payload`` without the values that only spell « absent ».
 
-    The two shapes of the module docstring: a ``null`` that ``schema`` would
-    default, and an undeclared key that says nothing on a model forbidding extras.
+    The three shapes of the module docstring: a ``null`` that ``schema`` would
+    default, a blank where a defaulted structure is expected, and an undeclared
+    key that says nothing on a model forbidding extras.
 
     Args:
         schema: The Pydantic model the payload is meant for.
@@ -222,6 +248,8 @@ def drop_absent_values(schema: type[BaseModel], payload: Any) -> tuple[Any, Abse
                 absent += AbsentValues(nulls=1)
                 continue
             cleaned[key] = value
+        elif _blank_where_a_structure_is_expected(field, value):
+            absent += AbsentValues(blanks=1)
         else:
             cleaned[key], found = _cleaned_value(field.annotation, value)
             absent += found
@@ -280,6 +308,7 @@ def log_absent_values_dropped(provider: str, schema_name: str, absent: AbsentVal
         schema=schema_name,
         nulls_defaulted=absent.nulls,
         empty_extras_dropped=absent.extras,
+        blanks_defaulted=absent.blanks,
     )
 
 

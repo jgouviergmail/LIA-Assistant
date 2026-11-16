@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.html_markdown import as_markdown, html_to_markdown
+from src.core.html_markdown import as_markdown, html_to_markdown, is_html_document
 
 pytestmark = pytest.mark.unit
 
@@ -44,6 +44,33 @@ def test_scripts_and_styles_never_reach_the_text() -> None:
 
     assert "Hello" in markdown
     assert "alert" not in markdown and "color" not in markdown
+
+
+#: A Markdown answer that carries an HTML block: valid Markdown as it stands (measured on a
+#: development base, 2026-11-12: 5 of 2 184 visible answers).
+MARKDOWN_WITH_A_BLOCK = (
+    "**Plan** for *Thursday*:\n\n1. book the room\n2. send the agenda\n\n"
+    '<div class="note"><p>Bring the <b>minutes</b>.</p></div>\n\nSee you `soon`.'
+)
+
+
+def test_a_markdown_answer_carrying_an_html_block_is_kept_as_written() -> None:
+    assert as_markdown(MARKDOWN_WITH_A_BLOCK) == MARKDOWN_WITH_A_BLOCK
+
+
+@pytest.mark.parametrize(
+    "answer",
+    ["  <div><p>Two <b>steps</b></p></div>", "\n<p>One</p><p>Two</p>"],
+)
+def test_an_answer_opening_on_a_tag_is_a_document_and_is_converted(answer: str) -> None:
+    assert is_html_document(answer)
+    assert "<" not in as_markdown(answer)
+
+
+@pytest.mark.parametrize("answer", ["<3 thank you", "< 10 € is cheap", MARKDOWN_WITH_A_BLOCK, ""])
+def test_what_is_not_a_document_is_never_converted(answer: str) -> None:
+    assert not is_html_document(answer)
+    assert as_markdown(answer) == answer
 
 
 def test_the_knowledge_spaces_reach_the_same_door() -> None:

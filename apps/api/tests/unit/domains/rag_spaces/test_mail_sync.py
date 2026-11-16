@@ -1,7 +1,7 @@
 """The Gmail label source (ADR-262): rendering, per-thread ingestion, both ways in.
 
-- rendering is pure: subject, messages in date order, plain text preferred,
-  attachment names only, a hard size cap, never an address in the name;
+- rendering is pure: subject, messages in date order, each read as its reader
+  shows it, attachment names only, a hard size cap, never an address in the name;
 - an unchanged thread is skipped, a changed one replaces its document;
 - the full sync anchors the history id BEFORE listing, removes what left the
   label, and completes with an EXACT ready count;
@@ -512,6 +512,33 @@ async def test_apply_history_reindexes_carriers_removes_leavers_and_advances() -
 
 
 @pytest.mark.usefixtures("settings_patch")
+async def test_a_cut_history_read_resumes_after_its_last_record(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keeping the old anchor re-read the same pages every pass: a backlog never drained."""
+    monkeypatch.setattr(mail_sync, "_MAX_PAGES", 1)
+    source = _source(last_history_id=500)
+    client = AsyncMock()
+    client.get_history = AsyncMock(
+        return_value={
+            "historyId": "900",
+            "nextPageToken": "more",
+            "history": [{"id": "550", "messagesAdded": []}],
+        }
+    )
+    doc_repo, source_repo, jobs = _sync_harness(indexed=set(), ready=0)
+    with (
+        patch.object(mail_sync, "RAGDocumentRepository", return_value=doc_repo),
+        patch.object(mail_sync, "RAGMailSourceRepository", return_value=source_repo),
+        patch.object(mail_sync, "RAGJobsRepository", return_value=jobs),
+        patch.object(mail_sync, "process_queued", AsyncMock(return_value=(0, 0))),
+    ):
+        await apply_history(AsyncMock(), client, source, user_id=source.user_id)
+
+    assert source_repo.update.await_args.args[1]["last_history_id"] == 550
+
+
+@pytest.mark.usefixtures("settings_patch")
 async def test_apply_history_reports_a_missing_or_expired_anchor() -> None:
     assert await apply_history(AsyncMock(), AsyncMock(), _source(), user_id=uuid.uuid4()) == (
         "no_anchor"
@@ -596,6 +623,34 @@ async def test_push_serves_every_source_under_its_lock_and_resyncs_without_ancho
     full.assert_awaited_once()
     assert full.await_args.args[2] is fresh
     client.close.assert_awaited_once()
+
+
+@pytest.mark.usefixtures("settings_patch")
+async def test_a_push_files_one_mail_consultation_for_the_pass() -> None:
+    """As the Drive push does: a 4 a.m. push must leave a trace of the mailbox opened."""
+    user_id = uuid.uuid4()
+    source_repo = MagicMock()
+    source_repo.get_all_for_user = AsyncMock(return_value=[_source(last_history_id=9)])
+    service = MagicMock()
+    service.try_acquire_sync_lock = AsyncMock(return_value=True)
+    entered: list[tuple[uuid.UUID, str]] = []
+
+    @contextlib.asynccontextmanager
+    async def _recorded(*, user_id: uuid.UUID, section: str):  # type: ignore[no-untyped-def]
+        entered.append((user_id, section))
+        yield
+
+    with (
+        patch.object(mail_sync, "get_db_context", _fake_db_context),
+        patch.object(mail_sync, "RAGMailSourceRepository", return_value=source_repo),
+        patch.object(mail_sync, "gmail_client_or_none", AsyncMock(return_value=AsyncMock())),
+        patch.object(mail_sync, "RAGMailSyncService", return_value=service),
+        patch.object(mail_sync, "apply_history", AsyncMock(return_value="nothing")),
+        patch.object(mail_sync, "space_read", _recorded),
+    ):
+        await mail_sync.index_mail_sources_from_push(user_id)
+
+    assert entered == [(user_id, mail_sync.SECTION_MAIL)]
 
 
 @pytest.mark.usefixtures("settings_patch")

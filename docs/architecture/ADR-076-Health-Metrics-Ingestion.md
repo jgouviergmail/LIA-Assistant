@@ -4,6 +4,7 @@
 **Status**: Accepted
 **Revised**: 2026-04-21 — polymorphic samples + batch upsert (iPhone Shortcuts constraint)
 **Revised**: 2026-04-22 — assistant integrations (agents + Heartbeat + journal + memory) + central `HEALTH_KINDS` registry for extensibility (v1.17.2)
+**Revised**: 2026-11-14 — what overlapping samples count for is declared per kind (`overlap_rule`) and counted at READ time through one door, days cut at the person's midnight: see the [ADR-148 amendment](ADR-148-Health-Daily-Rollup.md#amendement-2026-11-14--les-jours-de-la-personne-un-pas-compté-une-fois). The intra-batch merge below still only meets identical intervals.
 **Context**: Expose authenticated REST endpoints so an iPhone Shortcut can POST **daily batches** of heart-rate and step samples, persist them per-user in PostgreSQL, surface them in the Settings UI as hour/day/week/month/year charts, and (v1.17.2) expose them to LIA's three central loops — conversation (LangGraph agents), proactivity (Heartbeat), and introspection (journal + memory) — behind a per-user opt-in.
 
 ## Context

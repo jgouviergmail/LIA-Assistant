@@ -46,6 +46,7 @@ from src.core.i18n import get_language_name
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.api.run_origin import RunOrigin
+from src.domains.conversations.run_bills import attach_run_bill
 from src.domains.telephony.budget import fit_lines
 from src.domains.telephony.payload import current_datetime_line, extract_transcript_summary, nested
 from src.domains.telephony.prompts.loader import load_telephony_prompt
@@ -327,14 +328,12 @@ class VoiceRelayRequest:
 
 async def _drive(request: VoiceRelayRequest, context: RunContext) -> RelayOutcome:
     session = request.session
+    # The browser's reserved discussion, the annex a call returns to, or Main.
+    selection = session.turn_selection
     stream = StreamRequest(
         user_id=session.user_id,
-        conversation_id=session.conversation_id if session.reservation is not None else None,
-        conversation_revision=(
-            session.reservation.admission.target.revision
-            if session.reservation is not None
-            else None
-        ),
+        conversation_id=selection.conversation_id,
+        conversation_revision=selection.conversation_revision,
         prompt=request.relay.relay_message.strip(),
         session_id=f"{session.origin_kind}_{session.origin_id}",
         language=context.language,
@@ -406,6 +405,18 @@ async def run_voice_relay(
             context = await resolve_run_context(db, user_id)
         if context is None:
             return RelayOutcome.FAILED
+        # The session's spend filed before its discussion was known (a call's
+        # lookups and synthesis) joins the discussion the relayed turn writes
+        # in — while that generation lives — so the turn's bubble shows it.
+        # The generation is the one the turn's admission reads: a browser
+        # session's reservation, a phone call's annex, none for Main.
+        await attach_run_bill(
+            db,
+            owner_id=user_id,
+            run_id=request.session.run_id,
+            conversation_id=request.session.conversation_id,
+            revision=request.session.turn_selection.conversation_revision,
+        )
     return await _drive_when_available(request, context)
 
 

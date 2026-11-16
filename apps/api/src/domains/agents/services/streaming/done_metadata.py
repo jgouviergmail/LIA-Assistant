@@ -5,6 +5,7 @@ from uuid import UUID
 
 from src.domains.agents.api.archive_metadata import (
     with_archived_message_ids,
+    with_execution_engine,
     with_performed_effects,
 )
 from src.domains.agents.services.streaming.followup_metadata import (
@@ -45,4 +46,5 @@ def with_done_enrichments(
     metadata = with_performed_effects(metadata, effects)
     metadata = {**metadata, **card_metadata}
     metadata = with_initiative_motivation(metadata, extras.motivation)
+    metadata = with_execution_engine(metadata)
     return with_habit_proposal(metadata, extras.habit_proposal)

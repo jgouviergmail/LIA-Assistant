@@ -18,7 +18,7 @@ from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.constants import RESPONSE_DISPLAY_MODE_CHOICES
+from src.core.constants import RESPONSE_DISPLAY_MODE_CHOICES, ExecutionMode
 from src.core.exceptions import raise_user_not_found
 from src.core.remote_stt import remote_stt_ready
 from src.domains.auth.schemas import (
@@ -69,7 +69,7 @@ class AssistantPreferencePatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
     memory_enabled: StrictBool | None = None
     health_metrics_agents_enabled: StrictBool | None = None
-    execution_mode: Literal["pipeline", "react"] | None = None
+    execution_mode: ExecutionMode | None = None
     use_last_known_location: StrictBool | None = None
     voice_enabled: StrictBool | None = None
     voice_mode_enabled: StrictBool | None = None

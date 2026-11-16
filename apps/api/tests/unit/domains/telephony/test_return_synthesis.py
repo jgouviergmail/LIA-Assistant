@@ -13,6 +13,7 @@ from langchain_core.outputs import ChatGeneration, LLMResult
 
 import src.domains.telephony.payload as payload_mod
 import src.domains.telephony.return_synthesis as rs
+from src.core.conversation_target import ConversationOrigin
 from src.core.i18n_telephony import get_return_phrases
 from src.domains.telephony.models import CallKind, PhoneCallOutcome, PhoneCallStatus
 from src.domains.telephony.schemas import ReturnProposal, StructuredCallData
@@ -341,6 +342,7 @@ async def test_process_persists_minimized_and_delivers_once(monkeypatch) -> None
         objective="ask availability",
         callee_display="Marie",
         call_kind=CallKind.THIRD_PARTY,
+        origin=None,
     )
     captured = _install_pipeline(monkeypatch, call=call)
 
@@ -397,6 +399,7 @@ async def test_process_dispatch_failure_leaves_notification_pending(monkeypatch)
         objective="ask availability",
         callee_display="Marie",
         call_kind=CallKind.THIRD_PARTY,
+        origin=None,
     )
     channels = ScriptedChannels(archive_error=RuntimeError("archive down"), sse=False)
     captured = _install_pipeline(monkeypatch, call=call, channels=channels)
@@ -419,6 +422,7 @@ async def test_an_sse_event_alone_leaves_the_notification_pending(monkeypatch) -
         objective="ask availability",
         callee_display="Marie",
         call_kind=CallKind.THIRD_PARTY,
+        origin=None,
     )
     captured = _install_pipeline(monkeypatch, call=call, channels=sse_only())
 
@@ -437,6 +441,7 @@ async def test_process_skips_when_already_terminal(monkeypatch) -> None:
         objective="x",
         callee_display="Marie",
         call_kind=CallKind.THIRD_PARTY,
+        origin=None,
     )
     captured = _install_pipeline(monkeypatch, call=call)
     await rs.process_completed_call(call.id, _payload())
@@ -453,6 +458,7 @@ async def test_process_no_delivery_when_lost_race(monkeypatch) -> None:
         objective="x",
         callee_display="Marie",
         call_kind=CallKind.THIRD_PARTY,
+        origin=None,
     )
     captured = _install_pipeline(monkeypatch, call=call, mark_result=False)
     await rs.process_completed_call(call.id, _payload())
@@ -469,6 +475,7 @@ async def test_process_falls_back_on_synthesis_failure(monkeypatch) -> None:
         objective="x",
         callee_display="Marie",
         call_kind=CallKind.THIRD_PARTY,
+        origin=None,
     )
     captured = _install_pipeline(monkeypatch, call=call)
 
@@ -482,6 +489,173 @@ async def test_process_falls_back_on_synthesis_failure(monkeypatch) -> None:
     assert captured["channels"].sent[0].content == expected
     assert captured["mark"]["summary"] == expected
     # No usage on the failure path → nothing tracked.
+    assert "track" not in captured
+
+
+# --------------------------------------------------------------------------- #
+# A call that reached nobody to talk to (production 2026-11-14)
+# --------------------------------------------------------------------------- #
+
+
+def _third_party_call() -> SimpleNamespace:
+    return SimpleNamespace(
+        id=uuid4(),
+        user_id=uuid4(),
+        status=PhoneCallStatus.DIALING,
+        objective="ask availability",
+        callee_display="Marie",
+        call_kind=CallKind.THIRD_PARTY,
+        origin=None,
+    )
+
+
+def _voicemail_left_payload() -> dict:
+    """The provider's own record: the voicemail tool's result names the message played."""
+    return {
+        "data": {
+            "status": "done",
+            "metadata": {
+                "call_duration_secs": 66,
+                "phone_call": {"call_result": "voicemail"},
+                "termination_reason": "voicemail_detection tool was called.",
+            },
+            "analysis": {"transcript_summary": "The agent reached an answering machine."},
+            "transcript": [
+                {"role": "agent", "message": "Hello, this is the assistant."},
+                {"role": "user", "message": "Please leave a message after the tone."},
+                {
+                    "role": "agent",
+                    "tool_results": [
+                        {
+                            "tool_name": "voicemail_detection",
+                            "is_error": False,
+                            "result": {
+                                "result_type": "voicemail_detection_success",
+                                "status": "success",
+                                "voicemail_message": "Please call back.",
+                            },
+                        }
+                    ],
+                },
+            ],
+        }
+    }
+
+
+def _silent_payload(reason: str) -> dict:
+    """A line where nothing was heard from the other side."""
+    return {
+        "data": {
+            "status": "failed" if reason == "failed" else "done",
+            "metadata": {"call_duration_secs": 0, "termination_reason": reason},
+            "transcript": [{"role": "agent", "message": "Hello?"}],
+        }
+    }
+
+
+@pytest.mark.unit
+async def test_the_return_goes_back_to_the_discussion_the_call_was_placed_from(
+    monkeypatch,
+) -> None:
+    """Production 2026-11-14: a call placed from an annex returned to Main."""
+    annex = uuid4()
+    call = _third_party_call()
+    call.origin = ConversationOrigin(annex, 3)
+    channels = ScriptedChannels(annex=annex)
+    _install_pipeline(monkeypatch, call=call, channels=channels)
+
+    await rs.process_completed_call(call.id, _payload())
+
+    assert channels.origins == [ConversationOrigin(annex, 3)]
+    (sent,) = channels.sent
+    assert sent.discussion == str(annex)  # the live event names the annex
+    assert channels.push_links == [annex]  # and the push opens it
+
+
+@pytest.mark.unit
+async def test_a_return_to_main_names_no_discussion(monkeypatch) -> None:
+    """A view of Main opened without coordinates reads it: nothing is named."""
+    call = _third_party_call()
+    channels = ScriptedChannels()
+    _install_pipeline(monkeypatch, call=call, channels=channels)
+
+    await rs.process_completed_call(call.id, _payload())
+
+    assert channels.origins == [None]
+    assert channels.sent[0].discussion is None
+    assert channels.push_links == [None]
+
+
+@pytest.mark.unit
+def test_the_synthesis_context_states_the_providers_facts() -> None:
+    from src.domains.telephony.call_facts import read_call_facts
+
+    context = rs._render_context(
+        objective="x",
+        callee_display="Marie",
+        transcript_summary="",
+        transcript="",
+        structured=StructuredCallData(),
+        language="fr",
+        user_timezone="Europe/Paris",
+        facts=read_call_facts(_voicemail_left_payload()),
+    )
+    assert "CALL FACTS: status=voicemail; voicemail_message_left=yes" in context.splitlines()
+
+
+@pytest.mark.unit
+async def test_the_synthesis_of_a_voicemail_receives_its_facts(monkeypatch) -> None:
+    call = _third_party_call()
+    captured = _install_pipeline(monkeypatch, call=call)
+
+    await rs.process_completed_call(call.id, _voicemail_left_payload())
+
+    facts = captured["synth_in"]["facts"]
+    assert facts.status is PhoneCallStatus.VOICEMAIL
+    assert facts.voicemail.value == "yes"
+
+
+@pytest.mark.unit
+async def test_a_failed_voicemail_synthesis_says_the_message_was_left(monkeypatch) -> None:
+    """Never « no detailed summary » for a call the provider says reached a voicemail."""
+    call = _third_party_call()
+    captured = _install_pipeline(monkeypatch, call=call)
+
+    async def _boom(**kwargs):
+        raise RuntimeError("schema rejected three times")
+
+    monkeypatch.setattr(rs, "synthesize_return", _boom)
+    await rs.process_completed_call(call.id, _voicemail_left_payload())
+
+    expected = get_return_phrases("fr")["voicemail_left"].format(callee="Marie")
+    assert captured["channels"].sent[0].content == expected
+    assert captured["mark"]["summary"] == expected
+    assert captured["mark"]["outcome"] == PhoneCallOutcome.UNREACHABLE
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("reason", "key", "status"),
+    [
+        ("no_answer", "no_answer", PhoneCallStatus.NO_ANSWER),
+        ("failed", "line_failed", PhoneCallStatus.FAILED),
+    ],
+)
+async def test_a_call_where_nothing_was_heard_asks_no_model(
+    monkeypatch, reason: str, key: str, status: PhoneCallStatus
+) -> None:
+    call = _third_party_call()
+    captured = _install_pipeline(monkeypatch, call=call)
+
+    async def _never(**kwargs):
+        raise AssertionError("nothing was heard: no model is asked")
+
+    monkeypatch.setattr(rs, "synthesize_return", _never)
+    await rs.process_completed_call(call.id, _silent_payload(reason))
+
+    expected = get_return_phrases("fr")[key].format(callee="Marie")
+    assert captured["mark"]["status"] == status
+    assert captured["channels"].sent[0].content == expected
     assert "track" not in captured
 
 
@@ -551,6 +725,7 @@ async def test_verification_call_is_closed_without_synthesis_or_notification(mon
         objective="",
         callee_display="Alex",
         call_kind=CallKind.VERIFICATION,
+        origin=None,
     )
     captured = _install_pipeline(monkeypatch, call=call)
 

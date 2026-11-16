@@ -36,6 +36,7 @@ from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, RECURRENCE_REMINDER_LIMITS
+from src.core.date_contract import UnreadableDateError, local_day_bounds, unreadable_date_message
 from src.core.exceptions import AuthorizationError
 from src.core.i18n import resolve_language
 from src.core.i18n_api_messages import APIMessages
@@ -53,6 +54,7 @@ from src.domains.agents.data_registry.models import (
     RegistryItemType,
 )
 from src.domains.agents.registry.recurrence_parameters import RECURRENCE_DOCS
+from src.domains.agents.reminders.catalogue_manifests import ON_DAY_DESCRIPTION
 from src.domains.agents.tools.decorators import read_tool, with_user_preferences, write_tool
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import UnifiedToolOutput
@@ -387,20 +389,77 @@ async def create_reminder_tool(
         )
 
 
+def _requested_day(
+    on_day: str | None, user_timezone: str
+) -> tuple[datetime, datetime] | UnifiedToolOutput | None:
+    """The local day a plan asked for, or the refusal of a value nobody can read.
+
+    A day it cannot read is refused with the format and today's date, never
+    replaced by « every reminder » (ADR-310).
+
+    Args:
+        on_day: What the plan passed, or None.
+        user_timezone: The person's timezone.
+
+    Returns:
+        The day's ``[since, until)``, None when no day was asked, or the refusal.
+    """
+    if on_day is None or not on_day.strip():
+        return None
+    try:
+        return local_day_bounds(on_day, ZoneInfo(user_timezone))
+    except UnreadableDateError:
+        return UnifiedToolOutput.failure(
+            message=unreadable_date_message(on_day.strip(), user_timezone),
+            error_code="INVALID_INPUT",
+        )
+
+
+def _nothing_pending(day: str | None, locale: str) -> UnifiedToolOutput:
+    """Nothing pending — on the day asked, or at all.
+
+    `total` used to be set here and nowhere else: the key existed only when the
+    list was empty — the one case it is useless — while the catalogue advertised
+    it unconditionally. The non-empty listing exposes its items through the
+    registry, so this mirrors that shape and promises nothing more; a day asked
+    for is said back.
+    """
+    if day is not None:
+        return UnifiedToolOutput.action_success(
+            message=f"No pending reminder fires on {day}.",
+            structured_data={"reminders": [], "on_day": day},
+        )
+    return UnifiedToolOutput.action_success(
+        message=APIMessages.no_pending_reminders(locale),
+        structured_data={"reminders": []},
+    )
+
+
+def _listing_summary(count: int, names: list[str], day: str | None) -> str:
+    """The listing's message: technical English for the model (ADR-256), the day said."""
+    on = f" on {day}" if day is not None else ""
+    preview = ToolOutputMixin._build_item_preview(names, max_preview=5)
+    return f"[{CONTEXT_DOMAIN_REMINDERS}] {count} reminder(s){on}: {preview}"
+
+
 @read_tool(name="list_reminders", agent_name=AGENT_REMINDER)
 @with_user_preferences
 async def list_reminders_tool(
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
+    on_day: Annotated[str | None, ON_DAY_DESCRIPTION] = None,
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     locale: str | None = None,
 ) -> UnifiedToolOutput:
     """List pending reminders for the user.
 
-    Returns the source-bounded compact pending page, soonest first.
+    Returns the source-bounded compact pending page, soonest first, or every
+    pending reminder that fires on one local day.
     Use get_lia_reminders_tool for management settings and pagination.
 
     Args:
         runtime: LangChain tool runtime.
+        on_day: A date or an instant (ON_DAY_DESCRIPTION): only the reminders
+            that fire on the user's local day of it.
         user_timezone: User timezone (injected by @with_user_preferences).
         locale: User language (injected by @with_user_preferences).
 
@@ -418,6 +477,11 @@ async def list_reminders_tool(
     if isinstance(config, UnifiedToolOutput):
         return config
 
+    window = _requested_day(on_day, user_timezone)
+    if isinstance(window, UnifiedToolOutput):
+        return window
+    day = window[0].date().isoformat() if window else None
+
     try:
         user_id = parse_user_id(config.user_id)
 
@@ -425,20 +489,12 @@ async def list_reminders_tool(
             service = ReminderService(db)
             await require_application_tools(db)
             await load_actor(db, user_id)
-            reminders = await service.list_pending_for_user(user_id)
+            reminders = await service.list_pending_for_user(user_id, fires_between=window)
             await require_application_tools(db)
             await load_actor(db, user_id)
 
             if not reminders:
-                # `total` used to be set HERE and nowhere else: the key existed
-                # only when the list was empty — the one case it is useless —
-                # while the catalogue advertised it unconditionally. The
-                # non-empty branch exposes its items through the registry, so
-                # the empty branch mirrors that shape and promises nothing more.
-                return UnifiedToolOutput.action_success(
-                    message=APIMessages.no_pending_reminders(locale),
-                    structured_data={"reminders": []},
-                )
+                return _nothing_pending(day, locale)
 
             # Build registry items for frontend rendering
             tz = ZoneInfo(user_timezone)
@@ -484,10 +540,7 @@ async def list_reminders_tool(
                 item_ids.append(item_id)
                 item_names.append(reminder.content[:50] if reminder.content else item_id)
 
-            summary = (
-                f"[{CONTEXT_DOMAIN_REMINDERS}] {len(reminders)} rappel(s): "
-                f"{ToolOutputMixin._build_item_preview(item_names, max_preview=5)}"
-            )
+            summary = _listing_summary(len(reminders), item_names, day)
 
             logger.info(
                 "list_reminders_tool_success",

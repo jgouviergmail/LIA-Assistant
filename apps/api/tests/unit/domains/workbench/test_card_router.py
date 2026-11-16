@@ -81,7 +81,7 @@ async def http(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[tuple[AsyncClie
         )
 
     monkeypatch.setattr("src.domains.feature_switches.guard.is_capability_enabled", enabled)
-    monkeypatch.setattr("src.domains.auth.dependencies.get_rate_limiter", limiter)
+    monkeypatch.setattr("src.infrastructure.rate_limiting.user_limiter.get_rate_limiter", limiter)
     monkeypatch.setattr(card_opening, "open_tool_client", provider)
     app = FastAPI()
     app.include_router(router)

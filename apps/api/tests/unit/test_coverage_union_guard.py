@@ -51,7 +51,37 @@ COVERAGE_TASK = "test:backend:coverage"
 DEFAULT_DATA_FILE = ".coverage"
 
 _DATA_FILE = re.compile(r"\bCOVERAGE_FILE=(\S+)")
-_PYTEST = re.compile(r"(?:^|\s)\.venv/(?:Scripts|bin)/pytest\s")
+_PYTEST = re.compile(r"(?:^|\s)\.venv/(?:Scripts|bin)/(?:pytest|python(?:\.exe)?\s+-m\s+pytest)\s")
+
+
+@pytest.mark.parametrize(
+    "runner",
+    [
+        ".venv/Scripts/pytest",
+        ".venv/Scripts/python -m pytest",
+        ".venv/Scripts/python.exe -m pytest",
+        ".venv/bin/pytest",
+        ".venv/bin/python -m pytest",
+    ],
+)
+def test_console_and_module_forms_keep_the_measuring_command(runner: str) -> None:
+    """Both launch forms must reach the same data-file and floor checks."""
+    command = (
+        f"COVERAGE_FILE=.coverage-unit {runner} tests/unit/ "
+        '--cov=src --cov-fail-under=0 -m "not integration"'
+    )
+    assert _PYTEST.search(command)
+    match = _DATA_FILE.search(command)
+    assert match and match.group(1) == ".coverage-unit"
+
+
+@pytest.mark.parametrize(
+    "runner",
+    [".venv/Scripts/python -m pytest_watch", ".venv/Scripts/python -m mypy"],
+)
+def test_another_module_is_not_a_pytest_measurement(runner: str) -> None:
+    """The module form must not make an unrelated command a coverage producer."""
+    assert not _PYTEST.search(f"{runner} tests/unit/")
 
 
 def _tasks() -> dict[str, dict[str, object]]:

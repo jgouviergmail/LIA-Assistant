@@ -41,8 +41,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "fr": "Domaine web public (ex. lia.example.org)",
     },
     "question.api_domain": {
-        "en": "Public API domain (e.g. api.example.org)",
-        "fr": "Domaine API public (ex. api.example.org)",
+        "en": "Public API domain, not the web domain (e.g. api.example.org)",
+        "fr": "Domaine API public, autre que le domaine web (ex. api.example.org)",
     },
     "question.caddy_email": {
         "en": "Email for Let's Encrypt/ACME notifications",
@@ -91,6 +91,18 @@ MESSAGES: dict[str, dict[str, str]] = {
     "question.web_search": {
         "en": "Search the web for people with no search key of their own? The instance runs SearXNG, which asks public engines (Google, Brave, DuckDuckGo, Bing News...) from this server's address, unfiltered; a person's own Brave key always wins (yes/no)",
         "fr": "Chercher sur le web pour les personnes sans clé de recherche ? L'instance fait tourner SearXNG, qui interroge des moteurs publics (Google, Brave, DuckDuckGo, Bing News...) depuis l'adresse de ce serveur, sans filtrage ; la clé Brave d'une personne passe toujours en premier (yes/no)",
+    },
+    "question.ntfy_server": {
+        "en": "Run LIA's own ntfy server, so people receive LIA's notifications in the ntfy app (Android or iPhone, no Google account)? Without it, a person can still use a public server such as ntfy.sh (yes/no)",
+        "fr": "Faire tourner le serveur ntfy de LIA, pour que chacun reçoive les notifications de LIA dans l'application ntfy (Android ou iPhone, sans compte Google) ? Sans lui, une personne peut toujours passer par un serveur public comme ntfy.sh (yes/no)",
+    },
+    "question.ntfy_domain": {
+        "en": "Public domain of the ntfy server, which phones reach (e.g. ntfy.example.org; a name of its own, not the web or API domain)",
+        "fr": "Domaine public du serveur ntfy, que les téléphones joignent (ex. ntfy.example.org ; un nom à lui, ni celui du web ni celui de l'API)",
+    },
+    "question.ntfy_ios_relay": {
+        "en": "Wake iPhones through ntfy.sh? Only ntfy.sh can reach the iPhone app at once: it then receives each message's id and a hash of its topic's address, never its text. Without it, an iPhone may receive them hours late (yes/no)",
+        "fr": "Réveiller les iPhone par ntfy.sh ? Seul ntfy.sh peut joindre aussitôt l'application iPhone : il reçoit alors l'identifiant de chaque message et une empreinte de l'adresse de son sujet, jamais son texte. Sans lui, un iPhone peut les recevoir avec des heures de retard (yes/no)",
     },
     "question.admin_password": {
         "en": "Administrator password (min {min_length} chars, {min_uppercase} uppercase, {min_digits} digits, {min_special} special; input hidden)",

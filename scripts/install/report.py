@@ -10,13 +10,25 @@ from __future__ import annotations
 from pathlib import Path
 from collections.abc import Mapping
 
+from scripts.install import ntfy
+from scripts.install.addresses import web_origin
 from scripts.install.model import Exposure, InstallMode, PublicAnswers
 
 
-def _origin(public: PublicAnswers) -> str:
-    if public.exposure is Exposure.LAN:
-        return f"http://{public.server_host}:3000"
-    return f"https://{public.web_domain}"
+def _ntfy_lines(public: PublicAnswers) -> list[str]:
+    """Where phones subscribe, what the operator's proxy must route, what iPhones get."""
+    lines = [f"  ntfy server: enabled (profile 'ntfy') at {ntfy.public_url(public)}"]
+    if public.exposure is Exposure.PROXY:
+        lines.append(
+            f"    In your proxy: route {public.ntfy_domain} to"
+            f" 127.0.0.1:{ntfy.NTFY_HOST_PORT}, unbuffered (it streams)."
+        )
+    lines.append(
+        "    iPhones: relayed by ntfy.sh, which sees when a message leaves, never its text."
+        if public.ntfy_ios_relay
+        else "    iPhones: no relay through ntfy.sh, delivery may take hours."
+    )
+    return lines
 
 
 INSTALLED_HEADING = "LIA installation complete."
@@ -50,7 +62,7 @@ def render_report(
     lines = [
         heading,
         "",
-        f"  Web UI:        {_origin(public)}",
+        f"  Web UI:        {web_origin(public)}",
         f"  Admin account: {public.admin_email}",
         f"  Install mode:  {public.mode.value}",
         f"  Release:       {release_summary}",
@@ -61,6 +73,8 @@ def render_report(
         lines.append("  Observability stack: enabled (profile 'observability')")
     if public.web_search:
         lines.append("  Instance web search: enabled (profile 'searxng')")
+    if public.ntfy_server:
+        lines += _ntfy_lines(public)
     if optional_unkeyed is None:
         lines += [
             "",

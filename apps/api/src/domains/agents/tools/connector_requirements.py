@@ -158,6 +158,58 @@ def unconnected_tool_names(active_connector_types: Collection[str] | None) -> fr
     )
 
 
+def unserved_categories(active_connector_types: Collection[str]) -> frozenset[str]:
+    """The functional categories no provider of the account serves, when that is certain.
+
+    A legacy row serves its category as the resolver reads it, and a category a
+    keyless member may serve as the instance's default (ADR-307) is never said
+    unserved: the resolver would answer with it.
+
+    Args:
+        active_connector_types: The account's active connector types (their values).
+
+    Returns:
+        The categories nothing of the account would answer for.
+    """
+    active = {
+        LEGACY_CONNECTOR_ALIASES.get(member, member)
+        for member in ConnectorType
+        if member.value in active_connector_types
+    }
+    return frozenset(
+        category
+        for category, members in CONNECTOR_FUNCTIONAL_CATEGORIES.items()
+        if not members & active and not any(member.is_keyless for member in members)
+    )
+
+
+def unserved_category_tools(active_connector_types: Collection[str] | None) -> dict[str, str]:
+    """The category tools whose category nothing of the account serves → that category.
+
+    Such a tool stays OFFERED: when the person asks for that source, « no provider
+    is connected » is the honest answer. What the planner reads is that it holds
+    nothing (ADR-390 qualification, 2026-11-15: the tasks were planned for « what
+    day must I return the books », which only a reminder could answer). Said only
+    when certain: nothing when the account's connectors are unknown
+    (:func:`unserved_categories` for the rest).
+
+    Args:
+        active_connector_types: The account's active connector types (their
+            values); None when unknown.
+
+    Returns:
+        Tool name → the category no provider of the account serves.
+    """
+    if active_connector_types is None:
+        return {}
+    unserved = unserved_categories(active_connector_types)
+    return {
+        name: category
+        for name, category in connector_categories().items()
+        if category is not None and category in unserved
+    }
+
+
 def without_unconnected_tools(
     manifests: Sequence[ToolManifest], active_connector_types: Collection[str] | None
 ) -> list[ToolManifest]:

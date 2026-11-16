@@ -22,11 +22,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException
 from src.core.security.utils import decrypt_data
+from src.domains.conversations.return_target import annex_origin_columns
 from src.domains.meetings.audio_store import (
     AudioStorageError,
     MeetingAudioStore,
     pcm_duration_seconds,
 )
+from src.domains.meetings.costs import total_cost_eur
 from src.domains.meetings.delivery import (
     MinutesDeliveryError,
     pdf_filename,
@@ -177,17 +179,6 @@ def _selection_or_none(value: str | None) -> TemplateSelection | None:
         return None
 
 
-def total_cost_eur(meeting: Meeting) -> float | None:
-    """Transcription, native selection and minutes; None if none were priced.
-
-    An unknown component neither hides the other priced components nor turns
-    into a free claim (ADR-185, a count is exact or absent).
-    """
-    parts = [c for c in (meeting.stt_cost_eur, meeting.synthesis_cost_eur) if c is not None]
-    parts.extend(charge.cost_eur for charge in selection_charges(meeting))
-    return round(sum(parts), 6) if parts else None
-
-
 @dataclass(frozen=True, slots=True)
 class Admission:
     """What a new meeting was admitted with: its engine, language and template."""
@@ -307,6 +298,8 @@ class MeetingService:
                         request.geolocation.accuracy_m if request.geolocation else None
                     ),
                     **self.admitted_values(admission),
+                    # Its minutes come back to the discussion on screen (ADR-378).
+                    **await annex_origin_columns(self.db, user_id, request.conversation_id),
                 }
             )
             await self.db.commit()

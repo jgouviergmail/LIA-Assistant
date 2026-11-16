@@ -1,9 +1,9 @@
 # Bootstrap tool versions are shared with DEV and the skill sandbox, and held
 # equal by test_one_value_one_owner_guard.py. pip's vendored trust store is
 # independent of the application's certifi; upgrading the latter cannot fix it.
-ARG PIP_VERSION=26.2.2
-ARG PIP_WHEEL_SHA256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70
-ARG NPM_VERSION=12.2.1
+ARG PIP_VERSION=26.3
+ARG PIP_WHEEL_SHA256=f3b60b20ffaadd4415ed7957212a38ac63fa4c5fa375bd0f4a797777940fad13
+ARG NPM_VERSION=12.2.2
 
 # Every stage starts from ONE Python image, pinned by version and digest
 # (dependency programme, lot 7): the skills sandbox runs on the same one
@@ -315,7 +315,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
     postgresql-client \
     ffmpeg \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends chromium \
-    && DEBIAN_FRONTEND=noninteractive apt-get purge -y docker-buildx-plugin \
+    && DEBIAN_FRONTEND=noninteractive apt-get purge -y docker-buildx-plugin docker-compose-plugin \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user

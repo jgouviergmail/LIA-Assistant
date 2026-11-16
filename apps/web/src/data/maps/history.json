@@ -4855,6 +4855,27 @@
       "theme": "knowledge",
       "functional": ["f.documents", "f.images", "f.costs"],
       "technical": ["t.structured", "t.storage", "t.pricing", "t.web"]
+    },
+    {
+      "adr": 389,
+      "date": "2026-11-15",
+      "theme": "experience",
+      "functional": ["f.notifications", "f.chat", "f.voice", "f.places", "f.routines"],
+      "technical": ["t.channels", "t.redis", "t.storage", "t.voiceinfra", "t.scheduler"]
+    },
+    {
+      "adr": 390,
+      "date": "2026-11-15",
+      "theme": "orchestration",
+      "functional": ["f.routing", "f.react", "f.planning", "f.chat", "f.routines", "f.workboard", "f.costs"],
+      "technical": ["t.router", "t.react", "t.planner", "t.llmfactory", "t.registers", "t.metrics", "t.web", "t.channels"]
+    },
+    {
+      "adr": 391,
+      "date": "2026-11-16",
+      "theme": "experience",
+      "functional": ["f.notifications", "f.privacy", "f.reminders", "f.sms", "f.admin"],
+      "technical": ["t.push", "t.postgres", "t.scheduler", "t.metrics", "t.web"]
     }
   ]
 }

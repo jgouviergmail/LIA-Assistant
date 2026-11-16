@@ -40,7 +40,7 @@ from typing import Any
 import structlog
 
 from src.core.i18n_telephony import get_return_phrases
-from src.domains.conversations.service import ConversationService
+from src.domains.conversations.return_target import return_target
 from src.domains.telephony.live_tools import detach_live_tools
 from src.domains.telephony.models import (
     NotificationStatus,
@@ -323,7 +323,9 @@ async def _close_direct_owner_call(
     if synthesized:
         # The relay opens its own short sessions: the webhook's ``db`` holds no
         # transaction while the turn runs (its last commit was the detach).
-        outcome = await run_relay(RelayRequest(call_id=call.id, user_id=call.user_id, relay=relay))
+        outcome = await run_relay(
+            RelayRequest(call_id=call.id, user_id=call.user_id, relay=relay, origin=call.origin)
+        )
     else:
         outcome = count_relay_outcome(RelayOutcome.FAILED)
     await settle_owner_call(
@@ -383,16 +385,17 @@ async def _close_live_owner_call(
     if user is None:
         return  # nobody to close for
 
-    conversation = await ConversationService().get_or_create_conversation(
-        call.user_id, db, language=language
-    )
+    # The discussion the call was placed from while it lives, else Main:
+    # where its requests ran during the call, and where its card goes.
+    target = await return_target(db, call.user_id, call.origin, language=language)
     session = VoiceSession.phone(
         call_id=call.id,
         mode="delegated",
         user_id=call.user_id,
-        conversation_id=conversation.id,
+        conversation_id=target.conversation_id,
         language=language,
         timezone=user_timezone,
+        conversation_revision=target.revision,
     )
     closed = await close_voice_session(
         db,

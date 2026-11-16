@@ -118,9 +118,11 @@ class TestSendChannels:
                 body="Test body",
                 task_type="interest",
                 target_id="target-123",
+                language="fr",
             )
 
         assert result == 1
+        # The person's language reaches the channel, which draws the body in it.
         mock_send.assert_called_once_with(
             channel_type="telegram",
             channel_user_id="12345678",
@@ -128,6 +130,8 @@ class TestSendChannels:
             body="Test body",
             task_type="interest",
             target_id="target-123",
+            language="fr",
+            reply_markup=None,
         )
 
     @pytest.mark.asyncio
@@ -234,7 +238,50 @@ class TestSendToChannel:
             body="Body",
             task_type="interest",
             target_id="target-1",
+            language=None,
+            reply_markup=None,
         )
+
+    @pytest.mark.asyncio
+    async def test_a_keyboard_reaches_every_bound_channel_and_its_sender(self) -> None:
+        """A fired reminder's buttons travel to each channel that draws them (ADR-268)."""
+        from src.infrastructure.proactive.notification import _send_to_channel
+
+        keyboard = {"inline_keyboard": [[{"text": "Dans 10 min", "callback_data": "rmd:short:x"}]]}
+        bindings = [_make_binding(channel_user_id="111"), _make_binding(channel_user_id="222")]
+        with (
+            patch(_SEND_PATCH, new_callable=AsyncMock, return_value=True) as mock_send,
+            patch(_REPO_PATCH) as mock_repo_cls,
+        ):
+            mock_repo_cls.return_value.get_active_for_user = AsyncMock(return_value=bindings)
+            await send_notification_to_channels(
+                user_id=uuid4(),
+                title="Rappel",
+                body="Arroser les plantes",
+                task_type="reminder",
+                target_id="reminder-1",
+                language="fr",
+                reply_markup=keyboard,
+            )
+        assert [call.kwargs["reply_markup"] for call in mock_send.await_args_list] == [
+            keyboard,
+            keyboard,
+        ]
+
+        with patch("src.infrastructure.channels.telegram.sender.TelegramSender") as sender_cls:
+            sender_cls.return_value.send_notification = AsyncMock(return_value=True)
+            await _send_to_channel(
+                channel_type="telegram",
+                channel_user_id="111",
+                title="Rappel",
+                body="Arroser les plantes",
+                task_type="reminder",
+                target_id="reminder-1",
+                language="fr",
+                reply_markup=keyboard,
+            )
+        kwargs = sender_cls.return_value.send_notification.await_args.kwargs
+        assert kwargs["reply_markup"] == keyboard
 
     @pytest.mark.asyncio
     async def test_unsupported_channel_returns_false(self) -> None:
@@ -256,8 +303,9 @@ class TestSendToChannel:
 @pytest.mark.unit
 class TestTheBodiesReadTheReferences:
     """A peer's comment is quoted literally for the chat (ADR-316): the push
-    and the channel read its references as the chat does (review 14) — the
-    push body read « &#60;3 », Telegram showed « &#60;3 » too."""
+    reads its references as the chat does (review 14) — the push body read
+    « &#60;3 ». A channel receives the content as the chat shows it and draws
+    it itself (Telegram lot 3): flattened here, it lost its bold and its quote."""
 
     async def test_push_and_channel_bodies(self) -> None:
         dispatcher = NotificationDispatcher(
@@ -285,5 +333,7 @@ class TestTheBodiesReadTheReferences:
             "**Léa** t'a envoyé une image. > Bisous <3 [promis]"
         )
         assert channels.await_args.kwargs["body"] == (
-            "Léa t'a envoyé une image.\n\nBisous <3 [promis]"
+            "**Léa** t'a envoyé une image.\n\n> Bisous &#60;3 &#91;promis&#93;"
         )
+        # Drawn in the person's language, never the instance's.
+        assert channels.await_args.kwargs["language"] == "fr"

@@ -86,6 +86,7 @@ class SystemSettingKey(str, enum.Enum):
     CAPABILITY_PEERS_ENABLED = "capability_peers_enabled"
     CAPABILITY_PSYCHE_ENABLED = "capability_psyche_enabled"
     CAPABILITY_CHANNELS_ENABLED = "capability_channels_enabled"
+    CAPABILITY_NTFY_ENABLED = "capability_ntfy_enabled"
     CAPABILITY_OPEN_LOOPS_ENABLED = "capability_open_loops_enabled"
     CAPABILITY_MEMORY_ENABLED = "capability_memory_enabled"
     CAPABILITY_INTERESTS_ENABLED = "capability_interests_enabled"
@@ -131,6 +132,7 @@ class SystemSettingKey(str, enum.Enum):
     JEV_PARAMETER_KIND_ENABLED = "jev_parameter_kind_enabled"
     JEV_EMAIL_CLASSIFICATION_ENABLED = "jev_email_classification_enabled"
     JEV_EVENT_CLASSIFICATION_ENABLED = "jev_event_classification_enabled"
+    JEV_EXECUTION_MODE_ENABLED = "jev_execution_mode_enabled"
     # ADR-374: each deciding usage's thresholds, a JSON object of gate key → value;
     # absent or unusable values read as the declared defaults (jev_gates.py).
     JEV_MEETING_TEMPLATE_THRESHOLDS = "jev_meeting_template_thresholds"
@@ -143,6 +145,7 @@ class SystemSettingKey(str, enum.Enum):
     JEV_PARAMETER_KIND_THRESHOLDS = "jev_parameter_kind_thresholds"
     JEV_EMAIL_CLASSIFICATION_THRESHOLDS = "jev_email_classification_thresholds"
     JEV_EVENT_CLASSIFICATION_THRESHOLDS = "jev_event_classification_thresholds"
+    JEV_EXECUTION_MODE_THRESHOLDS = "jev_execution_mode_thresholds"
 
     # Future settings can be added here:
     # MAINTENANCE_MODE = "maintenance_mode"

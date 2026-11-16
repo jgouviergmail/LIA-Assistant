@@ -21,7 +21,7 @@ from uuid import uuid4
 import pytest
 from pydantic import BaseModel
 
-from src.core.config import settings
+from src.core.constants import CALENDAR_WINDOW_READ_MAX
 from src.domains.agents.calendar.catalogue_manifests import get_events_catalogue_manifest
 from src.domains.agents.calendar.event_search import QUERY_CONTRACT, SEARCHED_FIELDS
 from src.domains.agents.tools import calendar_tools
@@ -55,9 +55,10 @@ def _tool() -> SearchEventsTool:
     return tool
 
 
-def _client(spec: type, items: list[dict[str, Any]]) -> MagicMock:
+def _client(spec: type, items: list[dict[str, Any]], *, cut: bool = False) -> MagicMock:
     client = MagicMock(spec=spec)
-    client.list_events = AsyncMock(return_value={"items": items})
+    client.list_events = AsyncMock(return_value={"items": items, "truncated": cut})
+    client.list_events_window = AsyncMock(return_value={"events": items, "truncated": cut})
     client.connector_service = MagicMock()
     client.connector_type = MagicMock()
     return client
@@ -92,9 +93,12 @@ class TestTheWindowIsSearchedHere:
         with _turn():
             await _tool().execute_api_call(client, uuid4(), query="déjeuner")
 
-        kwargs = client.list_events.await_args.kwargs
-        assert kwargs["query"] is None
-        assert kwargs["max_results"] == settings.api_max_items_per_request
+        # The whole window, pages drained: one request would stop at the agents'
+        # ceiling with the OLDEST events, and a match further on was never seen.
+        client.list_events.assert_not_awaited()
+        read = client.list_events_window.await_args
+        assert read.kwargs["bound"] == CALENDAR_WINDOW_READ_MAX
+        assert "query" not in read.kwargs
 
     @pytest.mark.parametrize("spec", _CLIENTS)
     async def test_the_matching_events_are_returned(self, spec: type) -> None:
@@ -134,9 +138,9 @@ class TestTheSearchIsStated:
         }
         assert result["truncated"] is False
 
-    async def test_a_full_read_says_the_window_may_hold_more(self) -> None:
-        window = [{**REVIEW, "id": f"e{i}"} for i in range(settings.api_max_items_per_request)]
-        client = _client(GoogleCalendarClient, window)
+    async def test_a_window_read_in_part_says_so(self) -> None:
+        window = [{**REVIEW, "id": f"e{i}"} for i in range(3)]
+        client = _client(GoogleCalendarClient, window, cut=True)
 
         with _turn():
             result = await _tool().execute_api_call(client, uuid4(), query="Alex")

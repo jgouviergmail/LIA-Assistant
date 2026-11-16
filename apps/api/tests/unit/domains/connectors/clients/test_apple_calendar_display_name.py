@@ -70,6 +70,18 @@ async def test_list_calendars_reads_the_display_name_as_a_string(
     assert all(isinstance(s, str) for s in summaries)
     assert result["items"][0]["primary"] is True
     assert result["items"][1]["primary"] is False
+    assert result["truncated"] is False
+
+
+@pytest.mark.unit
+@pytest.mark.filterwarnings("error::RuntimeWarning")
+@pytest.mark.filterwarnings("error::DeprecationWarning")
+async def test_list_calendars_says_when_the_home_holds_more(client: AppleCalendarClient) -> None:
+    """A listing cut at ``max_results`` says so: a reader never takes it for the whole home."""
+    result = await client._list_calendars_impl(max_results=1, show_hidden=False)
+
+    assert [item["summary"] for item in result["items"]] == ["Personal"]
+    assert result["truncated"] is True
 
 
 @pytest.mark.unit

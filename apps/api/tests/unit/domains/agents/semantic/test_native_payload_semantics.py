@@ -8,7 +8,7 @@ measurements distinct at the boundary where the planner obtains values.
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -37,6 +37,7 @@ from src.domains.agents.tools.workboard_tools import _ticket_summary
 from src.domains.attachments.models import Attachment, AttachmentOrigin
 from src.domains.connectors.clients.normalizers.email_message import EmailAttachment, EmailMessage
 from src.domains.diagnostics.models import Incident
+from src.domains.health_metrics.repository import WindowSummary
 from src.domains.health_metrics.service import HealthMetricsService
 from src.domains.journals.models import JournalEntry, JournalEntryLevel
 from src.domains.memories.models import Memory
@@ -328,8 +329,11 @@ async def test_health_overview_advertises_its_actual_nested_windows(
     manifests: dict[str, ToolManifest],
 ) -> None:
     service = HealthMetricsService(MagicMock())
-    service.sample_repo.fetch_samples_kind = AsyncMock(return_value=[])
-    overview = await service.compute_overview(_ID, time_min=_WHEN, time_max=_WHEN)
+    nothing = WindowSummary(counted=None, samples=0, last_start=None, last_value=None)
+    with patch.object(service.sample_repo, "fetch_window_summary", AsyncMock(return_value=nothing)):
+        overview = await service.compute_overview(
+            _ID, zone=ZoneInfo("Europe/Paris"), time_min=_WHEN, time_max=_WHEN
+        )
     output = UnifiedToolOutput.data_success(
         message="Overview", structured_data={"overview": overview}
     )

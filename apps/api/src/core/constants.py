@@ -186,6 +186,11 @@ WORKSPACE_DOC_APPEND_MAX_CHARS = 10000  # bound on one appended note
 # Redis TTL of the per-user historyId anchor. Gmail keeps history for at
 # least a week; an expired anchor 404s and is transparently re-anchored.
 GMAIL_HISTORY_ANCHOR_TTL_SECONDS = 7 * 24 * 3600
+# A history read is internal: Gmail's own page size (its documented maximum), never
+# the agents' per-request ceiling, and pages drained up to a bound past which the
+# read is cut and resumes after its last record (ADR-185 amendment 2026-11-15).
+GMAIL_HISTORY_PAGE_SIZE: Final = 500
+GMAIL_HISTORY_PAGES_MAX: Final = 10
 
 # ============================================================================
 # GOOGLE STREET VIEW STATIC (lot SV, 2026-08)
@@ -676,6 +681,10 @@ MARKDOWN_CODE_SPAN_TICKS_MAX: Final = 3
 # The label of a link in a text body handed to a model: technical English
 # (ADR-256); the cards re-label it in the user's language at render time.
 HTML_TEXT_LINK_LABEL: str = "link"
+# What of a message's layout (its HTML) is turned into the text a reader reads, by every
+# mailbox and every assist (ADR-287 amendment 2026-11-15): a mailer's markup outweighs its
+# words many times over, and parsing runs about 0.1 ms per KB (measured 2026-11-15).
+EMAIL_HTML_TEXT_MAX_CHARS: Final = 200_000
 # ADR-287: a long body reaches the model in PARTS, each under this many
 # tokens, cut at paragraph boundaries and never mid-sentence; the tool says
 # ``body_part``/``body_parts`` and the next ``part`` to pass. ~6 000
@@ -686,7 +695,9 @@ EMAIL_BODY_PART_TOKENS_DEFAULT: int = 1_500
 # carries the language and the schema version (a prompt change is a version
 # bump, never a silent restatement); a message never changes, so 30 days.
 REDIS_KEY_EMAIL_DIGEST_PREFIX: str = "email:digest:"
-EMAIL_DIGEST_SCHEMA_VERSION: int = 2  # 2: the prompt asked for one-sentence key points
+# 2: one-sentence key points; 3: the body a digest reads is the words the layout shows
+# (ADR-287 amendment 2026-11-15).
+EMAIL_DIGEST_SCHEMA_VERSION: int = 3
 # The DEFAULT output cap of the `email_digest` slot (LLM_DEFAULTS and the seed);
 # the live value is the slot's max_tokens in llm_config_overrides, edited by the
 # administrator — never a .env key, model configuration lives in the database
@@ -887,6 +898,8 @@ SCHEDULER_JOB_UNVERIFIED_CLEANUP = "unverified_account_cleanup"
 SCHEDULER_JOB_TOKEN_REFRESH = "token_refresh"
 # One-shot, leader only: the bot-global Telegram webhook is set once (ADR-304).
 SCHEDULER_JOB_TELEGRAM_WEBHOOK = "telegram_webhook_setup"
+# One-shot, leader only: the bot-global command menu, in every language (lot 33).
+SCHEDULER_JOB_TELEGRAM_COMMANDS = "telegram_commands_setup"
 SCHEDULER_JOB_SCHEDULED_ACTION_EXECUTOR = "scheduled_action_executor"
 # Boot-time skills disk→DB sync — gated by a distributed lock so only one
 # worker performs the O(users×skills) write per deploy, not every worker (F018).
@@ -1416,6 +1429,10 @@ DATABASE_POOL_RECYCLE_DEFAULT = 1800  # Recycle connections every 30min (avoid s
 # idle across a network call is ended by the server. 0 disables either one.
 DATABASE_LOCK_TIMEOUT_MS_DEFAULT = 30_000
 DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS_DEFAULT = 300_000
+# Ids bound per ``IN (...)`` statement when the list grows with the instance: asyncpg
+# refuses more than 32 767 bound values, and an instance-wide language group of a
+# broadcast can be larger than that.
+SQL_IN_CLAUSE_CHUNK: Final = 1000
 # Re-deliveries of a cancellation a session's close survives before it is left to
 # finish on its own (`write_through_cancellation`): the close hands the connection
 # back to the pool, and a bounded grace never holds a stopping worker open.
@@ -1605,6 +1622,9 @@ RATE_LIMIT_CONVERSATION_EXPORT_PER_MINUTE = 6
 # Per user, on the routes that keep, edit, withdraw or send a waiting message
 # (ADR-384): a person types and clicks; a script that loops on them is refused.
 RATE_LIMIT_WAITING_MESSAGE_PER_MINUTE = 60
+# Per user, on the presses that postpone a fired reminder or stop it (ADR-268
+# amendment 2026-11-16): a person presses a button; a script that loops is refused.
+RATE_LIMIT_REMINDER_FIRING_ACTIONS_PER_MINUTE = 30
 # Per administrator, on the voice library's paid or vendor-writing requests
 # (clone, design, save, local transcript) — ADR-345.
 RATE_LIMIT_FISHAUDIO_VOICE_LIBRARY_PER_MINUTE = 6
@@ -1994,6 +2014,13 @@ OAUTH_TOKEN_REFRESH_RETRY_MAX_WAIT = 10  # seconds
 # browser cannot decode it as an image and quietly falls back to a generic
 # bell, so the notification merely loses its branding.
 FCM_WEBPUSH_ICON_PATH = "/icon-192.png"
+
+# A delivery outbox waits out a remote server's ``Retry-After`` between these two
+# bounds (``infrastructure/utils/retry_after.py``): the default when the server
+# states none, or one already past, is also the shortest wait; a day is the
+# longest ``DeliveryResult`` accepts.
+DELIVERY_RETRY_AFTER_DEFAULT_SECONDS: Final = 60
+DELIVERY_RETRY_AFTER_MAX_SECONDS: Final = 86400
 
 # ============================================================================
 # OAUTH HEALTH CHECK (Push Notifications for Broken Connectors)
@@ -2746,6 +2773,9 @@ HEARTBEAT_NOTIFICATION_BATCH_SIZE_DEFAULT = 50
 # whether to speak; the window and the cooldowns bound how often.
 HEARTBEAT_NOTIFY_START_HOUR_DEFAULT = 9  # 9 AM
 HEARTBEAT_NOTIFY_END_HOUR_DEFAULT = 22  # 10 PM
+# Upcoming events handed to the heartbeat's decision: the soonest, across every
+# calendar the account owns (the literal 10 of the one-request read it replaced).
+HEARTBEAT_CONTEXT_CALENDAR_EVENTS_MAX: Final = 10
 
 # Heartbeat interest-quality (ADR-135). Bench-validated 2026-07-18:
 # a 5-item content window was blind to the "1664" motif — 10 items / 7 days required.
@@ -2955,6 +2985,23 @@ REMINDER_NOTIFICATION_BATCH_LIMIT = 100
 # A reminder PROCESSING for longer is a claim a crash abandoned: released to
 # PENDING at the next tick. Must exceed one notification (model + push).
 REMINDER_PROCESSING_STALE_TIMEOUT_MINUTES_DEFAULT = 10
+# Snoozing a fired reminder (ADR-268 amendment 2026-11-16). A fired occurrence is
+# kept this long so a press can postpone it, then purged: a notification left
+# overnight can still be snoozed in the morning.
+REMINDER_SNOOZE_WINDOW_HOURS_DEFAULT = 24
+# The two « later » the notification offers (push shows both, the chat and
+# Telegram add « tomorrow morning »).
+REMINDER_SNOOZE_SHORT_MINUTES_DEFAULT = 10
+REMINDER_SNOOZE_LONG_MINUTES_DEFAULT = 60
+# « Tomorrow morning », on the account's wall clock.
+REMINDER_SNOOZE_MORNING_HOUR_DEFAULT = 9
+# Before this hour, « tomorrow morning » is the morning that comes, not the next
+# day's: pressed at 01:00, it means the morning after the night, as a person
+# still up says it. A definition, not a tunable.
+REMINDER_SNOOZE_NIGHT_END_HOUR = 5
+# Fired occurrences deleted per scheduler tick once their window closed (one
+# bounded statement, never a table scan).
+REMINDER_FIRINGS_PURGE_BATCH = 500
 
 # Proactive message injection into LangGraph state
 # When a user replies to a proactive notification, these messages (stored in
@@ -3531,6 +3578,19 @@ EMAIL_ORGANIZE_MAX_MESSAGES: Final = 50
 # 20 results in ~3 sequential-equivalent round-trips (audit wave 3, N-194.8).
 EMAILS_SEARCH_FETCH_CONCURRENCY_DEFAULT = 8
 API_MAX_ITEMS_PER_REQUEST_DEFAULT = 25  # Global per-request volumetry ceiling (.env)
+# The ceiling bounds what ONE request hands an agent, never what an internal reader
+# needs (ADR-185 amendment 2026-11-15): a reader of a whole calendar window drains the
+# provider's pages (``list_events_window``) up to this bound and says when it cut.
+CALENDAR_WINDOW_READ_MAX: Final = 1000
+# Calendars a reader of the person's meetings reads at most: every calendar the account
+# OWNS, the configured default only saying where an event is created (owner rule
+# 2026-11-15, as for task lists on 2026-11-10); past it the read says it was cut.
+CALENDARS_READ_MAX: Final = 25
+# Calendar windows such a reader asks of one client at once.
+CALENDAR_READ_CONCURRENCY: Final = 4
+# The most calendars one listing returns: the page maximum Google's ``calendarList`` and
+# Graph's ``/me/calendars`` accept. A listing that fills it may hold more (said as a cut).
+CALENDAR_LIST_PAGE_MAX: Final = 250
 CIRCUIT_BREAKER_FAILURE_THRESHOLD_DEFAULT = 3  # Aligned from .env.prod (was 5)
 CIRCUIT_BREAKER_SUCCESS_THRESHOLD_DEFAULT = 3
 CIRCUIT_BREAKER_TIMEOUT_SECONDS_DEFAULT = 10  # Aligned from .env.prod (was 60)
@@ -3881,15 +3941,14 @@ RESPONSE_CONTEXT_PREFETCH_AWAIT_TIMEOUT_SECONDS = 20  # Beyond this, fall back t
 # injection is deferred to the response node. Off → initiative-only prefetch.
 RESPONSE_CONTEXT_PREFETCH_AT_ROUTER_ENABLED_DEFAULT = True
 
-# Latency lot R3 (2026-07, ships dark — default True keeps the pivot): when
-# False, the dedicated semantic-pivot LLM call is skipped entirely (~-0.8 to
-# -1s + one LLM call per turn): the query analyzer receives the ORIGINAL query
-# and its own english_query output feeds the downstream English pattern
-# matching. Flip only after A/B-validating domain detection quality on
-# non-English input (scripts/perf/measure_ttft.py + query_intelligence_result
-# logs) — domain detection AND ReAct tool selection both consume the analyzer
-# domains.
-SEMANTIC_PIVOT_ENABLED_DEFAULT = True
+# Latency lot R3: the dedicated semantic-pivot LLM call is skipped by default —
+# the query analyzer receives the ORIGINAL query and its own english_query
+# output feeds the downstream English pattern matching. Decided 2026-11-14 on
+# the A/B this switch waited for: 580 paired requests over 14 languages and
+# three model families, primary domain 98.8 % with the pivot and 99.2 %
+# without, the right tool family in the top 5 at 99.6 % and 100 % (noise
+# between two identical draws: 1 in 64). True turns the pivot back on.
+SEMANTIC_PIVOT_ENABLED_DEFAULT = False
 
 # ============================================================================
 # TODAY BRIEFING — per-widget content limits
@@ -4956,6 +5015,26 @@ CHANNEL_OTP_MAX_ATTEMPTS_DEFAULT = 5  # Brute-force protection per chat_id
 CHANNEL_OTP_BLOCK_TTL_SECONDS_DEFAULT = 900  # 15 min block after max attempts
 CHANNEL_RATE_LIMIT_PER_USER_PER_MINUTE_DEFAULT = 10
 CHANNEL_RATE_LIMIT_GLOBAL_PER_SECOND_DEFAULT = 25
+# How much of a held message a channel's notice quotes (Telegram lot 34).
+CHANNEL_HELD_QUOTE_MAX_CHARS = 300
+# How much of the message a reply answers travels with it (Telegram lot 8): the
+# words it points at, never a whole earlier answer repeated into the turn.
+# Telegram caps a selected quote at 1024 characters, a replied message at 4096.
+CHANNEL_QUOTE_MAX_CHARS = 1000
+# An album is ONE message (Telegram lot 11): Telegram delivers each part as its
+# own update, within a second of the first. The first part waits this long for
+# its siblings, which hand their files over through Redis (any worker may
+# receive one); a part arriving later is answered alone.
+CHANNEL_ALBUM_REDIS_PREFIX = "channel_album:"
+CHANNEL_ALBUM_WINDOW_SECONDS = 1.5
+CHANNEL_ALBUM_TTL_SECONDS = 60
+CHANNEL_ALBUM_MAX_PARTS = 10  # Telegram's own ceiling for a media group
+# A voice note is answered aloud too when the person turned voice comments on
+# (lot 25): the answer's first sentences, capped like the chat's voice
+# (``voice_chat_mode_max_sentences``), read under a run of their own. The
+# character bound only spares the reader a whole long answer it will not say.
+CHANNEL_VOICE_REPLY_MAX_CHARS = 4000
+CHANNEL_VOICE_REPLY_RUN_PREFIX = "channel_voice_reply"
 
 # SEC-025. HSTS `max-age`, in seconds. A browser remembers the HTTPS pin for
 # this long and there is no way to recall it early, so the value is raised in
@@ -4990,6 +5069,11 @@ TELEGRAM_MESSAGE_MAX_LENGTH_DEFAULT = 4000  # Max before split (Telegram limit: 
 TELEGRAM_TYPING_ACTION = "typing"
 TELEGRAM_TYPING_INTERVAL_SECONDS = 4  # Re-send typing indicator every N seconds
 TELEGRAM_MAX_VOICE_FILE_SIZE = 20 * 1024 * 1024  # 20 MB — DoS protection on OGG download
+# The Bot API's ceilings: a bot downloads at most 20 MB (getFile), uploads a
+# photo of at most 10 MB and a document of at most 50 MB (lot 11).
+TELEGRAM_FILE_DOWNLOAD_MAX_BYTES = 20 * 1024 * 1024
+TELEGRAM_PHOTO_UPLOAD_MAX_BYTES = 10 * 1024 * 1024
+TELEGRAM_DOCUMENT_UPLOAD_MAX_BYTES = 50 * 1024 * 1024
 # ffmpeg's ceiling for one voice note: the longest accepted (120 s) decodes to
 # 16 kHz PCM in 0.2 s on the dev host (measured 2026-10-02).
 TELEGRAM_VOICE_DECODE_TIMEOUT_SECONDS = 30
@@ -5386,8 +5470,6 @@ TOOL_ASSIST_TRIAGE_READS_MAX: Final = 5
 # What a contact's card is completed from: their latest messages, each read up to its signature.
 TOOL_ASSIST_CONTACT_MESSAGES_MAX: Final = 5
 TOOL_ASSIST_CONTACT_MESSAGE_MAX_CHARS: Final = 3000
-# What is turned into text to get there: a mailer's markup outweighs its words many times over.
-TOOL_ASSIST_CONTACT_HTML_MAX_CHARS: Final = 200_000
 TOOL_ASSIST_CONTACT_VALUE_MAX_CHARS: Final = 200
 # A photographed card stays large enough to read, once redrawn.
 TOOL_ASSIST_CARD_MAX_SIDE: Final = 1600
@@ -5468,6 +5550,9 @@ RAG_SPACES_MAX_DOCS_PER_SPACE_DEFAULT = 100
 # and streamed, so its size is bounded; a batch (move, delete, archive) is
 # capped at the same size as the meetings bulk delete.
 RAG_SPACES_ARCHIVE_MAX_MB_DEFAULT = 200
+# Most megabytes a zipped document of a knowledge space may declare once unzipped before its
+# text is read (2026-11-14): ten times the default upload, room for a text-heavy spreadsheet.
+RAG_SPACES_MAX_INFLATED_MB_DEFAULT = 200
 RAG_SPACES_BULK_MAX = 100
 # Member listing the documents whose file was gone when the archive was built.
 RAG_SPACES_ARCHIVE_MISSING_MEMBER = "_missing.txt"
@@ -6035,6 +6120,15 @@ COMPACTION_SSE_STEP_TYPE = "compaction"
 # Most identifiers brought back under a summary that dropped them — per list
 # (trusted, third-party), and the truncation notice's own lists (point 10).
 COMPACTION_IDENTIFIERS_REINSERT_MAX_DEFAULT = 30
+# The person's own words quoted as written under a compaction summary and in the
+# truncation notice (lot 16): the token budget of the quotes, the most recent first,
+# the rest counted (0 = quote none). Measured 2026-11-15 on production: a person's
+# message weighs 121 characters at the median, 372 at p90, so the budget holds about
+# forty-five recent messages of median length, stamps included. The summary message
+# carries the quotes under this field, so a later compaction keeps them without a
+# model merging them again.
+COMPACTION_PERSON_WORDS_MAX_TOKENS_DEFAULT = 2000
+COMPACTION_PERSON_WORDS_KEY = "compaction_person_words"
 
 # === Reasoning streaming (live agent thinking surfaced in the progress UI) ===
 # Sub-type carried in the `execution_step` SSE metadata so the frontend can
@@ -6907,11 +7001,25 @@ DEVOPS_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 600
 # ============================================================================
 # REACT AGENT (Execution Mode — ADR-070)
 # ============================================================================
-DEFAULT_EXECUTION_MODE: str = "pipeline"
+DEFAULT_EXECUTION_MODE: Final = "pipeline"
 EXECUTION_MODE_PIPELINE: str = "pipeline"
 EXECUTION_MODE_REACT: str = "react"
-#: Every execution mode: what a tool declaring no restriction may run in (ADR-249).
-EXECUTION_MODES_ALL: frozenset[str] = frozenset({EXECUTION_MODE_PIPELINE, EXECUTION_MODE_REACT})
+#: A CHOICE, never an engine: the router picks the engine turn by turn (ADR-390).
+EXECUTION_MODE_AUTO: str = "auto"
+#: What a person, a routine or a ticket may choose.
+EXECUTION_MODE_CHOICES: frozenset[str] = frozenset(
+    {EXECUTION_MODE_PIPELINE, EXECUTION_MODE_REACT, EXECUTION_MODE_AUTO}
+)
+#: How long a shape judgement nothing will read is given to close once cancelled
+#: (its accounting closes in a ``finally``): the router owns it, never leaves it running.
+EXECUTION_MODE_JUDGEMENT_CANCEL_GRACE_SECONDS: Final = 2.0
+#: The engines that can plan a turn (ADR-070), and so what a tool declaring no
+#: restriction may run in (ADR-249). A mode the person CHOOSES is not always one.
+EXECUTION_ENGINES: frozenset[str] = frozenset({EXECUTION_MODE_PIPELINE, EXECUTION_MODE_REACT})
+#: Graph transitions a ReAct turn needs beyond its loop's two per iteration: the
+#: nodes around the loop (compaction, router, setup, finalize, initiative,
+#: response, a HITL dispatch) — the room ``recursion_limit_for`` grants.
+REACT_GRAPH_RECURSION_HEADROOM: int = 15
 
 # ADR-335 — the owning agent of the application-settings catalogue (the forty
 # sections of ``domains/agents/application/``): read by its domain config and by
@@ -7100,6 +7208,15 @@ HEALTH_METRICS_VARIATION_MIN_DELTA_PCT_DEFAULT: float = 20.0
 HEALTH_METRICS_VARIATION_DAILY_DELTA_PCT_DEFAULT: float = 10.0
 # Consecutive zero-step days before an inactivity streak is reported.
 HEALTH_METRICS_INACTIVITY_STREAK_MIN_DAYS: int = 3
+# The most buckets one health chart read draws (chart_read.read_chart_statistics):
+# a larger request is refused before querying, never silently cut.
+HEALTH_METRICS_CHART_MAX_BUCKETS: int = 200
+# The longest sample the overlap fusion reads whole (fusion.counted_samples): a
+# window's fusion reads the samples starting up to this long before and after
+# it, so a slice is cut the same way whichever window reads it. Measured
+# 2026-11-14: the longest step sample ever received lasted 22 minutes; a
+# Shortcut sending one sample per day stays inside the horizon.
+HEALTH_METRICS_FUSION_HORIZON_HOURS: int = 24
 
 # Agent / Heartbeat / prompt-injection defaults
 HEALTH_METRICS_AGENT_CONTEXT_MAX_CHARS: int = 800
@@ -7200,11 +7317,17 @@ WORKBOARD_NUDGE_MAX_ITEMS_DEFAULT = 8
 # a ticket brief carries — the person's answer to a confirmation travels this
 # way (lot 7). Each note is bounded by WORKBOARD_COMMENT_MAX_CHARS.
 WORKBOARD_BRIEF_MAX_NOTES_DEFAULT = 10
+# What a person, a ticket or a routine may CHOOSE to run in (ADR-070, « auto »:
+# ADR-390), the same vocabulary as EXECUTION_MODE_CHOICES; the engine a turn
+# actually runs in is one of EXECUTION_ENGINES, settled by the router.
+ExecutionMode = Literal["pipeline", "react", "auto"]
+# What « auto » does on THIS instance, said where it is offered (ADR-390): it decides,
+# or — no decision provider — always loops, or — no loop — always plans in the pipeline.
+AutoModeResolution = Literal["decided", "always_react", "always_pipeline"]
 # What an out-of-turn run executes in, when nobody said otherwise. It is a
 # per-ROW choice — a ticket's and a routine's alike — so this is the value a
 # new row is born with, never a deployment-wide switch: two tickets of one
 # account legitimately want different modes, and a setting could not say so.
-ExecutionMode = Literal["pipeline", "react"]
 OUT_OF_TURN_EXECUTION_MODE_DEFAULT: ExecutionMode = "react"
 SCHEDULER_JOB_WORKBOARD_RUN_SWEEP = "workboard_run_sweep"
 # Session id prefix of a run, mirroring SCHEDULED_ACTIONS_SESSION_PREFIX: the
@@ -7319,6 +7442,36 @@ PUSH_RELAY_WAKE_COLLAPSE_ID = "lia-wake"
 # being inferred from configuration — a deployment can legitimately have both
 # relayed devices and devices reached through its own Apple account.
 PUSH_RELAY_HANDLE_PREFIX = "relay:"
+
+
+# =============================================================================
+# ntfy (ADR-391): notifications through a server the person subscribes to
+# =============================================================================
+
+NTFY_ENABLED_DEFAULT = True
+# A person may name a public server of their own choosing (ntfy.sh, their own); an operator may
+# keep their people on the instance's server.
+NTFY_CUSTOM_SERVERS_ENABLED_DEFAULT = True
+# A person reaches a few devices or servers, not a fleet: each one is a request per notification.
+NTFY_MAX_SUBSCRIPTIONS_PER_USER_DEFAULT = 3
+NTFY_TIMEOUT_SECONDS_DEFAULT = 10.0
+# Topics LIA draws begin with this, so the instance server's access list can grant LIA alone the
+# right to publish to them (« lia_* »). The suffix is the secret: 28 characters of [A-Za-z0-9]
+# carry about 166 bits — the topic is a password (ntfy's own documentation).
+NTFY_TOPIC_PREFIX: Final = "lia_"
+NTFY_TOPIC_RANDOM_CHARS: Final = 28
+# ntfy's limits, measured on 2.37.2: a message of 4 096 bytes or more becomes an attachment
+# (refused with attachments off, a file instead of words with them on), so a message stays
+# strictly under; a title over 1 024 bytes is refused (HTTP 400).
+NTFY_MESSAGE_MAX_BYTES: Final = 4095
+NTFY_TITLE_MAX_BYTES: Final = 1024
+# The name the ntfy app shows for a topic a LIA link subscribes it to (``?display=``): the
+# product's name, the same in every language.
+NTFY_SUBSCRIBE_DISPLAY_NAME: Final = "LIA"
+# Publications sent at once for one broadcast: a burst a self-hosted server absorbs.
+NTFY_BROADCAST_CONCURRENCY: Final = 8
+# Per account: a test publication is a request to a server the person may share with others.
+RATE_LIMIT_NTFY_TEST_PER_MINUTE: Final = 5
 
 
 # =============================================================================
@@ -7568,6 +7721,9 @@ BOOKMARKS_DOCUMENT_NAME_EXCERPT_CHARS: int = 60
 #: context sources and by the bookmarks (a notification answers no request).
 PROACTIVE_MESSAGE_TYPE_PREFIX: str = "proactive_"
 PROACTIVE_DISCUSSION_MESSAGE_TYPE: str = "proactive_discussion"
+#: Where a push opens the annex a notification returned to (ADR-378 amendment
+#: 2026-11-14): the chat's own discussion parameter, read by the browser.
+CHAT_DISCUSSION_LINK_TEMPLATE: str = "/dashboard/chat?conversation={conversation_id}"
 #: Minutes between two elected proactive-discussion ticks (ADR-358).
 DISCUSSION_INTERVAL_MINUTES_DEFAULT: int = 15
 #: A tick's capacity: the owners it examines at random, the owners it serves (a
@@ -8129,8 +8285,10 @@ TOOL_ASSIST_PROMPT_OVERHEAD_TOKENS = 256
 WRITING_STYLE_SENT_MAILS_DEFAULT: Final = 12
 #: Fewer sent e-mails than this teach no style: the profile is recorded as built and empty.
 WRITING_STYLE_MIN_SENT_MAILS: Final = 3
-#: A profile is built again once it is older than this (days).
-WRITING_STYLE_MAX_AGE_DAYS_DEFAULT: Final = 30
+#: How long a second click waits for the learning a first one started — the read of the
+#: sent mail and the model's call — before learning itself; never shorter than the call
+#: (``run_bound_seconds``, ADR-221 amendment 2026-11-05).
+WRITING_STYLE_LEARN_WAIT_SECONDS: Final = 90.0
 #: What the profile reads of one sent e-mail: its opening and its end, where the greeting,
 #: the sign-off and the signature are, never its middle beyond these bounds (characters).
 WRITING_STYLE_MAIL_HEAD_CHARS: Final = 600
@@ -8140,3 +8298,8 @@ WRITING_STYLE_PROFILE_MAX_CHARS: Final = 1500
 #: Messages read at once where a listing carries previews only (Graph): what one
 #: mailbox bears, the width a move across folders already keeps (``MOVE_CONCURRENCY``).
 WRITING_STYLE_READ_CONCURRENCY: Final = 4
+#: Share of the e-mail slot's output budget a text the agent proposed may fill and still be
+#: written back WHOLE by LIA's writer (ADR-383 amendment 2026-11-16): the rest goes to the
+#: subject, the JSON around them and the thinking that counts inside the cap (ADR-285). A
+#: longer text is kept as the agent wrote it rather than cut by a rewrite.
+EMAIL_REWRITE_MAX_SHARE: Final = 0.5

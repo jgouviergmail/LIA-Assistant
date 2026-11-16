@@ -78,6 +78,29 @@ def test_exposure_branches_gate_the_conditional_questions() -> None:
     assert not questions["caddy_email"].applies_to(lan)
 
 
+def test_the_ntfy_follow_ups_hang_on_the_server_answer() -> None:
+    questions = _by_key()
+    assert questions["ntfy_server"].default == "no"
+    off = {"exposure": Exposure.PROXY, "ntfy_server": False}
+    lan = {"exposure": Exposure.LAN, "ntfy_server": True}
+    proxy = {"exposure": Exposure.PROXY, "ntfy_server": True}
+    caddy = {"exposure": Exposure.CADDY, "ntfy_server": True}
+    # A LAN server is reached on the host's address; a domain exposure names it.
+    assert [questions["ntfy_domain"].applies_to(a) for a in (off, lan, proxy, caddy)] == [
+        False,
+        False,
+        True,
+        True,
+    ]
+    assert [questions["ntfy_ios_relay"].applies_to(a) for a in (off, lan, proxy, caddy)] == [
+        False,
+        True,
+        True,
+        True,
+    ]
+    assert questions["ntfy_ios_relay"].default == "no"
+
+
 def test_default_language_offers_the_six_app_languages() -> None:
     question = _by_key()["default_language"]
     assert question.choices == APP_LANGUAGES

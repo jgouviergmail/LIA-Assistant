@@ -18,10 +18,12 @@ from unittest.mock import patch
 import pytest
 
 from src.core.constants import EXECUTION_MODE_PIPELINE, EXECUTION_MODE_REACT
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.effects import runtime as gate_runtime
 from src.domains.agents.effects.gate import ERROR_CONFIRMATION_IMPOSSIBLE
 from src.domains.agents.effects.scope import EffectScope, effect_scope
 from src.domains.agents.registry.catalogue import UnattendedStandIn
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -34,8 +36,8 @@ def _fresh_policies() -> None:
     gate_runtime.reset_policy_cache()
 
 
-def _run_context(execution_mode: str) -> SimpleNamespace:
-    return SimpleNamespace(
+def _run_context(execution_mode: str) -> LiaRuntimeContext:
+    return make_runtime_context(
         user_id=uuid.uuid4(),
         thread_id="thread-routine",
         execution_mode=execution_mode,
@@ -64,7 +66,7 @@ async def _send(to: str = "me@example.org", subject: str = "News") -> dict[str, 
 
 
 async def _refuse_unattended(
-    stand_in: tuple[str, str] | None, *, run_context: SimpleNamespace | None
+    stand_in: tuple[str, str] | None, *, run_context: LiaRuntimeContext | None
 ) -> str:
     """Run a draft send in a routine and return the message the model reads."""
     ledger = _Ledger()

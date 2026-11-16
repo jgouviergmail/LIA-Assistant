@@ -342,6 +342,11 @@ export function ProviderEventsSection({
       <p className="text-px-11 text-muted-foreground">
         {t('relations.events_window', { count: windowDays })}
       </p>
+      {/* A window read in part says so: a meeting the cut hid must not read as
+          one that does not exist (ADR-185). */}
+      {section?.truncated && (
+        <p className="text-px-11 text-muted-foreground">{t('relations.events_window_cut')}</p>
+      )}
     </CollapsibleSection>
   );
 }
@@ -356,9 +361,11 @@ export function ProviderEventsSection({
  * Ranked, because several can be true at once and the most actionable wins:
  * the address book first (it is what turns a name into an address, so without
  * it the other two report `no_address` and blaming the card would describe one
- * that does not exist), then the missing address, then a read failure. A mail
- * or calendar connector the user simply chose not to plug in stays silent — a
- * relationship page is not a settings page.
+ * that does not exist), then the missing address, then a read failure, then a
+ * meetings window read in part that found nothing — no section is drawn for
+ * it, so this is the only place its cut can be said. A mail or calendar
+ * connector the user simply chose not to plug in stays silent — a relationship
+ * page is not a settings page.
  */
 export function providerNoteKey(context: RelationContext | null): string | null {
   if (context === null) return null;
@@ -372,6 +379,9 @@ export function providerNoteKey(context: RelationContext | null): string | null 
     return 'relations.provider_no_address';
   }
   if (statuses.includes('error')) return 'relations.provider_error';
+  if (context.events.truncated && !hasPayload(context.events)) {
+    return 'relations.events_window_cut';
+  }
   return null;
 }
 

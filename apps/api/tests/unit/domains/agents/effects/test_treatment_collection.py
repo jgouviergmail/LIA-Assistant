@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterator
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -33,6 +32,7 @@ from src.domains.agents.effects.treatments import (
     collected_treatments,
     treatment_collector,
 )
+from tests.helpers.runtime_context import make_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -53,7 +53,7 @@ def _running_turn() -> Any:
     gate_runtime.reset_policy_cache()
     with patch(
         "src.domains.agents.context.runtime_context.runtime_context_if_running",
-        return_value=SimpleNamespace(
+        return_value=make_runtime_context(
             user_id="11111111-1111-4111-8111-111111111111",
             thread_id="thread-1",
             execution_mode="pipeline",

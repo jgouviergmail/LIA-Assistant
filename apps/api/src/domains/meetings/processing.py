@@ -404,6 +404,8 @@ async def _notify_ready(
         db=db,
         title=get_notification_title(language),
         run_id=run_id,
+        # Back to the discussion the recording or the import began from (ADR-378).
+        origin=meeting.origin,
     )
 
 

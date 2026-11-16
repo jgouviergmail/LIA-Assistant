@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LIA API 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-05 17:02+0000\n"
-"PO-Revision-Date: 2026-11-05 17:02+0000\n"
+"POT-Creation-Date: 2026-11-15 23:59+0000\n"
+"PO-Revision-Date: 2026-11-15 23:59+0000\n"
 "Last-Translator: Claude Code <noreply@anthropic.com>\n"
 "Language-Team: German\n"
 "Language: de\n"
@@ -282,6 +282,12 @@ msgstr "Das Deaktivieren eines Konnektors erfordert einen Grund."
 
 msgid "Important message"
 msgstr "Wichtige Nachricht"
+
+msgid "LIA test notification"
+msgstr "Testbenachrichtigung von LIA"
+
+msgid "ntfy works: LIA can reach you here."
+msgstr "ntfy funktioniert: LIA kann dich hier erreichen."
 
 msgid "A deactivation must state its reason."
 msgstr "Eine Deaktivierung muss ihren Grund angeben."

@@ -115,6 +115,7 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "GET /api/v1/auth/me",
         "PATCH /api/v1/auth/me/debug-panel-preference",
         "PATCH /api/v1/auth/me/display-mode-preference",
+        "GET /api/v1/auth/me/execution-mode-preference",
         "PATCH /api/v1/auth/me/execution-mode-preference",
         "PATCH /api/v1/auth/me/health-metrics-agents-preference",
         "GET /api/v1/auth/me/last-location",
@@ -388,6 +389,11 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "POST /api/v1/reminders",
         "PATCH /api/v1/reminders/{reminder_id}",
         "DELETE /api/v1/reminders/{reminder_id}",
+        # A fired reminder's own buttons (ADR-268 amendment 2026-11-16): the
+        # visitor postpones or stops THEIR occurrence; a foreign id answers 404.
+        "GET /api/v1/reminders/firings/{firing_id}",
+        "POST /api/v1/reminders/firings/{firing_id}/snooze",
+        "POST /api/v1/reminders/firings/{firing_id}/stop",
         "GET /api/v1/scheduled-actions",
         "GET /api/v1/scheduled-actions/week",
         "POST /api/v1/scheduled-actions",
@@ -478,6 +484,12 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "GET /api/v1/writing-style",
         "PATCH /api/v1/writing-style",
         "DELETE /api/v1/writing-style",
+        # Learning it at the visitor's click (ADR-383 amendment 2026-11-16): the sent mail is
+        # read BEFORE any model, so with no mailbox to read the answer is `no_mailbox`, no
+        # model is asked and nothing is spent; rate-limited per account like every assist.
+        # The section offers the button whenever the switch is on, so a hidden route would
+        # be a button that fails.
+        "POST /api/v1/writing-style/learn",
         # The workboard (ADR-276): a visitor's own tickets, held by them or by
         # LIA. A run spends the visitor's own allowance exactly as a routine
         # does (scheduled-actions, exposed above), under the same ceilings;

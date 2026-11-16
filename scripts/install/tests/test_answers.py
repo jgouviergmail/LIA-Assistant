@@ -28,6 +28,7 @@ from scripts.install.answers import (
     collect_answers,
     collect_reconfiguration,
     is_valid_email,
+    is_valid_host,
     load_answers_file,
 )
 from scripts.install.model import Exposure, InstallMode, IOAdapter
@@ -53,6 +54,7 @@ BASE_PUBLIC = {
     "speaking_avatar": "no",
     "world": "no",
     "web_search": "no",
+    "ntfy_server": "no",
 }
 SECRETS = {
     "admin_password": ADMIN_PASSWORD,
@@ -137,6 +139,55 @@ def _collect(io: _ScriptedIO, **kwargs: object):
 )
 def test_email_validator_rejects_special_use_tlds(value: str, valid: bool) -> None:
     assert is_valid_email(value) is valid
+
+
+@pytest.mark.parametrize(
+    ("value", "valid"),
+    [
+        ("192.168.1.50", True),
+        ("lia-box.local", True),
+        ("fd00::50", True),
+        # A zoned address names an interface of THIS host: no browser opens it.
+        ("fe80::1%eth0", False),
+        ("bad host!", False),
+    ],
+)
+def test_host_validator_accepts_what_a_browser_can_open(value: str, valid: bool) -> None:
+    assert is_valid_host(value) is valid
+
+
+@pytest.mark.parametrize("exposure", ["proxy", "caddy"])
+def test_the_api_takes_a_name_of_its_own(exposure: str) -> None:
+    # One proxy serves each name once: Caddy refuses to start on a name served twice.
+    public_answers = {
+        **BASE_PUBLIC,
+        "exposure": exposure,
+        "web_domain": "lia.example.org",
+        "api_domain": "api.example.org",
+        "caddy_email": "acme@example.org",
+    }
+    public_answers.pop("server_host")
+    io = _ScriptedIO(public_answers, SECRETS).with_retry(
+        "api_domain", ["LIA.Example.org", "api.example.org"]
+    )
+    public, _secrets = _collect(io)
+    assert (public.web_domain, public.api_domain) == ("lia.example.org", "api.example.org")
+    assert io.public_served.count("api_domain") == 2
+
+
+def test_an_answers_file_giving_the_api_the_web_domain_is_refused(tmp_path: Path) -> None:
+    values = {
+        **BASE_PUBLIC,
+        **SECRETS,
+        "exposure": "proxy",
+        "web_domain": "lia.example.org",
+        "api_domain": "lia.example.org",
+    }
+    values.pop("server_host")
+    path = _write_answers(tmp_path / "answers.env", values)
+    with pytest.raises(InstallInputError) as excinfo:
+        _collect(_ScriptedIO({}, {}), non_interactive=True, answers_path=path)
+    assert str(excinfo.value) == "invalid_answer:api_domain"
 
 
 def test_interactive_lan_flow_routes_secrets_through_getpass_only() -> None:
@@ -358,6 +409,101 @@ def test_an_answers_file_that_does_not_mention_web_search_gets_the_default(
     path = _write_answers(tmp_path / "answers.env", previous_answers)
     public, _secrets = _collect(_ScriptedIO({}, {}), non_interactive=True, answers_path=path)
     assert public.web_search is True
+
+
+def test_the_ntfy_server_stays_off_on_enter_and_asks_nothing_more() -> None:
+    # ADR-391: LIA ships its own ntfy server switched off; a person can still
+    # subscribe through a public server such as ntfy.sh.
+    io = _ScriptedIO({**BASE_PUBLIC, "ntfy_server": ""}, SECRETS)
+    public, _secrets = _collect(io)
+    assert public.ntfy_server is False
+    assert (public.ntfy_domain, public.ntfy_ios_relay) == (None, False)
+    assert "ntfy_server" in io.public_served
+    assert not {"ntfy_domain", "ntfy_ios_relay"} & set(io.public_served)
+
+
+def test_a_lan_ntfy_server_needs_no_domain_and_leaves_ntfy_sh_out_on_enter() -> None:
+    io = _ScriptedIO({**BASE_PUBLIC, "ntfy_server": "yes", "ntfy_ios_relay": ""}, SECRETS)
+    public, _secrets = _collect(io)
+    assert public.ntfy_server is True
+    assert public.ntfy_domain is None
+    # The relay tells ntfy.sh when a notification leaves: the operator's choice.
+    assert public.ntfy_ios_relay is False
+    assert "ntfy_domain" not in io.public_served
+    assert "ntfy_ios_relay" in io.public_served
+
+
+@pytest.mark.parametrize("exposure", ["proxy", "caddy"])
+def test_a_ntfy_server_reached_on_a_domain_takes_a_name_of_its_own(exposure: str) -> None:
+    # One proxy serves every name: a name already served would be claimed twice.
+    public_answers = {
+        **BASE_PUBLIC,
+        "exposure": exposure,
+        "web_domain": "lia.example.org",
+        "api_domain": "api.example.org",
+        "caddy_email": "acme@example.org",
+        "ntfy_server": "yes",
+        "ntfy_ios_relay": "yes",
+    }
+    public_answers.pop("server_host")
+    io = _ScriptedIO(public_answers, SECRETS).with_retry(
+        "ntfy_domain", ["lia.example.org", "API.Example.org", "ntfy.example.org"]
+    )
+    public, _secrets = _collect(io)
+    assert (public.ntfy_server, public.ntfy_domain) == (True, "ntfy.example.org")
+    assert public.ntfy_ios_relay is True
+    assert io.public_served.count("ntfy_domain") == 3
+
+
+def test_an_answers_file_naming_a_served_domain_for_ntfy_is_refused(tmp_path: Path) -> None:
+    values = {
+        **BASE_PUBLIC,
+        **SECRETS,
+        "exposure": "proxy",
+        "web_domain": "lia.example.org",
+        "api_domain": "api.example.org",
+        "ntfy_server": "yes",
+        "ntfy_domain": "lia.example.org",
+    }
+    values.pop("server_host")
+    path = _write_answers(tmp_path / "answers.env", values)
+    with pytest.raises(InstallInputError) as excinfo:
+        _collect(_ScriptedIO({}, {}), non_interactive=True, answers_path=path)
+    assert str(excinfo.value) == "invalid_answer:ntfy_domain"
+
+
+def test_an_answers_file_that_does_not_mention_ntfy_runs_no_server(tmp_path: Path) -> None:
+    previous_answers = {**BASE_PUBLIC, **SECRETS}
+    previous_answers.pop("ntfy_server")
+    path = _write_answers(tmp_path / "answers.env", previous_answers)
+    public, _secrets = _collect(_ScriptedIO({}, {}), non_interactive=True, answers_path=path)
+    assert (public.ntfy_server, public.ntfy_domain, public.ntfy_ios_relay) == (False, None, False)
+
+
+def test_a_reconfiguration_keeps_the_ntfy_server_and_asks_its_domain_off_the_lan() -> None:
+    current, _secrets = _collect(
+        _ScriptedIO({**BASE_PUBLIC, "ntfy_server": "yes", "ntfy_ios_relay": "yes"}, SECRETS)
+    )
+    enter = {key: "" for key in (*BASE_PUBLIC, "ntfy_ios_relay")}
+    kept = collect_reconfiguration(
+        build_reconfiguration_questions(current), io=_ScriptedIO(enter, {}).adapter(), current=current
+    )
+    assert kept == current
+    moving = dict(
+        enter,
+        exposure="proxy",
+        web_domain="lia.example.org",
+        api_domain="api.example.org",
+        ntfy_domain="ntfy.example.org",
+    )
+    moved = collect_reconfiguration(
+        build_reconfiguration_questions(current), io=_ScriptedIO(moving, {}).adapter(), current=current
+    )
+    assert (moved.ntfy_server, moved.ntfy_domain, moved.ntfy_ios_relay) == (
+        True,
+        "ntfy.example.org",
+        True,
+    )
 
 
 def test_older_answers_file_keeps_world_disabled(tmp_path: Path) -> None:

@@ -26,9 +26,11 @@ Revised: 2026-04-22 — split into two ``BaseRepository`` subclasses (v1.17.2).
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import Date, cast, delete, func, literal_column, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -36,6 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
 from src.domains.health_metrics.baseline import DailyStat
+from src.domains.health_metrics.fusion import counted_samples
 from src.domains.health_metrics.management_lock import lock_health_writer
 from src.domains.health_metrics.management_read import (
     health_sample_statement,
@@ -45,6 +48,41 @@ from src.domains.health_metrics.models import HealthMetricToken, HealthSample
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class CountedAggregate:
+    """A window's counted values (:func:`~.fusion.counted_samples`), never empty.
+
+    Attributes:
+        rows: Counted rows: the samples of a ``KEEP_ALL`` kind, the fused
+            slices of a ``MAX_RATE`` one (always >= 1).
+        total: Sum of the counted values.
+        minimum: Smallest counted value.
+        maximum: Largest counted value.
+    """
+
+    rows: int
+    total: float
+    minimum: float
+    maximum: float
+
+
+@dataclass(frozen=True, slots=True)
+class WindowSummary:
+    """What one kind holds over a window (:meth:`HealthSampleRepository.fetch_window_summary`).
+
+    Attributes:
+        counted: The counted aggregate, None when nothing counts in the window.
+        samples: Stored samples starting in the window, as received.
+        last_start: Start of the latest stored sample, None without one.
+        last_value: Value of the latest stored sample, None without one.
+    """
+
+    counted: CountedAggregate | None
+    samples: int
+    last_start: datetime | None
+    last_value: int | None
 
 
 # =============================================================================
@@ -186,115 +224,117 @@ class HealthSampleRepository(BaseRepository[HealthSample]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def fetch_samples_asc(
-        self,
-        user_id: UUID,
-        *,
-        from_ts: datetime,
-        to_ts: datetime,
-    ) -> list[HealthSample]:
-        """Return samples in ascending order over a window (for aggregation).
-
-        Args:
-            user_id: Owner user UUID.
-            from_ts: Inclusive lower bound on ``date_start``.
-            to_ts: Exclusive upper bound on ``date_start``.
-
-        Returns:
-            List of HealthSample ordered by ``date_start`` ascending.
-        """
-        stmt = (
-            select(HealthSample)
-            .where(
-                HealthSample.user_id == user_id,
-                HealthSample.date_start >= from_ts,
-                HealthSample.date_start < to_ts,
-            )
-            .order_by(HealthSample.date_start.asc())
-        )
-        result = await self.db.execute(stmt)
-        return list(result.scalars().all())
-
-    async def fetch_samples_kind(
+    async def fetch_window_summary(
         self,
         user_id: UUID,
         *,
         kind: str,
         from_ts: datetime,
         to_ts: datetime,
-    ) -> list[HealthSample]:
-        """Return samples of a single kind in ascending order over a window.
+    ) -> WindowSummary:
+        """What one kind holds over a window, counted through the fusion door.
 
-        Used by assistant-facing services that need to reason about a single
-        kind at a time (baseline deltas, variations, agent summaries).
+        Two statements, both bounded by the window: the counted aggregate
+        (fused for a ``MAX_RATE`` kind, :func:`~.fusion.counted_samples`) and
+        the stored samples' count with the latest one, kept as facts about
+        what was received.
 
         Args:
             user_id: Owner user UUID.
             kind: Kind discriminator (must be a registered kind).
-            from_ts: Inclusive lower bound on ``date_start``.
-            to_ts: Exclusive upper bound on ``date_start``.
+            from_ts: Inclusive lower bound.
+            to_ts: Exclusive upper bound.
 
         Returns:
-            List of HealthSample ordered by ``date_start`` ascending.
+            The window's :class:`WindowSummary`.
         """
-        stmt = (
-            select(HealthSample)
-            .where(
-                HealthSample.user_id == user_id,
-                HealthSample.kind == kind,
-                HealthSample.date_start >= from_ts,
-                HealthSample.date_start < to_ts,
+        counted = counted_samples(user_id, kind, from_ts=from_ts, to_ts=to_ts)
+        rows, total, minimum, maximum = (
+            await self.db.execute(
+                select(
+                    func.count(),
+                    func.sum(counted.c.value),
+                    func.min(counted.c.value),
+                    func.max(counted.c.value),
+                )
             )
-            .order_by(HealthSample.date_start.asc())
+        ).one()
+        latest = (
+            await self.db.execute(
+                select(
+                    func.count().over(),
+                    HealthSample.date_start,
+                    HealthSample.value,
+                )
+                .where(
+                    HealthSample.user_id == user_id,
+                    HealthSample.kind == kind,
+                    HealthSample.date_start >= from_ts,
+                    HealthSample.date_start < to_ts,
+                )
+                .order_by(HealthSample.date_start.desc(), HealthSample.id.desc())
+                .limit(1)
+            )
+        ).first()
+        return WindowSummary(
+            counted=(
+                CountedAggregate(
+                    rows=int(rows),
+                    total=float(total),
+                    minimum=float(minimum),
+                    maximum=float(maximum),
+                )
+                if rows
+                else None
+            ),
+            samples=int(latest[0]) if latest is not None else 0,
+            last_start=latest[1] if latest is not None else None,
+            last_value=int(latest[2]) if latest is not None else None,
         )
-        result = await self.db.execute(stmt)
-        return list(result.scalars().all())
 
     async def fetch_daily_stats(
         self,
         user_id: UUID,
         *,
         kind: str,
+        zone: ZoneInfo,
         from_ts: datetime,
         to_ts: datetime,
     ) -> list[DailyStat]:
-        """Return per-UTC-day aggregate primitives over a window, day ascending.
+        """Return per-LOCAL-day aggregate primitives over a window, day ascending.
 
         Server-side rollup: one row per day instead of one row per sample.
         The baseline / variations / heartbeat paths only ever consume per-day
         aggregates, and shipping every raw sample to Python was a synchronous
         decode burst that froze the event loop for hundreds of milliseconds
         (~12 000 rows for a 36-day heart-rate window). PostgreSQL aggregates
-        the same window in ~20 ms and returns ~36 rows.
+        the same window in milliseconds and returns ~36 rows.
 
-        Day bucketing uses an explicit ``timezone('UTC', ...)`` so the result
-        never depends on the session ``TimeZone`` — it matches
-        ``date_start.astimezone(UTC).date()``, the in-Python grouping rule.
+        Days are the person's: cut at their midnight through an explicit
+        ``timezone(<zone>, ...)``, so the result never depends on the session
+        ``TimeZone`` (ADR-148 amendment 2026-11-14 — a UTC day ran from 01:00
+        to 01:00 in Paris in winter). Values are counted through the fusion
+        door, so two devices measuring one walk count it once.
 
         Args:
             user_id: Owner user UUID.
             kind: Kind discriminator (must be a registered kind).
-            from_ts: Inclusive lower bound on ``date_start``.
-            to_ts: Exclusive upper bound on ``date_start``.
+            zone: The person's zone, where days are cut.
+            from_ts: Inclusive lower bound (a row belongs to the window of its start).
+            to_ts: Exclusive upper bound.
 
         Returns:
-            One :class:`DailyStat` per UTC day holding at least one sample,
-            ordered by day ascending — the exact counterpart of
-            :func:`~src.domains.health_metrics.baseline.daily_stats_from_samples`.
+            One :class:`DailyStat` per local day holding at least one counted
+            row, ordered by day ascending.
         """
-        day = cast(func.timezone("UTC", HealthSample.date_start), Date).label("day")
+        counted = counted_samples(user_id, kind, from_ts=from_ts, to_ts=to_ts)
+        day = cast(func.timezone(zone.key, counted.c.date_start), Date).label("day")
         stmt = (
             select(
                 day,
-                func.sum(HealthSample.value),
+                func.round(func.sum(counted.c.value)),
                 func.count(),
-                func.min(HealthSample.value),
-            )
-            .where(
-                HealthSample.user_id == user_id,
-                HealthSample.kind == kind,
-                HealthSample.date_start >= from_ts,
-                HealthSample.date_start < to_ts,
+                func.round(func.min(counted.c.value)),
             )
             .group_by(day)
             .order_by(day)

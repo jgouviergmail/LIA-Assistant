@@ -36,6 +36,7 @@ from src.domains.briefing.schemas import (
 )
 from src.domains.connectors.active_client import ActiveClient
 from src.domains.connectors.clients.mail_conversation import Conversation
+from src.domains.connectors.clients.mail_moves import UnreadCounts
 from src.domains.connectors.models import ConnectorType
 from src.domains.radio.personal import PersonalSource, briefing_drafts
 
@@ -78,6 +79,9 @@ def _mailbox(found: list[dict[str, Any]], conversations: dict[str, Conversation]
 
     mailbox.search_emails = AsyncMock(side_effect=_search)
     mailbox.conversations_of = AsyncMock(return_value=conversations)
+    mailbox.unread_counts = AsyncMock(
+        return_value=UnreadCounts(roles={"inbox": len(found)}, folders={}, complete=False)
+    )
     return mailbox
 
 
@@ -224,6 +228,21 @@ class TestWhatTheGreetingAndTheSynthesisAreTold:
 
         assert told["mails"]["items"][0]["reply_state"].startswith("answered on ")
 
+    @pytest.mark.parametrize("verbose", [False, True], ids=["greeting", "synthesis"])
+    def test_the_inbox_figure_is_told_as_the_inbox_s_never_as_today_s(self, verbose: bool) -> None:
+        told = json.loads(_summarize_cards_for_llm(_cards(_mail("Quote")), verbose=verbose))
+
+        assert told["mails"]["unread_in_inbox"] == 1
+        assert "unread_today" not in told["mails"]
+
+    def test_an_inbox_that_could_not_tell_its_figure_is_given_none(self) -> None:
+        cards = _cards(_mail("Quote"))
+        cards.mails.data = MailsData(items=list(cards.mails.data.items), total_unread_today=None)
+
+        told = json.loads(_summarize_cards_for_llm(cards, verbose=True))
+
+        assert "unread_in_inbox" not in told["mails"]
+
     @pytest.mark.parametrize("prompt", ["briefing_greeting_prompt", "briefing_synthesis_prompt"])
     def test_a_prompt_reading_the_mail_items_explains_the_field(self, prompt: str) -> None:
         """A field nobody explains is read as the model pleases."""
@@ -238,4 +257,4 @@ def test_the_radio_does_not_announce_mail_the_person_already_answered() -> None:
 
     assert any('"Waiting"' in line for line in said)
     assert not any('"Answered"' in line for line in said)
-    assert "Unread e-mails received today: 2" in said
+    assert "Unread e-mails in the inbox: 2" in said

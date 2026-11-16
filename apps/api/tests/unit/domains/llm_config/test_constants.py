@@ -39,8 +39,9 @@ class TestLLMDefaults:
     def test_default_count(self) -> None:
         """A newly exposed configuration slot must be an intentional addition."""
         assert (
-            len(LLM_DEFAULTS) == 71
-        )  # Includes discussion stages and the private World translator; ADR-374 retired 9.
+            len(LLM_DEFAULTS) == 72
+        )  # Includes discussion stages and the private World translator; ADR-374 retired 9;
+        # ADR-390 added the automatic execution engine's decision slot.
 
     @pytest.mark.parametrize(
         "llm_type,expected_provider,expected_model",

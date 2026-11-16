@@ -91,6 +91,7 @@ def _active_call() -> SimpleNamespace:
         objective="ask availability",
         callee_display="Marie",
         call_kind=CallKind.THIRD_PARTY,
+        origin=None,
         created_at=datetime.now(UTC),
     )
 

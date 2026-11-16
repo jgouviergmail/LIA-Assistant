@@ -25,7 +25,11 @@ from src.core.field_names import FIELD_TASK_LIST_ID
 from src.core.read_budget import ReadCallLimit
 from src.core.task_due import in_due_order
 from src.domains.connectors.active_client import ActiveClient
-from src.domains.connectors.clients.task_lists import TaskListing, read_every_task_list
+from src.domains.connectors.clients.task_lists import (
+    TaskListing,
+    list_every_task_list,
+    read_every_task_list,
+)
 from src.domains.connectors.discussion_authority import require_reader_authorities
 from src.domains.connectors.discussion_projections import provider_identifier, task_evidence
 from src.domains.connectors.preferences.owner_defaults import TASK_LIST
@@ -109,8 +113,8 @@ async def _listed(request: SourceReadRequest, opened: ActiveClient) -> SourceSna
 
 async def _referenced(request: SourceReadRequest, opened: ActiveClient) -> SourceSnapshot:
     """The one task a reference names, read in the list it was minted under."""
-    listed = await opened.client.list_task_lists(TASK_LIST_NAMES_SCAN_MAX)
-    containers = [str(entry["id"]) for entry in listed.get("items") or [] if entry.get("id")]
+    listed = await list_every_task_list(opened.client, bound=TASK_LIST_NAMES_SCAN_MAX)
+    containers = [str(entry["id"]) for entry in listed.lists]
     # The provider's alias too: a reference minted while one list was read, with no default
     # list configured, was fenced under that name.
     accounts = await _authorities(request, opened, (*containers, TASK_LIST.fallback))

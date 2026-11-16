@@ -30,6 +30,22 @@ export const HEALTH_SCALES: Readonly<Record<HealthKind, HealthScale>> = {
   heart_rate: { from: 50, to: 110, bounds: [70, 90], tones: ['green', 'orange', 'red'] },
 };
 
+/**
+ * The pulses a human heart beats at (owner, 2026-11-14): a figure outside them is a sensor's error,
+ * shown as it was read but never given a rhythm nobody's heart keeps.
+ */
+const HEART_BEAT_BPM: Readonly<{ min: number; max: number }> = { min: 30, max: 220 };
+
+/**
+ * @returns The seconds between two beats of the figure a card shows, or null: only a heart rate a
+ *   heart can keep beats, once every sixty seconds divided by the figure.
+ */
+export function heartBeatPeriod(kind: HealthKind, value: number | null): number | null {
+  if (kind !== 'heart_rate' || value === null || !Number.isFinite(value)) return null;
+  if (value < HEART_BEAT_BPM.min || value > HEART_BEAT_BPM.max) return null;
+  return 60 / value;
+}
+
 /** How much of the dial a band gives up at an inner edge: its round end and a gap. */
 const BAND_GAP = 0.025;
 

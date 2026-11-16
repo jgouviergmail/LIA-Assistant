@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -31,6 +32,7 @@ from src.domains.channels.abstractions import (
     ChannelInboundMessage,
     ChannelOutboundMessage,
 )
+from src.domains.channels.albums import gather_album
 from src.domains.channels.preferences import resolve_channel_preferences
 from src.infrastructure.locks.redis_claim import ClaimLost, held_claim, try_claim
 from src.infrastructure.observability.logging import get_logger
@@ -183,12 +185,21 @@ async def read_binding_and_person(
         return binding, person
 
 
+def _message_type(message: ChannelInboundMessage) -> str:
+    """What a received message is, for the inbound counter."""
+    if message.voice_file_id:
+        return "voice"
+    if message.files:
+        return "file"
+    return "location" if message.location else "text"
+
+
 def refusal_for(binding: UserChannelBinding, person: User) -> str | None:
     """Why a known person's account refuses their message, or None.
 
     The value is both the bot message key and the rejection counter's reason. A
     deactivated account comes first: switching the channel back on would not
-    help it. The rate limit is read after it (:func:`_over_rate_limit`).
+    help it. The rate limit is read after it (:func:`over_rate_limit`).
 
     Args:
         binding: The person's binding on this channel.
@@ -269,7 +280,12 @@ MESSAGE_CLAIM_EVENTS = ClaimEvents(
 
 
 async def claim_turn_or_answer(
-    redis: aioredis.Redis, sender: BaseChannelSender, where: Recipient, events: ClaimEvents
+    redis: aioredis.Redis,
+    sender: BaseChannelSender,
+    where: Recipient,
+    events: ClaimEvents,
+    *,
+    when_locked: Callable[[], Awaitable[None]] | None = None,
 ) -> str | None:
     """Take the person's turn claim, or answer why the turn will not run.
 
@@ -283,11 +299,14 @@ async def claim_turn_or_answer(
         sender: The channel's sender.
         where: The person and the conversation to answer in.
         events: The door's log events.
+        when_locked: What the door does instead of « busy » while another turn
+            holds the claim — a message waits its turn (lot 34); a button press,
+            an answer, cannot.
 
     Returns:
         The owner token, or None when the turn was answered instead —
-        ``busy`` while another turn holds the claim, ``error`` when the cache
-        could not be asked.
+        ``busy`` (or ``when_locked``) while another turn holds the claim,
+        ``error`` when the cache could not be asked.
     """
     from src.infrastructure.channels.telegram.formatter import get_bot_message
 
@@ -301,6 +320,9 @@ async def claim_turn_or_answer(
         if token is not None:
             return token
         logger.info(events.locked, **log_fields)
+        if when_locked is not None:
+            await when_locked()
+            return None
         reason, answer = "locked", "busy"
     channel_messages_rejected_total.labels(channel_type=where.channel_type, reason=reason).inc()
     text = get_bot_message(answer, where.language)
@@ -357,7 +379,7 @@ async def _first_notice_in_window(redis: aioredis.Redis, where: Recipient) -> bo
         return True
 
 
-async def _over_rate_limit(channel_type: str, user_id: UUID) -> str | None:
+async def over_rate_limit(channel_type: str, user_id: UUID) -> str | None:
     """``rate_limited`` when the person is over their per-minute rate, else None.
 
     The shared limiter (cache Redis): every rate limiter lives in the cache
@@ -428,13 +450,18 @@ class ChannelMessageRouter:
 
         channel_user_id = message.channel_user_id
         channel_type = message.channel_type.value
-        message_type = "voice" if message.voice_file_id else "text"
 
         # Track inbound message
         channel_messages_received_total.labels(
             channel_type=channel_type,
-            message_type=message_type,
+            message_type=_message_type(message),
         ).inc()
+
+        # An album is ONE message: its parts hand their files to the first (lot 11).
+        gathered = await gather_album(self.redis, message)
+        if gathered is None:
+            return
+        message = gathered
         start_time = time.monotonic()
 
         # === 1. Lookup binding, and the person it names ===
@@ -486,14 +513,19 @@ class ChannelMessageRouter:
         where = Recipient(channel_type, channel_user_id, user_id, prefs.language)
 
         # === 2. Refusals: the account's state, then the rate limit ===
-        refusal = refusal_for(binding, user) or await _over_rate_limit(channel_type, user_id)
+        refusal = refusal_for(binding, user) or await over_rate_limit(channel_type, user_id)
         if refusal is not None:
             await self._refuse(where, refusal)
             return
 
         # === 3. Per-user claim (non-blocking), owned by this message ===
+        # Behind another turn of the person's, the words wait theirs (lot 34).
         lock_token = await claim_turn_or_answer(
-            self.redis, self.sender, where, MESSAGE_CLAIM_EVENTS
+            self.redis,
+            self.sender,
+            where,
+            MESSAGE_CLAIM_EVENTS,
+            when_locked=lambda: self._keep_waiting(message, where),
         )
         if lock_token is None:
             return
@@ -525,6 +557,8 @@ class ChannelMessageRouter:
                         user_memory_enabled=prefs.memory_enabled,
                         user_journals_enabled=prefs.journals_enabled,
                         user_psyche_enabled=prefs.psyche_enabled,
+                        user_voice_enabled=prefs.voice_enabled,
+                        user_execution_mode=prefs.execution_mode,
                         conversation_id=conversation_id,
                         pending_hitl=pending_hitl,
                         user_display_name=prefs.display_name,
@@ -544,6 +578,20 @@ class ChannelMessageRouter:
             raise
         except Exception as exc:
             await self._answer_failure(where, exc)
+
+    async def _keep_waiting(self, message: ChannelInboundMessage, where: Recipient) -> None:
+        """Keep a message written behind another turn of the person's (lot 34, ADR-384).
+
+        Args:
+            message: The message the claim refused.
+            where: The person and the conversation to answer in.
+        """
+        from src.domains.channels.inbound_handler import InboundMessageHandler
+
+        with language_scope(where.language):
+            await InboundMessageHandler(sender=self.sender).keep_waiting(
+                message, user_id=where.user_id, user_language=where.language
+            )
 
     async def _refuse(self, where: Recipient, reason: str) -> None:
         """Log a known person's refusal, then count and answer it (:func:`answer_refusal`).

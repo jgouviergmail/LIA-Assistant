@@ -102,7 +102,10 @@ if TYPE_CHECKING:
     from langchain_core.runnables import RunnableConfig
 
     from src.domains.agents.services.analysis.goal_inferrer import GoalInferrer
-    from src.domains.agents.services.analysis.memory_resolver import MemoryResolver
+    from src.domains.agents.services.analysis.memory_resolver import (
+        MemoryResolver,
+        PendingMemoryResolution,
+    )
     from src.domains.agents.services.analysis.routing_decider import RoutingDecider
     from src.domains.agents.services.context_resolution_service import (
         ContextResolutionService,
@@ -804,6 +807,7 @@ class QueryAnalyzerService:
 
         reasoning_trace: list[str] = []
         intelligent_mechanisms: dict[str, Any] = {}
+        pending_memory: PendingMemoryResolution | None = None
 
         run_id = run_id_of(config, "unknown")
         user_language = resolve_language(state.get("user_language"))
@@ -820,52 +824,17 @@ class QueryAnalyzerService:
             # poor cosine similarity with Gemini gemini-embedding-001.
             # The English query is still used for domain detection downstream.
             memory_search_query = original_query if original_query else query
+            # Latency lot 1 (2026-11-14): the analyzer reads the broad facts
+            # alone; the reference chain runs beside its call, joined below.
+            pending_memory = self.memory_resolver.begin(memory_search_query, user_id, config)
             if english_query_task is not None:
-                # Latency lot R1 (2026-07): overlap the semantic-pivot LLM call
-                # with the memory-resolution phase. Rebinding `query` to the
-                # awaited translation reproduces exactly the historical caller
-                # behaviour (router awaited the pivot, then passed it as
-                # `query`) for every step below.
-                memory_resolution, query = await asyncio.gather(
-                    self.memory_resolver.retrieve_and_resolve(
-                        query=memory_search_query,
-                        user_id=user_id,
-                        config=config,
-                    ),
-                    english_query_task,
+                # Latency lot R1 (2026-07): the semantic pivot overlaps the
+                # memory phase; `query` becomes its output for every step below.
+                memory_facts, query = await asyncio.gather(
+                    pending_memory.facts(), english_query_task
                 )
             else:
-                memory_resolution = await self.memory_resolver.retrieve_and_resolve(
-                    query=memory_search_query,
-                    user_id=user_id,
-                    config=config,
-                )
-            memory_facts = memory_resolution.facts
-            memory_resolved = memory_resolution.resolved
-            memory_extracted_references = memory_resolution.references
-
-            # Extract resolved references and enriched query
-            memory_resolved_refs: dict[str, str] = {}
-            memory_resolved_kinds: dict[str, str] = {}
-            memory_enriched_query: str | None = None
-
-            if memory_resolved and memory_resolved.mappings:
-                memory_resolved_refs = memory_resolved.mappings
-                memory_resolved_kinds = memory_resolved.value_kinds
-                memory_enriched_query = memory_resolved.enriched_query
-                # No PII at INFO: mappings are resolved person names (DEBUG only).
-                logger.info(
-                    "memory_reference_resolution_applied",
-                    mappings_count=len(memory_resolved_refs),
-                )
-                logger.debug(
-                    "memory_reference_resolution_mappings",
-                    mappings=memory_resolved_refs,
-                    enriched_query_preview=(
-                        memory_enriched_query[:50] if memory_enriched_query else None
-                    ),
-                    query_preview=query[:50],
-                )
+                memory_facts = await pending_memory.facts()
 
             # Get conversation history and user location from state
             conversation_history = self._extract_conversation_history(messages)
@@ -895,6 +864,26 @@ class QueryAnalyzerService:
                 connected_peers=connected_peers,
                 shown_items=render_shown_items(state),
             )
+            # The reference chain ran beside the analyzer call; what follows reads it.
+            memory_resolution = await pending_memory.resolution()
+            memory_resolved = memory_resolution.resolved
+            memory_extracted_references = memory_resolution.references
+            memory_resolved_refs: dict[str, str] = {}
+            memory_resolved_kinds: dict[str, str] = {}
+            if memory_resolved and memory_resolved.mappings:
+                memory_resolved_refs = memory_resolved.mappings
+                memory_resolved_kinds = memory_resolved.value_kinds
+                # No PII at INFO: mappings are resolved person names (DEBUG only).
+                logger.info(
+                    "memory_reference_resolution_applied",
+                    mappings_count=len(memory_resolved_refs),
+                )
+                logger.debug(
+                    "memory_reference_resolution_mappings",
+                    mappings=memory_resolved_refs,
+                    enriched_query_preview=memory_resolved.enriched_query[:50],
+                    query_preview=query[:50],
+                )
 
             # Latency lot R3 (semantic_pivot_enabled=False): no pivot ran — the
             # analyzer received the original query and produced its own English
@@ -1365,6 +1354,10 @@ class QueryAnalyzerService:
                 run_id=run_id,
             )
             return self._create_fallback_intelligence(fallback_query, user_language, error=e)
+        finally:
+            # Every exit, cancellation included: no reference chain outlives the analysis.
+            if pending_memory is not None:
+                await pending_memory.close()
 
     # =========================================================================
     # PRIVATE METHODS (migrated from QueryIntelligenceService)

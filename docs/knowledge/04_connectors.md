@@ -321,12 +321,14 @@ background refreshes do not remove that provider policy; publishing the OAuth
 application is required for durable authorization.
 
 ## Can I configure preferences per connector?
-Yes! Some connectors have **customizable preferences**. A mailbox keeps your **signature**, set in Tools › Mail › Mailbox settings, on Gmail, Outlook and iCloud Mail alike:
+
+Yes! Some connectors have **customizable preferences**:
 
 **📅 Google Calendar:**
 • **Default calendar**: where to create new events
 • Example: "Work", "Personal", "Family"
 • LIA will use this calendar unless specified otherwise
+• To know when you are busy (free slots, your day, the meetings with a person), LIA reads every calendar you own, not this one alone
 
 **✅ Google Tasks:**
 • **Default task list**: where to create new tasks
@@ -335,20 +337,14 @@ Yes! Some connectors have **customizable preferences**. A mailbox keeps your **s
 **📍 Location:**
 • **Home address**: your default address for "near me" searches
 • **Automatic geolocation**: send your position for accurate results
-• **Location memory** (opt-in): remember your last position so LIA keeps answering from where you are when the live position is unavailable (a mobile app left dormant does this)
+• **Location memory** (opt-in): remember your last position so LIA keeps answering from where you are when the live position is unavailable — always announced with its age, never presented as current, encrypted and erased the moment you switch it off
 • Configure all three in **Settings > Preferences > Location** — this data lives on your account, not on a connector
 
 **🌐 Browser Geolocation:**
 • In the Location section (Settings > Preferences), enable the geolocation toggle
 • Your browser will ask for permission the first time
 • Position used for local weather and "near me" searches
-• On mobile, the position refreshes silently when you return to the app; if the system dropped the permission (iOS does this after inactivity), a banner in the chat offers to re-enable it
-
-**🧭 Location memory (last known position):**
-• One cascade for every feature: live browser position, else your last remembered position (if enabled, fresh under 24 hours), else your home address
-• Chat, scheduled actions, the daily briefing and skills all follow the same rule
-• A remembered position is always announced with its age ("based on your last known position at 9:30") — never presented as your current one, and "at home" is never resolved from a position captured on the road
-• Encrypted, never historized (each update overwrites the previous one), erased the moment you switch the option off — the stored position, its date and a delete button are visible in the Location section
+• On mobile, the position refreshes silently when you return to the app; if the system dropped the permission, a chat banner offers to re-enable it
 
 **To configure:**
 1. Go to **Settings** (⚙️ icon in the menu)

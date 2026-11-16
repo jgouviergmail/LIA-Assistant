@@ -39,7 +39,8 @@ Three complementary mechanisms, one per failure link:
    first: (E1) memory-resolver mappings — person references by construction;
    (E2) Phase 1 extracted relational references, preserved even when
    resolution finds no memory fact (`MemoryResolution.references`, new typed
-   result of `retrieve_and_resolve`); (E3) the analyzer LLM's person-typed
+   result of the memory resolver, joined after the analyzer call since latency
+   lot 1 of 2026-11-14); (E3) the analyzer LLM's person-typed
    refs (historical signal). Evidence sources are logged and surfaced in the
    debug panel (`person_evidence_sources`). Known limit: E1/E2 cover
    *relational* references only ("mon frère") — direct names ("chez Alexandre

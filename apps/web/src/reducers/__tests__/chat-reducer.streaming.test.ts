@@ -275,6 +275,29 @@ describe('chatReducer — STREAM_DONE', () => {
     expect(next.messages[0].metadata).not.toHaveProperty('habit_proposal');
   });
 
+  it('carries the engine an automatic turn ran on onto the live bubble (ADR-390)', () => {
+    const state = streamingState('a-1', 'answer', [makeMessage('a-1', 'assistant', 'answer')]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: { messageId: 'a-1', metadata: { ...fullMetadata, execution_engine: 'react' } },
+    });
+
+    // The archived row's own key: the badge reads a live and a reloaded answer alike.
+    expect(next.messages[0].metadata?.execution_engine).toBe('react');
+  });
+
+  it('writes no engine for a turn whose mode the person chose', () => {
+    const state = streamingState('a-1', 'answer', [makeMessage('a-1', 'assistant', 'answer')]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: { messageId: 'a-1', metadata: fullMetadata },
+    });
+
+    expect(next.messages[0].metadata).not.toHaveProperty('execution_engine');
+  });
+
   it('carries the follow-up chips onto the live bubble (UXR Lot 4, A2)', () => {
     const state = streamingState('a-1', 'answer', [makeMessage('a-1', 'assistant', 'answer')]);
 

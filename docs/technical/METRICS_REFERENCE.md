@@ -657,6 +657,25 @@ sum(rate(router_data_presumption_total[1h]))
     summary: "Router violating RULE #5 (data presumption)"
 ```
 
+### execution_mode_resolutions_total
+
+**Type**: Counter
+**Description**: How each turn sent to planning came to its engine (ADR-390) — the mode asked for, the engine that ran and the bounded reason
+**Labels**: `requested` (`pipeline` | `react` | `auto`), `engine` (`pipeline` | `react`), `reason` (`EngineReason`: `requested`, `loop_disabled`, `act`, `item_wise`, `skill`, `reference`, `calculation`, `computed`, `cross_check`, `open_ended`, `named_in_text`, `no_decision`, `direct`)
+
+Incremented once per turn by the router when it settles the engine (`_settle_turn_engine`); a resumed turn keeps the engine it started in and is not counted again. Read by the collapsed « Automatic execution mode (ADR-390) » row of the agents dashboard (`07-agents-pipeline.json`).
+
+**Query PromQL:**
+
+```promql
+# Share of automatic turns planned in the pipeline
+sum(rate(execution_mode_resolutions_total{requested="auto",engine="pipeline"}[1h]))
+  / sum(rate(execution_mode_resolutions_total{requested="auto"}[1h]))
+
+# Automatic turns sent to the loop for want of a decision
+sum(rate(execution_mode_resolutions_total{requested="auto",reason="no_decision"}[1h]))
+```
+
 ---
 
 ## LLM Token & Cost

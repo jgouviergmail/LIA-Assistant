@@ -138,6 +138,13 @@ class MeetingStartRequest(BaseModel):
         pattern=TEMPLATE_REF_PATTERN,
         description="Minutes template chosen for THIS meeting; null = preference, then automatic.",
     )
+    conversation_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "The chat discussion on screen when the meeting began: its « minutes ready » "
+            "comes back there while that discussion lives, else to Main."
+        ),
+    )
 
     @field_validator("timezone")
     @classmethod
@@ -177,6 +184,13 @@ class MeetingImportRequest(TimezoneValidatorMixin, BaseModel):
         max_length=MEETINGS_TEMPLATE_REF_MAX,
         pattern=TEMPLATE_REF_PATTERN,
         description="Minutes template chosen for THIS meeting; null = preference, then automatic.",
+    )
+    conversation_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "The chat discussion on screen when the meeting began: its « minutes ready » "
+            "comes back there while that discussion lives, else to Main."
+        ),
     )
 
     @field_validator("audio_format")

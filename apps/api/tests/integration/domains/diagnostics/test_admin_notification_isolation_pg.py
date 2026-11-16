@@ -18,6 +18,7 @@ import pytest_asyncio
 from sqlalchemy import delete, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
+from src.core.conversation_target import ConversationOrigin
 from src.domains.diagnostics import notifications as notif_module
 from src.domains.diagnostics.models import INCIDENT_SOURCE_SELF_CHECK, Incident
 from src.domains.diagnostics.repository import DiagnosticsRepository
@@ -65,10 +66,13 @@ class _ArchiveFailsInSQLFor(ScriptedDispatcher):
         metadata: Mapping[str, object],
         db: AsyncSession,
         conversation_id: UUID | None = None,
+        origin: ConversationOrigin | None = None,
     ) -> dict[str, object]:
         if user.id == self.failing:
             await db.execute(text("SELECT 1 / 0"))
-        return await super()._archive_message(user, content, metadata, db, conversation_id)
+        return await super()._archive_message(
+            user, content, metadata, db, conversation_id, origin=origin
+        )
 
 
 async def test_an_admin_whose_archive_failed_in_sql_starves_nobody(

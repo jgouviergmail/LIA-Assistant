@@ -151,3 +151,18 @@ from your server's address, unfiltered, and serves every account that has no
 Brave key of its own — in the chat, the enrichment of answers, the interests
 and the Tools. It is never exposed to the Internet; allow about 150 MB of
 memory.
+
+## How do I offer LIA's notifications without Google, with ntfy?
+Run LIA's own ntfy server: the guided installer asks for it (**ntfy_server**,
+**no** by default) and starts the **ntfy** service that ships with LIA. Each
+person then subscribes in **Settings › Push Notifications › ntfy notifications**
+and receives LIA's notifications in the free ntfy app, on Android or iPhone, with
+no Google account. Without it, a person can still subscribe through a public
+server such as ntfy.sh. Behind your proxy or Caddy, the server needs a domain of
+its own (ntfy.example.org, for example); on a local network, phones reach it on
+port 2586. Only LIA publishes on it, with a token the installer generates; a
+topic's random name is what lets a phone read it. iPhones receive notifications
+at once only if you let your server wake them through ntfy.sh (the
+**ntfy_ios_relay** question), which then receives each message's id and a
+fingerprint of its topic's address, never its text; without it, an iPhone may
+receive them hours late. Allow under 20 MB of memory.

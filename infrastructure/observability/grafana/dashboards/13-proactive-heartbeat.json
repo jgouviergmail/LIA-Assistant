@@ -2126,6 +2126,65 @@
         }
       },
       "description": "What each call to a routine's address became, and how many accepted calls a run read and answered. 'unknown' is an address with no routine (a scanner, an old address); 'bad_signature' a sender with a wrong secret or a body changed on the way; 'full' a routine whose runs do not keep up. Accepted against served, over a day, is what still waits."
+    },
+    {
+      "id": 72,
+      "title": "Reminders — postponed from their notification (ADR-268)",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 131
+      },
+      "panels": []
+    },
+    {
+      "id": 73,
+      "title": "Presses on a fired reminder (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 132
+      },
+      "targets": [
+        {
+          "expr": "sum by (surface, action, outcome) (increase(reminder_firing_actions_total[24h])) or vector(0)",
+          "legendFormat": "{{surface}} · {{action}} · {{outcome}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(increase(reminder_firings_unrecorded_total[24h])) or vector(0)",
+          "legendFormat": "rang with nothing to press (occurrence not recorded)",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "What the « later » and « stop » of a reminder that rang did, by surface (chat bubble or toast, web push action, Telegram button). 'collides' is a delay the series already covers (the person picks a shorter one); 'expired' a press after the window. Push presses near zero while chat presses are not says the browsers do not draw the actions. Any 'not recorded' means reminders rang without their buttons: the occurrence's write failed."
     }
   ]
 }

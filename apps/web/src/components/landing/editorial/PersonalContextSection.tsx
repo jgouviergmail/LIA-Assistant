@@ -32,10 +32,10 @@ export async function PersonalContextSection({ lng }: { lng: string }) {
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div>
-          <h2 id="personal-context-title" className="text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 id="personal-context-title" className="text-3xl font-bold tracking-tight mobile:text-4xl">
             {t('landing.context.title')}
           </h2>
-          <p className="mt-4 max-w-[68ch] leading-7 text-muted-foreground">
+          <p className="mt-4 leading-7 text-muted-foreground">
             {t('landing.context.sub')}
           </p>
         </div>
@@ -61,7 +61,7 @@ export async function PersonalContextSection({ lng }: { lng: string }) {
             <Brain className="size-6 shrink-0 text-primary" aria-hidden="true" />
             {t('landing.context.center_title')}
           </h3>
-          <p className="mt-3 max-w-[75ch] text-sm leading-6 text-muted-foreground">
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
             {t('landing.context.center_body')}
           </p>
           <div
@@ -82,7 +82,7 @@ export async function PersonalContextSection({ lng }: { lng: string }) {
             </div>
           ))}
         </dl>
-        <p className="mt-7 max-w-[90ch] text-xs leading-5 text-muted-foreground">
+        <p className="mt-7 text-xs leading-5 text-muted-foreground">
           {t('landing.context.control')}
         </p>
       </div>

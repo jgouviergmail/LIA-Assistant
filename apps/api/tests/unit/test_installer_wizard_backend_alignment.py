@@ -216,3 +216,55 @@ def test_emitted_installer_defaults_load_the_composed_settings(
     for name, field in AvatarSettings.model_fields.items():
         if name != "avatar_enabled":
             assert getattr(settings, name) == field.default, name
+
+
+@pytest.mark.parametrize("exposure_name", ("lan", "proxy", "caddy"))
+def test_the_installers_ntfy_server_is_the_one_the_api_publishes_to(exposure_name: str) -> None:
+    """ADR-391: what the wizard writes for its ntfy server is what NtfySettings reads.
+
+    The settings filter below would silently drop a key named differently from its
+    field, so the three keys the API reads are asserted present first.
+    """
+    _wizard_modules()
+    from scripts.install.envgen import derive_environment, generate_secrets
+    from scripts.install.model import Exposure, InstallMode, PublicAnswers
+
+    from src.core.config import Settings
+
+    exposure = Exposure(exposure_name)
+    on_lan = exposure is Exposure.LAN
+    public = PublicAnswers(
+        language="en",
+        mode=InstallMode.LOCAL,
+        exposure=exposure,
+        admin_email="admin@ops.tld",
+        admin_name="Admin",
+        default_language="en",
+        observability=False,
+        skill_sandbox=False,
+        server_host="192.168.1.50" if on_lan else None,
+        web_domain=None if on_lan else "lia.example.org",
+        api_domain=None if on_lan else "api.example.org",
+        caddy_email="acme@example.org" if exposure is Exposure.CADDY else None,
+        manifest_path=None,
+        ntfy_server=True,
+        ntfy_domain=None if on_lan else "ntfy.example.org",
+    )
+    environment = derive_environment(public, generate_secrets())
+    values = {
+        key.lower(): value
+        for key, value in environment.items()
+        if key.lower() in Settings.model_fields
+    }
+    assert {"ntfy_server_url", "ntfy_public_url", "ntfy_publish_token"} <= set(values)
+    settings = Settings(
+        _env_file=None,
+        database_url="postgresql+asyncpg://lia:test@localhost:5432/lia",
+        redis_url="redis://localhost:6379/0",
+        **values,
+    )
+    assert settings.ntfy_server_url == "http://ntfy:80"
+    assert settings.ntfy_instance_public_url == (
+        "http://192.168.1.50:2586" if on_lan else "https://ntfy.example.org"
+    )
+    assert settings.ntfy_publish_token == environment["NTFY_PUBLISH_TOKEN"]

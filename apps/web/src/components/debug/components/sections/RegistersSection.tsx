@@ -24,7 +24,7 @@ import { BookMarked } from '@/lib/icons';
 import { DebugChip, DebugSection, MetricRow, SubSectionHeader } from '../shared';
 import { TONE_TEXT } from '../../utils/tones';
 import { cn } from '@/lib/utils';
-import type { RegistersMetrics } from '@/types/chat';
+import type { RegistersMetrics, TurnDecisionMetrics } from '@/types/chat';
 
 export interface RegistersSectionProps {
   data: RegistersMetrics | undefined;
@@ -85,6 +85,7 @@ export const RegistersSection = React.memo(function RegistersSection({
           <SubSectionHeader label="The turn" />
           <MetricRow label="Authority" value={decision.source} />
           <MetricRow label="Mode" value={decision.execution_mode} />
+          <EngineResolution decision={decision} />
           {decision.route && <MetricRow label="Route" value={decision.route} />}
           {decision.plan_step_count != null && (
             <MetricRow label="Plan steps" value={decision.plan_step_count} />
@@ -143,6 +144,31 @@ export const RegistersSection = React.memo(function RegistersSection({
     </DebugSection>
   );
 });
+
+/**
+ * How the turn came to its engine (ADR-390).
+ *
+ * Said only when it tells something « Mode » does not: an automatic turn (the
+ * router chose, and the reason is the analysis signal or the judged shape), or
+ * a chosen mode the instance could not run as chosen. A mode that ran as the
+ * person chose it adds nothing, and a payload from before the automatic mode
+ * carries neither field.
+ *
+ * @param props.decision - The turn's live decision record.
+ * @returns The rows, or null when there is nothing to add.
+ */
+function EngineResolution({ decision }: { decision: TurnDecisionMetrics }) {
+  const { requested_mode: requested, resolution_reason: reason } = decision;
+  const ranAsChosen =
+    requested === decision.execution_mode && (!reason || reason === 'requested');
+  if (!requested || ranAsChosen) return null;
+  return (
+    <>
+      <MetricRow label="Requested" value={requested} />
+      {reason && <MetricRow label="Engine because" value={reason} mono />}
+    </>
+  );
+}
 
 /**
  * What the turn quietly corrected about itself (B8).

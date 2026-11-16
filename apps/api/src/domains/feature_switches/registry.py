@@ -92,6 +92,8 @@ class PlatformCapability(str, Enum):
     PEERS = "peers"
     PSYCHE = "psyche"
     CHANNELS = "channels"
+    #: ntfy (ADR-391): notifications through a server the person subscribes to.
+    NTFY = "ntfy"
     OPEN_LOOPS = "open_loops"
     MEMORY = "memory"
     INTERESTS = "interests"
@@ -416,6 +418,15 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         env_flag="channels_enabled",
         setting_key=SystemSettingKey.CAPABILITY_CHANNELS_ENABLED,
         route_enforced=True,
+    ),
+    PlatformCapability.NTFY: CapabilitySpec(
+        capability=PlatformCapability.NTFY,
+        family="reach",
+        env_flag="ntfy_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_NTFY_ENABLED,
+        route_enforced=True,
+        # Every road a push takes publishes through one door that asks first (ADR-391).
+        service_enforced=True,
     ),
     PlatformCapability.OPEN_LOOPS: CapabilitySpec(
         capability=PlatformCapability.OPEN_LOOPS,

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
 import { HealthDial, HEALTH_TONE_INK } from './HealthDial';
 import { formatNumberLocale } from '@/lib/briefing-utils';
-import { HEALTH_SCALES, toneOf } from '@/lib/health-dial';
+import { HEALTH_SCALES, heartBeatPeriod, toneOf } from '@/lib/health-dial';
 import { cn } from '@/lib/utils';
 import type { CardSection, HealthData, HealthSummaryItem } from '@/types/briefing';
 
@@ -69,6 +69,8 @@ function HealthMetric({ item }: { item: HealthSummaryItem }) {
   const todayLabel = todayValue !== null ? formatNumberLocale(todayValue, locale) : '—';
   const windowLabel = averageValue !== null ? formatNumberLocale(averageValue, locale) : '—';
   const unitLabel = t(`dashboard.briefing.cards.health.unit_${item.kind}`);
+  // The pulse beats at its own rhythm (owner, 2026-11-14), for a reader who welcomes motion.
+  const beat = heartBeatPeriod(item.kind, todayValue);
 
   return (
     <li className="row-span-3 grid w-full min-w-0 grid-rows-subgrid justify-items-center gap-y-2">
@@ -83,8 +85,10 @@ function HealthMetric({ item }: { item: HealthSummaryItem }) {
           <span
             className={cn(
               'whitespace-nowrap text-[clamp(1.125rem,20cqw,2.25rem)] font-semibold leading-none tracking-tight',
-              dailyInk(item.kind, todayValue)
+              dailyInk(item.kind, todayValue),
+              beat !== null && 'motion-safe:animate-heart-beat'
             )}
+            style={beat === null ? undefined : { animationDuration: `${beat.toFixed(3)}s` }}
           >
             {todayLabel}
           </span>
@@ -94,15 +98,8 @@ function HealthMetric({ item }: { item: HealthSummaryItem }) {
         </span>
       </div>
 
-      {/* The window's average, marked by the notch it wears on the dial. */}
+      {/* The window's average: the notch on the dial is its one mark. */}
       <div className="flex min-w-0 flex-wrap items-baseline justify-center gap-x-1.5 leading-tight">
-        {averageValue !== null && (
-          <span
-            aria-hidden="true"
-            className="h-3 w-0.5 shrink-0 self-center rounded-full bg-foreground/70"
-            data-testid="health-average-key"
-          />
-        )}
         <span className="whitespace-nowrap text-base font-semibold tracking-tight text-foreground/80">
           {windowLabel}
         </span>

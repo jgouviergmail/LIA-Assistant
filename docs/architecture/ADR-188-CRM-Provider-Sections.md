@@ -59,7 +59,10 @@ loupe incomplète, une section vide serait un **faux négatif**.
 
 Le calendrier, lui, demande une **fenêtre** et filtre les participants
 localement — la seule formulation à la fois portable et exacte sur ce qu'elle
-veut dire.
+veut dire. La fenêtre est lue **en entier**, page après page
+(`list_events_window`), la moitié à venir puis la passée : la lecture d'une
+seule requête s'arrêtait au plafond des agents et ne voyait jamais un
+rendez-vous à venir (ADR-185, amendement 2026-11-15).
 
 ### 3. Pas de compte, mais une portée
 

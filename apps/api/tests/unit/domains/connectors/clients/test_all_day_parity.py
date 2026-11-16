@@ -24,6 +24,7 @@ import httpx
 import pytest
 import vobject
 
+from src.core.constants import CALENDAR_LIST_PAGE_MAX
 from src.domains.connectors.clients.apple_calendar_client import AppleCalendarClient
 from src.domains.connectors.clients.event_bounds import bounds_of, change_of
 from src.domains.connectors.clients.google_calendar_client import GoogleCalendarClient
@@ -668,6 +669,25 @@ class TestWindows:
         assert window["truncated"] is True
         assert recorder.calls[1][3]["pageToken"] == "p2"
         assert recorder.calls[0][3]["singleEvents"] == "true"
+
+    async def test_google_says_when_its_calendar_listing_holds_more(self) -> None:
+        """A page token is Google's word for « more calendars »: a reader of all owned
+        calendars must not take one page for the account's whole list."""
+        client = GoogleCalendarClient(USER, _credentials(), MagicMock())
+        recorder = _Recorder(
+            lambda request: httpx.Response(
+                200, json={"items": [{"id": "moi@x.com"}], "nextPageToken": "p2"}
+            )
+        )
+        listed = await _drive(client, recorder, lambda: client.list_calendars(max_results=900))
+        assert listed["truncated"] is True
+        assert recorder.calls[0][3]["maxResults"] == str(CALENDAR_LIST_PAGE_MAX)
+
+    async def test_google_says_a_whole_calendar_listing_is_whole(self) -> None:
+        client = GoogleCalendarClient(USER, _credentials(), MagicMock())
+        recorder = _Recorder(lambda request: httpx.Response(200, json={"items": []}))
+        listed = await _drive(client, recorder, lambda: client.list_calendars())
+        assert listed["truncated"] is False
 
     async def test_google_reads_a_holiday_calendar_id_whole(self) -> None:
         client = GoogleCalendarClient(USER, _credentials(), MagicMock())

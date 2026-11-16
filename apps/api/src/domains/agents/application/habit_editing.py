@@ -54,3 +54,12 @@ async def rebuild_habit_draft(
         if not await replace_pending_command(db, old, revised):
             raise CommandRejected("STALE_STATE")
     return revised.model_dump(mode="json")
+
+
+#: The habit acts whose edited card is prepared again here, by operation.
+HABIT_EDITORS = {
+    "habits.status": rebuild_habit_draft,
+    "habits.delete": rebuild_habit_draft,
+    "habits.forget": rebuild_habit_draft,
+    "habits.recompute": rebuild_habit_draft,
+}

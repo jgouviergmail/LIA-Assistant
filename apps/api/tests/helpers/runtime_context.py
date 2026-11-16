@@ -53,21 +53,35 @@ DEFAULT_TEST_USER_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
 DEFAULT_TEST_CONVERSATION_ID = "test-conversation"
 
 
-def make_runtime_context(**overrides: Any) -> LiaRuntimeContext:
+def make_runtime_context(
+    *, execution_mode: str | None = None, **overrides: Any
+) -> LiaRuntimeContext:
     """Build a valid runtime context, overriding only what the test is about.
 
     Args:
+        execution_mode: The ENGINE the turn runs in (``pipeline`` | ``react``),
+            settled as the router settles it before any tool runs, and the
+            requested mode unless ``requested_execution_mode`` says otherwise.
+            Omitted, the turn is unsettled and its requested mode is the default.
         **overrides: Any field of :class:`LiaRuntimeContext`.
 
     Returns:
         A context with sane, reproducible defaults.
+
+    Raises:
+        ValueError: ``execution_mode`` names no engine.
     """
     base: dict[str, Any] = {
         "user_id": DEFAULT_TEST_USER_ID,
         "thread_id": DEFAULT_TEST_CONVERSATION_ID,
         "conversation_id": DEFAULT_TEST_CONVERSATION_ID,
     }
-    return LiaRuntimeContext(**{**base, **overrides})
+    if execution_mode is not None:
+        base["requested_execution_mode"] = execution_mode
+    context = LiaRuntimeContext(**{**base, **overrides})
+    if execution_mode is not None:
+        context.turn_engine.settle(execution_mode)
+    return context
 
 
 @contextmanager

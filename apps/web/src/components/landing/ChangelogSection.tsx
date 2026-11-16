@@ -52,7 +52,7 @@ export async function ChangelogSection({ lng }: { lng: string }) {
       aria-labelledby="changelog-title"
       className="landing-section bg-card py-20"
     >
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <FadeInOnScroll>
           <div className="mb-12 text-center">
             <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
@@ -65,7 +65,7 @@ export async function ChangelogSection({ lng }: { lng: string }) {
             >
               {t('landing.changelog.title')}
             </h2>
-            <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+            <p className="leading-7 text-muted-foreground">
               {t('landing.changelog.subtitle')}
             </p>
           </div>
