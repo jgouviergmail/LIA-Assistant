@@ -41,7 +41,7 @@ vi.mock('sonner', () => ({ toast }));
 vi.mock('@/i18n/client', () => ({
   useTranslation: () => ({
     t: (key: string, values?: Record<string, string | number>) =>
-      values ? `${key} ${JSON.stringify(values)}` : key,
+      values && Object.keys(values).length > 0 ? `${key} ${JSON.stringify(values)}` : key,
   }),
 }));
 

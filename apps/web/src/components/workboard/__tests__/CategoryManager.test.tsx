@@ -25,7 +25,7 @@ import type { CategoryRow } from '@/types/workboard';
 // The suite's `t` drops the values; a category is told apart by its NAME.
 const i18n = vi.hoisted(() => ({
   t: (key: string, values?: Record<string, unknown>) =>
-    values ? `${key} ${JSON.stringify(values)}` : key,
+    values && Object.keys(values).length > 0 ? `${key} ${JSON.stringify(values)}` : key,
   i18n: { language: 'fr' },
 }));
 vi.mock('react-i18next', () => ({ useTranslation: () => i18n }));

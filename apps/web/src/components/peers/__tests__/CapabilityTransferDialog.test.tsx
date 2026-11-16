@@ -8,7 +8,7 @@ import type { CapabilitySelection, CapabilityTransfer } from '@/lib/capability-s
 // shared with whom; one identity, as react-i18next memoizes it.
 const i18n = vi.hoisted(() => ({
   t: (key: string, options?: Record<string, unknown>) =>
-    options
+    options && Object.keys(options).length > 0
       ? `${key}(${Object.entries(options)
           .map(([name, value]) => `${name}=${String(value)}`)
           .join(',')})`

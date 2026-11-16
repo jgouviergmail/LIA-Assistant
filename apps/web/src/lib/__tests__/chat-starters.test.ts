@@ -20,7 +20,7 @@ import {
 
 /** Echoes the key and its params, so the composition is observable. */
 const t = (key: string, options?: Record<string, unknown>) =>
-  options ? `${key}(${Object.values(options).join(',')})` : key;
+  options && Object.keys(options).length > 0 ? `${key}(${Object.values(options).join(',')})` : key;
 
 describe('composeStarterRail', () => {
   it('falls back to the generic starters when nothing is grounded', () => {

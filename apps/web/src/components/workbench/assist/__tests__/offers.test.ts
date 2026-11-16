@@ -85,7 +85,7 @@ vi.mock('@/hooks/useApiQuery', () => ({
 vi.mock('@/i18n/client', () => ({
   useTranslation: () => ({
     t: (key: string, values?: Record<string, string>) =>
-      values ? `${key} ${JSON.stringify(values)}` : key,
+      values && Object.keys(values).length > 0 ? `${key} ${JSON.stringify(values)}` : key,
   }),
 }));
 

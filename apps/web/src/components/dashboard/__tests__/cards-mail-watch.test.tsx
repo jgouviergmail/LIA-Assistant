@@ -56,7 +56,7 @@ vi.mock('@/hooks/useApiMutation', () => ({
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) =>
-      opts
+      opts && Object.keys(opts).length > 0
         ? `${key}|${Object.entries(opts)
             .map(([k, v]) => `${k}=${v}`)
             .join('|')}`

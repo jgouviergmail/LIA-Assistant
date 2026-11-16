@@ -25,7 +25,9 @@ import {
 const { i18nStub } = vi.hoisted(() => ({
   i18nStub: {
     t: (key: string, options?: Record<string, unknown>) =>
-      options ? `${key}(${Object.values(options).join(',')})` : key,
+      options && Object.keys(options).length > 0
+        ? `${key}(${Object.values(options).join(',')})`
+        : key,
     i18n: { language: 'fr' },
   },
 }));

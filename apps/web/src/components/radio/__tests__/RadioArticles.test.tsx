@@ -24,7 +24,7 @@ vi.mock('@/lib/api-client', async importOriginal => ({
 vi.mock('@/i18n/client', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key} ${JSON.stringify(params)}` : key,
+      params && Object.keys(params).length > 0 ? `${key} ${JSON.stringify(params)}` : key,
     i18n: { language: 'en', changeLanguage: vi.fn() },
   }),
 }));

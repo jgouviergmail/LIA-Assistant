@@ -62,7 +62,7 @@ vi.mock('../HomeTools', async importOriginal => {
 vi.mock('@/i18n/client', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) =>
-      opts
+      opts && Object.keys(opts).length > 0
         ? `${key}|${Object.entries(opts)
             .map(([k, v]) => `${k}=${v}`)
             .join('|')}`
@@ -82,7 +82,7 @@ vi.mock('@/components/sms/SmsConfirmation', () => ({ SmsConfirmation: () => null
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) =>
-      opts
+      opts && Object.keys(opts).length > 0
         ? `${key}|${Object.entries(opts)
             .map(([k, v]) => `${k}=${v}`)
             .join('|')}`

@@ -17,7 +17,7 @@ const { api, i18n } = vi.hoisted(() => ({
   // One stable `t` that shows its values, so a bound and a range are read.
   i18n: {
     t: (key: string, values?: Record<string, string | number>) =>
-      values ? `${key}(${Object.values(values).join('|')})` : key,
+      values && Object.keys(values).length > 0 ? `${key}(${Object.values(values).join('|')})` : key,
     i18n: { language: 'en' },
   },
 }));
