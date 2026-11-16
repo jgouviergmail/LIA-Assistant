@@ -52,7 +52,6 @@ from src.domains.connectors.clients.people_names import (
     named_path,
 )
 from src.domains.connectors.models import ConnectorType
-from src.domains.connectors.schemas import ConnectorCredentials
 from src.infrastructure.cache import ContactsCache
 
 logger = structlog.get_logger(__name__)
@@ -84,23 +83,6 @@ class GooglePeopleClient(GoogleContactGroupsMixin, CacheableMixin[ContactsCache]
 
     # Required by CacheableMixin
     _cache_class = ContactsCache
-
-    def __init__(
-        self,
-        user_id: UUID,
-        credentials: ConnectorCredentials,
-        connector_service: Any,  # ConnectorService
-    ) -> None:
-        """
-        Initialize Google People client.
-
-        Args:
-            user_id: User UUID.
-            credentials: OAuth credentials (access_token, refresh_token).
-            connector_service: ConnectorService instance for token refresh.
-        """
-        # Initialize base class with default rate limiting
-        super().__init__(user_id, credentials, connector_service)
 
     async def _get_cache(self) -> ContactsCache:
         """Every record read uses the credentials' source, including cache hits."""

@@ -19,8 +19,9 @@ import asyncio
 import random
 import threading
 from collections.abc import Sequence
-from contextlib import suppress
+from contextlib import AsyncExitStack, suppress
 from datetime import date
+from typing import Literal
 
 import structlog
 
@@ -141,6 +142,29 @@ def record_observer_agreement(usage: JevUsage, verdict: str, score: float, propo
         _SINK.add_agreement(usage, verdict, bucket, proposed, now_utc().date())
 
 
+def _failed_flush(
+    pending: JevStatisticsSink,
+    batch: JevStatisticsBatch,
+    stage: Literal["statements", "commit"],
+    exc: BaseException,
+) -> None:
+    """Restore only unwritten counts; a lost commit reply must never cause a replay.
+
+    Args:
+        pending: The worker's sink receiving counts that were not committed.
+        batch: The counts taken for this flush.
+        stage: Statements before commit, or the commit with a possibly unknown outcome.
+        exc: The failure whose type is recorded without its message.
+    """
+    if stage == "statements":
+        pending.give_back(batch)
+        event = "jev_statistics_flush_failed"
+    else:
+        event = "jev_statistics_flush_unknown"
+    jev_statistics_flush_failures_total.labels(stage=stage).inc()
+    logger.warning(event, rows=batch.rows, error_type=type(exc).__name__)
+
+
 async def flush_jev_statistics(sink: JevStatisticsSink | None = None) -> int:
     """Write the pending counts in one short transaction.
 
@@ -156,27 +180,28 @@ async def flush_jev_statistics(sink: JevStatisticsSink | None = None) -> int:
     batch = pending.take()
     if batch.rows == 0:
         return 0
-    committing = False
     try:
-        async with get_db_context() as db:
+        async with AsyncExitStack() as statements:
+            db = await statements.enter_async_context(get_db_context())
             written = await JevStatisticsRepository(db).upsert(batch)
-            committing = True
-    except BaseException as exc:
-        if committing:
-            # The commit itself failed: the rows may be there or not. Dropped, never
-            # counted twice — a bounded loss of one flush.
-            jev_statistics_flush_failures_total.labels(stage="commit").inc()
-            logger.warning(
-                "jev_statistics_flush_unknown", rows=batch.rows, error_type=type(exc).__name__
-            )
-        else:
-            pending.give_back(batch)
-            jev_statistics_flush_failures_total.labels(stage="statements").inc()
-            logger.warning(
-                "jev_statistics_flush_failed", rows=batch.rows, error_type=type(exc).__name__
-            )
-        if not isinstance(exc, Exception):
-            raise
+            # Transfer the context's commit and close only after every statement succeeds.
+            # On failure, its normal rollback/close stays owned by the statements stack.
+            commit = statements.pop_all()
+    except (asyncio.CancelledError, KeyboardInterrupt, SystemExit) as exc:
+        _failed_flush(pending, batch, "statements", exc)
+        raise
+    except Exception as exc:
+        _failed_flush(pending, batch, "statements", exc)
+        return 0
+    try:
+        # This explicitly awaited exit may fail after the database accepted the commit.
+        # Its batch is dropped, never counted twice — a bounded loss of one flush.
+        await commit.aclose()
+    except (asyncio.CancelledError, KeyboardInterrupt, SystemExit) as exc:
+        _failed_flush(pending, batch, "commit", exc)
+        raise
+    except Exception as exc:
+        _failed_flush(pending, batch, "commit", exc)
         return 0
     jev_statistics_rows_total.inc(written)
     return written
@@ -226,8 +251,8 @@ class JevStatisticsFlusher:
     async def stop(self) -> int:
         """Let the current flush end, then write what is left — both within ONE bound.
 
-        A flush hanging on the database when shutdown begins is cancelled at the bound
-        (its batch given back, unwritten), so a stopping worker never waits past it.
+        A flush hanging on the database when shutdown begins is cancelled at the bound.
+        Its unwritten batch is given back; an unknown commit is never replayed.
 
         Returns:
             How many rows the last flush wrote.

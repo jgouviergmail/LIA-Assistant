@@ -159,8 +159,8 @@ class TokenGapClock:
         now: A monotonic clock, in seconds.
     """
 
-    observe: Callable[[float], None] = observe_token_gap
-    now: Callable[[], float] = time.perf_counter
+    observe: Callable[[float], None] = field(default_factory=lambda: observe_token_gap)
+    now: Callable[[], float] = field(default_factory=lambda: time.perf_counter)
     _previous: float | None = field(default=None, init=False)
 
     def tick(self, chunk_type: str) -> None:

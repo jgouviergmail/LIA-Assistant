@@ -512,7 +512,7 @@ def _parse_modes(spec: str | None) -> list[Mode]:
 def _summary(runs: list[Run]) -> str:
     rows = [
         "| model | mode | scenario | n | expected | silent | tag written | correct "
-        "| honesty block | errors | EUR/run |",
+        + "| honesty block | errors | EUR/run |",
         "|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     groups: dict[tuple[str, str, str], list[Run]] = {}

@@ -703,10 +703,7 @@ class NotificationDispatcher:
 
         # Get or create conversation
         if conversation_id is None:
-            conversation = await conv_service.get_or_create_conversation(
-                user.id, db, language=user.language
-            )
-            conversation_id = conversation.id
+            await conv_service.get_or_create_conversation(user.id, db, language=user.language)
         else:
             existing = await conv_service.get_active_conversation(user.id, db)
             if existing is None or existing.id != conversation_id:

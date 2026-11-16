@@ -98,7 +98,7 @@ def track_graph_writer[T](task: asyncio.Task[T]) -> asyncio.Task[T]:
     if authority is not None:
         authority.writers.add(task)
 
-        def finished(writer: asyncio.Task[T]) -> None:
+        def finished(writer: asyncio.Task[object]) -> None:
             authority.writers.discard(writer)
             if not writer.cancelled() and (failure := writer.exception()) is not None:
                 logger.warning(

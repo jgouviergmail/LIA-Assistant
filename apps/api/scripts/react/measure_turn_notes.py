@@ -327,7 +327,7 @@ def _llm(provider: str, model: str, level: Level) -> BaseChatModel:
 def _summary(runs: list[Run]) -> str:
     rows = [
         "| model | scenario | note | n | note shown | accepted | followed | excluded named "
-        "| calls after note | empty answer | USD/run |",
+        + "| calls after note | empty answer | USD/run |",
         "|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     groups: dict[tuple[str, str, bool], list[Run]] = {}

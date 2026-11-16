@@ -1,11 +1,26 @@
 """Interleave graph chunks and transient cards without losing the actual graph writer."""
 
 import asyncio
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, AsyncIterator
 
 from src.core.constants import STREAM_TEARDOWN_WAIT_SECONDS
 from src.core.run_authority import track_graph_writer
 from src.infrastructure.async_utils import cancel_and_wait
+
+
+async def _next_chunk[T](stream: AsyncIterator[tuple[T, str]]) -> tuple[T, str] | None:
+    """Read one graph chunk, or signal that its iterator ended.
+
+    Args:
+        stream: The graph's native chunk and archive-fragment iterator.
+
+    Returns:
+        Its next pair, or None once the iterator is exhausted.
+    """
+    try:
+        return await stream.__anext__()
+    except StopAsyncIteration:
+        return None
 
 
 async def interleave_side_channel[T](
@@ -26,16 +41,10 @@ async def interleave_side_channel[T](
     sse_aiter = sse_stream.__aiter__()
     pending: asyncio.Task[tuple[T, str] | None] | None = None
 
-    async def next_chunk() -> tuple[T, str] | None:
-        try:
-            return await sse_aiter.__anext__()
-        except StopAsyncIteration:
-            return None
-
     try:
         while True:
             if pending is None:
-                pending = track_graph_writer(asyncio.create_task(next_chunk()))
+                pending = track_graph_writer(asyncio.create_task(_next_chunk(sse_aiter)))
             done, _ = await asyncio.wait({pending}, timeout=poll_interval)
             while not side_queue.empty():
                 try:

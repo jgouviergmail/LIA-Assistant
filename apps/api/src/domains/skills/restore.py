@@ -18,7 +18,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.domains.skills.exceptions import raise_skill_previous_version_unavailable
-from src.domains.skills.import_service import SkillImportService, parse_incoming_skill_name
+from src.domains.skills.import_service import (
+    SkillImportService,
+    parse_incoming_skill_name,
+    validate_skill_name,
+)
 from src.domains.skills.lifecycle_lock import lock_skill_owner
 from src.domains.skills.models import Skill, SkillProvenance
 from src.domains.skills.previous_version import keeps_previous, previous_slot
@@ -57,11 +61,14 @@ async def restore_previous(db: AsyncSession, owner_id: UUID, name: str) -> dict[
         The restored skill (safe subset), as an import returns it.
 
     Raises:
+        ValidationError: The name violates the import contract; refused before
+            any database or filesystem access.
         ResourceNotFoundError: No skill of the person's own words by that name,
             or no previous version kept. Raised with the owner lock still held,
             as every refused import is: the caller's transaction ends it (the
             route's session rolls back).
     """
+    validate_skill_name(name)
     async with account_file_write(db, owner_id):
         # The slot is read under the lock every replacement writes it under.
         await lock_skill_owner(db, owner_id)

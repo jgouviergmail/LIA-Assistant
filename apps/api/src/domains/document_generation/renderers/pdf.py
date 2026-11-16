@@ -431,7 +431,7 @@ def _whole_figures(
     only ever moves figures down: one pass per figure at most.
     """
     laid = _lay_out_parts(render(), css, page_size, archive)
-    for _figure in html.rooms:
+    for _ in range(len(html.rooms)):
         squeezed = html.squeezed(laid.positions)
         if not squeezed:
             break

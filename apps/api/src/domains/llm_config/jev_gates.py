@@ -300,7 +300,7 @@ def passes(gate: JevGate, score: float, threshold: Decimal) -> bool:
     """Whether ``score`` concludes through ``gate`` at ``threshold``, compared exactly."""
     exact = Decimal(str(score))
     if gate.kind is GateKind.MARGIN:
-        return exact <= threshold or exact >= 1 - threshold
+        return min(exact, 1 - exact) <= threshold
     return exact >= threshold
 
 

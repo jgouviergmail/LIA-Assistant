@@ -39,7 +39,7 @@ import {
   Star,
   Trash2,
 } from '@/lib/icons';
-import type { CSSProperties, MouseEvent } from 'react';
+import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react';
 
 import { Checkbox } from '@/components/ui/checkbox';
 import { RowActions, type RowAction } from '@/components/ui/row-actions';
@@ -106,7 +106,7 @@ function shifted(event: Event): boolean {
 }
 
 /** A plain primary click — the one the screen takes; any modifier is the browser's. */
-export function isPlainClick(event: MouseEvent): boolean {
+export function isPlainClick(event: ReactMouseEvent): boolean {
   return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
 }
 

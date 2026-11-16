@@ -11,8 +11,10 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
+from contextlib import suppress
 from datetime import date
 from typing import Any
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -29,6 +31,7 @@ from src.domains.llm_config.jev_statistics_repository import (
     JevStatisticsBatch,
     JevStatisticsRepository,
 )
+from src.domains.llm_config.jev_statistics_sink import JevStatisticsSink, flush_jev_statistics
 
 pytestmark = pytest.mark.integration
 
@@ -117,3 +120,63 @@ async def test_a_batch_without_counts_writes_no_row(
         assert await JevStatisticsRepository(session).upsert(batch) == 0
         await session.commit()
         assert await _sum(session, JevOutcomeDaily.count, JevOutcomeDaily.usage == usage) == 0
+
+
+@pytest.mark.parametrize("after_commit", [False, True], ids=["uncommitted", "committed"])
+async def test_cancellation_restores_only_a_batch_that_cannot_have_committed(
+    committed: tuple[async_sessionmaker[AsyncSession], str], after_commit: bool
+) -> None:
+    """Cancel real SQL work, or lose the reply after a real commit, without double counting."""
+    maker, usage = committed
+    pending = JevStatisticsSink()
+    batch = JevStatisticsBatch()
+    batch.outcomes[(DAY, usage, "classified")] = 1
+    pending.give_back(batch)
+    reached = asyncio.Event()
+    blocked = asyncio.Event()
+    session = maker()
+    upsert = JevStatisticsRepository.upsert
+    commit = session.commit
+
+    async def controlled_upsert(
+        repository: JevStatisticsRepository, counts: JevStatisticsBatch
+    ) -> int:
+        written = await upsert(repository, counts)
+        if not after_commit:
+            reached.set()
+            await blocked.wait()
+        return written
+
+    async def controlled_commit() -> None:
+        await commit()
+        reached.set()
+        await blocked.wait()
+
+    with (
+        patch("src.infrastructure.database.session.AsyncSessionLocal", return_value=session),
+        patch.object(JevStatisticsRepository, "upsert", controlled_upsert),
+        patch.object(session, "commit", controlled_commit),
+    ):
+        task = asyncio.create_task(flush_jev_statistics(pending))
+        try:
+            await asyncio.wait_for(reached.wait(), timeout=5)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        finally:
+            # The test owns its task even when the SQL operation never reaches the pause.
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+
+    assert pending.pending_rows == (0 if after_commit else 1)
+    async with maker() as reader:
+        assert await _sum(reader, JevOutcomeDaily.count, JevOutcomeDaily.usage == usage) == int(
+            after_commit
+        )
+
+    # The next flush retries only a rolled-back batch; an acknowledged-lost commit stays once.
+    with patch("src.infrastructure.database.session.AsyncSessionLocal", maker):
+        assert await flush_jev_statistics(pending) == (0 if after_commit else 1)
+    async with maker() as reader:
+        assert await _sum(reader, JevOutcomeDaily.count, JevOutcomeDaily.usage == usage) == 1

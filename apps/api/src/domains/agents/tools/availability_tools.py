@@ -32,6 +32,7 @@ from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.constants import AGENT_EVENT, CONTEXT_DOMAIN_EVENTS
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.services.availability_slots import (
+    Interval,
     busy_intervals_from_events,
     busy_intervals_from_freebusy,
     find_free_slots,
@@ -93,6 +94,41 @@ async def _owner_calendar_id(client: Any, user_id: UUID) -> str:
         return "primary"
 
 
+async def _read_busy_window(
+    client: GoogleCalendarClient, calendar_id: str, time_min: str, time_max: str
+) -> tuple[list[Interval], bool, str]:
+    """Read occupied intervals and their completeness through the provider's door.
+
+    Args:
+        client: The active calendar client.
+        calendar_id: The owner's configured calendar, read with the other owned calendars.
+        time_min: Inclusive UTC window start.
+        time_max: Exclusive UTC window end.
+
+    Returns:
+        Busy intervals, whether the entire window was read, and its source kind.
+    """
+    if hasattr(client, "query_freebusy"):
+        calendars = await calendars_to_read(client, calendar_id, bound=CALENDARS_READ_MAX)
+        response = await client.query_freebusy(
+            time_min=time_min, time_max=time_max, calendar_ids=calendars.ids
+        )
+        return (
+            busy_intervals_from_freebusy(response),
+            not (calendars.cut or unread_in_freebusy(response, calendars.ids)),
+            "freebusy",
+        )
+    # Drain each window: an agent's one-request ceiling would leave booked slots free.
+    owned = await read_owned_events(
+        client,
+        calendar_id,
+        [(time_min, time_max)],
+        bound=AVAILABILITY_PROJECTION_MAX_EVENTS,
+        fields=["start", "end"],
+    )
+    return busy_intervals_from_events(owned.events), not owned.cut, "events_projection"
+
+
 class FindAvailabilityTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
     """Compute free calendar slots over a window (freeBusy fast-path)."""
 
@@ -149,28 +185,9 @@ class FindAvailabilityTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
 
         # A busy list read in part would offer a booked slot as free: the cut is
         # carried to the model (ADR-185 amendment 2026-11-15).
-        if hasattr(client, "query_freebusy"):
-            calendars = await calendars_to_read(client, calendar_id, bound=CALENDARS_READ_MAX)
-            response = await client.query_freebusy(
-                time_min=time_min, time_max=time_max, calendar_ids=calendars.ids
-            )
-            busy = busy_intervals_from_freebusy(response)
-            window_complete = not (calendars.cut or unread_in_freebusy(response, calendars.ids))
-            source = "freebusy"
-        else:
-            # Every event of the windows, pages drained: the agents' one-request
-            # listing stops at its ceiling and would leave the rest of the window
-            # « free ». Start and end alone are asked for, where a provider projects.
-            owned = await read_owned_events(
-                client,
-                calendar_id,
-                [(time_min, time_max)],
-                bound=AVAILABILITY_PROJECTION_MAX_EVENTS,
-                fields=["start", "end"],
-            )
-            busy = busy_intervals_from_events(owned.events)
-            window_complete = not owned.cut
-            source = "events_projection"
+        busy, window_complete, source = await _read_busy_window(
+            client, calendar_id, time_min, time_max
+        )
 
         slots = find_free_slots(
             busy,

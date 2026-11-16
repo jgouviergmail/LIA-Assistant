@@ -30,6 +30,7 @@ class ConversationOriginMixin:
     """Two nullable columns naming where an act began, and their reading."""
 
     @declared_attr
+    @classmethod
     def origin_conversation_id(cls) -> Mapped[uuid.UUID | None]:
         """The discussion the act was begun in (``SET NULL`` when it is purged).
 
@@ -44,6 +45,7 @@ class ConversationOriginMixin:
         )
 
     @declared_attr
+    @classmethod
     def origin_conversation_revision(cls) -> Mapped[int | None]:
         """The generation of that discussion when the act was begun."""
         return mapped_column(BigInteger, nullable=True, comment=ORIGIN_REVISION_COMMENT)
