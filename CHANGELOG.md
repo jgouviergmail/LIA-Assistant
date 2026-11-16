@@ -125,7 +125,9 @@ conversations keep more of your words when their history is condensed.
   landing illustrations fit a narrow phone; notification warnings use accessible theme colors.
   Blog illustrations preload when their article renders, and map data is fetched when its page opens.
 - 🛡️ **Validated skill restoration**: a saved version is looked up only after its skill name passes
-  the same validation as a new import, including names received through the API.
+  the same validation as a new import, including names received through the API. Its canonical
+  directory must stay inside the account's previous-version scope; linked manifests and resources
+  are refused before reading or importing the package.
 - 🔒 **Dependency security patches**: CalDAV 3.3.2, soupsieve 4.1.1 and DOMPurify 3.4.18 close
   their published advisories; the affected CalDAV 3.4.0 release is explicitly excluded. Image tooling
   uses pip 26.3 and npm 12.2.2. The API retains the Docker CLI needed by its sandbox and operations;

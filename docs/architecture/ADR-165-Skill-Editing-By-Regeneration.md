@@ -175,6 +175,13 @@ par son canal. Tout autre remplacement vide l'emplacement ; la suppression de la
 skill l'emporte ; le disque est l'enregistrement (la liste lit les
 emplacements). `POST /skills/{name}/restore-previous` restaure par le pipeline
 d'import, tous contrôles compris, et la version écartée devient à son tour la
-précédente : une restauration s'annule. Un échec disque après le commit ne perd
+précédente : une restauration s'annule. Le nom est validé avant toute lecture ;
+le chemin canonique doit rester dans les versions précédentes du compte, avec
+une frontière de dossier qui exclut aussi les voisins de nom similaire. Le
+parcours borné de l'archive refuse liens symboliques, jonctions et ressources
+non régulières avant de lire le manifeste. Ce chemin vérifié seul atteint
+l'import. L'admission se déroule sous le verrou transactionnel du compte ; une
+annulation attend la fin de sa lecture avant de clore l'enregistrement durable
+d'écriture de fichiers. Un échec disque après le commit ne perd
 que le retour, jamais la nouvelle version (`skill_previous_version_unsettled`).
 Détails : `docs/technical/SKILLS_INTEGRATION.md`, « A skill's life ».

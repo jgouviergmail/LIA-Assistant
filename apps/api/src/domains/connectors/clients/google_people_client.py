@@ -8,7 +8,7 @@ Inherits from BaseGoogleClient for common functionality.
 import base64
 import hashlib
 from collections.abc import Mapping
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 from uuid import UUID
 
 import structlog
@@ -52,7 +52,12 @@ from src.domains.connectors.clients.people_names import (
     named_path,
 )
 from src.domains.connectors.models import ConnectorType
+from src.domains.connectors.schemas import ConnectorCredentials
 from src.infrastructure.cache import ContactsCache
+
+if TYPE_CHECKING:
+    from src.domains.connectors.service import ConnectorService
+    from src.domains.connectors.session_scope import ConnectorUnitOfWork
 
 logger = structlog.get_logger(__name__)
 
@@ -83,6 +88,25 @@ class GooglePeopleClient(GoogleContactGroupsMixin, CacheableMixin[ContactsCache]
 
     # Required by CacheableMixin
     _cache_class = ContactsCache
+
+    def __init__(
+        self,
+        user_id: UUID,
+        credentials: ConnectorCredentials,
+        connector_service: ConnectorService | ConnectorUnitOfWork,
+        rate_limit_per_second: int | None = None,
+    ) -> None:
+        """Initialize the stateful base once; neither mixin has an initializer.
+
+        Args:
+            user_id: User UUID.
+            credentials: OAuth credentials for the connected Google account.
+            connector_service: Service or unit of work owning credential writes.
+            rate_limit_per_second: Request limit; None uses the Google client setting.
+        """
+        BaseGoogleClient.__init__(
+            self, user_id, credentials, connector_service, rate_limit_per_second
+        )
 
     async def _get_cache(self) -> ContactsCache:
         """Every record read uses the credentials' source, including cache hits."""

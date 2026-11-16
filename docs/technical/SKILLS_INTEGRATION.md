@@ -596,7 +596,13 @@ through `import_directory`, every check included, and the version it puts aside
 becomes the previous one: a restoration can be undone in turn. The restoration
 name passes the same `validate_skill_name` contract as an import before any
 account lookup or filesystem access; malformed names never reach the previous
-version path. A disk failure
+version path. The source is then resolved against that account's previous-version
+scope, with a directory boundary that also refuses similarly named siblings.
+The importer receives only this checked canonical path. The archive's bounded
+resource walk refuses symbolic links, junctions and nonregular resources before
+the manifest is read. Admission runs under the account's transaction lock;
+cancellation waits for its read worker before closing the durable file-write record.
+An operator's link at the configured root remains supported. A disk failure
 after a committed replacement loses at most the way back, never the new
 version, and is logged (`skill_previous_version_unsettled`).
 
