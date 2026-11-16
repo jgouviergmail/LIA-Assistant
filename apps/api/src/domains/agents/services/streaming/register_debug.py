@@ -7,18 +7,19 @@ both hang off). A turn that opened nine sources and answered from them looked,
 on screen, like a turn that did nothing.
 
 **The source here is the LIVE record, never the database.** The debug payload is
-emitted INSIDE `treatment_recorder` and `decision_recorder`, both of which write
-on exit: a read of those tables at that instant returns nothing for the current
-turn, and « nothing » there is a false negative, not an empty turn. Both
+captured INSIDE `treatment_recorder` and `decision_recorder`, both of which write
+on exit: a read of those tables at that instant returns an earlier segment, or
+nothing for a new turn. Neither describes this segment's work. Both
 registers publish their in-flight object precisely so a reader inside the turn
-can see what is about to be written — that is what this module reads.
+can see what is about to be written. The captured payload then crosses the scope
+exit explicitly; its delayed emission never re-reads the expired contexts.
 
 Two consequences the payload states rather than hides:
 
-- **the turn's outcome is « so far », not a verdict.** It starts at
+- **the turn's outcome is « so far », not a persistence verdict.** It starts at
   ``interrupted`` and only an explicit success moves it, so the block carries
-  ``settled: false``: the row is not written yet, and the panel must not print
-  a verdict the register has not reached.
+  ``settled: false``: this segment has not been written yet, and the panel must
+  not claim that the register persisted it.
 - **a consultation records the CAPABILITY, never the call.** The entries carry
   the tool name, its declared policy, the outcome and the duration — the field
   set IS the privacy contract, and no argument crosses it.
@@ -81,8 +82,8 @@ def _decision_block() -> dict[str, Any] | None:
         "plan_step_count": turn.plan_step_count,
         "outcome": turn.outcome.value,
         "stop_reason": turn.stop_reason,
-        # The row is written on exit from `decision_recorder`, which has not
-        # happened yet: this is what is KNOWN, not what was recorded.
+        # This segment is written on exit from `decision_recorder`, which has
+        # not happened yet: this is what is KNOWN, not what was recorded.
         "settled": False,
     }
 

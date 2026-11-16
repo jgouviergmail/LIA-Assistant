@@ -7,9 +7,9 @@ turn that opened nine sources and answered from them looked, on screen, like a
 turn that did nothing.
 
 **The source is the LIVE record, not the database.** The debug payload is
-emitted INSIDE `treatment_recorder` and `decision_recorder`, which write on
-exit: a read of the tables at that instant returns nothing for the current turn,
-and « nothing » there is a false negative, not an empty turn. Both registers
+captured INSIDE `treatment_recorder` and `decision_recorder`, which write on
+exit: a read of the tables at that instant returns an earlier segment, or nothing
+for a new turn. Neither describes this segment's work. Both registers
 publish their in-flight object for exactly this reason, so the panel shows what
 is ABOUT to be written.
 
@@ -26,6 +26,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -38,6 +39,10 @@ from src.domains.agents.effects.decisions import (
     reset_turn,
 )
 from src.domains.agents.effects.treatments import Treatment, observe, treatment_collector
+from src.domains.agents.services.streaming.deferred_debug import (
+    capture_registers_debug,
+    deferred_debug_chunks,
+)
 from src.domains.agents.services.streaming.register_debug import registers_debug
 
 pytestmark = pytest.mark.unit
@@ -136,7 +141,7 @@ class TestTheTurnsOwnRecord:
     def test_the_outcome_is_published_as_what_is_known_so_far(self) -> None:
         # It starts at `interrupted` and only an explicit success moves it: a
         # turn that dies without saying how it ended must never read as
-        # answered. The panel is emitted BEFORE the row is written, so the
+        # answered. The snapshot is captured BEFORE the row is written, so the
         # value it shows is « so far », and the payload says so.
         decision = TurnDecision(run_id="r", user_id=_USER, thread_id="t")
         with turn_scope(decision):
@@ -167,6 +172,29 @@ class TestNothingIsClaimedOutsideATurn:
 
         assert payload["decision"] is None
         assert payload["treatments"]["count"] == 1
+
+
+class TestTheCapturedRegisters:
+    def test_delivery_keeps_its_snapshot_while_another_turn_is_active(self) -> None:
+        first = TurnDecision(run_id="first", execution_mode="react")
+        with turn_scope(first), treatment_collector(run_id="first"):
+            observe(replace(_treatment("get_events_tool"), run_id="first", execution_mode="react"))
+            snapshot = capture_registers_debug("first", enabled=True)
+
+        second = TurnDecision(run_id="second", execution_mode="pipeline")
+        with turn_scope(second), treatment_collector(run_id="second"):
+            observe(replace(_treatment("get_emails_tool"), run_id="second"))
+            chunks = list(deferred_debug_chunks("first", registers=snapshot))
+
+        assert len(chunks) == 1
+        payload = chunks[0].metadata["registers"]
+        assert payload["decision"]["run_id"] == "first"
+        assert payload["decision"]["execution_mode"] == "react"
+        assert payload["treatments"]["entries"][0]["tool_name"] == "get_events_tool"
+
+    def test_an_absent_snapshot_never_reads_another_active_turn(self) -> None:
+        with turn_scope(TurnDecision(run_id="other")):
+            assert list(deferred_debug_chunks("finished", registers=None)) == []
 
 
 class TestTheSilentCorrections:

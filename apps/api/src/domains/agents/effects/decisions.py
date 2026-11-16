@@ -235,14 +235,18 @@ def note_resumed_engine(engine: str) -> None:
         turn.execution_mode = engine
 
 
-def automatic_turn_engine() -> str | None:
-    """The engine « auto » settled for the turn in flight, for its answer's badge.
+def automatic_turn_engine(decision: TurnDecision | None = None) -> str | None:
+    """The engine « auto » settled, for the answer's live and archived badge.
+
+    Args:
+        decision: The owned record when the caller runs after the recording
+            scope closed (the final SSE chunk); None reads the active turn.
 
     Returns:
         ``pipeline`` or ``react`` for an automatic turn an engine planned; None for
-        an explicit choice, a conversation, or outside a turn (ADR-390).
+        an explicit choice, a conversation, or no supplied or active record (ADR-390).
     """
-    turn = _current_turn.get()
+    turn = decision if decision is not None else _current_turn.get()
     if turn is None or turn.requested_mode != EXECUTION_MODE_AUTO:
         return None
     return turn.execution_mode if turn.execution_mode in EXECUTION_ENGINES else None

@@ -92,6 +92,17 @@ same effect differently. Nothing writes: correcting a row is a reviewed
 database operation, because an executor able to edit its own record defeats the
 point of keeping one.
 
+**Amendment 2026-11-16 — capture the debug snapshot before closing its scopes.**
+The decision, consultation and verdict collectors are read while they are active
+(`capture_registers_debug`), after the answer has been archived. Their detached
+snapshot is passed explicitly to `deferred_debug_chunks` after accounting closes;
+the delayed emission never re-reads an expired context. `settled: false` says the
+snapshot does not prove persistence of this segment. A resumed HITL turn may
+already have a stored earlier segment, which cannot describe the current work.
+Capture remains best-effort and limited to readers allowed to see the panel.
+Proof: `test_register_debug_delivery.py` (real stream lifecycle, disabled access,
+capture failure and early closure) and `test_debug_registers.py` (snapshot isolation).
+
 ### 7. Two registers, two audiences
 
 - **Readable** — the user's own record. Leaves with the account export,

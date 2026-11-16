@@ -230,6 +230,31 @@ missed half the time, while the loop now reads it.
 - The pipeline's own defects now decide part of « auto »'s quality: a fix to the pipeline improves both,
   as the open-ticket filter and the reminder domain did.
 
+### Amendment, 2026-11-16: the final chunk outlives the recording scope
+
+The archived answer is built inside `decision_recorder`; the SSE `done` chunk is
+built after it closes, so its costs include the final accounting. Reading the
+ambient turn there lost the engine on every live automatic answer, although its
+archive kept it. A background history merge preserves a live bubble, so it did
+not recover the badge; reloading the history did.
+
+`with_done_enrichments` now requires the turn's owned `TurnDecision`, passed to
+the same `automatic_turn_engine` predicate the archive reads. No engine is
+inferred and no recording scope is prolonged. The real streaming-generator
+regression covers both engines, explicit modes and conversation turns, with an
+active and an inactive synthetic Telegram binding; the browser's producer never
+reads that binding. Separate tests cross the actual scope exit and keep the other
+delivered extras intact.
+
+A resumed turn also keeps the choice it began with if the person changes their
+preference while answering a confirmation. Once the checkpoint authorizes the
+resume, `restore_resumed_choice` reads the existing decision row on a short
+session and verifies its run, account and conversation identity. It restores
+`requested_mode` and `resolution_reason`; only the checkpoint settles the engine.
+A missing, unreadable or inconsistent row leaves the original choice unknown
+and shows no automatic badge. A new turn performs no such read, and no second
+copy of the choice is added to graph state.
+
 ## Left, and said
 
 - The judgement reads the request alone, never the conversation: a follow-up whose shape lives in an

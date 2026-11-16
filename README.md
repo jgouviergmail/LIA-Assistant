@@ -1301,7 +1301,7 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 
 | Metric                  | Value                                                                                                                        |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Backend tests           | 66,956 collected over `tests/`, across 4,339 files (`pytest --collect-only -q --no-cov`, Windows/Python 3.14, 2026-11-16)    |
+| Backend tests           | 66,996 collected over `tests/`, across 4,342 files (`pytest --collect-only -q --no-cov`, Windows/Python 3.14, 2026-11-16)    |
 | Frontend tests (vitest) | 22,390 across 1,603 files (`vitest list`, 2026-11-16), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
 | Coverage floor          | 87% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                       |
 | Technical audit         | Method, evidence and open findings — [full public report & protocol](docs/audit/README.md)                                   |
@@ -1431,10 +1431,10 @@ The [full story](https://lia.jeyswork.com/story) covers the method, trade-offs a
 
 |                                |                                          |                                        |                                                      |
 | ------------------------------ | ---------------------------------------- | -------------------------------------- | ---------------------------------------------------- |
-| **63** backend domain packages | **1,238,173** source lines (excl. tests) | **89,346** inventoried automated tests | **389** ADRs                                         |
+| **63** backend domain packages | **1,238,253** source lines (excl. tests) | **89,386** inventoried automated tests | **389** ADRs                                         |
 | **298** versions shipped       | **6 languages**, parity enforced in CI   | **683** Prometheus metrics             | [Technical audit and protocol](docs/audit/README.md) |
 
-Source-line figure: 1,238,173 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-11-16). The domain figure counts backend domain packages. Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
+Source-line figure: 1,238,253 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-11-16). The domain figure counts backend domain packages. Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — the method, executed evidence, open work and full report: [docs/audit/](docs/audit/README.md)

@@ -14,8 +14,10 @@ leak one turn's metadata into another.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from typing import Any
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -23,6 +25,13 @@ from src.core.field_names import FIELD_HABIT_PROPOSAL
 from src.domains.agents.api.archive_metadata import (
     build_assistant_metadata,
     with_archived_message_ids,
+)
+from src.domains.agents.effects.decision_recorder import decision_recorder
+from src.domains.agents.effects.decisions import (
+    TurnDecision,
+    current_turn,
+    note_engine,
+    turn_decision,
 )
 from src.domains.agents.services.streaming.followup_metadata import NO_TURN_EXTRAS, TurnExtras
 
@@ -202,7 +211,9 @@ class TestArchivedMessageIds:
         assert produced is base
 
 
-def test_completed_archive_and_done_share_the_delivered_card_snapshot_without_changing_costs():
+def test_completed_archive_and_done_share_the_delivered_card_snapshot_without_changing_costs() -> (
+    None
+):
     from src.domains.agents.services.streaming.done_metadata import with_done_enrichments
 
     card = {
@@ -222,6 +233,7 @@ def test_completed_archive_and_done_share_the_delivered_card_snapshot_without_ch
     )
     done = with_done_enrichments(
         base,
+        decision=TurnDecision(run_id="current"),
         user_message_id=None,
         assistant_message_id=None,
         extras=NO_TURN_EXTRAS,
@@ -251,7 +263,7 @@ def test_final_evidence_survives_canonical_archive_chain_without_mutating_base()
     assert base == {"run_id": "turn"}
 
 
-def test_the_habit_proposal_card_travels_with_the_answer_and_its_done_chunk():
+def test_the_habit_proposal_card_travels_with_the_answer_and_its_done_chunk() -> None:
     """ADR-375: archived so it survives a reload, carried live in ``done``."""
     from src.domains.agents.services.streaming.done_metadata import with_done_enrichments
 
@@ -268,6 +280,7 @@ def test_the_habit_proposal_card_travels_with_the_answer_and_its_done_chunk():
     )
     done = with_done_enrichments(
         {"tokens_in": 3},
+        decision=TurnDecision(run_id="turn"),
         user_message_id=None,
         assistant_message_id=None,
         extras=extras,
@@ -284,20 +297,39 @@ class TestTheEngineAnAutomaticTurnRanIn:
     answer so it survives a reload, and carried live in ``done``."""
 
     @staticmethod
-    def _both(extras: TurnExtras = NO_TURN_EXTRAS) -> tuple[dict[str, Any], dict[str, Any]]:
+    async def _both(
+        requested: str, engine: str | None, extras: TurnExtras = NO_TURN_EXTRAS
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         from src.domains.agents.services.streaming.done_metadata import with_done_enrichments
 
-        archived = build_assistant_metadata(
-            {"run_id": "turn"},
-            widgets=None,
-            trace_capture=_Capture([]),
-            duration_ms=1,
+        decision = turn_decision(
             run_id="turn",
-            extras=extras,
-            effects=None,
+            user_id=uuid.uuid4(),
+            thread_id="thread",
+            execution_mode=requested,
+            automated=False,
         )
+
+        async def router() -> None:
+            if engine is not None:
+                note_engine(engine, "requested")
+
+        with patch("src.domains.agents.effects.decision_recorder._write_shielded", AsyncMock()):
+            async with decision_recorder(decision):
+                await asyncio.create_task(router())
+                archived = build_assistant_metadata(
+                    {"run_id": "turn"},
+                    widgets=None,
+                    trace_capture=_Capture([]),
+                    duration_ms=1,
+                    run_id="turn",
+                    extras=extras,
+                    effects=None,
+                )
+        assert current_turn() is None
         done = with_done_enrichments(
             {"tokens_in": 3},
+            decision=decision,
             user_message_id=None,
             assistant_message_id=None,
             extras=extras,
@@ -307,25 +339,39 @@ class TestTheEngineAnAutomaticTurnRanIn:
         return archived, done
 
     @pytest.mark.parametrize("engine", ["pipeline", "react"])
-    def test_an_automatic_turn_names_its_engine_on_both_roads(self, engine: str) -> None:
-        from unittest.mock import patch
-
+    async def test_an_automatic_turn_names_its_engine_on_both_roads(self, engine: str) -> None:
         from src.core.field_names import FIELD_EXECUTION_ENGINE
 
-        with patch(
-            "src.domains.agents.effects.decisions.automatic_turn_engine", return_value=engine
-        ):
-            archived, done = self._both()
+        archived, done = await self._both("auto", engine)
 
         assert archived[FIELD_EXECUTION_ENGINE] == done[FIELD_EXECUTION_ENGINE] == engine
 
-    def test_any_other_turn_carries_no_engine(self) -> None:
-        from unittest.mock import patch
-
+    @pytest.mark.parametrize(
+        ("requested", "engine"), [("auto", None), ("pipeline", "pipeline"), ("react", "react")]
+    )
+    async def test_any_other_turn_carries_no_engine(
+        self, requested: str, engine: str | None
+    ) -> None:
         from src.core.field_names import FIELD_EXECUTION_ENGINE
 
-        with patch("src.domains.agents.effects.decisions.automatic_turn_engine", return_value=None):
-            archived, done = self._both()
+        archived, done = await self._both(requested, engine)
 
         assert FIELD_EXECUTION_ENGINE not in archived
         assert FIELD_EXECUTION_ENGINE not in done
+
+    async def test_the_other_delivered_extras_survive_the_same_scope_exit(self) -> None:
+        extras = TurnExtras(
+            followups=("Next step?",),
+            motivation="A synthetic follow-up",
+            habit_proposal={"id": "proposal", "kind": "automate_need"},
+        )
+
+        archived, done = await self._both("auto", "react", extras)
+
+        for key in (
+            "execution_engine",
+            "followup_suggestions",
+            "initiative_motivation",
+            "habit_proposal",
+        ):
+            assert archived[key] == done[key]

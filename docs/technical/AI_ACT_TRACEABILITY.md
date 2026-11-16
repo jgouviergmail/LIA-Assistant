@@ -78,6 +78,13 @@ Three properties hold across all of them:
 - **The user's own.** Both registers leave with the account archive and die with
   the account.
 
+The administrator's chat diagnostic panel also shows a **live snapshot** of the
+turn's decision, consultations and validation verdicts. It is captured before
+their recording scopes close and delivered explicitly after accounting ends.
+Its `settled: false` marker means that this snapshot is not proof of the segment's
+database persistence; a resumed confirmation may already have an earlier segment
+in the register. Persisted records remain the source for audits and exports.
+
 ### Explicit peer messages and selection assistance
 
 An explicitly requested peer message uses the native `direct` authority policy:

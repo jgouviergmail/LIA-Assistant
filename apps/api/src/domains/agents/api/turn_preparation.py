@@ -36,6 +36,7 @@ from src.domains.agents.api.schemas import (
     MCPPreparationKey,
     MCPPreparationNotice,
 )
+from src.domains.agents.effects.decision_resume import restore_resumed_choice
 from src.domains.agents.effects.decisions import note_request_message
 from src.domains.agents.services.streaming.latency_sli import (
     a_person_is_waiting,
@@ -162,6 +163,9 @@ async def prepare_turn_state(
         user_display_name=request.user_display_name,
         hitl_decision=request.hitl_decision,
     )
+    # Only the checkpoint can authorize resumption; Redis alone can be stale.
+    if state.get("_interrupt_resume_data") is not None:
+        await restore_resumed_choice()
     # Attachments go into the loaded state, before the graph reads it (evolution F4).
     if request.attachment_ids and getattr(settings, "attachments_enabled", False):
         await inject_attachments_into_state(

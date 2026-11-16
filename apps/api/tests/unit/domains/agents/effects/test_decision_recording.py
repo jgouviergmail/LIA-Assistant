@@ -331,6 +331,20 @@ class TestTheCollectorIsAROUNDTheTurn:
 
         assert answered == badge
         assert automatic_turn_engine() is None, "outside a turn there is nothing to name"
+        assert automatic_turn_engine(decision) == badge
+
+    async def test_a_closed_record_does_not_read_another_active_turn(self) -> None:
+        from src.domains.agents.effects.decisions import automatic_turn_engine, note_engine
+
+        first = TurnDecision(run_id="first", requested_mode="auto", execution_mode="auto")
+        second = TurnDecision(run_id="second", requested_mode="auto", execution_mode="auto")
+        with patch("src.domains.agents.effects.decision_recorder._write_shielded", AsyncMock()):
+            async with decision_recorder(first):
+                note_engine("react", "requested")
+            async with decision_recorder(second):
+                note_engine("pipeline", "requested")
+                assert automatic_turn_engine(first) == "react"
+                assert automatic_turn_engine() == "pipeline"
 
     async def test_a_resumed_turn_names_the_engine_it_started_with(self) -> None:
         """A resumed segment never meets the router: the builder settles its engine

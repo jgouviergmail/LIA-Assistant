@@ -143,7 +143,9 @@ def with_performed_effects(
     return {**message_metadata, FIELD_PERFORMED_EFFECTS: effects}
 
 
-def with_execution_engine(metadata: dict[str, Any]) -> dict[str, Any]:
+def with_execution_engine(
+    metadata: dict[str, Any], *, decision: turn_record.TurnDecision | None = None
+) -> dict[str, Any]:
     """Name the engine an « auto » turn ran in, for its answer's badge (ADR-390).
 
     Read from the turn's live record, the one place both the router (a new turn)
@@ -152,12 +154,14 @@ def with_execution_engine(metadata: dict[str, Any]) -> dict[str, Any]:
 
     Args:
         metadata: The metadata assembled so far.
+        decision: The owned record after its recording scope closed; None
+            reads the active turn while its answer is being archived.
 
     Returns:
         The input unchanged (same object) when there is no engine to name,
         otherwise a NEW dict carrying it.
     """
-    engine = turn_record.automatic_turn_engine()
+    engine = turn_record.automatic_turn_engine(decision)
     if engine is None:
         return metadata
     return {**metadata, FIELD_EXECUTION_ENGINE: engine}

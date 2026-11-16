@@ -69,7 +69,10 @@ from src.domains.agents.services.card_composition_service import composition_sco
 from src.domains.agents.services.orchestration.approval_decision import (
     HitlDecisionStaleError,
 )
-from src.domains.agents.services.streaming.deferred_debug import deferred_debug_chunks
+from src.domains.agents.services.streaming.deferred_debug import (
+    capture_registers_debug,
+    deferred_debug_chunks,
+)
 from src.domains.agents.services.streaming.done_metadata import with_done_enrichments
 from src.domains.agents.services.streaming.followup_metadata import pop_turn_extras
 from src.domains.agents.services.streaming.journey_timing import JourneyTiming
@@ -1108,6 +1111,10 @@ class AgentService(
                             # answer.
                             note_answered(archived_assistant_msg_id)
 
+                    # Capture while the collectors still exist; emission follows accounting.
+                    register_snapshot = capture_registers_debug(
+                        run_id, enabled=debug_panel_for_user
+                    )
                     logger.info(
                         "new_service_architecture_stream_completed",
                         run_id=run_id,
@@ -1269,11 +1276,11 @@ class AgentService(
                 # per populated family (see streaming/extraction_debug.py).
                 if debug_panel_for_user:
                     # The deferred half of the panel: the background
-                    # extractions just awaited, and ADR-263's two registers,
-                    # still in flight (B8). Assembled behind ONE door — every
+                    # extractions just awaited, and ADR-263's captured registers
+                    # (B8). Assembled behind ONE door — every
                     # `try` and every `for` written here is paid by this
                     # function, which is the codebase's worst hotspot.
-                    for debug_chunk in deferred_debug_chunks(run_id):
+                    for debug_chunk in deferred_debug_chunks(run_id, registers=register_snapshot):
                         yield debug_chunk
 
                 # Yield done chunk with complete aggregated token metadata
@@ -1297,6 +1304,7 @@ class AgentService(
                     # later sync recognises both live bubbles as those rows.
                     done_metadata = with_done_enrichments(
                         done_metadata,
+                        decision=turn,
                         user_message_id=archived_user_msg_id,
                         assistant_message_id=archived_assistant_msg_id,
                         extras=turn_extras,

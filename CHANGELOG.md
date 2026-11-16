@@ -81,6 +81,13 @@ conversations keep more of your words when their history is condensed.
 
 ### Fixed
 
+- 🧭 **Automatic-mode badge on live answers**: completion carries the engine selected for the
+  turn after its decision record closes, so the web shows the same badge as its archived answer,
+  including when Telegram is active. Resuming a confirmation preserves the original choice even
+  after a preference change. A purely conversational answer still names no engine.
+- 🔎 **Administrator register diagnostics**: the completed answer retains the decision,
+  consultation and verdict snapshot collected during its turn. This live snapshot remains
+  explicitly separate from proof that the registers were persisted.
 - 🧵 **Long-conversation continuity** (ADR-086 amendment): compaction retains whole recent
   exchanges and a bounded, verbatim record of the person's earlier words, including the truncation
   fallback. A provider refusal caused by a full context can compact and replay once from the

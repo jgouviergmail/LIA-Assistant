@@ -1,6 +1,8 @@
 """Enrich SSE completion after accounting closes; this creates no archived row."""
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from src.domains.agents.api.archive_metadata import (
@@ -15,10 +17,14 @@ from src.domains.agents.services.streaming.followup_metadata import (
     with_initiative_motivation,
 )
 
+if TYPE_CHECKING:
+    from src.domains.agents.effects.decisions import TurnDecision
+
 
 def with_done_enrichments(
     base: dict[str, Any],
     *,
+    decision: TurnDecision,
     user_message_id: UUID | None,
     assistant_message_id: UUID | None,
     extras: TurnExtras,
@@ -29,6 +35,8 @@ def with_done_enrichments(
 
     Args:
         base: The accounting summary of the turn.
+        decision: The turn's owned record. Accounting and its recording scope
+            have closed before this chunk is assembled, so no ambient turn remains.
         user_message_id: The archived question, when it was archived.
         assistant_message_id: The archived answer, when it was archived.
         extras: What the run handed its stream besides the answer: the same
@@ -46,5 +54,5 @@ def with_done_enrichments(
     metadata = with_performed_effects(metadata, effects)
     metadata = {**metadata, **card_metadata}
     metadata = with_initiative_motivation(metadata, extras.motivation)
-    metadata = with_execution_engine(metadata)
+    metadata = with_execution_engine(metadata, decision=decision)
     return with_habit_proposal(metadata, extras.habit_proposal)

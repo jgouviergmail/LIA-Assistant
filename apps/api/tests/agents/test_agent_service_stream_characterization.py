@@ -381,6 +381,7 @@ class Harness:
         record_treatments: bool = False,
         stale_hitl: bool = False,
         stop_after: int | None = None,
+        user_execution_mode: str = "pipeline",
     ) -> None:
         self.script = script
         # The reader leaves after this many chunks (a closed tab, a stopped run).
@@ -392,6 +393,7 @@ class Harness:
         self.fail_direct_tts = fail_direct_tts
         self.record_treatments = record_treatments
         self.stale_hitl = stale_hitl
+        self.user_execution_mode = user_execution_mode
         # What the personal-MCP preparation reports while the turn waits (M4).
         self.mcp_events: list[Any] = []
         self.graph_stream_kwargs: dict[str, Any] = {}
@@ -613,6 +615,7 @@ class Harness:
                 target=conversation_target(USER_ID, CONVERSATION_ID, runtime_id=RUNTIME_ID),
                 run_id=self.original_run_id or str(uuid.uuid4()),
                 original_run_id=self.original_run_id,
+                user_execution_mode=self.user_execution_mode,
             )
             try:
                 async for chunk in stream:
